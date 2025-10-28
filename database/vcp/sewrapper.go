@@ -10,7 +10,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 )
 
@@ -27,10 +26,6 @@ func (re *retryEngine) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -47,10 +42,6 @@ func (re *retryEngine) CreatingPool(ctx context.Context, pool *datamodel.Pool) (
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -67,10 +58,6 @@ func (re *retryEngine) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -87,10 +74,6 @@ func (re *retryEngine) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -106,10 +89,6 @@ func (re *retryEngine) UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHo
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -126,10 +105,6 @@ func (re *retryEngine) UpdatePoolState(ctx context.Context, pool *datamodel.Pool
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -145,10 +120,6 @@ func (re *retryEngine) UpdatePoolFields(ctx context.Context, poolUUID string, up
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -164,10 +135,6 @@ func (re *retryEngine) UpdatePoolTieringConsumption(ctx context.Context, poolUUI
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -183,10 +150,6 @@ func (re *retryEngine) DeletePool(ctx context.Context, pool *datamodel.Pool) err
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -202,10 +165,6 @@ func (re *retryEngine) DeletingPool(ctx context.Context, pool *datamodel.Pool) e
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -222,10 +181,6 @@ func (re *retryEngine) DescribePool(ctx context.Context, poolUUID string, accoun
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -242,10 +197,6 @@ func (re *retryEngine) GetPool(ctx context.Context, poolUUID string, accountID i
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -262,10 +213,6 @@ func (re *retryEngine) GetPoolByUUID(ctx context.Context, poolUUID string) (*dat
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -282,10 +229,6 @@ func (re *retryEngine) ListPools(ctx context.Context, filter *dbutils.Filter) ([
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -302,10 +245,6 @@ func (re *retryEngine) ListPoolsWithPagination(ctx context.Context, conditions [
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -322,10 +261,6 @@ func (re *retryEngine) ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -342,10 +277,6 @@ func (re *retryEngine) ListPoolUUIDsPaginated(ctx context.Context, filter *dbuti
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -362,10 +293,6 @@ func (re *retryEngine) ListPendingResourceDeletions(ctx context.Context, offset,
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -382,10 +309,6 @@ func (re *retryEngine) GetResourcesCount(ctx context.Context) (int64, error) {
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -402,10 +325,6 @@ func (re *retryEngine) GetPoolsCount(ctx context.Context, filter *dbutils.Filter
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -422,10 +341,6 @@ func (re *retryEngine) GetPoolByVendorID(ctx context.Context, vendorID string, a
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -442,10 +357,6 @@ func (re *retryEngine) GetPoolByName(ctx context.Context, conditions [][]interfa
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -461,10 +372,6 @@ func (re *retryEngine) SavePoolWithVsaDetails(ctx context.Context, pool *datamod
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -481,10 +388,6 @@ func (re *retryEngine) UpdatePoolWithKmsConfigID(ctx context.Context, pool *data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -501,10 +404,6 @@ func (re *retryEngine) GetPoolsByAccountName(ctx context.Context, accountName st
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -521,10 +420,6 @@ func (re *retryEngine) GetNextSerialNumberInRegion(ctx context.Context, region s
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -541,10 +436,6 @@ func (re *retryEngine) ListTpProjects(ctx context.Context) ([]string, error) {
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -561,10 +452,6 @@ func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volum
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -581,10 +468,6 @@ func (re *retryEngine) GetVolume(ctx context.Context, id string) (*datamodel.Vol
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -601,10 +484,6 @@ func (re *retryEngine) DescribeVolume(ctx context.Context, id string) (*datamode
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -621,10 +500,6 @@ func (re *retryEngine) GetVolumeWithAccountID(ctx context.Context, id string, ac
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -641,10 +516,6 @@ func (re *retryEngine) GetVolumeByNameAndAccountID(ctx context.Context, name str
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -661,10 +532,6 @@ func (re *retryEngine) GetVolumeByNameAccountIDAndZone(ctx context.Context, name
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -681,10 +548,6 @@ func (re *retryEngine) GetVolumeCount(ctx context.Context, accountName string) (
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -701,10 +564,6 @@ func (re *retryEngine) GetVolumeByName(ctx context.Context, name string) (*datam
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -720,10 +579,6 @@ func (re *retryEngine) UpdateVolume(ctx context.Context, volume *datamodel.Volum
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -740,10 +595,6 @@ func (re *retryEngine) RevertedVolume(ctx context.Context, volume *datamodel.Vol
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -759,10 +610,6 @@ func (re *retryEngine) UpdateVolumeFields(ctx context.Context, volumeUUID string
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -778,10 +625,6 @@ func (re *retryEngine) BatchUpdateVolumeFields(ctx context.Context, updates []da
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -798,10 +641,6 @@ func (re *retryEngine) DeleteVolume(ctx context.Context, id string) (*datamodel.
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -818,10 +657,6 @@ func (re *retryEngine) DeleteVolumeAndChildResources(ctx context.Context, volume
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -838,10 +673,6 @@ func (re *retryEngine) UpdateVolumeState(ctx context.Context, id string, state s
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -858,10 +689,6 @@ func (re *retryEngine) ListVolumes(ctx context.Context, conditions [][]interface
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -878,10 +705,6 @@ func (re *retryEngine) ListAllVolumes(ctx context.Context, conditions [][]interf
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -898,10 +721,6 @@ func (re *retryEngine) ListVolumesWithPagination(ctx context.Context, conditions
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -918,10 +737,6 @@ func (re *retryEngine) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -938,10 +753,6 @@ func (re *retryEngine) GetVolumeCountByPoolID(ctx context.Context, poolID int64)
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -958,10 +769,6 @@ func (re *retryEngine) GetMultipleVolumes(ctx context.Context, conditions [][]in
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -978,10 +785,6 @@ func (re *retryEngine) VerifyVolumeOwnership(ctx context.Context, volumeID strin
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -998,10 +801,6 @@ func (re *retryEngine) GetAllVolumesForHG(ctx context.Context, hostGroupUUID str
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1018,10 +817,6 @@ func (re *retryEngine) GetEligibleVolumes(ctx context.Context, conditions [][]in
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1038,10 +833,6 @@ func (re *retryEngine) CreateVolumeReplication(ctx context.Context, volumeRep *d
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1058,10 +849,6 @@ func (re *retryEngine) GetVolumeReplication(ctx context.Context, id string) (*da
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1077,10 +864,6 @@ func (re *retryEngine) UpdateVolumeReplication(ctx context.Context, volumeRep *d
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1096,10 +879,6 @@ func (re *retryEngine) UpdateVolumeReplicationFields(ctx context.Context, volume
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1115,10 +894,6 @@ func (re *retryEngine) UpdateVolumeReplicationStates(ctx context.Context, volume
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1134,10 +909,6 @@ func (re *retryEngine) UpdateVolumeReplicationTransferStats(ctx context.Context,
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1154,10 +925,6 @@ func (re *retryEngine) DeleteVolumeReplication(ctx context.Context, replication 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1174,10 +941,6 @@ func (re *retryEngine) GetVolumeReplicationByProjectId(ctx context.Context, acco
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1194,10 +957,6 @@ func (re *retryEngine) GetVolumeReplicationCount(ctx context.Context, accountNam
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1214,10 +973,6 @@ func (re *retryEngine) GetVolumeReplicationCountByPeerName(ctx context.Context, 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1234,10 +989,6 @@ func (re *retryEngine) GetVolumeReplicationCountByVolumeID(ctx context.Context, 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1254,10 +1005,6 @@ func (re *retryEngine) ListVolumeReplications(ctx context.Context, filter dbutil
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1274,10 +1021,6 @@ func (re *retryEngine) ListVolumeReplicationsWithPagination(ctx context.Context,
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1294,10 +1037,6 @@ func (re *retryEngine) GetAccount(ctx context.Context, name string) (*datamodel.
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1314,10 +1053,6 @@ func (re *retryEngine) CreateAccount(ctx context.Context, account *datamodel.Acc
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1334,10 +1069,6 @@ func (re *retryEngine) GetAccountByUUID(ctx context.Context, uuid string) (*data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1354,10 +1085,6 @@ func (re *retryEngine) GetSoftDeleteAccount(ctx context.Context, name string) (*
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1374,10 +1101,6 @@ func (re *retryEngine) GetDeletedAccounts(ctx context.Context) ([]*datamodel.Acc
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1393,10 +1116,6 @@ func (re *retryEngine) DeleteAccount(ctx context.Context, accountID int64) error
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1412,10 +1131,6 @@ func (re *retryEngine) RollBackDeletedAccount(ctx context.Context, accountID int
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1432,10 +1147,6 @@ func (re *retryEngine) GetAccounts(ctx context.Context, includeDelete bool, pagi
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1451,10 +1162,6 @@ func (re *retryEngine) UpdateAccountStateForHandleResource(ctx context.Context, 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1471,10 +1178,6 @@ func (re *retryEngine) CreateJob(ctx context.Context, job *datamodel.Job) (*data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1490,10 +1193,6 @@ func (re *retryEngine) DeleteJob(ctx context.Context, id, errorDetails string) e
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1509,10 +1208,6 @@ func (re *retryEngine) UpdateJob(ctx context.Context, jobID string, status strin
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1529,10 +1224,6 @@ func (re *retryEngine) GetJob(ctx context.Context, jobID string) (*datamodel.Job
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1549,10 +1240,6 @@ func (re *retryEngine) GetJobsWithCondition(ctx context.Context, filter dbutils.
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1569,10 +1256,6 @@ func (re *retryEngine) GetOngoingMigrateKmsConfigJob(ctx context.Context, accoun
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1588,10 +1271,6 @@ func (re *retryEngine) UpdateJobAttributes(ctx context.Context, jobUUID string, 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1608,10 +1287,6 @@ func (re *retryEngine) CheckAndFetchDuplicateJobs(ctx context.Context, jobType s
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1628,10 +1303,6 @@ func (re *retryEngine) GetSvmForPoolID(ctx context.Context, poolID int64) (*data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1648,10 +1319,6 @@ func (re *retryEngine) GetNodesByPoolID(ctx context.Context, poolId int64) ([]*d
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1668,10 +1335,6 @@ func (re *retryEngine) CreateNode(ctx context.Context, node *datamodel.Node) (*d
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1688,10 +1351,6 @@ func (re *retryEngine) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1708,10 +1367,6 @@ func (re *retryEngine) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*da
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1728,10 +1383,6 @@ func (re *retryEngine) GetNextSVMIndexByPoolID(ctx context.Context, poolID int64
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1748,10 +1399,6 @@ func (re *retryEngine) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datam
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1768,10 +1415,6 @@ func (re *retryEngine) ListSvmsWithAccountId(ctx context.Context, accountId int6
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1788,10 +1431,6 @@ func (re *retryEngine) CreateLif(ctx context.Context, lif *datamodel.Lif) (*data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1808,10 +1447,6 @@ func (re *retryEngine) GetLifForNode(ctx context.Context, nodeID int64, accountI
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1828,10 +1463,6 @@ func (re *retryEngine) CreateHostGroup(ctx context.Context, hostGroup *datamodel
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1848,10 +1479,6 @@ func (re *retryEngine) GetHostGroup(ctx context.Context, id string, accountID in
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1868,10 +1495,6 @@ func (re *retryEngine) GetMultipleHostGroups(ctx context.Context, ids []string, 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1888,10 +1511,6 @@ func (re *retryEngine) DeleteHostGroup(ctx context.Context, hostGroupUUID string
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1907,10 +1526,6 @@ func (re *retryEngine) UpdateHostGroupsState(ctx context.Context, hostGroupUUID 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1927,10 +1542,6 @@ func (re *retryEngine) UpdateHostGroup(ctx context.Context, hostGroupUUID string
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1947,10 +1558,6 @@ func (re *retryEngine) ListHostGroupsByAccountID(ctx context.Context, accountID 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -1966,10 +1573,6 @@ func (re *retryEngine) UpdateHostGroupsStateForHandleResource(ctx context.Contex
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -1986,10 +1589,6 @@ func (re *retryEngine) GetLifsForNodesWithProtocol(ctx context.Context, nodeIDs 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2006,10 +1605,6 @@ func (re *retryEngine) GetLifByNodeID(ctx context.Context, nodeID int64, account
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2025,10 +1620,6 @@ func (re *retryEngine) DeleteLif(ctx context.Context, lif *datamodel.Lif) error 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2044,10 +1635,6 @@ func (re *retryEngine) DeleteNode(ctx context.Context, node *datamodel.Node) err
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2063,10 +1650,6 @@ func (re *retryEngine) DeletingNode(ctx context.Context, node *datamodel.Node) e
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2082,10 +1665,6 @@ func (re *retryEngine) DeleteSVM(ctx context.Context, svm *datamodel.Svm) error 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2101,10 +1680,6 @@ func (re *retryEngine) DeletingSVM(ctx context.Context, svm *datamodel.Svm) erro
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2120,10 +1695,6 @@ func (re *retryEngine) ErroredNode(ctx context.Context, node *datamodel.Node, er
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2139,10 +1710,6 @@ func (re *retryEngine) ErroredSVM(ctx context.Context, svm *datamodel.Svm, errMs
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2159,10 +1726,6 @@ func (re *retryEngine) CreatingSnapshot(ctx context.Context, snapshot *datamodel
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2179,10 +1742,6 @@ func (re *retryEngine) UpdateSnapshot(ctx context.Context, snapshot *datamodel.S
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2199,10 +1758,6 @@ func (re *retryEngine) UpdateSnapshotForHandleResource(ctx context.Context, snap
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2219,10 +1774,6 @@ func (re *retryEngine) GetSnapshotByUUID(ctx context.Context, uuid string, accou
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2239,10 +1790,6 @@ func (re *retryEngine) GetSnapshotByNameAndVolumeId(ctx context.Context, snapsho
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2259,10 +1806,6 @@ func (re *retryEngine) GetSnapshotByPoolID(ctx context.Context, SnapshotUUID str
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2279,10 +1822,6 @@ func (re *retryEngine) GetSnapshotsByVolumeID(ctx context.Context, volumeID int6
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2299,10 +1838,6 @@ func (re *retryEngine) GetWronglyDeletedSnapshot(ctx context.Context, snapshotEx
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2318,10 +1853,6 @@ func (re *retryEngine) UnDeleteSnapshot(ctx context.Context, snapshot *datamodel
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2338,10 +1869,6 @@ func (re *retryEngine) GetSnapshotsByVolumeIDs(ctx context.Context, volumeID []i
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2358,10 +1885,6 @@ func (re *retryEngine) GetReplicationSnapshotsByVolumeID(ctx context.Context, vo
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2378,10 +1901,6 @@ func (re *retryEngine) GetSnapshotsWithCondition(ctx context.Context, filter dbu
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2398,10 +1917,6 @@ func (re *retryEngine) GetAppConsistentSnapshotsForVolume(ctx context.Context, a
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2418,10 +1933,6 @@ func (re *retryEngine) GetSnapshotsByTypeAndVolumeID(ctx context.Context, snapsh
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2438,10 +1949,6 @@ func (re *retryEngine) DeleteSnapshot(ctx context.Context, id string) (*datamode
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2457,10 +1964,6 @@ func (re *retryEngine) DeletingSnapshot(ctx context.Context, snapshot *datamodel
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2477,10 +1980,6 @@ func (re *retryEngine) BatchDeleteSnapshots(ctx context.Context, snapshotIDs []i
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2497,10 +1996,6 @@ func (re *retryEngine) BatchCreateSnapshots(ctx context.Context, newSnapshots []
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2516,10 +2011,6 @@ func (re *retryEngine) BatchUpdateSnapshots(ctx context.Context, snapshots []*da
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2535,10 +2026,6 @@ func (re *retryEngine) BatchUnDeleteSnapshots(ctx context.Context, snapshots []*
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2555,10 +2042,6 @@ func (re *retryEngine) BatchGetSnapshotsByUUIDs(ctx context.Context, snapshotUUI
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2575,10 +2058,6 @@ func (re *retryEngine) BatchGetWronglyDeletedSnapshots(ctx context.Context, snap
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2595,10 +2074,6 @@ func (re *retryEngine) GetMultipleKmsConfigs(ctx context.Context, conditions [][
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2615,10 +2090,6 @@ func (re *retryEngine) GetKmsConfig(ctx context.Context, kmsConfigUUID string) (
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2635,10 +2106,6 @@ func (re *retryEngine) UpdateKmsConfigState(ctx context.Context, kmsConfigUUID s
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2655,10 +2122,6 @@ func (re *retryEngine) DeleteKmsConfig(ctx context.Context, kmsConfigUUID, state
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2675,10 +2138,6 @@ func (re *retryEngine) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2695,10 +2154,6 @@ func (re *retryEngine) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, k
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2715,10 +2170,6 @@ func (re *retryEngine) UpdateKmsConfigStateForHandleResource(ctx context.Context
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2735,10 +2186,6 @@ func (re *retryEngine) CreateKmsConfig(ctx context.Context, kmsConfig *datamodel
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2755,10 +2202,6 @@ func (re *retryEngine) GetKmsConfigByUUID(ctx context.Context, uuid string) (*da
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2775,10 +2218,6 @@ func (re *retryEngine) UpdateKmsConfigAttributes(ctx context.Context, uuid strin
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2795,10 +2234,6 @@ func (re *retryEngine) GetJobByResourceUUID(ctx context.Context, resourceUUID st
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2815,10 +2250,6 @@ func (re *retryEngine) UpdateKmsConfigDetails(ctx context.Context, uuid string, 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2835,10 +2266,6 @@ func (re *retryEngine) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPat
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2854,10 +2281,6 @@ func (re *retryEngine) UpdateKmsConfig(ctx context.Context, kmsUUID string, upda
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -2874,10 +2297,6 @@ func (re *retryEngine) IsKmsConfigInUse(ctx context.Context, kmsConfigUUID strin
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2894,10 +2313,6 @@ func (re *retryEngine) ListKmsConfigByAccountID(ctx context.Context, accountID i
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2914,10 +2329,6 @@ func (re *retryEngine) CreateKmsServiceAccount(ctx context.Context, serviceAccou
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2934,10 +2345,6 @@ func (re *retryEngine) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2954,10 +2361,6 @@ func (re *retryEngine) UpdateServiceAccountState(ctx context.Context, uuid strin
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2974,10 +2377,6 @@ func (re *retryEngine) GetServiceAccountFromEmail(ctx context.Context, email str
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -2994,10 +2393,6 @@ func (re *retryEngine) ListKmsServiceAccounts(ctx context.Context, filter *dbuti
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3013,10 +2408,6 @@ func (re *retryEngine) DeleteServiceAccount(ctx context.Context, serviceAccount 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -3033,10 +2424,6 @@ func (re *retryEngine) GetBackupVaultByNameAndOwnerID(ctx context.Context, backu
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3053,10 +2440,6 @@ func (re *retryEngine) CreatingBackupVault(ctx context.Context, bv *datamodel.Ba
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3073,10 +2456,6 @@ func (re *retryEngine) ListBackupVaults(ctx context.Context, accountID int64) ([
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3093,10 +2472,6 @@ func (re *retryEngine) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backup
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3113,10 +2488,6 @@ func (re *retryEngine) GetBackupByNameAndBackupVaultID(ctx context.Context, back
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3133,10 +2504,6 @@ func (re *retryEngine) CreateBackupVaultEntryInVCP(ctx context.Context, bv *data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3152,10 +2519,6 @@ func (re *retryEngine) UpdateBackupVault(ctx context.Context, backupVault *datam
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -3172,10 +2535,6 @@ func (re *retryEngine) GetBackupVault(ctx context.Context, backupVaultId string)
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3192,10 +2551,6 @@ func (re *retryEngine) UpdateBackupVaultState(ctx context.Context, bv *datamodel
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3212,10 +2567,6 @@ func (re *retryEngine) UpdateBackupVaultInVCP(ctx context.Context, vault *datamo
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3232,10 +2583,6 @@ func (re *retryEngine) GetMultipleBackupVaults(ctx context.Context, conditions [
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3252,10 +2599,6 @@ func (re *retryEngine) DeleteBackupVaultInVCP(ctx context.Context, backupVaultId
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3272,10 +2615,6 @@ func (re *retryEngine) GetVolumeCountByBackupVaultID(ctx context.Context, backup
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3292,10 +2631,6 @@ func (re *retryEngine) GetBackupCountByBackupVaultID(ctx context.Context, backup
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3312,10 +2647,6 @@ func (re *retryEngine) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, back
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3332,10 +2663,6 @@ func (re *retryEngine) GetBackupPolicyByNameAndOwnerID(ctx context.Context, back
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3352,10 +2679,6 @@ func (re *retryEngine) GetVolumeCountByBackupPolicyID(ctx context.Context, backu
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3372,10 +2695,6 @@ func (re *retryEngine) GetBackupPolicyUUIDsFromBackupVaultUUID(ctx context.Conte
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3392,10 +2711,6 @@ func (re *retryEngine) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Conte
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3412,10 +2727,6 @@ func (re *retryEngine) ListBackupPolicyVolumeCount(ctx context.Context, conditio
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3432,10 +2743,6 @@ func (re *retryEngine) ListBackupPolicies(ctx context.Context, conditions [][]in
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3452,10 +2759,6 @@ func (re *retryEngine) CreateBackupPolicyEntryInVCP(ctx context.Context, backupP
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3472,10 +2775,6 @@ func (re *retryEngine) UpdateBackupPolicy(ctx context.Context, uuid string, upda
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3492,10 +2791,6 @@ func (re *retryEngine) DeleteBackupPolicy(ctx context.Context, backupPolicyUUID 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3512,10 +2807,6 @@ func (re *retryEngine) CreateBackup(ctx context.Context, backup *datamodel.Backu
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3532,10 +2823,6 @@ func (re *retryEngine) GetBackup(ctx context.Context, backupVaultUUID string, ba
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3552,10 +2839,6 @@ func (re *retryEngine) DeleteBackup(ctx context.Context, backupUUID string) (*da
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3572,10 +2855,6 @@ func (re *retryEngine) UpdateBackup(ctx context.Context, backup *datamodel.Backu
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3591,10 +2870,6 @@ func (re *retryEngine) UpdateBackupFields(ctx context.Context, backupUUID string
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -3611,10 +2886,6 @@ func (re *retryEngine) UpdateBackupConstituentCountFromVolume(ctx context.Contex
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3631,10 +2902,6 @@ func (re *retryEngine) FinishBackup(ctx context.Context, backup *datamodel.Backu
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3651,10 +2918,6 @@ func (re *retryEngine) UpdateBackupState(ctx context.Context, backup *datamodel.
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3671,10 +2934,6 @@ func (re *retryEngine) IsBackupInCreatingorDeletingStateByVolume(ctx context.Con
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3691,10 +2950,6 @@ func (re *retryEngine) IsLatestBackup(ctx context.Context, backupUUID, volumeUUI
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3711,10 +2966,6 @@ func (re *retryEngine) IsLatestBackupAnyState(ctx context.Context, backupUUID, v
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3731,10 +2982,6 @@ func (re *retryEngine) BackupCountByVolumeID(ctx context.Context, volumeUUID str
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3751,10 +2998,6 @@ func (re *retryEngine) FetchScheduledBackupsForDeletion(ctx context.Context, vol
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3771,10 +3014,6 @@ func (re *retryEngine) IsBackupShared(ctx context.Context, backup *datamodel.Bac
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3791,10 +3030,6 @@ func (re *retryEngine) GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUU
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3811,10 +3046,6 @@ func (re *retryEngine) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID st
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3830,10 +3061,6 @@ func (re *retryEngine) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.C
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -3850,10 +3077,6 @@ func (re *retryEngine) GetBackupMetrics(ctx context.Context, conditions [][]inte
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3870,10 +3093,6 @@ func (re *retryEngine) GetBackupMetadata(ctx context.Context, conditions [][]int
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3890,10 +3109,6 @@ func (re *retryEngine) ListVolumesWithAccounts(ctx context.Context) ([]*datamode
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3909,10 +3124,6 @@ func (re *retryEngine) UpdateLatestBackupLogicalSize(ctx context.Context, volume
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -3929,10 +3140,6 @@ func (re *retryEngine) GetVolumeLatestBackupMap(ctx context.Context) (map[int64]
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3949,10 +3156,6 @@ func (re *retryEngine) GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3969,10 +3172,6 @@ func (re *retryEngine) CreateBackupMetadata(ctx context.Context, backupMetadata 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -3988,10 +3187,6 @@ func (re *retryEngine) DeleteBackupMetadata(ctx context.Context, volumeUUID stri
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4008,10 +3203,6 @@ func (re *retryEngine) GetBackupMetadataByVolumeUUID(ctx context.Context, volume
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4028,10 +3219,6 @@ func (re *retryEngine) UpdateBackupMetadata(ctx context.Context, backupMetadata 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4048,10 +3235,6 @@ func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamode
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4068,10 +3251,6 @@ func (re *retryEngine) CreateAdminJobSpecIfNotExists(ctx context.Context, jobSpe
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4088,10 +3267,6 @@ func (re *retryEngine) GetAdminJobSpecByJobType(ctx context.Context, jobType str
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4107,10 +3282,6 @@ func (re *retryEngine) UpdateAdminJobSpec(ctx context.Context, jobSpec *datamode
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4127,10 +3298,6 @@ func (re *retryEngine) UpdateAdminJobSpecWithLock(ctx context.Context, jobType, 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4147,10 +3314,6 @@ func (re *retryEngine) GetAdminJobSpecsByState(ctx context.Context, state string
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4167,10 +3330,6 @@ func (re *retryEngine) CreateNodeNodeGroupMap(ctx context.Context, mapping *data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4187,10 +3346,6 @@ func (re *retryEngine) GetNodeNodeGroupMap(ctx context.Context, id int64) (*data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4207,10 +3362,6 @@ func (re *retryEngine) UpdateNodeNodeGroupMap(ctx context.Context, mapping *data
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4226,10 +3377,6 @@ func (re *retryEngine) DeleteNodeNodeGroupMap(ctx context.Context, id int64) err
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4245,10 +3392,6 @@ func (re *retryEngine) DeleteNodeGroupMap(ctx context.Context, nodeGroupMap *dat
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4265,10 +3408,6 @@ func (re *retryEngine) GetNodeGroupMapNodeCount(ctx context.Context, nodeGroupID
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4285,10 +3424,6 @@ func (re *retryEngine) GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID i
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4305,10 +3440,6 @@ func (re *retryEngine) CreateNodeGroup(ctx context.Context, group *datamodel.Nod
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4325,10 +3456,6 @@ func (re *retryEngine) GetNodeGroup(ctx context.Context, id int64) (*datamodel.N
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4345,10 +3472,6 @@ func (re *retryEngine) UpdateNodeGroup(ctx context.Context, group *datamodel.Nod
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4364,10 +3487,6 @@ func (re *retryEngine) DeleteNodeGroup(ctx context.Context, id int64) error {
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4384,10 +3503,6 @@ func (re *retryEngine) ErroredResource(ctx context.Context, resource interface{}
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4404,10 +3519,6 @@ func (re *retryEngine) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Conte
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4424,10 +3535,6 @@ func (re *retryEngine) AssignTwoNodesToTwoGroups(ctx context.Context, params dat
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4444,10 +3551,6 @@ func (re *retryEngine) ListNodeNodeGroupMap(ctx context.Context, includeDeleted 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4463,10 +3566,6 @@ func (re *retryEngine) HardDeleteResourceByTable(ctx context.Context, table stri
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4483,10 +3582,6 @@ func (re *retryEngine) CreateClusterUpgradeJob(ctx context.Context, upgradeJob *
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4503,10 +3598,6 @@ func (re *retryEngine) GetClusterUpgradeJobByUUID(ctx context.Context, jobUUID s
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4523,10 +3614,6 @@ func (re *retryEngine) GetClusterUpgradeJobsByClusterID(ctx context.Context, clu
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4542,10 +3629,6 @@ func (re *retryEngine) UpdateClusterUpgradeJob(ctx context.Context, upgradeJob *
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4562,10 +3645,6 @@ func (re *retryEngine) CreateImageVersion(ctx context.Context, imageVersion *dat
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4582,10 +3661,6 @@ func (re *retryEngine) GetImageVersionByOntapVersion(ctx context.Context, ontapV
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4602,10 +3677,6 @@ func (re *retryEngine) ListImageVersions(ctx context.Context, activeOnly bool) (
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4621,10 +3692,6 @@ func (re *retryEngine) UpdateImageVersion(ctx context.Context, imageVersion *dat
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4640,10 +3707,6 @@ func (re *retryEngine) DeleteImageVersion(ctx context.Context, ontapVersion stri
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4660,10 +3723,6 @@ func (re *retryEngine) CreatePendingResourceDeletion(ctx context.Context, resour
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4680,10 +3739,6 @@ func (re *retryEngine) UpdatePendingResourceDeletion(ctx context.Context, resour
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4700,10 +3755,6 @@ func (re *retryEngine) CreateActiveDirectory(ctx context.Context, ad *datamodel.
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4720,10 +3771,6 @@ func (re *retryEngine) UpdateActiveDirectory(ctx context.Context, ad *datamodel.
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4740,10 +3787,6 @@ func (re *retryEngine) GetActiveDirectoryByNameAndAccountID(ctx context.Context,
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4760,10 +3803,6 @@ func (re *retryEngine) GetActiveDirectoryByUuidAndAccountId(ctx context.Context,
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4780,10 +3819,6 @@ func (re *retryEngine) GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx con
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4800,10 +3835,6 @@ func (re *retryEngine) CreateClusterPeeringRow(ctx context.Context, clusterPeeri
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4819,10 +3850,6 @@ func (re *retryEngine) UpdateClusterPeeringRow(ctx context.Context, clusterPeeri
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -4839,10 +3866,6 @@ func (re *retryEngine) ListClusterPeeringRowsByAccountID(ctx context.Context, ac
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4859,10 +3882,6 @@ func (re *retryEngine) GetActiveDirectoryByUUID(ctx context.Context, uuid string
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4879,10 +3898,6 @@ func (re *retryEngine) ListActiveDirectories(ctx context.Context, accountID int6
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -4899,9 +3914,5 @@ func (re *retryEngine) GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, 
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }

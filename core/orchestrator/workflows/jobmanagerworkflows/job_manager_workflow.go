@@ -79,7 +79,7 @@ func (wf *jobManagerWorkflow) CreateJob(ctx workflow.Context) (*datamodel.Job, e
 
 	commonActivities := activities.CommonActivities{}
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		StartToCloseTimeout: 10 * time.Second,
+		StartToCloseTimeout: 60 * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},

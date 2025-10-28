@@ -201,7 +201,7 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 
 	commonActivity := activities.CommonActivities{}
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		StartToCloseTimeout: 10 * time.Second,
+		StartToCloseTimeout: 60 * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},

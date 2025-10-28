@@ -678,7 +678,7 @@ func (wf *baseScheduledBackupWorkflow) CreateJob(ctx workflow.Context, accountID
 
 	commonActivities := activities.CommonActivities{}
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		StartToCloseTimeout: 10 * time.Second,
+		StartToCloseTimeout: 60 * time.Second,
 	})
 
 	var createdJob *datamodel.Job

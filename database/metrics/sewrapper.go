@@ -10,7 +10,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 )
 
@@ -26,10 +25,6 @@ func (re *retryEngine) CreateHydratedMetrics(ctx context.Context, m *datamodel.H
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -45,10 +40,6 @@ func (re *retryEngine) CreateHydratedMetricsBatch(ctx context.Context, metrics [
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -65,10 +56,6 @@ func (re *retryEngine) GetHydratedMetrics(ctx context.Context, filter map[string
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -84,10 +71,6 @@ func (re *retryEngine) UpdateHydratedMetrics(ctx context.Context, id string, upd
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -103,10 +86,6 @@ func (re *retryEngine) DeleteHydratedMetrics(ctx context.Context, id string) err
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -123,10 +102,6 @@ func (re *retryEngine) DeleteHydratedMetricsOlderThan(ctx context.Context, older
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -142,10 +117,6 @@ func (re *retryEngine) CreateAggregatedUsage(ctx context.Context, a *datamodel.A
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -161,10 +132,6 @@ func (re *retryEngine) CreateAggregatedUsageBatch(ctx context.Context, usages []
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -181,10 +148,6 @@ func (re *retryEngine) GetAggregatedUsage(ctx context.Context, filter map[string
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -200,10 +163,6 @@ func (re *retryEngine) UpdateAggregatedUsage(ctx context.Context, id int64, upda
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -219,10 +178,6 @@ func (re *retryEngine) DeleteAggregatedUsage(ctx context.Context, id int64) erro
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }
 
@@ -239,10 +194,6 @@ func (re *retryEngine) DeleteAggregatedUsageOlderThan(ctx context.Context, older
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return var0, err
 }
 
@@ -258,9 +209,5 @@ func (re *retryEngine) AggregateUsageForBizOps(ctx context.Context, bizopsAggrPa
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return err
 }

@@ -149,7 +149,7 @@ func (wf *clusterUpgradeWorkflow) UpdateClusterUpgradeJobStatus(ctx workflow.Con
 	}
 	clusterUpgradeActivity := &activities.ClusterUpgradeActivity{}
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		StartToCloseTimeout: 10 * time.Second,
+		StartToCloseTimeout: 60 * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},

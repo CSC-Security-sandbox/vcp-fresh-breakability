@@ -249,7 +249,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/{{ printf "%s" .Package }}/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 )
 {{- range .Modified }}
@@ -269,10 +268,6 @@ func (re *retryEngine) {{ printf "%s" .Name }}({{ printf "%s" .Input }}){{ print
 		}
 		return true, err
 	})
-	if dbutils.IsTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
 	return {{ printf "%s" .RetParams }}err
 }
 {{- end }}
