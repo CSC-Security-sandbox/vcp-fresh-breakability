@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 )
 
 type VolumeDeleteActivity struct {
@@ -30,6 +31,11 @@ func (va VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volumeEx
 		if strings.Contains(err.Error(), "volume is in use") {
 			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
 		}
+		if strings.Contains(err.Error(), "Retries exhausted when attempting to reach the storage server") {
+			logger.Errorf("DeleteVolumeInONTAP - Unable to reach node %s Error: %v", node.Name, err)
+			return temporal.NewNonRetryableApplicationError("Unable to delete volume: Node not reachable", "DeleteVolumeInONTAPError", errors.New("unable to reach node"))
+		}
+
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debugf("Volume %s deleted successfully from the vsa cluster", volumeName)
