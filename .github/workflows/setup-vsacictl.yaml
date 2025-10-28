@@ -35,7 +35,22 @@ jobs:
         id: changes
         run: |
           # Check if cicd/ directory has changes
-          if git diff --name-only origin/${{ github.base_ref || 'main' }}...${{ github.sha }} | grep -q '^cicd/'; then
+          # For PRs: compare against base branch
+          # For push events: compare against previous commit
+          if [ -n "${{ github.base_ref }}" ]; then
+            # Pull request event
+            BASE="origin/${{ github.base_ref }}"
+          else
+            # Push event - use previous commit or HEAD^ as fallback
+            BASE="${{ github.event.before }}"
+            if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              BASE="HEAD^"
+            fi
+          fi
+          
+          echo "Comparing against: $BASE"
+          
+          if git diff --name-only "$BASE"...${{ github.sha }} | grep -q '^cicd/'; then
             echo "cicd=true" >> $GITHUB_OUTPUT
             echo "✅ Detected changes in cicd/ directory"
           else
