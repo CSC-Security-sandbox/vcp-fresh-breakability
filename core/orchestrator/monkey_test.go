@@ -20,6 +20,11 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 	getOrCreateAccount = mm.getOrCreateAccount
 	validateCreateVolumeParams = mm.validateCreateVolumeParams
 	workflowsExecuteWorkflowSequentially = mm.workflowsExecuteWorkflowSequentially
+	isEstablishVolumePeeringNeeded = mm.isEstablishVolumePeeringNeeded
+	verifyVolumeState = mm.verifyVolumeState
+	verifyFlexCacheParameters = mm.verifyFlexCacheParameters
+	verifyClusterPeering = mm.verifyClusterPeering
+	checkForFlexCacheJobInProgress = mm.checkForFlexCacheJobInProgress
 
 	createFlexCacheVolume = mm.createFlexCacheVolume
 	establishFlexCacheVolumePeering = mm.establishFlexCacheVolumePeering
@@ -40,6 +45,11 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 		getOrCreateAccount = _getOrCreateAccount
 		validateCreateVolumeParams = _validateCreateVolumeParams
 		workflowsExecuteWorkflowSequentially = workflows.ExecuteWorkflowSequentially
+		isEstablishVolumePeeringNeeded = _isEstablishVolumePeeringNeeded
+		verifyVolumeState = _verifyVolumeState
+		verifyFlexCacheParameters = _verifyFlexCacheParameters
+		verifyClusterPeering = _verifyClusterPeering
+		checkForFlexCacheJobInProgress = _checkForFlexCacheJobInProgress
 
 		createFlexCacheVolume = _createFlexCacheVolume
 		establishFlexCacheVolumePeering = _establishFlexCacheVolumePeering

@@ -7733,7 +7733,6 @@ func TestV1betaEstablishVolumePeering(t *testing.T) {
 			PeerClusterName: "peerCluster",
 			PeerSvmName:     "peerSvm",
 			PeerVolumeName:  "peerVol",
-			Passphrase:      gcpgenserver.NewOptNilString("securePassphrase"),
 		}
 		params := gcpgenserver.V1betaEstablishVolumePeeringParams{
 			ProjectNumber:    "1234567890",
@@ -7744,11 +7743,10 @@ func TestV1betaEstablishVolumePeering(t *testing.T) {
 		internalErr := fmt.Errorf("orchestrator failure")
 		mockOrch.
 			On("EstablishFlexCacheVolumePeering", mock.Anything, mock.AnythingOfType("*common.EstablishVolumePeeringParams")).
-			Return(nil, internalErr)
+			Return(nil, "", internalErr)
 
 		res, err := h.V1betaEstablishVolumePeering(ctx, req, params)
-		require.Error(t, err)
-		require.Equal(t, internalErr, err)
+		require.NoError(t, err)
 
 		_, ok := res.(*gcpgenserver.V1betaEstablishVolumePeeringInternalServerError)
 		require.True(t, ok, "expected internal server error response type")
@@ -7774,7 +7772,6 @@ func TestV1betaEstablishVolumePeering(t *testing.T) {
 			PeerIpAddresses: gcpgenserver.NewOptNilStringArray([]string{"1.1.1.1",
 				"2.2.2.2"}),
 			PeeringCommandExpiryTime: gcpgenserver.NewOptNilDateTime(time.Now().Add(1 * time.Hour)),
-			Passphrase:               gcpgenserver.NewOptNilString("secure-passphrase"),
 		}
 
 		pass := "secure-passphrase"
@@ -7795,7 +7792,7 @@ func TestV1betaEstablishVolumePeering(t *testing.T) {
 		}
 		mockOrch.
 			On("EstablishFlexCacheVolumePeering", mock.Anything, mock.AnythingOfType("*common.EstablishVolumePeeringParams")).
-			Return(volume, nil)
+			Return(volume, "", nil)
 
 		result, err := handler.V1betaEstablishVolumePeering(context.Background(), req, params)
 		assert.NoError(tt, err)

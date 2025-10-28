@@ -2959,8 +2959,6 @@ type EstablishPeeringRequestV1beta struct {
 	PeerIpAddresses OptNilStringArray `json:"peerIpAddresses"`
 	// Expiry time for the peer acceptance command.
 	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
-	// Passphrase used for cluster peer authentication if required.
-	Passphrase OptNilString `json:"passphrase"`
 }
 
 // GetPeerClusterName returns the value of PeerClusterName.
@@ -2988,11 +2986,6 @@ func (s *EstablishPeeringRequestV1beta) GetPeeringCommandExpiryTime() OptNilDate
 	return s.PeeringCommandExpiryTime
 }
 
-// GetPassphrase returns the value of Passphrase.
-func (s *EstablishPeeringRequestV1beta) GetPassphrase() OptNilString {
-	return s.Passphrase
-}
-
 // SetPeerClusterName sets the value of PeerClusterName.
 func (s *EstablishPeeringRequestV1beta) SetPeerClusterName(val string) {
 	s.PeerClusterName = val
@@ -3016,11 +3009,6 @@ func (s *EstablishPeeringRequestV1beta) SetPeerIpAddresses(val OptNilStringArray
 // SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
 func (s *EstablishPeeringRequestV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
 	s.PeeringCommandExpiryTime = val
-}
-
-// SetPassphrase sets the value of Passphrase.
-func (s *EstablishPeeringRequestV1beta) SetPassphrase(val OptNilString) {
-	s.Passphrase = val
 }
 
 // Export policy for a NAS volume.

@@ -388,6 +388,18 @@ type V1betaEncryptVolumesParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaEstablishVolumePeeringParams is parameters of v1beta_establishVolumePeering operation.
+type V1betaEstablishVolumePeeringParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Resource Id used to identify the volume.
+	VolumeResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaFinishProjectEventParams is parameters of v1beta_finishProjectEvent operation.
 type V1betaFinishProjectEventParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

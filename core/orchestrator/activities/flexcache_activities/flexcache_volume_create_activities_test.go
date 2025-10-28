@@ -18,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -1230,4 +1231,438 @@ func TestLoggingPatchedForJobActivities(t *testing.T) {
 
 	mockStorage.On("GetJob", ctx, "wf-id").Return(minimalJob("u1", string(models.JobsStateDONE)), nil).Once()
 	_, _ = act.CompleteFlexCacheCreateJobActivity(ctx, result)
+}
+
+func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
+	newVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			CacheParameters: &datamodel.CacheParameters{},
+		}
+	}
+
+	t.Run("WhenClusterPeerUUIDAbsent", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		vol := newVolume() // ClusterPeerUUID nil
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		logger.EXPECT().Debug("cluster peer UUID absent; will create")
+
+		out, err := act.EnsureClusterPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.ClusterPeerAction)
+		assert.Nil(tt, out.ClusterPeer)
+	})
+
+	t.Run("WhenGetClusterPeerErrors", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		uuid := "peer-uuid"
+		vol := newVolume()
+		vol.ClusterPeerUUID = &uuid
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetClusterPeer(uuid).Return(nil, assert.AnError)
+		logger.EXPECT().Infof(mock.MatchedBy(func(format string) bool {
+			return true // accept the formatted Infof
+		}), mock.Anything)
+
+		out, err := act.EnsureClusterPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.ClusterPeerAction)
+		assert.Nil(tt, out.ClusterPeer)
+	})
+
+	t.Run("WhenClusterPeerNilWithoutError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		uuid := "peer-uuid"
+		vol := newVolume()
+		vol.ClusterPeerUUID = &uuid
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetClusterPeer(uuid).Return(nil, nil)
+		logger.EXPECT().Infof(mock.Anything, mock.Anything)
+
+		out, err := act.EnsureClusterPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.ClusterPeerAction)
+	})
+
+	t.Run("WhenClusterPeerInvalidStateProblem", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		uuid := "peer-uuid"
+		vol := newVolume()
+		vol.ClusterPeerUUID = &uuid
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		cp := &vsa.ClusterPeer{
+			UUID:                uuid,
+			AuthenticationState: vsa.ClusterPeerAuthenticationStateProblem,
+			Availability:        vsa.ClusterPeerAvailabilityStateUnavailable,
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetClusterPeer(uuid).Return(cp, nil)
+		logger.EXPECT().Warnf(mock.Anything, cp.AuthenticationState, cp.Availability)
+
+		out, err := act.EnsureClusterPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.ClusterPeerAction)
+	})
+
+	t.Run("WhenCommandExpiredRecreate", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		uuid := "peer-uuid"
+		expired := time.Now().Add(-5 * time.Minute)
+		expiredFmt := strfmt.DateTime(expired)
+		vol := newVolume()
+		vol.ClusterPeerUUID = &uuid
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		cp := &vsa.ClusterPeer{
+			UUID:                uuid,
+			AuthenticationState: vsa.ClusterPeerAuthenticationStatePending,
+			Availability:        vsa.ClusterPeerAvailabilityStatePending,
+			ExpiryTime:          &expiredFmt,
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetClusterPeer(uuid).Return(cp, nil)
+		logger.EXPECT().Infof(mock.Anything, uuid)
+
+		out, err := act.EnsureClusterPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.ClusterPeerAction)
+	})
+
+	t.Run("WhenClusterPeerReady", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		uuid := "peer-uuid"
+		vol := newVolume()
+		vol.ClusterPeerUUID = &uuid
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		cp := &vsa.ClusterPeer{
+			UUID:                uuid,
+			AuthenticationState: vsa.ClusterPeerAuthenticationStateOK,
+			Availability:        vsa.ClusterPeerAvailabilityStateAvailable,
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetClusterPeer(uuid).Return(cp, nil)
+		logger.EXPECT().Debug("reusing existing cluster peer (ready)")
+
+		out, err := act.EnsureClusterPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionReady, out.ClusterPeerAction)
+		assert.Equal(tt, cp, out.ClusterPeer)
+	})
+
+	t.Run("WhenClusterPeerWait", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		uuid := "peer-uuid"
+		vol := newVolume()
+		vol.ClusterPeerUUID = &uuid
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		cp := &vsa.ClusterPeer{
+			UUID:                uuid,
+			AuthenticationState: vsa.ClusterPeerAuthenticationStatePending,
+			Availability:        vsa.ClusterPeerAvailabilityStatePartial,
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetClusterPeer(uuid).Return(cp, nil)
+		logger.EXPECT().Debugf(mock.Anything, cp.AuthenticationState, cp.Availability)
+
+		out, err := act.EnsureClusterPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionWait, out.ClusterPeerAction)
+		assert.Equal(tt, cp, out.ClusterPeer)
+	})
+
+	t.Run("WhenClusterPeerUnknownFallback", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		uuid := "peer-uuid"
+		vol := newVolume()
+		vol.ClusterPeerUUID = &uuid
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		cp := &vsa.ClusterPeer{
+			UUID:                uuid,
+			AuthenticationState: vsa.ClusterPeerAuthenticationStateOK,
+			Availability:        vsa.ClusterPeerAvailabilityStateUnavailable, // triggers fallback
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetClusterPeer(uuid).Return(cp, nil)
+		logger.EXPECT().Warnf(mock.Anything, cp.AuthenticationState, cp.Availability)
+
+		out, err := act.EnsureClusterPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.ClusterPeerAction)
+	})
+}
+
+func TestFlexCacheVolumeCreateActivity_EnsureSVMPeerActivity(t *testing.T) {
+	newVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			Svm: &datamodel.Svm{Name: "local-svm"},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerSvmName: "peer-svm",
+			},
+		}
+	}
+
+	t.Run("WhenSVMPeerUUIDAbsent", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		vol := newVolume() // SvmPeerUUID nil
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		logger.EXPECT().Debug(mock.Anything)
+
+		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.SVMPeerAction)
+		assert.Nil(tt, out.SVMPeer)
+	})
+
+	t.Run("WhenGetSVMPeerErrors", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		u := "svm-peer-uuid"
+		vol := newVolume()
+		vol.SvmPeerUUID = &u
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).Return(nil, assert.AnError)
+
+		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
+		assert.Error(tt, err)
+		assert.Nil(tt, out)
+	})
+
+	t.Run("WhenSVMPeerNilWithoutError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		u := "svm-peer-uuid"
+		vol := newVolume()
+		vol.SvmPeerUUID = &u
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).Return(nil, utilserrors.NewNotFoundErr("svmPeer", nil))
+		logger.EXPECT().Infof(mock.Anything, mock.Anything)
+
+		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.SVMPeerAction)
+	})
+
+	t.Run("WhenSVMPeerInvalidStateRejected", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		u := "svm-peer-uuid"
+		vol := newVolume()
+		vol.SvmPeerUUID = &u
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		sp := &vsa.SvmPeer{
+			UUID:  u,
+			State: vsa.SvmPeerStateRejected,
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).Return(sp, nil)
+		logger.EXPECT().Warnf(mock.Anything, mock.Anything, mock.Anything).Maybe() // depending on implementation
+
+		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.SVMPeerAction)
+	})
+
+	t.Run("WhenSVMPeerUnknownStateRecreate", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		u := "svm-peer-uuid"
+		vol := newVolume()
+		vol.SvmPeerUUID = &u
+		// (Optional) expired time retained but not used by logic
+		expired := time.Now().Add(-10 * time.Minute)
+		vol.CacheParameters.CommandExpiryTime = &expired
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		sp := &vsa.SvmPeer{
+			UUID:  u,
+			State: vsa.SvmPeerStateInitiated, // unrecognized -> fallback recreate
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).Return(sp, nil)
+		logger.EXPECT().Warnf(mock.Anything, sp.State)
+
+		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.SVMPeerAction)
+	})
+
+	t.Run("WhenSVMPeerReady", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		u := "svm-peer-uuid"
+		vol := newVolume()
+		vol.SvmPeerUUID = &u
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		sp := &vsa.SvmPeer{
+			UUID:  u,
+			State: vsa.SvmPeerStatePeered,
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).Return(sp, nil)
+		logger.EXPECT().Debug(mock.Anything)
+
+		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionReady, out.SVMPeerAction)
+		assert.Equal(tt, sp, out.SVMPeer)
+	})
+
+	t.Run("WhenSVMPeerWait", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		u := "svm-peer-uuid"
+		vol := newVolume()
+		vol.SvmPeerUUID = &u
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		sp := &vsa.SvmPeer{
+			UUID:  u,
+			State: vsa.SvmPeerStatePending, // updated: triggers wait branch
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).Return(sp, nil)
+		logger.EXPECT().Debugf(mock.Anything, sp.State)
+
+		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionWait, out.SVMPeerAction)
+		assert.Equal(tt, sp, out.SVMPeer)
+	})
+
+	t.Run("WhenSVMPeerUnknownFallback", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		u := "svm-peer-uuid"
+		vol := newVolume()
+		vol.SvmPeerUUID = &u
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		sp := &vsa.SvmPeer{
+			UUID:  u,
+			State: "RANDOM_STATE",
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).Return(sp, nil)
+		logger.EXPECT().Warnf(mock.Anything, mock.Anything, mock.Anything)
+
+		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcache.ActionCreate, out.SVMPeerAction)
+	})
 }

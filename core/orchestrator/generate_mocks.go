@@ -24,10 +24,16 @@ type monkeyMethods interface {
 	validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error
 	workflowsExecuteWorkflowSequentially(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error
 	envIsLocalEnv() bool
+	isEstablishVolumePeeringNeeded(ctx context.Context, se database.Storage, params *common.EstablishVolumePeeringParams, dbVolume *datamodel.Volume) (string, error)
+	verifyVolumeState(ctx context.Context, dbVolume *datamodel.Volume) error
+	verifyFlexCacheParameters(ctx context.Context, params *common.EstablishVolumePeeringParams, dbVolume *datamodel.Volume) error
+	verifyClusterPeering(ctx context.Context, dbVolume *datamodel.Volume) bool
+	checkForFlexCacheJobInProgress(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams) (bool, string, error)
+	identicalParams(dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams) bool
 
 	// FlexCache specific methods
 	createFlexCacheVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error)
-	establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*models.Volume, error)
+	establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*models.Volume, string, error)
 
 	// Volume replication methods
 	getAccountWithName(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error)

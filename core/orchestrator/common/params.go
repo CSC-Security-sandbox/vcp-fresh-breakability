@@ -655,10 +655,9 @@ type EstablishVolumePeeringParams struct {
 	Name            string
 	PeerClusterName string
 	PeerAddresses   []string
-	ExpiryTime      time.Time
+	ExpiryTime      *time.Time
 	PeerSvmName     string
 	PeerVolumeName  string
-	Passphrase      string
 }
 
 type CreateActiveDirectoryParams struct {

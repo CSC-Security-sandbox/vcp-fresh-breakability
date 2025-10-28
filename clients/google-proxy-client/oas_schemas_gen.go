@@ -2946,6 +2946,71 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
+// Parameters to establish peering for a FlexCache / hybrid replication relationship.
+// Ref: #/components/schemas/EstablishPeeringRequest_v1beta
+type EstablishPeeringRequestV1beta struct {
+	// Name of source (origin) cluster to peer with the destination.
+	PeerClusterName string `json:"peerClusterName"`
+	// Name of source SVM (vserver) to peer with the destination SVM.
+	PeerSvmName string `json:"peerSvmName"`
+	// Name of source (origin) volume.
+	PeerVolumeName string `json:"peerVolumeName"`
+	// List of source intercluster LIF IP addresses.
+	PeerIpAddresses OptNilStringArray `json:"peerIpAddresses"`
+	// Expiry time for the peer acceptance command.
+	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
+}
+
+// GetPeerClusterName returns the value of PeerClusterName.
+func (s *EstablishPeeringRequestV1beta) GetPeerClusterName() string {
+	return s.PeerClusterName
+}
+
+// GetPeerSvmName returns the value of PeerSvmName.
+func (s *EstablishPeeringRequestV1beta) GetPeerSvmName() string {
+	return s.PeerSvmName
+}
+
+// GetPeerVolumeName returns the value of PeerVolumeName.
+func (s *EstablishPeeringRequestV1beta) GetPeerVolumeName() string {
+	return s.PeerVolumeName
+}
+
+// GetPeerIpAddresses returns the value of PeerIpAddresses.
+func (s *EstablishPeeringRequestV1beta) GetPeerIpAddresses() OptNilStringArray {
+	return s.PeerIpAddresses
+}
+
+// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
+func (s *EstablishPeeringRequestV1beta) GetPeeringCommandExpiryTime() OptNilDateTime {
+	return s.PeeringCommandExpiryTime
+}
+
+// SetPeerClusterName sets the value of PeerClusterName.
+func (s *EstablishPeeringRequestV1beta) SetPeerClusterName(val string) {
+	s.PeerClusterName = val
+}
+
+// SetPeerSvmName sets the value of PeerSvmName.
+func (s *EstablishPeeringRequestV1beta) SetPeerSvmName(val string) {
+	s.PeerSvmName = val
+}
+
+// SetPeerVolumeName sets the value of PeerVolumeName.
+func (s *EstablishPeeringRequestV1beta) SetPeerVolumeName(val string) {
+	s.PeerVolumeName = val
+}
+
+// SetPeerIpAddresses sets the value of PeerIpAddresses.
+func (s *EstablishPeeringRequestV1beta) SetPeerIpAddresses(val OptNilStringArray) {
+	s.PeerIpAddresses = val
+}
+
+// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
+func (s *EstablishPeeringRequestV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
+	s.PeeringCommandExpiryTime = val
+}
+
 // Export policy for a NAS volume.
 // Ref: #/components/schemas/ExportPolicy_v1beta
 type ExportPolicyV1beta struct {
@@ -5836,6 +5901,7 @@ func (*OperationV1beta) v1betaDeleteSnapshotRes()                            {}
 func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
 func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
 func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
+func (*OperationV1beta) v1betaEstablishVolumePeeringRes()                    {}
 func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
 func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()          {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
@@ -11449,7 +11515,8 @@ type PoolInternalV1beta struct {
 	AvailableThroughputMibps OptNilFloat64 `json:"availableThroughputMibps"`
 	// Number of volumes in a pool.
 	NumberOfVolumes OptNilInt32 `json:"numberOfVolumes"`
-	// The current lifecycle state of the resource.
+	// The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex
+	// UNIFIED pools.
 	StoragePoolState OptPoolInternalV1betaStoragePoolState `json:"storagePoolState"`
 	// Details about the current lifecycle state.
 	StoragePoolStateDetails OptString `json:"storagePoolStateDetails"`
@@ -12097,7 +12164,8 @@ func (s *PoolInternalV1betaServiceLevel) UnmarshalText(data []byte) error {
 	}
 }
 
-// The current lifecycle state of the resource.
+// The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex
+// UNIFIED pools.
 type PoolInternalV1betaStoragePoolState string
 
 const (
@@ -12110,6 +12178,7 @@ const (
 	PoolInternalV1betaStoragePoolStateDELETED          PoolInternalV1betaStoragePoolState = "DELETED"
 	PoolInternalV1betaStoragePoolStateDELETING         PoolInternalV1betaStoragePoolState = "DELETING"
 	PoolInternalV1betaStoragePoolStateERROR            PoolInternalV1betaStoragePoolState = "ERROR"
+	PoolInternalV1betaStoragePoolStateDEGRADED         PoolInternalV1betaStoragePoolState = "DEGRADED"
 )
 
 // AllValues returns all PoolInternalV1betaStoragePoolState values.
@@ -12124,6 +12193,7 @@ func (PoolInternalV1betaStoragePoolState) AllValues() []PoolInternalV1betaStorag
 		PoolInternalV1betaStoragePoolStateDELETED,
 		PoolInternalV1betaStoragePoolStateDELETING,
 		PoolInternalV1betaStoragePoolStateERROR,
+		PoolInternalV1betaStoragePoolStateDEGRADED,
 	}
 }
 
@@ -12147,6 +12217,8 @@ func (s PoolInternalV1betaStoragePoolState) MarshalText() ([]byte, error) {
 	case PoolInternalV1betaStoragePoolStateDELETING:
 		return []byte(s), nil
 	case PoolInternalV1betaStoragePoolStateERROR:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateDEGRADED:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -12182,6 +12254,9 @@ func (s *PoolInternalV1betaStoragePoolState) UnmarshalText(data []byte) error {
 		return nil
 	case PoolInternalV1betaStoragePoolStateERROR:
 		*s = PoolInternalV1betaStoragePoolStateERROR
+		return nil
+	case PoolInternalV1betaStoragePoolStateDEGRADED:
+		*s = PoolInternalV1betaStoragePoolStateDEGRADED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12444,7 +12519,8 @@ type PoolV1beta struct {
 	AvailableThroughputMibps OptNilFloat64 `json:"availableThroughputMibps"`
 	// Number of volumes in a pool.
 	NumberOfVolumes OptNilInt32 `json:"numberOfVolumes"`
-	// The current lifecycle state of the resource.
+	// The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex
+	// UNIFIED pools.
 	StoragePoolState OptPoolV1betaStoragePoolState `json:"storagePoolState"`
 	// Details about the current lifecycle state.
 	StoragePoolStateDetails OptString `json:"storagePoolStateDetails"`
@@ -13068,7 +13144,8 @@ func (s *PoolV1betaServiceLevel) UnmarshalText(data []byte) error {
 	}
 }
 
-// The current lifecycle state of the resource.
+// The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex
+// UNIFIED pools.
 type PoolV1betaStoragePoolState string
 
 const (
@@ -13081,6 +13158,7 @@ const (
 	PoolV1betaStoragePoolStateDELETED          PoolV1betaStoragePoolState = "DELETED"
 	PoolV1betaStoragePoolStateDELETING         PoolV1betaStoragePoolState = "DELETING"
 	PoolV1betaStoragePoolStateERROR            PoolV1betaStoragePoolState = "ERROR"
+	PoolV1betaStoragePoolStateDEGRADED         PoolV1betaStoragePoolState = "DEGRADED"
 )
 
 // AllValues returns all PoolV1betaStoragePoolState values.
@@ -13095,6 +13173,7 @@ func (PoolV1betaStoragePoolState) AllValues() []PoolV1betaStoragePoolState {
 		PoolV1betaStoragePoolStateDELETED,
 		PoolV1betaStoragePoolStateDELETING,
 		PoolV1betaStoragePoolStateERROR,
+		PoolV1betaStoragePoolStateDEGRADED,
 	}
 }
 
@@ -13118,6 +13197,8 @@ func (s PoolV1betaStoragePoolState) MarshalText() ([]byte, error) {
 	case PoolV1betaStoragePoolStateDELETING:
 		return []byte(s), nil
 	case PoolV1betaStoragePoolStateERROR:
+		return []byte(s), nil
+	case PoolV1betaStoragePoolStateDEGRADED:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -13153,6 +13234,9 @@ func (s *PoolV1betaStoragePoolState) UnmarshalText(data []byte) error {
 		return nil
 	case PoolV1betaStoragePoolStateERROR:
 		*s = PoolV1betaStoragePoolStateERROR
+		return nil
+	case PoolV1betaStoragePoolStateDEGRADED:
+		*s = PoolV1betaStoragePoolStateDEGRADED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -14314,11 +14398,11 @@ type ResourceStateUpdateV1beta struct {
 	// Resource type be updated.
 	ResourceType ResourceStateUpdateV1betaResourceType `json:"resourceType"`
 	// The UUID of the resource.
-	ResourceID string `json:"resourceID"`
+	ResourceId string `json:"resourceId"`
 	// Parent resource Type.
 	ParentResourceType OptNilResourceStateUpdateV1betaParentResourceType `json:"parentResourceType"`
 	// The UUID of the parent resource.
-	ParentResourceID OptNilString `json:"parentResourceID"`
+	ParentResourceId OptNilString `json:"parentResourceId"`
 }
 
 // GetState returns the value of State.
@@ -14331,9 +14415,9 @@ func (s *ResourceStateUpdateV1beta) GetResourceType() ResourceStateUpdateV1betaR
 	return s.ResourceType
 }
 
-// GetResourceID returns the value of ResourceID.
-func (s *ResourceStateUpdateV1beta) GetResourceID() string {
-	return s.ResourceID
+// GetResourceId returns the value of ResourceId.
+func (s *ResourceStateUpdateV1beta) GetResourceId() string {
+	return s.ResourceId
 }
 
 // GetParentResourceType returns the value of ParentResourceType.
@@ -14341,9 +14425,9 @@ func (s *ResourceStateUpdateV1beta) GetParentResourceType() OptNilResourceStateU
 	return s.ParentResourceType
 }
 
-// GetParentResourceID returns the value of ParentResourceID.
-func (s *ResourceStateUpdateV1beta) GetParentResourceID() OptNilString {
-	return s.ParentResourceID
+// GetParentResourceId returns the value of ParentResourceId.
+func (s *ResourceStateUpdateV1beta) GetParentResourceId() OptNilString {
+	return s.ParentResourceId
 }
 
 // SetState sets the value of State.
@@ -14356,9 +14440,9 @@ func (s *ResourceStateUpdateV1beta) SetResourceType(val ResourceStateUpdateV1bet
 	s.ResourceType = val
 }
 
-// SetResourceID sets the value of ResourceID.
-func (s *ResourceStateUpdateV1beta) SetResourceID(val string) {
-	s.ResourceID = val
+// SetResourceId sets the value of ResourceId.
+func (s *ResourceStateUpdateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
 }
 
 // SetParentResourceType sets the value of ParentResourceType.
@@ -14366,9 +14450,9 @@ func (s *ResourceStateUpdateV1beta) SetParentResourceType(val OptNilResourceStat
 	s.ParentResourceType = val
 }
 
-// SetParentResourceID sets the value of ParentResourceID.
-func (s *ResourceStateUpdateV1beta) SetParentResourceID(val OptNilString) {
-	s.ParentResourceID = val
+// SetParentResourceId sets the value of ParentResourceId.
+func (s *ResourceStateUpdateV1beta) SetParentResourceId(val OptNilString) {
+	s.ParentResourceId = val
 }
 
 // Parent resource Type.
@@ -14416,6 +14500,7 @@ const (
 	ResourceStateUpdateV1betaResourceTypeStoragePool     ResourceStateUpdateV1betaResourceType = "StoragePool"
 	ResourceStateUpdateV1betaResourceTypeKmsConfig       ResourceStateUpdateV1betaResourceType = "KmsConfig"
 	ResourceStateUpdateV1betaResourceTypeBackupPolicy    ResourceStateUpdateV1betaResourceType = "BackupPolicy"
+	ResourceStateUpdateV1betaResourceTypeHostGroup       ResourceStateUpdateV1betaResourceType = "HostGroup"
 )
 
 // AllValues returns all ResourceStateUpdateV1betaResourceType values.
@@ -14427,6 +14512,7 @@ func (ResourceStateUpdateV1betaResourceType) AllValues() []ResourceStateUpdateV1
 		ResourceStateUpdateV1betaResourceTypeStoragePool,
 		ResourceStateUpdateV1betaResourceTypeKmsConfig,
 		ResourceStateUpdateV1betaResourceTypeBackupPolicy,
+		ResourceStateUpdateV1betaResourceTypeHostGroup,
 	}
 }
 
@@ -14444,6 +14530,8 @@ func (s ResourceStateUpdateV1betaResourceType) MarshalText() ([]byte, error) {
 	case ResourceStateUpdateV1betaResourceTypeKmsConfig:
 		return []byte(s), nil
 	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeHostGroup:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -14470,6 +14558,9 @@ func (s *ResourceStateUpdateV1betaResourceType) UnmarshalText(data []byte) error
 		return nil
 	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
 		*s = ResourceStateUpdateV1betaResourceTypeBackupPolicy
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeHostGroup:
+		*s = ResourceStateUpdateV1betaResourceTypeHostGroup
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -16620,6 +16711,38 @@ func (*V1betaEncryptVolumesUnauthorized) v1betaEncryptVolumesRes() {}
 type V1betaEncryptVolumesUnprocessableEntity Error
 
 func (*V1betaEncryptVolumesUnprocessableEntity) v1betaEncryptVolumesRes() {}
+
+type V1betaEstablishVolumePeeringBadRequest Error
+
+func (*V1betaEstablishVolumePeeringBadRequest) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringConflict Error
+
+func (*V1betaEstablishVolumePeeringConflict) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringForbidden Error
+
+func (*V1betaEstablishVolumePeeringForbidden) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringInternalServerError Error
+
+func (*V1betaEstablishVolumePeeringInternalServerError) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringNotFound Error
+
+func (*V1betaEstablishVolumePeeringNotFound) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringTooManyRequests Error
+
+func (*V1betaEstablishVolumePeeringTooManyRequests) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringUnauthorized Error
+
+func (*V1betaEstablishVolumePeeringUnauthorized) v1betaEstablishVolumePeeringRes() {}
+
+type V1betaEstablishVolumePeeringUnprocessableEntity Error
+
+func (*V1betaEstablishVolumePeeringUnprocessableEntity) v1betaEstablishVolumePeeringRes() {}
 
 type V1betaFinishProjectEventAccepted OperationV1beta
 
@@ -21263,7 +21386,8 @@ type VolumeUpdateV1beta struct {
 	// Uuid v4 used to identify the pool.
 	PoolId OptNilString `json:"poolId"`
 	// Description of the volume.
-	Description OptNilString `json:"description"`
+	Description     OptNilString       `json:"description"`
+	CacheParameters OptFlexCacheV1beta `json:"cacheParameters"`
 }
 
 // GetQuotaInBytes returns the value of QuotaInBytes.
@@ -21351,6 +21475,11 @@ func (s *VolumeUpdateV1beta) GetDescription() OptNilString {
 	return s.Description
 }
 
+// GetCacheParameters returns the value of CacheParameters.
+func (s *VolumeUpdateV1beta) GetCacheParameters() OptFlexCacheV1beta {
+	return s.CacheParameters
+}
+
 // SetQuotaInBytes sets the value of QuotaInBytes.
 func (s *VolumeUpdateV1beta) SetQuotaInBytes(val OptNilFloat64) {
 	s.QuotaInBytes = val
@@ -21436,6 +21565,11 @@ func (s *VolumeUpdateV1beta) SetDescription(val OptNilString) {
 	s.Description = val
 }
 
+// SetCacheParameters sets the value of CacheParameters.
+func (s *VolumeUpdateV1beta) SetCacheParameters(val OptFlexCacheV1beta) {
+	s.CacheParameters = val
+}
+
 // JSON dictionary of resource labels to allow linking of billing labels to a volume.
 type VolumeUpdateV1betaLabels map[string]string
 
@@ -21491,6 +21625,8 @@ type VolumeV1beta struct {
 	UsedBytes OptNilFloat64 `json:"usedBytes"`
 	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only.
 	QuotaInBytes OptFloat64 `json:"quotaInBytes"`
+	// Throughput of the volume in Mibps.
+	ThroughputMibps OptNilFloat64 `json:"throughputMibps"`
 	// Volume footprint in cold storage.
 	ColdTierSizeGib OptNilFloat64 `json:"coldTierSizeGib"`
 	// Percentage of volume storage reserved for snapshot storage. Default is 0 percent.
@@ -21637,6 +21773,11 @@ func (s *VolumeV1beta) GetUsedBytes() OptNilFloat64 {
 // GetQuotaInBytes returns the value of QuotaInBytes.
 func (s *VolumeV1beta) GetQuotaInBytes() OptFloat64 {
 	return s.QuotaInBytes
+}
+
+// GetThroughputMibps returns the value of ThroughputMibps.
+func (s *VolumeV1beta) GetThroughputMibps() OptNilFloat64 {
+	return s.ThroughputMibps
 }
 
 // GetColdTierSizeGib returns the value of ColdTierSizeGib.
@@ -21882,6 +22023,11 @@ func (s *VolumeV1beta) SetUsedBytes(val OptNilFloat64) {
 // SetQuotaInBytes sets the value of QuotaInBytes.
 func (s *VolumeV1beta) SetQuotaInBytes(val OptFloat64) {
 	s.QuotaInBytes = val
+}
+
+// SetThroughputMibps sets the value of ThroughputMibps.
+func (s *VolumeV1beta) SetThroughputMibps(val OptNilFloat64) {
+	s.ThroughputMibps = val
 }
 
 // SetColdTierSizeGib sets the value of ColdTierSizeGib.

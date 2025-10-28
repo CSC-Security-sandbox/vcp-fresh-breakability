@@ -107,7 +107,9 @@ func (wf *flexCacheCreateWorkflow) Setup(ctx workflow.Context, input interface{}
 func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	dbVolume := args[0].(*datamodel.Volume)
+	params := args[1].(*common.CreateVolumeParams)
 	flexCacheVolumeCreateActivity := &flexcache_activities.FlexCacheVolumeCreateActivity{}
+	flexCacheVolumeDeleteActivity := &flexcache_activities.FlexCacheVolumeDeleteActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -176,6 +178,16 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		flexcacheResult.ActiveJobType = ""
 	}
 
+	// Copy input cache parameters to DBVolume cache parameters
+	// This is needed to set the CommandExpiryTime in DBVolume cache parameters
+	// as we are using same workflow for establish peering, we can override the values here
+	// if user has provided different values during create flexcache volume
+	// We copy only these two parameters, other parameters are set during volume creation
+	// and should not be overwritten
+	if params != nil && params.CacheParameters != nil && dbVolume.CacheParameters != nil {
+		flexcacheResult = *copyInputCacheParameters(params, &flexcacheResult)
+	}
+
 	// CCFE compatibility: Handle create job
 	if err = workflow.ExecuteActivity(
 		ctx,
@@ -211,12 +223,36 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		AuthType:       dbVolume.Pool.PoolCredentials.AuthType,
 	})
 
-	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+	// check the status of cluster peer before creating new cluster peer
+	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	// delete cluster peer on ONTAP if already created in previous attempt and has problem before creating new one
+	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate && flexcacheResult.ClusterPeer != nil {
+		log.Debugf("Deleting existing cluster peer on ONTAP before creating a new one as a part of "+
+			"Establish Peering for flexcache volume %s", dbVolume.Name)
+		err = workflow.ExecuteActivity(ctx, flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity,
+			convertCreateResultToDeleteResult(&flexcacheResult)).Get(ctx, nil)
+		if err != nil {
+			log.Errorf("Failed to delete cluster peer on ONTAP before creating a new one: %v", err)
+			return nil, workflows.ConvertToVSAError(err)
+		}
+		flexcacheResult.DBVolume.ClusterPeerUUID = nil
+		flexcacheResult.ClusterPeer = nil
+		// TODO: Update DB for consistency in case subsequent steps fail, as Volume table is gonna change in future. We can add the logic for table change later
+		// https://jira.ngage.netapp.com/browse/VSCP-1217
+	}
+
+	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate {
+		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	// CCFE compatibility: Complete peering job
@@ -239,28 +275,53 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 	setActiveJob(models.JobTypeFlexCacheInternalPeering)
 
-	clusterPeerWaitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
-	if err = workflow.ExecuteActivity(clusterPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-		if temporal.IsTimeoutError(err) {
-			err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerTimeout, err))
+	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate || flexcacheResult.ClusterPeerAction == flexcache.ActionWait {
+		clusterPeerWaitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
+		if err = workflow.ExecuteActivity(clusterPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+			if temporal.IsTimeoutError(err) {
+				err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerTimeout, err))
+			}
+			return nil, workflows.ConvertToVSAError(err)
 		}
+	}
+
+	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateSVMPeeringInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	svmPeerWaitCtx := getWaitContext(ctx, nil)
-	if err = workflow.ExecuteActivity(svmPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-		if temporal.IsTimeoutError(err) {
-			err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSVMPeerTimeout, err))
+	// delete SVM peer on ONTAP if already created in previous attempt and has problem before creating new one
+	if flexcacheResult.SVMPeerAction == flexcache.ActionCreate && flexcacheResult.SVMPeer != nil {
+		err = workflow.ExecuteActivity(ctx, flexCacheVolumeDeleteActivity.DeleteSVMPeeringInOntapActivity,
+			convertCreateResultToDeleteResult(&flexcacheResult)).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
 		}
-		return nil, workflows.ConvertToVSAError(err)
+		flexcacheResult.DBVolume.SvmPeerUUID = nil
+		flexcacheResult.SVMPeer = nil
+
+		// TODO: Update DB for consistency in case subsequent steps fail, as table is gonna change in future. We can add the logic for table change later
+		// https://jira.ngage.netapp.com/browse/VSCP-1217
+	}
+
+	if flexcacheResult.SVMPeerAction == flexcache.ActionCreate {
+		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateSVMPeeringInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
+
+	if flexcacheResult.SVMPeerAction == flexcache.ActionCreate || flexcacheResult.SVMPeerAction == flexcache.ActionWait {
+		svmPeerWaitCtx := getWaitContext(ctx, nil)
+		if err = workflow.ExecuteActivity(svmPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+			if temporal.IsTimeoutError(err) {
+				err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSVMPeerTimeout, err))
+			}
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
@@ -329,4 +390,28 @@ func getWaitContext(ctx workflow.Context, cacheParams *datamodel.CacheParameters
 	}
 
 	return workflow.WithActivityOptions(ctx, activityOptions)
+}
+
+func convertCreateResultToDeleteResult(createResult *flexcache.CreateFlexCacheResult) *flexcache.DeleteFlexCacheResult {
+	return &flexcache.DeleteFlexCacheResult{
+		DBVolume: createResult.DBVolume,
+		Node:     createResult.Node,
+	}
+}
+
+func copyInputCacheParameters(params *common.CreateVolumeParams,
+	flexcacheResult *flexcache.CreateFlexCacheResult) *flexcache.CreateFlexCacheResult {
+	in := params.CacheParameters
+	out := flexcacheResult.DBVolume.CacheParameters
+
+	// use the input cache parameters only for CommandExpiryTime
+	// assign nil if PeerExpiryTime is not provided in input, which sets the expiry time
+	// to default value in flexcache create activity to 1 hour from current time
+	if in.PeerExpiryTime != nil {
+		t := *in.PeerExpiryTime
+		out.CommandExpiryTime = &t
+	} else {
+		out.CommandExpiryTime = nil
+	}
+	return flexcacheResult
 }

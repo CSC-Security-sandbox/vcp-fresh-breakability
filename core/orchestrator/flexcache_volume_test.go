@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -579,6 +580,7 @@ func TestOrchestrator_CreateFlexCacheVolume(t *testing.T) {
 
 func Test_EstablishVolumePeering(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	expiryTime := time.Now().Add(time.Hour)
 	params := &common.EstablishVolumePeeringParams{
 		AccountName:     "account",
 		Region:          "region",
@@ -586,10 +588,9 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		Name:            "test_volume",
 		PeerClusterName: "peer-cluster",
 		PeerAddresses:   []string{"1.1.1.1", "2.2.2.2"},
-		ExpiryTime:      time.Now().Add(time.Hour),
+		ExpiryTime:      &expiryTime,
 		PeerSvmName:     "peer-svm",
 		PeerVolumeName:  "peer-volume",
-		Passphrase:      "passphrase",
 	}
 
 	volumeParams := &common.CreateVolumeParams{
@@ -602,8 +603,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 			PeerSvmName:     params.PeerSvmName,
 			PeerVolumeName:  params.PeerVolumeName,
 			PeerIPAddresses: params.PeerAddresses,
-			PeerExpiryTime:  &params.ExpiryTime,
-			Passphrase:      &params.Passphrase,
+			PeerExpiryTime:  params.ExpiryTime,
 		},
 	}
 
@@ -629,10 +629,10 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(nil, assert.AnError)
+		mockStorage.On("GetVolumeByName", mock.Anything, params.Name).Return(nil, assert.AnError)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 
-		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		vol, _, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
 		assert.Error(tt, err)
 		assert.Nil(tt, vol)
 	})
@@ -642,11 +642,45 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByName", mock.Anything, params.Name).Return(dbVolume, nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
-		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		vol, _, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, vol)
+	})
+
+	t.Run("Is_Establish_Peering_Not_Needed", func(tt *testing.T) {
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(t)
+		mockLogger := log.NewMockLogger(t)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetVolumeByName", mock.Anything, params.Name).Return(dbVolume, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(dbAccount, nil)
+		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", assert.AnError)
+		mockLogger.EXPECT().Errorf("Establish volume peering pre-checks failed: %v", assert.AnError)
+
+		vol, _, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, vol)
+	})
+
+	t.Run("utilsGetLocationFromVendorID_error", func(tt *testing.T) {
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(t)
+		mockLogger := log.NewMockLogger(t)
+		mockStorage := new(database.MockStorage)
+
+		mockStorage.On("GetVolumeByName", mock.Anything, params.Name).Return(dbVolume, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(dbAccount, nil)
+		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		mm.EXPECT().utilsGetLocationFromVendorID(mock.Anything).Return("location", assert.AnError)
+		mockLogger.EXPECT().Errorf("Failed to get location from vendor ID for pool %s, error: %v", "test_pool", assert.AnError)
+
+		vol, _, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
 		assert.Error(tt, err)
 		assert.Nil(tt, vol)
 	})
@@ -656,13 +690,15 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByName", mock.Anything, params.Name).Return(dbVolume, nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(dbAccount, nil)
+		mm.EXPECT().utilsGetLocationFromVendorID(mock.Anything).Return("location", nil)
+		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 		mockLogger.EXPECT().Errorf("Failed to create job in database, error: %v", assert.AnError)
 
-		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		vol, _, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
 		assert.Error(tt, err)
 		assert.Nil(tt, vol)
 	})
@@ -672,17 +708,19 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByName", mock.Anything, params.Name).Return(dbVolume, nil)
 		mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{WorkflowID: "wf-id"}, nil)
+		mm.EXPECT().utilsGetLocationFromVendorID(mock.Anything).Return("location", nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(dbAccount, nil)
+		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		mm.EXPECT().workflowsExecuteWorkflowSequentially(
 			temporal, ctx, mock.Anything,
 			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume) error"),
 			mock.Anything, volumeParams, dbVolume).Return(assert.AnError)
 		mockLogger.EXPECT().Errorf("Failed to start establish volume peering workflow, error: %v", assert.AnError)
 
-		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		vol, _, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
 		assert.Error(tt, err)
 		assert.Nil(tt, vol)
 	})
@@ -692,10 +730,12 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolume", mock.Anything, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByName", mock.Anything, params.Name).Return(dbVolume, nil)
 		mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{WorkflowID: "wf-id"}, nil)
+		mm.EXPECT().utilsGetLocationFromVendorID(mock.Anything).Return("location", nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(mock.Anything, mock.Anything, mock.Anything).Return(dbAccount, nil)
+		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		mm.EXPECT().workflowsExecuteWorkflowSequentially(
 			temporal, ctx, mock.Anything,
 			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume) error"),
@@ -705,7 +745,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 			return &models.Volume{BaseModel: models.BaseModel{UUID: "vol-uuid"}}
 		}
 		defer func() { convertDatastoreVolumeToModel = origConvert }()
-		vol, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		vol, _, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, vol)
 		assert.Equal(tt, "vol-uuid", vol.UUID)
@@ -724,7 +764,7 @@ func TestConvertEstablishVolumePeeringParams(t *testing.T) {
 			PeerVolumeName:  "peer-vol",
 			PeerClusterName: "peer-cluster",
 			PeerAddresses:   []string{"10.0.0.1", "10.0.0.2"},
-			ExpiryTime:      expiry,
+			ExpiryTime:      &expiry,
 		}
 
 		out := convertEstablishVolumePeeringParamsToCreateVolumeParams(src)
@@ -742,5 +782,356 @@ func TestConvertEstablishVolumePeeringParams(t *testing.T) {
 			assert.NotNil(t, cp.PeerExpiryTime)
 			assert.Equal(t, expiry, *cp.PeerExpiryTime)
 		}
+	})
+}
+
+func Test_IsEstablishVolumePeeringNeeded(t *testing.T) {
+	expiry := time.Now().Add(time.Hour).UTC()
+	params := &common.EstablishVolumePeeringParams{
+		AccountName:     "account",
+		Region:          "region",
+		Zone:            "zone",
+		Name:            "test_volume",
+		PeerClusterName: "peer-cluster",
+		PeerAddresses:   []string{"1.1.1.1", "2.2.2.2"},
+		ExpiryTime:      &expiry,
+		PeerSvmName:     "peer-svm",
+		PeerVolumeName:  "peer-volume",
+	}
+	dbAccount := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		Name:      "test_account",
+	}
+	dbPool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test_pool",
+		VendorID:  "vendor-id",
+	}
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test_volume",
+		Account:   dbAccount,
+		AccountID: dbAccount.ID,
+		Pool:      dbPool,
+		PoolID:    dbPool.ID,
+	}
+
+	t.Run("verifyVolumeState_error", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(database.MockStorage)
+		mockLogger := log.NewMockLogger(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyVolumeState(ctx, dbVolume).Return(assert.AnError)
+
+		_, err := _isEstablishVolumePeeringNeeded(ctx, mockStorage, params, dbVolume)
+		assert.Error(tt, err)
+	})
+
+	t.Run("verifyFlexCacheParameters_failed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(database.MockStorage)
+		mockLogger := log.NewMockLogger(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyVolumeState(ctx, dbVolume).Return(nil)
+		mm.EXPECT().verifyFlexCacheParameters(ctx, params, dbVolume).Return(assert.AnError)
+
+		_, err := _isEstablishVolumePeeringNeeded(ctx, mockStorage, params, dbVolume)
+		assert.Error(tt, err)
+	})
+
+	t.Run("verifyClusterPeering_error", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(database.MockStorage)
+		mockLogger := log.NewMockLogger(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyVolumeState(ctx, dbVolume).Return(nil)
+		mm.EXPECT().verifyFlexCacheParameters(ctx, params, dbVolume).Return(nil)
+		mm.EXPECT().verifyClusterPeering(ctx, dbVolume).Return(true)
+
+		_, err := _isEstablishVolumePeeringNeeded(ctx, mockStorage, params, dbVolume)
+		assert.Error(tt, err)
+	})
+
+	t.Run("checkForFlexCacheJobInProgress_error", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(database.MockStorage)
+		mockLogger := log.NewMockLogger(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyVolumeState(ctx, dbVolume).Return(nil)
+		mm.EXPECT().verifyFlexCacheParameters(ctx, params, dbVolume).Return(nil)
+		mm.EXPECT().verifyClusterPeering(ctx, dbVolume).Return(false)
+		mm.EXPECT().checkForFlexCacheJobInProgress(ctx, mockStorage, dbVolume, params).Return(false, "", assert.AnError)
+
+		_, err := _isEstablishVolumePeeringNeeded(ctx, mockStorage, params, dbVolume)
+		assert.Error(tt, err)
+	})
+
+	t.Run("checkForFlexCacheJobInProgress_job_in_progress", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(database.MockStorage)
+		mockLogger := log.NewMockLogger(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyVolumeState(ctx, dbVolume).Return(nil)
+		mm.EXPECT().verifyFlexCacheParameters(ctx, params, dbVolume).Return(nil)
+		mm.EXPECT().verifyClusterPeering(ctx, dbVolume).Return(false)
+		mm.EXPECT().checkForFlexCacheJobInProgress(ctx, mockStorage, dbVolume, params).Return(true, "jobUUID", nil)
+		mockLogger.EXPECT().Infof("found an existing FlexCache job in progress for volume %s", "test_volume")
+
+		jobUUID, err := _isEstablishVolumePeeringNeeded(ctx, mockStorage, params, dbVolume)
+		assert.Nil(tt, err)
+		assert.Equal(tt, "jobUUID", jobUUID)
+	})
+
+	t.Run("Establish_Volume_Peering_Needed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(database.MockStorage)
+		mockLogger := log.NewMockLogger(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyVolumeState(ctx, dbVolume).Return(nil)
+		mm.EXPECT().verifyFlexCacheParameters(ctx, params, dbVolume).Return(nil)
+		mm.EXPECT().verifyClusterPeering(ctx, dbVolume).Return(false)
+		mm.EXPECT().checkForFlexCacheJobInProgress(ctx, mockStorage, dbVolume, params).Return(false, "", nil)
+
+		_, err := _isEstablishVolumePeeringNeeded(ctx, mockStorage, params, dbVolume)
+		assert.NoError(tt, err)
+	})
+}
+
+func Test_VerifyFlexCacheParameters(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	baseParams := &common.EstablishVolumePeeringParams{
+		PeerClusterName: "peer-cluster",
+		PeerSvmName:     "peer-svm",
+		PeerVolumeName:  "peer-volume",
+	}
+
+	newVolume := func(cluster, svm, vol string) *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "test_volume",
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: cluster,
+				PeerSvmName:     svm,
+				PeerVolumeName:  vol,
+			},
+		}
+	}
+
+	t.Run("Success", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockLogger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything).Return()
+
+		vol := newVolume("peer-cluster", "peer-svm", "peer-volume")
+		err := _verifyFlexCacheParameters(ctx, baseParams, vol)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Mismatch_PeerClusterName", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockLogger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything).Return()
+
+		vol := newVolume("different-cluster", "peer-svm", "peer-volume")
+		err := _verifyFlexCacheParameters(ctx, baseParams, vol)
+		assert.Error(tt, err)
+	})
+
+	t.Run("Mismatch_PeerSvmName", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockLogger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything).Return()
+
+		vol := newVolume("peer-cluster", "other-svm", "peer-volume")
+		err := _verifyFlexCacheParameters(ctx, baseParams, vol)
+		assert.Error(tt, err)
+	})
+
+	t.Run("Mismatch_PeerVolumeName", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockLogger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything).Return()
+
+		vol := newVolume("peer-cluster", "peer-svm", "different-volume")
+		err := _verifyFlexCacheParameters(ctx, baseParams, vol)
+		assert.Error(tt, err)
+	})
+}
+
+func Test_VerifyClusterPeering(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	newVolume := func(state string) *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "test_volume",
+			CacheParameters: &datamodel.CacheParameters{
+				CacheState: state,
+			},
+		}
+	}
+
+	setupLogger := func(tt *testing.T) *log.MockLogger {
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything).Maybe()
+		mockLogger.EXPECT().Debugf(
+			mock.Anything,
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+		).Maybe()
+		return mockLogger
+	}
+
+	t.Run("PeerState_PEERED", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockLogger := setupLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+
+		vol := newVolume(string(cvpmodels.FlexCacheV1betaCacheStatePEERED))
+		got := _verifyClusterPeering(ctx, vol)
+		assert.Equal(tt, true, got)
+	})
+
+	t.Run("PeerState_EMPTY", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockLogger := setupLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+
+		vol := newVolume("")
+		got := _verifyClusterPeering(ctx, vol)
+		assert.Equal(tt, false, got)
+	})
+
+	t.Run("PeerState_OTHER", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockLogger := setupLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+
+		vol := newVolume("RANDOM_STATE")
+		got := _verifyClusterPeering(ctx, vol)
+		assert.Equal(tt, false, got)
+	})
+}
+
+func Test_CheckForFlexCacheJobInProgress(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"k": "v"})
+
+	baseParams := &common.EstablishVolumePeeringParams{
+		PeerClusterName: "peer-cluster",
+		PeerSvmName:     "peer-svm",
+		PeerVolumeName:  "peer-vol",
+		PeerAddresses:   []string{"10.0.0.1"},
+	}
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "vol-name",
+		CacheParameters: &datamodel.CacheParameters{
+			PeerClusterName: "peer-cluster",
+			PeerSvmName:     "peer-svm",
+			PeerVolumeName:  "peer-vol",
+			PeerIpAddresses: []string{"10.0.0.1"},
+		},
+	}
+
+	t.Run("ErrorOnGetJobs", func(tt *testing.T) {
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything).Maybe()
+		store := database.NewMockStorage(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		store.EXPECT().GetJobsWithCondition(ctx, mock.Anything).Return(nil, assert.AnError)
+
+		inProgress, _, err := _checkForFlexCacheJobInProgress(ctx, store, dbVolume, baseParams)
+		assert.False(tt, inProgress)
+		assert.Error(tt, err)
+		assert.Equal(tt, assert.AnError, err)
+	})
+
+	t.Run("JobsPresent", func(tt *testing.T) {
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything).Maybe()
+		store := database.NewMockStorage(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		store.EXPECT().GetJobsWithCondition(ctx, mock.Anything).Return([]*datamodel.Job{
+			{Type: string(models.JobTypeFlexCacheEstablishPeering), State: string(models.JobsStatePROCESSING), BaseModel: datamodel.BaseModel{UUID: "job-uuid"}},
+		}, nil)
+
+		inProgress, jobUUID, err := _checkForFlexCacheJobInProgress(ctx, store, dbVolume, baseParams)
+		assert.True(tt, inProgress)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid", jobUUID)
+	})
+
+	t.Run("NoJobs", func(tt *testing.T) {
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything).Maybe()
+		store := database.NewMockStorage(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		store.EXPECT().GetJobsWithCondition(ctx, mock.Anything).Return([]*datamodel.Job{}, nil)
+
+		inProgress, _, err := _checkForFlexCacheJobInProgress(ctx, store, dbVolume, baseParams)
+		assert.False(tt, inProgress)
+		assert.NoError(tt, err)
+	})
+}
+
+func Test_VerifyVolumeState_TwoCases(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"test": "value"})
+
+	t.Run("Success_PREPARING", func(tt *testing.T) {
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "vol",
+			State:     models.LifeCycleStatePreparing,
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer",
+			},
+		}
+
+		mm := newMonkeyMockAndPatch(tt)
+		mockLogger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything, mock.Anything).Maybe()
+
+		err := _verifyVolumeState(ctx, vol)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Failure_READY", func(tt *testing.T) {
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "vol",
+			State:     models.LifeCycleStateREADY,
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer",
+			},
+		}
+
+		mm := newMonkeyMockAndPatch(tt)
+		mockLogger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mockLogger.EXPECT().Debugf(mock.Anything, mock.Anything, mock.Anything).Maybe()
+
+		err := _verifyVolumeState(ctx, vol)
+		assert.Error(tt, err)
 	})
 }

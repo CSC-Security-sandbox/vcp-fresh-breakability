@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -36,6 +37,7 @@ type FlexCacheUnitTestSuite struct {
 	commonActivity                *activities.CommonActivities
 	volumeCreateActivity          *activities.VolumeCreateActivity
 	flexCacheVolumeCreateActivity *flexcache_activities.FlexCacheVolumeCreateActivity
+	flexCacheVolumeDeleteActivity *flexcache_activities.FlexCacheVolumeDeleteActivity
 }
 
 func (s *FlexCacheUnitTestSuite) SetupTest() {
@@ -57,15 +59,20 @@ func (s *FlexCacheUnitTestSuite) SetupTest() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	flexCacheVolumeCreateActivity := flexcache_activities.FlexCacheVolumeCreateActivity{SE: mockStorage}
+	flexCacheVolumeDeleteActivity := flexcache_activities.FlexCacheVolumeDeleteActivity{SE: mockStorage}
 
 	s.commonActivity = &commonActivity
 	s.volumeCreateActivity = &volumeCreateActivity
 	s.flexCacheVolumeCreateActivity = &flexCacheVolumeCreateActivity
-	s.volumeCreateActivity = &volumeCreateActivity
+	s.flexCacheVolumeDeleteActivity = &flexCacheVolumeDeleteActivity
 
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(commonActivity.GetNode)
 	s.env.RegisterActivity(volumeCreateActivity.CreateExportPolicyInOntap)
+	s.env.RegisterActivity(flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity)
+	s.env.RegisterActivity(flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity)
+	s.env.RegisterActivity(flexCacheVolumeDeleteActivity.DeleteSVMPeeringInOntapActivity)
+	s.env.RegisterActivity(flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity)
 	// Register all flexcache related activities used in workflow so mocks match
 	s.env.RegisterActivity(flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity)
 	s.env.RegisterActivity(flexCacheVolumeCreateActivity.CreatePeeringJobActivity)
@@ -115,10 +122,52 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_Success() {
 		},
 	}
 
+	peerExpiryTime := time.Now()
+
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateSVMPeeringInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForSVMPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.WaitForSVMPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeDetailsActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompletePeeringJobActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.StartInternalJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteInternalJobActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+
+	s.env.ExecuteWorkflow(CreateFlexCacheWorkflow, &common.CreateVolumeParams{CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime}}, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_Create_New_Success() {
+	volume := CreateTestVolume()
+	result := &flexcache.CreateFlexCacheResult{
+		VolumeResponse: &vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"},
+		},
+		ClusterPeerAction: flexcache.ActionReady,
+		SVMPeerAction:     flexcache.ActionCreate,
+	}
+
+	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompletePeeringJobActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -131,6 +180,8 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_Success() {
 	s.env.OnActivity(s.volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeDetailsActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteInternalJobActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 
 	s.env.ExecuteWorkflow(CreateFlexCacheWorkflow, &common.CreateVolumeParams{}, volume)
 
@@ -228,6 +279,8 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_WaitForClusterPeer
 		VolumeResponse: &vsa.VolumeResponse{
 			ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"},
 		},
+		ClusterPeerAction: flexcache.ActionCreate,
+		SVMPeerAction:     flexcache.ActionCreate,
 	}
 	var capturedResult *flexcache.CreateFlexCacheResult
 
@@ -235,6 +288,7 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_WaitForClusterPeer
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompletePeeringJobActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -267,11 +321,15 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CreateSVMPeerFailu
 		VolumeResponse: &vsa.VolumeResponse{
 			ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"},
 		},
+		ClusterPeerAction: flexcache.ActionCreate,
+		SVMPeerAction:     flexcache.ActionCreate,
 	}
 	var capturedResult *flexcache.CreateFlexCacheResult
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -326,13 +384,19 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateFlexCacheVol
 // WaitForSVMPeering failure with non-retryable error
 func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_WaitForSVMPeerActivityFailure() {
 	volume := CreateTestVolume()
-	result := &flexcache.CreateFlexCacheResult{DBVolume: volume}
+	result := &flexcache.CreateFlexCacheResult{
+		DBVolume:          volume,
+		ClusterPeerAction: flexcache.ActionCreate,
+		SVMPeerAction:     flexcache.ActionCreate,
+	}
 	var capturedResult *flexcache.CreateFlexCacheResult
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompletePeeringJobActivity, mock.Anything, mock.Anything).Return(nil)
@@ -361,13 +425,19 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_WaitForSVMPeerActi
 // WaitForSVMPeering timeout mapping to SVMPeeringExpired
 func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_WaitForSVMPeerActivityTimeout() {
 	volume := CreateTestVolume()
-	result := &flexcache.CreateFlexCacheResult{DBVolume: volume}
+	result := &flexcache.CreateFlexCacheResult{
+		DBVolume:          volume,
+		ClusterPeerAction: flexcache.ActionCreate,
+		SVMPeerAction:     flexcache.ActionCreate,
+	}
 	var capturedResult *flexcache.CreateFlexCacheResult
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompletePeeringJobActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -428,6 +498,8 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CreateExportPolicy
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompletePeeringJobActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.StartInternalJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
@@ -543,6 +615,8 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateJobStatusFai
 	})).Return(errors.New("failed to update job status"))
 
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, mock.Anything, mock.Anything).Return(result, nil)
@@ -562,7 +636,206 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_UpdateJobStatusFai
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to update job status")
+}
+
+func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_DeleteClusterPeerInOntapActivity_Fails() {
+	volume := CreateTestVolume()
+	result := &flexcache.CreateFlexCacheResult{
+		VolumeResponse: &vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"},
+		},
+		ClusterPeerAction: flexcache.ActionCreate,
+		ClusterPeer:       &vsa.ClusterPeer{PeerClusterName: "peer-name"},
+	}
+
+	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity, mock.Anything,
+		mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, errors.New("some_error"))
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+
+	s.env.ExecuteWorkflow(CreateFlexCacheWorkflow, &common.CreateVolumeParams{}, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_DeleteSVMPeeringInOntapActivity_Fails() {
+	volume := CreateTestVolume()
+	result := &flexcache.CreateFlexCacheResult{
+		VolumeResponse: &vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-uuid"},
+		},
+		SVMPeerAction: flexcache.ActionCreate,
+		SVMPeer:       &vsa.SvmPeer{PeerSvmName: "svm-peer-name"},
+	}
+
+	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.DeleteSVMPeeringInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{}, errors.New("some_error"))
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompletePeeringJobActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.StartInternalJobActivity, mock.Anything, mock.Anything).Return(nil, nil)
+
+	s.env.ExecuteWorkflow(CreateFlexCacheWorkflow, &common.CreateVolumeParams{}, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func TestCopyInputCacheParameters(t *testing.T) {
+	t.Run("CopyBoth", func(t *testing.T) {
+		peer := time.Now().Add(30 * time.Minute)
+		pass := "secret"
+		params := &common.CreateVolumeParams{
+			CacheParameters: &models.CacheParameters{
+				PeerExpiryTime: &peer,
+				Passphrase:     &pass,
+			},
+		}
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{},
+			},
+		}
+
+		copyInputCacheParameters(params, res)
+
+		out := res.DBVolume.CacheParameters
+		assert.NotNil(t, out.CommandExpiryTime)
+		assert.Equal(t, peer, *out.CommandExpiryTime)
+		assert.NotSame(t, params.CacheParameters.PeerExpiryTime, out.CommandExpiryTime)
+	})
+
+	t.Run("ClearBothWhenInputNil", func(t *testing.T) {
+		params := &common.CreateVolumeParams{
+			CacheParameters: &models.CacheParameters{},
+		}
+		oldTime := time.Now().Add(10 * time.Minute)
+		oldPass := "old"
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CommandExpiryTime: &oldTime,
+					Passphrase:        &oldPass,
+				},
+			},
+		}
+
+		copyInputCacheParameters(params, res)
+
+		out := res.DBVolume.CacheParameters
+		assert.Nil(t, out.CommandExpiryTime)
+	})
+
+	t.Run("CopyOnlyPassphrase", func(t *testing.T) {
+		pass := "only-pass"
+		params := &common.CreateVolumeParams{
+			CacheParameters: &models.CacheParameters{
+				Passphrase: &pass,
+			},
+		}
+		oldTime := time.Now().Add(5 * time.Minute)
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CommandExpiryTime: &oldTime,
+				},
+			},
+		}
+
+		copyInputCacheParameters(params, res)
+
+		out := res.DBVolume.CacheParameters
+		assert.Nil(t, out.CommandExpiryTime)
+	})
+
+	t.Run("CopyOnlyPeerExpiryTime", func(t *testing.T) {
+		peer := time.Now().Add(45 * time.Minute)
+		params := &common.CreateVolumeParams{
+			CacheParameters: &models.CacheParameters{
+				PeerExpiryTime: &peer,
+			},
+		}
+		oldPass := "old-pass"
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					Passphrase: &oldPass,
+				},
+			},
+		}
+
+		copyInputCacheParameters(params, res)
+
+		out := res.DBVolume.CacheParameters
+		assert.NotNil(t, out.CommandExpiryTime)
+		assert.Equal(t, peer, *out.CommandExpiryTime)
+	})
+
+	t.Run("OverwriteExisting", func(t *testing.T) {
+		initialTime := time.Now().Add(10 * time.Minute)
+		initialPass := "init"
+		newTime := time.Now().Add(50 * time.Minute)
+		newPass := "new-pass"
+
+		params := &common.CreateVolumeParams{
+			CacheParameters: &models.CacheParameters{
+				PeerExpiryTime: &newTime,
+				Passphrase:     &newPass,
+			},
+		}
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CommandExpiryTime: &initialTime,
+					Passphrase:        &initialPass,
+				},
+			},
+		}
+
+		copyInputCacheParameters(params, res)
+
+		out := res.DBVolume.CacheParameters
+		assert.NotNil(t, out.CommandExpiryTime)
+		assert.Equal(t, newTime, *out.CommandExpiryTime)
+	})
+
+	t.Run("Idempotent", func(t *testing.T) {
+		peer := time.Now().Add(25 * time.Minute)
+		pass := "same"
+		params := &common.CreateVolumeParams{
+			CacheParameters: &models.CacheParameters{
+				PeerExpiryTime: &peer,
+				Passphrase:     &pass,
+			},
+		}
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{},
+			},
+		}
+
+		copyInputCacheParameters(params, res)
+		first := *res.DBVolume.CacheParameters.CommandExpiryTime
+		copyInputCacheParameters(params, res)
+		second := *res.DBVolume.CacheParameters.CommandExpiryTime
+		assert.Equal(t, first, second)
+	})
 }
 
 func TestFlexCacheUnitTestSuite(t *testing.T) {

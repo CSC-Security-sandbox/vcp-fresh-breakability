@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -25,13 +26,19 @@ var (
 	utilsGetLocationFromVendorID         = utils.GetLocationFromVendorID
 	workflowsExecuteWorkflowSequentially = workflows.ExecuteWorkflowSequentially
 	establishFlexCacheVolumePeering      = _establishFlexCacheVolumePeering
+	isEstablishVolumePeeringNeeded       = _isEstablishVolumePeeringNeeded
+	verifyVolumeState                    = _verifyVolumeState
+	verifyFlexCacheParameters            = _verifyFlexCacheParameters
+	verifyClusterPeering                 = _verifyClusterPeering
+	checkForFlexCacheJobInProgress       = _checkForFlexCacheJobInProgress
+	flexCacheParamsMatch                 = _flexCacheParamsMatch
 )
 
-func (o *Orchestrator) CreateFlexCacheVolume(ctx context.Context, params *common.CreateVolumeParams) (*models.Volume, string, error) {
+func (o *Orchestrator) CreateFlexCacheVolume(ctx context.Context, params *common.CreateVolumeParams) (*coremodels.Volume, string, error) {
 	return createFlexCacheVolume(ctx, o.storage, o.temporal, params)
 }
 
-func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error) {
+func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*coremodels.Volume, string, error) {
 	logger := utilGetLogger(ctx)
 
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
@@ -64,7 +71,7 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		PoolID:      pool.ID,
 		SvmID:       svm.ID,
 		Pool:        dbPool,
-		State:       models.LifeCycleStatePreparing,
+		State:       coremodels.LifeCycleStatePreparing,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			CreationToken:  params.CreationToken,
 			Protocols:      params.Protocols,
@@ -124,8 +131,8 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeFlexCacheCreateVolume),
-		State:         string(models.JobsStateNEW),
+		Type:          string(coremodels.JobTypeFlexCacheCreateVolume),
+		State:         string(coremodels.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -162,26 +169,42 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
 }
 
-func (o *Orchestrator) EstablishFlexCacheVolumePeering(ctx context.Context, params *common.EstablishVolumePeeringParams) (*models.Volume, error) {
+func (o *Orchestrator) EstablishFlexCacheVolumePeering(ctx context.Context, params *common.EstablishVolumePeeringParams) (*coremodels.Volume, string, error) {
 	return establishFlexCacheVolumePeering(ctx, o.storage, o.temporal, params)
 }
 
-// TODO: Initial happy-path bootstrap for establish volume peering; Potentially changes in future
-func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*models.Volume, error) {
+func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*coremodels.Volume, string, error) {
 	logger := utilGetLogger(ctx)
-	dbVolume, err := se.GetVolume(ctx, params.Name)
+	dbVolume, err := se.GetVolumeByName(ctx, params.Name)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	jobUUID, err := isEstablishVolumePeeringNeeded(ctx, se, params, dbVolume)
+	if err != nil {
+		logger.Errorf("Establish volume peering pre-checks failed: %v", err)
+		return nil, "", err
+	}
+
+	// Return jobUUID if a job is already in progress for tracking instead of returning an error
+	if jobUUID != "" {
+		return convertDatastoreVolumeToModel(dbVolume, nil), jobUUID, nil
+	}
+
+	location, err := utilsGetLocationFromVendorID(dbVolume.Pool.VendorID)
+	if err != nil {
+		logger.Errorf("Failed to get location from vendor ID for pool %s, error: %v", dbVolume.Pool.Name, err)
+		return nil, "", err
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeFlexCacheEstablishPeering),
-		State:         string(models.JobsStateNEW),
+		Type:          string(coremodels.JobTypeFlexCacheEstablishPeering),
+		State:         string(coremodels.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -191,17 +214,19 @@ func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, 
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Errorf("Failed to create job in database, error: %v", err)
-		return nil, err
+		return nil, "", err
 	}
+
+	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, dbVolume.Account.ID, location, dbVolume.Pool.Name)
 
 	err = workflowsExecuteWorkflowSequentially(
 		temporal,
 		ctx,
 		client.StartWorkflowOptions{
 			TaskQueue: workflowengine.CustomerTaskQueue,
-			ID:        createdJob.WorkflowID,
+			ID:        controlWorkflowID,
 		},
-		flexcache_workflows.CreateFlexCacheWorkflow, // Reusing create flexCache workflow for now and will modify later create workflow as needed
+		flexcache_workflows.CreateFlexCacheWorkflow,
 		workflow.ChildWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			WorkflowID:            createdJob.WorkflowID,
@@ -212,25 +237,115 @@ func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, 
 	)
 	if err != nil {
 		logger.Errorf("Failed to start establish volume peering workflow, error: %v", err)
-		return nil, err
+		return nil, "", err
 	}
 
-	return convertDatastoreVolumeToModel(dbVolume, nil), nil
+	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
 }
 
 func convertEstablishVolumePeeringParamsToCreateVolumeParams(params *common.EstablishVolumePeeringParams) *common.CreateVolumeParams {
-	return &common.CreateVolumeParams{
-		Name:        params.Name,
-		AccountName: params.AccountName,
-		Region:      params.Region,
-		Zone:        params.Zone,
-		CacheParameters: &models.CacheParameters{
-			PeerSvmName:     params.PeerSvmName,
-			PeerVolumeName:  params.PeerVolumeName,
-			PeerClusterName: params.PeerClusterName,
-			PeerIPAddresses: params.PeerAddresses,
-			PeerExpiryTime:  &params.ExpiryTime,
-			Passphrase:      &params.Passphrase,
-		},
+	cp := &coremodels.CacheParameters{
+		PeerSvmName:     params.PeerSvmName,
+		PeerVolumeName:  params.PeerVolumeName,
+		PeerClusterName: params.PeerClusterName,
+		PeerIPAddresses: params.PeerAddresses,
 	}
+	if params.ExpiryTime != nil {
+		cp.PeerExpiryTime = params.ExpiryTime
+	}
+
+	return &common.CreateVolumeParams{
+		Name:            params.Name,
+		AccountName:     params.AccountName,
+		Region:          params.Region,
+		Zone:            params.Zone,
+		CacheParameters: cp,
+	}
+}
+
+func _isEstablishVolumePeeringNeeded(ctx context.Context, se database.Storage,
+	params *common.EstablishVolumePeeringParams, dbVolume *datamodel.Volume) (string, error) {
+	logger := utilGetLogger(ctx)
+	err := verifyVolumeState(ctx, dbVolume)
+	if err != nil {
+		return "", err
+	}
+
+	err = verifyFlexCacheParameters(ctx, params, dbVolume)
+	if err != nil {
+		return "", err
+	}
+
+	if verifyClusterPeering(ctx, dbVolume) {
+		return "", fmt.Errorf("cluster peering is already established")
+	}
+
+	isJobInProgress, jobUUID, err := checkForFlexCacheJobInProgress(ctx, se, dbVolume, params)
+	if err != nil {
+		return "", err
+	}
+	if isJobInProgress {
+		logger.Infof("found an existing FlexCache job in progress for volume %s", dbVolume.Name)
+		return jobUUID, nil
+	}
+	return "", nil
+}
+
+func _verifyVolumeState(ctx context.Context, dbVolume *datamodel.Volume) error {
+	logger := utilGetLogger(ctx)
+	logger.Debugf("verifying volume state: name=%s, state=%s", dbVolume.Name, dbVolume.State)
+	// Establish Volume Peering can be tried if the volume is in PREPARING state
+	if dbVolume.State != coremodels.LifeCycleStatePreparing {
+		return fmt.Errorf("volume %s must be in %s state (current: %s)",
+			dbVolume.Name, coremodels.LifeCycleStatePreparing, dbVolume.State)
+	}
+	return nil
+}
+
+func _verifyFlexCacheParameters(ctx context.Context, params *common.EstablishVolumePeeringParams,
+	dbVolume *datamodel.Volume) error {
+	logger := utilGetLogger(ctx)
+	logger.Debugf("verifying FlexCache parameters for volume %s (ignoring IPs)", dbVolume.Name)
+	if !flexCacheParamsMatch(dbVolume, params) {
+		return fmt.Errorf("provided FlexCache parameters do not match with existing FlexCache volume parameters")
+	}
+	return nil
+}
+
+func _verifyClusterPeering(ctx context.Context, dbVolume *datamodel.Volume) bool {
+	// If the cache state is PEERED then cluster peering is already established
+	logger := utilGetLogger(ctx)
+	logger.Debugf("verifying cluster peering state for volume %s", dbVolume.Name)
+	if dbVolume.CacheParameters.CacheState == models.FlexCacheV1betaCacheStatePEERED {
+		return true
+	}
+	return false
+}
+
+func _checkForFlexCacheJobInProgress(ctx context.Context, se database.Storage,
+	dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams) (bool, string, error) {
+	logger := utilGetLogger(ctx)
+	logger.Debugf("checking for any other FlexCache job in progress for volume %s", dbVolume.Name)
+	filter := dbutils.CreateFilterWithConditions(
+		dbutils.NewFilterCondition("resource_name", "=", dbVolume.Name),
+	)
+	jobs, err := se.GetJobsWithCondition(ctx, *filter)
+	if err != nil {
+		return false, "", err
+	}
+	for _, job := range jobs {
+		// Check if there is any FlexCache establish peering job in progress for the same volume with required params and in healthy state
+		if job.Type == string(coremodels.JobTypeFlexCacheEstablishPeering) || job.Type == string(coremodels.JobTypeFlexCacheInternalPeering) {
+			if flexCacheParamsMatch(dbVolume, params) && (job.State != string(coremodels.JobsStateERROR) && job.State != string(coremodels.JobsStateDONE)) {
+				return true, job.UUID, nil
+			}
+		}
+	}
+	return false, "", nil
+}
+
+func _flexCacheParamsMatch(dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams) bool {
+	return dbVolume.CacheParameters.PeerClusterName == params.PeerClusterName &&
+		dbVolume.CacheParameters.PeerSvmName == params.PeerSvmName &&
+		dbVolume.CacheParameters.PeerVolumeName == params.PeerVolumeName
 }

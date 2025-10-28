@@ -5520,21 +5520,14 @@ func (s *EstablishPeeringRequestV1beta) encodeFields(e *jx.Encoder) {
 			s.PeeringCommandExpiryTime.Encode(e, json.EncodeDateTime)
 		}
 	}
-	{
-		if s.Passphrase.Set {
-			e.FieldStart("passphrase")
-			s.Passphrase.Encode(e)
-		}
-	}
 }
 
-var jsonFieldsNameOfEstablishPeeringRequestV1beta = [6]string{
+var jsonFieldsNameOfEstablishPeeringRequestV1beta = [5]string{
 	0: "peerClusterName",
 	1: "peerSvmName",
 	2: "peerVolumeName",
 	3: "peerIpAddresses",
 	4: "peeringCommandExpiryTime",
-	5: "passphrase",
 }
 
 // Decode decodes EstablishPeeringRequestV1beta from json.
@@ -5601,16 +5594,6 @@ func (s *EstablishPeeringRequestV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"peeringCommandExpiryTime\"")
-			}
-		case "passphrase":
-			if err := func() error {
-				s.Passphrase.Reset()
-				if err := s.Passphrase.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"passphrase\"")
 			}
 		default:
 			return d.Skip()

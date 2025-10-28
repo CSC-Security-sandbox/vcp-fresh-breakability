@@ -5488,6 +5488,170 @@ func (s *Error) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *EstablishPeeringRequestV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *EstablishPeeringRequestV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("peerClusterName")
+		e.Str(s.PeerClusterName)
+	}
+	{
+		e.FieldStart("peerSvmName")
+		e.Str(s.PeerSvmName)
+	}
+	{
+		e.FieldStart("peerVolumeName")
+		e.Str(s.PeerVolumeName)
+	}
+	{
+		if s.PeerIpAddresses.Set {
+			e.FieldStart("peerIpAddresses")
+			s.PeerIpAddresses.Encode(e)
+		}
+	}
+	{
+		if s.PeeringCommandExpiryTime.Set {
+			e.FieldStart("peeringCommandExpiryTime")
+			s.PeeringCommandExpiryTime.Encode(e, json.EncodeDateTime)
+		}
+	}
+}
+
+var jsonFieldsNameOfEstablishPeeringRequestV1beta = [5]string{
+	0: "peerClusterName",
+	1: "peerSvmName",
+	2: "peerVolumeName",
+	3: "peerIpAddresses",
+	4: "peeringCommandExpiryTime",
+}
+
+// Decode decodes EstablishPeeringRequestV1beta from json.
+func (s *EstablishPeeringRequestV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode EstablishPeeringRequestV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "peerClusterName":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.PeerClusterName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"peerClusterName\"")
+			}
+		case "peerSvmName":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.PeerSvmName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"peerSvmName\"")
+			}
+		case "peerVolumeName":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.PeerVolumeName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"peerVolumeName\"")
+			}
+		case "peerIpAddresses":
+			if err := func() error {
+				s.PeerIpAddresses.Reset()
+				if err := s.PeerIpAddresses.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"peerIpAddresses\"")
+			}
+		case "peeringCommandExpiryTime":
+			if err := func() error {
+				s.PeeringCommandExpiryTime.Reset()
+				if err := s.PeeringCommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"peeringCommandExpiryTime\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode EstablishPeeringRequestV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfEstablishPeeringRequestV1beta) {
+					name = jsonFieldsNameOfEstablishPeeringRequestV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *EstablishPeeringRequestV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *EstablishPeeringRequestV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *ExportPolicyV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -15731,6 +15895,8 @@ func (s *PoolInternalV1betaStoragePoolState) Decode(d *jx.Decoder) error {
 		*s = PoolInternalV1betaStoragePoolStateDELETING
 	case PoolInternalV1betaStoragePoolStateERROR:
 		*s = PoolInternalV1betaStoragePoolStateERROR
+	case PoolInternalV1betaStoragePoolStateDEGRADED:
+		*s = PoolInternalV1betaStoragePoolStateDEGRADED
 	default:
 		*s = PoolInternalV1betaStoragePoolState(v)
 	}
@@ -17170,6 +17336,8 @@ func (s *PoolV1betaStoragePoolState) Decode(d *jx.Decoder) error {
 		*s = PoolV1betaStoragePoolStateDELETING
 	case PoolV1betaStoragePoolStateERROR:
 		*s = PoolV1betaStoragePoolStateERROR
+	case PoolV1betaStoragePoolStateDEGRADED:
+		*s = PoolV1betaStoragePoolStateDEGRADED
 	default:
 		*s = PoolV1betaStoragePoolState(v)
 	}
@@ -18998,8 +19166,8 @@ func (s *ResourceStateUpdateV1beta) encodeFields(e *jx.Encoder) {
 		s.ResourceType.Encode(e)
 	}
 	{
-		e.FieldStart("resourceID")
-		e.Str(s.ResourceID)
+		e.FieldStart("resourceId")
+		e.Str(s.ResourceId)
 	}
 	{
 		if s.ParentResourceType.Set {
@@ -19008,9 +19176,9 @@ func (s *ResourceStateUpdateV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.ParentResourceID.Set {
-			e.FieldStart("parentResourceID")
-			s.ParentResourceID.Encode(e)
+		if s.ParentResourceId.Set {
+			e.FieldStart("parentResourceId")
+			s.ParentResourceId.Encode(e)
 		}
 	}
 }
@@ -19018,9 +19186,9 @@ func (s *ResourceStateUpdateV1beta) encodeFields(e *jx.Encoder) {
 var jsonFieldsNameOfResourceStateUpdateV1beta = [5]string{
 	0: "state",
 	1: "resourceType",
-	2: "resourceID",
+	2: "resourceId",
 	3: "parentResourceType",
-	4: "parentResourceID",
+	4: "parentResourceId",
 }
 
 // Decode decodes ResourceStateUpdateV1beta from json.
@@ -19052,17 +19220,17 @@ func (s *ResourceStateUpdateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"resourceType\"")
 			}
-		case "resourceID":
+		case "resourceId":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
-				s.ResourceID = string(v)
+				s.ResourceId = string(v)
 				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"resourceID\"")
+				return errors.Wrap(err, "decode field \"resourceId\"")
 			}
 		case "parentResourceType":
 			if err := func() error {
@@ -19074,15 +19242,15 @@ func (s *ResourceStateUpdateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"parentResourceType\"")
 			}
-		case "parentResourceID":
+		case "parentResourceId":
 			if err := func() error {
-				s.ParentResourceID.Reset()
-				if err := s.ParentResourceID.Decode(d); err != nil {
+				s.ParentResourceId.Reset()
+				if err := s.ParentResourceId.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"parentResourceID\"")
+				return errors.Wrap(err, "decode field \"parentResourceId\"")
 			}
 		default:
 			return d.Skip()
@@ -19206,6 +19374,8 @@ func (s *ResourceStateUpdateV1betaResourceType) Decode(d *jx.Decoder) error {
 		*s = ResourceStateUpdateV1betaResourceTypeKmsConfig
 	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
 		*s = ResourceStateUpdateV1betaResourceTypeBackupPolicy
+	case ResourceStateUpdateV1betaResourceTypeHostGroup:
+		*s = ResourceStateUpdateV1betaResourceTypeHostGroup
 	default:
 		*s = ResourceStateUpdateV1betaResourceType(v)
 	}
@@ -30164,6 +30334,310 @@ func (s *V1betaEncryptVolumesUnprocessableEntity) MarshalJSON() ([]byte, error) 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaEncryptVolumesUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaEstablishVolumePeeringBadRequest as json.
+func (s *V1betaEstablishVolumePeeringBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaEstablishVolumePeeringBadRequest from json.
+func (s *V1betaEstablishVolumePeeringBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaEstablishVolumePeeringBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaEstablishVolumePeeringBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaEstablishVolumePeeringBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaEstablishVolumePeeringBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaEstablishVolumePeeringConflict as json.
+func (s *V1betaEstablishVolumePeeringConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaEstablishVolumePeeringConflict from json.
+func (s *V1betaEstablishVolumePeeringConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaEstablishVolumePeeringConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaEstablishVolumePeeringConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaEstablishVolumePeeringConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaEstablishVolumePeeringConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaEstablishVolumePeeringForbidden as json.
+func (s *V1betaEstablishVolumePeeringForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaEstablishVolumePeeringForbidden from json.
+func (s *V1betaEstablishVolumePeeringForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaEstablishVolumePeeringForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaEstablishVolumePeeringForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaEstablishVolumePeeringForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaEstablishVolumePeeringForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaEstablishVolumePeeringInternalServerError as json.
+func (s *V1betaEstablishVolumePeeringInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaEstablishVolumePeeringInternalServerError from json.
+func (s *V1betaEstablishVolumePeeringInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaEstablishVolumePeeringInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaEstablishVolumePeeringInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaEstablishVolumePeeringInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaEstablishVolumePeeringInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaEstablishVolumePeeringNotFound as json.
+func (s *V1betaEstablishVolumePeeringNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaEstablishVolumePeeringNotFound from json.
+func (s *V1betaEstablishVolumePeeringNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaEstablishVolumePeeringNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaEstablishVolumePeeringNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaEstablishVolumePeeringNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaEstablishVolumePeeringNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaEstablishVolumePeeringTooManyRequests as json.
+func (s *V1betaEstablishVolumePeeringTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaEstablishVolumePeeringTooManyRequests from json.
+func (s *V1betaEstablishVolumePeeringTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaEstablishVolumePeeringTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaEstablishVolumePeeringTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaEstablishVolumePeeringTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaEstablishVolumePeeringTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaEstablishVolumePeeringUnauthorized as json.
+func (s *V1betaEstablishVolumePeeringUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaEstablishVolumePeeringUnauthorized from json.
+func (s *V1betaEstablishVolumePeeringUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaEstablishVolumePeeringUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaEstablishVolumePeeringUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaEstablishVolumePeeringUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaEstablishVolumePeeringUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaEstablishVolumePeeringUnprocessableEntity as json.
+func (s *V1betaEstablishVolumePeeringUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaEstablishVolumePeeringUnprocessableEntity from json.
+func (s *V1betaEstablishVolumePeeringUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaEstablishVolumePeeringUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaEstablishVolumePeeringUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaEstablishVolumePeeringUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaEstablishVolumePeeringUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -51995,9 +52469,15 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 			s.Description.Encode(e)
 		}
 	}
+	{
+		if s.CacheParameters.Set {
+			e.FieldStart("cacheParameters")
+			s.CacheParameters.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumeUpdateV1beta = [17]string{
+var jsonFieldsNameOfVolumeUpdateV1beta = [18]string{
 	0:  "quotaInBytes",
 	1:  "snapReserve",
 	2:  "snapshotDirectory",
@@ -52015,6 +52495,7 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [17]string{
 	14: "labels",
 	15: "poolId",
 	16: "description",
+	17: "cacheParameters",
 }
 
 // Decode decodes VolumeUpdateV1beta from json.
@@ -52207,6 +52688,16 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"description\"")
 			}
+		case "cacheParameters":
+			if err := func() error {
+				s.CacheParameters.Reset()
+				if err := s.CacheParameters.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cacheParameters\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -52386,6 +52877,12 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 		if s.QuotaInBytes.Set {
 			e.FieldStart("quotaInBytes")
 			s.QuotaInBytes.Encode(e)
+		}
+	}
+	{
+		if s.ThroughputMibps.Set {
+			e.FieldStart("throughputMibps")
+			s.ThroughputMibps.Encode(e)
 		}
 	}
 	{
@@ -52598,7 +53095,7 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeV1beta = [49]string{
+var jsonFieldsNameOfVolumeV1beta = [50]string{
 	0:  "resourceId",
 	1:  "volumeId",
 	2:  "created",
@@ -52615,39 +53112,40 @@ var jsonFieldsNameOfVolumeV1beta = [49]string{
 	13: "securityStyle",
 	14: "usedBytes",
 	15: "quotaInBytes",
-	16: "coldTierSizeGib",
-	17: "snapReserve",
-	18: "snapshotDirectory",
-	19: "volumeState",
-	20: "volumeStateDetails",
-	21: "isDataProtection",
-	22: "isOnPremMigration",
-	23: "inReplication",
-	24: "snapshotPolicy",
-	25: "storageClass",
-	26: "exportPolicy",
-	27: "backupConfig",
-	28: "tieringPolicy",
-	29: "blockProperties",
-	30: "blockDevices",
-	31: "protocols",
-	32: "restrictedActions",
-	33: "smbSettings",
-	34: "mountPoints",
-	35: "labels",
-	36: "kerberosEnabled",
-	37: "ldapEnabled",
-	38: "unixPermissions",
-	39: "encryptionType",
-	40: "description",
-	41: "zone",
-	42: "multipleEndpoints",
-	43: "largeCapacity",
-	44: "secondaryZone",
-	45: "dedicatedCapacity",
-	46: "largeVolumeConstituentCount",
-	47: "cacheParameters",
-	48: "hotTierSizeGib",
+	16: "throughputMibps",
+	17: "coldTierSizeGib",
+	18: "snapReserve",
+	19: "snapshotDirectory",
+	20: "volumeState",
+	21: "volumeStateDetails",
+	22: "isDataProtection",
+	23: "isOnPremMigration",
+	24: "inReplication",
+	25: "snapshotPolicy",
+	26: "storageClass",
+	27: "exportPolicy",
+	28: "backupConfig",
+	29: "tieringPolicy",
+	30: "blockProperties",
+	31: "blockDevices",
+	32: "protocols",
+	33: "restrictedActions",
+	34: "smbSettings",
+	35: "mountPoints",
+	36: "labels",
+	37: "kerberosEnabled",
+	38: "ldapEnabled",
+	39: "unixPermissions",
+	40: "encryptionType",
+	41: "description",
+	42: "zone",
+	43: "multipleEndpoints",
+	44: "largeCapacity",
+	45: "secondaryZone",
+	46: "dedicatedCapacity",
+	47: "largeVolumeConstituentCount",
+	48: "cacheParameters",
+	49: "hotTierSizeGib",
 }
 
 // Decode decodes VolumeV1beta from json.
@@ -52822,6 +53320,16 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"quotaInBytes\"")
 			}
+		case "throughputMibps":
+			if err := func() error {
+				s.ThroughputMibps.Reset()
+				if err := s.ThroughputMibps.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"throughputMibps\"")
+			}
 		case "coldTierSizeGib":
 			if err := func() error {
 				s.ColdTierSizeGib.Reset()
@@ -52980,7 +53488,7 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"blockDevices\"")
 			}
 		case "protocols":
-			requiredBitSet[3] |= 1 << 7
+			requiredBitSet[4] |= 1 << 0
 			if err := func() error {
 				s.Protocols = make([]ProtocolsV1beta, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -53185,8 +53693,8 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 		0b00100001,
 		0b00000000,
 		0b00000000,
-		0b10000000,
 		0b00000000,
+		0b00000001,
 		0b00000000,
 		0b00000000,
 	} {

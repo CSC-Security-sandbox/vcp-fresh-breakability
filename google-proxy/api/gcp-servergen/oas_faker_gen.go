@@ -1190,11 +1190,6 @@ func (s *EstablishPeeringRequestV1beta) SetFake() {
 			s.PeeringCommandExpiryTime.SetFake()
 		}
 	}
-	{
-		{
-			s.Passphrase.SetFake()
-		}
-	}
 }
 
 // SetFake set fake values.

@@ -94,6 +94,72 @@ func (_c *monkeyMock_authGetSignedJwtToken_Call) RunAndReturn(run func(string) (
 	return _c
 }
 
+// checkForFlexCacheJobInProgress provides a mock function with given fields: ctx, se, dbVolume, params
+func (_m *monkeyMock) checkForFlexCacheJobInProgress(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams) (bool, string, error) {
+	ret := _m.Called(ctx, se, dbVolume, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for checkForFlexCacheJobInProgress")
+	}
+
+	var r0 bool
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, *datamodel.Volume, *common.EstablishVolumePeeringParams) (bool, string, error)); ok {
+		return rf(ctx, se, dbVolume, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, *datamodel.Volume, *common.EstablishVolumePeeringParams) bool); ok {
+		r0 = rf(ctx, se, dbVolume, params)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, database.Storage, *datamodel.Volume, *common.EstablishVolumePeeringParams) string); ok {
+		r1 = rf(ctx, se, dbVolume, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, database.Storage, *datamodel.Volume, *common.EstablishVolumePeeringParams) error); ok {
+		r2 = rf(ctx, se, dbVolume, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// monkeyMock_checkForFlexCacheJobInProgress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'checkForFlexCacheJobInProgress'
+type monkeyMock_checkForFlexCacheJobInProgress_Call struct {
+	*mock.Call
+}
+
+// checkForFlexCacheJobInProgress is a helper method to define mock.On call
+//   - ctx context.Context
+//   - se database.Storage
+//   - dbVolume *datamodel.Volume
+//   - params *common.EstablishVolumePeeringParams
+func (_e *monkeyMock_Expecter) checkForFlexCacheJobInProgress(ctx interface{}, se interface{}, dbVolume interface{}, params interface{}) *monkeyMock_checkForFlexCacheJobInProgress_Call {
+	return &monkeyMock_checkForFlexCacheJobInProgress_Call{Call: _e.mock.On("checkForFlexCacheJobInProgress", ctx, se, dbVolume, params)}
+}
+
+func (_c *monkeyMock_checkForFlexCacheJobInProgress_Call) Run(run func(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams)) *monkeyMock_checkForFlexCacheJobInProgress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(database.Storage), args[2].(*datamodel.Volume), args[3].(*common.EstablishVolumePeeringParams))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_checkForFlexCacheJobInProgress_Call) Return(_a0 bool, _a1 string, _a2 error) *monkeyMock_checkForFlexCacheJobInProgress_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *monkeyMock_checkForFlexCacheJobInProgress_Call) RunAndReturn(run func(context.Context, database.Storage, *datamodel.Volume, *common.EstablishVolumePeeringParams) (bool, string, error)) *monkeyMock_checkForFlexCacheJobInProgress_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // createFlexCacheVolume provides a mock function with given fields: ctx, se, temporal, params
 func (_m *monkeyMock) createFlexCacheVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error) {
 	ret := _m.Called(ctx, se, temporal, params)
@@ -208,7 +274,7 @@ func (_c *monkeyMock_envIsLocalEnv_Call) RunAndReturn(run func() bool) *monkeyMo
 }
 
 // establishFlexCacheVolumePeering provides a mock function with given fields: ctx, se, temporal, params
-func (_m *monkeyMock) establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*models.Volume, error) {
+func (_m *monkeyMock) establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*models.Volume, string, error) {
 	ret := _m.Called(ctx, se, temporal, params)
 
 	if len(ret) == 0 {
@@ -216,8 +282,9 @@ func (_m *monkeyMock) establishFlexCacheVolumePeering(ctx context.Context, se da
 	}
 
 	var r0 *models.Volume
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) (*models.Volume, error)); ok {
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) (*models.Volume, string, error)); ok {
 		return rf(ctx, se, temporal, params)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) *models.Volume); ok {
@@ -228,13 +295,19 @@ func (_m *monkeyMock) establishFlexCacheVolumePeering(ctx context.Context, se da
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) string); ok {
 		r1 = rf(ctx, se, temporal, params)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(string)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) error); ok {
+		r2 = rf(ctx, se, temporal, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // monkeyMock_establishFlexCacheVolumePeering_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'establishFlexCacheVolumePeering'
@@ -258,12 +331,12 @@ func (_c *monkeyMock_establishFlexCacheVolumePeering_Call) Run(run func(ctx cont
 	return _c
 }
 
-func (_c *monkeyMock_establishFlexCacheVolumePeering_Call) Return(_a0 *models.Volume, _a1 error) *monkeyMock_establishFlexCacheVolumePeering_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *monkeyMock_establishFlexCacheVolumePeering_Call) Return(_a0 *models.Volume, _a1 string, _a2 error) *monkeyMock_establishFlexCacheVolumePeering_Call {
+	_c.Call.Return(_a0, _a1, _a2)
 	return _c
 }
 
-func (_c *monkeyMock_establishFlexCacheVolumePeering_Call) RunAndReturn(run func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) (*models.Volume, error)) *monkeyMock_establishFlexCacheVolumePeering_Call {
+func (_c *monkeyMock_establishFlexCacheVolumePeering_Call) RunAndReturn(run func(context.Context, database.Storage, client.Client, *common.EstablishVolumePeeringParams) (*models.Volume, string, error)) *monkeyMock_establishFlexCacheVolumePeering_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -454,6 +527,112 @@ func (_c *monkeyMock_getReplicationObjects_Call) Return(_a0 []*googleproxyclient
 }
 
 func (_c *monkeyMock_getReplicationObjects_Call) RunAndReturn(run func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error)) *monkeyMock_getReplicationObjects_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// identicalParams provides a mock function with given fields: dbVolume, params
+func (_m *monkeyMock) identicalParams(dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams) bool {
+	ret := _m.Called(dbVolume, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for identicalParams")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(*datamodel.Volume, *common.EstablishVolumePeeringParams) bool); ok {
+		r0 = rf(dbVolume, params)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// monkeyMock_identicalParams_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'identicalParams'
+type monkeyMock_identicalParams_Call struct {
+	*mock.Call
+}
+
+// identicalParams is a helper method to define mock.On call
+//   - dbVolume *datamodel.Volume
+//   - params *common.EstablishVolumePeeringParams
+func (_e *monkeyMock_Expecter) identicalParams(dbVolume interface{}, params interface{}) *monkeyMock_identicalParams_Call {
+	return &monkeyMock_identicalParams_Call{Call: _e.mock.On("identicalParams", dbVolume, params)}
+}
+
+func (_c *monkeyMock_identicalParams_Call) Run(run func(dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams)) *monkeyMock_identicalParams_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*datamodel.Volume), args[1].(*common.EstablishVolumePeeringParams))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_identicalParams_Call) Return(_a0 bool) *monkeyMock_identicalParams_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_identicalParams_Call) RunAndReturn(run func(*datamodel.Volume, *common.EstablishVolumePeeringParams) bool) *monkeyMock_identicalParams_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// isEstablishVolumePeeringNeeded provides a mock function with given fields: ctx, se, params, dbVolume
+func (_m *monkeyMock) isEstablishVolumePeeringNeeded(ctx context.Context, se database.Storage, params *common.EstablishVolumePeeringParams, dbVolume *datamodel.Volume) (string, error) {
+	ret := _m.Called(ctx, se, params, dbVolume)
+
+	if len(ret) == 0 {
+		panic("no return value specified for isEstablishVolumePeeringNeeded")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, *common.EstablishVolumePeeringParams, *datamodel.Volume) (string, error)); ok {
+		return rf(ctx, se, params, dbVolume)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, database.Storage, *common.EstablishVolumePeeringParams, *datamodel.Volume) string); ok {
+		r0 = rf(ctx, se, params, dbVolume)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, database.Storage, *common.EstablishVolumePeeringParams, *datamodel.Volume) error); ok {
+		r1 = rf(ctx, se, params, dbVolume)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// monkeyMock_isEstablishVolumePeeringNeeded_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'isEstablishVolumePeeringNeeded'
+type monkeyMock_isEstablishVolumePeeringNeeded_Call struct {
+	*mock.Call
+}
+
+// isEstablishVolumePeeringNeeded is a helper method to define mock.On call
+//   - ctx context.Context
+//   - se database.Storage
+//   - params *common.EstablishVolumePeeringParams
+//   - dbVolume *datamodel.Volume
+func (_e *monkeyMock_Expecter) isEstablishVolumePeeringNeeded(ctx interface{}, se interface{}, params interface{}, dbVolume interface{}) *monkeyMock_isEstablishVolumePeeringNeeded_Call {
+	return &monkeyMock_isEstablishVolumePeeringNeeded_Call{Call: _e.mock.On("isEstablishVolumePeeringNeeded", ctx, se, params, dbVolume)}
+}
+
+func (_c *monkeyMock_isEstablishVolumePeeringNeeded_Call) Run(run func(ctx context.Context, se database.Storage, params *common.EstablishVolumePeeringParams, dbVolume *datamodel.Volume)) *monkeyMock_isEstablishVolumePeeringNeeded_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(database.Storage), args[2].(*common.EstablishVolumePeeringParams), args[3].(*datamodel.Volume))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_isEstablishVolumePeeringNeeded_Call) Return(_a0 string, _a1 error) *monkeyMock_isEstablishVolumePeeringNeeded_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *monkeyMock_isEstablishVolumePeeringNeeded_Call) RunAndReturn(run func(context.Context, database.Storage, *common.EstablishVolumePeeringParams, *datamodel.Volume) (string, error)) *monkeyMock_isEstablishVolumePeeringNeeded_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -784,6 +963,148 @@ func (_c *monkeyMock_validateCreateVolumeParams_Call) Return(_a0 error) *monkeyM
 }
 
 func (_c *monkeyMock_validateCreateVolumeParams_Call) RunAndReturn(run func(context.Context, database.Storage, *common.CreateVolumeParams, *datamodel.PoolView) error) *monkeyMock_validateCreateVolumeParams_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// verifyClusterPeering provides a mock function with given fields: ctx, dbVolume
+func (_m *monkeyMock) verifyClusterPeering(ctx context.Context, dbVolume *datamodel.Volume) bool {
+	ret := _m.Called(ctx, dbVolume)
+
+	if len(ret) == 0 {
+		panic("no return value specified for verifyClusterPeering")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume) bool); ok {
+		r0 = rf(ctx, dbVolume)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// monkeyMock_verifyClusterPeering_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'verifyClusterPeering'
+type monkeyMock_verifyClusterPeering_Call struct {
+	*mock.Call
+}
+
+// verifyClusterPeering is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dbVolume *datamodel.Volume
+func (_e *monkeyMock_Expecter) verifyClusterPeering(ctx interface{}, dbVolume interface{}) *monkeyMock_verifyClusterPeering_Call {
+	return &monkeyMock_verifyClusterPeering_Call{Call: _e.mock.On("verifyClusterPeering", ctx, dbVolume)}
+}
+
+func (_c *monkeyMock_verifyClusterPeering_Call) Run(run func(ctx context.Context, dbVolume *datamodel.Volume)) *monkeyMock_verifyClusterPeering_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Volume))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_verifyClusterPeering_Call) Return(_a0 bool) *monkeyMock_verifyClusterPeering_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_verifyClusterPeering_Call) RunAndReturn(run func(context.Context, *datamodel.Volume) bool) *monkeyMock_verifyClusterPeering_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// verifyFlexCacheParameters provides a mock function with given fields: ctx, params, dbVolume
+func (_m *monkeyMock) verifyFlexCacheParameters(ctx context.Context, params *common.EstablishVolumePeeringParams, dbVolume *datamodel.Volume) error {
+	ret := _m.Called(ctx, params, dbVolume)
+
+	if len(ret) == 0 {
+		panic("no return value specified for verifyFlexCacheParameters")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.EstablishVolumePeeringParams, *datamodel.Volume) error); ok {
+		r0 = rf(ctx, params, dbVolume)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// monkeyMock_verifyFlexCacheParameters_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'verifyFlexCacheParameters'
+type monkeyMock_verifyFlexCacheParameters_Call struct {
+	*mock.Call
+}
+
+// verifyFlexCacheParameters is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.EstablishVolumePeeringParams
+//   - dbVolume *datamodel.Volume
+func (_e *monkeyMock_Expecter) verifyFlexCacheParameters(ctx interface{}, params interface{}, dbVolume interface{}) *monkeyMock_verifyFlexCacheParameters_Call {
+	return &monkeyMock_verifyFlexCacheParameters_Call{Call: _e.mock.On("verifyFlexCacheParameters", ctx, params, dbVolume)}
+}
+
+func (_c *monkeyMock_verifyFlexCacheParameters_Call) Run(run func(ctx context.Context, params *common.EstablishVolumePeeringParams, dbVolume *datamodel.Volume)) *monkeyMock_verifyFlexCacheParameters_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.EstablishVolumePeeringParams), args[2].(*datamodel.Volume))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_verifyFlexCacheParameters_Call) Return(_a0 error) *monkeyMock_verifyFlexCacheParameters_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_verifyFlexCacheParameters_Call) RunAndReturn(run func(context.Context, *common.EstablishVolumePeeringParams, *datamodel.Volume) error) *monkeyMock_verifyFlexCacheParameters_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// verifyVolumeState provides a mock function with given fields: ctx, dbVolume
+func (_m *monkeyMock) verifyVolumeState(ctx context.Context, dbVolume *datamodel.Volume) error {
+	ret := _m.Called(ctx, dbVolume)
+
+	if len(ret) == 0 {
+		panic("no return value specified for verifyVolumeState")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume) error); ok {
+		r0 = rf(ctx, dbVolume)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// monkeyMock_verifyVolumeState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'verifyVolumeState'
+type monkeyMock_verifyVolumeState_Call struct {
+	*mock.Call
+}
+
+// verifyVolumeState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dbVolume *datamodel.Volume
+func (_e *monkeyMock_Expecter) verifyVolumeState(ctx interface{}, dbVolume interface{}) *monkeyMock_verifyVolumeState_Call {
+	return &monkeyMock_verifyVolumeState_Call{Call: _e.mock.On("verifyVolumeState", ctx, dbVolume)}
+}
+
+func (_c *monkeyMock_verifyVolumeState_Call) Run(run func(ctx context.Context, dbVolume *datamodel.Volume)) *monkeyMock_verifyVolumeState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Volume))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_verifyVolumeState_Call) Return(_a0 error) *monkeyMock_verifyVolumeState_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_verifyVolumeState_Call) RunAndReturn(run func(context.Context, *datamodel.Volume) error) *monkeyMock_verifyVolumeState_Call {
 	_c.Call.Return(run)
 	return _c
 }

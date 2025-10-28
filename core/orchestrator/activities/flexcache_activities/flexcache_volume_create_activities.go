@@ -18,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -572,5 +573,134 @@ func mapJobTypeToError(jobType string) int {
 	default:
 		// Fallback to a generic error code
 		return vsaerrors.ErrInternalPeeringJobFailed
+	}
+}
+
+// EnsureClusterPeerInOntapActivity checks the status of an existing cluster peer or decides to create a new one.
+func (a FlexCacheVolumeCreateActivity) EnsureClusterPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	volume := result.DBVolume
+
+	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// No stored UUID -> create
+	if volume.ClusterPeerUUID == nil {
+		result.ClusterPeerAction = flexcache.ActionCreate
+		logger.Debug("cluster peer UUID absent; will create")
+		return result, nil
+	}
+
+	// Fetch existing
+	cp, getErr := provider.GetClusterPeer(*volume.ClusterPeerUUID)
+	if getErr != nil || cp == nil {
+		result.ClusterPeerAction = flexcache.ActionCreate
+		logger.Infof("stored cluster peer UUID not found; will create new (err=%v)", getErr)
+		return result, nil
+	}
+	result.ClusterPeer = cp
+	now := time.Now().UTC()
+
+	switch {
+	// Unrecoverable states -> recreate
+	case cp.AuthenticationState == vsa.ClusterPeerAuthenticationStateProblem,
+		cp.AuthenticationState == vsa.ClusterPeerAuthenticationStateAbsent,
+		cp.Availability == vsa.ClusterPeerAvailabilityStateUnidentified:
+		logger.Warnf("cluster peer invalid (auth=%s availability=%s); recreating",
+			cp.AuthenticationState, cp.Availability)
+		result.ClusterPeerAction = flexcache.ActionCreate
+		return result, nil
+
+	// Expired command and not yet peered -> recreate
+	case cp.ExpiryTime != nil &&
+		now.After(time.Time(*cp.ExpiryTime).UTC()) &&
+		!(cp.AuthenticationState == vsa.ClusterPeerAuthenticationStateOK &&
+			cp.Availability == vsa.ClusterPeerAvailabilityStateAvailable):
+		logger.Infof("cluster peer command expired (uuid=%s); scheduling recreation", *volume.ClusterPeerUUID)
+		result.ClusterPeerAction = flexcache.ActionCreate
+		return result, nil
+
+	// Ready -> reuse
+	case cp.AuthenticationState == vsa.ClusterPeerAuthenticationStateOK &&
+		cp.Availability == vsa.ClusterPeerAvailabilityStateAvailable:
+		result.ClusterPeerAction = flexcache.ActionReady
+		logger.Debug("reusing existing cluster peer (ready)")
+		return result, nil
+
+	// Wait (pending or partial)
+	case cp.AuthenticationState == vsa.ClusterPeerAuthenticationStatePending ||
+		cp.Availability == vsa.ClusterPeerAvailabilityStatePending ||
+		cp.Availability == vsa.ClusterPeerAvailabilityStatePartial:
+		result.ClusterPeerAction = flexcache.ActionWait
+		logger.Debugf("cluster peer not ready (auth=%s availability=%s); will wait",
+			cp.AuthenticationState, cp.Availability)
+		return result, nil
+
+	// Fallback -> recreate
+	default:
+		logger.Warnf("unknown cluster peer state (auth=%s availability=%s); recreating",
+			cp.AuthenticationState, cp.Availability)
+		result.ClusterPeerAction = flexcache.ActionCreate
+		return result, nil
+	}
+}
+
+// EnsureSVMPeerInOntapActivity checks the status of an existing SVM peer or decides to create a new one.
+func (a FlexCacheVolumeCreateActivity) EnsureSVMPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	volume := result.DBVolume
+
+	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// No stored UUID -> create
+	if volume.SvmPeerUUID == nil {
+		result.SVMPeerAction = flexcache.ActionCreate
+		logger.Debug("SVM peer UUID absent; will create")
+		return result, nil
+	}
+
+	// Fetch existing (lookup by SVM names; UUID retained for later persistence steps)
+	svmPeer, err := provider.GetSVMPeer(&volume.Svm.Name, &volume.CacheParameters.PeerSvmName)
+	if err != nil {
+		// retryable if not found and we have no existing peer
+		if errors.IsNotFoundErr(err) {
+			result.SVMPeerAction = flexcache.ActionCreate
+			logger.Infof("stored SVM peer UUID not found; will create new (err=%v)", err)
+			return result, nil
+		}
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	result.SVMPeer = svmPeer
+
+	switch {
+	// Invalid states -> recreate
+	case svmPeer.State == vsa.SvmPeerStateRejected,
+		svmPeer.State == vsa.SvmPeerStateSuspended:
+		logger.Warnf("SVM peer invalid (state=%s); recreating", svmPeer.State)
+		result.SVMPeerAction = flexcache.ActionCreate
+		return result, nil
+
+	// Ready -> reuse
+	case svmPeer.State == vsa.SvmPeerStatePeered:
+		result.SVMPeerAction = flexcache.ActionReady
+		logger.Debug("reusing existing SVM peer (ready)")
+		return result, nil
+
+	// Wait
+	case svmPeer.State == vsa.SvmPeerStatePending:
+		result.SVMPeerAction = flexcache.ActionWait
+		logger.Debugf("SVM peer not ready (state=%s); will wait", svmPeer.State)
+		return result, nil
+
+	// Fallback unknown -> recreate
+	default:
+		logger.Warnf("unknown SVM peer state (state=%s); recreating", svmPeer.State)
+		result.SVMPeerAction = flexcache.ActionCreate
+		return result, nil
 	}
 }

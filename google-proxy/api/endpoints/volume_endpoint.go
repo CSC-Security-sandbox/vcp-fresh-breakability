@@ -2098,6 +2098,7 @@ func validateBackupScheduleCron(cronExpression string) error {
 
 func (h Handler) V1betaEstablishVolumePeering(ctx context.Context, req *gcpgenserver.EstablishPeeringRequestV1beta,
 	params gcpgenserver.V1betaEstablishVolumePeeringParams) (gcpgenserver.V1betaEstablishVolumePeeringRes, error) {
+	logger := util.GetLogger(ctx)
 	if !flexCacheEnabled {
 		return &gcpgenserver.V1betaEstablishVolumePeeringForbidden{
 			Code:    403,
@@ -2110,9 +2111,9 @@ func (h Handler) V1betaEstablishVolumePeering(ctx context.Context, req *gcpgense
 		peerAddrs = v
 	}
 
-	var expiry time.Time
+	var expiry *time.Time
 	if t, ok := req.PeeringCommandExpiryTime.Get(); ok {
-		expiry = t
+		expiry = &t
 	}
 
 	region, zone, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
@@ -2133,12 +2134,26 @@ func (h Handler) V1betaEstablishVolumePeering(ctx context.Context, req *gcpgense
 		ExpiryTime:      expiry,
 		PeerSvmName:     req.PeerSvmName,
 		PeerVolumeName:  req.PeerVolumeName,
-		Passphrase:      req.Passphrase.Value,
 	}
 
-	volume, err := h.Orchestrator.EstablishFlexCacheVolumePeering(ctx, peeringParams)
+	volume, jobUUID, err := h.Orchestrator.EstablishFlexCacheVolumePeering(ctx, peeringParams)
 	if err != nil {
-		return &gcpgenserver.V1betaEstablishVolumePeeringInternalServerError{}, err
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaEstablishVolumePeeringConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaEstablishVolumePeeringBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to establish volume peering", "error", err.Error())
+		return &gcpgenserver.V1betaEstablishVolumePeeringInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))
@@ -2146,10 +2161,19 @@ func (h Handler) V1betaEstablishVolumePeering(ctx context.Context, req *gcpgense
 		return nil, err
 	}
 
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volume.LifeCycleState == models.LifeCycleStateCreating || volume.LifeCycleState == models.LifeCycleStatePreparing {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+
 	return &gcpgenserver.OperationV1beta{
-		Name:     gcpgenserver.OptString{},
+		Name:     gcpgenserver.NewOptString(operationID),
 		Response: resp,
-		Done:     gcpgenserver.OptBool{},
+		Done:     gcpgenserver.NewOptBool(true),
 	}, nil
 }
 

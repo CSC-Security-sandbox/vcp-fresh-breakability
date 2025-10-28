@@ -8654,12 +8654,6 @@ components:
           description: Expiry time for the peer acceptance command.
           nullable: true
           example: "2024-04-20T16:21:01+01:00"
-        passphrase:
-          title: passphrase
-          # Optional if cluster peer already authenticated.
-          type: string
-          description: Passphrase used for cluster peer authentication if required.
-          nullable: true
     HybridReplicationParameters_v1beta:
       title: HybridReplicationParameters
       required:
