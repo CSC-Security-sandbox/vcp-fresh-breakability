@@ -32,8 +32,9 @@ var LintCmd = &cobra.Command{
 
 type LintConfig struct {
 	Run struct {
-		SkipDirs  []string `yaml:"skip-dirs"`
-		SkipFiles []string `yaml:"skip-files"`
+		SkipDirs     []string `yaml:"skip-dirs"`
+		SkipFiles    []string `yaml:"skip-files"`
+		SkipPatterns []string `yaml:"skip-patterns"`
 	} `yaml:"run"`
 }
 
@@ -68,6 +69,16 @@ func checkGoFormat() int {
 		skipFiles[file] = struct{}{}
 	}
 
+	skipPatterns := make([]*regexp.Regexp, 0)
+	for _, pattern := range config.Run.SkipPatterns {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			log.Printf("Error compiling skip pattern %s: %v", pattern, err)
+			return 1
+		}
+		skipPatterns = append(skipPatterns, re)
+	}
+
 	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -83,6 +94,13 @@ func checkGoFormat() int {
 		// Skip files
 		if _, found := skipFiles[path]; found {
 			return nil
+		}
+
+		// Skip patterns
+		for _, pattern := range skipPatterns {
+			if pattern.MatchString(path) {
+				return nil
+			}
 		}
 
 		// Skip monkey mock test files

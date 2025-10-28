@@ -17,12 +17,12 @@ jobs:
     name: Obtain PR details
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v30
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:{{ vars.VSACICTL_VERSION }}
       options: --user root
 
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Generating image tag for security scanning 
         run: |

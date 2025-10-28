@@ -18,11 +18,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  setup-vsacictl:
+    name: Setup vsacictl
+    uses: ./.github/workflows/setup-vsacictl.yaml
+    secrets: inherit
+
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v3
@@ -45,18 +50,24 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
   common:
+    needs: setup-vsacictl
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
-      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
+      options: --user root
     steps:
       - name: Checkout codes
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          artifact-name: ${{ needs.setup-vsacictl.outputs.vsacictl-artifact-name }}
 
       - name: Fetch token
         uses: actions/create-github-app-token@v1
@@ -78,19 +89,25 @@ jobs:
         run: vsacictl jira allow_merge
 
   unit_tests:
+    needs: setup-vsacictl
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
       options: --user root
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          artifact-name: ${{ needs.setup-vsacictl.outputs.vsacictl-artifact-name }}
 
       - name: Configure Git for private modules
         run: |
@@ -107,20 +124,25 @@ jobs:
           path: coverage.out
 
   coverage:
-    needs: unit_tests
+    needs: [unit_tests, setup-vsacictl]
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
       options: --user root
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          artifact-name: ${{ needs.setup-vsacictl.outputs.vsacictl-artifact-name }}
 
       - name: Download coverage report
         uses: actions/download-artifact@v4
@@ -134,15 +156,15 @@ jobs:
         run: vsacictl unit-test coverage
 
   pr-coverage:
-    needs: unit_tests
+    needs: [unit_tests, setup-vsacictl]
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
       options: --user root
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -150,6 +172,11 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          artifact-name: ${{ needs.setup-vsacictl.outputs.vsacictl-artifact-name }}
 
       - name: Install tools
         run: |
@@ -177,7 +204,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Verify generated ONTAP Rest client code
         run: |
@@ -200,13 +227,13 @@ jobs:
           # Get the PR branch name
           PR_BRANCH=$(echo $GITHUB_HEAD_REF)
           echo "Pull request branch: $PR_BRANCH"
-          
+
           # Fetch the PR branch
           git fetch origin $PR_BRANCH
-          
+
           # Switch to the PR branch
           git checkout $PR_BRANCH
-          
+
           # Verify retry engine code
           cd ./scripts
           ./verify-retry-engine.sh vcp core
@@ -214,9 +241,10 @@ jobs:
 
   verify_build:
     name: Verify build
+    needs: setup-vsacictl
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v38
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
       options: --user root
     permissions:
       contents: read
@@ -224,7 +252,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v3
@@ -234,7 +262,6 @@ jobs:
       - name: Configure Git for private modules
         run: |
           git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
-
       - name: Build images
         env:
           IMAGES_TAG: "test-build" # Use a temporary tag for verification
@@ -245,21 +272,26 @@ jobs:
           skaffold build || exit 1
           make vcp-db-migrate-image imageVersion=test-build || exit 1
           make vcp-cloudrun-deployer-linux-image imageVersion=test-build || exit 1
-
   lint:
+    needs: setup-vsacictl
     runs-on: [self-hosted, linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v33
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
       options: --user root
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          artifact-name: ${{ needs.setup-vsacictl.outputs.vsacictl-artifact-name }}
 
       - name: Configure Git for private modules
         run: |
@@ -267,9 +299,11 @@ jobs:
 
       - name: Run golangci-lint script
         run: vsacictl lint
-        
+
   call-integration-test:
-    needs: [build, common, unit_tests]
+    needs: [build, common, unit_tests, setup-vsacictl]
     uses: ./.github/workflows/integrationtest.yaml
     secrets: inherit
     if: github.event_name == 'pull_request'
+    with:
+      vsacictl-artifact-name: ${{ needs.setup-vsacictl.outputs.vsacictl-artifact-name }}

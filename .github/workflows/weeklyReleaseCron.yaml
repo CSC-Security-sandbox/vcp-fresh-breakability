@@ -14,12 +14,12 @@ jobs:
 
     runs-on: [ self-hosted ,linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v28
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:{{ vars.VSACICTL_VERSION }}
       options: --user root
 
     steps:
       - name: Checkout codes
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GHVSA_PAT }}
 

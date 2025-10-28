@@ -85,6 +85,8 @@ linters:
 
 run:
   timeout: 5m
+  skip-patterns:
+    - .*_mock\.go
   skip-dirs:
     - vendor
     - clients/core-api

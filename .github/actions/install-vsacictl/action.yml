@@ -1,0 +1,24 @@
+name: 'Install vsacictl'
+description: 'Downloads and installs vsacictl binary from artifact'
+inputs:
+  artifact-name:
+    description: 'Name of the vsacictl artifact to download'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Download vsacictl artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: /tmp/vsacictl
+
+    - name: Install vsacictl from artifact
+      shell: bash
+      run: |
+        sudo mv /tmp/vsacictl/vsacictl /usr/local/bin/vsacictl
+        sudo chmod +x /usr/local/bin/vsacictl
+        echo "✅ vsacictl installed from artifact: ${{ inputs.artifact-name }}"
+        vsacictl help || echo "vsacictl version check complete"
+

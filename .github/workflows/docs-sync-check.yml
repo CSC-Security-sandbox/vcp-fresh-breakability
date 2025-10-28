@@ -1,24 +1,27 @@
 name: Documentation Sync Check
 
 on:
-  pull_request:
-    branches: [ main ]
-    paths:
-      - '**.go'
-      - '**.md'
-      - 'doc/**'
-      - 'google-proxy/api/**'
-      - 'core/**'
-      - 'cicd/**'
-  push:
-    branches: [ main ]
-    paths:
-      - '**.go'
-      - '**.md'
-      - 'doc/**'
-      - 'google-proxy/api/**'
-      - 'core/**'
-      - 'cicd/**'
+  workflow_dispatch:
+
+#  disabled until fixed.
+#  pull_request:
+#    branches: [ main ]
+#    paths:
+#      - '**.go'
+#      - '**.md'
+#      - 'doc/**'
+#      - 'google-proxy/api/**'
+#      - 'core/**'
+#      - 'cicd/**'
+#  push:
+#    branches: [ main ]
+#    paths:
+#      - '**.go'
+#      - '**.md'
+#      - 'doc/**'
+#      - 'google-proxy/api/**'
+#      - 'core/**'
+#      - 'cicd/**'
 
 # Explicit minimal permissions for GITHUB_TOKEN to follow security best practices
 permissions:

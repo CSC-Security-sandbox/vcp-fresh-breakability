@@ -134,7 +134,7 @@ jobs:
           PR_NUMBER=${{ github.event.pull_request.number }}
 
           # Get the current PR description
-          PR_DESCRIPTION=$(gh pr view $PR_NUMBER --json body -q '.body')
+          PR_DESCRIPTION=$(gh pr view $PR_NUMBER --json body --jq '.body')
 
           # Define the start and end markers for the analysis section
           START_MARKER='<!-- analysis-start -->'

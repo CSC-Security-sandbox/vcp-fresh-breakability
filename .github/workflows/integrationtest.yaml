@@ -7,6 +7,10 @@ on:
         required: false
         type: string
         default: 'main'
+      vsacictl-artifact-name:
+        description: 'Name of the vsacictl artifact (from parent workflow)'
+        required: true
+        type: string
 
 permissions:
   packages: write
@@ -25,7 +29,7 @@ jobs:
     runs-on: [self-hosted, linux]
     timeout-minutes: ${{ fromJSON(vars.TIMEOUT) }}
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:${{ vars.VSACICTL_VERSION }}
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
       options: --user root
     env:
       GH_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -35,6 +39,11 @@ jobs:
       
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          artifact-name: ${{ inputs.vsacictl-artifact-name }}
 
       - name: Checkout vsa-integration-test-poc
         uses: actions/checkout@v4

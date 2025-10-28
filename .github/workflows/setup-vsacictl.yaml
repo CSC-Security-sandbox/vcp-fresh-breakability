@@ -1,0 +1,156 @@
+name: Setup vsacictl (Reusable Workflow)
+# This reusable workflow detects vsacictl changes and conditionally builds it
+# It can be called from any workflow that needs vsacictl
+
+on:
+  workflow_call:
+    inputs:
+      is-update-workflow:
+        description: "Set to true when called from update-vsacictl workflow to build branch artifacts"
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      vsacictl-artifact-name:
+        description: "Name of the vsacictl binary artifact (either cached or newly built)"
+        value: ${{ jobs.determine-artifact.outputs.artifact-name }}
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  detect-changes:
+    name: Detect vsacictl Changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changes.outputs.cicd }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for cicd changes
+        id: changes
+        run: |
+          # Check if cicd/ directory has changes
+          if git diff --name-only origin/${{ github.base_ref || 'main' }}...${{ github.sha }} | grep -q '^cicd/'; then
+            echo "cicd=true" >> $GITHUB_OUTPUT
+            echo "✅ Detected changes in cicd/ directory"
+          else
+            echo "cicd=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No changes detected in cicd/ directory"
+          fi
+
+  determine-artifact:
+    name: Determine Artifact Strategy
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    outputs:
+      needs-build: ${{ steps.check.outputs.needs-build }}
+      artifact-name: ${{ steps.check.outputs.artifact-name }}
+    steps:
+      - name: Set artifact names
+        id: names
+        run: |
+          TARGET_BRANCH="${{ github.base_ref || github.ref_name }}"
+          CICD_CHANGED="${{ needs.detect-changes.outputs.changed }}"
+          
+          # Normalize branch name for artifact (replace / with -)
+          NORMALIZED_BRANCH=$(echo "$TARGET_BRANCH" | sed 's/\//-/g')
+          BRANCH_ARTIFACT="vsacictl-$NORMALIZED_BRANCH"
+          RUN_ARTIFACT="vsacictl-binary-${{ github.run_id }}"
+          
+          echo "branch-artifact=$BRANCH_ARTIFACT" >> $GITHUB_OUTPUT
+          echo "run-artifact=$RUN_ARTIFACT" >> $GITHUB_OUTPUT
+          echo "cicd-changed=$CICD_CHANGED" >> $GITHUB_OUTPUT
+          
+          echo "Target branch: $TARGET_BRANCH"
+          echo "Normalized: $NORMALIZED_BRANCH"
+          echo "Branch artifact name: $BRANCH_ARTIFACT"
+          echo "Run artifact name: $RUN_ARTIFACT"
+          echo "CICD changed: $CICD_CHANGED"
+          echo "Is update workflow: ${{ inputs.is-update-workflow }}"
+
+      - name: Try to download existing branch artifact
+        if: steps.names.outputs.cicd-changed != 'true'
+        id: download
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ steps.names.outputs.branch-artifact }}
+          path: /tmp/vsacictl-check
+
+      - name: Determine build necessity
+        id: check
+        run: |
+          CICD_CHANGED="${{ steps.names.outputs.cicd-changed }}"
+          BRANCH_ARTIFACT="${{ steps.names.outputs.branch-artifact }}"
+          RUN_ARTIFACT="${{ steps.names.outputs.run-artifact }}"
+          NEW_ARTIFACT_NAME="$RUN_ARTIFACT"
+          
+          # Use branch artifact name always if update workflow
+          if [ "${{inputs.is-update-workflow}}" == "true" ]; then
+            NEW_ARTIFACT_NAME="$BRANCH_ARTIFACT"
+          fi
+          
+          if [ "$CICD_CHANGED" == "true" ]; then
+            echo "needs-build=true" >> $GITHUB_OUTPUT
+            echo "artifact-name=$NEW_ARTIFACT_NAME" >> $GITHUB_OUTPUT
+            echo "🔨 Building new binary (cicd changed) → $NEW_ARTIFACT_NAME"
+            exit 0
+          fi
+          
+          # Check if download succeeded
+          if [ "${{ steps.download.outcome }}" == "success" ]; then
+            echo "needs-build=false" >> $GITHUB_OUTPUT
+            echo "artifact-name=$BRANCH_ARTIFACT" >> $GITHUB_OUTPUT
+            echo "✅ Using cached artifact: $BRANCH_ARTIFACT"
+          else
+            echo "needs-build=true" >> $GITHUB_OUTPUT
+            echo "artifact-name=$NEW_ARTIFACT_NAME" >> $GITHUB_OUTPUT
+            echo "🔨 Building new binary (no cache found) → $NEW_ARTIFACT_NAME"
+          fi
+
+  build-vsacictl:
+    name: Build vsacictl Binary
+    needs: [detect-changes, determine-artifact]
+    if: needs.determine-artifact.outputs.needs-build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: cicd/go.mod
+
+      - name: Cache Go modules for vsacictl
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: vsacictl-${{ runner.os }}-go-${{ hashFiles('cicd/go.sum') }}
+          restore-keys: |
+            vsacictl-${{ runner.os }}-go-
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Build vsacictl binary
+        working-directory: cicd
+        run: |
+          go mod download
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o vsacictl .
+          chmod +x vsacictl
+
+      - name: Upload vsacictl binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.determine-artifact.outputs.artifact-name }}
+          path: cicd/vsacictl
+          retention-days: 1
