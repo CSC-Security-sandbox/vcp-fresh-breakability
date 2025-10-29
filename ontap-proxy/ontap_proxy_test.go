@@ -723,6 +723,37 @@ func TestSetCommonHeaders(t *testing.T) {
 		assert.Equal(t, "ontap-proxy", req.Header.Get("X-Proxy-By"), "Should set X-Proxy-By header")
 		assert.Equal(t, "application/json", req.Header.Get("Accept"), "Should set Accept header")
 	})
+
+	t.Run("WhenNoRuleContext_ShouldAllowGzip", func(t *testing.T) {
+		req, err := http.NewRequest("GET", "/test", nil)
+		assert.NoError(t, err, "Failed to create request")
+		req.RemoteAddr = "192.168.1.1:12345"
+
+		setCommonHeaders(req)
+
+		assert.Equal(t, "", req.Header.Get("Accept-Encoding"), "Should not disable gzip when no rule")
+		assert.Equal(t, "192.168.1.1:12345", req.Header.Get("X-Forwarded-For"))
+		assert.Equal(t, "ontap-proxy", req.Header.Get("X-Proxy-By"))
+		assert.Equal(t, "application/json", req.Header.Get("Accept"))
+	})
+
+	t.Run("WhenRuleContextExists_ShouldDisableGzip", func(t *testing.T) {
+		req, err := http.NewRequest("GET", "/test", nil)
+		assert.NoError(t, err, "Failed to create request")
+		req.RemoteAddr = "192.168.1.1:12345"
+
+		// Add rule context
+		mockAction := &processor.Allow{}
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockAction)
+		req = req.WithContext(ctx)
+
+		setCommonHeaders(req)
+
+		assert.Equal(t, "", req.Header.Get("Accept-Encoding"), "Should disable gzip when rule exists")
+		assert.Equal(t, "192.168.1.1:12345", req.Header.Get("X-Forwarded-For"))
+		assert.Equal(t, "ontap-proxy", req.Header.Get("X-Proxy-By"))
+		assert.Equal(t, "application/json", req.Header.Get("Accept"))
+	})
 }
 
 func TestGetAPICallCertificate(t *testing.T) {
