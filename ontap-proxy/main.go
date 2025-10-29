@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -75,7 +76,7 @@ func setupHTTPServer() http.Handler {
 	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
 	mux.Use(log.RecoverMiddleware)
-	mux.Use(middleware.AuthMiddleware)
+	mux.Use(auth.AuthMiddleware(false)) // false = enable project number validation
 
 	ontapProxy := BuildOntapRESTProxy()
 
