@@ -37,7 +37,7 @@ const (
 
 var (
 	snapmirrorFirewallSourceRanges = env.GetString("DATA_FIREWALL_SOURCE_RANGES", "")
-	snapmirrorFirewallPortRules    = env.GetString("SNAPMIRROR_FIREWALL_PORT_RULES", "tcp,10566,11104,11105")
+	snapmirrorFirewallPortRules    = env.GetString("INTERCLUSTER_FIREWALL_PORT_RULES", "tcp,10566,11104,11105")
 )
 
 type VolumeReplicationCreateActivity struct {

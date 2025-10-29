@@ -56,6 +56,7 @@ var (
 	GetSubnetToBeUsed                        = getSubnetToBeUsed
 	SetupNetworkFirewallsForIscsi            = setupNetworkFirewallsForIscsi
 	SetupNetworkFirewallsForNFS              = setupNetworkFirewallsForNFS
+	SetupNetworkFirewallsForIntercluster     = setupNetworkFirewallsForIntercluster
 	CreateGCPBucket                          = _createGCPBucket
 	CheckReusableSubnet                      = _checkReusableSubnet
 	CreateServiceAccountAndAttachRole        = _createServiceAccountAndAttachRole
@@ -151,8 +152,9 @@ const (
 	RsmSubnetName   = "rsm-e0c-subnet-01"
 	RsmFirewallName = "ingress-" + RsmVpcName
 
-	iscsiDataFirewallName = "ingress-data-iscsi"
-	nfsDataFirewallName   = "ingress-data-nfs"
+	iscsiDataFirewallName    = "ingress-data-iscsi"
+	nfsDataFirewallName      = "ingress-data-nfs"
+	interclusterFirewallName = "ingress-intercluster"
 
 	AllowAllPorts = "all"
 )
@@ -184,9 +186,10 @@ var (
 	RsmNetworkIpRange  = env.GetString("RSM_NETWORK_IP_RANGE", "198.18.16.0/20")
 	IcNetworkIpRange   = env.GetString("IC_NETWORK_IP_RANGE", "198.18.32.0/20")
 
-	MgmtFirewallPortRules = env.GetString("MGMT_FIREWALL_PORT_RULES", "tcp,22,443")
-	RSMFirewallPortRules  = env.GetString("RSM_FIREWALL_PORT_RULES", "tcp,udp")
-	IcFirewallPortRules   = env.GetString("IC_FIREWALL_PORT_RULES", "tcp,udp")
+	MgmtFirewallPortRules         = env.GetString("MGMT_FIREWALL_PORT_RULES", "tcp,22,443")
+	RSMFirewallPortRules          = env.GetString("RSM_FIREWALL_PORT_RULES", "tcp,udp")
+	IcFirewallPortRules           = env.GetString("IC_FIREWALL_PORT_RULES", "tcp,udp")
+	InterclusterFirewallPortRules = env.GetString("INTERCLUSTER_FIREWALL_PORT_RULES", "tcp,10566,11104,11105")
 
 	IscsiFirewallPortRules = env.GetString("ISCSI_FIREWALL_PORT_RULES", "tcp,3260")
 	NFSFirewallPortRules   = env.GetString("NFS_FIREWALL_PORT_RULES", "tcp,111,635,2049,4045,udp,111,4046")
@@ -572,6 +575,20 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 		})
 	}
 
+	op, err = SetupNetworkFirewallsForIntercluster(service, snHostProject, network)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if op != "" {
+		operations = append(operations, commonparams.Operations{
+			OperationName:      op,
+			OperationType:      "firewall",
+			IsDone:             false,
+			IsRegionalResource: false,
+			Project:            snHostProject,
+		})
+	}
+
 	if utils.FileProtocolSupported {
 		op, err = SetupNetworkFirewallsForNFS(service, snHostProject, network)
 		if err != nil {
@@ -688,6 +705,10 @@ func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return credentials, nil
+}
+
+func setupNetworkFirewallsForIntercluster(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+	return InsertFirewall(service, snHostProject, interclusterFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(DataFirewallSourceRanges, ","), strings.Split(InterclusterFirewallPortRules, ","))
 }
 
 // setupNetworkFirewallsForIscsi sets up a firewall for iSCSI traffic in GCP
