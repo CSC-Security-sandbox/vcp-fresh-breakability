@@ -81,7 +81,7 @@ docker run --rm -it \
 -e MAX_CONCURRENT_WORKFLOWS="1000" \
 -e MAX_CONCURRENT_WORKFLOW_TASK_POLLERS="2" \
 -e GCE_METADATA_HOST="34.116.66.254:9090" \
-ghcr.io/vcp-vsa-control-plane/temporal-vlm:r9.17.1xn_7759115 // replace with latest tag
+ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:r9.17.1px_7825887 // replace with latest tag
 ```
 6.3 Run services In separate terminals (or use a supervisor)
 

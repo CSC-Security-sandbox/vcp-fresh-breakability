@@ -94,7 +94,7 @@ VSA clusters use **multiple vNICs** for different purposes:
 - **Cost Optimization**: Eliminates over-provisioning of large multi-pool clusters
 - **Resource Efficiency**: VM size selection based on performance requirements from VMRS tables
 - **Simplified Management**: Reduces operational complexity compared to multi-tenant clusters
-- **Configuration**: VMRS tables in `config/vmrs_gcp.yaml` define VM-to-performance mappings
+- **Configuration**: VMRS tables in `/config/vmrs_gcp.yaml` define VM-to-performance mappings
 
 ### Serial Number Generation Strategy
 **20-Digit Globally Unique Identifiers**:

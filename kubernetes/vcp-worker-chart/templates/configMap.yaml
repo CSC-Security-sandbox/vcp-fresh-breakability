@@ -73,6 +73,7 @@ data:
   GCP_SMC_SECRET_NAME: {{$.Values.workerConfig.gcpSmcSecretName | quote }}
   GCP_SMC_SECRET_VERSION_NAME: {{$.Values.workerConfig.gcpSmcSecretVersionName | quote }}
   VMRS_CONFIG_PATH: {{$.Values.workerConfig.vmrsConfigPath | quote }}
+  VLM_CONFIG_FILE_PATH: {{$.Values.workerConfig.vlmConfigFilePath | quote }}
   GCP_HYDRATE_ENABLED: {{$.Values.workerConfig.gcpHydrateEnabled | quote }}
   GCP_HYDRATE_BATCH_SIZE: {{$.Values.workerConfig.gcpHydrateBatchSize | quote }}
   SNAPSHOT_SYNC_MAX_CONCURRENCY: {{$.Values.workerConfig.snapshotSyncMaxConcurrency | quote }}

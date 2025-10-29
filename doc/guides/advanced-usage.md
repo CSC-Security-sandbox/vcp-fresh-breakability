@@ -53,7 +53,7 @@ docker run --rm -it \
   -e MAX_CONCURRENT_WORKFLOWS="1000" \
   -e MAX_CONCURRENT_WORKFLOW_TASK_POLLERS="2" \
   -e GCE_METADATA_HOST="34.116.66.254:9090" \
-  ghcr.io/vcp-vsa-control-plane/temporal-vlm:latest
+  ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:r9.17.1px_7825887
 ```
 
 Region 2 (local destination)
@@ -71,7 +71,7 @@ docker run --rm -it \
   -e MAX_CONCURRENT_WORKFLOWS="1000" \
   -e MAX_CONCURRENT_WORKFLOW_TASK_POLLERS="2" \
   -e GCE_METADATA_HOST="34.116.66.254:9090" \
-  ghcr.io/vcp-vsa-control-plane/temporal-vlm:latest
+  ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:r9.17.1px_7825887
 ```
 
 Running Local & Remote Instances (IDE launch config)

@@ -51,7 +51,7 @@ This consolidated test plan merges prior Pool/Volume/HostGroup management covera
 ### 3.1 Infrastructure
 - GCP project(s) (host + service for shared VPC tests)
 - Regions/zones per config (at least 2 for isolation tests)
-- VMRS configuration file `config/vmrs_gcp.yaml`
+- VMRS configuration file `/config/vmrs_gcp.yaml`
 - Temporal / workflow engine & Google proxy deployed
 
 ### 3.2 Test Data
@@ -631,7 +631,7 @@ Scenario: TC-ERROR-001 GCP service disruption
 6. Configure monitoring/log collection for capturing VMRS decision & operation IDs.
 
 ## Related Documents
-- VMRS Config: `config/vmrs_gcp.yaml`
+- VMRS Config: `/config/vmrs_gcp.yaml`
 
 ## Known Limitations and Considerations
 - Pool reuse cooling period (<4h) extends sequential VMRS scenario wall-clock time.

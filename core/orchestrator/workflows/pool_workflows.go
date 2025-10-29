@@ -48,7 +48,7 @@ var (
 var (
 	_                                  WorkflowInterface = &createPoolWorkflow{} // Enforcing the WorkflowInterface on createPoolWorkflow
 	setupNwHeartbeatTimeout                              = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
-	vmrsConfigPath                                       = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
+	vmrsConfigPath                                       = env.GetString("VMRS_CONFIG_PATH", "/config/vmrs_gcp.yaml")
 	maxNodesPerGroup                                     = env.GetInt("MAX_NODES_PER_GROUP", 200)
 	enableMetrics                                        = env.GetBool("ENABLE_METRICS", false)
 	enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)

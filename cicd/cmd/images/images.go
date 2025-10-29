@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	ghcrRepo   string
-	gcpRepo    string
+	ghcrOrg    string
+	imagePath  string
 	gcpProject string
 	imagesTag  string
 	gcpRegion  string
@@ -19,20 +19,20 @@ var (
 const primaryRegistry = "ghcr.io"
 const secondaryRegistry = "us-docker.pkg.dev"
 const secondaryRegistryTemplate = "%s-docker.pkg.dev"
-const defaultPrimaryRepo = "vcp-vsa-control-plane"
-const defaultSecondaryRepo = "vcp-container-images-us"
+const defaultGhcrOrg = "vcp-vsa-control-plane"
+const defaultImagePath = "vcp-container-images-us"
 const defaultGCPProject = "gcnv-artifact-registry-nonprod"
 const gcpProjectVar = "GCP_PROJECT"
-const ghcrRepoVar = "GHCR_REPO"
-const gcpRepoVar = "GCP_REPO"
+const ghcrOrgVar = "GHCR_ORG"
+const imagePathVar = "IMAGE_PATH"
 const imageTagVar = "IMAGES_TAG"
 const gcpRegionVar = "GCP_REGION"
 
 type ImagesConfig struct {
 	PrimaryRegistry   string
 	SecondaryRegistry string
-	PrimaryRepo       string
-	SecondaryRepo     string
+	GHCROrg           string
+	Path              string
 	ImagesTag         string
 	GCPProject        string
 }
@@ -41,17 +41,17 @@ func GetImagesConfig() ImagesConfig {
 	imagesConfig := ImagesConfig{
 		PrimaryRegistry:   primaryRegistry,
 		SecondaryRegistry: secondaryRegistry,
-		PrimaryRepo:       defaultPrimaryRepo,
-		SecondaryRepo:     defaultSecondaryRepo,
+		GHCROrg:           defaultGhcrOrg,
+		Path:              defaultImagePath,
 		GCPProject:        defaultGCPProject,
 
 		ImagesTag: "latest",
 	}
-	if ghcrRepo != "" {
-		imagesConfig.PrimaryRepo = ghcrRepo
+	if ghcrOrg != "" {
+		imagesConfig.GHCROrg = ghcrOrg
 	}
-	if gcpRepo != "" {
-		imagesConfig.SecondaryRepo = gcpRepo
+	if imagePath != "" {
+		imagesConfig.Path = imagePath
 	}
 	if imagesTag != "" {
 		imagesConfig.ImagesTag = imagesTag
@@ -71,8 +71,8 @@ var ImagesCmd = &cobra.Command{
 }
 
 func init() {
-	ghcrRepo = os.Getenv(ghcrRepoVar)
-	gcpRepo = os.Getenv(gcpRepoVar)
+	ghcrOrg = os.Getenv(ghcrOrgVar)
+	imagePath = os.Getenv(imagePathVar)
 	imagesTag = os.Getenv(imageTagVar)
 	gcpProject = os.Getenv(gcpProjectVar)
 	gcpRegion = os.Getenv(gcpRegionVar)

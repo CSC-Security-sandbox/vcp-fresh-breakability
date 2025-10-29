@@ -35,7 +35,7 @@ func PushImages(registry string) error {
 	imagesConfig := GetImagesConfig()
 
 	// List of images to process
-	images := []string{"google-proxy", "core", "vcp-db-migrate", "vcp-worker", "telemetry", "vcp-cloudrun-deployer","ontap-proxy"}
+	images := []string{"google-proxy", "core", "vcp-db-migrate", "vcp-worker", "telemetry", "vcp-cloudrun-deployer", "ontap-proxy"}
 	log.Printf("Images to process: %v\n", images)
 
 	// WaitGroup to manage concurrency
@@ -53,7 +53,7 @@ func PushImages(registry string) error {
 
 				// Tagging the image for GHCR
 				tagCmd := exec.Command("docker", "tag", fmt.Sprintf("%s:%s", image, imagesConfig.ImagesTag),
-					fmt.Sprintf("%s/%s/%s:%s", imagesConfig.PrimaryRegistry, imagesConfig.PrimaryRepo, image, imagesConfig.ImagesTag))
+					fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.PrimaryRegistry, imagesConfig.GHCROrg, imagesConfig.Path, image, imagesConfig.ImagesTag))
 				log.Printf("Running command: %s\n", tagCmd.String())
 				if err := tagCmd.Run(); err != nil {
 					mu.Lock()
@@ -65,7 +65,7 @@ func PushImages(registry string) error {
 				log.Printf("Successfully tagged image %s for GHCR\n", image)
 
 				// Pushing the image to GHCR
-				pushCmd := exec.Command("docker", "push", fmt.Sprintf("%s/%s/%s:%s", imagesConfig.PrimaryRegistry, imagesConfig.PrimaryRepo, image, imagesConfig.ImagesTag))
+				pushCmd := exec.Command("docker", "push", fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.PrimaryRegistry, imagesConfig.GHCROrg, imagesConfig.Path, image, imagesConfig.ImagesTag))
 				log.Printf("Running command: %s\n", pushCmd.String())
 				pushCmd.Stderr = os.Stderr
 				pushCmd.Stdout = os.Stdout
@@ -89,7 +89,7 @@ func PushImages(registry string) error {
 
 				// Tagging the image for GCP
 				tagCmd := exec.Command("docker", "tag", fmt.Sprintf("%s:%s", image, imagesConfig.ImagesTag),
-					fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.SecondaryRegistry, imagesConfig.GCPProject, imagesConfig.SecondaryRepo, image, imagesConfig.ImagesTag))
+					fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.SecondaryRegistry, imagesConfig.GCPProject, imagesConfig.Path, image, imagesConfig.ImagesTag))
 				log.Printf("Running command: %s\n", tagCmd.String())
 				if err := tagCmd.Run(); err != nil {
 					mu.Lock()
@@ -101,7 +101,7 @@ func PushImages(registry string) error {
 				log.Printf("Successfully tagged image %s for GCP\n", image)
 
 				// Pushing the image to GCP
-				pushCmd := exec.Command("docker", "push", fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.SecondaryRegistry, imagesConfig.GCPProject, imagesConfig.SecondaryRepo, image, imagesConfig.ImagesTag))
+				pushCmd := exec.Command("docker", "push", fmt.Sprintf("%s/%s/%s/%s:%s", imagesConfig.SecondaryRegistry, imagesConfig.GCPProject, imagesConfig.Path, image, imagesConfig.ImagesTag))
 				log.Printf("Running command: %s\n", pushCmd.String())
 				pushCmd.Stderr = os.Stderr
 				pushCmd.Stdout = os.Stdout

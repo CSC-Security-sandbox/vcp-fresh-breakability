@@ -2,7 +2,7 @@ ARG BASE
 FROM $BASE
 
 COPY app/core /app
-COPY common/vsa_config common/vsa_config
+COPY common/vsa_config /common/vsa_config
 
 # Copy Air config for live reload
 COPY core/air.toml /app/air.toml

@@ -29,7 +29,7 @@
   },
   {
     "filePath": "kubernetes/vcp-worker-chart/values.yaml",
-    "yamlPath": ["images.vcpWorker.tag", "images.vcpWorker.digest"]
+    "yamlPath": ["images.vcpWorker.tag", "images.vcpWorker.digest", "versionsSupported[].sha", "versionsSupported[].name"]
   },
   {
     "filePath": "kubernetes/vsa-control-plane/charts/google-proxy/values.yaml",

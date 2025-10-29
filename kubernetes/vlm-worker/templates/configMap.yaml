@@ -20,5 +20,6 @@ data:
   MAX_CONCURRENT_ACTIVITIES: {{ $.Values.workerConfig.maxConcurrentActivities | quote }}
   MAX_CONCURRENT_WORKFLOW: {{ $.Values.workerConfig.maxConcurrentWorkflow | quote }}
   MAX_CONCURRENT_WORKFLOW_TASK_POLLERS: {{ $.Values.workerConfig.maxConcurrentWorkflowTaskPollers | quote }}
+  GCE_METADATA_HOST: {{ $.Values.workerConfig.gceMetadataHost | quote }}
 ---
 {{- end }}

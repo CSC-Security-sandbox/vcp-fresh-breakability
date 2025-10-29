@@ -4,8 +4,8 @@ FROM $BASE
 # Copy the binary from the builder stage
 COPY app/vcp-worker /app
 COPY core/errors/errors.json /app/errors.json
-COPY common/vsa_config/vlm-config.json /app/vlm-config.json
-COPY config/vmrs_gcp.yaml /app/vmrs_gcp.yaml
+COPY common/vsa_config/vlm-config.json /common/vsa_config/vlm-config.json
+COPY config/vmrs_gcp.yaml  /config/vmrs_gcp.yaml
 COPY utils/harvest-template.yaml /app/harvest-template.yaml
 
 # Copy Air config for live reload

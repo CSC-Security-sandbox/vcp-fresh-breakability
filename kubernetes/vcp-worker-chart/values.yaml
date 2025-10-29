@@ -19,10 +19,6 @@ global:
 versionsSupported:
   - name: v0.0.1
     sha: "abc"
-  - name: v0.0.2
-    sha: "xyz"
-  - name: v0.0.3
-    sha: "pqr"
 
 # Application configuration
 app:
@@ -103,7 +99,8 @@ workerConfig:
   gcpAuthServiceAccount: ""
   gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
   loggerLevel: "info"
-  vmrsConfigPath: "config/vmrs_gcp.yaml"
+  vmrsConfigPath: "/config/vmrs_gcp.yaml"
+  vlmConfigFilePath: "/common/vsa_config/vlm-config.json"
   certificateLifetime: "94608000s"
   caName: "20250718-pn6-boa"
   caPoolName: "vsa-pool-ca"

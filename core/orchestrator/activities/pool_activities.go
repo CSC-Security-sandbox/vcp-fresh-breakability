@@ -64,7 +64,7 @@ var (
 	LoadVMRSConfig                           = vmrs_config.LoadConfig
 	CreateDecisionMaker                      = vmrs_decision.NewDecisionMaker
 	CreateLargeVolumeVMRSConfig              = _createLargeVolumeVMRSConfig
-	VlmConfigFilePath                        = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
+	VlmConfigFilePath                        = env.GetString("VLM_CONFIG_FILE_PATH", "/common/vsa_config/vlm-config.json")
 	ValidateVlmConfigInputs                  = _validateVlmConfigInputs
 	GetCreateSubnetworkOperation             = _getCreateSubnetworkOperation
 	ReleaseSubnet                            = _releaseSubnet

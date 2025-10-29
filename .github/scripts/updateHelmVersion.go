@@ -22,6 +22,7 @@ var digestYAMLPathToKey = map[string]string{
 	".images.vcpDbMigrate.digest":      "vcp_db_migrate_digest_gcp",
 	".images.googleProxy.digest":       "google_proxy_digest_gcp",
 	".images.vcpWorker.digest":         "vcp_worker_digest_gcp",
+	".versionsSupported[].sha":         "vcp_worker_digest_gcp",
 	".images.telemetryDeployer.digest": "telemetry_deployer_digest_gcp",
 	".images.telemetry.digest":         "telemetry_digest_gcp",
 	".images.ontapProxy.digest":        "ontap_proxy_digest_gcp",
@@ -63,8 +64,28 @@ func UpdateKeys(file string, yamlPaths []string, version string, digests map[str
 		}
 
 		if strings.Contains(yamlPath, "[]") {
-			basePath := strings.Split(yamlPath, "[]")[0]
-			cmd := exec.Command("yq", "eval", "-i", fmt.Sprintf(`with(%s[]; .version = "%s")`, basePath, version), file)
+			pathSegments := strings.Split(yamlPath, "[]")
+			if len(pathSegments) < 2 {
+				return fmt.Errorf("malformed yamlPath: %s, expected a key after '[]'", yamlPath)
+			}
+			basePath := pathSegments[0]
+			key := pathSegments[1]
+			value := version
+			if strings.HasSuffix(yamlPath, "sha") {
+				digestKey := digestYAMLPathToKey[yamlPath]
+				digestValue, exists := digests[digestKey]
+				if !exists {
+					return fmt.Errorf("digest key %s not found in file", digestKey)
+				}
+				// Strip the "sha256:" prefix if it exists. We only want the hash value for the sha field.
+				if strings.HasPrefix(digestValue, "sha256:") {
+					digestValue = strings.TrimPrefix(digestValue, "sha256:")
+				}
+
+				value = digestValue
+			}
+
+			cmd := exec.Command("yq", "eval", "-i", fmt.Sprintf(`with(%s[]; %s = "%s")`, basePath, key, value), file)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
 			if err := cmd.Run(); err != nil {
@@ -83,11 +104,7 @@ func UpdateKeys(file string, yamlPaths []string, version string, digests map[str
 				return fmt.Errorf("failed to update digest key %s in file %s: %v\nstderr: %s", yamlPath, file, err, stderr.String())
 			}
 		} else {
-			updatedVersion := version
-			if strings.HasSuffix(yamlPath, ".tag") {
-				updatedVersion = "v" + updatedVersion
-			}
-			cmd := exec.Command("yq", "eval", "-i", fmt.Sprintf(`%s = "%s"`, yamlPath, updatedVersion), file)
+			cmd := exec.Command("yq", "eval", "-i", fmt.Sprintf(`%s = "%s"`, yamlPath, version), file)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
 			if err := cmd.Run(); err != nil {

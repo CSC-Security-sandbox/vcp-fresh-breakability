@@ -70,7 +70,7 @@ I found my regional tenant project ID from an error message. If you already have
 
 ###### 2.2 Copy ONTAP image into your tenant project.
 
-Find `vsa_image_name` in `common/vsa_config/vlm-config.json`
+Find `vsa_image_name` in `/common/vsa_config/vlm-config.json`
 
 ```bash
 gcloud compute images create <vsa_image_name> --source-image <vsa_image_name>  --source-image-project=g1p-functional-ap-tst-02 --project=<regional_tenant_project_id_ending_in_tp>
@@ -81,8 +81,8 @@ gcloud compute images create <vsa_image_name> --source-image <vsa_image_name>  -
 Ask someone what the current tag to use is. You need to be in Seclab for this to work.
 
 ```bash
-docker pull docker.repo.eng.netapp.com/cicd/vsa/temporal-vlm:R9.17.1xN_7726644
-minikube image load docker.repo.eng.netapp.com/cicd/vsa/temporal-vlm:R9.17.1xN_7726644
+docker pull ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:r9.17.1px_7825887
+minikube image load ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:r9.17.1px_7825887
 ```
 
 ##### 3. Run Skaffold
