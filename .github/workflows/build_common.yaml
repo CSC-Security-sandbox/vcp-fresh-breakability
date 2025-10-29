@@ -222,7 +222,7 @@ jobs:
           for IMAGE in "${IMAGES[@]}"; do
             digest=$(curl -s -H "Authorization: Bearer $token_value" \
             -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-            https://ghcr.io/v2/VCP-VSA-control-Plane/${IMAGE}/manifests/${{ inputs.tag }} | jq -r '.config.digest')
+            https://ghcr.io/v2/VCP-VSA-control-Plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}/manifests/${{ inputs.tag }} | jq -r '.config.digest')
             echo "${IMAGE}-digest=$digest" >> $GITHUB_ENV
           done
         shell: bash -e {0}
@@ -255,8 +255,8 @@ jobs:
             # Sign GHCR image
             ghcr_digest=$(printenv "${IMAGE}-digest")
             echo "Signing GHCR image: ${IMAGE}@${ghcr_digest}"
-            COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key ghcr.io/vcp-vsa-control-plane/${IMAGE}@$ghcr_digest --tlog-upload=false
-            cosign verify --key /tmp/cosign.pub ghcr.io/vcp-vsa-control-plane/${IMAGE}@$ghcr_digest --insecure-ignore-tlog=true
+            COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@$ghcr_digest --tlog-upload=false
+            cosign verify --key /tmp/cosign.pub ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@$ghcr_digest --insecure-ignore-tlog=true
             
             # Sign GCP Artifact Registry image
             gcp_artifact_url=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
@@ -410,7 +410,7 @@ jobs:
             java -jar /bds-inspect/synopsys-detect-9.10.1.jar --detect.project.name=\"GCNV VSA Control Plane\" \
             --detect.project.version.name=current --blackduck.url=https://blackduck.eng.netapp.com --blackduck.trust.cert=true \
             --blackduck.api.token="${{ secrets.BLACKDUCKSCANSATOKEN }}" --detect.cleanup=false --detect.tools=DOCKER \
-            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${IMAGE}:$([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.8" || echo "${{ inputs.tag }}")  \
+            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:$([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.8" || echo "${{ inputs.tag }}")  \
             --detect.code.location.name=GCNV_VSA_Control_Plane_docker_${IMAGE}_code \
             --detect.docker.path=/__w/_tool/go/1.24.1/x64/bin/docker --detect.tools.excluded=DETECTOR \
             --detect.docker.inspector.air.gap.path=/bds-inspect/packaged-inspectors/docker/ \
@@ -452,7 +452,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
         with:
-          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}:2.8', matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}:{1}', matrix.image, inputs.tag) }}
+          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.8', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
           format: 'sarif'
           output: 'repo-dir2/trivy-${{ matrix.image }}.sarif'
 
