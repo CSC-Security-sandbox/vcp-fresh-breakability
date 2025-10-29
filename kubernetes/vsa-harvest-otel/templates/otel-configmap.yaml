@@ -51,7 +51,9 @@ data:
               - context: resource
                 statements:
                   - set(attributes["gcp.project.id"],attributes["tenant_project"])
+                  - set(attributes["k8s.cluster.name"],attributes["cluster"])
                   - delete_key(attributes, "tenant_project")
+                  - delete_key(attributes, "cluster")
     receivers:
         prometheus:
             config:
@@ -60,7 +62,7 @@ data:
                   scrape_interval: 300s
                   http_sd_configs:
                   - url: http://{{ .Values.otel.metricsHost }}{{ .Values.otel.pollerMetricsEndPoint }}
-                    refresh_interval: 30s
+                    refresh_interval: {{ .Values.otel.refresh_interval }}
                   metric_relabel_configs:
                   - source_labels: ['__name__']
                     action: drop
