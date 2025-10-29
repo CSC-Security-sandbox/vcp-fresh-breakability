@@ -40,8 +40,9 @@ var (
 )
 
 const (
-	ServiceLevelNameFLEX = "FLEX"
-	QosTypeAuto          = "auto"
+	ServiceLevelNameFLEX                 = "FLEX"
+	QosTypeAuto                          = "auto"
+	TieringFullnessThresholdOntapDefault = 50
 )
 
 // CreatePool creates the specified pool and adds it to the list of pools belonging to the specified owner
@@ -152,9 +153,10 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 		QosType:          params.QosType,
 		LargeCapacity:    params.LargeCapacity,
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
-			HotTierSizeInBytes:      int64(params.HotTierSizeInBytes),
-			EnableHotTierAutoResize: params.EnableHotTierAutoResize,
-			TieringPaused:           false,
+			HotTierSizeInBytes:       int64(params.HotTierSizeInBytes),
+			EnableHotTierAutoResize:  params.EnableHotTierAutoResize,
+			TieringPaused:            false,
+			TieringFullnessThreshold: TieringFullnessThresholdOntapDefault,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,

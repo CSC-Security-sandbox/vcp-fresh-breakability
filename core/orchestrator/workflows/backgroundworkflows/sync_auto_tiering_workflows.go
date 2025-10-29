@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	aggregateTieringFullnessThresholdDefault = 50
+	aggregateTieringFullnessThresholdDefault = 0
 	aggregateTieringFullnessThresholdFull    = 100
 	poolAutoTierAutoResizeWFIDPlaceholder    = "Account_%d_Location_%s_Pool_%s_Ops_AutoTiering-HotTier-AutoResize"
 )
@@ -287,6 +287,7 @@ func AutoTieringPauseResumeWorkflow(ctx workflow.Context, poolIdentifier databas
 	} else {
 		pool.AutoTieringConfig.TieringPaused = false
 	}
+	pool.AutoTieringConfig.TieringFullnessThreshold = int64(tieringFullnessThreshold)
 
 	err = workflow.ExecuteActivity(ctx, autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, pool).Get(ctx, nil)
 	if err != nil {
