@@ -323,7 +323,7 @@ func isPoolHealthy(dstPool *googleproxyclient.PoolV1beta) bool {
 }
 
 func isPoolInTransitionState(dstPool *googleproxyclient.PoolV1beta) bool {
-	if dstPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateDELETING || dstPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateCREATING || dstPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateUPDATING {
+	if dstPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateDELETING || dstPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateCREATING {
 		return true
 	}
 	return false

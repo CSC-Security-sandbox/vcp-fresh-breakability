@@ -3864,3 +3864,34 @@ func TestConvertReplicationResponseToModels(t *testing.T) {
 		assert.Equal(t, int64(300), result.LagTime, "LagTime should match")
 	})
 }
+
+func TestIsPoolInTransitionState(t *testing.T) {
+	t.Run("WhenCreatingState", func(tt *testing.T) {
+		pool := &googleproxyclient.PoolV1beta{
+			StoragePoolState: googleproxyclient.OptPoolV1betaStoragePoolState{Value: googleproxyclient.PoolV1betaStoragePoolStateCREATING},
+		}
+		resp := isPoolInTransitionState(pool)
+		assert.True(tt, resp, "Should be true")
+	})
+	t.Run("WhenDeletingState", func(tt *testing.T) {
+		pool := &googleproxyclient.PoolV1beta{
+			StoragePoolState: googleproxyclient.OptPoolV1betaStoragePoolState{Value: googleproxyclient.PoolV1betaStoragePoolStateDELETING},
+		}
+		resp := isPoolInTransitionState(pool)
+		assert.True(tt, resp, "Should be true")
+	})
+	t.Run("WhenUpdatingState", func(tt *testing.T) {
+		pool := &googleproxyclient.PoolV1beta{
+			StoragePoolState: googleproxyclient.OptPoolV1betaStoragePoolState{Value: googleproxyclient.PoolV1betaStoragePoolStateUPDATING},
+		}
+		resp := isPoolInTransitionState(pool)
+		assert.False(tt, resp, "Should be false")
+	})
+	t.Run("WhenReadyState", func(tt *testing.T) {
+		pool := &googleproxyclient.PoolV1beta{
+			StoragePoolState: googleproxyclient.OptPoolV1betaStoragePoolState{Value: googleproxyclient.PoolV1betaStoragePoolStateREADY},
+		}
+		resp := isPoolInTransitionState(pool)
+		assert.False(tt, resp, "Should be false")
+	})
+}
