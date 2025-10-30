@@ -47,9 +47,18 @@ type BackupWorkflowInput struct {
 	BackupVault *datamodel.BackupVault
 	Volume      *datamodel.Volume
 }
+
+type ScheduledBackupParams struct {
+	Backups       []*datamodel.Backup
+	BackupPolicy  *datamodel.BackupPolicy
+	OntapSnapshot *vsa.SnapshotProviderResponse
+	Job           *datamodel.Job
+}
 type BackupActivitiesContext struct {
 	// Initial inputs
 	BackupWorkflowInit *BackupWorkflowInput
+	// for Scheduled backup workflow
+	ScheduledBackupParams *ScheduledBackupParams
 
 	// Workflow state
 	Node                   *models.Node
@@ -436,13 +445,23 @@ func (b *BackupActivity) UpdateConstituentCountForBackup(ctx context.Context, ba
 	}
 
 	logger := util.GetLogger(ctx)
-	backup := backupActivitiesContext.BackupWorkflowInit.Backup
 	volume := backupActivitiesContext.BackupWorkflowInit.Volume
+	if backupActivitiesContext.ScheduledBackupParams != nil && len(backupActivitiesContext.ScheduledBackupParams.Backups) > 0 {
+		for _, bkp := range backupActivitiesContext.ScheduledBackupParams.Backups {
+			_, err := b.SE.UpdateBackupConstituentCountFromVolume(ctx, bkp, volume)
+			if err != nil {
+				logger.Errorf("Failed to update Constituent count for a backup in scheduled backups")
+				return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+		}
+	} else {
+		backup := backupActivitiesContext.BackupWorkflowInit.Backup
 
-	_, err := b.SE.UpdateBackupConstituentCountFromVolume(ctx, backup, volume)
-	if err != nil {
-		logger.Errorf("Failed to update Constituent count for a backup")
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		_, err := b.SE.UpdateBackupConstituentCountFromVolume(ctx, backup, volume)
+		if err != nil {
+			logger.Errorf("Failed to update Constituent count for a backup")
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
 	}
 	return backupActivitiesContext, nil
 }
@@ -1143,7 +1162,13 @@ func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.
 	transferComplete := false
 	switch status {
 	case SmStatusSuccess:
-		input.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime = currentTime.String()
+		if input.BackupActivitiesContext.ScheduledBackupParams != nil {
+			for _, bkp := range input.BackupActivitiesContext.ScheduledBackupParams.Backups {
+				bkp.Attributes.SnapshotCreationTime = currentTime.String()
+			}
+		} else {
+			input.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime = currentTime.String()
+		}
 		transferComplete = true
 		logger.Info("Transfer completed successfully", "snapshotName", input.SnapshotName)
 	case SmStatusFailed:

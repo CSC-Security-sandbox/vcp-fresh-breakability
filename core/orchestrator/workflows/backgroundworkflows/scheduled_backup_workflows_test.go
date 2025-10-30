@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -79,7 +80,7 @@ func (s *ScheduledBackupsTestSuite) registerCreateScheduledBackupActivities(comm
 	s.env.RegisterActivity(backupActivity.DeleteBackupSnapshot)
 	s.env.RegisterActivity(backupActivity.UpdateBackupError)
 	s.env.RegisterActivity(backupActivity.DeleteSnapshotFromObjectStore)
-	s.env.RegisterActivity(backupActivity.CreateBackupMetadataIfFirstBackupActivity)
+	s.env.RegisterActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 }
 
@@ -234,6 +235,11 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_GetVol
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() {
 	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
 	scheduledMonthlyBackupDay = time.Now().UTC().Day()
+	originalhydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() {
+		hydrationEnabled = originalhydrationEnabled
+	}()
 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
@@ -287,15 +293,21 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Snapshot{}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			TransferStatus: activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(backupActivity.CreateBackupMetadataIfFirstBackupActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.HydrateSnapshotToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.CreateBackupMetadataIfFirstBackupActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
@@ -344,7 +356,11 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_JobStatusUpdateFailure() {
 	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
 	scheduledMonthlyBackupDay = time.Now().UTC().Day()
-
+	originalhydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() {
+		hydrationEnabled = originalhydrationEnabled
+	}()
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -397,15 +413,19 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_Jo
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Snapshot{}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			TransferStatus: activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.CreateBackupMetadataIfFirstBackupActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update job"))
 
 	volume := &datamodel.Volume{
@@ -810,8 +830,8 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NoBackupsT
 	backupPolicy := &datamodel.BackupPolicy{
 		AccountID:            1,
 		DailyBackupsToKeep:   0,
-		WeeklyBackupsToKeep:  1,
-		MonthlyBackupsToKeep: 1,
+		WeeklyBackupsToKeep:  0,
+		MonthlyBackupsToKeep: 0,
 	}
 	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
 
@@ -922,7 +942,6 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetObjStor
 			},
 		}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
-
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
 			UUID: "volume-uuid-1",
@@ -1691,7 +1710,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 	s.env.OnActivity(backupActivity.DeleteBackupSnapshot, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
 	s.env.OnActivity(scheduledBackupActivity.DeleteBackupSnapshotInDB, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusFailed, errors.New("could not get the status of snapmirror transfer"))
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("could not get the status of snapmirror transfer"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
@@ -1732,6 +1751,133 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 	var activityError *temporal.ActivityError
 	if errors.As(s.env.GetWorkflowError(), &activityError) {
 		assert.Equal(s.T(), "could not get the status of snapmirror transfer", activityError.Unwrap().Error())
+	} else {
+		assert.Fail(s.T(), fmt.Sprintf("Expected ActivityError but got: %v", s.env.GetWorkflowError()))
+	}
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateConstituentCountForBackupFail() {
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
+	originalhydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() {
+		hydrationEnabled = originalhydrationEnabled
+	}()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:         "vsa-backup-bucket",
+					VendorSubnetID:     "test-vendor-subnet-id",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{
+			{
+				EndpointAddress: "0.0.0.0",
+			},
+		}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{
+			Name: "vsa-backup-bucket",
+		}, nil)
+
+	destinationUUID := "test-destination-uuid-1"
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.SnapmirrorRelationship{
+			UUID:            "test-uuid-1",
+			DestinationUUID: &destinationUUID,
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
+		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapshotCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.SnapshotProviderResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "test-uuid-1",
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			TransferStatus: activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
+	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateConstituentCountForBackup, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("could not update constituent count for backup"))
+	cv_count := int32(6)
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-1",
+		},
+		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm-1",
+		},
+		PoolID: 1,
+		Pool: &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+				SecretID: "pool-credential-secret-id",
+			},
+			DeploymentName: "test-pool-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "test-zone-1",
+			},
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-uuid-1",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "external-uuid-1",
+			VendorSubnetID: "test-vendor-subnet-id",
+		},
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: &cv_count,
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		AccountID:            1,
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+
+	var activityError *temporal.ActivityError
+	if errors.As(s.env.GetWorkflowError(), &activityError) {
+		assert.Equal(s.T(), "could not update constituent count for backup", activityError.Unwrap().Error())
 	} else {
 		assert.Fail(s.T(), fmt.Sprintf("Expected ActivityError but got: %v", s.env.GetWorkflowError()))
 	}
@@ -1794,7 +1940,14 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Snapshot{}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			TransferStatus: activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(errors.New("could not update backup status"))
 	s.env.OnActivity(backupActivity.UpdateBackupError, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1905,17 +2058,21 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCritica
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Snapshot{}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			TransferStatus: activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock the non-critical activities to fail - these should not cause workflow failure
-	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{}, errors.New("failed to get object store endpoint info"))
+	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointt{}, errors.New("failed to get object store endpoint info"))
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get snapshot from object store"))
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update backup size"))
 	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.CreateBackupMetadataIfFirstBackupActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
@@ -1965,7 +2122,11 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCritica
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateBackupSizeFailure() {
 	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
 	scheduledMonthlyBackupDay = time.Now().UTC().Day()
-
+	originalhydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() {
+		hydrationEnabled = originalhydrationEnabled
+	}()
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
@@ -2018,14 +2179,19 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateBack
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Snapshot{}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			TransferStatus: activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
+	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update backup size"))
 	s.env.OnActivity(backupActivity.HydrateSnapshotToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.CreateBackupMetadataIfFirstBackupActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
@@ -3591,8 +3757,13 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Snapshot{}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			TransferStatus: activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
@@ -3600,7 +3771,6 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 	s.env.OnActivity(backupActivity.HydrateSnapshotToCCFEActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.CreateBackupMetadataIfFirstBackupActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
@@ -3812,8 +3982,13 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Snapshot{}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			TransferStatus: activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
@@ -3822,7 +3997,6 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// HydrateCreatedBackupsToCCFE is not called when hydrationEnabled = false
 	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.CreateBackupMetadataIfFirstBackupActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
@@ -4193,7 +4367,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 	s.env.AssertExpectations(s.T())
 }
 
-func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateBackupMetadataIfFirstBackupActivityFailure() {
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext_Success() {
 	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
 	scheduledMonthlyBackupDay = time.Now().UTC().Day()
 
@@ -4204,8 +4378,74 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateBack
 
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
-	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	// Minimal context for a successful run
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-1",
+		},
+		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm-1",
+		},
+		PoolID: 1,
+		Pool: &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+				SecretID: "pool-credential-secret-id",
+			},
+			DeploymentName: "test-pool-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "test-zone-1",
+			},
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-uuid-1",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "external-uuid-1",
+			VendorSubnetID: "test-vendor-subnet-id",
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		AccountID:            1,
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+	backup := &datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}
+	backupVault := &datamodel.BackupVault{Name: "vault"}
+	modelsNode := &models.Node{
+		EndpointAddress: "127.0.0.1",
+	}
+	node := modelsNode
+	job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}
+	bucketDetails := &datamodel.BucketDetails{BucketName: "bucket", ServiceAccountName: "svc"}
+	cloudTarget := &common.CloudTarget{Name: "target"}
+	snapmirror := &common.SnapmirrorRelationship{UUID: "sm-uuid"}
+	snapshot := &datamodel.Snapshot{}
+	ontapSnapshot := &vsa.SnapshotProviderResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "snap-uuid"}}
+	ctx := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node:                   node,
+		BucketDetails:          bucketDetails,
+		ObjStoreName:           "objstore",
+		ObjStore:               cloudTarget,
+		SnapmirrorRelationship: snapmirror,
+		ScheduledBackupParams: &activities.ScheduledBackupParams{
+			BackupPolicy:  backupPolicy,
+			Backups:       []*datamodel.Backup{backup},
+			OntapSnapshot: ontapSnapshot,
+			Job:           job,
+		},
+		DbSnapshot: snapshot,
+	}
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -4249,34 +4489,36 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateBack
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Snapshot{}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusTransferring, nil).Once()
-	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil).Once()
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: ctx,
+		TransferComplete:        true,
+		ShouldContinueAsNew:     false,
+	}, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetObjectStoreEndpointInfo, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(vsa.SmObjectStoreEndpointt{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(backupActivity.GetSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SmObjectStoreEndpointSnapshot{LogicalSize: &[]int64{1024000}[0]}, nil)
 	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSize, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	// Mock CreateBackupMetadataIfFirstBackupActivity to return an error
-	s.env.OnActivity(backupActivity.CreateBackupMetadataIfFirstBackupActivity, mock.Anything, mock.Anything).Return(errors.New("failed to create backup metadata"))
+	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflowWithContext, ctx)
 
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
 
-	// Add missing mocks for database operations
-	mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{
-		Name:               "test-snapshot-name",
-		Description:        "VCP-Backup",
-		VolumeID:           1,
-		AccountID:          1,
-		State:              "creating",
-		StateDetails:       "creating",
-		SnapshotAttributes: &datamodel.SnapshotAttributes{},
-	}, nil).Maybe()
-	mockStorage.On("DeleteBackup", mock.Anything, mock.Anything).Return(nil).Maybe()
-	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
-	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext_Continuation() {
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
@@ -4314,10 +4556,202 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateBack
 		WeeklyBackupsToKeep:  1,
 		MonthlyBackupsToKeep: 1,
 	}
-	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
+	backup := &datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}
+	backupVault := &datamodel.BackupVault{Name: "vault"}
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:         "vsa-backup-bucket",
+					VendorSubnetID:     "test-vendor-subnet-id",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{
+			{
+				EndpointAddress: "0.0.0.0",
+			},
+		}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{
+			Name: "vsa-backup-bucket",
+		}, nil)
 
-	// Assert that the workflow was executed successfully despite the metadata activity failure
+	destinationUUID := "test-destination-uuid-1"
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.SnapmirrorRelationship{
+			UUID:            "test-uuid-1",
+			DestinationUUID: &destinationUUID,
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
+		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapshotCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.SnapshotProviderResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "test-uuid-1",
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup:      backup,
+				BackupVault: backupVault,
+				Volume:      volume,
+			},
+			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+			SnapshotName: "test-backup",
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "test-snapmirror-uuid",
+			},
+			TransferStatus: activities.SmStatusTransferring,
+		},
+		TransferComplete:    false,
+		ShouldContinueAsNew: true,
+		ContinueAsNewReason: "Event history limit reached",
+		NextWaitTime:        5 * time.Millisecond,
+	}, nil)
+
+	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
+	// Assert that the workflow was executed and ContinueAsNew was triggered
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NoError(s.T(), s.env.GetWorkflowError())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.True(s.T(), workflow.IsContinueAsNewError(s.env.GetWorkflowError()))
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext_PollTransferStatusError() {
+	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
+	scheduledMonthlyBackupDay = time.Now().UTC().Day()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-1",
+		},
+		Name: "test-volume-1",
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm-1",
+		},
+		PoolID: 1,
+		Pool: &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+				SecretID: "pool-credential-secret-id",
+			},
+			DeploymentName: "test-pool-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "test-zone-1",
+			},
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-uuid-1",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "external-uuid-1",
+			VendorSubnetID: "test-vendor-subnet-id",
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		AccountID:            1,
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+	backup := &datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}
+	backupVault := &datamodel.BackupVault{Name: "vault"}
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:         "vsa-backup-bucket",
+					VendorSubnetID:     "test-vendor-subnet-id",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{
+			{
+				EndpointAddress: "0.0.0.0",
+			},
+		}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{
+			Name: "vsa-backup-bucket",
+		}, nil)
+
+	destinationUUID := "test-destination-uuid-1"
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.SnapmirrorRelationship{
+			UUID:            "test-uuid-1",
+			DestinationUUID: &destinationUUID,
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
+		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(scheduledBackupActivity.CreateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapshotCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.SnapshotProviderResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "test-uuid-1",
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.UpdateBackupSnapshotInDB, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.Snapshot{}, nil)
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup:      backup,
+				BackupVault: backupVault,
+				Volume:      volume,
+			},
+			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+			SnapshotName: "test-backup",
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "test-snapmirror-uuid",
+			},
+			TransferStatus: activities.SmStatusTransferring,
+		},
+		TransferComplete:    false,
+		ShouldContinueAsNew: true,
+		ContinueAsNewReason: "Event history limit reached",
+		NextWaitTime:        5 * time.Millisecond,
+	}, errors.New("transfer status error"))
+	s.env.OnActivity(scheduledBackupActivity.DeleteBackupSnapshotInDB, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.DeleteBackupSnapshot, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
+		Return(nil, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "transfer status error")
 	s.env.AssertExpectations(s.T())
 }

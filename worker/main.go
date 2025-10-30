@@ -341,6 +341,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupInitWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupWorkflowWithContext)
 	worker.RegisterWorkflow(backgroundworkflows.DeleteScheduledBackupWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.OrphanJobSchedulerWorkflow)
 	worker.RegisterWorkflow(workflows.VolumeRefreshWorkflow)
