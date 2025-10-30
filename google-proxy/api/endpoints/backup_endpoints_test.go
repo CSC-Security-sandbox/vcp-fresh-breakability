@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -2284,6 +2285,14 @@ func TestV1betaDescribeBackup(t *testing.T) {
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes:    &datamodel.BackupAttributes{},
+			AssetMetadata: &datamodel.AssetMetadata{
+				ChildAssets: []datamodel.ChildAsset{
+					{
+						AssetType:  backgroundactivities.BackupAssetType,
+						AssetNames: []string{"//storage.googleapis.com/backup-123"},
+					},
+				},
+			},
 		}
 
 		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(backup, nil)

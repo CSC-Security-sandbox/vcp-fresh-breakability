@@ -802,15 +802,29 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			Value: backup.LatestLogicalBackupSize,
 			Set:   backup.LatestLogicalBackupSize != 0,
 		},
-		AssetLocationMetadata: gcpgenserver.OptAssetLocationMetadataV2{
-			Set: false,
-		},
 	}
 	if backup.BackupVault.ImmutableAttributes != nil && *backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration > 0 && common.CheckIfBackupIsImmutable(backup) {
 		expirationDate := backup.CreatedAt.AddDate(0, 0, int(*backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration))
 		backupV1.EnforcedRetentionEndTime = gcpgenserver.OptDateTime{
 			Value: expirationDate,
 			Set:   true,
+		}
+	}
+	if backup.AssetMetadata != nil {
+		backupV1.AssetLocationMetadata = gcpgenserver.OptAssetLocationMetadataV2{
+			Value: gcpgenserver.AssetLocationMetadataV2{
+				ChildAssets: func() []gcpgenserver.ChildAssetV2 {
+					var assets []gcpgenserver.ChildAssetV2
+					for _, asset := range backup.AssetMetadata.ChildAssets {
+						assets = append(assets, gcpgenserver.ChildAssetV2{
+							AssetType:  gcpgenserver.OptString{Value: asset.AssetType, Set: true},
+							AssetNames: asset.AssetNames,
+						})
+					}
+					return assets
+				}(),
+			},
+			Set: true,
 		}
 	}
 	return backupV1

@@ -812,6 +812,7 @@ type Backup struct {
 	BackupVaultID           int64             `gorm:"column:backup_vault_id;type:bigint"`
 	BackupVault             *BackupVault      `gorm:"ForeignKey:BackupVaultID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	LatestLogicalBackupSize int64             `gorm:"column:latest_logical_backup_size;type:bigint"`
+	AssetMetadata           *AssetMetadata    `gorm:"column:asset_metadata;type:jsonb"`
 }
 
 // BackupAttributes represents the structure of the JSONB data for Backup

@@ -20,7 +20,7 @@ import (
 const (
 	backupTypeSCHEDULED       = "SCHEDULED"
 	scheduledBackupNameFormat = "%s-scheduled-backup-%s-%s"
-	backupAssetType           = "storage.googleapis.com/Bucket"
+	BackupAssetType           = "storage.googleapis.com/Bucket"
 )
 
 // ScheduledBackupActivity represents activities related to scheduled backups.
@@ -280,7 +280,7 @@ func convertToGCPHydrateCreateRequests(backups []*datamodel.Backup) []models.Req
 		if backup.Attributes != nil && backup.Attributes.BucketName != "" {
 			assetLocationMetadata := getOrCreateAssetLocationMetadata(request.Backup)
 			assetLocationMetadata.ChildAssets = append(assetLocationMetadata.ChildAssets, &models.ChildAsset{
-				AssetType:  backupAssetType,
+				AssetType:  BackupAssetType,
 				AssetNames: []string{fmt.Sprintf("//storage.googleapis.com/%s", backup.Attributes.BucketName)},
 			})
 		}

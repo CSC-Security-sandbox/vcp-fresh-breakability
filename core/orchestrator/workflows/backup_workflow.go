@@ -275,6 +275,14 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		}
 	}
 
+	backupActivitiesContext.BackupWorkflowInit.Backup.AssetMetadata = &datamodel.AssetMetadata{
+		ChildAssets: []datamodel.ChildAsset{
+			{
+				AssetType:  backgroundactivities.BackupAssetType,
+				AssetNames: []string{fmt.Sprintf("//storage.googleapis.com/%s", backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.BucketName)},
+			},
+		},
+	}
 	// Finish backup now as the transfer has completed
 	err = workflow.ExecuteActivity(ctx, backupActivity.FinishBackupActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 	if err != nil {

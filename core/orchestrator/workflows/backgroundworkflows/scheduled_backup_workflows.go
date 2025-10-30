@@ -458,8 +458,14 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		backup.Attributes.BackupPolicyName = backupPolicy.Name
 		backup.Attributes.Protocols = volume.VolumeAttributes.Protocols
 		backup.Attributes.ObjectStoreUUID = scheduledBackupContext.ObjStore.UUID
-		if scheduledBackupContext.SnapmirrorRelationship != nil && scheduledBackupContext.SnapmirrorRelationship.DestinationUUID != nil {
-			backup.Attributes.EndpointUUID = *scheduledBackupContext.SnapmirrorRelationship.DestinationUUID
+		backup.Attributes.EndpointUUID = *scheduledBackupContext.SnapmirrorRelationship.DestinationUUID
+		backup.AssetMetadata = &datamodel.AssetMetadata{
+			ChildAssets: []datamodel.ChildAsset{
+				{
+					AssetType:  backgroundactivities.BackupAssetType,
+					AssetNames: []string{fmt.Sprintf("//storage.googleapis.com/%s", backup.Attributes.BucketName)},
+				},
+			},
 		}
 
 		postTransferRollbackManager.AddActivity(backupActivities.UpdateBackupError, backup)
