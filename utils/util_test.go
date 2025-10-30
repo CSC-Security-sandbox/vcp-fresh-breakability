@@ -2838,7 +2838,7 @@ func TestGetBackupRegionEdgeCases(t *testing.T) {
 // TestImmutableBackupVaultErrMsg tests the error message constant for immutable backup vault validation
 // This test ensures the constant is properly defined and has the expected value
 func TestImmutableBackupVaultErrMsg(t *testing.T) {
-	expectedMessage := "Immutable backup vaults are not supported for ISCSI volumes"
+	expectedMessage := "Immutable backup vaults are not supported for this region"
 
 	assert.Equal(t, expectedMessage, ImmutableBackupVaultErrMsg,
 		"ImmutableBackupVaultErrMsg should have the correct error message")
@@ -2850,8 +2850,6 @@ func TestImmutableBackupVaultErrMsg(t *testing.T) {
 	// Ensure the message contains key terms
 	assert.Contains(t, ImmutableBackupVaultErrMsg, "Immutable backup vaults",
 		"Error message should mention immutable backup vaults")
-	assert.Contains(t, ImmutableBackupVaultErrMsg, "ISCSI volumes",
-		"Error message should mention ISCSI volumes")
 }
 
 // Unit test for _getVolumeUriFromCcfeUri

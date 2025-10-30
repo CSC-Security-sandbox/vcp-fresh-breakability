@@ -20,6 +20,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -9404,7 +9405,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 
 		// This should fail because backup policy has insufficient retention
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.EqualError(tt, err, "Backup policy is not compliant with immutable backup vault settings")
+		assert.EqualError(tt, err, "Backup policy is not compliant with immutable backup vault settings: immutable backup policy validation failed: daily backup retention (30 days) is less than backup vault immutable period (60 days)")
 	})
 
 	tt.Run("WhenImmutableBackupDisabled", func(tt *testing.T) {
@@ -17688,4 +17689,394 @@ func TestIsPrime(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestImmutableBackupPolicyErrorHandling tests the error segregation logic for immutable backup policy validation
+func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
+	ctx := context.Background()
+
+	// Mock storage
+	mockStorage := database.NewMockStorage(t)
+
+	// Test data
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{
+			ID: 1,
+		},
+	}
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			Account:     account,
+			SizeInBytes: 6 * 1024 * 1024 * 1024 * 1024, // 6TB capacity
+		},
+		QuotaInBytes: 5000 * 1024 * 1024 * 1024, // 5TB already used
+	}
+	params := &common.CreateVolumeParams{
+		DataProtection: &models.DataProtection{
+			BackupPolicyId: "test-policy-id",
+			BackupVaultID:  "test-vault-id",
+		},
+		Region:       "us-central1",
+		AccountName:  "test-account",
+		QuotaInBytes: 100 * 1024 * 1024 * 1024, // 100GB
+	}
+
+	t.Run("ServiceUnavailableError_UnavailableErr", func(t *testing.T) {
+		// Mock checkIsValidImmutableBackupPolicyWithRetry to return UnavailableErr
+		originalFunc := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, backupPolicyUUID string, backupVaultUUID string, accountID int64, region string, accountName string) error {
+			return customerrors.NewUnavailableErr("service temporarily unavailable")
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = originalFunc }()
+
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
+			State: models.LifeCycleStateREADY,
+		}, nil)
+
+		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{ID: 2},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-2",
+			},
+		}, nil)
+
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(1), account.ID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(2), account.ID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
+
+		// Since DataProtection is set, the validator will query the vault
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
+			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+
+		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
+
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsUnavailableErr(err))
+		assert.Contains(t, err.Error(), "Service is temporarily unavailable, please try again later: service temporarily unavailabl")
+	})
+
+	t.Run("RetryableError_BackupPolicyUpdating", func(t *testing.T) {
+		// Mock checkIsValidImmutableBackupPolicyWithRetry to return backup policy updating error
+		originalFunc := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, backupPolicyUUID string, backupVaultUUID string, accountID int64, region string, accountName string) error {
+			return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy, errors2.New("backup policy is updating"))
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = originalFunc }()
+
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
+			State: models.LifeCycleStateREADY,
+		}, nil)
+
+		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{ID: 2},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-2",
+			},
+		}, nil)
+
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(1), account.ID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(2), account.ID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
+
+		// Since DataProtection is set, the validator will query the vault
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
+			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+
+		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
+
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsUnavailableErr(err))
+		assert.Contains(t, err.Error(), "Backup policy or vault is currently being updated")
+	})
+
+	t.Run("RetryableError_BackupVaultUpdating", func(t *testing.T) {
+		// Mock checkIsValidImmutableBackupPolicyWithRetry to return backup vault updating error
+		originalFunc := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, backupPolicyUUID string, backupVaultUUID string, accountID int64, region string, accountName string) error {
+			return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, errors2.New("backup vault is updating"))
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = originalFunc }()
+
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
+			State: models.LifeCycleStateREADY,
+		}, nil)
+
+		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{ID: 2},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-2",
+			},
+		}, nil)
+
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(1), account.ID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(2), account.ID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
+
+		// Since DataProtection is set, the validator will query the vault
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
+			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+
+		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
+
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsUnavailableErr(err))
+		assert.Contains(t, err.Error(), "Backup policy or vault is currently being updated")
+	})
+
+	t.Run("DatabaseConnectionError", func(t *testing.T) {
+		// Mock checkIsValidImmutableBackupPolicyWithRetry to return database connection error
+		originalFunc := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, backupPolicyUUID string, backupVaultUUID string, accountID int64, region string, accountName string) error {
+			return errors2.New("database connection failed")
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = originalFunc }()
+
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
+			State: models.LifeCycleStateREADY,
+		}, nil)
+
+		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{ID: 2},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-2",
+			},
+		}, nil)
+
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(1), account.ID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(2), account.ID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
+
+		// Since DataProtection is set, the validator will query the vault
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
+			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+
+		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Backup policy is not compliant with immutable backup vault settings: database connection failed")
+	})
+
+	t.Run("ValidationError_ActualImmutableValidationFailure", func(t *testing.T) {
+		// Mock checkIsValidImmutableBackupPolicyWithRetry to return actual validation error
+		originalFunc := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, backupPolicyUUID string, backupVaultUUID string, accountID int64, region string, accountName string) error {
+			return errors2.New("backup policy retention period is less than immutable period")
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = originalFunc }()
+
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		mockStorage.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{
+			State: models.LifeCycleStateREADY,
+		}, nil)
+
+		mockStorage.EXPECT().GetNodesByPoolID(ctx, int64(0)).Return([]*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{ID: 2},
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY,
+				Name:      "node-2",
+			},
+		}, nil)
+
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(1), account.ID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
+		mockStorage.EXPECT().GetLifForNode(ctx, int64(2), account.ID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
+
+		// Since DataProtection is set, the validator will query the vault
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(ctx, "test-vault-id", account.ID).
+			Return(&datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}, nil)
+
+		err := validateCreateVolumeParams(ctx, mockStorage, params, pool)
+
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(t, err.Error(), "Backup policy is not compliant with immutable backup vault settings")
+	})
+}
+
+func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProtection_ErrorMapping(t *testing.T) {
+	// Enable immutable backup feature flag for these tests
+	utils.SetImmutableBackupEnabledForTest(true)
+	defer utils.SetImmutableBackupEnabledForTest(false)
+
+	ctx := context.Background()
+
+	// Common setup: volume already has DataProtection with both BackupVaultID and BackupPolicyID
+	makeVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "volume-uuid",
+			},
+			Name:        "test-volume",
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 100 * 1024 * 1024 * 1024, // 100GB
+			AccountID:   1,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "account-uuid",
+				},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  "existing-vault-id",
+				BackupPolicyID: "existing-policy-id",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+	}
+
+	// Minimal pool and params to avoid triggering unrelated validation branches
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "pool-uuid",
+			},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "account-uuid",
+				},
+			},
+			SizeInBytes: 2000000000000,
+		},
+		QuotaInBytes: 1000000000000,
+	}
+	params := &common.UpdateVolumeParams{
+		VolumeId:    "volume-uuid",
+		AccountName: "test-account",
+		Region:      "us-west1",
+		DataProtection: &models.UpdateDataProtection{
+			// Not changing policy/vault, just present to keep the branch active
+			ScheduledBackupEnabled: nillable.GetBoolPtr(true),
+		},
+	}
+
+	t.Run("ServiceUnavailableError maps to UnavailableErr", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		orig := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, policyUUID, vaultUUID string, accountID int64, region, accountName string) error {
+			return customerrors.NewUnavailableErr("service temporarily unavailable")
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = orig }()
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, makeVolume(), params, pool)
+
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsUnavailableErr(err))
+		assert.Contains(t, err.Error(), "Service is temporarily unavailable, please try again later")
+	})
+
+	t.Run("Retryable error (policy updating) maps to UnavailableErr", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		orig := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, policyUUID, vaultUUID string, accountID int64, region, accountName string) error {
+			return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy, errors2.New("backup policy is updating"))
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = orig }()
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, makeVolume(), params, pool)
+
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsUnavailableErr(err))
+		assert.Contains(t, err.Error(), "Backup policy or vault is currently being updated")
+	})
+
+	t.Run("Retryable error (vault updating) maps to UnavailableErr", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		orig := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, policyUUID, vaultUUID string, accountID int64, region, accountName string) error {
+			return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, errors2.New("backup vault is updating"))
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = orig }()
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, makeVolume(), params, pool)
+
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsUnavailableErr(err))
+		assert.Contains(t, err.Error(), "Backup policy or vault is currently being updated")
+	})
+
+	t.Run("Generic infra error maps to UserInputValidationErr with specific message", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		orig := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, policyUUID, vaultUUID string, accountID int64, region, accountName string) error {
+			return errors2.New("database connection failed")
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = orig }()
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, makeVolume(), params, pool)
+
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(t, err.Error(), "Backup policy is not compliant with immutable backup vault settings: database connection failed")
+	})
+
+	t.Run("Actual immutable validation failure maps to UserInputValidationErr", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		orig := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(ctx context.Context, se database.Storage, policyUUID, vaultUUID string, accountID int64, region, accountName string) error {
+			return errors2.New("backup policy retention period is less than immutable period")
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = orig }()
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, makeVolume(), params, pool)
+
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(t, err.Error(), "Backup policy is not compliant with immutable backup vault settings")
+	})
 }

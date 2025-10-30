@@ -106,7 +106,7 @@ const (
 	TiBInBytes                 = 1099511627776
 	PiBInBytes                 = 1125899906842624
 	PercentageBase             = 100.0
-	ImmutableBackupVaultErrMsg = "Immutable backup vaults are not supported for ISCSI volumes"
+	ImmutableBackupVaultErrMsg = "Immutable backup vaults are not supported for this region"
 	BackupTypeMANUAL           = "MANUAL"
 	BackupTypeSCHEDULED        = "SCHEDULED"
 	// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group

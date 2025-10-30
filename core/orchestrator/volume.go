@@ -59,6 +59,7 @@ var (
 	enableAutoPoolScaling                           = env.GetBool("ENABLE_AUTO_POOL_SCALING", true)
 	autoPoolScalingLimits                           = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":246,\"max_volume_count\":495},\"c3-standard-16-lssd\":{\"min_volume_count\":496,\"max_volume_count\":995}}")
 	verifyBackupRestoreCompatibilityForLargeVolumes = _verifyBackupRestoreCompatibilityForLargeVolumes
+	checkIsValidImmutableBackupPolicyWithRetry      = _checkIsValidImmutableBackupPolicyWithRetry
 )
 
 const (
@@ -728,7 +729,7 @@ func GetVolumeTypeValidator(protocols []string, accountName string) (VolumeTypeP
 // 3. Validates weekly backup retention against immutable period
 // 4. Validates monthly backup retention against immutable period
 // Returns error if any validation fails, nil otherwise.
-func checkIsValidImmutableBackupPolicyWithRetry(ctx context.Context, se database.Storage, backupPolicyUUID string, backupVaultUUID string, accountID int64, region string, accountName string) error {
+func _checkIsValidImmutableBackupPolicyWithRetry(ctx context.Context, se database.Storage, backupPolicyUUID string, backupVaultUUID string, accountID int64, region string, accountName string) error {
 	logger := util.GetLogger(ctx)
 
 	for attempt := 1; attempt <= common.MaxRetries; attempt++ {
@@ -1099,7 +1100,23 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			err = checkIsValidImmutableBackupPolicyWithRetry(ctx, se, params.DataProtection.BackupPolicyId, params.DataProtection.BackupVaultID, pool.Account.ID, params.Region, params.AccountName)
 			if err != nil {
 				logger.Errorf("Immutable backup policy validation failed %v", err)
-				return customerrors.NewUserInputValidationErr("Backup policy is not compliant with immutable backup vault settings")
+
+				// Check if it's a service-related error (CVP down, network issues, etc.)
+				if customerrors.IsUnavailableErr(err) || customerrors.IsNetworkError(err) {
+					return customerrors.NewUnavailableErr(fmt.Sprintf("Service is temporarily unavailable, please try again later: %v", err.Error()))
+				}
+
+				// Check if it's a retryable error (backup policy/vault in updating state)
+				var customErr *vsaerrors.CustomError
+				if vsaerrors.As(err, &customErr) {
+					if customErr.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy ||
+						customErr.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupVault {
+						return customerrors.NewUnavailableErr(fmt.Sprintf("Backup policy or vault is currently being updated, please try again later: %v", err.Error()))
+					}
+				}
+
+				// For all other errors (actual validation failures), return 400
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Backup policy is not compliant with immutable backup vault settings: %v", err.Error()))
 			}
 		}
 
@@ -1925,7 +1942,23 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 				err := checkIsValidImmutableBackupPolicyWithRetry(ctx, se, volume.DataProtection.BackupPolicyID, volume.DataProtection.BackupVaultID, volume.Account.ID, params.Region, params.AccountName)
 				if err != nil {
 					logger.Errorf("Immutable backup policy validation failed %v", err)
-					return customerrors.NewUserInputValidationErr("Backup policy is not compliant with immutable backup vault settings")
+
+					// Check if it's a service-related error (CVP down, network issues, etc.)
+					if customerrors.IsUnavailableErr(err) || customerrors.IsNetworkError(err) {
+						return customerrors.NewUnavailableErr(fmt.Sprintf("Service is temporarily unavailable, please try again later: %v", err.Error()))
+					}
+
+					// Check if it's a retryable error (backup policy/vault in updating state)
+					var customErr *vsaerrors.CustomError
+					if vsaerrors.As(err, &customErr) {
+						if customErr.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy ||
+							customErr.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupVault {
+							return customerrors.NewUnavailableErr(fmt.Sprintf("Backup policy or vault is currently being updated, please try again later: %v", err.Error()))
+						}
+					}
+
+					// For all other errors (actual validation failures), return 400
+					return customerrors.NewUserInputValidationErr(fmt.Sprintf("Backup policy is not compliant with immutable backup vault settings: %v", err.Error()))
 				}
 			}
 		}

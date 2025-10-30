@@ -1824,7 +1824,7 @@ func TestBackupVaultExists_ReturnsImmutableBVError(t *testing.T) {
 	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
 
 	assert.Error(t, err)
-	assert.EqualError(t, err, "Immutable backup vaults are not supported for ISCSI volumes")
+	assert.EqualError(t, err, "Immutable backup vaults are not supported for this region")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1867,7 +1867,7 @@ func TestBackupVaultExistsSDE_ReturnsImmutableBVError(t *testing.T) {
 	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
 
 	assert.Error(t, err)
-	assert.EqualError(t, err, "Immutable backup vaults are not supported for ISCSI volumes")
+	assert.EqualError(t, err, "Immutable backup vaults are not supported for this region")
 	mockStorage.AssertExpectations(t)
 }
 
