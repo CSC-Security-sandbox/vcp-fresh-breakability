@@ -36,12 +36,14 @@ spec:
               set -e
               echo "Starting Temporal {{ $store }} store setup..."
 
+              {{- if $.Values.schema.istio.enabled }}
               # Wait for istio-proxy to be ready
               until curl -fsI http://localhost:15021/healthz/ready; do
                 echo "Waiting for istio-proxy to be ready..."
                 sleep 2
               done
               echo "istio-proxy is ready!"
+              {{- end }}
 
               {{- if $.Values.schema.createDatabase.enabled }}
               # Create database for {{ $store }} store
@@ -65,9 +67,11 @@ spec:
               {{- end }}
               {{- end }}
 
+              {{- if $.Values.schema.istio.enabled }}
               # Stop istio-proxy container
               echo "Stopping istio-proxy for {{ $store }} store..."
               curl -X POST http://localhost:15000/quitquitquit
+              {{- end }}
 
               echo "{{ $store }} store setup completed successfully!"
           env:
@@ -145,12 +149,14 @@ spec:
               set -e
               echo "Starting Temporal namespace setup..."
 
+              {{- if $.Values.schema.istio.enabled }}
               # Wait for istio-proxy to be ready
               until curl -fsI http://localhost:15021/healthz/ready; do
                 echo "Waiting for istio-proxy to be ready..."
                 sleep 2
               done
               echo "istio-proxy is ready!"
+              {{- end }}
 
               # Create namespaces
               echo "Creating namespaces..."
@@ -159,9 +165,11 @@ spec:
               temporal operator namespace describe -n {{ $namespace.name }} || temporal operator namespace create -n {{ $namespace.name }}{{- if hasKey $namespace "retention" }} --retention {{ $namespace.retention }}{{- end }}
               {{- end }}
 
+              {{- if $.Values.schema.istio.enabled }}
               # Stop istio-proxy container
               echo "Stopping istio-proxy for namespaces..."
               curl -X POST http://localhost:15000/quitquitquit
+              {{- end }}
 
               echo "Namespace setup completed successfully!"
           env:

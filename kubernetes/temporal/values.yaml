@@ -548,6 +548,8 @@ schema:
   resources: {}
   containerSecurityContext: {}
   securityContext: {}
+  istio:
+    enabled: true
 elasticsearch:
   enabled: true
   replicas: 3
