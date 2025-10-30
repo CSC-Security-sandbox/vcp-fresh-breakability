@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
@@ -707,11 +706,9 @@ func convertBackupModelToBackupsV1beta(backup *coremodels.Backup) *gcpgenserver.
 	}
 	if backup.MinimumEnforcedRetentionDuration != nil && *backup.MinimumEnforcedRetentionDuration > 0 && backup.IsBackupImmutable {
 		expirationDate := backup.CreationTime.AddDate(0, 0, int(*backup.MinimumEnforcedRetentionDuration))
-		if !time.Now().After(expirationDate) {
-			backupV1.EnforcedRetentionEndTime = gcpgenserver.OptDateTime{
-				Value: expirationDate,
-				Set:   true,
-			}
+		backupV1.EnforcedRetentionEndTime = gcpgenserver.OptDateTime{
+			Value: expirationDate,
+			Set:   true,
 		}
 	}
 	return backupV1
@@ -811,11 +808,9 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 	}
 	if backup.BackupVault.ImmutableAttributes != nil && *backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration > 0 && common.CheckIfBackupIsImmutable(backup) {
 		expirationDate := backup.CreatedAt.AddDate(0, 0, int(*backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration))
-		if !time.Now().After(expirationDate) {
-			backupV1.EnforcedRetentionEndTime = gcpgenserver.OptDateTime{
-				Value: expirationDate,
-				Set:   true,
-			}
+		backupV1.EnforcedRetentionEndTime = gcpgenserver.OptDateTime{
+			Value: expirationDate,
+			Set:   true,
 		}
 	}
 	return backupV1

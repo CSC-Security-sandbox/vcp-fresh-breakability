@@ -25,6 +25,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+// Helper function for creating int64 pointers
+func int64Ptr(i int64) *int64 {
+	return &i
+}
+
 // V1betaGetMultipleBackups unittests
 func TestV1GetMultipleBackups(t *testing.T) {
 	origBackupEnabled := backupEnabled
@@ -108,7 +113,8 @@ func TestV1GetMultipleBackups(t *testing.T) {
 				VolumeUUID:    "test-vol",
 				BackupVault:   backupVault,
 				BackupVaultID: 1,
-				Attributes:    &datamodel.BackupAttributes{}},
+				Attributes:    &datamodel.BackupAttributes{},
+			},
 
 			{
 				State:         "InProgress",
@@ -116,7 +122,8 @@ func TestV1GetMultipleBackups(t *testing.T) {
 				VolumeUUID:    "test-vol",
 				BackupVault:   backupVault,
 				BackupVaultID: 1,
-				Attributes:    &datamodel.BackupAttributes{}},
+				Attributes:    &datamodel.BackupAttributes{},
+			},
 		}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 		// Call the method under test
@@ -204,12 +211,14 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			Name:          "test-backup-vault",
 			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 		}
-		b := []*datamodel.Backup{{State: "InProgress",
+		b := []*datamodel.Backup{{
+			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
-			Attributes:    &datamodel.BackupAttributes{}}}
+			Attributes:    &datamodel.BackupAttributes{},
+		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
@@ -247,12 +256,14 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 			SourceRegionName: nillable.ToPointer("rgn-test"),
 		}
-		b := []*datamodel.Backup{{State: "InProgress",
+		b := []*datamodel.Backup{{
+			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
-			Attributes:    &datamodel.BackupAttributes{}}}
+			Attributes:    &datamodel.BackupAttributes{},
+		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
@@ -303,12 +314,14 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			Name:          "test-backup-vault",
 			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 		}
-		backups := []*datamodel.Backup{{State: "InProgress",
+		backups := []*datamodel.Backup{{
+			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
-			Attributes:    &datamodel.BackupAttributes{}}}
+			Attributes:    &datamodel.BackupAttributes{},
+		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backups, nil) // Call the method under test
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
 		// Assertions
@@ -358,12 +371,14 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			Name:          "test-backup-vault",
 			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 		}
-		b := []*datamodel.Backup{{State: "InProgress",
+		b := []*datamodel.Backup{{
+			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
-			Attributes:    &datamodel.BackupAttributes{}}}
+			Attributes:    &datamodel.BackupAttributes{},
+		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 		// Call the method under test
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
@@ -465,6 +480,7 @@ func TestUpdateBackup(t *testing.T) {
 func strPtr(s string) *string {
 	return &s
 }
+
 func TestConvertToBackupsV1beta(t *testing.T) {
 	backup := &models.BackupV1beta{
 		ResourceID:       "test-backup",
@@ -819,12 +835,14 @@ func TestV1betaGetMultipleBackups_NotFound(t *testing.T) {
 		Name:          "test-backup-vault",
 		BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 	}
-	b := []*datamodel.Backup{{State: "InProgress",
+	b := []*datamodel.Backup{{
+		State:         "InProgress",
 		Name:          "test-backup",
 		VolumeUUID:    "test-vol",
 		BackupVault:   backupVault,
 		BackupVaultID: 1,
-		Attributes:    &datamodel.BackupAttributes{}}}
+		Attributes:    &datamodel.BackupAttributes{},
+	}}
 	mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 	result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
 	assert.NoError(t, err)
@@ -855,12 +873,14 @@ func TestV1betaGetMultipleBackups_InternalServerError(t *testing.T) {
 		Name:          "test-backup-vault",
 		BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 	}
-	b := []*datamodel.Backup{{State: "InProgress",
+	b := []*datamodel.Backup{{
+		State:         "InProgress",
 		Name:          "test-backup",
 		VolumeUUID:    "test-vol",
 		BackupVault:   backupVault,
 		BackupVaultID: 1,
-		Attributes:    &datamodel.BackupAttributes{}}}
+		Attributes:    &datamodel.BackupAttributes{},
+	}}
 	mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 	result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
 	assert.NoError(t, err)
@@ -913,12 +933,14 @@ func TestV1betaGetMultipleBackups_MissingLines(t *testing.T) {
 			Name:          "test-backup-vault",
 			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 		}
-		b := []*datamodel.Backup{{State: "InProgress",
+		b := []*datamodel.Backup{{
+			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
-			Attributes:    &datamodel.BackupAttributes{}}}
+			Attributes:    &datamodel.BackupAttributes{},
+		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 
 		// Call the method under test
@@ -1013,12 +1035,14 @@ func TestV1betaGetMultipleBackups_MissingLines(t *testing.T) {
 			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 			SourceRegionName: nillable.ToPointer("rgn-test"),
 		}
-		b := []*datamodel.Backup{{State: "InProgress",
+		b := []*datamodel.Backup{{
+			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
-			Attributes:    &datamodel.BackupAttributes{}}}
+			Attributes:    &datamodel.BackupAttributes{},
+		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 
 		// Call the method under test
@@ -1842,6 +1866,7 @@ func TestFetchBackupUUIDWhichAreNotPartOfListBackups(t *testing.T) {
 		assert.Equal(t, expectedUUIDs, result)
 	})
 }
+
 func TestListBackupsToCVP(t *testing.T) {
 	ctx := context.Background()
 	params := gcpgenserver.V1betaListBackupsParams{
@@ -2252,12 +2277,14 @@ func TestV1betaDescribeBackup(t *testing.T) {
 			SourceRegionName: &sourceRegionName,
 			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 		}
-		backup := &datamodel.Backup{State: "InProgress",
+		backup := &datamodel.Backup{
+			State:         "InProgress",
 			Name:          "backup-123",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
-			Attributes:    &datamodel.BackupAttributes{}}
+			Attributes:    &datamodel.BackupAttributes{},
+		}
 
 		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(backup, nil)
 
@@ -2396,6 +2423,7 @@ func Test_checkIfBackupExistInCVP(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
 func TestV1betaListBackups(t *testing.T) {
 	t.Run("WhenBackupVaultExistsInVSAAndListBackupsSucceeds", func(t *testing.T) {
 		ctx := context.Background()
@@ -3567,7 +3595,8 @@ func TestConvertToBackupsV1beta_ConditionalFields(t *testing.T) {
 				BackupVaultID: func() *string { s := "vault-123"; return &s }(),
 				BackupType:    "MANUAL",
 			},
-			expectedUnset: []string{"EnforcedRetentionEndTime", "VolumeUsageBytes", "Description", "SourceSnapshot", "BackupChainBytes", "SatisfiesPzs", "SatisfiesPzi", "VolumeRegion", "BackupRegion", "AssetLocationMetadata"}},
+			expectedUnset: []string{"EnforcedRetentionEndTime", "VolumeUsageBytes", "Description", "SourceSnapshot", "BackupChainBytes", "SatisfiesPzs", "SatisfiesPzi", "VolumeRegion", "BackupRegion", "AssetLocationMetadata"},
+		},
 		{
 			name: "Some optional fields have values - should be set",
 			input: &models.BackupV1beta{
@@ -3582,7 +3611,8 @@ func TestConvertToBackupsV1beta_ConditionalFields(t *testing.T) {
 				VolumeRegion:  func() *string { s := "us-central1"; return &s }(),
 			},
 			expectedSet:   []string{"Description", "SatisfiesPzs", "VolumeRegion"},
-			expectedUnset: []string{"EnforcedRetentionEndTime", "VolumeUsageBytes", "SourceSnapshot", "BackupChainBytes", "SatisfiesPzi", "BackupRegion", "AssetLocationMetadata"}},
+			expectedUnset: []string{"EnforcedRetentionEndTime", "VolumeUsageBytes", "SourceSnapshot", "BackupChainBytes", "SatisfiesPzi", "BackupRegion", "AssetLocationMetadata"},
+		},
 		{
 			name: "All optional fields have values - should all be set",
 			input: &models.BackupV1beta{
@@ -3674,6 +3704,7 @@ func TestConvertToBackupsV1beta_ConditionalFields(t *testing.T) {
 		})
 	}
 }
+
 func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 	t.Run("WhenSourceSnapshotIsSetWithUseExistingSnapshot", func(t *testing.T) {
 		backup := &datamodel.Backup{
@@ -3938,7 +3969,6 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 		assert.Equal(t, "test description", result.Description.Value)
 		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
 		assert.Equal(t, "MANUAL", string(result.BackupType.Value))
-		assert.False(t, result.EnforcedRetentionEndTime.Set) // Should not set when expired
 	})
 
 	t.Run("WhenBackupIsImmutableButNoRetentionDuration", func(t *testing.T) {
@@ -4323,4 +4353,184 @@ func TestV1betaCreateBackup_VolumeNotFoundInVSA(t *testing.T) {
 		operation := result.(*gcpgenserver.OperationV1beta)
 		assert.True(t, operation.Done.Value)
 	})
+}
+
+func TestConvertBackupDataModelToBackupsV1beta_EnforcedRetentionEndTime(t *testing.T) {
+	// Set up the time for consistent testing
+	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	retentionDays := int64(30)
+	expectedExpirationDate := createdAt.AddDate(0, 0, int(retentionDays))
+
+	tests := []struct {
+		name                          string
+		backup                        *datamodel.Backup
+		expectedEnforcedRetentionSet  bool
+		expectedEnforcedRetentionTime time.Time
+	}{
+		{
+			name: "Should set EnforcedRetentionEndTime when backup is immutable with valid retention duration",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-backup-uuid",
+					CreatedAt: createdAt,
+				},
+				Name:        "test-backup",
+				VolumeUUID:  "test-volume-uuid",
+				State:       "READY",
+				SizeInBytes: 1024,
+				Description: "Test backup",
+				Type:        utils.BackupTypeMANUAL, // Make it a manual backup
+				BackupVault: &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-vault-uuid",
+					},
+					SourceRegionName: stringPtr("us-central1"),
+					ImmutableAttributes: &datamodel.ImmutableAttributes{
+						BackupMinimumEnforcedRetentionDuration: &retentionDays,
+						IsAdhocBackupImmutable:                 true, // Enable adhoc/manual backup immutability
+					},
+					BucketDetails: []*datamodel.BucketDetails{
+						{
+							BucketName:   "test-bucket",
+							SatisfiesPzi: true,
+							SatisfiesPzs: false,
+						},
+					},
+				},
+				Attributes: &datamodel.BackupAttributes{
+					BucketName:          "test-bucket",
+					UseExistingSnapshot: false,
+					SnapshotName:        "test-snapshot",
+				},
+				LatestLogicalBackupSize: 2048,
+			},
+			expectedEnforcedRetentionSet:  true,
+			expectedEnforcedRetentionTime: expectedExpirationDate,
+		},
+		{
+			name: "Should not set EnforcedRetentionEndTime when ImmutableAttributes is nil",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-backup-uuid",
+					CreatedAt: createdAt,
+				},
+				Name:        "test-backup",
+				VolumeUUID:  "test-volume-uuid",
+				State:       "READY",
+				SizeInBytes: 1024,
+				BackupVault: &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-vault-uuid",
+					},
+					SourceRegionName:    stringPtr("us-central1"),
+					ImmutableAttributes: nil, // nil attributes
+					BucketDetails: []*datamodel.BucketDetails{
+						{
+							BucketName:   "test-bucket",
+							SatisfiesPzi: true,
+							SatisfiesPzs: false,
+						},
+					},
+				},
+				Attributes: &datamodel.BackupAttributes{
+					BucketName: "test-bucket",
+				},
+			},
+			expectedEnforcedRetentionSet: false,
+		},
+		{
+			name: "Should not set EnforcedRetentionEndTime when retention duration is 0",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-backup-uuid",
+					CreatedAt: createdAt,
+				},
+				Name:        "test-backup",
+				VolumeUUID:  "test-volume-uuid",
+				State:       "READY",
+				SizeInBytes: 1024,
+				Type:        utils.BackupTypeMANUAL,
+				BackupVault: &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-vault-uuid",
+					},
+					SourceRegionName: stringPtr("us-central1"),
+					ImmutableAttributes: &datamodel.ImmutableAttributes{
+						BackupMinimumEnforcedRetentionDuration: int64Ptr(0), // zero duration
+						IsAdhocBackupImmutable:                 true,        // backup would be immutable but retention is 0
+					},
+					BucketDetails: []*datamodel.BucketDetails{
+						{
+							BucketName:   "test-bucket",
+							SatisfiesPzi: true,
+							SatisfiesPzs: false,
+						},
+					},
+				},
+				Attributes: &datamodel.BackupAttributes{
+					BucketName: "test-bucket",
+				},
+			},
+			expectedEnforcedRetentionSet: false,
+		},
+		{
+			name: "Should not set EnforcedRetentionEndTime when backup is not immutable",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-backup-uuid",
+					CreatedAt: createdAt,
+				},
+				Name:        "test-backup",
+				VolumeUUID:  "test-volume-uuid",
+				State:       "READY",
+				SizeInBytes: 1024,
+				Type:        utils.BackupTypeMANUAL,
+				BackupVault: &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-vault-uuid",
+					},
+					SourceRegionName: stringPtr("us-central1"),
+					ImmutableAttributes: &datamodel.ImmutableAttributes{
+						BackupMinimumEnforcedRetentionDuration: &retentionDays,
+						IsAdhocBackupImmutable:                 false, // backup is not immutable
+					},
+					BucketDetails: []*datamodel.BucketDetails{
+						{
+							BucketName:   "test-bucket",
+							SatisfiesPzi: true,
+							SatisfiesPzs: false,
+						},
+					},
+				},
+				Attributes: &datamodel.BackupAttributes{
+					BucketName: "test-bucket",
+				},
+			},
+			expectedEnforcedRetentionSet: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the function under test
+			result := convertBackupDataModelToBackupsV1beta(tt.backup)
+
+			// Verify the EnforcedRetentionEndTime field
+			assert.Equal(t, tt.expectedEnforcedRetentionSet, result.EnforcedRetentionEndTime.Set,
+				"EnforcedRetentionEndTime.Set should match expected value")
+
+			if tt.expectedEnforcedRetentionSet {
+				assert.Equal(t, tt.expectedEnforcedRetentionTime, result.EnforcedRetentionEndTime.Value,
+					"EnforcedRetentionEndTime.Value should match expected expiration date")
+			}
+
+			// Verify other basic fields are set correctly
+			assert.True(t, result.ResourceId.Set)
+			assert.Equal(t, tt.backup.Name, result.ResourceId.Value)
+			assert.True(t, result.VolumeId.Set)
+			assert.Equal(t, tt.backup.VolumeUUID, result.VolumeId.Value)
+			assert.True(t, result.BackupId.Set)
+			assert.Equal(t, tt.backup.UUID, result.BackupId.Value)
+		})
+	}
 }

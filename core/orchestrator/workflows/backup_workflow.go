@@ -632,14 +632,14 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 
 		location := utils.GetLocation(*snapshot)
-		err = workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotDeletionToCCFEActivity,
+		hydrateSnapshoterr := workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotDeletionToCCFEActivity,
 			snapshot,
 			volume.Name,
 			location,
 			account.Name).Get(ctx, nil)
-		if err != nil {
+		if hydrateSnapshoterr != nil {
 			// Log the error but don't fail the entire backup deletion workflow
-			wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", dbBackup.Name, err)
+			wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", dbBackup.Name, hydrateSnapshoterr)
 		}
 	}
 
