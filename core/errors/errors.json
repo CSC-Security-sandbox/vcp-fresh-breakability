@@ -1475,6 +1475,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "10005": {
+    "description": "Error hydrating FlexCache volume",
+    "message": "Error hydrating FlexCache volume",
+    "retriable": false,
+    "http_code": 400
+  },
   "11000": {
     "description": "Error during cluster peering",
     "message": "Error during cluster peering",

@@ -14,4 +14,7 @@ type monkeyMethods interface {
 	hyperscalerGetProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error)
 	utilGetLogger(ctx interface{}) log.Logger
 	verifyAndGetFlexCacheUpdateParams(volume *datamodel.Volume, params *common.UpdateVolumeParams) (*vsa.UpdateFlexCacheVolumeParams, error)
+	commonHydrateFlexCacheState(ctx context.Context, logger log.Logger, region, projectId, volumeResourceID, cacheState, state, token string) error
+	authGenerateCallbackToken(ctx context.Context) (string, error)
+	isHydrationEnabled() bool
 }

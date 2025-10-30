@@ -7,6 +7,7 @@ import (
 )
 
 type CreateFlexCacheResult struct {
+	Event             *CreateFlexCacheEvent
 	DBVolume          *datamodel.Volume
 	Node              *models.Node
 	ClusterPeer       *vsa.ClusterPeer

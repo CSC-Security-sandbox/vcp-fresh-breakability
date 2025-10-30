@@ -15,6 +15,8 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 
 	utilGetLogger = mm.utilGetLogger
 	utilsGetLocationFromVendorID = mm.utilsGetLocationFromVendorID
+	utilsGetRequestIDFromContext = mm.utilsGetRequestIDFromContext
+	utilsGetCorrelationIDFromContext = mm.utilsGetCorrelationIDFromContext
 	envIsLocalEnv = mm.envIsLocalEnv
 
 	getOrCreateAccount = mm.getOrCreateAccount
@@ -40,6 +42,8 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 	t.Cleanup(func() {
 		utilGetLogger = util.GetLogger
 		utilsGetLocationFromVendorID = utils.GetLocationFromVendorID
+		utilsGetRequestIDFromContext = utils.GetRequestIDFromContext
+		utilsGetCorrelationIDFromContext = utils.GetCoRelationIDFromContext
 		envIsLocalEnv = env.IsLocalEnv
 
 		getOrCreateAccount = _getOrCreateAccount

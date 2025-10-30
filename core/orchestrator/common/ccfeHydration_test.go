@@ -449,6 +449,48 @@ func TestHydrateReplicationDelete(t *testing.T) {
 	})
 }
 
+func TestHydrateFlexCacheState(t *testing.T) {
+	mockLogger := log.NewMockLogger(t)
+	ctx := context.Background()
+	region := "mocked-region"
+	projectId := "mocked-project"
+	volumeResourceID := "mocked-volume-id"
+	token := "mocked-token"
+	cacheState := "PENDING_CLUSTER_PEERING"
+	state := "PREPARING"
+	t.Run("WhenHydrateToCffeReturnError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		expectedErr := &errs.CustomError{
+			OriginalErr: errors.New("some error"),
+		}
+		request := &models.FlexCacheVolumeUpdateMaskRequest{
+			CacheState: models.FlexCacheVolumeHydrateCacheState(cacheState),
+			State:      models.FlexCacheVolumeHydrateState(state),
+		}
+
+		url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=cacheState,state", baseUri, projectId, region, volumeResourceID)
+		mockLogger.EXPECT().Infof("Hydrating FlexCache state to callbackApi, resourceId:: %+v", volumeResourceID)
+		mm.EXPECT().hydrateToCffe(ctx, mockLogger, request, url, http.MethodPatch, token).Return(expectedErr)
+		err := _hydrateFlexCacheState(ctx, mockLogger, region, projectId, volumeResourceID, cacheState, state, token)
+		assert.Error(tt, err.(*errs.CustomError).Unwrap())
+		assert.Equal(tt, expectedErr, err)
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		request := &models.FlexCacheVolumeUpdateMaskRequest{
+			CacheState: models.FlexCacheVolumeHydrateCacheState(cacheState),
+			State:      models.FlexCacheVolumeHydrateState(state),
+		}
+		url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=cacheState,state", baseUri, projectId, region, volumeResourceID)
+		mockLogger.EXPECT().Infof("Hydrating FlexCache state to callbackApi, resourceId:: %+v", volumeResourceID)
+		mm.EXPECT().hydrateToCffe(ctx, mockLogger, request, url, http.MethodPatch, token).Return(nil)
+
+		err := _hydrateFlexCacheState(ctx, mockLogger, region, projectId, volumeResourceID, "PENDING_CLUSTER_PEERING", "PREPARING", token)
+		assert.NoError(tt, err)
+	})
+}
+
 func TestHydrateReplicationStateFunc(t *testing.T) {
 	mockLogger := log.NewLogger()
 	ctx := context.Background()

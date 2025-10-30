@@ -14,11 +14,14 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -27,8 +30,13 @@ type FlexCacheVolumeCreateActivity struct {
 }
 
 var (
+	hydrationEnabled   = env.GetBool("GCP_HYDRATE_ENABLED", false)
+	isHydrationEnabled = _isHydrationEnabled
+
 	utilGetLogger                = util.GetLogger
 	hyperscalerGetProviderByNode = hyperscaler.GetProviderByNode
+	commonHydrateFlexCacheState  = common.HydrateFlexCacheState
+	authGenerateCallbackToken    = auth.GenerateCallbackToken
 )
 
 type completeJobOpts struct {
@@ -39,8 +47,12 @@ type completeJobOpts struct {
 	UpdateErrCode int
 }
 
+func _isHydrationEnabled() bool {
+	return hydrationEnabled
+}
+
 // CreateFlexCacheVolumeInOntapActivity creates a FlexCache volume in ONTAP
-func (a FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
 	cacheParams := volume.CacheParameters
@@ -70,7 +82,7 @@ func (a FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx 
 	return result, nil
 }
 
-func (a FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
 	cacheParams := volume.CacheParameters
@@ -103,7 +115,7 @@ func (a FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx cont
 	return result, nil
 }
 
-func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForClusterPeeringActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForClusterPeeringActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
 	clusterPeer := result.ClusterPeer
@@ -150,7 +162,7 @@ func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForClusterPeeringAct
 	return result, nil
 }
 
-func (a FlexCacheVolumeCreateActivity) WaitForClusterPeerActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) WaitForClusterPeerActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
@@ -171,7 +183,7 @@ func (a FlexCacheVolumeCreateActivity) WaitForClusterPeerActivity(ctx context.Co
 	return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("cluster peer is not ready yet"))
 }
 
-func (a FlexCacheVolumeCreateActivity) CreateSVMPeeringInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) CreateSVMPeeringInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	volume := result.DBVolume
 	cacheParams := volume.CacheParameters
 	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
@@ -196,7 +208,7 @@ func (a FlexCacheVolumeCreateActivity) CreateSVMPeeringInOntapActivity(ctx conte
 	return result, nil
 }
 
-func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForSVMPeeringActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForSVMPeeringActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
 	cacheParams := volume.CacheParameters
@@ -224,7 +236,7 @@ func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForSVMPeeringActivit
 	return result, nil
 }
 
-func (a FlexCacheVolumeCreateActivity) WaitForSVMPeeringActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) WaitForSVMPeeringActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
@@ -245,7 +257,7 @@ func (a FlexCacheVolumeCreateActivity) WaitForSVMPeeringActivity(ctx context.Con
 	return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("svm peer is not ready yet"))
 }
 
-func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeDetailsActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeDetailsActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	volume := result.DBVolume
 	volume.CacheParameters.CacheStateDetailsCode = coremodels.DefaultCode
 	volume.CacheParameters.CacheStateDetails = ""
@@ -268,7 +280,32 @@ func (a FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeDetailsActivity(ctx 
 	return result, nil
 }
 
-func (a FlexCacheVolumeCreateActivity) UpdateVolumeDetailsOnErrorActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
+func (a *FlexCacheVolumeCreateActivity) HydrateFlexCacheState(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	if !isHydrationEnabled() {
+		logger.Debugf("hydration is disabled, skipping HydrateFlexCacheState")
+		return result, nil
+	}
+
+	volume := result.DBVolume
+	callbackToken, err := authGenerateCallbackToken(ctx)
+	if err != nil {
+		logger.Error("Error when getting callback token", err)
+		return result, err
+	}
+
+	err = commonHydrateFlexCacheState(ctx, logger, result.Event.LocationID, result.Event.ProjectNumber, volume.Name, volume.CacheParameters.CacheState, volume.State, callbackToken)
+	if err != nil {
+		logger.Errorf("Error when hydrating flexcache state: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrHydrateFlexCacheVolume, err)
+	}
+
+	logger.Debugf("hydration completed successfully for volume: %s", volume.Name)
+
+	return result, nil
+}
+
+func (a *FlexCacheVolumeCreateActivity) UpdateVolumeDetailsOnErrorActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
 	volume := result.DBVolume
 	updates := map[string]interface{}{
 		"cache_parameters": volume.CacheParameters,
@@ -285,13 +322,13 @@ func (a FlexCacheVolumeCreateActivity) UpdateVolumeDetailsOnErrorActivity(ctx co
 	return nil
 }
 
-func (a FlexCacheVolumeCreateActivity) setCacheStates(result *flexcache.CreateFlexCacheResult, state string) {
+func (a *FlexCacheVolumeCreateActivity) setCacheStates(result *flexcache.CreateFlexCacheResult, state string) {
 	result.DBVolume.CacheParameters.PreviousCacheState = result.DBVolume.CacheParameters.CacheState
 	result.DBVolume.CacheParameters.CacheState = state
 }
 
 // shouldSetErrorState determines if the volume state should be set to error based on the CacheStateDetailsCode
-func (a FlexCacheVolumeCreateActivity) shouldSetErrorState(result *flexcache.CreateFlexCacheResult) bool {
+func (a *FlexCacheVolumeCreateActivity) shouldSetErrorState(result *flexcache.CreateFlexCacheResult) bool {
 	nonErrorCodes := []int{
 		coremodels.ClusterPeeringExpiredCode,
 		coremodels.SourceClusterUnreachableCode,
@@ -310,7 +347,7 @@ func (a FlexCacheVolumeCreateActivity) shouldSetErrorState(result *flexcache.Cre
 }
 
 // CompleteFlexCacheCreateJobActivity finds and completes an existing FlexCache create job if it exists.
-func (a FlexCacheVolumeCreateActivity) CompleteFlexCacheCreateJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) CompleteFlexCacheCreateJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	input := result.JobInput
 	logger.Debugf("Completing existing FlexCache create job for resource: %s (%s)", input.ResourceName, input.WorkflowID)
@@ -337,7 +374,7 @@ func (a FlexCacheVolumeCreateActivity) CompleteFlexCacheCreateJobActivity(ctx co
 
 // CreatePeeringJobActivity creates a job for peering establishment.
 // It starts immediately and remains PROCESSING until the system reaches PENDING_CLUSTER_PEERING.
-func (a FlexCacheVolumeCreateActivity) CreatePeeringJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) CreatePeeringJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	input := result.JobInput
 	logger.Debugf("Creating establish peering job for resource: %s (%s)", input.ResourceName, input.ResourceUUID)
@@ -376,7 +413,7 @@ func (a FlexCacheVolumeCreateActivity) CreatePeeringJobActivity(ctx context.Cont
 }
 
 // CompletePeeringJobActivity completes the peering job when we reach PENDING_CLUSTER_PEERING.
-func (a FlexCacheVolumeCreateActivity) CompletePeeringJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
+func (a *FlexCacheVolumeCreateActivity) CompletePeeringJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
 	logger := utilGetLogger(ctx)
 	resourceUUID := result.DBVolume.UUID
 	observedCacheState := result.DBVolume.CacheParameters.CacheState
@@ -398,7 +435,7 @@ func (a FlexCacheVolumeCreateActivity) CompletePeeringJobActivity(ctx context.Co
 }
 
 // StartInternalJobActivity creates and starts the internal monitoring job
-func (a FlexCacheVolumeCreateActivity) StartInternalJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) StartInternalJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	input := result.JobInput
 	logger.Debugf("Starting internal job for resource: %s (%s)", input.ResourceName, input.ResourceUUID)
@@ -438,7 +475,7 @@ func (a FlexCacheVolumeCreateActivity) StartInternalJobActivity(ctx context.Cont
 }
 
 // CompleteInternalJobActivity completes the internal job once volume creation succeeds.
-func (a FlexCacheVolumeCreateActivity) CompleteInternalJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
+func (a *FlexCacheVolumeCreateActivity) CompleteInternalJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
 	logger := utilGetLogger(ctx)
 	resourceUUID := result.DBVolume.UUID
 	observedCacheState := result.DBVolume.CacheParameters.CacheState
@@ -460,7 +497,7 @@ func (a FlexCacheVolumeCreateActivity) CompleteInternalJobActivity(ctx context.C
 }
 
 // FailJobActivity marks the specified job as ERROR.
-func (a FlexCacheVolumeCreateActivity) FailJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
+func (a *FlexCacheVolumeCreateActivity) FailJobActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
 	logger := utilGetLogger(ctx)
 
 	resourceUUID := result.DBVolume.UUID
@@ -512,7 +549,7 @@ func (a FlexCacheVolumeCreateActivity) FailJobActivity(ctx context.Context, resu
 }
 
 // completeJob is an internal helper to complete a job based on various criteria.
-func (a FlexCacheVolumeCreateActivity) completeJob(ctx context.Context, opts completeJobOpts) (*datamodel.Job, error) {
+func (a *FlexCacheVolumeCreateActivity) completeJob(ctx context.Context, opts completeJobOpts) (*datamodel.Job, error) {
 	logger := utilGetLogger(ctx)
 
 	var (

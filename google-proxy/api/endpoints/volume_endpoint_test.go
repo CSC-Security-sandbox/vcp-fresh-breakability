@@ -8119,6 +8119,21 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "Valid FlexCache request - large capacity set to false",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					LargeCapacity: gcpgenserver.NewOptNilBool(false),
+				},
+			},
+			expectError: false,
+		},
+		{
 			name: "Valid FlexCache request - valid origin volume names",
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{

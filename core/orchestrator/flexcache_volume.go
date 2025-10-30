@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -21,9 +23,13 @@ import (
 )
 
 var (
-	createFlexCacheVolume                = _createFlexCacheVolume
-	utilGetLogger                        = util.GetLogger
-	utilsGetLocationFromVendorID         = utils.GetLocationFromVendorID
+	createFlexCacheVolume = _createFlexCacheVolume
+
+	utilGetLogger                    = util.GetLogger
+	utilsGetLocationFromVendorID     = utils.GetLocationFromVendorID
+	utilsGetRequestIDFromContext     = utils.GetRequestIDFromContext
+	utilsGetCorrelationIDFromContext = utils.GetCoRelationIDFromContext
+
 	workflowsExecuteWorkflowSequentially = workflows.ExecuteWorkflowSequentially
 	establishFlexCacheVolumePeering      = _establishFlexCacheVolumePeering
 	isEstablishVolumePeeringNeeded       = _isEstablishVolumePeeringNeeded
@@ -130,13 +136,24 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		return nil, "", err
 	}
 
+	requestURI := utilsGetRequestIDFromContext(ctx)
+	correlationID := utilsGetCorrelationIDFromContext(ctx)
+
+	event := &flexcache.CreateFlexCacheEvent{
+		LocationID:    location,
+		ProjectNumber: params.AccountName,
+		RequestUri:    requestURI,
+		CorrelationID: &correlationID,
+	}
+
 	job := &datamodel.Job{
 		Type:          string(coremodels.JobTypeFlexCacheCreateVolume),
 		State:         string(coremodels.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
-		RequestID:     utils.GetRequestIDFromContext(ctx),
+		CorrelationID: correlationID,
+		RequestID:     requestURI,
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbVolume.UUID},
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
@@ -161,6 +178,7 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		},
 		params,
 		dbVolume,
+		event,
 	)
 	if err != nil {
 		logger.Errorf("Failed to start create FlexCache volume workflow, error: %v", err)
@@ -202,13 +220,23 @@ func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, 
 		return nil, "", err
 	}
 
+	requestURI := utilsGetRequestIDFromContext(ctx)
+	correlationID := utilsGetCorrelationIDFromContext(ctx)
+
+	event := &flexcache.CreateFlexCacheEvent{
+		LocationID:    location,
+		ProjectNumber: params.AccountName,
+		RequestUri:    requestURI,
+		CorrelationID: &correlationID,
+	}
+
 	job := &datamodel.Job{
 		Type:          string(coremodels.JobTypeFlexCacheEstablishPeering),
 		State:         string(coremodels.JobsStateNEW),
 		ResourceName:  params.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
-		RequestID:     utils.GetRequestIDFromContext(ctx),
+		CorrelationID: correlationID,
+		RequestID:     requestURI,
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -234,6 +262,7 @@ func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, 
 		},
 		convertEstablishVolumePeeringParamsToCreateVolumeParams(params),
 		dbVolume,
+		event,
 	)
 	if err != nil {
 		logger.Errorf("Failed to start establish volume peering workflow, error: %v", err)

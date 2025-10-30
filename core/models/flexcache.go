@@ -32,3 +32,11 @@ type CacheParameters struct {
 	PeeringCommand string     `json:"peeringCommand,omitempty"`
 	Passphrase     *string    `json:"passphrase,omitempty"`
 }
+
+type FlexCacheVolumeHydrateCacheState string
+type FlexCacheVolumeHydrateState string
+
+type FlexCacheVolumeUpdateMaskRequest struct {
+	State      FlexCacheVolumeHydrateState      `json:"state"`
+	CacheState FlexCacheVolumeHydrateCacheState `json:"cacheState"`
+}

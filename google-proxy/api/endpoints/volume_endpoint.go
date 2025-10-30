@@ -2293,7 +2293,7 @@ func validateFlexCacheRequest(req *gcpgenserver.VolumeCreateV1beta) error {
 		return fmt.Errorf("large volume constituent count is not allowed for FlexCache volumes")
 	}
 
-	if vol.LargeCapacity.IsSet() {
+	if vol.LargeCapacity.IsSet() && vol.LargeCapacity.Value {
 		return fmt.Errorf("large capacity is not allowed for FlexCache volumes")
 	}
 

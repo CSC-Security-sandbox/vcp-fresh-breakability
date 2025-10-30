@@ -18,6 +18,8 @@ type monkeyMethods interface {
 	// Utility methods
 	utilGetLogger(ctx interface{}) log.Logger
 	utilsGetLocationFromVendorID(vendorID string) (string, error)
+	utilsGetRequestIDFromContext(ctx context.Context) string
+	utilsGetCorrelationIDFromContext(ctx context.Context) string
 
 	// Helper methods
 	getOrCreateAccount(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error)

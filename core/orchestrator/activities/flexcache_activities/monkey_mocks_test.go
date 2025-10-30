@@ -31,6 +31,115 @@ func (_m *monkeyMock) EXPECT() *monkeyMock_Expecter {
 	return &monkeyMock_Expecter{mock: &_m.Mock}
 }
 
+// authGenerateCallbackToken provides a mock function with given fields: ctx
+func (_m *monkeyMock) authGenerateCallbackToken(ctx context.Context) (string, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for authGenerateCallbackToken")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// monkeyMock_authGenerateCallbackToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'authGenerateCallbackToken'
+type monkeyMock_authGenerateCallbackToken_Call struct {
+	*mock.Call
+}
+
+// authGenerateCallbackToken is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *monkeyMock_Expecter) authGenerateCallbackToken(ctx interface{}) *monkeyMock_authGenerateCallbackToken_Call {
+	return &monkeyMock_authGenerateCallbackToken_Call{Call: _e.mock.On("authGenerateCallbackToken", ctx)}
+}
+
+func (_c *monkeyMock_authGenerateCallbackToken_Call) Run(run func(ctx context.Context)) *monkeyMock_authGenerateCallbackToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_authGenerateCallbackToken_Call) Return(_a0 string, _a1 error) *monkeyMock_authGenerateCallbackToken_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *monkeyMock_authGenerateCallbackToken_Call) RunAndReturn(run func(context.Context) (string, error)) *monkeyMock_authGenerateCallbackToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// commonHydrateFlexCacheState provides a mock function with given fields: ctx, logger, region, projectId, volumeResourceID, cacheState, state, token
+func (_m *monkeyMock) commonHydrateFlexCacheState(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, cacheState string, state string, token string) error {
+	ret := _m.Called(ctx, logger, region, projectId, volumeResourceID, cacheState, state, token)
+
+	if len(ret) == 0 {
+		panic("no return value specified for commonHydrateFlexCacheState")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, log.Logger, string, string, string, string, string, string) error); ok {
+		r0 = rf(ctx, logger, region, projectId, volumeResourceID, cacheState, state, token)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// monkeyMock_commonHydrateFlexCacheState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'commonHydrateFlexCacheState'
+type monkeyMock_commonHydrateFlexCacheState_Call struct {
+	*mock.Call
+}
+
+// commonHydrateFlexCacheState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - logger log.Logger
+//   - region string
+//   - projectId string
+//   - volumeResourceID string
+//   - cacheState string
+//   - state string
+//   - token string
+func (_e *monkeyMock_Expecter) commonHydrateFlexCacheState(ctx interface{}, logger interface{}, region interface{}, projectId interface{}, volumeResourceID interface{}, cacheState interface{}, state interface{}, token interface{}) *monkeyMock_commonHydrateFlexCacheState_Call {
+	return &monkeyMock_commonHydrateFlexCacheState_Call{Call: _e.mock.On("commonHydrateFlexCacheState", ctx, logger, region, projectId, volumeResourceID, cacheState, state, token)}
+}
+
+func (_c *monkeyMock_commonHydrateFlexCacheState_Call) Run(run func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, cacheState string, state string, token string)) *monkeyMock_commonHydrateFlexCacheState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(log.Logger), args[2].(string), args[3].(string), args[4].(string), args[5].(string), args[6].(string), args[7].(string))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_commonHydrateFlexCacheState_Call) Return(_a0 error) *monkeyMock_commonHydrateFlexCacheState_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_commonHydrateFlexCacheState_Call) RunAndReturn(run func(context.Context, log.Logger, string, string, string, string, string, string) error) *monkeyMock_commonHydrateFlexCacheState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // hyperscalerGetProviderByNode provides a mock function with given fields: ctx, node
 func (_m *monkeyMock) hyperscalerGetProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 	ret := _m.Called(ctx, node)
@@ -86,6 +195,51 @@ func (_c *monkeyMock_hyperscalerGetProviderByNode_Call) Return(_a0 vsa.Provider,
 }
 
 func (_c *monkeyMock_hyperscalerGetProviderByNode_Call) RunAndReturn(run func(context.Context, *models.Node) (vsa.Provider, error)) *monkeyMock_hyperscalerGetProviderByNode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// isHydrationEnabled provides a mock function with no fields
+func (_m *monkeyMock) isHydrationEnabled() bool {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for isHydrationEnabled")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// monkeyMock_isHydrationEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'isHydrationEnabled'
+type monkeyMock_isHydrationEnabled_Call struct {
+	*mock.Call
+}
+
+// isHydrationEnabled is a helper method to define mock.On call
+func (_e *monkeyMock_Expecter) isHydrationEnabled() *monkeyMock_isHydrationEnabled_Call {
+	return &monkeyMock_isHydrationEnabled_Call{Call: _e.mock.On("isHydrationEnabled")}
+}
+
+func (_c *monkeyMock_isHydrationEnabled_Call) Run(run func()) *monkeyMock_isHydrationEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *monkeyMock_isHydrationEnabled_Call) Return(_a0 bool) *monkeyMock_isHydrationEnabled_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_isHydrationEnabled_Call) RunAndReturn(run func() bool) *monkeyMock_isHydrationEnabled_Call {
 	_c.Call.Return(run)
 	return _c
 }

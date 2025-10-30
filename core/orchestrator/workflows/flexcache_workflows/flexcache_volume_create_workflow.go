@@ -44,7 +44,7 @@ type flexCacheCreateWorkflow struct {
 var _ workflows.WorkflowInterface = &flexCacheCreateWorkflow{}
 
 // CreateFlexCacheWorkflow Volume Workflow process volume related requests from a customer.
-func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume) (retErr error) {
+func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume, event *flexcache.CreateFlexCacheEvent) (retErr error) {
 	log := util.GetLogger(ctx)
 	flexCacheWf := new(flexCacheCreateWorkflow)
 	// Guard to detect whether we entered Run.
@@ -75,7 +75,7 @@ func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumePa
 
 	// Hand-off job failure to Run’s defer.
 	enteredRun = true
-	_, customErr := flexCacheWf.Run(ctx, volume, params)
+	_, customErr := flexCacheWf.Run(ctx, volume, params, event)
 	if customErr != nil {
 		log.Errorf("CreateFlexCacheWorkflow completed with error: %v", customErr)
 		flexCacheWf.Status = workflows.WorkflowStatusFailed
@@ -108,6 +108,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	log := util.GetLogger(ctx)
 	dbVolume := args[0].(*datamodel.Volume)
 	params := args[1].(*common.CreateVolumeParams)
+	event := args[2].(*flexcache.CreateFlexCacheEvent)
 	flexCacheVolumeCreateActivity := &flexcache_activities.FlexCacheVolumeCreateActivity{}
 	flexCacheVolumeDeleteActivity := &flexcache_activities.FlexCacheVolumeDeleteActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
@@ -127,6 +128,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	wfInfo := workflow.GetInfo(ctx)
 	flexcacheResult := flexcache.CreateFlexCacheResult{
+		Event:         event,
 		DBVolume:      dbVolume,
 		ActiveJobType: models.JobTypeFlexCacheCreateVolume,
 		JobInput: &flexcache.JobActivityInput{
@@ -314,6 +316,10 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}
 
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.HydrateFlexCacheState, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	if flexcacheResult.SVMPeerAction == flexcache.ActionCreate || flexcacheResult.SVMPeerAction == flexcache.ActionWait {
 		svmPeerWaitCtx := getWaitContext(ctx, nil)
 		if err = workflow.ExecuteActivity(svmPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
@@ -333,6 +339,10 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeDetailsActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.HydrateFlexCacheState, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 

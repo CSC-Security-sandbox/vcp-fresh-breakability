@@ -28,6 +28,7 @@ var (
 	HydrateDeletedScheduledBackups = _hydrateDeletedScheduledBackups
 	HydrateUpdatedPool             = _hydrateUpdatedPool
 	MapStateToGcpState             = _mapStateToGcpState
+	HydrateFlexCacheState          = _hydrateFlexCacheState
 	HydrateReplicationState        = _hydrateReplicationState
 	HydrateReplicationStateAndType = _hydrateReplicationStateAndType
 	ReplicationDelete              = _hydrateReplicationDelete
@@ -239,6 +240,19 @@ func mapToGcpBulkSnapshotDelete(reqArray []models.Request) models.GcpHydrateDele
 		}
 	}
 	return models.GcpHydrateDelete{Names: nameArr}
+}
+
+func _hydrateFlexCacheState(ctx context.Context, logger log.Logger, region, projectId, volumeResourceID, cacheState, state, token string) error {
+	request := &models.FlexCacheVolumeUpdateMaskRequest{
+		CacheState: models.FlexCacheVolumeHydrateCacheState(cacheState),
+		State:      models.FlexCacheVolumeHydrateState(state),
+	}
+
+	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=cacheState,state", baseUri, projectId, region, volumeResourceID)
+	logger.Infof("Hydrating FlexCache state to callbackApi, resourceId:: %+v", volumeResourceID)
+	err := hydrateToCffe(ctx, logger, request, url, http.MethodPatch, token)
+
+	return err
 }
 
 func _hydrateReplicationState(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, token string) error {

@@ -1233,6 +1233,104 @@ func TestLoggingPatchedForJobActivities(t *testing.T) {
 	_, _ = act.CompleteFlexCacheCreateJobActivity(ctx, result)
 }
 
+func TestFlexCacheVolumeCreateActivity_HydrateFlexCacheState(t *testing.T) {
+	baseVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-hydrate"},
+			Name:      "flexcache-vol-hydrate",
+			State:     coremodels.LifeCycleStateREADY,
+			CacheParameters: &datamodel.CacheParameters{
+				CacheState: cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING,
+			},
+			Svm: &datamodel.Svm{Name: "svm-hydrate"},
+		}
+	}
+
+	makeResultWithEvent := func(vol *datamodel.Volume) *flexcache.CreateFlexCacheResult {
+		return &flexcache.CreateFlexCacheResult{
+			DBVolume: vol,
+			Event: &flexcache.CreateFlexCacheEvent{
+				LocationID:    "us-test1",
+				ProjectNumber: "123456789",
+			},
+		}
+	}
+
+	t.Run("HydrationDisabled", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(mock.Anything).Return(logger)
+		mm.EXPECT().isHydrationEnabled().Return(false)
+		logger.EXPECT().Debugf("hydration is disabled, skipping HydrateFlexCacheState")
+
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+		vol := baseVolume()
+		result := makeResultWithEvent(vol)
+
+		res, err := activity.HydrateFlexCacheState(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, res)
+	})
+
+	t.Run("Success", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		ctx := context.Background()
+		vol := baseVolume()
+		result := makeResultWithEvent(vol)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+
+		mm.EXPECT().isHydrationEnabled().Return(true)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().authGenerateCallbackToken(ctx).Return("tok-123", nil)
+		mm.EXPECT().commonHydrateFlexCacheState(ctx, logger, result.Event.LocationID, result.Event.ProjectNumber, vol.Name, vol.CacheParameters.CacheState, vol.State, "tok-123").Return(nil)
+		logger.EXPECT().Debugf("hydration completed successfully for volume: %s", vol.Name)
+
+		res, err := activity.HydrateFlexCacheState(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, res)
+	})
+
+	t.Run("TokenGenerationError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		ctx := context.Background()
+		mm.EXPECT().isHydrationEnabled().Return(true)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().authGenerateCallbackToken(ctx).Return("", assert.AnError)
+		logger.EXPECT().Error("Error when getting callback token", assert.AnError)
+
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		vol := baseVolume()
+		result := makeResultWithEvent(vol)
+
+		res, err := activity.HydrateFlexCacheState(ctx, result)
+		assert.Error(tt, err)
+		assert.Equal(tt, result, res, "should return original result on token error")
+	})
+
+	t.Run("HydrationFailure", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		ctx := context.Background()
+		mm.EXPECT().isHydrationEnabled().Return(true)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().authGenerateCallbackToken(ctx).Return("tok-456", nil)
+
+		vol := baseVolume()
+		result := makeResultWithEvent(vol)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+
+		mm.EXPECT().commonHydrateFlexCacheState(ctx, logger, result.Event.LocationID, result.Event.ProjectNumber, vol.Name, vol.CacheParameters.CacheState, vol.State, "tok-456").Return(assert.AnError)
+		logger.EXPECT().Errorf("Error when hydrating flexcache state: %v", assert.AnError)
+
+		res, err := activity.HydrateFlexCacheState(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, res, "result should be nil on hydration failure")
+	})
+}
+
 func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 	newVolume := func() *datamodel.Volume {
 		return &datamodel.Volume{

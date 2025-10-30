@@ -750,6 +750,52 @@ func (_c *monkeyMock_utilParseAndValidateRegionAndZone_Call) RunAndReturn(run fu
 	return _c
 }
 
+// utilsGetCorrelationIDFromContext provides a mock function with given fields: ctx
+func (_m *monkeyMock) utilsGetCorrelationIDFromContext(ctx context.Context) string {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for utilsGetCorrelationIDFromContext")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
+// monkeyMock_utilsGetCorrelationIDFromContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'utilsGetCorrelationIDFromContext'
+type monkeyMock_utilsGetCorrelationIDFromContext_Call struct {
+	*mock.Call
+}
+
+// utilsGetCorrelationIDFromContext is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *monkeyMock_Expecter) utilsGetCorrelationIDFromContext(ctx interface{}) *monkeyMock_utilsGetCorrelationIDFromContext_Call {
+	return &monkeyMock_utilsGetCorrelationIDFromContext_Call{Call: _e.mock.On("utilsGetCorrelationIDFromContext", ctx)}
+}
+
+func (_c *monkeyMock_utilsGetCorrelationIDFromContext_Call) Run(run func(ctx context.Context)) *monkeyMock_utilsGetCorrelationIDFromContext_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_utilsGetCorrelationIDFromContext_Call) Return(_a0 string) *monkeyMock_utilsGetCorrelationIDFromContext_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_utilsGetCorrelationIDFromContext_Call) RunAndReturn(run func(context.Context) string) *monkeyMock_utilsGetCorrelationIDFromContext_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // utilsGetLocationFromVendorID provides a mock function with given fields: vendorID
 func (_m *monkeyMock) utilsGetLocationFromVendorID(vendorID string) (string, error) {
 	ret := _m.Called(vendorID)
@@ -858,6 +904,52 @@ func (_c *monkeyMock_utilsGetPairedRegionURI_Call) Return(_a0 string, _a1 error)
 }
 
 func (_c *monkeyMock_utilsGetPairedRegionURI_Call) RunAndReturn(run func(string) (string, error)) *monkeyMock_utilsGetPairedRegionURI_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// utilsGetRequestIDFromContext provides a mock function with given fields: ctx
+func (_m *monkeyMock) utilsGetRequestIDFromContext(ctx context.Context) string {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for utilsGetRequestIDFromContext")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
+// monkeyMock_utilsGetRequestIDFromContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'utilsGetRequestIDFromContext'
+type monkeyMock_utilsGetRequestIDFromContext_Call struct {
+	*mock.Call
+}
+
+// utilsGetRequestIDFromContext is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *monkeyMock_Expecter) utilsGetRequestIDFromContext(ctx interface{}) *monkeyMock_utilsGetRequestIDFromContext_Call {
+	return &monkeyMock_utilsGetRequestIDFromContext_Call{Call: _e.mock.On("utilsGetRequestIDFromContext", ctx)}
+}
+
+func (_c *monkeyMock_utilsGetRequestIDFromContext_Call) Run(run func(ctx context.Context)) *monkeyMock_utilsGetRequestIDFromContext_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_utilsGetRequestIDFromContext_Call) Return(_a0 string) *monkeyMock_utilsGetRequestIDFromContext_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *monkeyMock_utilsGetRequestIDFromContext_Call) RunAndReturn(run func(context.Context) string) *monkeyMock_utilsGetRequestIDFromContext_Call {
 	_c.Call.Return(run)
 	return _c
 }

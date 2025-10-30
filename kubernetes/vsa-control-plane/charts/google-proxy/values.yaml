@@ -23,7 +23,7 @@ vsaAuthType: 0 # 0 : username/password, 1 : username/password in secret manager 
 smcProjectId: ""
 gcpSmcSecretName: ""
 gcpSmcSecretVersionName: ""
-gcpHydrateEnabled: false
+gcpHydrateEnabled: true
 gcpHydrateAuthServiceAccount: ""
 gcpAuthServiceAccount: ""
 gcpHydrateBaseUrl: ""
