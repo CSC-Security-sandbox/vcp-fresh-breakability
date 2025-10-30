@@ -366,6 +366,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.SyncBackupZiZsWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.EligibilityStringWorkflow)
 	worker.RegisterWorkflow(workflows.ClusterUpgradeWorkflow)
+	worker.RegisterWorkflow(workflows.RestoreBackupWorkflowWithContext)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
