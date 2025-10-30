@@ -446,6 +446,14 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 
 	if req.SnapshotId.IsSet() {
 		param.SnapshotID = req.SnapshotId.Value
+		if req.CloneType.IsSet() {
+			marshaled, err := req.CloneType.Value.MarshalText()
+			if err != nil {
+				return nil, err
+			}
+			str := string(marshaled)
+			param.CloneType = &str
+		}
 		if req.Volume.LargeVolumeConstituentCount.IsSet() {
 			return nil, errors.NewUserInputValidationErr("LargeVolumeConstituentCount cannot be set when SnapshotId is provided")
 		}

@@ -7942,6 +7942,14 @@ components:
             - SECONDARY
         hybridReplicationParameters:
           $ref: '#/components/schemas/HybridReplicationParameters_v1beta'
+        cloneType:
+          title: cloneType
+          type: string
+          description: The type of clone to be created
+          enum:
+            - THICK
+            - THIN
+          example: THIN
     VolumeUpdate_v1beta:
       title: Volume
       type: object

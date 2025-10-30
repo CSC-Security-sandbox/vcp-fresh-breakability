@@ -90,10 +90,10 @@ func (pbi PoolBuildInfo) Value() (driver.Value, error) {
 
 type PoolView struct {
 	Pool
-	Throughput       float64 `json:"throughput"`
-	QuotaInBytes     uint64  `json:"quotaInBytes"`
-	VolumeCount      int64   `json:"volumeCount"`
-	CloneVolumeCount int64   `json:"cloneCount"`
+	Throughput           float64 `json:"throughput"`
+	QuotaInBytes         uint64  `json:"quotaInBytes"`
+	VolumeCount          int64   `json:"volumeCount"`
+	ThinCloneVolumeCount int64   `json:"cloneCount"`
 }
 
 type ClusterDetails struct {

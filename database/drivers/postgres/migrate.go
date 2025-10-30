@@ -351,7 +351,7 @@ func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
 		p.*,
 		coalesce(sum(v.throughput), 0.0) as throughput,
 		coalesce(sum(v.size_in_bytes - v.clones_shared_bytes), 0) as quota_in_bytes,
-		coalesce(count(v.id) filter (where v.clones_shared_bytes > 0), 0) as clone_volume_count,
+		coalesce(count(v.id) filter (where v.clones_shared_bytes > 0), 0) as thin_clone_volume_count,
 		count(v.id) as volume_count
 	FROM pools p
 		LEFT JOIN volumes v on v.pool_id = p.id

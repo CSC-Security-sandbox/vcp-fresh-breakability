@@ -901,6 +901,161 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		// Even with PAUSED tier action, HotTierBypassModeEnabled should override to "all"
 		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
 	})
+
+	t.Run("SnapshotIdWithCloneTypeThin_ValidInput", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+					gcpgenserver.BlockPropertiesV1beta{
+						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+					},
+				),
+			},
+			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+			CloneType:  gcpgenserver.NewOptVolumeCreateV1betaCloneType(gcpgenserver.VolumeCreateV1betaCloneTypeTHIN),
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:      "test-project",
+			Region:           "test-region",
+			Zone:             "test-zone",
+			Name:             "testvolume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
+			CreationToken:    "test-token",
+			PoolID:           "test-pool",
+			QuotaInBytes:     1024,
+			IsDataProtection: true,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType: "LINUX",
+			},
+			Protocols: []string{
+				"ISCSI",
+			},
+			SnapshotID: "test-snapshot-id",
+			CloneType:  stringPtr("THIN"),
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("SnapshotIdWithCloneTypeThick_ValidInput", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+					gcpgenserver.BlockPropertiesV1beta{
+						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+					},
+				),
+			},
+			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+			CloneType:  gcpgenserver.NewOptVolumeCreateV1betaCloneType(gcpgenserver.VolumeCreateV1betaCloneTypeTHICK),
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:      "test-project",
+			Region:           "test-region",
+			Zone:             "test-zone",
+			Name:             "testvolume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
+			CreationToken:    "test-token",
+			PoolID:           "test-pool",
+			QuotaInBytes:     1024,
+			IsDataProtection: true,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType: "LINUX",
+			},
+			Protocols: []string{
+				"ISCSI",
+			},
+			SnapshotID: "test-snapshot-id",
+			CloneType:  stringPtr("THICK"),
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("SnapshotIdWithoutCloneType_ValidInput", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+					gcpgenserver.BlockPropertiesV1beta{
+						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+					},
+				),
+			},
+			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:      "test-project",
+			Region:           "test-region",
+			Zone:             "test-zone",
+			Name:             "testvolume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
+			CreationToken:    "test-token",
+			PoolID:           "test-pool",
+			QuotaInBytes:     1024,
+			IsDataProtection: true,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType: "LINUX",
+			},
+			Protocols: []string{
+				"ISCSI",
+			},
+			SnapshotID: "test-snapshot-id",
+			CloneType:  nil,
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
 }
 
 func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {

@@ -102,6 +102,11 @@ const (
 	InitiatingClusterPeeringCode = 100008
 )
 
+const (
+	CloneTypeThin  = "THIN"
+	CloneTypeThick = "THICK"
+)
+
 // SVM represents a single SVM resource
 type SVM struct {
 	BaseModel

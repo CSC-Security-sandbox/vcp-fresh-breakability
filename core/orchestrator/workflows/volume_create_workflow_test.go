@@ -404,6 +404,196 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_Failure() {
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThickCloneType_Success() {
+	// Test the new code path: isRestoreSnapshot && CloneType == "THICK"
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{Name: "account-1"},
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+
+	// Snapshot parameters to trigger isRestoreSnapshot=true
+	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 123, UUID: "snap-uuid"}}
+	cloneType := "THICK"
+	params := &common.CreateVolumeParams{
+		AccountName: "account-1",
+		SnapshotID:  "snap-uuid",
+		Snapshot:    snapshot,
+		CloneType:   &cloneType, // This should trigger the new code path
+	}
+
+	// Mock all required activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "/vol/vol1/luns/lun1",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+		Size:         2048,
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+
+	// This is the key activity that should be called for THICK clone type
+	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume, nil, nil)
+
+	// Assert workflow completed successfully
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThickCloneType_InitiateSplitError() {
+	// Test the new code path when InitiateSplitForVolume fails
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{Name: "account-1"},
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+
+	// Snapshot parameters to trigger isRestoreSnapshot=true
+	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 123, UUID: "snap-uuid"}}
+	cloneType := "THICK"
+	params := &common.CreateVolumeParams{
+		AccountName: "account-1",
+		SnapshotID:  "snap-uuid",
+		Snapshot:    snapshot,
+		CloneType:   &cloneType, // This should trigger the new code path
+	}
+
+	// Mock all required activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "/vol/vol1/luns/lun1",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+		Size:         2048,
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+
+	// This is the key activity that should fail for THICK clone type
+	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to initiate split for volume"))
+
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume, nil, nil)
+
+	// Assert workflow failed
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to initiate split for volume")
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThinCloneType_NoSplit() {
+	// Test that InitiateSplitForVolume is NOT called for THIN clone type
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{Name: "account-1"},
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+
+	// Snapshot parameters to trigger isRestoreSnapshot=true
+	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 123, UUID: "snap-uuid"}}
+	cloneType := "THIN"
+	params := &common.CreateVolumeParams{
+		AccountName: "account-1",
+		SnapshotID:  "snap-uuid",
+		Snapshot:    snapshot,
+		CloneType:   &cloneType, // This should NOT trigger the new code path
+	}
+
+	// Mock all required activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "/vol/vol1/luns/lun1",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+		Size:         2048,
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+
+	// This activity should NOT be called for THIN clone type
+	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("InitiateSplitForVolume should not be called for THIN clone type"))
+
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume, nil, nil)
+
+	// Assert workflow completed successfully (InitiateSplitForVolume should not be called)
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Failure_UpdateVolumeDetails() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}

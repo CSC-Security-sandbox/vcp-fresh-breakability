@@ -13923,6 +13923,39 @@ func (s *OptV1betaDeleteVolumeReq) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes VolumeCreateV1betaCloneType as json.
+func (o OptVolumeCreateV1betaCloneType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes VolumeCreateV1betaCloneType from json.
+func (o *OptVolumeCreateV1betaCloneType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptVolumeCreateV1betaCloneType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptVolumeCreateV1betaCloneType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptVolumeCreateV1betaCloneType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes VolumeCreateV1betaVolumeType as json.
 func (o OptVolumeCreateV1betaVolumeType) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -49210,15 +49243,22 @@ func (s *VolumeCreateV1beta) encodeFields(e *jx.Encoder) {
 			s.HybridReplicationParameters.Encode(e)
 		}
 	}
+	{
+		if s.CloneType.Set {
+			e.FieldStart("cloneType")
+			s.CloneType.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumeCreateV1beta = [6]string{
+var jsonFieldsNameOfVolumeCreateV1beta = [7]string{
 	0: "volume",
 	1: "snapshotId",
 	2: "backupId",
 	3: "backupPath",
 	4: "volumeType",
 	5: "hybridReplicationParameters",
+	6: "cloneType",
 }
 
 // Decode decodes VolumeCreateV1beta from json.
@@ -49290,6 +49330,16 @@ func (s *VolumeCreateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"hybridReplicationParameters\"")
 			}
+		case "cloneType":
+			if err := func() error {
+				s.CloneType.Reset()
+				if err := s.CloneType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cloneType\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -49342,6 +49392,46 @@ func (s *VolumeCreateV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *VolumeCreateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes VolumeCreateV1betaCloneType as json.
+func (s VolumeCreateV1betaCloneType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes VolumeCreateV1betaCloneType from json.
+func (s *VolumeCreateV1betaCloneType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode VolumeCreateV1betaCloneType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch VolumeCreateV1betaCloneType(v) {
+	case VolumeCreateV1betaCloneTypeTHICK:
+		*s = VolumeCreateV1betaCloneTypeTHICK
+	case VolumeCreateV1betaCloneTypeTHIN:
+		*s = VolumeCreateV1betaCloneTypeTHIN
+	default:
+		*s = VolumeCreateV1betaCloneType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s VolumeCreateV1betaCloneType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *VolumeCreateV1betaCloneType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

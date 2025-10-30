@@ -1128,6 +1128,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
+		cloneType := "THIN"
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test-volume",
@@ -1136,6 +1137,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "test-network",
 			SnapshotID:   "non-existent-snapshot-uuid", // This snapshot doesn't exist
+			CloneType:    &cloneType,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -1310,6 +1312,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create snapshot: %v", err)
 		}
 
+		cloneType := "THIN"
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test-volume",
@@ -1318,6 +1321,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "test-network",
 			SnapshotID:   "test-snapshot-uuid",
+			CloneType:    &cloneType,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -1400,6 +1404,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create snapshot: %v", err)
 		}
 
+		cloneType := "THIN"
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test-volume",
@@ -1408,6 +1413,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "test-network",
 			SnapshotID:   "test-snapshot-uuid",
+			CloneType:    &cloneType,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -1549,6 +1555,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create snapshot: %v", err)
 		}
 
+		cloneType := "THIN"
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test-volume",
@@ -1557,18 +1564,19 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "test-network",
 			SnapshotID:   "test-snapshot-uuid", // This makes it a clone volume
+			CloneType:    &cloneType,
 		}
 
 		// Set up pool view with maximum clone volume count reached (100 clones already exist)
-		// Logic: CloneVolumeCount+1 > maxThinClonesPerPool triggers the error
-		// If CloneVolumeCount = 100, then 100+1 = 101 > 100 (maxThinClonesPerPool), so error
+		// Logic: ThinCloneVolumeCount+1 > maxThinClonesPerPool triggers the error
+		// If ThinCloneVolumeCount = 100, then 100+1 = 101 > 100 (maxThinClonesPerPool), so error
 		poolView := &datamodel.PoolView{
-			Pool:             *pool,
-			QuotaInBytes:     100 * 1024 * 1024 * 1024, // 100GB used (plenty of space)
-			CloneVolumeCount: 100,                      // At the maximum limit - adding 1 more will exceed
+			Pool:                 *pool,
+			QuotaInBytes:         100 * 1024 * 1024 * 1024, // 100GB used (plenty of space)
+			ThinCloneVolumeCount: 100,                      // At the maximum limit - adding 1 more will exceed
 		}
 
-		// This should fail because CloneVolumeCount+1 (100+1=101) > maxThinClonesPerPool (100)
+		// This should fail because ThinCloneVolumeCount+1 (100+1=101) > maxThinClonesPerPool (100)
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.ErrorContains(tt, err, "pool has reached maximum clone volume limit")
 	})
@@ -1654,12 +1662,12 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 
 		// Set up pool view with clone volume count well below the limit
 		poolView := &datamodel.PoolView{
-			Pool:             *pool,
-			QuotaInBytes:     100 * 1024 * 1024 * 1024, // 100GB used
-			CloneVolumeCount: 50,                       // Well below the limit of 100
+			Pool:                 *pool,
+			QuotaInBytes:         100 * 1024 * 1024 * 1024, // 100GB used
+			ThinCloneVolumeCount: 50,                       // Well below the limit of 100
 		}
 
-		// This should pass because CloneVolumeCount+1 (50+1=51) > maxThinClonesPerPool (100) is false
+		// This should pass because ThinCloneVolumeCount+1 (50+1=51) > maxThinClonesPerPool (100) is false
 		// so it won't trigger the error condition
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
 		// Should not get the clone limit error, but may get other validation errors
@@ -1750,12 +1758,12 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 
 		// Set up pool view with exactly 99 clone volumes (at the boundary)
 		poolView := &datamodel.PoolView{
-			Pool:             *pool,
-			QuotaInBytes:     100 * 1024 * 1024 * 1024, // 100GB used
-			CloneVolumeCount: 99,                       // Exactly at the boundary - adding 1 more will equal the limit
+			Pool:                 *pool,
+			QuotaInBytes:         100 * 1024 * 1024 * 1024, // 100GB used
+			ThinCloneVolumeCount: 99,                       // Exactly at the boundary - adding 1 more will equal the limit
 		}
 
-		// This should pass because CloneVolumeCount+1 (99+1=100) > maxThinClonesPerPool (100) is false (100 > 100 is false)
+		// This should pass because ThinCloneVolumeCount+1 (99+1=100) > maxThinClonesPerPool (100) is false (100 > 100 is false)
 		// so it won't trigger the error condition - the limit allows exactly maxThinClonesPerPool clones
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
 		// Should not get the clone limit error, but may get other validation errors
