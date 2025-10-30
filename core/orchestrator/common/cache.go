@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	userAuthCacheMutex sync.Mutex
+	userAuthCacheMutex sync.RWMutex
 	userAuthCacheMap   = map[string]*models.UserCache{} // map of secretID to password
-	certAuthCacheMutex sync.Mutex
+	certAuthCacheMutex sync.RWMutex
 	certAuthCacheMap   = map[string]*models.CertCache{} // map of certificateID to Certificate
 
 	cacheCleanupInterval = time.Duration(env.GetInt("VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS", 24)) * time.Hour
@@ -54,7 +54,9 @@ func cleanupUserAuthCache() {
 }
 
 func _getFromUserAuthCache(key string) (*models.UserCache, bool) {
+	userAuthCacheMutex.RLock()
 	authCache, exists := userAuthCacheMap[key]
+	userAuthCacheMutex.RUnlock()
 	if !exists {
 		return nil, false
 	}
@@ -62,7 +64,9 @@ func _getFromUserAuthCache(key string) (*models.UserCache, bool) {
 }
 
 func _addToUserAuthCache(key, value string) {
+	userAuthCacheMutex.RLock()
 	authCache, exists := userAuthCacheMap[key]
+	userAuthCacheMutex.RUnlock()
 	if !exists || authCache.Password == "" {
 		userAuthCacheMutex.Lock()
 		defer userAuthCacheMutex.Unlock()
@@ -92,7 +96,9 @@ func cleanupCertAuthCache() {
 
 func _getCertAuthCache(key string) (*models.CertCache, bool) {
 	// TODO - Update this for supporting rotating certificates
+	certAuthCacheMutex.RLock()
 	authCache, exists := certAuthCacheMap[key]
+	certAuthCacheMutex.RUnlock()
 	if !exists {
 		return nil, false
 	}
@@ -100,7 +106,9 @@ func _getCertAuthCache(key string) (*models.CertCache, bool) {
 }
 
 func _addToCertAuthCache(key string, value *models.Certificate) {
+	certAuthCacheMutex.RLock()
 	authCache, exists := certAuthCacheMap[key]
+	certAuthCacheMutex.RUnlock()
 	if !exists || authCache.Certificate == nil {
 		certAuthCacheMutex.Lock()
 		defer certAuthCacheMutex.Unlock()
