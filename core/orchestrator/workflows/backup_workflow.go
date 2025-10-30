@@ -166,7 +166,6 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context, backupActivitiesContext *activities.BackupActivitiesContext, params *commonparams.CreateBackupParams) (interface{}, *vsaerrors.CustomError) {
 	backupActivity := &activities.BackupActivity{}
-	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -332,15 +331,6 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 			// Log the error but don't fail the entire backup workflow
 			wf.Logger.Errorf("Failed to hydrate snapshot to CCFE for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
 		}
-	}
-
-	// Hydrate asset location metadata to CCFE
-	backups := []*datamodel.Backup{backupActivitiesContext.BackupWorkflowInit.Backup}
-	err = workflow.ExecuteActivity(ctx, scheduledBackupActivity.HydrateCreatedBackupsToCCFE,
-		backupActivitiesContext.BackupWorkflowInit.Volume, backups, backupActivitiesContext.BackupWorkflowInit.BackupVault.Name).Get(ctx, nil)
-	if err != nil {
-		// Log the error but don't fail the entire backup workflow
-		wf.Logger.Errorf("Failed to hydrate asset location metadata to CCFE for the backup %s: %v", backupActivitiesContext.BackupWorkflowInit.Backup.Name, err)
 	}
 
 	// Create BackupMetadata entry if this is the first backup for the volume
