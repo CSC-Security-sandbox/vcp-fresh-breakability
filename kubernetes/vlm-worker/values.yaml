@@ -34,15 +34,15 @@ ontapVersionVlmImageMappings:
     # VLM worker to support ONTAP patch version 9.17.1P1
   - ontapVersion: "9.17.1P1"
     vlmImageName: "vlm-worker"
-    vlmImageTag: "R9.17.1Px_7825887"
-    vlmImageDigest: "sha256:a1f1f3a9283a3ad5779069b8656b37e28219c125cb162314b837c80e7c6a1531"
+    vlmImageTag: "R9.17.1x_7855269"
+    vlmImageDigest: "sha256:07d042905f40dfc4c566919ebc539b617d9a1fc38773ab9a26e7749fd85c8405"
     secondary: true
     pullPolicy: IfNotPresent
     # VLM worker to support ONTAP test patch versions like 9.17.1X50 or any other test patch version
   - ontapVersion: "9.17.1"
     vlmImageName: "vlm-worker"
-    vlmImageTag: "R9.17.1Px_7825887"
-    vlmImageDigest: "sha256:a1f1f3a9283a3ad5779069b8656b37e28219c125cb162314b837c80e7c6a1531"
+    vlmImageTag: "R9.17.1x_7855269"
+    vlmImageDigest: "sha256:07d042905f40dfc4c566919ebc539b617d9a1fc38773ab9a26e7749fd85c8405"
     secondary: true
     pullPolicy: IfNotPresent
 
