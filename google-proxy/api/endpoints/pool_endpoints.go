@@ -1070,11 +1070,17 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 	}
 
 	// AutoTiering parameter validation - HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering
+	// However, if the pool already has auto-tiering enabled, these parameters can be updated directly
 	allowAutoTieringValue := false
 	if req.AllowAutoTiering.IsSet() {
 		allowAutoTieringValue = req.AllowAutoTiering.Value
 	}
-	if !allowAutoTieringValue && ((req.HotTierSizeInBytes.IsSet() && req.HotTierSizeInBytes.Value > 0) || req.EnableHotTierAutoResize.IsSet()) {
+
+	// Check if pool already has auto-tiering enabled
+	poolHasAutoTiering := existingPool.AllowAutoTiering
+
+	// Only validate if auto-tiering is not already enabled on the pool
+	if !poolHasAutoTiering && !allowAutoTieringValue && ((req.HotTierSizeInBytes.IsSet() && req.HotTierSizeInBytes.Value > 0) || req.EnableHotTierAutoResize.IsSet()) {
 		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering",

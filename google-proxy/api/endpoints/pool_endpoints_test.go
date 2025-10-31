@@ -4893,6 +4893,83 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 		assert.True(tt, op.Name.IsSet(), "Expected operation name to be set")
 		assert.Equal(tt, expectedOpName, op.Name.Value)
 	})
+
+	t.Run("Successfully updates pool with existing AutoTiering enabled - allows hot tier parameter updates without AllowAutoTiering", func(tt *testing.T) {
+		// Pool that already has auto-tiering enabled
+		existingPoolWithAutoTiering := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:             "test-pool",
+			Description:      "test description",
+			State:            models.LifeCycleStateREADY,
+			SizeInBytes:      2199023255552, // 2TB
+			QosType:          "auto",
+			AllowAutoTiering: true, // Pool already has auto-tiering enabled
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1073741824, // 1GB
+				EnableHotTierAutoResize: false,
+			},
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 64,   // 64 MiBps
+				Iops:       1024, // 1024 IOPS
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPoolWithAutoTiering, nil)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "updated-pool-uuid",
+			},
+			Name:        "test-pool",
+			Description: "Updating production pool with auto-tiering enabled",
+			State:       models.LifeCycleStateCreated,
+			SizeInBytes: 2199023255552, // 2TB
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone:     "us-east4-a",
+				Labels:          nil,
+				AllocatedBytes:  0,
+				NumberOfVolumes: 0,
+			},
+			VendorSubNetID: "/projects/123456789/global/networks/default",
+			ServiceLevel:   "premium",
+			QosType:        "auto",
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64.0,
+				Iops:       1024,
+				Enabled:    true,
+			},
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      2199023255552, // 2TB - updated value
+				EnableHotTierAutoResize: true,          // updated value
+			},
+			LargeCapacity: false,
+		}, "op-123", nil)
+
+		// Request payload matching the user's example - no AllowAutoTiering field
+		req := &gcpgenserver.PoolUpdateV1beta{
+			Description:             gcpgenserver.NewOptNilString("Updating production pool with auto-tiering enabled"),
+			HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(2199023255552), // 2TB
+			EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
+			// Note: AllowAutoTiering is not set, but pool already has auto-tiering enabled
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.True(tt, op.Name.IsSet(), "Expected operation name to be set")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
 }
 
 func TestV1betaCreatePool_WithActiveDirectoryConfigId(t *testing.T) {
