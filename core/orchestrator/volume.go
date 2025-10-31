@@ -79,6 +79,7 @@ func (o *Orchestrator) CreateVolume(ctx context.Context, params *common.CreateVo
 
 func _createVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error) {
 	logger := util.GetLogger(ctx)
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
@@ -352,13 +353,10 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	defer func() {
 		if err != nil {
-			// Mark volume in error state
-			volumeUpdateErr := se.UpdateVolumeFields(ctx, dbVolume.UUID, map[string]interface{}{
-				"state":         models.LifeCycleStateError,
-				"state_details": models.LifeCycleStateCreationErrorDetails,
-			})
-			if volumeUpdateErr != nil {
-				logger.Error("Failed to update volume state to ERROR", "volume_id", dbVolume.UUID, "error", volumeUpdateErr)
+			// Mark volume in deleted state
+			_, volumeDeleteErr := se.DeleteVolume(ctx, dbVolume.UUID)
+			if volumeDeleteErr != nil {
+				logger.Error("Failed to delete volume", "volume_id", dbVolume.UUID, "error", volumeDeleteErr)
 			}
 		}
 	}()
@@ -402,21 +400,14 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}()
 
 	// controlWorkflowID defines the workflow ID for the control workflow
-	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, dbVolume.Account.ID, location, dbVolume.Pool.Name)
-	err = workflows.ExecuteWorkflowSequentially(
-		temporal,
+	controlWorkflowID := workflows.GenerateControlWorkflowID(dbVolume.Account.ID, location, dbVolume.Pool.Name)
+	workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, createdJob.WorkflowID)
+
+	// Execute workflow using centralized executor
+	err = workflowExecutor.ExecuteSequentialWorkflow(
 		ctx,
-		client.StartWorkflowOptions{
-			TaskQueue: workflowengine.CustomerTaskQueue,
-			ID:        controlWorkflowID,
-		},
+		workflowOptions,
 		workflows.CreateVolumeWorkflow,
-		workflow.ChildWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			WorkflowID:            createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
 		params,
 		dbVolume,
 		backupVault,
@@ -1416,6 +1407,7 @@ func (o *Orchestrator) DeleteVolume(ctx context.Context, volumeId string) (*mode
 
 func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Client, volumeId string) (*models.Volume, string, error) {
 	logger := util.GetLogger(ctx)
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 
 	volume, err := se.GetVolume(ctx, volumeId)
 	if err != nil {
@@ -1500,21 +1492,13 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	// controlWorkflowID defines the workflow ID for the control workflow
-	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, volume.Account.ID, location, volume.Pool.Name)
-	err = workflows.ExecuteWorkflowSequentially(
-		temporal,
+	controlWorkflowID := workflows.GenerateControlWorkflowID(volume.Account.ID, location, volume.Pool.Name)
+	workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, createdJob.WorkflowID)
+
+	err = workflowExecutor.ExecuteSequentialWorkflow(
 		ctx,
-		client.StartWorkflowOptions{
-			TaskQueue: workflowengine.CustomerTaskQueue,
-			ID:        controlWorkflowID,
-		},
+		workflowOptions,
 		workflowFunc,
-		workflow.ChildWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			WorkflowID:            createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
 		volume,
 	)
 	if err != nil {
@@ -1641,6 +1625,7 @@ func (o *Orchestrator) TriggerRefreshWorkflow(ctx context.Context, account *data
 
 func _updateVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateVolumeParams, isReplication bool) (*models.Volume, string, error) {
 	logger := util.GetLogger(ctx)
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 
 	dbVolume, err := se.GetVolume(ctx, params.VolumeId)
 	if err != nil {
@@ -1755,13 +1740,10 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}()
 
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		wf,
 		params,
 		dbVolume,

@@ -107,11 +107,8 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		// Mock UpdateJob call to mark job as error
 		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil).Once()
 
-		// Mock UpdateVolumeFields call to mark volume as error
-		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateError,
-			"state_details": models.LifeCycleStateCreationErrorDetails,
-		}).Return(nil)
+		// Mock UpdateVolumeFields call to mark volume as deleted
+		mockStorage.On("DeleteVolume", ctx, volume.UUID).Return(nil, nil)
 
 		// Execute test
 		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
@@ -372,9 +369,9 @@ func TestUpdateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 	})
 }
 
-// Test for line 253: Failed to update volume state to ERROR during createVolume
-func TestCreateVolume_FailedVolumeUpdateOnError(t *testing.T) {
-	t.Run("ShouldLogErrorWhenVolumeUpdateFailsDuringErrorHandling", func(tt *testing.T) {
+// Test for line 253: Failed to update volume state to DELETED during createVolume
+func TestCreateVolume_FailedVolumeDeleteOnError(t *testing.T) {
+	t.Run("ShouldLogErrorWhenVolumeDeleteFailsDuringErrorHandling", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
@@ -460,12 +457,9 @@ func TestCreateVolume_FailedVolumeUpdateOnError(t *testing.T) {
 		// Mock UpdateJob call to mark job as error
 		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
 
-		// Mock UpdateVolumeFields call to fail - this is what triggers line 253
-		volumeUpdateErr := errors.New("failed to update volume fields")
-		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateError,
-			"state_details": models.LifeCycleStateCreationErrorDetails,
-		}).Return(volumeUpdateErr)
+		// Mock DeleteVolume call to fail - this is what triggers line 253
+		volumeDeleteErr := errors.New("failed to delete volume fields")
+		mockStorage.On("DeleteVolume", ctx, volume.UUID).Return(nil, volumeDeleteErr)
 
 		// Execute test
 		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
@@ -566,11 +560,8 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 		jobUpdateErr := errors.New("failed to update job")
 		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(jobUpdateErr)
 
-		// Mock UpdateVolumeFields call to succeed
-		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
-			"state":         models.LifeCycleStateError,
-			"state_details": models.LifeCycleStateCreationErrorDetails,
-		}).Return(nil)
+		// Mock DeleteVolume call to succeed
+		mockStorage.On("DeleteVolume", ctx, volume.UUID).Return(nil, nil)
 
 		// Execute test
 		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)

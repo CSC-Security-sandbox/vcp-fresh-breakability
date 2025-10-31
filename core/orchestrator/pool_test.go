@@ -1811,7 +1811,7 @@ func TestCreatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
 
 	// Mock pool state update to errored state (called by defer function)
-	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockStorage.On("DeletePool", ctx, mock.Anything).Return(nil)
 
 	// Execute test
 	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)
@@ -1824,6 +1824,7 @@ func TestCreatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 
 	// Verify job was marked as errored
 	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+	mockStorage.AssertCalled(t, "DeletePool", ctx, pool)
 }
 
 // TestUpdatePool_WorkflowFailure_JobMarkedAsErrored tests that jobs are marked as errored when workflow fails to start
@@ -2035,7 +2036,7 @@ func TestCreatePool_WorkflowFailure_JobUpdateFails(t *testing.T) {
 	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
 
 	// Mock pool state update to errored state (called by defer function)
-	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockStorage.On("DeletePool", ctx, mock.Anything).Return(nil)
 
 	// Execute test - should still return the original workflow error, not the job update error
 	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)
@@ -2048,6 +2049,7 @@ func TestCreatePool_WorkflowFailure_JobUpdateFails(t *testing.T) {
 
 	// Verify job update was attempted (even though it failed)
 	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+	mockStorage.AssertCalled(t, "DeletePool", ctx, pool)
 }
 
 // TestCreatePool_CreatePoolInDBFailsWithGenericError tests error handling when CreatePoolInDB fails with generic error (Line 74)
@@ -2144,8 +2146,8 @@ func TestCreatePool_CreatePoolInDBFailsWithConflictError(t *testing.T) {
 	assert.Equal(t, conflictError, err)
 }
 
-// TestCreatePool_UpdatePoolStateFailsInDefer tests error handling when UpdatePoolState fails in defer (Line 80)
-func TestCreatePool_UpdatePoolStateFailsInDefer(t *testing.T) {
+// TestCreatePool_DeletePoolFailsInDefer tests error handling when UpdatePoolState fails in defer (Line 80)
+func TestCreatePool_DeletePoolFailsInDefer(t *testing.T) {
 	ctx := context.Background()
 	mockLogger := log.NewLogger()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
@@ -2198,9 +2200,9 @@ func TestCreatePool_UpdatePoolStateFailsInDefer(t *testing.T) {
 	// Mock UpdateJob to succeed
 	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
 
-	// Mock UpdatePoolState to fail (Line 80)
-	poolStateError := errors.New("pool state update failed")
-	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, poolStateError)
+	// Mock DeletePool to fail (Line 80)
+	poolStateError := errors.New("pool deletion failed")
+	mockStorage.On("DeletePool", ctx, mock.Anything, mock.Anything, mock.Anything).Return(poolStateError)
 
 	// Execute test
 	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)
@@ -2212,7 +2214,7 @@ func TestCreatePool_UpdatePoolStateFailsInDefer(t *testing.T) {
 	assert.Equal(t, "workflow execution failed", err.Error())
 
 	// Verify UpdatePoolState was called (even though it failed)
-	mockStorage.AssertCalled(t, "UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything)
+	mockStorage.AssertCalled(t, "DeletePool", ctx, mock.Anything)
 }
 
 // TestCreatePool_CreateJobFails tests error handling when CreateJob fails (Line 97)
@@ -2259,8 +2261,8 @@ func TestCreatePool_CreateJobFails(t *testing.T) {
 	jobError := errors.New("job creation failed")
 	mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, jobError)
 
-	// Mock UpdatePoolState for the defer function call (Line 80)
-	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock DeletePool for the defer function call (Line 80)
+	mockStorage.On("DeletePool", ctx, mock.Anything).Return(nil)
 
 	// Execute test
 	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)

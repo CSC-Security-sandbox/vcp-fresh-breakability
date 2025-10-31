@@ -20,7 +20,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 )
@@ -53,6 +52,7 @@ func (o *Orchestrator) CreatePool(ctx context.Context, params *commonparams.Crea
 // createPool creates a new pool and triggers asynchronous creation processes.
 func _createPool(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.CreatePoolParams) (*models.Pool, string, error) {
 	logger := util.GetLogger(ctx)
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
@@ -83,8 +83,8 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 
 	defer func() {
 		if err != nil {
-			if _, jobErr := se.UpdatePoolState(ctx, dbPool, string(models.JobsStateERROR), err.Error()); jobErr != nil {
-				logger.Error("Failed to update pool status to error", "PoolID", dbPool.UUID, "error", jobErr)
+			if poolDeleteErr := se.DeletePool(ctx, dbPool); poolDeleteErr != nil {
+				logger.Error("Failed to delete pool", "PoolID", dbPool.UUID, "error", poolDeleteErr)
 			}
 		}
 	}()
@@ -116,13 +116,10 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		}
 	}()
 
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.CreatePoolWorkflow,
 		params,
 		dbPool,
@@ -224,6 +221,7 @@ func (o *Orchestrator) UpdatePool(ctx context.Context, params *commonparams.Upda
 // _updatePool updates an existing pool
 func _updatePool(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.UpdatePoolParams) (*models.Pool, string, error) {
 	logger := util.GetLogger(ctx)
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, "", err
@@ -301,15 +299,12 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 	}
 
 	poolMarkedAsUpdating = true
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.UpdatePoolWorkflow,
-		params, // this contains the parameters for the update operation
+		params,
 		pool,
 		nil,
 	)
@@ -417,6 +412,7 @@ func (o *Orchestrator) DeletePool(ctx context.Context, params *commonparams.Dele
 // _deletePool deletes the specified pool and its associated resources.
 func _deletePool(ctx context.Context, temporal client.Client, se database.Storage, params *commonparams.DeletePoolParams) (*models.Pool, string, error) {
 	logger := util.GetLogger(ctx)
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, "", err
@@ -479,13 +475,10 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		}
 	}()
 
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.DeletePoolWorkflow,
 		params,
 		dbpool,
