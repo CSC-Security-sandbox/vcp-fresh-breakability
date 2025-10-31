@@ -118,7 +118,7 @@ type CreateVolumeParams struct {
 	CacheParameters             *models.CacheParameters
 	LargeVolumeConstituentCount int32
 	SnapshotDirectory           bool
-	CloneType                   *string
+	IsClone                     bool
 }
 
 type SnapmirrorRelationshipParams struct {

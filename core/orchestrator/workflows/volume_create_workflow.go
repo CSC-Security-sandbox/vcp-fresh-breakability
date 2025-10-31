@@ -434,7 +434,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
-	if isRestoreSnapshot && createVolumeParams.CloneType != nil && *createVolumeParams.CloneType == models.CloneTypeThick {
+	if isRestoreSnapshot && !createVolumeParams.IsClone {
 		err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)

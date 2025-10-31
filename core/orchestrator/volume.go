@@ -171,7 +171,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			params.LargeVolumeConstituentCount = *dbSnapshot.Volume.LargeVolumeAttributes.LargeVolumeConstituentCount
 		}
 		params.Snapshot = dbSnapshot
-		if params.CloneType != nil && *params.CloneType == models.CloneTypeThin {
+		if params.IsClone {
 			clonesSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
 		}
 	}
@@ -1015,11 +1015,6 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 
 	cloneSharedBytes := uint64(0)
 	if params.SnapshotID != "" {
-		if params.CloneType == nil {
-			cloneType := models.CloneTypeThin
-			params.CloneType = &cloneType
-		}
-
 		account, err := getOrCreateAccount(ctx, se, params.AccountName)
 		if err != nil {
 			return err
@@ -1033,7 +1028,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			return err
 		}
 
-		if *params.CloneType == models.CloneTypeThin {
+		if params.IsClone {
 			if pool.ThinCloneVolumeCount+1 > maxThinClonesPerPool {
 				return customerrors.NewUserInputValidationErr("pool has reached maximum clone volume limit")
 			}

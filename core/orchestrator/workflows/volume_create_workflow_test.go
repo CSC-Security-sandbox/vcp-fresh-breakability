@@ -423,12 +423,12 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThickCloneT
 
 	// Snapshot parameters to trigger isRestoreSnapshot=true
 	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 123, UUID: "snap-uuid"}}
-	cloneType := "THICK"
+
 	params := &common.CreateVolumeParams{
 		AccountName: "account-1",
 		SnapshotID:  "snap-uuid",
 		Snapshot:    snapshot,
-		CloneType:   &cloneType, // This should trigger the new code path
+		IsClone:     false, // This should trigger the new code path
 	}
 
 	// Mock all required activities
@@ -486,12 +486,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThickCloneT
 
 	// Snapshot parameters to trigger isRestoreSnapshot=true
 	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 123, UUID: "snap-uuid"}}
-	cloneType := "THICK"
 	params := &common.CreateVolumeParams{
 		AccountName: "account-1",
 		SnapshotID:  "snap-uuid",
 		Snapshot:    snapshot,
-		CloneType:   &cloneType, // This should trigger the new code path
+		IsClone:     false, // This should trigger the new code path
 	}
 
 	// Mock all required activities
@@ -550,12 +549,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThinCloneTy
 
 	// Snapshot parameters to trigger isRestoreSnapshot=true
 	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 123, UUID: "snap-uuid"}}
-	cloneType := "THIN"
 	params := &common.CreateVolumeParams{
 		AccountName: "account-1",
 		SnapshotID:  "snap-uuid",
 		Snapshot:    snapshot,
-		CloneType:   &cloneType, // This should NOT trigger the new code path
+		IsClone:     true, // This should NOT trigger the new code path
 	}
 
 	// Mock all required activities

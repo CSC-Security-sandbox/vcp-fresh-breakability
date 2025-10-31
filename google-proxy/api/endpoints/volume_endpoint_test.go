@@ -902,7 +902,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
 	})
 
-	t.Run("SnapshotIdWithCloneTypeThin_ValidInput", func(tt *testing.T) {
+	t.Run("SnapshotIdWithIsCloneThin_ValidInput", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
 				ResourceId:    "testvolume",
@@ -919,7 +919,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				),
 			},
 			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
-			CloneType:  gcpgenserver.NewOptVolumeCreateV1betaCloneType(gcpgenserver.VolumeCreateV1betaCloneTypeTHIN),
+			IsClone:    gcpgenserver.NewOptNilBool(true),
 			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
 		}
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -946,7 +946,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				"ISCSI",
 			},
 			SnapshotID: "test-snapshot-id",
-			CloneType:  stringPtr("THIN"),
+			IsClone:    true,
 		}
 
 		result, err := _prepareCreateVolumeParams(req, params, region, zone)
@@ -954,7 +954,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.Equal(tt, expected, result)
 	})
 
-	t.Run("SnapshotIdWithCloneTypeThick_ValidInput", func(tt *testing.T) {
+	t.Run("SnapshotIdWithIsCloneThick_ValidInput", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
 				ResourceId:    "testvolume",
@@ -971,7 +971,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				),
 			},
 			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
-			CloneType:  gcpgenserver.NewOptVolumeCreateV1betaCloneType(gcpgenserver.VolumeCreateV1betaCloneTypeTHICK),
+			IsClone:    gcpgenserver.NewOptNilBool(false),
 			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
 		}
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -998,7 +998,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				"ISCSI",
 			},
 			SnapshotID: "test-snapshot-id",
-			CloneType:  stringPtr("THICK"),
+			IsClone:    false,
 		}
 
 		result, err := _prepareCreateVolumeParams(req, params, region, zone)
@@ -1006,7 +1006,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.Equal(tt, expected, result)
 	})
 
-	t.Run("SnapshotIdWithoutCloneType_ValidInput", func(tt *testing.T) {
+	t.Run("SnapshotIdWithoutIsClone_ValidInput", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
 				ResourceId:    "testvolume",
@@ -1049,7 +1049,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				"ISCSI",
 			},
 			SnapshotID: "test-snapshot-id",
-			CloneType:  nil,
+			IsClone:    false,
 		}
 
 		result, err := _prepareCreateVolumeParams(req, params, region, zone)

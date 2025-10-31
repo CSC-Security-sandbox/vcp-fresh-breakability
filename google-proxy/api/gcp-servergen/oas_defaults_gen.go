@@ -363,6 +363,14 @@ func (s *VolumeBackupDetailsV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *VolumeCreateV1beta) setDefaults() {
+	{
+		val := bool(false)
+		s.IsClone.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *VolumeSnapshotCreateV1beta) setDefaults() {
 	{
 		val := bool(false)

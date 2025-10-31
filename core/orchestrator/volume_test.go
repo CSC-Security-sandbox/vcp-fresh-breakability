@@ -1250,7 +1250,6 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
-		cloneType := "THIN"
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test-volume",
@@ -1259,7 +1258,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "test-network",
 			SnapshotID:   "non-existent-snapshot-uuid", // This snapshot doesn't exist
-			CloneType:    &cloneType,
+			IsClone:      true,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -1434,7 +1433,6 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create snapshot: %v", err)
 		}
 
-		cloneType := "THIN"
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test-volume",
@@ -1443,7 +1441,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "test-network",
 			SnapshotID:   "test-snapshot-uuid",
-			CloneType:    &cloneType,
+			IsClone:      true,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -1526,7 +1524,6 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create snapshot: %v", err)
 		}
 
-		cloneType := "THIN"
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test-volume",
@@ -1535,7 +1532,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "test-network",
 			SnapshotID:   "test-snapshot-uuid",
-			CloneType:    &cloneType,
+			IsClone:      true,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -1677,7 +1674,6 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create snapshot: %v", err)
 		}
 
-		cloneType := "THIN"
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
 			Name:         "test-volume",
@@ -1686,7 +1682,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "test-network",
 			SnapshotID:   "test-snapshot-uuid", // This makes it a clone volume
-			CloneType:    &cloneType,
+			IsClone:      true,
 		}
 
 		// Set up pool view with maximum clone volume count reached (100 clones already exist)

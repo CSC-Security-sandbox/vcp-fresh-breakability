@@ -10409,52 +10409,6 @@ func (o OptV1betaDeleteVolumeReq) Or(d V1betaDeleteVolumeReq) V1betaDeleteVolume
 	return d
 }
 
-// NewOptVolumeCreateV1betaCloneType returns new OptVolumeCreateV1betaCloneType with value set to v.
-func NewOptVolumeCreateV1betaCloneType(v VolumeCreateV1betaCloneType) OptVolumeCreateV1betaCloneType {
-	return OptVolumeCreateV1betaCloneType{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptVolumeCreateV1betaCloneType is optional VolumeCreateV1betaCloneType.
-type OptVolumeCreateV1betaCloneType struct {
-	Value VolumeCreateV1betaCloneType
-	Set   bool
-}
-
-// IsSet returns true if OptVolumeCreateV1betaCloneType was set.
-func (o OptVolumeCreateV1betaCloneType) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptVolumeCreateV1betaCloneType) Reset() {
-	var v VolumeCreateV1betaCloneType
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptVolumeCreateV1betaCloneType) SetTo(v VolumeCreateV1betaCloneType) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptVolumeCreateV1betaCloneType) Get() (v VolumeCreateV1betaCloneType, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptVolumeCreateV1betaCloneType) Or(d VolumeCreateV1betaCloneType) VolumeCreateV1betaCloneType {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptVolumeCreateV1betaVolumeType returns new OptVolumeCreateV1betaVolumeType with value set to v.
 func NewOptVolumeCreateV1betaVolumeType(v VolumeCreateV1betaVolumeType) OptVolumeCreateV1betaVolumeType {
 	return OptVolumeCreateV1betaVolumeType{
@@ -19113,8 +19067,8 @@ type VolumeCreateV1beta struct {
 	// The type of the volume.
 	VolumeType                  OptVolumeCreateV1betaVolumeType      `json:"volumeType"`
 	HybridReplicationParameters OptHybridReplicationParametersV1beta `json:"hybridReplicationParameters"`
-	// The type of clone to be created.
-	CloneType OptVolumeCreateV1betaCloneType `json:"cloneType"`
+	// Flag indicating if the volume to be created is a thin clone.
+	IsClone OptNilBool `json:"isClone"`
 }
 
 // GetVolume returns the value of Volume.
@@ -19147,9 +19101,9 @@ func (s *VolumeCreateV1beta) GetHybridReplicationParameters() OptHybridReplicati
 	return s.HybridReplicationParameters
 }
 
-// GetCloneType returns the value of CloneType.
-func (s *VolumeCreateV1beta) GetCloneType() OptVolumeCreateV1betaCloneType {
-	return s.CloneType
+// GetIsClone returns the value of IsClone.
+func (s *VolumeCreateV1beta) GetIsClone() OptNilBool {
+	return s.IsClone
 }
 
 // SetVolume sets the value of Volume.
@@ -19182,51 +19136,9 @@ func (s *VolumeCreateV1beta) SetHybridReplicationParameters(val OptHybridReplica
 	s.HybridReplicationParameters = val
 }
 
-// SetCloneType sets the value of CloneType.
-func (s *VolumeCreateV1beta) SetCloneType(val OptVolumeCreateV1betaCloneType) {
-	s.CloneType = val
-}
-
-// The type of clone to be created.
-type VolumeCreateV1betaCloneType string
-
-const (
-	VolumeCreateV1betaCloneTypeTHICK VolumeCreateV1betaCloneType = "THICK"
-	VolumeCreateV1betaCloneTypeTHIN  VolumeCreateV1betaCloneType = "THIN"
-)
-
-// AllValues returns all VolumeCreateV1betaCloneType values.
-func (VolumeCreateV1betaCloneType) AllValues() []VolumeCreateV1betaCloneType {
-	return []VolumeCreateV1betaCloneType{
-		VolumeCreateV1betaCloneTypeTHICK,
-		VolumeCreateV1betaCloneTypeTHIN,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s VolumeCreateV1betaCloneType) MarshalText() ([]byte, error) {
-	switch s {
-	case VolumeCreateV1betaCloneTypeTHICK:
-		return []byte(s), nil
-	case VolumeCreateV1betaCloneTypeTHIN:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *VolumeCreateV1betaCloneType) UnmarshalText(data []byte) error {
-	switch VolumeCreateV1betaCloneType(data) {
-	case VolumeCreateV1betaCloneTypeTHICK:
-		*s = VolumeCreateV1betaCloneTypeTHICK
-		return nil
-	case VolumeCreateV1betaCloneTypeTHIN:
-		*s = VolumeCreateV1betaCloneTypeTHIN
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
+// SetIsClone sets the value of IsClone.
+func (s *VolumeCreateV1beta) SetIsClone(val OptNilBool) {
+	s.IsClone = val
 }
 
 // The type of the volume.

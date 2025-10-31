@@ -3011,15 +3011,6 @@ func (s *OptV1betaDeleteVolumeReq) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *OptVolumeCreateV1betaCloneType) SetFake() {
-	var elem VolumeCreateV1betaCloneType
-	{
-		elem.SetFake()
-	}
-	s.SetTo(elem)
-}
-
-// SetFake set fake values.
 func (s *OptVolumeCreateV1betaVolumeType) SetFake() {
 	var elem VolumeCreateV1betaVolumeType
 	{
@@ -11159,14 +11150,9 @@ func (s *VolumeCreateV1beta) SetFake() {
 	}
 	{
 		{
-			s.CloneType.SetFake()
+			s.IsClone.SetFake()
 		}
 	}
-}
-
-// SetFake set fake values.
-func (s *VolumeCreateV1betaCloneType) SetFake() {
-	*s = VolumeCreateV1betaCloneTypeTHICK
 }
 
 // SetFake set fake values.
