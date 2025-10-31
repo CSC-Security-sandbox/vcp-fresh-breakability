@@ -49,7 +49,8 @@ spec:
             - "--service-account-name={{ .Values.telemetryDeployer.serviceAccount | default "svc-sde-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com" }}"
             - "--max-instances={{ .Values.telemetryDeployer.maxInstances | default "5" }}"
             - "--min-instances={{ .Values.telemetryDeployer.minInstances | default 0 }}"
-            - "--vpc-connector={{ .Values.telemetryDeployer.vpcConnector | default "" }}"
+            - "-vpc-connector={{ .Values.telemetryDeployer.vpcConnector | default "" }}"
+            - "--cloud-sql-image={{ .Values.telemetryDeployer.cloudSqlImage | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" }}"
           {{- if .Values.images.telemetryDeployer.secondary }}
           image: "{{ include "containerImage" (list . (dict "name" "telemetryDeployer" "secondary" true)) | trim }}"
           {{- else }}
@@ -83,12 +84,6 @@ spec:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: DB_ADMIN_USER
-            - name: DB_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: core-service-env-secret
-                  key: DB_ADMIN_PASSWORD
-            
             # Metrics database configuration
             - name: METRICS_DB_TYPE
               value: {{ .Values.database.type | default "postgres" | quote }}

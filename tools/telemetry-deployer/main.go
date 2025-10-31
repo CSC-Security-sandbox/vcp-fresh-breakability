@@ -30,6 +30,7 @@ type DeploymentConfig struct {
 	Subnetwork         string
 	VPCConnector       string
 	CloudSQLInstances  []string // List of Cloud SQL instance connection names
+	CloudSQLImage      string
 }
 
 func main() {
@@ -40,14 +41,15 @@ func main() {
 		projectID          = flag.String("project", "", "GCP project ID")
 		region             = flag.String("region", "", "GCP region")
 		network            = flag.String("network", "", "Network name")
-		subnet             = flag.String("subnet", "cloud-run", "Subnetwork name")
+		subnet             = flag.String("subnet", "", "Subnetwork name")
 		vpcConnector       = flag.String("vpc-connector", "projects/netapp-au-se1-autopush-sde-tst/locations/australia-southeast1/connectors/db-connector", "VPC Access connector")
 		minInstances       = flag.Int64("min-instances", 0, "Minimum number of instances")
-		maxInstances       = flag.Int64("max-instances", 5, "Maximum number of instances (0 for no limit)")
+		maxInstances       = flag.Int64("max-instances", 1, "Maximum number of instances (0 for no limit)")
 		envVarsFlag        = flag.String("env-vars", "", "Environment variables in format KEY1=VALUE1,KEY2=VALUE2")
-		cloudSQLInstances  = flag.String("cloud-sql-instances", "", "Comma-separated list of Cloud SQL instance connection names (project:region:instance)")
+		cloudSQLInstances  = flag.String("cloud-sql-instances", "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres", "Comma-separated list of Cloud SQL instance connection names (project:region:instance)")
 		enableScheduler    = flag.Bool("enable-scheduler", true, "Enable Cloud Scheduler to invoke the service")
-		serviceAccountName = flag.String("service-account-name", "", "Cloud Run service account name")
+		serviceAccountName = flag.String("service-account-name", "vcp-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com", "Cloud Run service account name")
+		cloudSQLImage      = flag.String("cloud-sql-image", "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1", "Cloud SQL image URL")
 	)
 	flag.Parse()
 
@@ -83,6 +85,7 @@ func main() {
 		Subnetwork:         *subnet,
 		VPCConnector:       *vpcConnector,
 		CloudSQLInstances:  sqlInstances,
+		CloudSQLImage:      *cloudSQLImage,
 	}
 
 	if err := deployCloudRunService(context.Background(), config); err != nil {
@@ -188,27 +191,33 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 		},
 	}
 
-	// Add Cloud SQL volume mounts if instances are specified
-	// This mounts the Cloud SQL connector proxy at /cloudsql which allows
-	// secure connections to Cloud SQL instances via Unix domain sockets
-	if len(config.CloudSQLInstances) > 0 {
-		container.VolumeMounts = []*cloudrun.GoogleCloudRunV2VolumeMount{
-			{
-				Name:      "cloudsql",
-				MountPath: "/cloudsql",
-			},
-		}
+	if len(config.CloudSQLInstances) == 0 {
+		log.Panicf("Cloud SQL Instances are empty")
+	}
+
+	cloudSqlInstance := config.CloudSQLInstances[0]
+	// SQL Proxy Container Configuration to connect to Cloud SQL instances
+	sqlProxyContainer := &cloudrun.GoogleCloudRunV2Container{
+		Name:  "vsa-cloud-sql-proxy",
+		Image: config.CloudSQLImage,
+		Args: []string{
+			"--private-ip",
+			"--structured-logs",
+			"--port=5432",
+			cloudSqlInstance,
+		},
 	}
 
 	// Create service template with scaling
 	template := &cloudrun.GoogleCloudRunV2RevisionTemplate{
-		Containers: []*cloudrun.GoogleCloudRunV2Container{container},
+		Containers: []*cloudrun.GoogleCloudRunV2Container{sqlProxyContainer, container},
 		Scaling: &cloudrun.GoogleCloudRunV2RevisionScaling{
 			MinInstanceCount: config.MinInstances,
 			MaxInstanceCount: config.MaxInstances,
 		},
 		ServiceAccount: config.ServiceAccountName,
 	}
+
 	// Configure VPC access
 	vpcAccess := &cloudrun.GoogleCloudRunV2VpcAccess{}
 	if config.VPCConnector != "" {
@@ -224,19 +233,6 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 		return fmt.Errorf("either Subnetwork or VPC Connector must be specified")
 	}
 	template.VpcAccess = vpcAccess
-
-	// Add Cloud SQL volumes if instances are specified
-	// This configures the Cloud SQL connector to provide secure database connections
-	if len(config.CloudSQLInstances) > 0 {
-		template.Volumes = []*cloudrun.GoogleCloudRunV2Volume{
-			{
-				Name: "cloudsql",
-				CloudSqlInstance: &cloudrun.GoogleCloudRunV2CloudSqlInstance{
-					Instances: config.CloudSQLInstances,
-				},
-			},
-		}
-	}
 
 	// Create the service
 	service := &cloudrun.GoogleCloudRunV2Service{
@@ -383,7 +379,7 @@ func getDefaultEnvVars() map[string]string {
 		"ENV":                                getEnvOrDefault("ENV", "local"),
 		"GCP_PROXY_PORT":                     getEnvOrDefault("GCP_PROXY_PORT", "8090"),
 		"DB_TYPE":                            getEnvOrDefault("DB_TYPE", "postgres"),
-		"DB_HOST":                            getEnvOrDefault("DB_HOST", "postgres.default.svc.cluster.local"),
+		"DB_HOST":                            getEnvOrDefault("DB_HOST", "127.0.0.1"),
 		"DB_PORT":                            getEnvOrDefault("DB_PORT", "5432"),
 		"DB_USER":                            getEnvOrDefault("DB_USER", "postgres"),
 		"DB_PASSWORD":                        getEnvOrDefault("DB_PASSWORD", ""),
@@ -394,11 +390,10 @@ func getDefaultEnvVars() map[string]string {
 		"DB_MAX_IDLE_CONNS":                  getEnvOrDefault("DB_MAX_IDLE_CONNS", "25"),
 		"DB_CONN_MAX_LIFETIME":               getEnvOrDefault("DB_CONN_MAX_LIFETIME", "1h"),
 		"DB_ADMIN_USER":                      getEnvOrDefault("DB_ADMIN_USER", "postgres"),
-		"DB_ADMIN_PASSWORD":                  getEnvOrDefault("DB_ADMIN_PASSWORD", ""),
 		"METRICS_DB_TYPE":                    getEnvOrDefault("METRICS_DB_TYPE", "postgres"),
-		"METRICS_DB_HOST":                    getEnvOrDefault("METRICS_DB_HOST", "postgres.default.svc.cluster.local"),
+		"METRICS_DB_HOST":                    getEnvOrDefault("METRICS_DB_HOST", "127.0.0.1"),
 		"METRICS_DB_PORT":                    getEnvOrDefault("METRICS_DB_PORT", "5432"),
-		"METRICS_DB_USER":                    getEnvOrDefault("METRICS_DB_USER", "postgres"),
+		"METRICS_DB_USER":                    getEnvOrDefault("METRICS_DB_USER", "metrics"),
 		"METRICS_DB_PASSWORD":                getEnvOrDefault("METRICS_DB_PASSWORD", ""),
 		"METRICS_DB_NAME":                    getEnvOrDefault("METRICS_DB_NAME", "metrics"),
 		"METRICS_DB_SSL_MODE":                getEnvOrDefault("METRICS_DB_SSL_MODE", "disable"),

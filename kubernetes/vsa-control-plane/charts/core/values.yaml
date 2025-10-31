@@ -254,6 +254,9 @@ telemetryDeployer:
   accountPaginationLimit: 1000
   bizopsReportName : "google_vsa_analytics_report"
   bizopsBucketName: "harvest-farm-pv-au-se1"
+  cloudSqlConnector: "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres"
+  cloudSqlImage: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
+
   numWorkers: "10"
   resources:
     limits:
