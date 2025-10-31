@@ -643,7 +643,7 @@ paths:
                         sudo yum install -y nfs-utils
                         On an Ubuntu or Debian instance:
                         sudo apt-get install nfs-common
-                        
+
                         Mounting your volume
                         Create a new directory on your instance, such as "/some-volume":
                         sudo mkdir /some-volume
@@ -1419,6 +1419,8 @@ paths:
           $ref: '#/components/responses/StandardError-403'
         '404':
           $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
         '501':

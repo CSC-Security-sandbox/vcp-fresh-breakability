@@ -56,6 +56,12 @@ func (o *V1betaListBackupsReader) ReadResponse(response runtime.ClientResponse, 
 			return nil, err
 		}
 		return nil, result
+	case 429:
+		result := NewV1betaListBackupsTooManyRequests()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewV1betaListBackupsInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -239,6 +245,40 @@ func (o *V1betaListBackupsNotFound) GetPayload() *models.Error {
 }
 
 func (o *V1betaListBackupsNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.Error)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewV1betaListBackupsTooManyRequests creates a V1betaListBackupsTooManyRequests with default headers values
+func NewV1betaListBackupsTooManyRequests() *V1betaListBackupsTooManyRequests {
+	return &V1betaListBackupsTooManyRequests{}
+}
+
+/*
+V1betaListBackupsTooManyRequests handles this case with default header values.
+
+Too many requests
+*/
+type V1betaListBackupsTooManyRequests struct {
+	Payload *models.Error
+}
+
+func (o *V1betaListBackupsTooManyRequests) Error() string {
+	return fmt.Sprintf("[GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups][%d] v1betaListBackupsTooManyRequests  %+v", 429, o.Payload)
+}
+
+func (o *V1betaListBackupsTooManyRequests) GetPayload() *models.Error {
+	return o.Payload
+}
+
+func (o *V1betaListBackupsTooManyRequests) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.Error)
 

@@ -9382,6 +9382,15 @@ func (s *V1betaListBackupsOK) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaListBackupsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListBackupsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaListBackupsUnauthorized) SetFake() {
 	var unwrapped Error
 	{

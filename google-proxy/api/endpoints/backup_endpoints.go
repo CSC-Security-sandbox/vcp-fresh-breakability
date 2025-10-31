@@ -1057,6 +1057,13 @@ func _listBackupsToCVP(ctx context.Context, params gcpgenserver.V1betaListBackup
 				Code:    code,
 				Message: msg,
 			}, nil
+		case *backups.V1betaListBackupsTooManyRequests:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupsTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
 		case *backups.V1betaListBackupsInternalServerError:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))

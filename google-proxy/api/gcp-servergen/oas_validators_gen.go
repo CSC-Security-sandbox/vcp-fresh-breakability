@@ -12350,6 +12350,14 @@ func (s *V1betaListBackupsOK) Validate() error {
 	return nil
 }
 
+func (s *V1betaListBackupsTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaListBackupsUnauthorized) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {

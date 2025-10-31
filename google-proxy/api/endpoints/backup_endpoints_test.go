@@ -2016,6 +2016,27 @@ func TestListBackupsToCVP(t *testing.T) {
 		assert.Equal(t, "Forbidden", result.(*gcpgenserver.V1betaListBackupsForbidden).Message)
 	})
 
+	t.Run("WhenListBackupsFailsWithTooManyRequests", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaListBackupsTooManyRequests{
+			Payload: &models.Error{
+				Code:    429,
+				Message: "Too Many Requests",
+			},
+		}
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsTooManyRequests{}, result)
+		assert.Equal(t, float64(429), result.(*gcpgenserver.V1betaListBackupsTooManyRequests).Code)
+		assert.Equal(t, "Too Many Requests", result.(*gcpgenserver.V1betaListBackupsTooManyRequests).Message)
+	})
+
 	t.Run("WhenListBackupsFailsWithNotFound", func(t *testing.T) {
 		mockClient := backups.NewMockClientService(t)
 		mockError := &backups.V1betaListBackupsNotFound{

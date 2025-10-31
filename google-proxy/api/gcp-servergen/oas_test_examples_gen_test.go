@@ -9858,6 +9858,18 @@ func TestV1betaListBackupsOK_EncodeDecode(t *testing.T) {
 	var typ2 V1betaListBackupsOK
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaListBackupsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaListBackupsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListBackupsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaListBackupsUnauthorized_EncodeDecode(t *testing.T) {
 	var typ V1betaListBackupsUnauthorized
 	typ.SetFake()

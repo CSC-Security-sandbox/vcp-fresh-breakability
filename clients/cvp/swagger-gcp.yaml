@@ -5900,6 +5900,8 @@ paths:
           $ref: '#/responses/StandardError-403'
         '404':
           $ref: '#/responses/StandardError-404'
+        '429':
+          $ref: '#/responses/StandardError-429'
         '500':
           $ref: '#/responses/StandardError-500'
         '501':

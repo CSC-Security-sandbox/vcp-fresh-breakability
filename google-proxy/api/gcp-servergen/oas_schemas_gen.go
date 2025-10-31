@@ -18217,6 +18217,10 @@ func (s *V1betaListBackupsOK) SetBackups(val []BackupV1beta) {
 
 func (*V1betaListBackupsOK) v1betaListBackupsRes() {}
 
+type V1betaListBackupsTooManyRequests Error
+
+func (*V1betaListBackupsTooManyRequests) v1betaListBackupsRes() {}
+
 type V1betaListBackupsUnauthorized Error
 
 func (*V1betaListBackupsUnauthorized) v1betaListBackupsRes() {}
