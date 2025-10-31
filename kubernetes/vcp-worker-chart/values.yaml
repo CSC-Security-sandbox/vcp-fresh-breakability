@@ -267,7 +267,7 @@ workerConfig:
     metricsDbType: "postgres"
     metricsDbHost: postgres.default.svc.cluster.local
     metricsDbPort: 5432
-    metricsDbUser: postgres
+    metricsDbUser: metrics
     metricsDbPassword: testpass
     metricsDbName: metrics
     metricsDbSslMode: "disable"
