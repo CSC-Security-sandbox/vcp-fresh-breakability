@@ -13341,6 +13341,104 @@ func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 	})
 }
 
+func TestConvertDatastoreVolumeToModelAutoTieringPolicy(t *testing.T) {
+	t.Run("ConvertVolumeWithHotTierBypassModeEnabledTrue", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:               "test-volume",
+			Description:        "test description",
+			SizeInBytes:        107374182400,
+			AutoTieringEnabled: true,
+			Account:            account,
+			Pool:               pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolISCSI},
+			},
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "all",
+				CoolingThresholdDays:     30,
+				RetrievalPolicy:          "default",
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
+		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled, "HotTierBypassModeEnabled should be true")
+	})
+
+	t.Run("ConvertVolumeWithHotTierBypassModeEnabledFalse", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:               "test-volume",
+			Description:        "test description",
+			SizeInBytes:        107374182400,
+			AutoTieringEnabled: true,
+			Account:            account,
+			Pool:               pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolISCSI},
+			},
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     30,
+				RetrievalPolicy:          "default",
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled, "HotTierBypassModeEnabled should be false")
+	})
+}
+
 func TestConvertDatastoreVolumeToModelCacheParameters(t *testing.T) {
 	t.Run("ConvertVolumeWithCacheParameters", func(tt *testing.T) {
 		ipAddress := []string{"192.168.1.100"}

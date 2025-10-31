@@ -1146,10 +1146,18 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		res.SnapshotPolicy = gcpgenserver.NewOptSnapshotPolicyV1beta(*convertToSnapshotPolicyV2(volume.SnapshotPolicy))
 	}
 
-	if volume.AutoTieringPolicy != nil && volume.AutoTieringPolicy.AutoTieringEnabled {
+	if volume.AutoTieringPolicy != nil {
+		// Determine TierAction based on AutoTieringEnabled
+		var tierAction gcpgenserver.TieringPolicyV1betaTierAction
+		if volume.AutoTieringPolicy.AutoTieringEnabled {
+			tierAction = gcpgenserver.TieringPolicyV1betaTierActionENABLED
+		} else {
+			tierAction = gcpgenserver.TieringPolicyV1betaTierActionPAUSED
+		}
+
 		res.TieringPolicy = gcpgenserver.NewOptTieringPolicyV1beta(
 			gcpgenserver.TieringPolicyV1beta{
-				TierAction:               gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(gcpgenserver.TieringPolicyV1betaTierActionENABLED),
+				TierAction:               gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(tierAction),
 				CoolingThresholdDays:     gcpgenserver.NewOptNilInt32(volume.AutoTieringPolicy.CoolingThresholdDays),
 				HotTierBypassModeEnabled: gcpgenserver.NewOptNilBool(volume.AutoTieringPolicy.HotTierBypassModeEnabled),
 			})

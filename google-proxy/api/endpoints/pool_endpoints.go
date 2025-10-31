@@ -85,7 +85,7 @@ func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1b
 		logger.Error("Failed to describe pool", "error", err.Error())
 		return &gcpgenserver.V1betaDescribePoolInternalServerError{}, err
 	}
-	return convertToPoolV1Beta(pool), nil
+	return convertToPoolV1BetaWithConsumption(pool), nil
 }
 
 // V1betaCreatePool handles the request to create a pool.
@@ -407,7 +407,7 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 	poolsVCP := make([]gcpgenserver.PoolV1beta, 0, len(req.PoolUuids))
 	foundPoolUUIDs := make(map[string]struct{}, len(poolsModelVCP))
 	for _, pool := range poolsModelVCP {
-		response := convertToPoolV1Beta(pool)
+		response := convertToPoolV1BetaWithConsumption(pool)
 		poolsVCP = append(poolsVCP, *response)
 		foundPoolUUIDs[pool.UUID] = struct{}{}
 	}
@@ -677,7 +677,7 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 func convertToPoolsV1Beta(pools []*models.Pool) []gcpgenserver.PoolV1beta {
 	poolsV1Beta := make([]gcpgenserver.PoolV1beta, len(pools))
 	for i, pool := range pools {
-		poolsV1Beta[i] = *convertToPoolV1Beta(pool)
+		poolsV1Beta[i] = *convertToPoolV1BetaWithConsumption(pool)
 	}
 	return poolsV1Beta
 }
@@ -727,23 +727,19 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		QosType:                  gcpgenserver.NewOptNilString(pool.QosType),
 		CustomPerformanceEnabled: gcpgenserver.NewOptBool(customPerformanceEnabled),
 		// Unified Pool is set true & StorageClass is to software for VSA pools
-		Type:                    gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
-		UnifiedPool:             gcpgenserver.NewOptBool(true),
-		Unified:                 gcpgenserver.NewOptBool(true),
-		StorageClass:            gcpgenserver.NewOptStorageClassV1beta("SOFTWARE"),
-		AllowAutoTiering:        gcpgenserver.NewOptNilBool(pool.AllowAutoTiering),
-		HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(getHotTierSizeInBytes(pool.AutoTieringConfig)),
-		EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(getEnableHotTierAutoResize(pool.AutoTieringConfig)),
-		AllocatedBytes:          gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
-		NumberOfVolumes:         gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
-		Zone:                    gcpgenserver.NewOptString(pool.PoolAttributes.PrimaryZone),
-		SecondaryZone:           gcpgenserver.NewOptString(secondaryZone),
-		Labels:                  gcpgenserver.NewOptPoolV1betaLabels(labels),
-		LargeCapacity:           gcpgenserver.NewOptBool(pool.LargeCapacity),
-		SatisfiesPzs:            gcpgenserver.NewOptNilBool(pool.SatisfiesPzs),
-		SatisfiesPzi:            gcpgenserver.NewOptNilBool(pool.SatisfiesPzi),
-		HotTierConsumption:      getHotTierConsumptionOpt(pool.AutoTieringConfig),
-		ColdTierConsumption:     getColdTierConsumptionOpt(pool.AutoTieringConfig),
+		Type:             gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+		UnifiedPool:      gcpgenserver.NewOptBool(true),
+		Unified:          gcpgenserver.NewOptBool(true),
+		StorageClass:     gcpgenserver.NewOptStorageClassV1beta("SOFTWARE"),
+		AllowAutoTiering: gcpgenserver.NewOptNilBool(pool.AllowAutoTiering),
+		AllocatedBytes:   gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
+		NumberOfVolumes:  gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
+		Zone:             gcpgenserver.NewOptString(pool.PoolAttributes.PrimaryZone),
+		SecondaryZone:    gcpgenserver.NewOptString(secondaryZone),
+		Labels:           gcpgenserver.NewOptPoolV1betaLabels(labels),
+		LargeCapacity:    gcpgenserver.NewOptBool(pool.LargeCapacity),
+		SatisfiesPzs:     gcpgenserver.NewOptNilBool(pool.SatisfiesPzs),
+		SatisfiesPzi:     gcpgenserver.NewOptNilBool(pool.SatisfiesPzi),
 	}
 
 	if pool.ActiveDirectoryConfigId != "" {
@@ -777,6 +773,12 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 			ChildAssets: gcpgenserver.OptNilChildAssetArray{Value: assets, Set: true},
 		}
 		poolV1beta.AssetLocationMetadata = gcpgenserver.NewOptNilPoolV1betaAssetLocationMetadata(assetLocationMetadata)
+	}
+
+	// Only include auto tiering fields if auto tiering is enabled
+	if pool.AllowAutoTiering {
+		poolV1beta.HotTierSizeInBytes = gcpgenserver.NewOptNilFloat64(getHotTierSizeInBytes(pool.AutoTieringConfig))
+		poolV1beta.EnableHotTierAutoResize = gcpgenserver.NewOptNilBool(getEnableHotTierAutoResize(pool.AutoTieringConfig))
 	}
 
 	return poolV1beta
@@ -872,6 +874,16 @@ func getEnableHotTierAutoResize(config *models.AutoTieringConfig) bool {
 		return false
 	}
 	return config.EnableHotTierAutoResize
+}
+
+func convertToPoolV1BetaWithConsumption(pool *models.Pool) *gcpgenserver.PoolV1beta {
+	result := convertToPoolV1Beta(pool)
+	// Add consumption fields only if auto tiering is enabled
+	if pool.AllowAutoTiering {
+		result.HotTierConsumption = getHotTierConsumptionOpt(pool.AutoTieringConfig)
+		result.ColdTierConsumption = getColdTierConsumptionOpt(pool.AutoTieringConfig)
+	}
+	return result
 }
 
 func getHotTierConsumptionOpt(config *models.AutoTieringConfig) gcpgenserver.OptNilInt64 {

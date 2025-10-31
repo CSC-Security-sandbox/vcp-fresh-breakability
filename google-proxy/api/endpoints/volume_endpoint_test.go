@@ -7697,17 +7697,26 @@ func TestConvertModelToVCPVolume_AutoTieringPolicy(t *testing.T) {
 		assert.False(tt, tieringPolicy.HotTierBypassModeEnabled.Value)
 	})
 
-	t.Run("AutoTieringPolicy_Disabled_ShouldNotIncludeTieringPolicy", func(tt *testing.T) {
+	t.Run("AutoTieringPolicy_Paused_ShouldIncludeTieringPolicyWithPAUSED", func(tt *testing.T) {
 		vol := &models.Volume{
 			BaseModel: models.BaseModel{UUID: "vol-1"},
 			AutoTieringPolicy: &models.AutoTieringPolicy{
-				AutoTieringEnabled: false,
+				AutoTieringEnabled:       false,
+				CoolingThresholdDays:     30,
+				HotTierBypassModeEnabled: false,
 			},
 		}
 
 		result := convertModelToVCPVolume(vol)
 
-		assert.False(tt, result.TieringPolicy.IsSet())
+		assert.True(tt, result.TieringPolicy.IsSet())
+
+		tieringPolicy := result.TieringPolicy.Value
+		assert.Equal(tt, gcpgenserver.TieringPolicyV1betaTierActionPAUSED, tieringPolicy.TierAction.Value)
+		assert.True(tt, tieringPolicy.CoolingThresholdDays.IsSet())
+		assert.Equal(tt, int32(30), tieringPolicy.CoolingThresholdDays.Value)
+		assert.True(tt, tieringPolicy.HotTierBypassModeEnabled.IsSet())
+		assert.False(tt, tieringPolicy.HotTierBypassModeEnabled.Value)
 	})
 
 	t.Run("NoAutoTieringPolicy_ShouldNotIncludeTieringPolicy", func(tt *testing.T) {

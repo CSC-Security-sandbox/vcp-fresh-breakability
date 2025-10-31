@@ -1332,9 +1332,10 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 
 	if volume.AutoTieringEnabled && volume.AutoTieringPolicy != nil {
 		res.AutoTieringPolicy = &models.AutoTieringPolicy{
-			AutoTieringEnabled:   volume.AutoTieringEnabled,
-			CoolingThresholdDays: volume.AutoTieringPolicy.CoolingThresholdDays,
-			TieringPolicy:        volume.AutoTieringPolicy.TieringPolicy,
+			AutoTieringEnabled:       volume.AutoTieringEnabled,
+			CoolingThresholdDays:     volume.AutoTieringPolicy.CoolingThresholdDays,
+			TieringPolicy:            volume.AutoTieringPolicy.TieringPolicy,
+			HotTierBypassModeEnabled: volume.AutoTieringPolicy.HotTierBypassModeEnabled,
 		}
 	}
 

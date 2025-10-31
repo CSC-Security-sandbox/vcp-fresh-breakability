@@ -972,6 +972,118 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Len(tt, okResp.Pools, 0) // CVP fallback returns empty pools
 	})
+
+	t.Run("WhenPoolsHaveAutoTieringEnabled_IncludesConsumptionFields", func(tt *testing.T) {
+		tt.Setenv("CVP_HOST", "")
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1"},
+		}
+
+		// Mock VCP to return pool with auto tiering enabled and consumption data
+		vcpPools := []*models.Pool{
+			{
+				BaseModel: models.BaseModel{
+					UUID: "uuid1",
+				},
+				Name:             "pool1",
+				AllowAutoTiering: true,
+				PoolAttributes:   &models.PoolAttributes{},
+				AutoTieringConfig: &models.AutoTieringConfig{
+					HotTierSizeInBytes:      300000000000, // 300GB
+					EnableHotTierAutoResize: true,
+					HotTierConsumption:      100000000000, // 100GB
+					ColdTierConsumption:     50000000000,  // 50GB
+				},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(vcpPools, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Pools, 1)
+		// Verify consumption fields are included when auto tiering is enabled
+		assert.True(tt, okResp.Pools[0].HotTierConsumption.IsSet())
+		assert.Equal(tt, int64(100000000000), okResp.Pools[0].HotTierConsumption.Value)
+		assert.True(tt, okResp.Pools[0].ColdTierConsumption.IsSet())
+		assert.Equal(tt, int64(50000000000), okResp.Pools[0].ColdTierConsumption.Value)
+		// Verify auto tiering related fields are included when auto tiering is enabled
+		assert.True(tt, okResp.Pools[0].HotTierSizeInBytes.IsSet())
+		assert.True(tt, okResp.Pools[0].EnableHotTierAutoResize.IsSet())
+	})
+
+	t.Run("WhenPoolsHaveAutoTieringDisabled_NoConsumptionFields", func(tt *testing.T) {
+		tt.Setenv("CVP_HOST", "")
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1"},
+		}
+
+		// Mock VCP to return pool with auto tiering disabled
+		vcpPools := []*models.Pool{
+			{
+				BaseModel: models.BaseModel{
+					UUID: "uuid1",
+				},
+				Name:             "pool1",
+				AllowAutoTiering: false,
+				PoolAttributes:   &models.PoolAttributes{},
+				AutoTieringConfig: &models.AutoTieringConfig{
+					HotTierSizeInBytes:      500000000000,
+					EnableHotTierAutoResize: true,
+					HotTierConsumption:      100000000000,
+					ColdTierConsumption:     50000000000,
+				},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(vcpPools, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Pools, 1)
+		// Verify consumption fields are not included when auto tiering is disabled
+		assert.False(tt, okResp.Pools[0].HotTierConsumption.IsSet())
+		assert.False(tt, okResp.Pools[0].ColdTierConsumption.IsSet())
+		// Verify auto tiering related fields are not included when auto tiering is disabled
+		assert.False(tt, okResp.Pools[0].HotTierSizeInBytes.IsSet())
+		assert.False(tt, okResp.Pools[0].EnableHotTierAutoResize.IsSet())
+	})
 }
 
 func TestV1betaCreatePool(t *testing.T) {
@@ -2970,6 +3082,51 @@ func TestV1betaDescribePool(t *testing.T) {
 		assert.Equal(tt, "This is a test pool", result.(*gcpgenserver.PoolV1beta).Description.Value)
 		assert.Equal(tt, existingPool.PoolAttributes.Labels["test"], result.(*gcpgenserver.PoolV1beta).Labels.Value["test"])
 	})
+
+	t.Run("WhenPoolHasAutoTieringEnabled_IncludesConsumptionFields", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaDescribePoolParams{
+			PoolId:        "pool-id",
+			ProjectNumber: "project-number",
+		}
+
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-id",
+			},
+			Name:             "test-pool",
+			AllowAutoTiering: true,
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000, // 500GB
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      200000000000, // 200GB
+				ColdTierConsumption:     100000000000, // 100GB
+			},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(pool, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDescribePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		poolRes, ok := result.(*gcpgenserver.PoolV1beta)
+		assert.True(tt, ok)
+		// Verify consumption fields are included when auto tiering is enabled
+		assert.True(tt, poolRes.HotTierConsumption.IsSet())
+		assert.Equal(tt, int64(200000000000), poolRes.HotTierConsumption.Value)
+		assert.True(tt, poolRes.ColdTierConsumption.IsSet())
+		assert.Equal(tt, int64(100000000000), poolRes.ColdTierConsumption.Value)
+		// Verify auto tiering related fields are included when auto tiering is enabled
+		assert.True(tt, poolRes.HotTierSizeInBytes.IsSet())
+		assert.True(tt, poolRes.EnableHotTierAutoResize.IsSet())
+	})
 }
 
 func TestV1betaListPools(t *testing.T) {
@@ -3093,6 +3250,66 @@ func TestV1betaListPools(t *testing.T) {
 		assert.Equal(tt, 2, len(successResult.Pools))
 		assert.Equal(tt, "pool-uuid-1", successResult.Pools[0].PoolId.Value)
 		assert.Equal(tt, "pool-uuid-2", successResult.Pools[1].PoolId.Value)
+	})
+
+	t.Run("WhenPoolsHaveAutoTieringEnabled_IncludesConsumptionFields", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaListPoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		pool1 := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid-1",
+			},
+			Name:             "pool-1",
+			AllowAutoTiering: true,
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      400000000000, // 400GB
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      150000000000, // 150GB
+				ColdTierConsumption:     75000000000,  // 75GB
+			},
+		}
+		pool2 := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid-2",
+			},
+			Name:             "pool-2",
+			AllowAutoTiering: false,
+			PoolAttributes:   &models.PoolAttributes{},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().ListPools(mock.Anything, params.ProjectNumber, false).Return([]*models.Pool{pool1, pool2}, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaListPools(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaListPoolsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 2, len(successResult.Pools))
+		// First pool has auto tiering enabled - should include consumption fields
+		assert.True(tt, successResult.Pools[0].HotTierConsumption.IsSet())
+		assert.Equal(tt, int64(150000000000), successResult.Pools[0].HotTierConsumption.Value)
+		assert.True(tt, successResult.Pools[0].ColdTierConsumption.IsSet())
+		assert.Equal(tt, int64(75000000000), successResult.Pools[0].ColdTierConsumption.Value)
+		// First pool should also include auto tiering related fields
+		assert.True(tt, successResult.Pools[0].HotTierSizeInBytes.IsSet())
+		assert.True(tt, successResult.Pools[0].EnableHotTierAutoResize.IsSet())
+		// Second pool has auto tiering disabled - should not include consumption fields
+		assert.False(tt, successResult.Pools[1].HotTierConsumption.IsSet())
+		assert.False(tt, successResult.Pools[1].ColdTierConsumption.IsSet())
+		// Second pool should not include auto tiering related fields
+		assert.False(tt, successResult.Pools[1].HotTierSizeInBytes.IsSet())
+		assert.False(tt, successResult.Pools[1].EnableHotTierAutoResize.IsSet())
 	})
 }
 
@@ -3594,10 +3811,9 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
-		assert.True(tt, result.HotTierConsumption.IsSet())
-		assert.Equal(tt, int64(250000000000), result.HotTierConsumption.Value)
-		assert.True(tt, result.ColdTierConsumption.IsSet())
-		assert.Equal(tt, int64(150000000000), result.ColdTierConsumption.Value)
+		// Consumption fields should not be set in convertToPoolV1Beta (used for create/update responses)
+		assert.False(tt, result.HotTierConsumption.IsSet())
+		assert.False(tt, result.ColdTierConsumption.IsSet())
 	})
 
 	t.Run("WhenPoolHasNoAutoTieringConfig", func(tt *testing.T) {
@@ -3646,10 +3862,9 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
-		assert.True(tt, result.HotTierConsumption.IsSet())
-		assert.Equal(tt, int64(0), result.HotTierConsumption.Value)
-		assert.True(tt, result.ColdTierConsumption.IsSet())
-		assert.Equal(tt, int64(0), result.ColdTierConsumption.Value)
+		// Consumption fields should not be set in convertToPoolV1Beta (used for create/update responses)
+		assert.False(tt, result.HotTierConsumption.IsSet())
+		assert.False(tt, result.ColdTierConsumption.IsSet())
 	})
 
 	t.Run("WhenPoolIsFromCVP", func(tt *testing.T) {
@@ -5145,6 +5360,114 @@ func TestConvertToPoolV1Beta_WithActiveDirectoryFields(t *testing.T) {
 		assert.Equal(tt, "test-pool", result.ResourceId)
 		assert.False(tt, result.ActiveDirectoryConfigId.IsSet())
 		assert.False(tt, result.ActiveDirectoryResourceId.IsSet())
+	})
+
+	t.Run("WhenConvertingPoolV1Beta_NoConsumptionFieldsInCreateResponse", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:           "test-pool",
+			PoolAttributes: &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierConsumption:  100,
+				ColdTierConsumption: 200,
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.Equal(tt, "pool-uuid", result.PoolId.Value)
+		assert.Equal(tt, "test-pool", result.ResourceId)
+		// Consumption fields should not be set in basic conversion (for create response)
+		assert.False(tt, result.HotTierConsumption.IsSet())
+		assert.False(tt, result.ColdTierConsumption.IsSet())
+	})
+
+	t.Run("WhenConvertingPoolV1BetaWithConsumption_WithAutoTieringEnabled_IncludesConsumptionFields", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:             "test-pool",
+			AllowAutoTiering: true,
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      100,
+				ColdTierConsumption:     200,
+			},
+		}
+
+		result := convertToPoolV1BetaWithConsumption(pool)
+
+		assert.Equal(tt, "pool-uuid", result.PoolId.Value)
+		assert.Equal(tt, "test-pool", result.ResourceId)
+		// Consumption fields should be set in withConsumption version when auto tiering is enabled
+		assert.True(tt, result.HotTierConsumption.IsSet())
+		assert.Equal(tt, int64(100), result.HotTierConsumption.Value)
+		assert.True(tt, result.ColdTierConsumption.IsSet())
+		assert.Equal(tt, int64(200), result.ColdTierConsumption.Value)
+		// Auto tiering related fields should be set when auto tiering is enabled
+		assert.True(tt, result.HotTierSizeInBytes.IsSet())
+		assert.Equal(tt, float64(500000000000), result.HotTierSizeInBytes.Value)
+		assert.True(tt, result.EnableHotTierAutoResize.IsSet())
+		assert.True(tt, result.EnableHotTierAutoResize.Value)
+	})
+
+	t.Run("WhenConvertingPoolV1BetaWithConsumption_WithoutAutoTiering_NoConsumptionFields", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:             "test-pool",
+			AllowAutoTiering: false,
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierConsumption:  100,
+				ColdTierConsumption: 200,
+			},
+		}
+
+		result := convertToPoolV1BetaWithConsumption(pool)
+
+		assert.Equal(tt, "pool-uuid", result.PoolId.Value)
+		assert.Equal(tt, "test-pool", result.ResourceId)
+		// Consumption fields should not be set when auto tiering is not enabled
+		assert.False(tt, result.HotTierConsumption.IsSet())
+		assert.False(tt, result.ColdTierConsumption.IsSet())
+		// Auto tiering related fields should not be set when auto tiering is not enabled
+		assert.False(tt, result.HotTierSizeInBytes.IsSet())
+		assert.False(tt, result.EnableHotTierAutoResize.IsSet())
+	})
+
+	t.Run("WhenConvertingPoolV1Beta_WithoutAutoTiering_NoAutoTieringFields", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:             "test-pool",
+			AllowAutoTiering: false,
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      100,
+				ColdTierConsumption:     200,
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.Equal(tt, "pool-uuid", result.PoolId.Value)
+		assert.Equal(tt, "test-pool", result.ResourceId)
+		// Auto tiering related fields should not be set when auto tiering is not enabled
+		assert.False(tt, result.HotTierSizeInBytes.IsSet())
+		assert.False(tt, result.EnableHotTierAutoResize.IsSet())
+		// Consumption fields should not be set in basic conversion
+		assert.False(tt, result.HotTierConsumption.IsSet())
+		assert.False(tt, result.ColdTierConsumption.IsSet())
 	})
 
 	t.Run("WhenPoolHasInvalidZoneForActiveDirectory", func(tt *testing.T) {
