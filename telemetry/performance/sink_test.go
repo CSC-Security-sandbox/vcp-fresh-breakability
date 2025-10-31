@@ -411,7 +411,7 @@ func TestGoogleSink_processAndFilterMetricsResults_ErrorHandling(t *testing.T) {
 	invalidGoogleMetric := common.NewGoogleMetric("invalid-record")
 
 	t.Run("Success case", func(t *testing.T) {
-		ml.On("Infof", "Reported %d metrics.", 1).Once()
+		ml.On("Infof", "Reporting %d metrics.", 1).Once()
 		ml.On("Infof", "%d metrics were successfully reported.", 1).Once()
 
 		results := []common.MetricsResult{
@@ -429,7 +429,7 @@ func TestGoogleSink_processAndFilterMetricsResults_ErrorHandling(t *testing.T) {
 	})
 
 	t.Run("GetCustomerId error", func(t *testing.T) {
-		ml.On("Infof", "Reported %d metrics.", 1).Once()
+		ml.On("Infof", "Reporting %d metrics.", 1).Once()
 		ml.On("Warnf", "Failed to get Customer ID for GoogleMetric: %v, error: %v",
 			*invalidGoogleMetric, mock.AnythingOfType("*common.InvalidGoogleMetricException")).Once()
 		ml.On("Infof", "%d metrics were successfully reported.", 0).Once()
@@ -449,7 +449,7 @@ func TestGoogleSink_processAndFilterMetricsResults_ErrorHandling(t *testing.T) {
 	})
 
 	t.Run("Exception with 403 error", func(t *testing.T) {
-		ml.On("Infof", "Reported %d metrics.", 1).Once()
+		ml.On("Infof", "Reporting %d metrics.", 1).Once()
 		testErr := &googleapi.Error{
 			Code:    403,
 			Message: "Forbidden",
@@ -473,7 +473,7 @@ func TestGoogleSink_processAndFilterMetricsResults_ErrorHandling(t *testing.T) {
 	})
 
 	t.Run("Exception with 404 error", func(t *testing.T) {
-		ml.On("Infof", "Reported %d metrics.", 1).Once()
+		ml.On("Infof", "Reporting %d metrics.", 1).Once()
 		testErr := &googleapi.Error{
 			Code:    404,
 			Message: "Not Found",
@@ -497,7 +497,7 @@ func TestGoogleSink_processAndFilterMetricsResults_ErrorHandling(t *testing.T) {
 	})
 
 	t.Run("Exception with other error", func(t *testing.T) {
-		ml.On("Infof", "Reported %d metrics.", 1).Once()
+		ml.On("Infof", "Reporting %d metrics.", 1).Once()
 		testErr := &googleapi.Error{
 			Code:    500,
 			Message: "Internal Server Error",
@@ -521,7 +521,7 @@ func TestGoogleSink_processAndFilterMetricsResults_ErrorHandling(t *testing.T) {
 	})
 
 	t.Run("ReportResponse with errors", func(t *testing.T) {
-		ml.On("Infof", "Reported %d metrics.", 1).Once()
+		ml.On("Infof", "Reporting %d metrics.", 1).Once()
 		reportResponse := &common.ReportResponse{
 			ReportErrors: []*servicecontrol.ReportError{
 				{

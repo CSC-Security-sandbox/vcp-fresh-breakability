@@ -95,7 +95,9 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		if backup.Attributes != nil {
 			accountName = backup.Attributes.AccountIdentifier
 		}
-		hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(backup.LatestLogicalBackupSize)))
+		if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(backup.LatestLogicalBackupSize)); hydratedMetric != nil {
+			hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+		}
 	}
 
 	// Return the structured result

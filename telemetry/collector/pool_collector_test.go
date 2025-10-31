@@ -277,54 +277,102 @@ func TestSetupHydratedMetricsDataModel(t *testing.T) {
 	assert.Equal(t, float64(sizeInBytes), result.Quantity)
 }
 
-func TestSetupHydratedMetricsDataModel_DifferentMetricTypes(t *testing.T) {
+func TestSetupHydratedMetricsDataModel_NilMetadataFields(t *testing.T) {
 	tests := []struct {
-		name         string
-		measuredType metadata.MeasuredType
-		resourceType metadata.ResourceType
-		projectID    string
+		name             string
+		setupMetadata    func() metadata.ResourceMetadata
+		measuredType     metadata.MeasuredType
+		expectNil        bool
+		expectLogWarning string
 	}{
 		{
-			name:         "PoolAllocatedSize metric",
-			measuredType: metadata.PoolAllocatedSize,
-			resourceType: metadata.VolumePool,
-			projectID:    "project-1",
+			name: "Nil ResourceName",
+			setupMetadata: func() metadata.ResourceMetadata {
+				rm := metadata.ResourceMetadata{}
+				regionName := "us-west-1"
+				deploymentName := "test-deployment"
+				rm.SetRegionName(regionName)
+				rm.SetDeploymentName(deploymentName)
+				// ResourceName not set (nil)
+				return rm
+			},
+			measuredType:     metadata.PoolAllocatedSize,
+			expectNil:        true,
+			expectLogWarning: "ResourceName is nil",
 		},
 		{
-			name:         "AllocatedUsed metric",
-			measuredType: metadata.AllocatedUsed,
-			resourceType: metadata.VolumePool,
-			projectID:    "project-2",
+			name: "Nil RegionName",
+			setupMetadata: func() metadata.ResourceMetadata {
+				rm := metadata.ResourceMetadata{}
+				resourceName := "test-resource"
+				deploymentName := "test-deployment"
+				rm.SetResourceName(resourceName)
+				rm.SetDeploymentName(deploymentName)
+				// RegionName not set (nil)
+				return rm
+			},
+			measuredType:     metadata.PoolAllocatedSize,
+			expectNil:        true,
+			expectLogWarning: "RegionName is nil",
+		},
+		{
+			name: "Nil DeploymentName",
+			setupMetadata: func() metadata.ResourceMetadata {
+				rm := metadata.ResourceMetadata{}
+				resourceName := "test-resource"
+				regionName := "us-west-1"
+				rm.SetResourceName(resourceName)
+				rm.SetRegionName(regionName)
+				// DeploymentName not set (nil)
+				return rm
+			},
+			measuredType:     metadata.PoolAllocatedSize,
+			expectNil:        true,
+			expectLogWarning: "DeploymentName is nil",
+		},
+		{
+			name: "Nil Throughput for PoolTotalIops metric",
+			setupMetadata: func() metadata.ResourceMetadata {
+				rm := metadata.ResourceMetadata{}
+				resourceName := "test-resource"
+				regionName := "us-west-1"
+				deploymentName := "test-deployment"
+				rm.SetResourceName(resourceName)
+				rm.SetRegionName(regionName)
+				rm.SetDeploymentName(deploymentName)
+				// Throughput not set (nil)
+				return rm
+			},
+			measuredType:     metadata.PoolTotalIops,
+			expectNil:        false, // Should not return nil, but quantity should be 0
+			expectLogWarning: "Setting IOPS quantity to 0 due to nil Throughput",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create test metadata
-			resourceMetadata := metadata.ResourceMetadata{}
-			resourceName := "test-pool-" + tt.projectID
-			regionName := "eu-central-1"
-			deploymentName := "test-deployment-" + tt.projectID
-			sizeInBytes := int64(4096)
-
-			resourceMetadata.SetResourceName(resourceName)
-			resourceMetadata.SetRegionName(regionName)
-			resourceMetadata.SetDeploymentName(deploymentName)
-			resourceMetadata.SetSizeInBytes(sizeInBytes)
-
+			resourceMetadata := tt.setupMetadata()
 			timestamp := time.Now()
+			projectID := "test-project"
+			quantity := 1000.0
 
-			// Call the function
-			result := setupHydratedMetricsDataModel(tt.measuredType, tt.resourceType, tt.projectID, resourceMetadata, timestamp, float64(sizeInBytes))
+			result := setupHydratedMetricsDataModel(
+				tt.measuredType,
+				metadata.VolumePool,
+				projectID,
+				resourceMetadata,
+				timestamp,
+				quantity,
+			)
 
-			// Assertions
-			assert.Equal(t, timestamp, result.MetricTimestamp)
-			assert.Equal(t, tt.measuredType, result.MeasuredType)
-			assert.Equal(t, tt.projectID, result.ConsumerID)
-			assert.Equal(t, tt.resourceType, result.ResourceType)
-			assert.Equal(t, resourceName, result.ResourceName)
-			assert.Equal(t, regionName, result.Location)
-			assert.Equal(t, float64(sizeInBytes), result.Quantity)
+			if tt.expectNil {
+				assert.Nil(t, result, "Expected nil result due to validation failure")
+			} else {
+				assert.NotNil(t, result, "Expected non-nil result")
+				if tt.measuredType == metadata.PoolTotalIops && resourceMetadata.Throughput == nil {
+					assert.Equal(t, 0.0, result.Quantity, "Expected quantity to be 0 when Throughput is nil")
+				}
+			}
 		})
 	}
 }

@@ -609,7 +609,7 @@ func TestGoogleUsageSink_processMetricsResults_WithErrorLogging(t *testing.T) {
 	// Set up mock expectations for error logging
 	ml.On("Errorf", "Google Usage Mapping with ID %d failed GoogleMetric validation: missing fields %s", int64(1), mock.AnythingOfType("string")).Maybe()
 	ml.On("Errorf", "Google Usage Mapping with ID %d failed GoogleMetric validation: missing fields %s", int64(1), "customerId").Maybe()
-	ml.On("Debugf", "Processing the Google Metric Result", "result:", mock.AnythingOfType("common.MetricsResult"), "resultCode: ", mock.AnythingOfType("string")).Once()
+	ml.On("Debugf", "Processing the Google Metric Result for service: %s; result is %v, resultCode: %s", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Once()
 	ml.On("Infof", "Updating usage information for billingRecord ID: %d, state: %s", int64(1), mock.AnythingOfType("datamodel.TrackingState")).Once()
 	ml.On("Infof", "%d metrics were successfully reported.", 0).Once()
 	ml.On("Infof", "%d metrics were not reported.", 1).Once()
@@ -653,7 +653,7 @@ func TestGoogleUsageSink_processMetricsResults_WithSuccessfulLogging(t *testing.
 	}
 
 	// Set up mock expectations for success logging
-	ml.On("Debugf", "Processing the Google Metric Result", "result:", mock.AnythingOfType("common.MetricsResult"), "resultCode: ", mock.AnythingOfType("string")).Once()
+	ml.On("Debugf", "Processing the Google Metric Result for service: %s; result is %v, resultCode: %s", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Once()
 	ml.On("Infof", "Updating usage information for billingRecord ID: %d, state: %s", int64(1), mock.AnythingOfType("datamodel.TrackingState")).Once()
 	ml.On("Infof", "%d metrics were successfully reported.", 1).Once()
 	ml.On("Infof", "%d metrics were not reported.", 0).Once()

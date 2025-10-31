@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -116,17 +117,29 @@ func setupHydratedMetric(now time.Time, poolMetadata metadata.ResourceMetadata, 
 	}
 }
 
-func setupHydratedMetricsDataModel(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resourceMetadata metadata.ResourceMetadata, timestamp time.Time, quantity float64) datamodel2.HydratedMetrics {
+func setupHydratedMetricsDataModel(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resourceMetadata metadata.ResourceMetadata, timestamp time.Time, quantity float64) *datamodel2.HydratedMetrics {
+	logger := util.GetLogger(context.Background())
+
+	if err := utils.ValidateResourceMetadata(resourceMetadata); err != nil {
+		logger.Warn("Skipping metric", "error", err.Error())
+		return nil
+	}
+
 	switch measuredType {
 	case metadata.PoolTotalThroughputMibps:
 		quantity = quantity - BaseThroughputMibps
 		// Billable Throughput = Total Throughput set by the user - 64 (Minimum throughput included in the base price)
 	case metadata.PoolTotalIops:
-		throughput := *resourceMetadata.Throughput
-		quantity = quantity - IopsFactor*throughput
-		// Billable IOPS = Total IOPS set by the user - (16 * total throughput set by the user for the pool)
+		if resourceMetadata.Throughput == nil {
+			logger.Warn("Setting IOPS quantity to 0 due to nil Throughput")
+			quantity = 0
+		} else {
+			throughput := *resourceMetadata.Throughput
+			quantity = quantity - IopsFactor*throughput
+			// Billable IOPS = Total IOPS set by the user - (16 * total throughput set by the user for the pool)
+		}
 	}
-	return datamodel2.HydratedMetrics{
+	return &datamodel2.HydratedMetrics{
 		MetricTimestamp: timestamp,
 		MeasuredType:    measuredType,
 		ConsumerID:      projectID,
@@ -141,5 +154,7 @@ func setupHydratedMetricsDataModel(measuredType metadata.MeasuredType, resourceT
 func setupPoolMetric(metrics *[]entity.HydratedMetric, hydratedMetrics *[]datamodel2.HydratedMetrics, timestamp time.Time, poolMetadata metadata.ResourceMetadata, measureType metadata.MeasuredType, value float64, accountName string) {
 	metric := setupHydratedMetric(timestamp, poolMetadata, measureType, value)
 	*metrics = append(*metrics, metric)
-	*hydratedMetrics = append(*hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, poolMetadata, timestamp, value))
+	if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, poolMetadata, timestamp, value); hydratedMetric != nil {
+		*hydratedMetrics = append(*hydratedMetrics, *hydratedMetric)
+	}
 }

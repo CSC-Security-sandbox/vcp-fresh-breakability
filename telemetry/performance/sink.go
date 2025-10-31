@@ -213,7 +213,7 @@ func (s *GoogleSink) processResponse(ctx context.Context, wg *sync.WaitGroup, re
 func (s *GoogleSink) processAndFilterMetricsResults(results []common.MetricsResult) {
 	var goodResults []common.MetricsResult
 
-	s.logger.Infof("Reported %d metrics.", len(results))
+	s.logger.Infof("Reporting %d metrics.", len(results))
 
 	for _, result := range results {
 		id, err := result.GoogleMetric.GetCustomerId()

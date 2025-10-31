@@ -3,6 +3,7 @@ package usage
 import (
 	"context"
 	"encoding/json"
+	"github.com/davecgh/go-spew/spew"
 	"strings"
 	"sync"
 	"time"
@@ -172,7 +173,7 @@ func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults 
 		}
 
 		resultCode := common.GetCode(&result)
-		s.logger.Debugf("Processing the Google Metric Result", "result:", result, "resultCode: ", resultCode)
+		s.logger.Debugf("Processing the Google Metric Result for service: %s; result is %v, resultCode: %s", s.config.PusherServiceName, spew.Sdump(result), resultCode)
 		billingRecord.Submission = nillable.ToPointer(result.GetOperationID())
 		errorMessage := ""
 		if isSuccessful(result.ReportResponse) {

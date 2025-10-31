@@ -117,7 +117,10 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 				accountName = volume.Account.Name
 			}
 			metric.Metadata.ResourceType = resourceType
-			hydratedMetrics = append(hydratedMetrics, setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)))
+
+			if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)); hydratedMetric != nil {
+				hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+			}
 		}
 	}
 

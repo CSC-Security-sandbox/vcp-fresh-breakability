@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"time"
 )
 
@@ -46,5 +47,18 @@ func ParseBizOpsReportParams(bizOpsReportParams *BizOpsReportParams) error {
 	_, offset := bizOpsReportParams.StartDate.In(location).Zone()
 	bizOpsReportParams.StartDate = bizOpsReportParams.StartDate.Add(time.Second * time.Duration(-offset))
 	bizOpsReportParams.EndDate = bizOpsReportParams.StartDate.Add(time.Hour * 24)
+	return nil
+}
+
+func ValidateResourceMetadata(resourceMetadata metadata.ResourceMetadata) error {
+	if resourceMetadata.ResourceName == nil {
+		return fmt.Errorf("ResourceName is nil")
+	}
+	if resourceMetadata.RegionName == nil {
+		return fmt.Errorf("RegionName is nil")
+	}
+	if resourceMetadata.DeploymentName == nil {
+		return fmt.Errorf("DeploymentName is nil")
+	}
 	return nil
 }
