@@ -214,7 +214,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 					}
 					volumeAttachedHG := utils.GetHgUUIDs(blockDevices[i].HostGroupDetails)
 					blockDevice.HostGroups = volumeAttachedHG
-					params.BlockDevices = append(params.BlockDevices, blockDevice)
+					updateOrAddBlockDevice(params, blockDevice)
 				}
 			}
 		}
@@ -408,6 +408,30 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	return nil, ConvertToVSAError(err)
+}
+
+// updateOrAddBlockDevice updates existing BlockDevice or adds new one to params
+func updateOrAddBlockDevice(
+	params *common.UpdateVolumeParams,
+	blockDevice *common.BlockDevice,
+) {
+	// Nil checks for safety
+	if params == nil || blockDevice == nil {
+		return
+	}
+
+	// Check if BlockDevice with same name already exists
+	for i, existingDevice := range params.BlockDevices {
+		if existingDevice.Name == blockDevice.Name {
+			// Replace existing BlockDevice
+			paramsHostGroups := params.BlockDevices[i].HostGroups
+			params.BlockDevices[i] = blockDevice
+			params.BlockDevices[i].HostGroups = paramsHostGroups
+			return
+		}
+	}
+	// BlockDevice not found, append new one
+	params.BlockDevices = append(params.BlockDevices, blockDevice)
 }
 
 func isExportPolicyRulesUpdateRequired(currentPolicy *datamodel.ExportPolicy, updatePolicy *models.ExportPolicy) bool {

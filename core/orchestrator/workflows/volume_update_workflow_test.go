@@ -4041,3 +4041,64 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		assert.False(t, isUpdateFlexCacheRequired(baseExisting, params))
 	})
 }
+
+func Test_updateOrAddBlockDevice(t *testing.T) {
+	t.Run("UpdateExistingBlockDevice", func(t *testing.T) {
+		existingDevice := &common.BlockDevice{
+			Name:            "lun1",
+			SizeInBytes:     536870912,
+			OSType:          "linux",
+			LunSerialNumber: "serial123",
+			LunUUID:         "uuid123",
+			HostGroups:      []string{"hg1"},
+		}
+
+		updatedDevice := &common.BlockDevice{
+			Name:            "lun1",
+			SizeInBytes:     1073741824, // Updated size
+			OSType:          "linux",
+			LunSerialNumber: "serial123",
+			LunUUID:         "uuid123",
+			HostGroups:      []string{"hg1", "hg2"}, // Updated host groups
+		}
+
+		params := &common.UpdateVolumeParams{
+			BlockDevices: []*common.BlockDevice{updatedDevice},
+		}
+		updateOrAddBlockDevice(params, existingDevice)
+
+		assert.Len(t, params.BlockDevices, 1)
+		assert.Equal(t, "lun1", params.BlockDevices[0].Name)
+		assert.Equal(t, int64(536870912), params.BlockDevices[0].SizeInBytes)
+		assert.Equal(t, []string{"hg1", "hg2"}, params.BlockDevices[0].HostGroups)
+	})
+	t.Run("UpdateNonExistingBlockDevice", func(t *testing.T) {
+		existingDevice := &common.BlockDevice{
+			Name:            "lun1",
+			SizeInBytes:     536870912,
+			OSType:          "linux",
+			LunSerialNumber: "serial123",
+			LunUUID:         "uuid123",
+			HostGroups:      []string{"hg1"},
+		}
+
+		updatedDevice := &common.BlockDevice{
+			Name:            "lun2",
+			SizeInBytes:     1073741824, // Updated size
+			OSType:          "linux",
+			LunSerialNumber: "serial123",
+			LunUUID:         "uuid123",
+			HostGroups:      []string{"hg1", "hg2"}, // Updated host groups
+		}
+
+		params := &common.UpdateVolumeParams{
+			BlockDevices: []*common.BlockDevice{updatedDevice},
+		}
+		updateOrAddBlockDevice(params, existingDevice)
+
+		assert.Len(t, params.BlockDevices, 2)
+		assert.Equal(t, "lun2", params.BlockDevices[0].Name)
+		assert.Equal(t, int64(1073741824), params.BlockDevices[0].SizeInBytes)
+		assert.Equal(t, []string{"hg1", "hg2"}, params.BlockDevices[0].HostGroups)
+	})
+}
