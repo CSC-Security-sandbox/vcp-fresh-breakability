@@ -638,7 +638,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		assert.ErrorContains(tt, err, fmt.Sprintf("Constituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
 	})
 
-	t.Run("MaxConstituentCountForLargeCapacity", func(tt *testing.T) {
+	t.Run("MaxConstituentCountForLargeCapacityWith22CPUs", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -670,6 +670,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Network:       "test-network",
 			SizeInBytes:   13194139533312, // 12TB
 			LargeCapacity: true,
+			VLMConfig:     "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-16-lssd\"}}",
 		}
 
 		err = store.DB().Create(pool).Error
@@ -685,7 +686,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:                   []string{utils.ProtocolNFSv3},
 			Network:                     "test-network",
 			LargeCapacity:               true,
-			LargeVolumeConstituentCount: 2200,
+			LargeVolumeConstituentCount: 2000,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -694,7 +695,127 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(numOfLvHAPairs*maxConstituentVolumesPerAggregate)))
+		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(1997)))
+	})
+
+	t.Run("MaxConstituentCountForLargeCapacityWith4CPUs", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   13194139533312, // 12TB
+			LargeCapacity: true,
+			VLMConfig:     "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-4-lssd\"}}",
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:                 "test_account",
+			Name:                        "test-volume",
+			PoolID:                      pool.UUID,
+			QuotaInBytes:                13194139533312,
+			Protocols:                   []string{utils.ProtocolNFSv3},
+			Network:                     "test-network",
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: 500,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(497)))
+	})
+
+	t.Run("MaxConstituentCountForLargeCapacityWith8CPUs", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   13194139533312, // 12TB
+			LargeCapacity: true,
+			VLMConfig:     "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-8-lssd\"}}",
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:                 "test_account",
+			Name:                        "test-volume",
+			PoolID:                      pool.UUID,
+			QuotaInBytes:                13194139533312,
+			Protocols:                   []string{utils.ProtocolNFSv3},
+			Network:                     "test-network",
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: 1000,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(997)))
 	})
 
 	t.Run("LargeCapacityQuotaTooSmall", func(tt *testing.T) {

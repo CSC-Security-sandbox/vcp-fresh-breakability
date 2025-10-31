@@ -69,7 +69,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, 5*utils.GiBInBytes, 24)
+			vmInstanceType := "c3-standard-8-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, 5*utils.GiBInBytes, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -83,7 +84,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 2, 5*utils.GiBInBytes, 24)
+			vmInstanceType := "c3-standard-8-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 2, 5*utils.GiBInBytes, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -99,7 +101,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 3, 5*utils.GiBInBytes, 24)
+			vmInstanceType := "c3-standard-4-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 3, 5*utils.GiBInBytes, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -116,7 +119,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 12, 5*utils.GiBInBytes, 24)
+			vmInstanceType := "c3-standard-16-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 12, 5*utils.GiBInBytes, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -142,7 +146,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 				{"aggr3", "online", 0, utils.TiBInBytes},
 			})
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 3, utils.TiBInBytes, 6)
+			vmInstanceType := "c3-standard-4-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 3, utils.TiBInBytes, 6, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -168,7 +173,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 				{"aggr4", "online", 20, utils.TiBInBytes},
 			})
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 4, utils.TiBInBytes, 8)
+			vmInstanceType := "c3-standard-8-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 4, utils.TiBInBytes, 8, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -193,7 +199,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 				{"aggr4", "online", 200, utils.TiBInBytes},
 			})
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 6, utils.TiBInBytes, 8)
+			vmInstanceType := "c3-standard-4-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 6, utils.TiBInBytes, 8, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -203,10 +210,90 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			assert.Equal(t, int64(1), counts["aggr4"])
 			assert.Equal(t, int64(3), result.AggrMultiplier)
 		})
+
+		t.Run("FourAggregates_DifferentSizes_Third", func(t *testing.T) {
+			// Arrange - 4 aggregates with varying existing volumes
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+				size        int64
+			}{
+				{"aggr1", "online", 3, utils.TiBInBytes / 4},
+				{"aggr2", "online", 10, utils.TiBInBytes},
+				{"aggr3", "online", 2, utils.TiBInBytes / 4},
+				{"aggr4", "online", 249, utils.TiBInBytes},
+			})
+			// Act
+			vmInstanceType := "c3-standard-4-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 6, utils.TiBInBytes, 8, vmInstanceType)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.Len(t, result.Aggregates, 6)
+			counts := countAggregateOccurrences(result.Aggregates)
+			assert.Equal(t, int64(5), counts["aggr2"])
+			assert.Equal(t, int64(1), counts["aggr1"])
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		checkLen := func(counts map[string]int64, val int64) {
+			assert.Equal(t, val-1, counts["aggr1"])
+			for i := 2; i <= 12; i++ {
+				index := "aggr" + fmt.Sprint(i)
+				assert.Equal(t, val, counts[index])
+			}
+		}
+
+		t.Run("4CPUsWithMaxCVCount", func(t *testing.T) {
+			// Arrange - 12 aggregates with 0 volumes
+
+			aggregates := createTwelveTestAggregates([]int64{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+			// Act
+			vmInstanceType := "c3-standard-4-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 2987, utils.TiBInBytes, 24, vmInstanceType)
+
+			// Assert
+			assert.NoError(t, err)
+			counts := countAggregateOccurrences(result.Aggregates)
+			checkLen(counts, 249)
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		t.Run("8CPUsWithMaxCVCount", func(t *testing.T) {
+			// Arrange - 12 aggregates with 0 volumes
+
+			aggregates := createTwelveTestAggregates([]int64{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+			// Act
+			vmInstanceType := "c3-standard-8-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 5987, utils.TiBInBytes, 24, vmInstanceType)
+
+			// Assert
+			assert.NoError(t, err)
+			counts := countAggregateOccurrences(result.Aggregates)
+			checkLen(counts, 499)
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		t.Run("22CPUsWithMaxCVCount", func(t *testing.T) {
+			// Arrange - 12 aggregates with 0 volumes
+
+			aggregates := createTwelveTestAggregates([]int64{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+			// Act
+			vmInstanceType := "c3-standard-22-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 11987, utils.TiBInBytes, 24, vmInstanceType)
+
+			// Assert
+			assert.NoError(t, err)
+			counts := countAggregateOccurrences(result.Aggregates)
+			checkLen(counts, 999)
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
 	})
 
 	t.Run("Edge Cases", func(t *testing.T) {
 		// size of cv is bigger than available size of all aggregate
+		vmInstanceType := "c3-standard-4-lssd"
 		t.Run("TwoAggregates_CVIsBigger", func(t *testing.T) {
 			// Arrange - 4 aggregates with varying existing volumes
 			aggregates := createTestAggregates([]struct {
@@ -219,7 +306,7 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 				{"aggr2", "online", 10, utils.TiBInBytes},
 			})
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes*2, 4)
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes*2, 4, vmInstanceType)
 
 			// Assert
 			assert.NotNil(t, err)
@@ -232,7 +319,7 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			var aggregates []*vsa.Aggregate
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 8)
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 8, vmInstanceType)
 
 			// Assert
 			assert.Error(t, err)
@@ -245,7 +332,7 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			var aggregates []*vsa.Aggregate
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 0, utils.TiBInBytes, 8)
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 0, utils.TiBInBytes, 8, vmInstanceType)
 
 			// Assert
 			assert.Error(t, err)
@@ -265,7 +352,7 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 				{"aggr2", "offline", 10, utils.TiBInBytes},
 			})
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 4)
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 4, vmInstanceType)
 
 			// Assert
 			assert.Error(t, err)
@@ -274,11 +361,12 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 		})
 
 		t.Run("AllAggregatesAtCapacity_ReturnsError", func(t *testing.T) {
-			// Arrange - 12 aggregates all at max capacity (200)
+			// Arrange - 12 aggregates all at max capacity (1000)
 			aggregates := createTwelveTestAggregates([]int64{1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 24)
+			vmInstanceType = "c3-standard-16-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 24, vmInstanceType)
 
 			// Assert
 			assert.Error(t, err)
@@ -298,7 +386,7 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 24, vmInstanceType)
 
 			// Assert
 			assert.Error(t, err)
@@ -311,7 +399,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act - 1200 constituents (100 per aggregate)
-			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1200, 12*utils.TiBInBytes, 24)
+			vmInstanceType = "c3-standard-22-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1200, 12*utils.TiBInBytes, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -322,6 +411,78 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 				assert.Equal(t, int64(1), counts[fmt.Sprintf("aggr%d", i)])
 			}
 			assert.Equal(t, int64(100), result.AggrMultiplier, "HCF should be 100 for 1200 constituents")
+		})
+
+		t.Run("4CPUsWithMaxCVCount", func(t *testing.T) {
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+				size        int64
+			}{
+				{"aggr1", "online", 1, 12 * utils.TiBInBytes},
+				{"aggr2", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr3", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr4", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr5", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr6", "online", 0, 12 * utils.TiBInBytes},
+			})
+			// Act
+			vmInstanceType = "c3-standard-4-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1500, 12*utils.TiBInBytes, 12, vmInstanceType)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 1500 CVs, but only 1493 capacity available across all aggregates")
+			assert.Nil(t, result)
+		})
+
+		t.Run("8CPUsWithMaxCVCount", func(t *testing.T) {
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+				size        int64
+			}{
+				{"aggr1", "online", 1, 12 * utils.TiBInBytes},
+				{"aggr2", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr3", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr4", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr5", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr6", "online", 0, 12 * utils.TiBInBytes},
+			})
+			// Act
+			vmInstanceType = "c3-standard-8-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 3000, 12*utils.TiBInBytes, 12, vmInstanceType)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 3000 CVs, but only 2993 capacity available across all aggregates")
+			assert.Nil(t, result)
+		})
+
+		t.Run("22CPUsWithMaxCVCount", func(t *testing.T) {
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+				size        int64
+			}{
+				{"aggr1", "online", 1, 12 * utils.TiBInBytes},
+				{"aggr2", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr3", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr4", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr5", "online", 0, 12 * utils.TiBInBytes},
+				{"aggr6", "online", 0, 12 * utils.TiBInBytes},
+			})
+			// Act
+			vmInstanceType = "c3-standard-22-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 6000, 12*utils.TiBInBytes, 12, vmInstanceType)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 6000 CVs, but only 5993 capacity available across all aggregates")
+			assert.Nil(t, result)
 		})
 	})
 }
@@ -374,7 +535,16 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 		return counts
 	}
 
+	checkLen := func(counts map[string]int64, val int64) {
+		assert.Equal(t, val-1, counts["aggr1"])
+		for i := 2; i <= 12; i++ {
+			index := "aggr" + fmt.Sprint(i)
+			assert.Equal(t, val, counts[index])
+		}
+	}
+
 	ctx := context.Background()
+	vmInstanceType := "c3-standard-4-lssd"
 
 	t.Run("Success Cases", func(t *testing.T) {
 		t.Run("SingleConstituent_AssignsToFirstAggregate", func(t *testing.T) {
@@ -382,7 +552,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 1, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 1, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -396,7 +566,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 2, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 2, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -412,7 +582,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 3, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 3, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -429,7 +599,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 12, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 12, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -447,7 +617,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{10, 5, 0, 20, 15, 2, 8, 12, 3, 25, 1, 7})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 3, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 3, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -464,7 +634,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{199, 0, 198, 6, 195, 10, 190, 15, 185, 20, 180, 25})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 10, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 10, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -480,7 +650,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 100, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 100, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -496,6 +666,51 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			}
 			assert.True(t, result.AggrMultiplier > 0, "HCF should be positive")
 		})
+
+		t.Run("4CPUsWithMaxCVCount", func(t *testing.T) {
+			// Arrange - 12 aggregates with 0 volumes
+
+			aggregates := createTwelveTestAggregates([]int64{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+			// Act
+			vmInstanceType := "c3-standard-4-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 2987, 24, vmInstanceType)
+
+			// Assert
+			assert.NoError(t, err)
+			counts := countAggregateOccurrences(result.Aggregates)
+			checkLen(counts, 249)
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		t.Run("8CPUsWithMaxCVCount", func(t *testing.T) {
+			// Arrange - 12 aggregates with 0 volumes
+
+			aggregates := createTwelveTestAggregates([]int64{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+			// Act
+			vmInstanceType := "c3-standard-8-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5987, 24, vmInstanceType)
+
+			// Assert
+			assert.NoError(t, err)
+			counts := countAggregateOccurrences(result.Aggregates)
+			checkLen(counts, 499)
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
+
+		t.Run("22CPUsWithMaxCVCount", func(t *testing.T) {
+			// Arrange - 12 aggregates with 0 volumes
+
+			aggregates := createTwelveTestAggregates([]int64{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+			// Act
+			vmInstanceType := "c3-standard-22-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 11987, 24, vmInstanceType)
+
+			// Assert
+			assert.NoError(t, err)
+			counts := countAggregateOccurrences(result.Aggregates)
+			checkLen(counts, 999)
+			assert.Equal(t, int64(1), result.AggrMultiplier)
+		})
 	})
 
 	t.Run("Edge Cases", func(t *testing.T) {
@@ -504,7 +719,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{0, 50, 100, 25, 75, 10, 60, 30, 40, 80, 20, 90})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 0, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 0, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -515,7 +730,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			var aggregates []*vsa.Aggregate
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5, 24, vmInstanceType)
 
 			// Assert
 			assert.Error(t, err)
@@ -537,7 +752,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5, 24, vmInstanceType)
 
 			// Assert
 			assert.Error(t, err)
@@ -550,7 +765,8 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			aggregates := createTwelveTestAggregates([]int64{1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5, 24)
+			vmInstanceType = "c3-standard-44-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5, 24, vmInstanceType)
 
 			// Assert
 			assert.Error(t, err)
@@ -569,7 +785,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			})
 
 			// Act
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 5, 24, vmInstanceType)
 
 			// Assert
 			assert.Error(t, err)
@@ -591,7 +807,7 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 			})
 
 			// Act - 1200 constituents (100 per aggregate)
-			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 1200, 24)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 1200, 24, vmInstanceType)
 
 			// Assert
 			assert.NoError(t, err)
@@ -602,6 +818,75 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 				assert.Equal(t, int64(1), counts[fmt.Sprintf("aggr%d", i)])
 			}
 			assert.Equal(t, int64(100), result.AggrMultiplier, "HCF should be 100 for 1200 constituents")
+		})
+
+		t.Run("4CPUsWithMaxCVCount", func(t *testing.T) {
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+			}{
+				{"aggr1", "online", 1},
+				{"aggr2", "online", 0},
+				{"aggr3", "online", 0},
+				{"aggr4", "online", 0},
+				{"aggr5", "online", 0},
+				{"aggr6", "online", 0},
+			})
+			// Act
+			vmInstanceType = "c3-standard-4-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 1500, 12, vmInstanceType)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 1500 CVs, but only 1493 capacity available across all aggregates")
+			assert.Nil(t, result)
+		})
+
+		t.Run("8CPUsWithMaxCVCount", func(t *testing.T) {
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+			}{
+				{"aggr1", "online", 1},
+				{"aggr2", "online", 0},
+				{"aggr3", "online", 0},
+				{"aggr4", "online", 0},
+				{"aggr5", "online", 0},
+				{"aggr6", "online", 0},
+			})
+			// Act
+			vmInstanceType = "c3-standard-8-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 3000, 12, vmInstanceType)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 3000 CVs, but only 2993 capacity available across all aggregates")
+			assert.Nil(t, result)
+		})
+
+		t.Run("22CPUsWithMaxCVCount", func(t *testing.T) {
+			aggregates := createTestAggregates([]struct {
+				name        string
+				state       string
+				volumeCount int64
+			}{
+				{"aggr1", "online", 1},
+				{"aggr2", "online", 0},
+				{"aggr3", "online", 0},
+				{"aggr4", "online", 0},
+				{"aggr5", "online", 0},
+				{"aggr6", "online", 0},
+			})
+			// Act
+			vmInstanceType = "c3-standard-22-lssd"
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 6000, 12, vmInstanceType)
+
+			// Assert
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 6000 CVs, but only 5993 capacity available across all aggregates")
+			assert.Nil(t, result)
 		})
 	})
 }

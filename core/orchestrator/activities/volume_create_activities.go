@@ -3,12 +3,14 @@ package activities
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -89,12 +91,19 @@ func (a VolumeCreateActivity) GetAggregatesFromOntap(ctx context.Context, volume
 		largeVolumeConstituentCount = int64(*volume.LargeVolumeAttributes.LargeVolumeConstituentCount)
 	}
 
+	// Get the VSA instance type detail from Pool table
+	vlmConfig := &vlm.VLMConfig{}
+	err = json.Unmarshal([]byte(volume.Pool.VLMConfig), vlmConfig)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("error unmarshalling VLM config from pool: %v", err))
+	}
+
 	var result *models.AggregateDistributionResult
 	// Get the aggregate distribution using the optimized greedy approach
 	if volume.Pool.AllowAutoTiering {
-		result, err = CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, res, largeVolumeConstituentCount, totalNodes)
+		result, err = CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, res, largeVolumeConstituentCount, totalNodes, vlmConfig.Deployment.VSAInstanceType)
 	} else {
-		result, err = CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, res, largeVolumeConstituentCount, volume.SizeInBytes, totalNodes)
+		result, err = CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, res, largeVolumeConstituentCount, volume.SizeInBytes, totalNodes, vlmConfig.Deployment.VSAInstanceType)
 	}
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)

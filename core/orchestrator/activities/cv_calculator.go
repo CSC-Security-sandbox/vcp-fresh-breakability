@@ -7,20 +7,18 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 const AggregateStateOnline = "online"
-
-var maxConstituentsPerAggregate = env.GetInt64("MAX_CONSTITUENTS_PER_AGGREGATE", 1000)
 
 var availableAggregateStates = []string{AggregateStateOnline}
 
 // CalculateAggregatesForConstituentVolumesWithSpaceLimits calculates the optimal distribution of constituent volumes
 // across available aggregates using an optimized greedy approach with first and second maxima tracking.
 // Returns the aggregate distribution result containing the list of aggregates and multiplier.
-func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context, aggregates []*vsa.Aggregate, largeVolumeConstituentCount, size int64, totalNodes int) (*models.AggregateDistributionResult, error) {
+func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context, aggregates []*vsa.Aggregate, largeVolumeConstituentCount, size int64, totalNodes int, instanceType string) (*models.AggregateDistributionResult, error) {
 	logger := util.GetLogger(ctx)
 	expectedAggregateCount := totalNodes / 2
 
@@ -32,6 +30,8 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 	if len(aggregates) != expectedAggregateCount {
 		return nil, fmt.Errorf("expected exactly %d aggregates, got %d", expectedAggregateCount, len(aggregates))
 	}
+
+	maxConstituentsPerAggregate := GetMaxConstituentsPerAggregate(logger, instanceType)
 
 	// Build map of aggregate name to available CVs based on size
 	aggregateNameToAvailableCvMap := make(map[string]int64)
@@ -147,7 +147,7 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 // CalculateAggregatesForConstituentVolumesWithCVLimits calculates the optimal distribution of constituent volumes
 // across available aggregates using an optimized greedy approach with first and second minima tracking.
 // Returns the aggregate distribution result containing the list of aggregates and multiplier.
-func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, aggregates []*vsa.Aggregate, largeVolumeConstituentCount int64, totalNodes int) (*models.AggregateDistributionResult, error) {
+func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, aggregates []*vsa.Aggregate, largeVolumeConstituentCount int64, totalNodes int, instanceType string) (*models.AggregateDistributionResult, error) {
 	logger := util.GetLogger(ctx)
 	expectedAggregateCount := totalNodes / 2
 
@@ -155,6 +155,9 @@ func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, a
 	if len(aggregates) != expectedAggregateCount {
 		return nil, fmt.Errorf("expected exactly %d aggregates, got %d", expectedAggregateCount, len(aggregates))
 	}
+
+	maxConstituentsPerAggregate := GetMaxConstituentsPerAggregate(logger, instanceType)
+
 	// Build aggregate state: map of aggregate name to current CV count
 	aggregateState := make(map[string]int64)
 	availableAggregates := make([]string, 0, len(aggregates))
@@ -331,4 +334,22 @@ func gcd(a, b int64) int64 {
 		a, b = b, a%b
 	}
 	return a
+}
+
+// GetMaxConstituentsPerAggregate returns the maximum number of constituent volumes allowed per aggregate.
+// Since each aggregate is linked to a node in an HA pair, and for each node there is vol0 that is why we subtract 1 from the max limit.
+// MaxConstituentsPerAggregate is determined based on the VM instance type.
+// Ex- for c3-standard-4 -> 249, c3-standard-8 -> 499, and above 8 vCPUs -> 999
+func GetMaxConstituentsPerAggregate(logger log.Logger, instanceType string) int64 {
+	switch instanceType {
+	case "c3-standard-4-lssd":
+		return 249
+	case "c3-standard-8-lssd":
+		return 499
+	case "c3-standard-22-lssd", "c3-standard-44-lssd", "c3-standard-88-lssd":
+		return 999
+	default:
+		logger.Warnf("Unknown instance type %s, defaulting MaxConstituentsPerAggregate to 1000", instanceType)
+		return 999
+	}
 }

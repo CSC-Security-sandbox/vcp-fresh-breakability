@@ -3595,7 +3595,10 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 				LargeCapacity:               true,
 				LargeVolumeConstituentCount: &constituentCount,
 			},
-			Pool: &datamodel.Pool{AllowAutoTiering: false},
+			Pool: &datamodel.Pool{
+				AllowAutoTiering: false,
+				VLMConfig:        "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-8-lssd\"}}",
+			},
 		}
 
 		// Create mock aggregates - exactly 6 aggregates as required
@@ -3694,7 +3697,10 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 				LargeCapacity:               true,
 				LargeVolumeConstituentCount: &constituentCount,
 			},
-			Pool: &datamodel.Pool{AllowAutoTiering: false},
+			Pool: &datamodel.Pool{
+				AllowAutoTiering: false,
+				VLMConfig:        "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-16-lssd\"}}",
+			},
 		}
 
 		// Act
@@ -3738,7 +3744,10 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 				LargeCapacity:               true,
 				LargeVolumeConstituentCount: &constituentCount,
 			},
-			Pool: &datamodel.Pool{AllowAutoTiering: false},
+			Pool: &datamodel.Pool{
+				AllowAutoTiering: false,
+				VLMConfig:        "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-4-lssd\"}}",
+			},
 		}
 
 		// Act

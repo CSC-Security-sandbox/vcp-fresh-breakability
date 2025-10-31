@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -26,6 +27,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -36,22 +38,21 @@ import (
 )
 
 var (
-	numOfLvHAPairs                    = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
-	maxConstituentVolumesPerAggregate = env.GetInt("MAX_CONSTITUENTS_PER_AGGREGATE", 1000)
-	volumeRefreshIntervalMinutes      = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
-	maxThinClonesPerPool              = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
-	minQuotaInBytesVolume             = utils.MinQuotaInBytesVolumeForVolume
-	maxQuotaInBytesVolume             = utils.MaxQuotaInBytesVolumeForVolume
-	createVolume                      = _createVolume
-	revertVolume                      = _revertVolume
-	validateCreateVolumeParams        = _validateCreateVolumeParams
-	getIPAddressForVolume             = _getIPAddressForVolume
-	updateVolume                      = _updateVolume
-	deleteVolume                      = _deleteVolume
-	validateDeleteVolumeParams        = _validateDeleteVolumeParams
-	updateVolumeStatus                = _updateVolumeStatus
-	convertDatastoreVolumeToModel     = _convertDatastoreVolumeToModel
-	minPrimeNumberConfigAllowed       = 7
+	numOfLvHAPairs                = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
+	volumeRefreshIntervalMinutes  = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
+	maxThinClonesPerPool          = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
+	minQuotaInBytesVolume         = utils.MinQuotaInBytesVolumeForVolume
+	maxQuotaInBytesVolume         = utils.MaxQuotaInBytesVolumeForVolume
+	createVolume                  = _createVolume
+	revertVolume                  = _revertVolume
+	validateCreateVolumeParams    = _validateCreateVolumeParams
+	getIPAddressForVolume         = _getIPAddressForVolume
+	updateVolume                  = _updateVolume
+	deleteVolume                  = _deleteVolume
+	validateDeleteVolumeParams    = _validateDeleteVolumeParams
+	updateVolumeStatus            = _updateVolumeStatus
+	convertDatastoreVolumeToModel = _convertDatastoreVolumeToModel
+	minPrimeNumberConfigAllowed   = 7
 
 	envIsLocalEnv                                   = env.IsLocalEnv
 	cvpCreateClient                                 = cvp.CreateClient
@@ -948,7 +949,19 @@ func isPrime(constituentVolumeCount int) bool {
 	return true
 }
 
+func getMaxConstituentVolumesPerAggregate(logger log.Logger, config string) (int64, error) {
+	// Get the VSA instance type detail from Pool table
+	vlmConfig := &vlm.VLMConfig{}
+	err := json.Unmarshal([]byte(config), vlmConfig)
+	if err != nil {
+		return 0, err
+	}
+
+	return activities.GetMaxConstituentsPerAggregate(logger, vlmConfig.Deployment.VSAInstanceType), nil
+}
+
 func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+	logger := util.GetLogger(ctx)
 	if pool.LargeCapacity != params.LargeCapacity {
 		return customerrors.NewUserInputValidationErr("pool large capacity setting does not match volume large capacity setting")
 	}
@@ -962,13 +975,23 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			return customerrors.NewUserInputValidationErr("BlockDevices are not supported for large capacity volumes")
 		}
 
-		if params.LargeVolumeConstituentCount > int32(numOfLvHAPairs*maxConstituentVolumesPerAggregate) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(numOfLvHAPairs*maxConstituentVolumesPerAggregate)))
-		}
+		if params.LargeVolumeConstituentCount > 0 {
+			// validate large volume constituent count is not prime
+			if params.LargeVolumeConstituentCount >= int32(minPrimeNumberConfigAllowed) && isPrime(int(params.LargeVolumeConstituentCount)) {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
+			}
 
-		// validate large volume constituent count is not prime
-		if params.LargeVolumeConstituentCount > 0 && params.LargeVolumeConstituentCount >= int32(minPrimeNumberConfigAllowed) && isPrime(int(params.LargeVolumeConstituentCount)) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
+			// validate large volume constituent count is within allowed limit
+			maxConstituentVolumesPerAggregate, err := getMaxConstituentVolumesPerAggregate(logger, pool.VLMConfig)
+			if err != nil {
+				return customerrors.NewTransientErr(fmt.Sprintf("error unmarshalling VLM config from pool: %v", err))
+			}
+
+			// Subtracting 1 because there will always be root vol in the aggregate at start
+			finalMaxCVs := (numOfLvHAPairs * maxConstituentVolumesPerAggregate) - 1
+			if int64(params.LargeVolumeConstituentCount) > finalMaxCVs {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(finalMaxCVs)))
+			}
 		}
 
 		if params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume {
