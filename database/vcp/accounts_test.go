@@ -443,3 +443,237 @@ func TestUpdateAccountStateForHandleResource(t *testing.T) {
 		}
 	})
 }
+
+func TestUpdateAccountVolumeRefreshTimestamp(t *testing.T) {
+	t.Run("WhenAccountExistsWithNoMetadata", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account without metadata
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name:            "test_account",
+			AccountMetadata: nil, // No metadata initially
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Update the timestamp
+		completionTime := time.Now()
+		err = store.UpdateAccountVolumeRefreshTimestamp(context.Background(), account.UUID, completionTime)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify the timestamp was updated
+		updatedAccount, err := store.GetAccountByUUID(context.Background(), account.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated account")
+		assert.NotNil(tt, updatedAccount.AccountMetadata, "AccountMetadata should not be nil")
+		assert.WithinDuration(tt, completionTime, updatedAccount.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt, time.Second)
+	})
+
+	t.Run("WhenAccountExistsWithExistingMetadata", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account with existing metadata
+		oldTime := time.Now().Add(-24 * time.Hour)
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+			AccountMetadata: &datamodel.AccountMetadata{
+				VolumeRefreshWorkflowLastCompletionAt: oldTime,
+			},
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Update the timestamp
+		newTime := time.Now()
+		err = store.UpdateAccountVolumeRefreshTimestamp(context.Background(), account.UUID, newTime)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify the timestamp was updated
+		updatedAccount, err := store.GetAccountByUUID(context.Background(), account.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated account")
+		assert.NotNil(tt, updatedAccount.AccountMetadata, "AccountMetadata should not be nil")
+		assert.WithinDuration(tt, newTime, updatedAccount.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt, time.Second)
+		assert.NotEqual(tt, oldTime, updatedAccount.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt, "Timestamp should be updated")
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Try to update timestamp for non-existent account
+		err = store.UpdateAccountVolumeRefreshTimestamp(context.Background(), "non-existent-uuid", time.Now())
+
+		// Should return an error since GetAccountByUUID will fail
+		assert.Error(tt, err, "Expected error for non-existent account")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, 404, *customErr.HttpCode, "Expected 404 error code")
+		}
+	})
+
+	t.Run("WhenZeroTimeIsProvided", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name:            "test_account",
+			AccountMetadata: nil,
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Update with zero time
+		zeroTime := time.Time{}
+		err = store.UpdateAccountVolumeRefreshTimestamp(context.Background(), account.UUID, zeroTime)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify the timestamp was set to zero time
+		updatedAccount, err := store.GetAccountByUUID(context.Background(), account.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated account")
+		assert.NotNil(tt, updatedAccount.AccountMetadata, "AccountMetadata should not be nil")
+		assert.True(tt, updatedAccount.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt.IsZero(), "Timestamp should be zero")
+	})
+
+	t.Run("WhenFutureTimeIsProvided", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name:            "test_account",
+			AccountMetadata: nil,
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Update with future time
+		futureTime := time.Now().Add(24 * time.Hour)
+		err = store.UpdateAccountVolumeRefreshTimestamp(context.Background(), account.UUID, futureTime)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify the timestamp was set to future time
+		updatedAccount, err := store.GetAccountByUUID(context.Background(), account.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated account")
+		assert.NotNil(tt, updatedAccount.AccountMetadata, "AccountMetadata should not be nil")
+		assert.WithinDuration(tt, futureTime, updatedAccount.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt, time.Second)
+	})
+
+	t.Run("WhenMultipleUpdatesArePerformed", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name:            "test_account",
+			AccountMetadata: nil,
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Perform multiple updates
+		time1 := time.Now()
+		err = store.UpdateAccountVolumeRefreshTimestamp(context.Background(), account.UUID, time1)
+		assert.NoError(tt, err)
+
+		time2 := time.Now().Add(1 * time.Hour)
+		err = store.UpdateAccountVolumeRefreshTimestamp(context.Background(), account.UUID, time2)
+		assert.NoError(tt, err)
+
+		time3 := time.Now().Add(2 * time.Hour)
+		err = store.UpdateAccountVolumeRefreshTimestamp(context.Background(), account.UUID, time3)
+		assert.NoError(tt, err)
+
+		// Verify the final timestamp
+		updatedAccount, err := store.GetAccountByUUID(context.Background(), account.UUID)
+		assert.NoError(tt, err, "Failed to retrieve updated account")
+		assert.NotNil(tt, updatedAccount.AccountMetadata, "AccountMetadata should not be nil")
+		assert.WithinDuration(tt, time3, updatedAccount.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt, time.Second)
+	})
+
+	t.Run("WhenDatabaseError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name:            "test_account",
+			AccountMetadata: nil,
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Close the database to simulate a database error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		// Try to update timestamp when database is closed
+		err = store.UpdateAccountVolumeRefreshTimestamp(context.Background(), account.UUID, time.Now())
+
+		// Should return a VCP error wrapping the database error
+		// The error occurs during GetAccountByUUID (read operation), not during the update
+		assert.Error(tt, err)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, customErr.TrackingID, "Expected database read error code since GetAccountByUUID fails first")
+		}
+	})
+}

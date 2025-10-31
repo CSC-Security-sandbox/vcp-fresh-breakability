@@ -15941,7 +15941,7 @@ func TestTriggerRefreshWorkflow(t *testing.T) {
 			temporal: mockTemporal,
 		}
 
-		err := orch.TriggerRefreshWorkflow(ctx, []*datamodel.Volume{})
+		err := orch.TriggerRefreshWorkflow(ctx, &datamodel.Account{}, []*datamodel.Volume{})
 
 		assert.NoError(tt, err)
 		// No temporal calls should be made for empty volumes
@@ -15968,14 +15968,10 @@ func TestTriggerRefreshWorkflow(t *testing.T) {
 			Account:   account,
 		}
 
-		// Mock QueryWorkflow to return NotFound error
-		notFoundError := &serviceerror.NotFound{Message: "workflow not found"}
-		mockTemporal.EXPECT().QueryWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, notFoundError)
-
 		// Mock ExecuteWorkflow to succeed
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
-		err := orch.TriggerRefreshWorkflow(ctx, []*datamodel.Volume{volume})
+		err := orch.TriggerRefreshWorkflow(ctx, account, []*datamodel.Volume{volume})
 
 		assert.NoError(tt, err)
 	})
@@ -16001,15 +15997,11 @@ func TestTriggerRefreshWorkflow(t *testing.T) {
 			Account:   account,
 		}
 
-		// Mock QueryWorkflow to return NotFound error
-		notFoundError := &serviceerror.NotFound{Message: "workflow not found"}
-		mockTemporal.EXPECT().QueryWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, notFoundError)
-
 		// Mock ExecuteWorkflow to fail
 		executeError := errors2.New("failed to execute workflow")
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, executeError)
 
-		err := orch.TriggerRefreshWorkflow(ctx, []*datamodel.Volume{volume})
+		err := orch.TriggerRefreshWorkflow(ctx, account, []*datamodel.Volume{volume})
 
 		assert.Error(tt, err)
 		assert.Equal(tt, executeError, err)

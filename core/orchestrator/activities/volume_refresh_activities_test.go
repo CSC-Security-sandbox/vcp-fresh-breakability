@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -599,7 +600,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_NoPoolResults(t *testi
 	}
 
 	input := &ProcessOntapVolumeMatchingInput{
-		DbVolumes:           []*datamodel.Volume{dbVolume},
+		DbVolumes: []*datamodel.Volume{dbVolume},
 		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
 			// No results for this pool
 		},
@@ -1036,4 +1037,122 @@ func Test_filterOntapVolumes_AllInvalid(t *testing.T) {
 
 	// At least the nil volume and the one with nil UUID should be filtered out
 	assert.GreaterOrEqual(t, len(result), 0)
+}
+
+func TestVolumeRefreshActivity_UpdateAccountVolumeRefreshTimestamp_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	accountUUID := "test-account-uuid"
+	completionTime := time.Now()
+
+	input := &UpdateAccountVolumeRefreshTimestampInput{
+		AccountUUID: accountUUID,
+		CompletedAt: completionTime,
+	}
+
+	// Mock UpdateAccountVolumeRefreshTimestamp to succeed
+	mockStorage.On("UpdateAccountVolumeRefreshTimestamp", ctx, accountUUID, completionTime).Return(nil)
+
+	err := activity.UpdateAccountVolumeRefreshTimestamp(ctx, input)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestVolumeRefreshActivity_UpdateAccountVolumeRefreshTimestamp_NilInput(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	err := activity.UpdateAccountVolumeRefreshTimestamp(ctx, nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "UpdateAccountVolumeRefreshTimestamp input cannot be nil")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestVolumeRefreshActivity_UpdateAccountVolumeRefreshTimestamp_EmptyAccountUUID(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := &UpdateAccountVolumeRefreshTimestampInput{
+		AccountUUID: "", // Empty UUID
+		CompletedAt: time.Now(),
+	}
+
+	err := activity.UpdateAccountVolumeRefreshTimestamp(ctx, input)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "account UUID cannot be empty")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestVolumeRefreshActivity_UpdateAccountVolumeRefreshTimestamp_DatabaseError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	accountUUID := "test-account-uuid"
+	completionTime := time.Now()
+
+	input := &UpdateAccountVolumeRefreshTimestampInput{
+		AccountUUID: accountUUID,
+		CompletedAt: completionTime,
+	}
+
+	expectedError := errors.New("database error")
+	mockStorage.On("UpdateAccountVolumeRefreshTimestamp", ctx, accountUUID, completionTime).Return(expectedError)
+
+	err := activity.UpdateAccountVolumeRefreshTimestamp(ctx, input)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update account volume refresh timestamp")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestVolumeRefreshActivity_UpdateAccountVolumeRefreshTimestamp_ZeroTime(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	accountUUID := "test-account-uuid"
+	zeroTime := time.Time{} // Zero time
+
+	input := &UpdateAccountVolumeRefreshTimestampInput{
+		AccountUUID: accountUUID,
+		CompletedAt: zeroTime,
+	}
+
+	// Mock should accept zero time - it's a valid timestamp
+	mockStorage.On("UpdateAccountVolumeRefreshTimestamp", ctx, accountUUID, zeroTime).Return(nil)
+
+	err := activity.UpdateAccountVolumeRefreshTimestamp(ctx, input)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestVolumeRefreshActivity_UpdateAccountVolumeRefreshTimestamp_FutureTime(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	accountUUID := "test-account-uuid"
+	futureTime := time.Now().Add(24 * time.Hour) // Future time
+
+	input := &UpdateAccountVolumeRefreshTimestampInput{
+		AccountUUID: accountUUID,
+		CompletedAt: futureTime,
+	}
+
+	// Mock should accept future time - validation is not enforced at activity level
+	mockStorage.On("UpdateAccountVolumeRefreshTimestamp", ctx, accountUUID, futureTime).Return(nil)
+
+	err := activity.UpdateAccountVolumeRefreshTimestamp(ctx, input)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
 }

@@ -115,3 +115,30 @@ func (d *DataStoreRepository) UpdateAccountStateForHandleResource(ctx context.Co
 	}
 	return nil
 }
+
+// UpdateAccountVolumeRefreshTimestamp updates the VolumeRefreshWorkflowLastCompletionAt timestamp in AccountMetadata
+func (d *DataStoreRepository) UpdateAccountVolumeRefreshTimestamp(ctx context.Context, accountUUID string, completionTime time.Time) error {
+	db := d.db.GORM().WithContext(ctx)
+
+	// Fetch the account first to get or initialize AccountMetadata
+	account, err := d.GetAccountByUUID(ctx, accountUUID)
+	if err != nil {
+		return err
+	}
+
+	// Initialize AccountMetadata if it doesn't exist
+	if account.AccountMetadata == nil {
+		account.AccountMetadata = &datamodel.AccountMetadata{}
+	}
+
+	// Update the timestamp
+	account.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt = completionTime
+
+	// Save the updated metadata
+	err = db.Model(&datamodel.Account{}).Where("uuid = ?", accountUUID).Update("account_metadata", account.AccountMetadata).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	return nil
+}

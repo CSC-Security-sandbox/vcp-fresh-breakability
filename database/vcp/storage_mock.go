@@ -11741,6 +11741,54 @@ func (_c *MockStorage_UpdateAccountStateForHandleResource_Call) RunAndReturn(run
 	return _c
 }
 
+// UpdateAccountVolumeRefreshTimestamp provides a mock function with given fields: ctx, accountUUID, completionTime
+func (_m *MockStorage) UpdateAccountVolumeRefreshTimestamp(ctx context.Context, accountUUID string, completionTime time.Time) error {
+	ret := _m.Called(ctx, accountUUID, completionTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAccountVolumeRefreshTimestamp")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, time.Time) error); ok {
+		r0 = rf(ctx, accountUUID, completionTime)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdateAccountVolumeRefreshTimestamp_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAccountVolumeRefreshTimestamp'
+type MockStorage_UpdateAccountVolumeRefreshTimestamp_Call struct {
+	*mock.Call
+}
+
+// UpdateAccountVolumeRefreshTimestamp is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountUUID string
+//   - completionTime time.Time
+func (_e *MockStorage_Expecter) UpdateAccountVolumeRefreshTimestamp(ctx interface{}, accountUUID interface{}, completionTime interface{}) *MockStorage_UpdateAccountVolumeRefreshTimestamp_Call {
+	return &MockStorage_UpdateAccountVolumeRefreshTimestamp_Call{Call: _e.mock.On("UpdateAccountVolumeRefreshTimestamp", ctx, accountUUID, completionTime)}
+}
+
+func (_c *MockStorage_UpdateAccountVolumeRefreshTimestamp_Call) Run(run func(ctx context.Context, accountUUID string, completionTime time.Time)) *MockStorage_UpdateAccountVolumeRefreshTimestamp_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(time.Time))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateAccountVolumeRefreshTimestamp_Call) Return(_a0 error) *MockStorage_UpdateAccountVolumeRefreshTimestamp_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdateAccountVolumeRefreshTimestamp_Call) RunAndReturn(run func(context.Context, string, time.Time) error) *MockStorage_UpdateAccountVolumeRefreshTimestamp_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateActiveDirectory provides a mock function with given fields: ctx, ad
 func (_m *MockStorage) UpdateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error) {
 	ret := _m.Called(ctx, ad)

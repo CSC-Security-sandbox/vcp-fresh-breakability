@@ -185,5 +185,26 @@ func (wf *volumeMetricHydrationWorkflow) Run(ctx workflow.Context, args ...inter
 		log.Debugf("No volumes to update in database")
 	}
 
+	// Step 6: Update account metadata with workflow completion timestamp
+	if len(dbVolumes) > 0 && dbVolumes[0].Account != nil {
+		accountUUID := dbVolumes[0].Account.UUID
+		completionTime := workflow.Now(ctx)
+
+		log.Infof("Updating account %s VolumeRefreshWorkflow completion timestamp to %v",
+			accountUUID, completionTime)
+
+		err = workflow.ExecuteActivity(ctx, volumeRefreshActivity.UpdateAccountVolumeRefreshTimestamp,
+			&activities.UpdateAccountVolumeRefreshTimestampInput{
+				AccountUUID: accountUUID,
+				CompletedAt: completionTime,
+			}).Get(ctx, nil)
+		if err != nil {
+			// Log error but don't fail the workflow - this is a metadata update
+			log.Errorf("Failed to update account volume refresh timestamp: %v", err)
+		} else {
+			log.Infof("Successfully updated account volume refresh timestamp for account %s", accountUUID)
+		}
+	}
+
 	return nil, nil
 }

@@ -599,6 +599,10 @@ func (s *PersistenceStore) UpdateAccountStateForHandleResource(ctx context.Conte
 	return s.dataStore.UpdateAccountStateForHandleResource(ctx, accountUUID, newState)
 }
 
+func (s *PersistenceStore) UpdateAccountVolumeRefreshTimestamp(ctx context.Context, accountUUID string, completionTime time.Time) error {
+	return s.dataStore.UpdateAccountVolumeRefreshTimestamp(ctx, accountUUID, completionTime)
+}
+
 func (s *PersistenceStore) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
 	return s.dataStore.CreateAccount(ctx, account)
 }

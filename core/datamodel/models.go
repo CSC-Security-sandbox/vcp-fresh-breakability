@@ -406,11 +406,36 @@ type Svm struct {
 
 type Account struct {
 	BaseModel
-	Name         string `gorm:"column:name"`
-	Description  string `gorm:"column:description"`
-	State        string `json:"state"`
-	StateDetails string `gorm:"column:state_details"`
-	Tags         string `json:"tags" gorm:"type:text"`
+	Name            string           `gorm:"column:name"`
+	Description     string           `gorm:"column:description"`
+	State           string           `json:"state"`
+	StateDetails    string           `gorm:"column:state_details"`
+	Tags            string           `json:"tags" gorm:"type:text"`
+	AccountMetadata *AccountMetadata `gorm:"column:account_metadata;type:jsonb"`
+}
+
+type AccountMetadata struct {
+	VolumeRefreshWorkflowLastCompletionAt time.Time `json:"volumeRefreshWorkflowLastCompletionAt"`
+}
+
+// Scan method for AccountMetadata to handle JSONB data
+func (am *AccountMetadata) Scan(value interface{}) error {
+	if value == nil {
+		*am = AccountMetadata{}
+		return nil
+	}
+
+	b, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+
+	return json.Unmarshal(b, am)
+}
+
+// Value method for AccountMetadata to handle JSONB data
+func (am AccountMetadata) Value() (driver.Value, error) {
+	return json.Marshal(am)
 }
 
 // BaseModel describes the base model shared by all other database models

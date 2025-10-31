@@ -114,6 +114,7 @@ type (
 		RollBackDeletedAccount(ctx context.Context, accountID int64) error
 		GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error)
 		UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error
+		UpdateAccountVolumeRefreshTimestamp(ctx context.Context, accountUUID string, completionTime time.Time) error
 
 		CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
 		DeleteJob(ctx context.Context, id, errorDetails string) error
@@ -309,7 +310,7 @@ type (
 		UpdateActiveDirectory(ctx context.Context, ad *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)
 		GetActiveDirectoryByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.ActiveDirectory, error)
 		GetActiveDirectoryByUuidAndAccountId(ctx context.Context, uuid string, accountID int64) (*datamodel.ActiveDirectory, error)
-		
+
 		// Cluster Peering methods
 		GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx context.Context, accountID int64, onPrempCluster string, poolID int64) (*datamodel.ClusterPeerings, error)
 		CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error)

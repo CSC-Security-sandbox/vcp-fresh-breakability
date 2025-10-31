@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -32,7 +31,6 @@ import (
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 )
@@ -1565,7 +1563,7 @@ func (o *Orchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []strin
 		result = append(result, convertDatastoreVolumeToModel(volume, &ipAddresses))
 	}
 
-	wfErr := o.TriggerRefreshWorkflow(ctx, volumes)
+	wfErr := o.TriggerRefreshWorkflow(ctx, account, volumes)
 	if wfErr != nil {
 		log.Error("Error occurred in TriggerRefreshWorkflow", "error", wfErr.Error())
 	}
@@ -1599,38 +1597,31 @@ func (o *Orchestrator) UpdateVolume(ctx context.Context, param *common.UpdateVol
 	return updateVolume(ctx, o.storage, o.temporal, param, false)
 }
 
-func (o *Orchestrator) TriggerRefreshWorkflow(ctx context.Context, volumes []*datamodel.Volume) error {
+func (o *Orchestrator) TriggerRefreshWorkflow(ctx context.Context, account *datamodel.Account, volumes []*datamodel.Volume) error {
 	log := util.GetLogger(ctx)
 	if len(volumes) == 0 {
 		log.Info("No volumes provided for refresh workflow")
 		return nil
 	}
 
-	workflowId := fmt.Sprintf("VolumeRefreshWorkflow_AccountId_%s", volumes[0].Account.UUID)
-	queryResult, wfErr := o.temporal.QueryWorkflow(ctx, workflowId, "", "status")
-	if wfErr != nil {
-		var notFound *serviceerror.NotFound
-		if !errors.As(wfErr, &notFound) {
-			log.Error("Failed to query VolumeRefreshWorkflow with the ID: "+workflowId, "error", wfErr)
-		}
-	} else {
-		// Workflow exists get its last completion time
-		var wfStatus workflows.VolumeRefreshWorkflowStatus
-		if err := queryResult.Get(&wfStatus); err != nil {
-			log.Error("Failed to get VolumeRefreshWorkflow status", "error", err)
-		} else {
-			lastCompletionTime := wfStatus.CompletionTime
+	if account.AccountMetadata != nil && !account.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt.IsZero() {
+		lastCompletionTime := account.AccountMetadata.VolumeRefreshWorkflowLastCompletionAt
+		timeSinceCompletion := time.Now().Sub(lastCompletionTime)
 
-			if lastCompletionTime != nil {
-				if time.Now().Sub(*lastCompletionTime) <= time.Duration(volumeRefreshIntervalMinutes)*time.Minute {
-					log.Debugf("Skipping VolumeRefreshWorkflow execution (ID: %s) due to recent completion at %v (within last %d minutes)",
-						workflowId, lastCompletionTime, volumeRefreshIntervalMinutes)
-					return nil
-				}
-			}
+		if timeSinceCompletion <= time.Duration(volumeRefreshIntervalMinutes)*time.Minute {
+			log.Debugf("Skipping VolumeRefreshWorkflow execution for account %s due to recent completion at %v (%.1f minutes ago, interval: %d minutes)",
+				account.Name, lastCompletionTime, timeSinceCompletion.Minutes(), volumeRefreshIntervalMinutes)
+			return nil
 		}
+
+		log.Debugf("Last VolumeRefreshWorkflow completion for account %s was at %v (%.1f minutes ago), triggering new execution",
+			account.Name, lastCompletionTime, timeSinceCompletion.Minutes())
+	} else {
+		log.Debugf("No previous VolumeRefreshWorkflow completion timestamp found for account %s, triggering new execution",
+			account.Name)
 	}
 
+	workflowId := fmt.Sprintf("VolumeRefreshWorkflow_AccountId_%s", volumes[0].Account.UUID)
 	_, err := o.temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.BackgroundTaskQueue,

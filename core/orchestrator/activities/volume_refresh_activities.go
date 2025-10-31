@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -380,4 +381,40 @@ func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return provider, nil
+}
+
+// UpdateAccountVolumeRefreshTimestampInput represents input for updating account metadata
+type UpdateAccountVolumeRefreshTimestampInput struct {
+	AccountUUID string
+	CompletedAt time.Time
+}
+
+// UpdateAccountVolumeRefreshTimestamp updates the VolumeRefreshWorkflowLastCompletionAt timestamp in AccountMetadata
+// This activity should be called at the end of VolumeRefreshWorkflow to record the completion time
+func (a *VolumeRefreshActivity) UpdateAccountVolumeRefreshTimestamp(ctx context.Context, input *UpdateAccountVolumeRefreshTimestampInput) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	if input == nil {
+		return fmt.Errorf("UpdateAccountVolumeRefreshTimestamp input cannot be nil")
+	}
+
+	if input.AccountUUID == "" {
+		return fmt.Errorf("account UUID cannot be empty")
+	}
+
+	logger.Infof("Updating VolumeRefreshWorkflow completion timestamp for account %s to %v",
+		input.AccountUUID, input.CompletedAt)
+
+	err := se.UpdateAccountVolumeRefreshTimestamp(ctx, input.AccountUUID, input.CompletedAt)
+	if err != nil {
+		logger.Errorf("Failed to update account volume refresh timestamp for account %s: %v",
+			input.AccountUUID, err)
+		return fmt.Errorf("failed to update account volume refresh timestamp: %w", err)
+	}
+
+	logger.Infof("Successfully updated VolumeRefreshWorkflow completion timestamp for account %s",
+		input.AccountUUID)
+
+	return nil
 }

@@ -1,6 +1,7 @@
 package datamodel
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"testing"
 	"time"
@@ -658,4 +659,172 @@ func stringPtr(s string) *string {
 
 func timePtr(t time.Time) *time.Time {
 	return &t
+}
+
+func TestAccountMetadata_Scan(t *testing.T) {
+	t.Run("WhenValueIsNil", func(tt *testing.T) {
+		var am AccountMetadata
+		err := am.Scan(nil)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, AccountMetadata{}, am)
+		assert.True(tt, am.VolumeRefreshWorkflowLastCompletionAt.IsZero())
+	})
+
+	t.Run("WhenValueIsValidJSON", func(tt *testing.T) {
+		now := time.Now()
+		jsonData := map[string]interface{}{
+			"volumeRefreshWorkflowLastCompletionAt": now.Format(time.RFC3339Nano),
+		}
+		jsonBytes, err := json.Marshal(jsonData)
+		assert.NoError(tt, err)
+
+		var am AccountMetadata
+		err = am.Scan(jsonBytes)
+
+		assert.NoError(tt, err)
+		assert.False(tt, am.VolumeRefreshWorkflowLastCompletionAt.IsZero())
+		// Compare with a small tolerance for time parsing
+		assert.WithinDuration(tt, now, am.VolumeRefreshWorkflowLastCompletionAt, time.Second)
+	})
+
+	t.Run("WhenValueIsEmptyJSON", func(tt *testing.T) {
+		jsonBytes := []byte("{}")
+
+		var am AccountMetadata
+		err := am.Scan(jsonBytes)
+
+		assert.NoError(tt, err)
+		assert.True(tt, am.VolumeRefreshWorkflowLastCompletionAt.IsZero())
+	})
+
+	t.Run("WhenValueIsInvalidJSON", func(tt *testing.T) {
+		invalidJSON := []byte("invalid json")
+
+		var am AccountMetadata
+		err := am.Scan(invalidJSON)
+
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenValueIsNotByteSlice", func(tt *testing.T) {
+		var am AccountMetadata
+		err := am.Scan("not a byte slice")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "type assertion to []byte failed")
+	})
+
+	t.Run("WhenValueIsInteger", func(tt *testing.T) {
+		var am AccountMetadata
+		err := am.Scan(12345)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "type assertion to []byte failed")
+	})
+}
+
+func TestAccountMetadata_Value(t *testing.T) {
+	t.Run("WhenAccountMetadataIsEmpty", func(tt *testing.T) {
+		am := AccountMetadata{}
+
+		value, err := am.Value()
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, value)
+
+		// Verify it's valid JSON
+		var result map[string]interface{}
+		err = json.Unmarshal(value.([]byte), &result)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenAccountMetadataHasTimestamp", func(tt *testing.T) {
+		now := time.Now()
+		am := AccountMetadata{
+			VolumeRefreshWorkflowLastCompletionAt: now,
+		}
+
+		value, err := am.Value()
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, value)
+
+		// Verify it's valid JSON and contains the timestamp
+		var result map[string]interface{}
+		err = json.Unmarshal(value.([]byte), &result)
+		assert.NoError(tt, err)
+		assert.Contains(tt, result, "volumeRefreshWorkflowLastCompletionAt")
+	})
+
+	t.Run("WhenAccountMetadataHasZeroTimestamp", func(tt *testing.T) {
+		am := AccountMetadata{
+			VolumeRefreshWorkflowLastCompletionAt: time.Time{},
+		}
+
+		value, err := am.Value()
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, value)
+
+		// Verify it's valid JSON
+		var result map[string]interface{}
+		err = json.Unmarshal(value.([]byte), &result)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("RoundTripScanAndValue", func(tt *testing.T) {
+		// Test that Scan and Value are inverse operations
+		now := time.Now().UTC().Truncate(time.Millisecond) // Truncate for comparison
+		original := AccountMetadata{
+			VolumeRefreshWorkflowLastCompletionAt: now,
+		}
+
+		// Convert to driver.Value
+		value, err := original.Value()
+		assert.NoError(tt, err)
+
+		// Scan back
+		var scanned AccountMetadata
+		err = scanned.Scan(value)
+		assert.NoError(tt, err)
+
+		// Compare timestamps (with small tolerance for JSON serialization)
+		assert.WithinDuration(tt, original.VolumeRefreshWorkflowLastCompletionAt,
+			scanned.VolumeRefreshWorkflowLastCompletionAt, time.Second)
+	})
+}
+
+func TestAccountMetadata_DriverValue(t *testing.T) {
+	t.Run("WhenUsedAsDriverValue", func(tt *testing.T) {
+		now := time.Now()
+		am := AccountMetadata{
+			VolumeRefreshWorkflowLastCompletionAt: now,
+		}
+
+		// Ensure it implements driver.Valuer
+		var _ driver.Valuer = am
+
+		value, err := am.Value()
+		assert.NoError(tt, err)
+		assert.NotNil(tt, value)
+
+		// Verify the value is []byte
+		_, ok := value.([]byte)
+		assert.True(tt, ok, "Value should return []byte")
+	})
+}
+
+func TestAccountMetadata_ScanInterface(t *testing.T) {
+	t.Run("WhenUsedAsSQLScanner", func(tt *testing.T) {
+		var am AccountMetadata
+
+		// Ensure it implements sql.Scanner
+		// sql.Scanner interface is satisfied by the Scan method
+		jsonData := []byte(`{"volumeRefreshWorkflowLastCompletionAt":"2024-01-01T12:00:00Z"}`)
+		err := am.Scan(jsonData)
+
+		assert.NoError(tt, err)
+		assert.False(tt, am.VolumeRefreshWorkflowLastCompletionAt.IsZero())
+	})
 }

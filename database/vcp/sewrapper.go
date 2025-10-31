@@ -1180,6 +1180,21 @@ func (re *retryEngine) UpdateAccountStateForHandleResource(ctx context.Context, 
 	return err
 }
 
+func (re *retryEngine) UpdateAccountVolumeRefreshTimestamp(ctx context.Context, accountUUID string, completionTime time.Time) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateAccountVolumeRefreshTimestamp(ctx, accountUUID, completionTime)
+		if err != nil {
+			re.logError("UpdateAccountVolumeRefreshTimestamp", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
 	var var0 *datamodel.Job
 	err := retry.Do(func(attempt int) (bool, error) {
