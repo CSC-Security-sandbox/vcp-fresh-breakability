@@ -49,7 +49,9 @@ spec:
             - "--service-account-name={{ .Values.telemetryDeployer.serviceAccount | default "svc-sde-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com" }}"
             - "--max-instances={{ .Values.telemetryDeployer.maxInstances | default "5" }}"
             - "--min-instances={{ .Values.telemetryDeployer.minInstances | default 0 }}"
+            - "--enable-scheduler={{ .Values.telemetryDeployer.enableScheduler | default "true"  }}"
             - "-vpc-connector={{ .Values.telemetryDeployer.vpcConnector | default "" }}"
+            - "--cloud-sql-instances={{ .Values.telemetryDeployer.cloudSqlConnector | default "" }}"
             - "--cloud-sql-image={{ .Values.telemetryDeployer.cloudSqlImage | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" }}"
           {{- if .Values.images.telemetryDeployer.secondary }}
           image: "{{ include "containerImage" (list . (dict "name" "telemetryDeployer" "secondary" true)) | trim }}"

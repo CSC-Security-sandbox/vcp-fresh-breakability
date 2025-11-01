@@ -46,7 +46,7 @@ func main() {
 		minInstances       = flag.Int64("min-instances", 0, "Minimum number of instances")
 		maxInstances       = flag.Int64("max-instances", 1, "Maximum number of instances (0 for no limit)")
 		envVarsFlag        = flag.String("env-vars", "", "Environment variables in format KEY1=VALUE1,KEY2=VALUE2")
-		cloudSQLInstances  = flag.String("cloud-sql-instances", "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres", "Comma-separated list of Cloud SQL instance connection names (project:region:instance)")
+		cloudSQLInstances  = flag.String("cloud-sql-instances", "", "Comma-separated list of Cloud SQL instance connection names (project:region:instance)")
 		enableScheduler    = flag.Bool("enable-scheduler", true, "Enable Cloud Scheduler to invoke the service")
 		serviceAccountName = flag.String("service-account-name", "vcp-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com", "Cloud Run service account name")
 		cloudSQLImage      = flag.String("cloud-sql-image", "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1", "Cloud SQL image URL")
