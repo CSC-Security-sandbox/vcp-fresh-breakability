@@ -144,11 +144,6 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				logger.Error("Snapshot created for backup is not eligible for volume creation", "snapshot_id", dbSnapshot.UUID)
 				return nil, "", customerrors.NewUserInputValidationErr("Snapshot is not eligible for volume creation. Snapshots created for backup, data protection, replication, or clone volumes are not supported.")
 			}
-			// Block if underlying volume itself is a clone (shares bytes with parent)
-			if dbSnapshot.Volume != nil && dbSnapshot.Volume.ClonesSharedBytes > 0 {
-				logger.Error("Snapshot from a clone volume is not eligible for volume creation", "snapshot_id", dbSnapshot.UUID, "volume_id", dbSnapshot.Volume.UUID, "clones_shared_bytes", dbSnapshot.Volume.ClonesSharedBytes)
-				return nil, "", customerrors.NewUserInputValidationErr("Snapshot is not eligible for volume creation. Snapshots created for backup, data protection, replication, or clone volumes are not supported.")
-			}
 			// Block if snapshot name has snapmirror prefix (CRR replication snapshot)
 			if strings.HasPrefix(dbSnapshot.Name, "snapmirror.") {
 				logger.Error("Replication (snapmirror) snapshot is not eligible for volume creation", "snapshot_id", dbSnapshot.UUID, "snapshot_name", dbSnapshot.Name)
