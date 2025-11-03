@@ -168,4 +168,4 @@ jobs:
         with:
           name: ${{ needs.determine-artifact.outputs.artifact-name }}
           path: cicd/vsacictl
-          retention-days: 1
+          retention-days: 180
