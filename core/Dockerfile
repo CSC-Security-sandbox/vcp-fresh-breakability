@@ -6,4 +6,3 @@ COPY common/vsa_config /common/vsa_config
 
 # Set ownership and permissions
 USER nonroot:nonroot
-
