@@ -502,17 +502,17 @@ jobs:
         run: mkdir -p repo-dir2
 
       - name: Run Trivy vulnerability scanner - Table format
-        if: ${{ inputs.trivy_scan_format }} == 'table'
+        if: ${{ inputs.trivy_scan_format == 'table' }}
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}:2.8', matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}:{1}', matrix.image, inputs.tag) }}
+          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.8', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
           format: ${{ inputs.trivy_scan_format }}
           exit-code: 1
           ignore-unfixed: true
           severity: HIGH,CRITICAL
 
       - name: Run Trivy vulnerability scanner
-        if: ${{ inputs.trivy_scan_format }} == 'sarif'
+        if: ${{ inputs.trivy_scan_format == 'sarif' }}
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.8', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
@@ -520,6 +520,7 @@ jobs:
           output: 'repo-dir2/trivy-${{ matrix.image }}.sarif'
 
       - name: upload trivy scan results
+        if: ${{ inputs.trivy_scan_format == 'sarif' }}
         shell: bash -e {0}
         run: |
           if [ -f repo-dir2/trivy-${{ matrix.image }}.sarif ]; then
