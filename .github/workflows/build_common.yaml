@@ -27,7 +27,32 @@ on:
         description: "A flag to check if component version update is required"
         default: false
         type: boolean
-
+      send_slack_notification:
+        description: "A flag to check if a Slack notification should be sent"
+        default: true
+        type: boolean
+      images_to_build:
+        description: "A list of images to build. If not provided, all images will be built"
+        required: false
+        type: string
+        default: "core,google-proxy,vcp-db-migrate,vcp-worker,telemetry,vcp-cloudrun-deployer,ontap-proxy"
+      additional_images_toscan:
+        description: "A list of additional images to scan. If not provided, no additional images will be scanned"
+        required: false
+        type: string
+        default: "cloud-backup-adc"
+      create_release:
+        description: "A flag to indicate if a GitHub release should be created"
+        default: true
+        type: boolean
+      push_charts:
+        description: "A flag to indicate if Helm charts should be pushed"
+        default: true
+        type: boolean
+      trivy_scan_format:
+        description: "Format for Trivy scan results"
+        default: "sarif"
+        type: string
     outputs:
       GHCR_core_URL:
         description: "URL of the core image in GHCR"
@@ -138,6 +163,7 @@ jobs:
       GCP_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker-chart_HELM_URL }}
       GHCR_vsa_harvest_otel_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-harvest-otel-chart_HELM_URL }}
       GCP_vsa_harvest_otel_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vsa-harvest-otel-chart_HELM_URL }}
+      IMAGES_TO_SCAN: ${{ steps.set_image_list.outputs.IMAGES_TO_SCAN }}
       GHCR_ontap_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_ontap-proxy-chart_HELM_URL }}
       GCP_ontap_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_ontap-proxy-chart_HELM_URL }}
     steps:
@@ -148,6 +174,25 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+      - name: Image list to build
+        id: set_image_list
+        run: |
+          IFS=',' read -ra additional_images_toscan <<< "$additional_images_toscan"
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
+          IMAGES+=("${additional_images_toscan[@]}")
+          IMAGES_TO_SCAN='['
+          for item in "${IMAGES[@]}"; do
+              IMAGES_TO_SCAN+="\"$item\","
+          done
+          IMAGES_TO_SCAN="${IMAGES_TO_SCAN%,}]"
+          echo "IMAGES_TO_SCAN=$IMAGES_TO_SCAN" >> $GITHUB_OUTPUT
+          echo "IMAGES_TO_SCAN: ${IMAGES_TO_SCAN}"
+          echo "IMAGES_TO_BUILD is set to: ${{ inputs.images_to_build }}"
+          
+        shell: bash -e {0}
+        env:
+          images_to_build: ${{ inputs.images_to_build }}
+          additional_images_toscan: ${{ inputs.additional_images_toscan }}
 
       - name: Install vsacictl
         uses: ./.github/actions/install-vsacictl
@@ -161,15 +206,22 @@ jobs:
         run: |
           skaffold config set default-repo ""
           make build-all-binaries-prod 
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}" 
           skaffold build
+          # for image in ${IMAGES[*]}; do
+          #     echo "Building image: ${image}"
+          #     skaffold build -b ${image} &
+          # done
+          # wait
           make vcp-db-migrate-image imageVersion=${{ inputs.tag }}
           make vcp-cloudrun-deployer-linux-image imageVersion=${{ inputs.tag }}
+        shell: bash -e {0}
 
       - name: Check if digest exists in the gcloud or not
         shell: bash -e {0}
         run: |
           ALL_DIGESTS_EXIST=1
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer" "ontap-proxy")
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           for IMAGE in "${IMAGES[@]}"; do
               gcpDigest=$(docker inspect "$IMAGE:${{ inputs.tag }}" | jq -r '.[] | .RepoDigests[] | select(contains("-docker.pkg.dev"))')
               echo "gcp digest is $gcpDigest"
@@ -207,7 +259,7 @@ jobs:
           IMAGE_PATH: ${{ vars.AR_IMAGE_PATH }}
           IMAGES_TAG: ${{ inputs.tag }}
           GCP_REGION: ${{ vars.AR_GCP_REGION }}
-        run: vsacictl images push
+        run: vsacictl images push "${{ inputs.images_to_build }}" 
 
       - name: Get image digest via GitHub API
         id: get-digest
@@ -218,7 +270,7 @@ jobs:
           
           token_value=$(echo "$token" | jq -r '.token')
           
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer" "ontap-proxy")
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           for IMAGE in "${IMAGES[@]}"; do
             digest=$(curl -s -H "Authorization: Bearer $token_value" \
             -H "Accept: application/vnd.oci.image.manifest.v1+json" \
@@ -231,7 +283,7 @@ jobs:
         id: generate_artifact_urls
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer" "ontap-proxy")
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           for IMAGE in "${IMAGES[@]}"; do
             DIGEST=$(gcloud artifacts docker images describe ${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }} \
               --format="value(image_summary.digest)")
@@ -249,7 +301,7 @@ jobs:
         run: |
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer" "ontap-proxy")
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           
           for IMAGE in "${IMAGES[@]}"; do
             # Sign GHCR image
@@ -270,12 +322,14 @@ jobs:
           done
         shell: bash -e {0}
       - name: Helm Login to Artifact Registry
+        if: ${{ inputs.push_charts }}
         run: |
           gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{vars.AR_GCP_REGION}}-docker.pkg.dev
           gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{vars.AR_TEMPORAL_HELM_REGION}}-docker.pkg.dev
           helm registry login ghcr.io -u ${{github.actor}} --password ${{ secrets.GHVSA_PAT }}
 
       - name: Update Versions of helm charts
+        if: ${{ inputs.push_charts }}
         shell: bash
         env:
           vcp_worker_ARTIFACT_URL: ${{ env.vcp_worker_ARTIFACT_URL }}
@@ -300,6 +354,7 @@ jobs:
           rm -f temp_file.txt
 
       - name: Package Helm Charts
+        if: ${{ inputs.push_charts }}
         run: |
           charts=( vsa-control-plane vcp-worker-chart vsa-harvest-otel vlm-worker temporal ontap-proxy)
           for chart in ${charts[*]}; do
@@ -309,6 +364,7 @@ jobs:
         shell: bash -e {0}
 
       - name: Push Helm Charts to GHCR
+        if: ${{ inputs.push_charts }}
         run: |
           for CHART in ./helm-packages/*.tgz; do
             if grep -q "temporal" <<< "${CHART}" ; then
@@ -320,6 +376,7 @@ jobs:
         shell: bash -e {0}
 
       - name: Push Helm Charts to Artifact Registry
+        if: ${{ inputs.push_charts }}
         run: |
           for CHART in ./helm-packages/*.tgz; do
             if grep -q "temporal" <<< "${CHART}" ; then
@@ -331,6 +388,7 @@ jobs:
         shell: bash -e {0}
 
       - name: Create a release
+        if: ${{ inputs.create_release }}
         run: gh release create -R https://github.com/${{ github.repository }} --generate-notes ${{ inputs.pre_release && '--prerelease' || '' }} ${{ inputs.tag }} --target ${{inputs.pr_base_branch}}
         env:
           GH_TOKEN: ${{ secrets.GHVSA_PAT }}
@@ -341,7 +399,7 @@ jobs:
         id: generate_output_urls
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer" "ontap-proxy")
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           for IMAGE in "${IMAGES[@]}"; do
             echo "GHCR_${IMAGE}_URL=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
             echo "GCP_${IMAGE}_URL=${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
@@ -393,13 +451,13 @@ jobs:
     name: Run black duck scan on the container images
     needs: [ build_and_publish]
     runs-on: [ self-hosted,linux,bds ]
-
+    strategy:
+      matrix:
+        image: ${{ fromJson(needs.build_and_publish.outputs.IMAGES_TO_SCAN) }}
     steps:
       - name: Run BlackDuck Scan for container images
         shell: bash -e {0}
         run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "cloud-backup-adc" "telemetry" "vcp-cloudrun-deployer" "ontap-proxy")
-          for IMAGE in "${IMAGES[@]}"; do
             echo "Image used for scan is ${IMAGE} - $([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.8" || echo "${{ inputs.tag }}")"
             docker run --rm  --network host -v /home/cvs/opt-dir:/home/cvs/opt-dir -v /var/run/docker.sock:/var/run/docker.sock \
             --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root \
@@ -416,7 +474,8 @@ jobs:
             --detect.docker.inspector.air.gap.path=/bds-inspect/packaged-inspectors/docker/ \
             --detect.docker.passthrough.shared.dir.path.local=/home/cvs/opt-dir"
             echo "BlackDuck scan completed for image: ${IMAGE}"
-          done
+        env:
+          IMAGE: ${{ matrix.image }}
 
   trivy_scan_image:
     name: Run trivy scan on the container images
@@ -432,14 +491,7 @@ jobs:
       security-events: write
     strategy:
       matrix:
-        image:
-          - "google-proxy"
-          - "core"
-          - "vcp-db-migrate"
-          - "vcp-worker"
-          - "cloud-backup-adc"
-          - "vcp-cloudrun-deployer"
-          - "ontap-proxy"
+        image: ${{ fromJson(needs.build_and_publish.outputs.IMAGES_TO_SCAN) }}
 
     steps:
       - name: Log in to the Container registry
@@ -449,8 +501,19 @@ jobs:
       - name: Ensure output directory exists
         run: mkdir -p repo-dir2
 
+      - name: Run Trivy vulnerability scanner - Table format
+        if: ${{ inputs.trivy_scan_format }} == 'table'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}:2.8', matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}:{1}', matrix.image, inputs.tag) }}
+          format: ${{ inputs.trivy_scan_format }}
+          exit-code: 1
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
+        if: ${{ inputs.trivy_scan_format }} == 'sarif'
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.8', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
           format: 'sarif'
@@ -471,7 +534,8 @@ jobs:
           fi
 
   send-slack-notification:
-    needs: [setup-vsacictl, build_and_publish]
+    if: ${{ inputs.send_slack_notification }}
+    needs: [ setup-vsacictl, build_and_publish]
     runs-on: [ ubuntu-22.04 ]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7

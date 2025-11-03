@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -16,13 +17,17 @@ var registry string
 var pushCmd = &cobra.Command{
 	Use:   "push",
 	Short: "A command to handle all images push functionalities",
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
 		if registry != "ghcr" && registry != "gcp" && registry != "" {
 			return fmt.Errorf("invalid registry value: %s, must be 'ghcr', 'gcp' ", registry)
 		}
-		err := PushImages(registry)
+		if len(args) == 0 {
+			return fmt.Errorf("images should be pass as an argument ex:image1,image2")
+		}
+		err := PushImages(registry, args[0])
 		if err != nil {
 			return err
 		}
@@ -30,12 +35,13 @@ var pushCmd = &cobra.Command{
 	},
 }
 
-func PushImages(registry string) error {
+func PushImages(registry, img string) error {
 	// Environment variables
 	imagesConfig := GetImagesConfig()
 
 	// List of images to process
-	images := []string{"google-proxy", "core", "vcp-db-migrate", "vcp-worker", "telemetry", "vcp-cloudrun-deployer", "ontap-proxy"}
+
+	images := strings.Split(img, ",")
 	log.Printf("Images to process: %v\n", images)
 
 	// WaitGroup to manage concurrency

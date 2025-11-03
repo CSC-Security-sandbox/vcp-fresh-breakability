@@ -14,28 +14,36 @@ permissions:
 
 jobs:
   security_scan_pre:
-    name: Obtain PR details
+    name: Prepare for Security Scan
     runs-on: [self-hosted,linux]
     container:
       image: ghcr.io/vcp-vsa-control-plane/vsacictl:${{ vars.VSACICTL_VERSION }}
       options: --user root
+    env:
+      base_branch: origin/main
+      image_list: "core,google-proxy,vcp-db-migrate,vcp-worker,telemetry,vcp-cloudrun-deployer,ontap-proxy"
 
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Generating image tag for security scanning 
         run: |
-          echo "IMAGE_TAG=branch.${PR_NUMBER}.$(git log -1 --format=%H | cut -c  1-10)" >> $GITHUB_ENV
-        env:
-          PR_NUMBER: ${{ github.event.number }}
+          COMMIT_ID=$(git log -1 --format=%H | cut -c  1-10)
+          echo "IMAGE_TAG=sec.build.${COMMIT_ID}" >> $GITHUB_ENV
+          echo "COMMIT_ID=${COMMIT_ID}" >> $GITHUB_ENV
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
+
       - name: Fetching changed files
         id: changed_files
         run: |
-          images=(core google-proxy vcp-db-migrate vcp-worker telemetry vcp-cloudrun-deployer)
-          changed_files=($(git diff  main --name-only | awk -F "/" '{print $1}'| uniq))
+          IFS=',' read -ra IMAGES <<< "${image_list}"
+          changed_files=($(git diff ${BRANCH_NAME} ${base_branch} --name-only --| awk -F "/" '{print $1}'| uniq))
           final_changed_file=""
-          for image in ${images[*]}; do
+          for image in ${IMAGES[*]}; do
               for changed_file in ${changed_files[*]}; do
                   if [[ "${image}" == "${changed_file}" ]]; then
                     if [[ -z ${final_changed_file} ]]; then
@@ -48,11 +56,21 @@ jobs:
           done
           final_changed_file=${final_changed_file%,}
           echo "CHANGED_FILES=${final_changed_file}" >> $GITHUB_ENV
+          echo "Changed files for security scan: ${final_changed_file}"
+          if [[ -z ${final_changed_file} ]]; then
+            echo "No relevant files changed. Skipping security scan."
+            echo "TRIGGER_SCAN=false" >> $GITHUB_OUTPUT
+          else
+            echo "TRIGGER_SCAN=true" >> $GITHUB_OUTPUT
+          fi
         shell: bash -e {0}
     outputs:
       IMAGE_TAG: ${{ env.IMAGE_TAG }}
       CHANGED_FILES: ${{ env.CHANGED_FILES }}
+      TRIGGER_SCAN: ${{ steps.changed_files.outputs.TRIGGER_SCAN }}
+      
   build_and_scan:
+    if: needs.security_scan_pre.outputs.TRIGGER_SCAN == 'true'
     uses: ./.github/workflows/build_common.yaml
     secrets: inherit
     with:
@@ -61,5 +79,7 @@ jobs:
       send_slack_notification: false
       pr_base_branch: ${{ github.event.pull_request.base.ref }}
       images_to_build: ${{ needs.security_scan_pre.outputs.CHANGED_FILES }}
+      push_charts: false
+      trivy_scan_format: table
     needs: security_scan_pre
 
