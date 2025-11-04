@@ -60,6 +60,8 @@ func (s *GoogleUsageSink) completeRecords(records []datamodel.AggregatedUsage) [
 			record.Quantity = float64(utils2.MibtoKib(record.Quantity))
 		case metadata.BackupEnabledVolumeAllocatedSize:
 			record.Quantity = float64(utils2.MibHoursToGibHoursWithRoundOff(record.Quantity))
+		case metadata.XregionReplicationTotalTransferBytes:
+			record.Quantity = float64(utils2.MibToBytes(record.Quantity))
 		default:
 			record.Quantity = float64(utils2.MibHoursToGibHours(record.Quantity))
 		}

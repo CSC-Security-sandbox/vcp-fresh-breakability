@@ -200,6 +200,7 @@ func TestGoogleUsageSink_completeRecords(t *testing.T) {
 
 		ml.On("Debugf", "Google Usage Mapping with ID is ready for billing", "Record ID: ", int64(1)).Once()
 		ml.On("Debugf", "Google Usage Mapping with ID is ready for billing", "Record ID: ", int64(2)).Once()
+		ml.On("Debugf", "Google Usage Mapping with ID is ready for billing", "Record ID: ", int64(3)).Once()
 
 		records := []datamodel.AggregatedUsage{
 			{
@@ -216,11 +217,18 @@ func TestGoogleUsageSink_completeRecords(t *testing.T) {
 				Quantity:         200.0,
 				ResourceType:     metadata.Volume,
 			},
+			{
+				ID:               3,
+				VendorCustomerID: &customerID,
+				MeasuredType:     "XREGION_REPLICATION_TOTAL_TRANSFER_BYTES",
+				Quantity:         200.0,
+				ResourceType:     metadata.VolumeReplicationRelationship,
+			},
 		}
 
 		googleMetrics := sink.completeRecords(records)
 
-		assert.Len(t, googleMetrics, 2)
+		assert.Len(t, googleMetrics, 3)
 		ml.AssertExpectations(t)
 	})
 

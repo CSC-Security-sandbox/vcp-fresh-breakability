@@ -10,7 +10,6 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
@@ -27,10 +26,13 @@ import (
 )
 
 const (
-	NorthAmericaContinent = "northamerica"
-	EuropeContinent       = "europe"
-	RegionPartsCount      = 2
-	ZonePartsCount        = 3
+	NorthAmericaContinent               = "northamerica"
+	EuropeContinent                     = "europe"
+	RegionPartsCount                    = 2
+	ZonePartsCount                      = 3
+	VolumeReplicationSchedule10Minutely = "10Minutely"
+	VolumeReplicationScheduleHourly     = "Hourly"
+	VolumeReplicationScheduleDaily      = "Daily"
 )
 
 var (
@@ -711,11 +713,11 @@ func _getServiceLevel(metric common.GoogleMetric) (string, error) {
 func _getFrequency(serviceLevel string) string {
 	switch serviceLevel {
 	case "1":
-		return vsa.VolumeReplicationSchedule10Minutely
+		return VolumeReplicationSchedule10Minutely
 	case "2":
-		return vsa.VolumeReplicationScheduleHourly
+		return VolumeReplicationScheduleHourly
 	case "3":
-		return vsa.VolumeReplicationScheduleDaily
+		return VolumeReplicationScheduleDaily
 	default:
 		return ""
 	}

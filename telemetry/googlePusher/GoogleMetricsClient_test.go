@@ -2138,17 +2138,17 @@ func Test_getFrequency(t *testing.T) {
 		{
 			name:         "service level 1 should return 10minutely schedule",
 			serviceLevel: "1",
-			expected:     "10minutely",
+			expected:     "10Minutely",
 		},
 		{
 			name:         "service level 2 should return hourly schedule",
 			serviceLevel: "2",
-			expected:     "hourly",
+			expected:     "Hourly",
 		},
 		{
 			name:         "service level 3 should return daily schedule",
 			serviceLevel: "3",
-			expected:     "daily",
+			expected:     "Daily",
 		},
 		{
 			name:         "unknown service level should return empty string",
