@@ -2,8 +2,9 @@ name: Security Scan
 
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, edited, reopened, ready_for_review, synchronize]
+#  Will be enabled after AGA
+#  pull_request:
+#    types: [opened, edited, reopened, ready_for_review, synchronize]
 
 
 permissions:
