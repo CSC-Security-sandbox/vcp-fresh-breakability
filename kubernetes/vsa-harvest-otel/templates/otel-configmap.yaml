@@ -10,7 +10,7 @@ data:
   relay: |
     exporters:
         debug:
-            verbosity: normal
+            verbosity: {{ .Values.otel.logLevel }}
         googlecloud:
             project: {{ .Values.otel.project }}
             metric:
@@ -38,6 +38,7 @@ data:
         groupbyattrs:
             keys:
             - tenant_project
+            - cluster
         memory_limiter:
             check_interval: 5s
             limit_percentage: 80
@@ -53,7 +54,6 @@ data:
                   - set(attributes["gcp.project.id"],attributes["tenant_project"])
                   - set(attributes["k8s.cluster.name"],attributes["cluster"])
                   - delete_key(attributes, "tenant_project")
-                  - delete_key(attributes, "cluster")
     receivers:
         prometheus:
             config:

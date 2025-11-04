@@ -55,6 +55,7 @@ otel:
   pollerMetricsEndPoint: /pollers/prometheus-targets
   harvestMetricEndPoint: /leases-total
   refresh_interval: 180s
+  logLevel: "basic"
   command:
     name: otelcol-contrib
     extraArgs: []
