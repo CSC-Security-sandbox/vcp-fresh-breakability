@@ -234,6 +234,7 @@ telemetryDeployer:
   serviceAccount: "vcp-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com"
   vpcConnector: "projects/netapp-au-se1-autopush-sde-tst/locations/australia-southeast1/connectors/db-connector"
   region: australia-southeast1
+  # schedulerRegion: ""  # Optional: GCP region for Cloud Scheduler (defaults to region if not specified)
   minInstances: 1
   maxInstances: 3
   runMigrationOnStart: false

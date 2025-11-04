@@ -19,6 +19,7 @@ type DeploymentConfig struct {
 	Image              string
 	ProjectID          string
 	Region             string
+	SchedulerRegion    string // Region for Cloud Scheduler (defaults to Region if not specified)
 	MinInstances       int64
 	MaxInstances       int64
 	EnvVars            map[string]string
@@ -40,6 +41,7 @@ func main() {
 		image              = flag.String("image", "us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:latest", "Container image URL")
 		projectID          = flag.String("project", "", "GCP project ID")
 		region             = flag.String("region", "", "GCP region")
+		schedulerRegion    = flag.String("scheduler-region", "", "GCP region for Cloud Scheduler (defaults to region if not specified)")
 		network            = flag.String("network", "", "Network name")
 		subnet             = flag.String("subnet", "", "Subnetwork name")
 		vpcConnector       = flag.String("vpc-connector", "", "VPC Access connector")
@@ -70,11 +72,18 @@ func main() {
 		envVars = getDefaultEnvVars()
 	}
 
+	// Set scheduler region to service region if not specified (backward compatibility)
+	schedulerRegionValue := *schedulerRegion
+	if schedulerRegionValue == "" {
+		schedulerRegionValue = *region
+	}
+
 	config := &DeploymentConfig{
 		ServiceName:        *serviceName,
 		Image:              *image,
 		ProjectID:          *projectID,
 		Region:             *region,
+		SchedulerRegion:    schedulerRegionValue,
 		MinInstances:       *minInstances,
 		MaxInstances:       *maxInstances,
 		EnvVars:            envVars,
@@ -98,7 +107,7 @@ func main() {
 	if config.EnableScheduler {
 		// Get the service URL after deployment
 
-		log.Println("Deploying 5-minutely Cloud Scheduler")
+		log.Printf("Deploying 5-minutely Cloud Scheduler (region: %s)\n", config.SchedulerRegion)
 		serviceURL, err := getCloudRunServiceURL(context.Background(), config)
 		if err != nil {
 			log.Panicf("Failed to get Cloud Run service URL: %v", err)
@@ -111,9 +120,9 @@ func main() {
 			log.Panicf("Failed to deploy Cloud Scheduler: %v", err)
 		}
 
-		log.Printf("Successfully deployed Cloud Scheduler for service %s with cron: %s\n", config.ServiceName, config.SchedulerCron)
+		log.Printf("Successfully deployed Cloud Scheduler for service %s with cron: %s in region: %s\n", config.ServiceName, config.SchedulerCron, config.SchedulerRegion)
 
-		log.Println("Deploying hourly Cloud Scheduler")
+		log.Printf("Deploying hourly Cloud Scheduler (region: %s)\n", config.SchedulerRegion)
 		config.SchedulerCron = "15 * * * *"
 		config.ServiceName = "usage"
 		config.ServiceURL = serviceURL + "/v1/usage"
@@ -122,9 +131,9 @@ func main() {
 			log.Panicf("Failed to deploy Cloud Scheduler: %v", err)
 		}
 
-		log.Printf("Successfully deployed Cloud Scheduler for service %s with cron: %s\n", config.ServiceName, config.SchedulerCron)
+		log.Printf("Successfully deployed Cloud Scheduler for service %s with cron: %s in region: %s\n", config.ServiceName, config.SchedulerCron, config.SchedulerRegion)
 
-		log.Println("Deploying Daily BizOps Cloud Scheduler")
+		log.Printf("Deploying Daily BizOps Cloud Scheduler (region: %s)\n", config.SchedulerRegion)
 		config.SchedulerCron = "0 10 * * *"
 		config.ServiceName = "bizops"
 		config.ServiceURL = serviceURL + "/v1/generateReport"
@@ -133,7 +142,7 @@ func main() {
 			log.Panicf("Failed to deploy Cloud Scheduler: %v", err)
 		}
 
-		log.Printf("Successfully deployed Cloud Scheduler for service %s with cron: %s\n", config.ServiceName, config.SchedulerCron)
+		log.Printf("Successfully deployed Cloud Scheduler for service %s with cron: %s in region: %s\n", config.ServiceName, config.SchedulerCron, config.SchedulerRegion)
 	}
 }
 
@@ -504,7 +513,7 @@ func deployCloudScheduler(ctx context.Context, config *DeploymentConfig) error {
 		return fmt.Errorf("failed to create Cloud Scheduler client: %w", err)
 	}
 
-	parent := fmt.Sprintf("projects/%s/locations/%s", config.ProjectID, config.Region)
+	parent := fmt.Sprintf("projects/%s/locations/%s", config.ProjectID, config.SchedulerRegion)
 	jobName := fmt.Sprintf("%s/jobs/%s-trigger", parent, config.ServiceName)
 
 	// Create the job configuration

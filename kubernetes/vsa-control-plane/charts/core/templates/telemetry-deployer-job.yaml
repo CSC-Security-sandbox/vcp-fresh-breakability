@@ -44,6 +44,9 @@ spec:
             {{- end }}
             - "--project={{ .Values.telemetryDeployer.projectID | default "netapp-au-se1-autopush-sde-tst" }}"
             - "--region={{ .Values.telemetryDeployer.region | default "australia-southeast1" }}"
+            {{- if .Values.telemetryDeployer.schedulerRegion }}
+            - "--scheduler-region={{ .Values.telemetryDeployer.schedulerRegion }}"
+            {{- end }}
             - "--network={{ .Values.telemetryDeployer.network | default "default" }}"
             - "--subnet={{ .Values.telemetryDeployer.subnet | default "default" }}"
             - "--service-account-name={{ .Values.telemetryDeployer.serviceAccount | default "svc-sde-metrics-producer@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com" }}"
