@@ -1293,7 +1293,7 @@ func TestAccessKmsCryptoKey(t *testing.T) {
 		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(dbKmsConfig, nil)
 		origAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
 		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = origAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 
@@ -1324,7 +1324,7 @@ func TestAccessKmsCryptoKey(t *testing.T) {
 		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(dbKmsConfig, nil)
 		origAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
 		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = origAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return errors.New("access error")
 		}
 

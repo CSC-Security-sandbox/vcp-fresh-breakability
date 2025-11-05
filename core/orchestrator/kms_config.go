@@ -41,6 +41,11 @@ var (
 	waitForTemporalEnabled        = env.GetBool("WAIT_FOR_TEMPORAL_ENABLED", true)
 )
 
+const (
+	RetryTimeoutVerifyKmsConfigHealthCheck  = time.Second * 15
+	RetryIntervalVerifyKmsConfigHealthCheck = time.Second * 5
+)
+
 type KmsConfigInterface interface {
 	CreateKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error)
 	GetKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
@@ -618,7 +623,8 @@ func (o *Orchestrator) AccessCryptoKeyAndEncryptDataWithImpersonation(ctx contex
 	if err != nil {
 		return err
 	}
-	return kms_activities.AccessCryptoKeyAndEncryptData(ctx, dbKmsConfig, dbKmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+	return kms_activities.AccessCryptoKeyAndEncryptData(ctx, dbKmsConfig, dbKmsConfig.ServiceAccount.ServiceAccountPasswordLocation,
+		RetryTimeoutVerifyKmsConfigHealthCheck, RetryIntervalVerifyKmsConfigHealthCheck)
 }
 
 func (o *Orchestrator) GetKmsConfigByKeyFullPath(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {

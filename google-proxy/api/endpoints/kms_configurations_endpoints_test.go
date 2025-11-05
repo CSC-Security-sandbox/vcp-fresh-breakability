@@ -2024,8 +2024,10 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 		kmsConfig := &vsaCoreModels.KmsConfig{KmsAttributes: &vsaCoreModels.KmsAttributes{SdeKmsConfigUUID: "sdeUUID"},
 			ServiceAccount: &vsaCoreModels.ServiceAccount{}}
 		mockOrchestrator.EXPECT().GetKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		mockOrchestrator.EXPECT().CheckAndUpdateKmsConfigHealth(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// Expect impersonation to succeed
 		mockOrchestrator.EXPECT().AccessCryptoKeyAndEncryptDataWithImpersonation(mock.Anything, mock.Anything).Return(nil)
+		// Expect health update to be called after successful impersonation
+		mockOrchestrator.EXPECT().CheckAndUpdateKmsConfigHealth(mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		// Call the method under test
 		result, err := handler.V1betaCheckKmsConfig(context.Background(), params)
 
@@ -2090,6 +2092,198 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 		assert.NotNil(t, result)
 		// Check if the ServiceAccount value is as expected
 		assert.Equal(t, "test-service-account", result.(*gcpgenserver.KmsConfigCheckV1beta).ServiceAccount.Value)
+	})
+
+	t.Run("WhenCheckKmsConfigurationWithUnhealthyInitialCheck", func(t *testing.T) {
+		// Define request
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		// Create a mock client
+		mockClient := kms_configurations.NewMockClientService(t)
+
+		// Define input parameters
+		params := gcpgenserver.V1betaCheckKmsConfigParams{
+			KmsConfigId:    "kms-config-id-1",
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Define mock response with unhealthy status
+		isHealthy := false
+		mockResponse := &kms_configurations.V1betaCheckKmsConfigOK{
+			Payload: &models.KmsConfigCheckV1beta{
+				KmsConfigHealthCheck: &models.KmsConfigHealthCheckV1beta{
+					HealthError:  "Key not accessible",
+					Instructions: "Check permissions",
+					IsHealthy:    &isHealthy,
+				},
+				ServiceAccount: "test-service-account",
+			},
+		}
+		// Set up the mock client behavior
+		mockClient.EXPECT().
+			V1betaCheckKmsConfig(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		kmsConfig := &vsaCoreModels.KmsConfig{KmsAttributes: &vsaCoreModels.KmsAttributes{SdeKmsConfigUUID: "sdeUUID"},
+			ServiceAccount: &vsaCoreModels.ServiceAccount{}}
+		mockOrchestrator.EXPECT().GetKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// Should only update health when initially unhealthy, no impersonation attempt
+		mockOrchestrator.EXPECT().CheckAndUpdateKmsConfigHealth(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// Call the method under test
+		result, err := handler.V1betaCheckKmsConfig(context.Background(), params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Check if the ServiceAccount value is as expected
+		assert.Equal(t, "test-service-account", result.(*gcpgenserver.KmsConfigCheckV1beta).ServiceAccount.Value)
+	})
+
+	t.Run("WhenCheckKmsConfigurationWithImpersonationFailure", func(t *testing.T) {
+		// Define request
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		// Create a mock client
+		mockClient := kms_configurations.NewMockClientService(t)
+
+		// Define input parameters
+		params := gcpgenserver.V1betaCheckKmsConfigParams{
+			KmsConfigId:    "kms-config-id-1",
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Define mock response with healthy initial status
+		isHealthy := true
+		mockResponse := &kms_configurations.V1betaCheckKmsConfigOK{
+			Payload: &models.KmsConfigCheckV1beta{
+				KmsConfigHealthCheck: &models.KmsConfigHealthCheckV1beta{
+					HealthError:  "",
+					Instructions: "test-instructions",
+					IsHealthy:    &isHealthy,
+				},
+				ServiceAccount: "test-service-account",
+			},
+		}
+		// Set up the mock client behavior
+		mockClient.EXPECT().
+			V1betaCheckKmsConfig(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		kmsConfig := &vsaCoreModels.KmsConfig{KmsAttributes: &vsaCoreModels.KmsAttributes{SdeKmsConfigUUID: "sdeUUID"},
+			ServiceAccount: &vsaCoreModels.ServiceAccount{}}
+		mockOrchestrator.EXPECT().GetKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// Expect impersonation to fail
+		impersonationError := fmt.Errorf("impersonation failed: permission denied")
+		mockOrchestrator.EXPECT().AccessCryptoKeyAndEncryptDataWithImpersonation(mock.Anything, mock.Anything).Return(impersonationError)
+		// Expect health update to be called after failed impersonation
+		mockOrchestrator.EXPECT().CheckAndUpdateKmsConfigHealth(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// Call the method under test
+		result, err := handler.V1betaCheckKmsConfig(context.Background(), params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Should return error response due to impersonation failure
+		errorResult, ok := result.(*gcpgenserver.KmsConfigCheckV1beta)
+		assert.True(t, ok)
+		assert.False(t, errorResult.KmsConfigHealthCheck.Value.IsHealthy)
+		assert.Contains(t, errorResult.KmsConfigHealthCheck.Value.HealthError.Value, "impersonation failed")
+	})
+
+	t.Run("WhenCheckKmsConfigurationHealthUpdateFails", func(t *testing.T) {
+		// Define request
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		// Create a mock client
+		mockClient := kms_configurations.NewMockClientService(t)
+
+		// Define input parameters
+		params := gcpgenserver.V1betaCheckKmsConfigParams{
+			KmsConfigId:    "kms-config-id-1",
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Define mock response
+		isHealthy := true
+		mockResponse := &kms_configurations.V1betaCheckKmsConfigOK{
+			Payload: &models.KmsConfigCheckV1beta{
+				KmsConfigHealthCheck: &models.KmsConfigHealthCheckV1beta{
+					HealthError:  "",
+					Instructions: "test-instructions",
+					IsHealthy:    &isHealthy,
+				},
+				ServiceAccount: "test-service-account",
+			},
+		}
+		// Set up the mock client behavior
+		mockClient.EXPECT().
+			V1betaCheckKmsConfig(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		kmsConfig := &vsaCoreModels.KmsConfig{KmsAttributes: &vsaCoreModels.KmsAttributes{SdeKmsConfigUUID: "sdeUUID"},
+			ServiceAccount: &vsaCoreModels.ServiceAccount{}}
+		mockOrchestrator.EXPECT().GetKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// Expect impersonation to succeed
+		mockOrchestrator.EXPECT().AccessCryptoKeyAndEncryptDataWithImpersonation(mock.Anything, mock.Anything).Return(nil)
+		// Expect health update to fail
+		healthUpdateError := fmt.Errorf("database connection lost")
+		mockOrchestrator.EXPECT().CheckAndUpdateKmsConfigHealth(mock.Anything, mock.Anything).Return(nil, healthUpdateError)
+		// Call the method under test
+		result, err := handler.V1betaCheckKmsConfig(context.Background(), params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Should return internal server error due to health update failure
+		errorResult, ok := result.(*gcpgenserver.V1betaCheckKmsConfigInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), errorResult.Code)
+		assert.Equal(t, "Failed to update KMS config health", errorResult.Message)
 	})
 
 	t.Run("WhenDCheckKmsConfigurationFailsWithBadRequest", func(t *testing.T) {

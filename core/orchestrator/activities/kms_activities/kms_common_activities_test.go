@@ -617,7 +617,7 @@ func TestAccessCryptoKeyAndEncryptDataWithImpersonationActivity(t *testing.T) {
 		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
 		origAccessCryptoKey := AccessCryptoKeyAndEncryptData
 		defer func() { AccessCryptoKeyAndEncryptData = origAccessCryptoKey }()
-		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 		err := activity.AccessCryptoKeyAndEncryptDataWithImpersonationActivity(ctx, kmsConfig)
@@ -630,12 +630,31 @@ func TestAccessCryptoKeyAndEncryptDataWithImpersonationActivity(t *testing.T) {
 		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
 		origAccessCryptoKey := AccessCryptoKeyAndEncryptData
 		defer func() { AccessCryptoKeyAndEncryptData = origAccessCryptoKey }()
-		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return errors.New("access error")
 		}
 		err := activity.AccessCryptoKeyAndEncryptDataWithImpersonationActivity(ctx, kmsConfig)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "access error")
+	})
+	t.Run("AccessCryptoKeyAndEncryptDataWithImpersonationActivityUsesCorrectTimeouts", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
+		origAccessCryptoKey := AccessCryptoKeyAndEncryptData
+		defer func() { AccessCryptoKeyAndEncryptData = origAccessCryptoKey }()
+		
+		var receivedTimeout, receivedInterval time.Duration
+		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
+			receivedTimeout = timeout
+			receivedInterval = timeoutInterval
+			return nil
+		}
+		err := activity.AccessCryptoKeyAndEncryptDataWithImpersonationActivity(ctx, kmsConfig)
+		assert.NoError(t, err)
+		assert.Equal(t, RetryTimeOutForGetCryptoKey, receivedTimeout, "Expected correct timeout value")
+		assert.Equal(t, RetryIntervalForGetCryptoKey, receivedInterval, "Expected correct interval value")
 	})
 }
 
@@ -668,7 +687,7 @@ func TestAccessCryptoKey(t *testing.T) {
 			_, err := fn(1)
 			return err
 		}
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err)
 	})
 	t.Run("ReturnsErrorWhenProcessCredentialsFails", func(t *testing.T) {
@@ -687,7 +706,7 @@ func TestAccessCryptoKey(t *testing.T) {
 		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
 			return nil, errors.New("decrypt error")
 		}
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "decrypt error")
 	})
@@ -726,7 +745,7 @@ func TestAccessCryptoKey(t *testing.T) {
 		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
 			return errors.New("retry error")
 		}
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "retry error")
 	})
@@ -762,7 +781,7 @@ func TestAccessCryptoKey(t *testing.T) {
 			return nil, errors.New("cloudkms error")
 		}
 
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "cloudkms error")
 	})
@@ -810,7 +829,7 @@ func TestAccessCryptoKey(t *testing.T) {
 			return err
 		}
 
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err) // Should eventually fail after retries
 		assert.Equal(t, 4, attemptCount, "Expected 4 retry attempts")
 		assert.Contains(t, err.Error(), "unable to generate access token")
@@ -848,9 +867,56 @@ func TestAccessCryptoKey(t *testing.T) {
 			return err
 		}
 
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err) // Expected to fail due to nil KMS service
 		assert.Equal(t, "AccessCryptoKeyAndEncryptDataWithImpersonation", receivedCaller, "Expected correct caller name in retry function")
+	})
+	t.Run("VerifiesTimeoutParametersAreUsedCorrectly", func(t *testing.T) {
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "encrypted-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com",
+			},
+			KeyProjectID:    "project",
+			KeyRingLocation: "location",
+			KeyRing:         "keyring",
+			KeyName:         "keyname",
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		origRetryDo := retryDo
+		defer func() {
+			utils.ProcessCredentials = origProcessCredentials
+			retryDo = origRetryDo
+		}()
+
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return &googleOauth2.Credentials{}, nil
+		}
+
+		var receivedTimeouts []time.Duration
+		var receivedIntervals []time.Duration
+		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
+			receivedTimeouts = append(receivedTimeouts, timeout)
+			receivedIntervals = append(receivedIntervals, wait)
+			// Just track the parameters, don't execute the function
+			return nil
+		}
+
+		customTimeout := 45 * time.Second
+		customInterval := 10 * time.Second
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, customTimeout, customInterval)
+		assert.NoError(t, err) // Should succeed since we're not executing the actual KMS calls
+		
+		// Should have been called twice - once for crypto key access, once for encryption
+		assert.Len(t, receivedTimeouts, 2, "Expected retry to be called twice")
+		assert.Equal(t, customTimeout, receivedTimeouts[0], "First retry should use custom timeout")
+		assert.Equal(t, RetryTimeOutForGetCryptoKey, receivedTimeouts[1], "Second retry should use hardcoded timeout")
+		assert.Equal(t, customInterval, receivedIntervals[0], "First retry should use custom interval")
+		assert.Equal(t, RetryIntervalForGetCryptoKey, receivedIntervals[1], "Second retry should use hardcoded interval")
 	})
 }
 
@@ -889,7 +955,7 @@ func TestEncryptDataWithCryptoKey(t *testing.T) {
 				return err
 			}
 		}
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "unable to generate access token")
 	})
@@ -943,7 +1009,7 @@ func TestEncryptDataWithCryptoKey(t *testing.T) {
 			}
 		}
 
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err) // Should eventually fail after retries
 		assert.Equal(t, 4, attemptCount, "Expected 4 retry attempts")
 		assert.Contains(t, err.Error(), "unable to generate access token")
@@ -987,7 +1053,7 @@ func TestEncryptDataWithCryptoKey(t *testing.T) {
 			}
 		}
 
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err) // Expected to fail due to nil KMS service
 		assert.Equal(t, "AccessCryptoKeyAndEncryptDataWithImpersonationActivity", receivedCaller, "Expected correct caller name in retry function")
 	})
@@ -1024,7 +1090,7 @@ func TestEncryptDataWithCryptoKey(t *testing.T) {
 			return nil
 		}
 
-		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		err := _accessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.NoError(t, err)
 		assert.Equal(t, "AccessCryptoKeyAndEncryptDataWithImpersonationActivity", receivedCaller, "Expected correct caller name in retry function")
 	})
@@ -1235,7 +1301,7 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			AccessCryptoKeyAndEncryptData = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {
@@ -1254,7 +1320,7 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			AccessCryptoKeyAndEncryptData = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {
@@ -1273,7 +1339,7 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			AccessCryptoKeyAndEncryptData = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return errors.New("unreachable")
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {
@@ -1293,7 +1359,7 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			AccessCryptoKeyAndEncryptData = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {
@@ -1313,7 +1379,7 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			AccessCryptoKeyAndEncryptData = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {

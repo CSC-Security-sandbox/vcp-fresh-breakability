@@ -274,14 +274,14 @@ func (j *KmsConfigActivity) UpdatePoolWithKmsConfigActivity(ctx context.Context,
 }
 
 func (j *KmsConfigActivity) AccessCryptoKeyAndEncryptDataWithImpersonationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
-	err := AccessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+	err := AccessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 	logger := util.GetLogger(ctx)
 
 	// Process the service account credentials to get the scope credentials
@@ -304,7 +304,7 @@ func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.Km
 	}.String()
 
 	// Get the crypto key details
-	errAccess := retryDo(ctx, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey, "AccessCryptoKeyAndEncryptDataWithImpersonation", func(attempt int) (bool, error) {
+	errAccess := retryDo(ctx, timeout, timeoutInterval, "AccessCryptoKeyAndEncryptDataWithImpersonation", func(attempt int) (bool, error) {
 		cryptoKey, errGetCrypto := kmsService.Projects.Locations.KeyRings.CryptoKeys.Get(cryptoKeyPath).Context(ctx).Do()
 		if errGetCrypto != nil {
 			return true, retry.NewRetriableErr(fmt.Sprintf("Projects.Locations.KeyRings.CryptoKeys.Get: %v", errGetCrypto))
@@ -370,7 +370,8 @@ func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context
 
 	// Access Crypto key and encrypt data
 	err = AccessCryptoKeyAndEncryptData(
-		ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation,
+		RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 
 	// Prepare KmsConfig check model based on the access check
 	kmsConfigCheck := &models.KmsConfigCheck{}

@@ -45,15 +45,16 @@ func IsRetriableErr(err error) bool {
 // RetryDoWithTimeout retries the provided function until it returns nil or the timeout is reached.
 func RetryDoWithTimeout(ctx context.Context, timeout, wait time.Duration, caller string, fn Retriable) error {
 	log := util.GetLogger(ctx)
+	var err error
 	if timeout <= 0 {
-		_, err := fn(1)
+		_, err = fn(1)
 		return err
 	}
 	maxExponentialBackOffDelay := time.Duration(math.Ceil((ExponentialBackoffFactor)*timeout.Seconds())) * time.Second
 	t2 := time.Now().Add(timeout)
 	i := 1
 	for time.Now().Before(t2) {
-		_, err := fn(i)
+		_, err = fn(i)
 		if err == nil {
 			return nil
 		}
@@ -72,7 +73,9 @@ func RetryDoWithTimeout(ctx context.Context, timeout, wait time.Duration, caller
 		time.Sleep(min(maxExponentialBackOffDelay, wait*time.Duration(1<<(i-1))) + (time.Millisecond * time.Duration(utils.GenerateRandomInRange(100)+100)))
 		i++
 	}
-
+	if err != nil {
+		return fmt.Errorf("'%s' retry timeout: %w", caller, err)
+	}
 	return fmt.Errorf("'%s' retry timeout", caller)
 }
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -182,7 +183,7 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		// Mock AccessCryptoKey
 		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
 		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			assert.Equal(tt, encryptedPassword, secretPassword)
 			assert.Equal(tt, "kms-uuid", kmsConfig.UUID)
 			return nil
@@ -260,7 +261,7 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		// Mock AccessCryptoKey
 		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
 		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 
@@ -412,7 +413,7 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		// Mock AccessCryptoKey to avoid calling the real function
 		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
 		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 
@@ -500,7 +501,7 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		// Mock AccessCryptoKey to succeed, but UpdateServiceAccountEmailAndKey to fail
 		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
 		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 
@@ -570,7 +571,7 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		accessKeyError := errors.New("failed to access crypto key")
 		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
 		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return accessKeyError
 		}
 
@@ -699,7 +700,7 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		// Mock AccessCryptoKey
 		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
 		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 
@@ -781,7 +782,7 @@ func TestRotateKmsSAKeyActivity_Integration(t *testing.T) {
 		// Mock AccessCryptoKey
 		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
 		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
+		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
 

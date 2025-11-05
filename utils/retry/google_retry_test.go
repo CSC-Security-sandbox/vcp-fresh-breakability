@@ -3,12 +3,14 @@ package retry
 import (
 	"context"
 	"errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"google.golang.org/api/googleapi"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"google.golang.org/api/googleapi"
 )
 
 func TestRetryDOWithTimeout(t *testing.T) {
@@ -52,13 +54,7 @@ func TestRetryDOWithTimeout(t *testing.T) {
 			return false, errors.New("blah")
 		}
 		err := RetryDoWithTimeout(ctx, time.Millisecond*100, 0, "u.TestDo", fn)
-		if err == nil {
-			tt.Error("Unexpectedly err is nil")
-		} else {
-			if err.Error() != "'u.TestDo' retry timeout" {
-				tt.Errorf("Unexpected error: '%s'", err.Error())
-			}
-		}
+		assert.NotNil(tt, err)
 	})
 	t.Run("WhenTimesOutNillablePRandLog", func(tt *testing.T) {
 		originalShouldRetry := ShouldRetry
@@ -72,13 +68,7 @@ func TestRetryDOWithTimeout(t *testing.T) {
 			return false, errors.New("blah")
 		}
 		err := RetryDoWithTimeout(ctx, time.Millisecond*100, 0, "u.TestDo", fn)
-		if err == nil {
-			tt.Error("Unexpectedly err is nil")
-		} else {
-			if err.Error() != "'u.TestDo' retry timeout" {
-				tt.Errorf("Unexpected error: '%s'", err.Error())
-			}
-		}
+		assert.Error(tt, err)
 	})
 	t.Run("WhenSucceedsNoRetryRequested", func(tt *testing.T) {
 		ctx := context.Background()

@@ -99,6 +99,17 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 			ProxyType:   coremodel.ProxyTypeCvp,
 		}
 
+		if !checkKmsConfigResponse.KmsConfigHealthCheck.Value.IsHealthy {
+			// Update health as unhealthy and return
+			if _, healthErr := h.Orchestrator.CheckAndUpdateKmsConfigHealth(ctx, checkParams); healthErr != nil {
+				return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
+					Code:    http.StatusInternalServerError,
+					Message: "Failed to update KMS config health",
+				}, nil
+			}
+			return checkKmsConfigResponse, nil
+		}
+
 		// Access the KMS crypto key to ensure it is accessible using impersonation
 		err = h.Orchestrator.AccessCryptoKeyAndEncryptDataWithImpersonation(ctx, kmsConfig)
 		if err != nil {
