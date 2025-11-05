@@ -65,6 +65,7 @@ deleteResourcesCronExpression: "0 0 * * *" # DELETE_RESOURCES job configuration
 waitForTemporalEnabled: true
 metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"
+thinCloneGASupport: false
 maxThinClonesPerPool: 100
 enableAutoPoolScaling: true
 hardDeleteResources: true

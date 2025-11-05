@@ -112,6 +112,7 @@ data:
   HARVEST_REST_PROTOCOL: {{ $.Values.workerConfig.harvestRestProtocol | quote }}
   CVP_HOST: {{$.Values.workerConfig.cvpHost | quote }}
   IMMUTABLE_BACKUP_ENABLED: {{$.Values.workerConfig.immutableBackupEnabled | quote }}
+  THIN_CLONE_GA_SUPPORT: {{$.Values.workerConfig.thinCloneGASupport | quote }}
   RESTORE_VOLUME_BUFFER_ENABLED: {{$.Values.workerConfig.restoreVolumeBufferEnabled | quote }}
   PROBER_PROJECT_LIST: {{$.Values.workerConfig.proberProjectList | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}

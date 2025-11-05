@@ -20,6 +20,10 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+var (
+	thinCloneGASupport = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+)
+
 type volumeCreateWorkflow struct {
 	BaseWorkflow
 }
@@ -434,7 +438,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
-	if isRestoreSnapshot && !createVolumeParams.IsClone {
+	if isRestoreSnapshot && thinCloneGASupport && !createVolumeParams.IsClone {
 		err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)

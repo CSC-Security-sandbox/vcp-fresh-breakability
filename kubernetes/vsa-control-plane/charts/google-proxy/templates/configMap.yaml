@@ -84,6 +84,7 @@ data:
   TASK_QUEUE_VERSION: "{{ index .Chart.Version | lower | replace "." "-" }}"
   METRICS_DB_CLEANUP_ENABLED: "{{ index .Values "metricsDbCleanupEnabled" }}"
   VOLUME_REFRESH_INTERVAL_MINUTES: "{{ index .Values "volumeRefreshIntervalMinutes" }}"
+  THIN_CLONE_GA_SUPPORT: "{{ index .Values "thinCloneGASupport" }}"
   MAX_THIN_CLONES_PER_POOL: "{{ index .Values "maxThinClonesPerPool" }}"
   ENABLE_AUTO_POOL_SCALING: "{{ index .Values "enableAutoPoolScaling" }}"
   AUTO_POOL_SCALING_LIMITS:  {{ index .Values "autoPoolScalingLimits" | toJson | quote }}

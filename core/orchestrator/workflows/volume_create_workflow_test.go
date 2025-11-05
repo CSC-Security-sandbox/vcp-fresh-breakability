@@ -468,6 +468,13 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThickCloneT
 }
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThickCloneType_InitiateSplitError() {
+	// Override thinCloneGASupport to true for this test
+	originalValue := thinCloneGASupport
+	thinCloneGASupport = true
+	defer func() {
+		thinCloneGASupport = originalValue
+	}()
+
 	// Test the new code path when InitiateSplitForVolume fails
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}

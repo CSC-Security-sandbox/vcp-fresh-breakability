@@ -1606,6 +1606,13 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 	})
 
 	t.Run("CloneVolumeLimit_MaximumThinClonesReached", func(tt *testing.T) {
+		// Override thinCloneGASupport to true for this test
+		originalValue := thinCloneGASupport
+		thinCloneGASupport = true
+		defer func() {
+			thinCloneGASupport = originalValue
+		}()
+
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
