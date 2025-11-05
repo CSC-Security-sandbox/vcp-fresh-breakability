@@ -140,29 +140,37 @@ func main() {
 		return nil
 	})
 
-	logger.Infof("Telemetry server started with workers %d", telemetryConfig.NumWorkers)
-	for i := 0; i < telemetryConfig.NumWorkers; i++ {
+	logger.Infof("Telemetry server started with Performance Job workers %d", telemetryConfig.NumWorkersPerformance)
+	logger.Infof("Telemetry server started with Usage Job workers %d", telemetryConfig.NumWorkersUsage)
+	logger.Infof("Telemetry server started with Collection Job workers %d", telemetryConfig.NumWorkersCollection)
+	logger.Infof("Telemetry server started with BizOps Job workers %d", telemetryConfig.NumWorkersBizOps)
+
+	for i := 0; i < telemetryConfig.NumWorkersPerformance; i++ {
 		go func() {
 			queues := []string{utils.PerformanceQueue}
 			if err := queue.Worker(context.Background(), queues, &jobs.ProcessPerformanceMetrics{}); err != nil {
 				logger.Errorf(err.Error())
 			}
 		}()
+	}
 
+	for i := 0; i < telemetryConfig.NumWorkersUsage; i++ {
 		go func() {
 			queues := []string{utils.UsageQueue}
 			if err := queue.Worker(context.Background(), queues, &jobs.ProcessUsageMetrics{}); err != nil {
 				logger.Errorf(err.Error())
 			}
 		}()
-
+	}
+	for i := 0; i < telemetryConfig.NumWorkersCollection; i++ {
 		go func() {
 			queues := []string{utils.CollectionQueue}
 			if err := queue.Worker(context.Background(), queues, &jobs.CollectMetrics{}); err != nil {
 				logger.Errorf(err.Error())
 			}
 		}()
-
+	}
+	for i := 0; i < telemetryConfig.NumWorkersBizOps; i++ {
 		go func() {
 			queues := []string{utils.BizOpsReportQueue}
 			if err := queue.Worker(context.Background(), queues, &jobs.BizOpsReport{}); err != nil {

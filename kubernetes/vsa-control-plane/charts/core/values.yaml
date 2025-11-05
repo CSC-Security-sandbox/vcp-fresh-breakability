@@ -259,7 +259,10 @@ telemetryDeployer:
   cloudSqlImage: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
   enableScheduler: true
 
-  numWorkers: "10"
+  numWorkersPerformance: "10"
+  numWorkersUsage: "1"
+  numWorkersCollection: "25"
+  numWorkersBizOps: "2"
   resources:
     limits:
       cpu: 1

@@ -28,7 +28,10 @@ type TelemetryConfig struct {
 	Environment                     string
 	MaxGoogleBillingPushRetry       int64
 	PageSize                        int32
-	NumWorkers                      int
+	NumWorkersPerformance           int
+	NumWorkersUsage                 int
+	NumWorkersCollection            int
+	NumWorkersBizOps                int
 	GoogleBillingLabelsMaxEntries   int
 	PoolVolumeLabelPageSize         int
 }
@@ -58,7 +61,10 @@ func LoadConfig() *TelemetryConfig {
 	environment := env.GetString("ENVIRONMENT", Dev)
 	maxGoogleBillingPushRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
 	pageSize := env.GetInt64("PAGE_SIZE", 1000)
-	numWorkers := env.GetInt("NUM_WORKERS", 5)
+	numWorkersPerformance := env.GetInt("NUM_WORKERS_PERFORMANCE", 10)
+	numWorkersUsage := env.GetInt("NUM_WORKERS_USAGE", 1)
+	numWorkersCollection := env.GetInt("NUM_WORKERS_COLLECTION", 10)
+	numWorkersBizOps := env.GetInt("NUM_WORKERS_BIZOPS", 10)
 	googleBillingLabelsMaxEntries := env.GetInt("GOOGLE_BILLING_LABELS_MAX_ENTRIES", 64)
 	poolVolumeLabelPageSize := env.GetInt("POOL_VOLUME_LABEL_PAGE_SIZE", 5000)
 
@@ -76,7 +82,10 @@ func LoadConfig() *TelemetryConfig {
 		EnableBackupMetrics:             enableBackupMetrics,
 		EnableBackupBillingMetrics:      enableBackupBillingMetrics,
 		EnableReplicationBillingMetrics: enableReplicationBillingMetrics,
-		NumWorkers:                      numWorkers,
+		NumWorkersPerformance:           numWorkersPerformance,
+		NumWorkersUsage:                 numWorkersUsage,
+		NumWorkersCollection:            numWorkersCollection,
+		NumWorkersBizOps:                numWorkersBizOps,
 		GoogleBillingLabelsMaxEntries:   googleBillingLabelsMaxEntries,
 		PoolVolumeLabelPageSize:         poolVolumeLabelPageSize,
 	}

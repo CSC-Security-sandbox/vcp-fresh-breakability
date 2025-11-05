@@ -428,7 +428,10 @@ func getDefaultEnvVars() map[string]string {
 		"BIZOPS_BUCKET_NAME":                 getEnvOrDefault("BIZOPS_BUCKET_NAME", ""),
 		"GOOGLE_REGION":                      getEnvOrDefault("GOOGLE_REGION", ""),
 		"ENVIRONMENT":                        getEnvOrDefault("ENVIRONMENT", "gcp"),
-		"NUM_WORKERS":                        getEnvOrDefault("NUM_WORKERS", "10"),
+		"NUM_WORKERS_PERFORMANCE":            getEnvOrDefault("NUM_WORKERS_PERFORMANCE", "10"),
+		"NUM_WORKERS_USAGE":                  getEnvOrDefault("NUM_WORKERS_USAGE", "1"),
+		"NUM_WORKERS_BIZOPS":                 getEnvOrDefault("NUM_WORKERS_BIZOPS", "10"),
+		"NUM_WORKERS_COLLECTION":             getEnvOrDefault("NUM_WORKERS_COLLECTION", "25"),
 	}
 }
 

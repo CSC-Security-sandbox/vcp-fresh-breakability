@@ -124,8 +124,14 @@ spec:
               value: "5"
             - name: PAGE_SIZE
               value: "1000"
-            - name: NUM_WORKERS
+            - name: NUM_WORKERS_PERFORMANCE
               value: "10"
+            - name: NUM_WORKERS_USAGE
+              value: "1"
+            - name: NUM_WORKERS_COLLECTION
+              value: "25"
+            - name: NUM_WORKERS_BIZOPS
+              value: "2"
             - name: POOL_VOLUME_LABEL_PAGE_SIZE
               value: "5000"
             - name: GOOGLE_BILLING_LABELS_MAX_ENTRIES

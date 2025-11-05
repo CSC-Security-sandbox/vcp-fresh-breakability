@@ -65,7 +65,7 @@ func (h Handler) V1Performance(ctx context.Context, params oasgenserver.V1Perfor
 
 	j := jobs.NewProcessPerformanceMetrics("{}")
 	j.CorrelationID = correlationID
-	err := h.jobQueue.Enqueue(backgroundContext, j, "performance")
+	err := h.jobQueue.Enqueue(backgroundContext, j, utils.PerformanceQueue)
 	if err != nil {
 		logger.Errorf("Failed to enqueue ProcessPerformanceMetrics job with correlation ID %s: %v", correlationID, err)
 		return &oasgenserver.V1PerformanceInternalServerError{}, fmt.Errorf("failed to enqueue ProcessPerformanceMetrics job: %v", err)
@@ -103,7 +103,7 @@ func (h Handler) V1Usage(ctx context.Context, params oasgenserver.V1UsageParams)
 
 	j := jobs.NewProcessUsageMetrics("{}")
 	j.CorrelationID = correlationID
-	err := h.jobQueue.Enqueue(backgroundContext, j, "usage")
+	err := h.jobQueue.Enqueue(backgroundContext, j, utils.UsageQueue)
 	if err != nil {
 		logger.Errorf("Failed to enqueue ProcessUsageMetrics job with correlation ID %s: %v", correlationID, err)
 		return &oasgenserver.V1UsageInternalServerError{}, fmt.Errorf("failed to enqueue ProcessUsageMetrics job: %v", err)

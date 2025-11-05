@@ -60,7 +60,7 @@ func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logg
 			logger.Infof("Batch enqueueing %d CollectMetrics jobs", len(jobsToEnqueue))
 		}
 
-		err = g.jobQueue.EnqueueBatch(ctx, jobsToEnqueue, "collection")
+		err = g.jobQueue.EnqueueBatch(ctx, jobsToEnqueue, utils.CollectionQueue)
 		if err != nil {
 			logger.Errorf("Failed to batch enqueue CollectMetrics jobs: %v", err)
 			return err
