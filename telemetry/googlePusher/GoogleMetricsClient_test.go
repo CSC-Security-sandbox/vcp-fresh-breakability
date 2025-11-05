@@ -704,6 +704,24 @@ func Test_CreateMetricValue_Timestamps(t *testing.T) {
 	assert.NotEmpty(t, mv.EndTime)
 }
 
+func Test_CreateMetricValue_CRR(t *testing.T) {
+	config := common.LoadConfig()
+	ctx := context.Background()
+	client := NewGoogleMetricsClient(ctx, "", config)
+	var googleMetric common.GoogleMetric
+	billingM := &datamodel.AggregatedUsage{
+		VendorCustomerID: nillable.ToPointer("123456"),
+		MeasuredType:     metadata.XregionReplicationTotalTransferBytes,
+		Quantity:         100,
+		ResourceType:     metadata.VolumeReplicationRelationship,
+	}
+
+	googleMetric = *common.NewGoogleMetric(billingM)
+	mv, err := client.CreateMetricValue(googleMetric)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(100), *mv.Int64Value)
+}
+
 func Test_removeOperation_edge_cases(t *testing.T) {
 	// Remove from nil slice
 	var nilOps []*Operation

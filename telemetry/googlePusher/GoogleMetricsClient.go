@@ -465,7 +465,7 @@ func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric)
 			if err != nil {
 				return nil, err
 			}
-			if metricLabelValue != "" {
+			if metricLabelValue != "" || labelKey == "/replication/source_service_level" || labelKey == "/replication/destination_service_level" {
 				valueLabels[labelKey] = metricLabelValue
 			}
 		}
