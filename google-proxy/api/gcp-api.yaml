@@ -5975,6 +5975,87 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults:
+    post:
+      operationId: v1beta_internalCreateBackupVault
+      summary: Create a BackupVault entry in VCP database for cross-region operations
+      description: >-
+        Creates a BackupVault entry in the VCP database for a remote BackupVault (i.e., BackupVault in region2).
+        This endpoint is used during cross-region volume creation/update workflows when the BackupVault type is cross-region
+        and the sourceRegionName != BackupRegionName.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The complete BackupVault details to create in the VCP database.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupVaultInternal_v1beta'
+        required: true
+      responses:
+        '200':
+          description: BackupVault entry created successfully in VCP database
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupVaultInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}:
+    get:
+      operationId: v1beta_internalDescribeBackupVault
+      summary: Fetch a remote BackupVault from the VCP database
+      description: >-
+        Fetches the remote BackupVault from the VCP database in region2.
+        This endpoint is used for cross-region operations to retrieve BackupVault details
+        stored in the remote region's VCP database.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: BackupVault details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupVaultInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Health:
@@ -10680,6 +10761,174 @@ components:
           x-nullable: true
         backupRetentionPolicy:
           $ref: '#/components/schemas/BackupRetentionPolicy_v1beta'
+    BackupVaultInternal_v1beta:
+      type: object
+      title: BackupVaultInternal
+      description: Internal BackupVault model for cross-region operations
+      required:
+        - backupVaultId
+        - resourceId
+        - accountVendorId
+        - lifeCycleState
+        - backupVaultType
+      properties:
+        backupVaultId:
+          title: backupVaultId
+          type: string
+          description: Uuid v4 used to identify the Id of the resource
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 87654321-4638-11e7-9bdb-123456789012
+        resourceId:
+          title: resourceId
+          type: string
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          description: Human readable name of the backup vault
+          example: backupvault1
+        description:
+          title: description
+          type: string
+          description: Description of backup vault
+          example: dummy description
+          x-nullable: true
+        backupRegion:
+          title: backupRegion
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          type: string
+          description: The destination region the backup needs to be stored in.
+          x-nullable: true
+        sourceRegion:
+          title: sourceRegion
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          type: string
+          description: The source region of the backup
+          example: us-east4
+          x-nullable: true
+        destinationBackupVault:
+          title: destinationBackupVault
+          type: string
+          example: projects/projectId/locations/location/location/backupVaults/name
+          description: The destination region backup vault
+          x-nullable: true
+        sourceBackupVault:
+          title: sourceBackupVault
+          type: string
+          description: The source region backup vault
+          example: projects/projectId/locations/location/location/backupVaults/name
+          x-nullable: true
+        backupVaultType:
+          title: backupVaultType
+          type: string
+          description: Type of the backup vault
+          enum:
+            - IN_REGION
+            - CROSS_REGION
+        lifeCycleState:
+          title: lifeCycleState
+          type: string
+          description: The current lifecycle state of the backup vault
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - UPDATING
+            - DELETING
+            - READY
+            - DELETED
+            - ERROR
+          example: READY
+        lifeCycleStateDetails:
+          title: lifeCycleStateDetails
+          type: string
+          description: Details about the current lifecycle state
+          x-nullable: true
+        accountVendorId:
+          title: accountVendorId
+          type: string
+          description: Account vendor ID (project number)
+          example: "123456789012"
+        crossRegionBackupVaultName:
+          title: crossRegionBackupVaultName
+          type: string
+          description: Cross-region backup vault name
+          x-nullable: true
+        externalUuid:
+          title: externalUuid
+          type: string
+          description: External UUID used for cross-region backup vault identification
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 12345678-1234-1234-1234-123456789012
+          x-nullable: true
+        createdAt:
+          title: createdAt
+          type: string
+          format: date-time
+          description: Creation date of the resource
+          example: '2016-11-30T20:32:50.459Z'
+          x-nullable: true
+        updatedAt:
+          title: updatedAt
+          type: string
+          format: date-time
+          description: Last update date of the resource
+          example: '2016-11-30T20:32:50.459Z'
+          x-nullable: true
+        deletedAt:
+          title: deletedAt
+          type: string
+          format: date-time
+          description: Date the resource was deleted
+          example: '2016-11-30T23:59:59.999Z'
+          x-nullable: true
+        immutableAttributes:
+          title: immutableAttributes
+          type: object
+          description: Immutable backup retention attributes stored as JSONB
+          x-nullable: true
+          properties:
+            backupMinimumEnforcedRetentionDuration:
+              type: integer
+              description: Backup minimum enforced retention period in days
+              minimum: 0
+              maximum: 5475
+              x-nullable: true
+            isDailyBackupImmutable:
+              type: boolean
+              description: Whether daily backups are immutable
+            isWeeklyBackupImmutable:
+              type: boolean
+              description: Whether weekly backups are immutable
+            isMonthlyBackupImmutable:
+              type: boolean
+              description: Whether monthly backups are immutable
+            isAdhocBackupImmutable:
+              type: boolean
+              description: Whether ad-hoc backups are immutable
+        bucketDetails:
+          title: bucketDetails
+          type: array
+          description: Bucket details for the backup vault stored as JSONB array
+          x-nullable: true
+          items:
+            type: object
+            properties:
+              bucketName:
+                type: string
+                description: Name of the GCS bucket
+              serviceAccountName:
+                type: string
+                description: Service account used for bucket access
+              vendorSubnetId:
+                type: string
+                description: Vendor subnet ID
+              tenantProjectNumber:
+                type: string
+                description: Tenant project number
     BackupRetentionPolicy_v1beta:
       title: BackupRetentionPolicy
       type: object

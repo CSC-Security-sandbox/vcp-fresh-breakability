@@ -397,6 +397,65 @@ func (_c *MockOrchestratorFactory_CreateBackup_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// CreateBackupVaultEntryInVCP provides a mock function with given fields: ctx, bv
+func (_m *MockOrchestratorFactory) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, bv)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBackupVaultEntryInVCP")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, bv)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, bv)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupVault) error); ok {
+		r1 = rf(ctx, bv)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackupVaultEntryInVCP'
+type MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call struct {
+	*mock.Call
+}
+
+// CreateBackupVaultEntryInVCP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bv *datamodel.BackupVault
+func (_e *MockOrchestratorFactory_Expecter) CreateBackupVaultEntryInVCP(ctx interface{}, bv interface{}) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
+	return &MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call{Call: _e.mock.On("CreateBackupVaultEntryInVCP", ctx, bv)}
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) Run(run func(ctx context.Context, bv *datamodel.BackupVault)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BackupVault))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault) (*datamodel.BackupVault, error)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateFlexCacheVolume provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateFlexCacheVolume(ctx context.Context, params *common.CreateVolumeParams) (*models.Volume, string, error) {
 	ret := _m.Called(ctx, params)
@@ -2287,6 +2346,66 @@ func (_c *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) 
 }
 
 func (_c *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) RunAndReturn(run func(context.Context, string, string) ([]string, error)) *MockOrchestratorFactory_GetBackupPolicyUUIDsFromBackupVaultUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupVaultByExternalUUIDAndOwnerID provides a mock function with given fields: ctx, externalUUID, ownerID
+func (_m *MockOrchestratorFactory) GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, ownerID string) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, externalUUID, ownerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupVaultByExternalUUIDAndOwnerID")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, externalUUID, ownerID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, externalUUID, ownerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, externalUUID, ownerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultByExternalUUIDAndOwnerID'
+type MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call struct {
+	*mock.Call
+}
+
+// GetBackupVaultByExternalUUIDAndOwnerID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - externalUUID string
+//   - ownerID string
+func (_e *MockOrchestratorFactory_Expecter) GetBackupVaultByExternalUUIDAndOwnerID(ctx interface{}, externalUUID interface{}, ownerID interface{}) *MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call {
+	return &MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call{Call: _e.mock.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, ownerID)}
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call) Run(run func(ctx context.Context, externalUUID string, ownerID string)) *MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call) RunAndReturn(run func(context.Context, string, string) (*datamodel.BackupVault, error)) *MockOrchestratorFactory_GetBackupVaultByExternalUUIDAndOwnerID_Call {
 	_c.Call.Return(run)
 	return _c
 }

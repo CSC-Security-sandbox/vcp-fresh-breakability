@@ -3604,6 +3604,735 @@ func (s *BackupVaultCreateV1beta) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *BackupVaultInternalV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultInternalV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("backupVaultId")
+		e.Str(s.BackupVaultId)
+	}
+	{
+		e.FieldStart("resourceId")
+		e.Str(s.ResourceId)
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.BackupRegion.Set {
+			e.FieldStart("backupRegion")
+			s.BackupRegion.Encode(e)
+		}
+	}
+	{
+		if s.SourceRegion.Set {
+			e.FieldStart("sourceRegion")
+			s.SourceRegion.Encode(e)
+		}
+	}
+	{
+		if s.DestinationBackupVault.Set {
+			e.FieldStart("destinationBackupVault")
+			s.DestinationBackupVault.Encode(e)
+		}
+	}
+	{
+		if s.SourceBackupVault.Set {
+			e.FieldStart("sourceBackupVault")
+			s.SourceBackupVault.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("backupVaultType")
+		s.BackupVaultType.Encode(e)
+	}
+	{
+		e.FieldStart("lifeCycleState")
+		s.LifeCycleState.Encode(e)
+	}
+	{
+		if s.LifeCycleStateDetails.Set {
+			e.FieldStart("lifeCycleStateDetails")
+			s.LifeCycleStateDetails.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("accountVendorId")
+		e.Str(s.AccountVendorId)
+	}
+	{
+		if s.CrossRegionBackupVaultName.Set {
+			e.FieldStart("crossRegionBackupVaultName")
+			s.CrossRegionBackupVaultName.Encode(e)
+		}
+	}
+	{
+		if s.ExternalUuid.Set {
+			e.FieldStart("externalUuid")
+			s.ExternalUuid.Encode(e)
+		}
+	}
+	{
+		if s.CreatedAt.Set {
+			e.FieldStart("createdAt")
+			s.CreatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.UpdatedAt.Set {
+			e.FieldStart("updatedAt")
+			s.UpdatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.DeletedAt.Set {
+			e.FieldStart("deletedAt")
+			s.DeletedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.ImmutableAttributes.Set {
+			e.FieldStart("immutableAttributes")
+			s.ImmutableAttributes.Encode(e)
+		}
+	}
+	{
+		if s.BucketDetails != nil {
+			e.FieldStart("bucketDetails")
+			e.ArrStart()
+			for _, elem := range s.BucketDetails {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupVaultInternalV1beta = [18]string{
+	0:  "backupVaultId",
+	1:  "resourceId",
+	2:  "description",
+	3:  "backupRegion",
+	4:  "sourceRegion",
+	5:  "destinationBackupVault",
+	6:  "sourceBackupVault",
+	7:  "backupVaultType",
+	8:  "lifeCycleState",
+	9:  "lifeCycleStateDetails",
+	10: "accountVendorId",
+	11: "crossRegionBackupVaultName",
+	12: "externalUuid",
+	13: "createdAt",
+	14: "updatedAt",
+	15: "deletedAt",
+	16: "immutableAttributes",
+	17: "bucketDetails",
+}
+
+// Decode decodes BackupVaultInternalV1beta from json.
+func (s *BackupVaultInternalV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultInternalV1beta to nil")
+	}
+	var requiredBitSet [3]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupVaultId":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.BackupVaultId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupVaultId\"")
+			}
+		case "resourceId":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.ResourceId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "backupRegion":
+			if err := func() error {
+				s.BackupRegion.Reset()
+				if err := s.BackupRegion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupRegion\"")
+			}
+		case "sourceRegion":
+			if err := func() error {
+				s.SourceRegion.Reset()
+				if err := s.SourceRegion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourceRegion\"")
+			}
+		case "destinationBackupVault":
+			if err := func() error {
+				s.DestinationBackupVault.Reset()
+				if err := s.DestinationBackupVault.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"destinationBackupVault\"")
+			}
+		case "sourceBackupVault":
+			if err := func() error {
+				s.SourceBackupVault.Reset()
+				if err := s.SourceBackupVault.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourceBackupVault\"")
+			}
+		case "backupVaultType":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.BackupVaultType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupVaultType\"")
+			}
+		case "lifeCycleState":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.LifeCycleState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lifeCycleState\"")
+			}
+		case "lifeCycleStateDetails":
+			if err := func() error {
+				s.LifeCycleStateDetails.Reset()
+				if err := s.LifeCycleStateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lifeCycleStateDetails\"")
+			}
+		case "accountVendorId":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.AccountVendorId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accountVendorId\"")
+			}
+		case "crossRegionBackupVaultName":
+			if err := func() error {
+				s.CrossRegionBackupVaultName.Reset()
+				if err := s.CrossRegionBackupVaultName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"crossRegionBackupVaultName\"")
+			}
+		case "externalUuid":
+			if err := func() error {
+				s.ExternalUuid.Reset()
+				if err := s.ExternalUuid.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"externalUuid\"")
+			}
+		case "createdAt":
+			if err := func() error {
+				s.CreatedAt.Reset()
+				if err := s.CreatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"createdAt\"")
+			}
+		case "updatedAt":
+			if err := func() error {
+				s.UpdatedAt.Reset()
+				if err := s.UpdatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updatedAt\"")
+			}
+		case "deletedAt":
+			if err := func() error {
+				s.DeletedAt.Reset()
+				if err := s.DeletedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deletedAt\"")
+			}
+		case "immutableAttributes":
+			if err := func() error {
+				s.ImmutableAttributes.Reset()
+				if err := s.ImmutableAttributes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"immutableAttributes\"")
+			}
+		case "bucketDetails":
+			if err := func() error {
+				s.BucketDetails = make([]BackupVaultInternalV1betaBucketDetailsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem BackupVaultInternalV1betaBucketDetailsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.BucketDetails = append(s.BucketDetails, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bucketDetails\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultInternalV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [3]uint8{
+		0b10000011,
+		0b00000101,
+		0b00000000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfBackupVaultInternalV1beta) {
+					name = jsonFieldsNameOfBackupVaultInternalV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultInternalV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultInternalV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupVaultInternalV1betaBackupVaultType as json.
+func (s BackupVaultInternalV1betaBackupVaultType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BackupVaultInternalV1betaBackupVaultType from json.
+func (s *BackupVaultInternalV1betaBackupVaultType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultInternalV1betaBackupVaultType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BackupVaultInternalV1betaBackupVaultType(v) {
+	case BackupVaultInternalV1betaBackupVaultTypeINREGION:
+		*s = BackupVaultInternalV1betaBackupVaultTypeINREGION
+	case BackupVaultInternalV1betaBackupVaultTypeCROSSREGION:
+		*s = BackupVaultInternalV1betaBackupVaultTypeCROSSREGION
+	default:
+		*s = BackupVaultInternalV1betaBackupVaultType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BackupVaultInternalV1betaBackupVaultType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultInternalV1betaBackupVaultType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) encodeFields(e *jx.Encoder) {
+	{
+		if s.BucketName.Set {
+			e.FieldStart("bucketName")
+			s.BucketName.Encode(e)
+		}
+	}
+	{
+		if s.ServiceAccountName.Set {
+			e.FieldStart("serviceAccountName")
+			s.ServiceAccountName.Encode(e)
+		}
+	}
+	{
+		if s.VendorSubnetId.Set {
+			e.FieldStart("vendorSubnetId")
+			s.VendorSubnetId.Encode(e)
+		}
+	}
+	{
+		if s.TenantProjectNumber.Set {
+			e.FieldStart("tenantProjectNumber")
+			s.TenantProjectNumber.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupVaultInternalV1betaBucketDetailsItem = [4]string{
+	0: "bucketName",
+	1: "serviceAccountName",
+	2: "vendorSubnetId",
+	3: "tenantProjectNumber",
+}
+
+// Decode decodes BackupVaultInternalV1betaBucketDetailsItem from json.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultInternalV1betaBucketDetailsItem to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "bucketName":
+			if err := func() error {
+				s.BucketName.Reset()
+				if err := s.BucketName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bucketName\"")
+			}
+		case "serviceAccountName":
+			if err := func() error {
+				s.ServiceAccountName.Reset()
+				if err := s.ServiceAccountName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"serviceAccountName\"")
+			}
+		case "vendorSubnetId":
+			if err := func() error {
+				s.VendorSubnetId.Reset()
+				if err := s.VendorSubnetId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vendorSubnetId\"")
+			}
+		case "tenantProjectNumber":
+			if err := func() error {
+				s.TenantProjectNumber.Reset()
+				if err := s.TenantProjectNumber.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tenantProjectNumber\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultInternalV1betaBucketDetailsItem")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupVaultInternalV1betaImmutableAttributes) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultInternalV1betaImmutableAttributes) encodeFields(e *jx.Encoder) {
+	{
+		if s.BackupMinimumEnforcedRetentionDuration.Set {
+			e.FieldStart("backupMinimumEnforcedRetentionDuration")
+			s.BackupMinimumEnforcedRetentionDuration.Encode(e)
+		}
+	}
+	{
+		if s.IsDailyBackupImmutable.Set {
+			e.FieldStart("isDailyBackupImmutable")
+			s.IsDailyBackupImmutable.Encode(e)
+		}
+	}
+	{
+		if s.IsWeeklyBackupImmutable.Set {
+			e.FieldStart("isWeeklyBackupImmutable")
+			s.IsWeeklyBackupImmutable.Encode(e)
+		}
+	}
+	{
+		if s.IsMonthlyBackupImmutable.Set {
+			e.FieldStart("isMonthlyBackupImmutable")
+			s.IsMonthlyBackupImmutable.Encode(e)
+		}
+	}
+	{
+		if s.IsAdhocBackupImmutable.Set {
+			e.FieldStart("isAdhocBackupImmutable")
+			s.IsAdhocBackupImmutable.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupVaultInternalV1betaImmutableAttributes = [5]string{
+	0: "backupMinimumEnforcedRetentionDuration",
+	1: "isDailyBackupImmutable",
+	2: "isWeeklyBackupImmutable",
+	3: "isMonthlyBackupImmutable",
+	4: "isAdhocBackupImmutable",
+}
+
+// Decode decodes BackupVaultInternalV1betaImmutableAttributes from json.
+func (s *BackupVaultInternalV1betaImmutableAttributes) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultInternalV1betaImmutableAttributes to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "backupMinimumEnforcedRetentionDuration":
+			if err := func() error {
+				s.BackupMinimumEnforcedRetentionDuration.Reset()
+				if err := s.BackupMinimumEnforcedRetentionDuration.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupMinimumEnforcedRetentionDuration\"")
+			}
+		case "isDailyBackupImmutable":
+			if err := func() error {
+				s.IsDailyBackupImmutable.Reset()
+				if err := s.IsDailyBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isDailyBackupImmutable\"")
+			}
+		case "isWeeklyBackupImmutable":
+			if err := func() error {
+				s.IsWeeklyBackupImmutable.Reset()
+				if err := s.IsWeeklyBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isWeeklyBackupImmutable\"")
+			}
+		case "isMonthlyBackupImmutable":
+			if err := func() error {
+				s.IsMonthlyBackupImmutable.Reset()
+				if err := s.IsMonthlyBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isMonthlyBackupImmutable\"")
+			}
+		case "isAdhocBackupImmutable":
+			if err := func() error {
+				s.IsAdhocBackupImmutable.Reset()
+				if err := s.IsAdhocBackupImmutable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isAdhocBackupImmutable\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultInternalV1betaImmutableAttributes")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultInternalV1betaImmutableAttributes) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultInternalV1betaImmutableAttributes) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupVaultInternalV1betaLifeCycleState as json.
+func (s BackupVaultInternalV1betaLifeCycleState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BackupVaultInternalV1betaLifeCycleState from json.
+func (s *BackupVaultInternalV1betaLifeCycleState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultInternalV1betaLifeCycleState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BackupVaultInternalV1betaLifeCycleState(v) {
+	case BackupVaultInternalV1betaLifeCycleStateSTATEUNSPECIFIED:
+		*s = BackupVaultInternalV1betaLifeCycleStateSTATEUNSPECIFIED
+	case BackupVaultInternalV1betaLifeCycleStateCREATING:
+		*s = BackupVaultInternalV1betaLifeCycleStateCREATING
+	case BackupVaultInternalV1betaLifeCycleStateUPDATING:
+		*s = BackupVaultInternalV1betaLifeCycleStateUPDATING
+	case BackupVaultInternalV1betaLifeCycleStateDELETING:
+		*s = BackupVaultInternalV1betaLifeCycleStateDELETING
+	case BackupVaultInternalV1betaLifeCycleStateREADY:
+		*s = BackupVaultInternalV1betaLifeCycleStateREADY
+	case BackupVaultInternalV1betaLifeCycleStateDELETED:
+		*s = BackupVaultInternalV1betaLifeCycleStateDELETED
+	case BackupVaultInternalV1betaLifeCycleStateERROR:
+		*s = BackupVaultInternalV1betaLifeCycleStateERROR
+	default:
+		*s = BackupVaultInternalV1betaLifeCycleState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BackupVaultInternalV1betaLifeCycleState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultInternalV1betaLifeCycleState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *BackupVaultUpdateV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -10944,6 +11673,39 @@ func (s OptBackupV1betaState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptBackupV1betaState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupVaultInternalV1betaImmutableAttributes as json.
+func (o OptBackupVaultInternalV1betaImmutableAttributes) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes BackupVaultInternalV1betaImmutableAttributes from json.
+func (o *OptBackupVaultInternalV1betaImmutableAttributes) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptBackupVaultInternalV1betaImmutableAttributes to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptBackupVaultInternalV1betaImmutableAttributes) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptBackupVaultInternalV1betaImmutableAttributes) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -35980,6 +36742,234 @@ func (s *V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity) UnmarshalJ
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaInternalCreateBackupVaultBadRequest as json.
+func (s *V1betaInternalCreateBackupVaultBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalCreateBackupVaultBadRequest from json.
+func (s *V1betaInternalCreateBackupVaultBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalCreateBackupVaultBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalCreateBackupVaultBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalCreateBackupVaultBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalCreateBackupVaultBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalCreateBackupVaultConflict as json.
+func (s *V1betaInternalCreateBackupVaultConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalCreateBackupVaultConflict from json.
+func (s *V1betaInternalCreateBackupVaultConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalCreateBackupVaultConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalCreateBackupVaultConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalCreateBackupVaultConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalCreateBackupVaultConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalCreateBackupVaultForbidden as json.
+func (s *V1betaInternalCreateBackupVaultForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalCreateBackupVaultForbidden from json.
+func (s *V1betaInternalCreateBackupVaultForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalCreateBackupVaultForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalCreateBackupVaultForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalCreateBackupVaultForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalCreateBackupVaultForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalCreateBackupVaultInternalServerError as json.
+func (s *V1betaInternalCreateBackupVaultInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalCreateBackupVaultInternalServerError from json.
+func (s *V1betaInternalCreateBackupVaultInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalCreateBackupVaultInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalCreateBackupVaultInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalCreateBackupVaultInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalCreateBackupVaultInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalCreateBackupVaultUnauthorized as json.
+func (s *V1betaInternalCreateBackupVaultUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalCreateBackupVaultUnauthorized from json.
+func (s *V1betaInternalCreateBackupVaultUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalCreateBackupVaultUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalCreateBackupVaultUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalCreateBackupVaultUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalCreateBackupVaultUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalCreateBackupVaultUnprocessableEntity as json.
+func (s *V1betaInternalCreateBackupVaultUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalCreateBackupVaultUnprocessableEntity from json.
+func (s *V1betaInternalCreateBackupVaultUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalCreateBackupVaultUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalCreateBackupVaultUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalCreateBackupVaultUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalCreateBackupVaultUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaInternalCreateVolumeReplicationBadRequest as json.
 func (s *V1betaInternalCreateVolumeReplicationBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -36888,6 +37878,234 @@ func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity) Marsha
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeBackupVaultBadRequest as json.
+func (s *V1betaInternalDescribeBackupVaultBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeBackupVaultBadRequest from json.
+func (s *V1betaInternalDescribeBackupVaultBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeBackupVaultBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeBackupVaultBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeBackupVaultBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeBackupVaultBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeBackupVaultForbidden as json.
+func (s *V1betaInternalDescribeBackupVaultForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeBackupVaultForbidden from json.
+func (s *V1betaInternalDescribeBackupVaultForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeBackupVaultForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeBackupVaultForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeBackupVaultForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeBackupVaultForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeBackupVaultInternalServerError as json.
+func (s *V1betaInternalDescribeBackupVaultInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeBackupVaultInternalServerError from json.
+func (s *V1betaInternalDescribeBackupVaultInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeBackupVaultInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeBackupVaultInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeBackupVaultInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeBackupVaultInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeBackupVaultNotFound as json.
+func (s *V1betaInternalDescribeBackupVaultNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeBackupVaultNotFound from json.
+func (s *V1betaInternalDescribeBackupVaultNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeBackupVaultNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeBackupVaultNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeBackupVaultNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeBackupVaultNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeBackupVaultUnauthorized as json.
+func (s *V1betaInternalDescribeBackupVaultUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeBackupVaultUnauthorized from json.
+func (s *V1betaInternalDescribeBackupVaultUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeBackupVaultUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeBackupVaultUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeBackupVaultUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeBackupVaultUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeBackupVaultUnprocessableEntity as json.
+func (s *V1betaInternalDescribeBackupVaultUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeBackupVaultUnprocessableEntity from json.
+func (s *V1betaInternalDescribeBackupVaultUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeBackupVaultUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeBackupVaultUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeBackupVaultUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeBackupVaultUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

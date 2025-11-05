@@ -5296,6 +5296,66 @@ func (_c *MockStorage_GetBackupVault_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// GetBackupVaultByExternalUUIDAndOwnerID provides a mock function with given fields: ctx, externalUUID, accountID
+func (_m *MockStorage) GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, accountID int64) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, externalUUID, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupVaultByExternalUUIDAndOwnerID")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, externalUUID, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, externalUUID, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, externalUUID, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultByExternalUUIDAndOwnerID'
+type MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call struct {
+	*mock.Call
+}
+
+// GetBackupVaultByExternalUUIDAndOwnerID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - externalUUID string
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetBackupVaultByExternalUUIDAndOwnerID(ctx interface{}, externalUUID interface{}, accountID interface{}) *MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call {
+	return &MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call{Call: _e.mock.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, accountID)}
+}
+
+func (_c *MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call) Run(run func(ctx context.Context, externalUUID string, accountID int64)) *MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.BackupVault, error)) *MockStorage_GetBackupVaultByExternalUUIDAndOwnerID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupVaultByNameAndOwnerID provides a mock function with given fields: ctx, backupVaultName, ownerID
 func (_m *MockStorage) GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultName string, ownerID string) (*datamodel.BackupVault, error) {
 	ret := _m.Called(ctx, backupVaultName, ownerID)

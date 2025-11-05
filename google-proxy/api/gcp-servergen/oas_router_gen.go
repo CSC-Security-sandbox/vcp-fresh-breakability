@@ -170,6 +170,63 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 
+							case 'b': // Prefix: "backupVaults"
+
+								if l := len("backupVaults"); len(elem) >= l && elem[0:l] == "backupVaults" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch r.Method {
+									case "POST":
+										s.handleV1betaInternalCreateBackupVaultRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "backupVaultId"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleV1betaInternalDescribeBackupVaultRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET")
+										}
+
+										return
+									}
+
+								}
+
 							case 'c': // Prefix: "clusterPeer"
 
 								if l := len("clusterPeer"); len(elem) >= l && elem[0:l] == "clusterPeer" {
@@ -2436,6 +2493,64 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									default:
 										return
 									}
+								}
+
+							case 'b': // Prefix: "backupVaults"
+
+								if l := len("backupVaults"); len(elem) >= l && elem[0:l] == "backupVaults" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch method {
+									case "POST":
+										r.name = V1betaInternalCreateBackupVaultOperation
+										r.summary = "Create a BackupVault entry in VCP database for cross-region operations"
+										r.operationID = "v1beta_internalCreateBackupVault"
+										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "backupVaultId"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[2] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = V1betaInternalDescribeBackupVaultOperation
+											r.summary = "Fetch a remote BackupVault from the VCP database"
+											r.operationID = "v1beta_internalDescribeBackupVault"
+											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+
 								}
 
 							case 'c': // Prefix: "clusterPeer"

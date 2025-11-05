@@ -317,6 +317,14 @@ type Handler interface {
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/authorize
 	V1betaInternalAuthorizeVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalAuthorizeVolumeReplicationParams) (V1betaInternalAuthorizeVolumeReplicationRes, error)
+	// V1betaInternalCreateBackupVault implements v1beta_internalCreateBackupVault operation.
+	//
+	// Creates a BackupVault entry in the VCP database for a remote BackupVault (i.e., BackupVault in
+	// region2). This endpoint is used during cross-region volume creation/update workflows when the
+	// BackupVault type is cross-region and the sourceRegionName != BackupRegionName.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults
+	V1betaInternalCreateBackupVault(ctx context.Context, req *BackupVaultInternalV1beta, params V1betaInternalCreateBackupVaultParams) (V1betaInternalCreateBackupVaultRes, error)
 	// V1betaInternalCreateVolumeReplication implements v1beta_internalCreateVolumeReplication operation.
 	//
 	// Create a new volume replication.
@@ -335,6 +343,13 @@ type Handler interface {
 	//
 	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots
 	V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, error)
+	// V1betaInternalDescribeBackupVault implements v1beta_internalDescribeBackupVault operation.
+	//
+	// Fetches the remote BackupVault from the VCP database in region2. This endpoint is used for
+	// cross-region operations to retrieve BackupVault details stored in the remote region's VCP database.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+	V1betaInternalDescribeBackupVault(ctx context.Context, params V1betaInternalDescribeBackupVaultParams) (V1betaInternalDescribeBackupVaultRes, error)
 	// V1betaInternalDescribePool implements v1beta_internalDescribePool operation.
 	//
 	// Returns the description of the specified volume replication by volume replication Id.
@@ -576,10 +591,6 @@ type Handler interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (V1betaUpdateVolumeRes, error)
-	// NewError creates *ErrorStatusCode from error returned by handler.
-	//
-	// Used for common default response.
-	NewError(ctx context.Context, err error) *ErrorStatusCode
 }
 
 // Server implements http server based on OpenAPI v3 specification and

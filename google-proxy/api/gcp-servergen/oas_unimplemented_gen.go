@@ -472,6 +472,17 @@ func (UnimplementedHandler) V1betaInternalAuthorizeVolumeReplication(ctx context
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalCreateBackupVault implements v1beta_internalCreateBackupVault operation.
+//
+// Creates a BackupVault entry in the VCP database for a remote BackupVault (i.e., BackupVault in
+// region2). This endpoint is used during cross-region volume creation/update workflows when the
+// BackupVault type is cross-region and the sourceRegionName != BackupRegionName.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults
+func (UnimplementedHandler) V1betaInternalCreateBackupVault(ctx context.Context, req *BackupVaultInternalV1beta, params V1betaInternalCreateBackupVaultParams) (r V1betaInternalCreateBackupVaultRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalCreateVolumeReplication implements v1beta_internalCreateVolumeReplication operation.
 //
 // Create a new volume replication.
@@ -496,6 +507,16 @@ func (UnimplementedHandler) V1betaInternalDeleteVolumeReplication(ctx context.Co
 //
 // DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots
 func (UnimplementedHandler) V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (r V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalDescribeBackupVault implements v1beta_internalDescribeBackupVault operation.
+//
+// Fetches the remote BackupVault from the VCP database in region2. This endpoint is used for
+// cross-region operations to retrieve BackupVault details stored in the remote region's VCP database.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (UnimplementedHandler) V1betaInternalDescribeBackupVault(ctx context.Context, params V1betaInternalDescribeBackupVaultParams) (r V1betaInternalDescribeBackupVaultRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -855,12 +876,4 @@ func (UnimplementedHandler) V1betaUpdateSnapshot(ctx context.Context, req *Volum
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 func (UnimplementedHandler) V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (r V1betaUpdateVolumeRes, _ error) {
 	return r, ht.ErrNotImplemented
-}
-
-// NewError creates *ErrorStatusCode from error returned by handler.
-//
-// Used for common default response.
-func (UnimplementedHandler) NewError(ctx context.Context, err error) (r *ErrorStatusCode) {
-	r = new(ErrorStatusCode)
-	return r
 }

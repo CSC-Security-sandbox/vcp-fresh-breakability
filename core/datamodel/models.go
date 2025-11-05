@@ -740,6 +740,7 @@ type BackupVault struct {
 	Description                *string              `json:"description" gorm:"type:text"`
 	ImmutableAttributes        *ImmutableAttributes `gorm:"column:immutable_attributes;type:jsonb"`
 	CrossRegionBackupVaultName *string              `json:"crossRegionBackupVaultName" gorm:"type:text"`
+	ExternalUUID               *string              `json:"externalUuid" gorm:"column:external_uuid;type:text;index"`
 	BucketDetails              BucketDetailsArray   `gorm:"column:bucket_details;type:jsonb"`
 }
 

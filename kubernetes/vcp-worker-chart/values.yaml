@@ -108,6 +108,7 @@ workerConfig:
   caPoolDeployedProjectId: "266893635349"
   secretManagerProjectId: "266893635349"
   immutableBackupEnabled: "false"
+  crossRegionBackupEnabled: "false"
   restoreVolumeBufferEnabled: "false"
   vsaDeployedDnsName: "au-se1.vsa"
   vsaManagedZone: "au-se1-vsa"

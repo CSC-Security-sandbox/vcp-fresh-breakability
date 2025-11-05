@@ -2505,6 +2505,22 @@ func (re *retryEngine) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backup
 	return var0, err
 }
 
+func (re *retryEngine) GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, accountID int64) (*datamodel.BackupVault, error) {
+	var var0 *datamodel.BackupVault
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, accountID)
+		if err != nil {
+			re.logError("GetBackupVaultByExternalUUIDAndOwnerID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
 	var var0 *datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {

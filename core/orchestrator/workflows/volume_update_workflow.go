@@ -312,13 +312,20 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
 		}
 
-		tenancyDetails := &common.TenancyInfo{}
-		err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &params.Region).Get(ctx, &tenancyDetails)
+		var backupVault *datamodel.BackupVault
+		err = workflow.ExecuteActivity(ctx, updateActivity.CheckBackupVaultExistInVCP, &volume, &params.Region).Get(ctx, &backupVault)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
 
-		err = workflow.ExecuteActivity(ctx, updateActivity.CheckBackupVaultExistInVCP, &volume, &params.Region).Get(ctx, nil)
+		backupRegion := params.Region
+		if backupVault.BackupVaultType == activities.CrossRegionBackupType && *backupVault.BackupRegionName != "" {
+			backupRegion = *backupVault.BackupRegionName
+			log.Infof("BackupRegion set to: %+v", backupRegion)
+		}
+
+		tenancyDetails := &common.TenancyInfo{}
+		err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, backupRegion).Get(ctx, &tenancyDetails)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -335,7 +342,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
-			err = workflow.ExecuteActivity(ctx, updateActivity.CreateBucketForBackupVault, &resourceName, &tenancyDetails, params.Region).Get(ctx, &bucketDetails)
+			err = workflow.ExecuteActivity(ctx, updateActivity.CreateBucketForBackupVault, &resourceName, &tenancyDetails, backupRegion).Get(ctx, &bucketDetails)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
@@ -347,6 +354,11 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 
 			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateBucketDetailsOfBackupVault, &volume, &bucketDetails).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+
+			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateRemoteBackupVaultDetailsInVCPForUpdate, &volume, &bucketDetails, backupVault).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

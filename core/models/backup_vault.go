@@ -45,4 +45,5 @@ type BackupVaultV1beta struct {
 	BackupVaultType            *string
 	AccountName                string
 	CrossRegionBackupVaultName *string
+	ExternalUUID               *string
 }

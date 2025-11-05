@@ -1650,7 +1650,7 @@ func TestGetHgUUIDs(t *testing.T) {
 func Test_parsePEMCertificate(t *testing.T) {
 	validCert := []string{
 		"-----BEGIN CERTIFICATE-----\nMIIFEDCCA3igAwIBAgITS/bXdYAv5LyZiy9Wd+osv4/IazANBgkqhkiG9w0BAQsF\nADAkMQ8wDQYDVQQKEwZOZXRhcHAxETAPBgNVBAMTCHNzLWNhLWNuMB4XDTI1MDYw\nMjE0MzQ1MFoXDTI1MDcwMjE0MzQ0OVowLjEPMA0GA1UEChMGbmV0YXBwMRswGQYD\nVQQDExJzaGFzaGktdXNlci1jbGllbnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw\nggEKAoIBAQDcagOhNAO68lpqXSkHrxBlF3xLNetZS739eGUneujlMqLWjMA04u9v\nBZGYdbKP5VDB8j2H4qiop7KzXIteKCpP6lmLD7vqpV5a7wIU2esewI4QeaZ+RvdL\np9duqnAv5JpTTAjKFhA4+jZQCqjJaqltYtPYMBxw8TiQcwkQUlQbYlVMYbHurkPE\nCItpDJPEyyddabM6lXri6nsWRyC2J13h8BAJMflC6yPXsb/fwsSjJULNzQr41A74\nwBJ/OTtQwLgrS8qxlxTAUL+dBUKW2/kIUT+pkqCd1nOvOgSzSdDj2qhLI2aNWrQl\noCNvdCWELoq6D0sj+DssrB7KNyrNRCafAgMBAAGjggGvMIIBqzAOBgNVHQ8BAf8E\nBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQC\nMAAwHQYDVR0OBBYEFJbr1PPEc/mieh1yXp+j5Mx80g79MB8GA1UdIwQYMBaAFM8w\nTjkEr4gm0t2b6qptwRlFdAQrMIGNBggrBgEFBQcBAQSBgDB+MHwGCCsGAQUFBzAC\nhnBodHRwOi8vcHJpdmF0ZWNhLWNvbnRlbnQtNjg1YmQ5ZjctMDAwMC0yMWQ2LTlj\nM2ItMTRjMTRlZjQ4NmQ0LnN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vYTNkM2UyNWE0\nZjhkNmJjNzQ5YmUvY2EuY3J0MBcGA1UdEQQQMA6CDCouc2hhc2hpLmNvbTCBggYD\nVR0fBHsweTB3oHWgc4ZxaHR0cDovL3ByaXZhdGVjYS1jb250ZW50LTY4NWJkOWY3\nLTAwMDAtMjFkNi05YzNiLTE0YzE0ZWY0ODZkNC5zdG9yYWdlLmdvb2dsZWFwaXMu\nY29tL2EzZDNlMjVhNGY4ZDZiYzc0OWJlL2NybC5jcmwwDQYJKoZIhvcNAQELBQAD\nggGBAIVgs0Kp142hnA3AxTTF84GqkX5gDuoAn7thK7Mgvjeuc8XPaM/jj+CNApK7\nGoQazkNxz2VJmwYtCaXPzYwMd6H10Y8CsF02mfbRXLbxa0MwVP/LR7rO0sOlv32o\nqzk1rs/UHYffaEz+CrxuPFqdhh5gw188siGIrlpfLNfR6IjdwLE1anH0dYwcxKFc\nDdNMxyX3wXnT4yVe2ufAK0PMvmJHHicoWsVU1CCRzHtySfKpRKYhWI54gbI0fmWK\nTjbf1jg5veC42ShIpFzCi7bU/7tfnhweD1qskqOuw+ipjbqxlxOuSoUw439WTVfb\nDvnEZAN0i/xR8/F0gv5TQwIY03ip1Lq08ak8/tTdJabInGtqquJsaFzgzO8b+0hE\nSWtfJXPFZh6UKLjAaxh4j7kKq2f8QS4uG07THlh0SPOmI+O0SKaw6gfk3gqZXyJ0\nXGw/CqljKg+9HZ1JeN6M/hT0cH7rSSfKmaySY9iD1i1lxjxM+zHuiWYRJbA2Ahhf\nim6RRg==\n-----END CERTIFICATE-----",
-		"-----BEGIN CERTIFICATE-----\nMIIFEDCCA3igAwIBAgITS/bXdYAv5LyZiy9Wd+osv4/IazANBgkqhkiG9w0BAQsF\nADAkMQ8wDQYDVQQKEwZOZXRhcHAxETAPBgNVBAMTCHNzLWNhLWNuMB4XDTI1MDYw\nMjE0MzQ1MFoXDTI1MDcwMjE0MzQ0OVowLjEPMA0GA1UEChMGbmV0YXBwMRswGQYD\nVQQDExJzaGFzaGktdXNlci1jbGllbnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw\nggEKAoIBAQDcagOhNAO68lpqXSkHrxBlF3xLNetZS739eGUneujlMqLWjMA04u9v\nBZGYdbKP5VDB8j2H4qiop7KzXIteKCpP6lmLD7vqpV5a7wIU2esewI4QeaZ+RvdL\np9duqnAv5JpTTAjKFhA4+jZQCqjJaqltYtPYMBxw8TiQcwkQUlQbYlVMYbHurkPE\nCItpDJPEyyddabM6lXri6nsWRyC2J13h8BAJMflC6yPXsb/fwsSjJULNzQr41A74\nwBJ/OTtQwLgrS8qxlxTAUL+dBUKW2/kIUT+pkqCd1nOvOgSzSdDj2qhLI2aNWrQl\noCNvdCWELoq6D0sj+DssrB7KNyrNRCafAgMBAAGjggGvMIIBqzAOBgNVHQ8BAf8E\nBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQC\nMAAwHQYDVR0OBBYEFJbr1PPEc/mieh1yXp+j5Mx80g79MB8GA1UdIwQYMBaAFM8w\nTjkEr4gm0t2b6qptwRlFdAQrMIGNBggrBgEFBQcBAQSBgDB+MHwGCCsGAQUFBzAC\nhnBodHRwOi8vcHJpdmF0ZWNhLWNvbnRlbnQtNjg1YmQ5ZjctMDAwMC0yMWQ2LTlj\nM2ItMTRjMTRlZjQ4NmQ0LnN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vYTNkM2UyNWE0\nZjhkNmJjNzQ5YmUvY2EuY3J0MBcGA1UdEQQQMA6CDCouc2hhc2hpLmNvbTCBggYD\nVR0fBHsweTB3oHWgc4ZxaHR0cDovL3ByaXZhdGVjYS1jb250ZW50LTY4NWJkOWY3\nLTAwMDAtMjFkNi05YzNiLTE0YzE0ZWY0ODZkNC5zdG9yYWdlLmdvb2dsZWFwaXMu\nY29tL2EzZDNlMjVhNGY4ZDZiYzc0OWJlL2NybC5jcmwwDQYJKoZIhvcNAQELBQAD\nggGBAIVgs0Kp142hnA3AxTTF84GqkX5gDuoAn7thK7Mgvjeuc8XPaM/jj+CNApK7\nGoQazkNxz2VJmwYtCaXPzYwMd6H10Y8CsF02mfbRXLbxa0MwVP/LR7rO0sOlv32o\nqzk1rs/UHYffaEz+CrxuPFqdhh5gw188siGIrlpfLNfR6IjdwLE1anH0dYwcxKFc\nDdNMxyX3wXnT4yVe2ufAK0PMvmJHHicoWsVU1CCRzHtySfKpRKYhWI54gbI0fmWK\nTjbf1jg5veC42ShIpFzCi7bU/7tfnhweD1qskqOuw+ipjbqxlxOuSoUw439WTVfb\nDvnEZAN0i/xR8/F0gv5TQwIY03ip1Lq08ak8/tTdJabInGtqquJsaFzgzO8b+0hE\nSWtfJXPFZh6UKLjAaxh4j7kKq2f8QS4uG07THlh0SPOmI+O0SKaw6gfk3gqZXyJ0\nXGw/CqljKg+9HZ1JeN6M/hT0cH7rSSfKmaySY9iD1i1lxjxM+zHuiWYRJbA2Ahhf\nim6RRg==\n-----END CERTIFICATE-----",
+		"-----BEGIN CERTIFICATE-----\nMIIFEDCCA3igAwIBAgITS/bXdYAv5LyZiy9Wd+osv4/IazANBgkqhkiG9w0BAQsF\nADAkMQ8wDQYDVQQKEwZOZXRhcHAxETAPBgNVBAMTCHNzLWNhLWNuMB4XDTI1MDYw\nMjE0MzQ1MFoXDTI1MDcwMjE0MzQ0OVowLjEPMA0GA1UEChMGbmV0YXBwMRswGQYD\nVQQDExJzaGFzaGktdXNlci1jbGllbnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw\nggEKAoIBAQDcagOhNAO68lpqXSkHrxBlF3xLNetZS739eGUneujlMqLWjMA04u9v\nBZGYdbKP5VDB8j2H4qiop7KzXIteKCpP6lmLD7vqpV5a7wIU2esewI4QeaZ+RvdL\np9duqnAv5JpTTAjKFhA4+jZQCqjJaqltYtPYMBxw8TiQcwkQUlQbYlVMYbHurkPE\nCItpDJPEyyddabM6lXri6nsWRyC2J13h8BAJMflC6yPXsb/fwsSjJULNzQr41A74\nwBJ/OTtQwLgrS8qxlxTAUL+dBUKW2/kIUT+pkqCd1nOvOgSzSdDj2qhLI2aNWrQl\noCNvdCWELoq6D0sj+DssrB7KNyrNRCafAgMBAAGjggGvMIIBqzAOBgNVHQ8BAf8E\nBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFJbr1PPEc/mieh1yXp+j5Mx80g79MB8GA1UdIwQYMBaAFM8wTjkEr4gm0t2b6qptwRlFdAQrMIGNBggrBgEFBQcBAQSBgDB+MHwGCCsGAQUFBzAChnBodHRwOi8vcHJpdmF0ZWNhLWNvbnRlbnQtNjg1YmQ5ZjctMDAwMC0yMWQ2LTljM2ItMTRjMTRlZjQ4NmQ0LnN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vYTNkM2UyNWE0ZjhkNmJjNzQ5YmUvY2EuY3J0MBcGA1UdEQQQMA6CDCouc2hhc2hpLmNvbTCBggYDVR0fBHsweTB3oHWgc4ZxaHR0cDovL3ByaXZhdGVjYS1jb250ZW50LTY4NWJkOWY3LTAwMDAtMjFkNi05YzNiLTE0YzE0ZWY0ODZkNC5zdG9yYWdlLmdvb2dsZWFwaXMuY29tL2EzZDNlMjVhNGY4ZDZiYzc0OWJlL2NybC5jcmwwDQYJKoZIhvcNAQELBQADggGBAIVgs0Kp142hnA3AxTTF84GqkX5gDuoAn7thK7Mgvjeuc8XPaM/jj+CNApK7GoQazkNxz2VJmwYtCaXPzYwMd6H10Y8CsF02mfbRXLbxa0MwVP/LR7rO0sOlv32oqzk1rs/UHYffaEz+CrxuPFqdhh5gw188siGIrlpfLNfR6IjdwLE1anH0dYwcxKFcDdNMxyX3wXnT4yVe2ufAK0PMvmJHHicoWsVU1CCRzHtySfKpRKYhWI54gbI0fmWKTjbf1jg5veC42ShIpFzCi7bU/7tfnhweD1qskqOuw+ipjbqxlxOuSoUw439WTVfbDvnEZAN0i/xR8/F0gv5TQwIY03ip1Lq08ak8/tTdJabInGtqquJsaFzgzO8b+0hESWtfJXPFZh6UKLjAaxh4j7kKq2f8QS4uG07THlh0SPOmI+O0SKaw6gfk3gqZXyJ0XGw/CqljKg+9HZ1JeN6M/hT0cH7rSSfKmaySY9iD1i1lxjxM+zHuiWYRJbA2Ahhfim6RRg==\n-----END CERTIFICATE-----",
 	}
 
 	t.Run("Valid PEM certificate", func(t *testing.T) {
@@ -1895,6 +1895,7 @@ func TestIsFileProtocolSupported(t *testing.T) {
 	}
 }
 
+// TestSetFileProtocolSupportedForTesting tests the test helper function
 func TestSetFileProtocolSupportedForTesting(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2234,21 +2235,23 @@ func TestParseCommaSeparatedStringToMap_EdgeCases(t *testing.T) {
 	}
 }
 
-func TestGetSnHostProject_ReturnsSnHostProject_WhenPoolIsNotNil(t *testing.T) {
-	pool := &datamodel.Pool{SnHostProject: "test-sn-host-project"}
-	result := GetSnHostProject(pool)
-	assert.Equal(t, "test-sn-host-project", result)
-}
+func TestGetSnHostProject(t *testing.T) {
+	t.Run("ReturnsSnHostProject_WhenPoolIsNotNil", func(t *testing.T) {
+		pool := &datamodel.Pool{SnHostProject: "test-sn-host-project"}
+		result := GetSnHostProject(pool)
+		assert.Equal(t, "test-sn-host-project", result)
+	})
 
-func TestGetSnHostProject_ReturnsEmptyString_WhenPoolIsNil(t *testing.T) {
-	result := GetSnHostProject(nil)
-	assert.Equal(t, "", result)
-}
+	t.Run("ReturnsEmptyString_WhenPoolIsNil", func(t *testing.T) {
+		result := GetSnHostProject(nil)
+		assert.Equal(t, "", result)
+	})
 
-func TestGetSnHostProject_ReturnsEmptyString_WhenSnHostProjectIsEmpty(t *testing.T) {
-	pool := &datamodel.Pool{SnHostProject: ""}
-	result := GetSnHostProject(pool)
-	assert.Equal(t, "", result)
+	t.Run("ReturnsEmptyString_WhenSnHostProjectIsEmpty", func(t *testing.T) {
+		pool := &datamodel.Pool{SnHostProject: ""}
+		result := GetSnHostProject(pool)
+		assert.Equal(t, "", result)
+	})
 }
 
 func TestIsProberProject(t *testing.T) {
@@ -3285,4 +3288,87 @@ func TestConvertStringToOptString(t *testing.T) {
 // Helper function to create time pointers
 func timePtr(t time.Time) *time.Time {
 	return &t
+}
+
+// TestIsCrossRegionBackupEnabled tests the IsCrossRegionBackupEnabled function
+func TestIsCrossRegionBackupEnabled(t *testing.T) {
+	// Store original value to restore later
+	originalValue := IsCrossRegionBackupEnabled()
+	defer SetCrossRegionBackupEnabledForTest(originalValue)
+
+	t.Run("returns true when cross-region backup is enabled", func(t *testing.T) {
+		SetCrossRegionBackupEnabledForTest(true)
+
+		result := IsCrossRegionBackupEnabled()
+
+		assert.True(t, result, "IsCrossRegionBackupEnabled should return true when enabled")
+	})
+
+	t.Run("returns false when cross-region backup is disabled", func(t *testing.T) {
+		SetCrossRegionBackupEnabledForTest(false)
+
+		result := IsCrossRegionBackupEnabled()
+
+		assert.False(t, result, "IsCrossRegionBackupEnabled should return false when disabled")
+	})
+
+	t.Run("maintains state correctly across multiple calls", func(t *testing.T) {
+		// Test with enabled state
+		SetCrossRegionBackupEnabledForTest(true)
+		assert.True(t, IsCrossRegionBackupEnabled(), "First call should return true")
+		assert.True(t, IsCrossRegionBackupEnabled(), "Second call should return true")
+
+		// Test with disabled state
+		SetCrossRegionBackupEnabledForTest(false)
+		assert.False(t, IsCrossRegionBackupEnabled(), "First call should return false")
+		assert.False(t, IsCrossRegionBackupEnabled(), "Second call should return false")
+	})
+
+	t.Run("test helper function works correctly", func(t *testing.T) {
+		// Verify the test helper function actually changes the state
+		SetCrossRegionBackupEnabledForTest(true)
+		assert.True(t, IsCrossRegionBackupEnabled(), "Should be true after setting to true")
+
+		SetCrossRegionBackupEnabledForTest(false)
+		assert.False(t, IsCrossRegionBackupEnabled(), "Should be false after setting to false")
+
+		// Toggle back
+		SetCrossRegionBackupEnabledForTest(true)
+		assert.True(t, IsCrossRegionBackupEnabled(), "Should be true after toggling back")
+	})
+}
+
+// TestSetCrossRegionBackupEnabledForTest tests the test helper function
+func TestSetCrossRegionBackupEnabledForTest(t *testing.T) {
+	// Store original value to restore later
+	originalValue := IsCrossRegionBackupEnabled()
+	defer SetCrossRegionBackupEnabledForTest(originalValue)
+
+	t.Run("can enable cross-region backup flag", func(t *testing.T) {
+		SetCrossRegionBackupEnabledForTest(true)
+
+		assert.True(t, IsCrossRegionBackupEnabled(),
+			"SetCrossRegionBackupEnabledForTest(true) should enable the flag")
+	})
+
+	t.Run("can disable cross-region backup flag", func(t *testing.T) {
+		SetCrossRegionBackupEnabledForTest(false)
+
+		assert.False(t, IsCrossRegionBackupEnabled(),
+			"SetCrossRegionBackupEnabledForTest(false) should disable the flag")
+	})
+
+	t.Run("changes take effect immediately", func(t *testing.T) {
+		// Start with one state
+		SetCrossRegionBackupEnabledForTest(false)
+		assert.False(t, IsCrossRegionBackupEnabled())
+
+		// Change to opposite state
+		SetCrossRegionBackupEnabledForTest(true)
+		assert.True(t, IsCrossRegionBackupEnabled())
+
+		// Change back
+		SetCrossRegionBackupEnabledForTest(false)
+		assert.False(t, IsCrossRegionBackupEnabled())
+	})
 }

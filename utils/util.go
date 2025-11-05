@@ -90,6 +90,7 @@ var (
 	isProberProject                 = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
 	AutoTieringEnabled              = env.GetBool("AUTO_TIERING_ENABLED", false)
 	immutableBackupEnabled          = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
+	crossRegionBackupEnabled        = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
 	RestoreVolumeBufferEnabled      = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
 
 	// Will match ONTAP version strings like "9.7.1", "9.8.2P3", "10.1.0", "10.3.1P2", etc.
@@ -1112,6 +1113,17 @@ func IsImmutableBackupEnabled() bool {
 // This should only be used in tests
 func SetImmutableBackupEnabledForTest(enabled bool) {
 	immutableBackupEnabled = enabled
+}
+
+// IsCrossRegionBackupEnabled returns whether cross-region backup operations are enabled
+func IsCrossRegionBackupEnabled() bool {
+	return crossRegionBackupEnabled
+}
+
+// SetCrossRegionBackupEnabledForTest allows tests to override the cross-region backup feature flag
+// This should only be used in tests
+func SetCrossRegionBackupEnabledForTest(enabled bool) {
+	crossRegionBackupEnabled = enabled
 }
 
 // GetSourceVolumePathFromBackup gets the source volume path from a backup object

@@ -43,6 +43,7 @@ fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that a
 backupEnabled: false
 qaEnabled: false
 immutableBackupEnabled: false
+crossRegionBackupEnabled: false
 restoreVolumeBufferEnabled: false
 minQuotaInBytesPool: "1099511627776" # 1TiB in bytes
 maxQuotaInBytesPool: "467292441804800" # 425TiB in bytes

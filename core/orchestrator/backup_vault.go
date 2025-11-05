@@ -10,7 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -334,6 +334,7 @@ func _convertDatastoreBackupVaultToModel(bv *datamodel.BackupVault) *models.Back
 		DestinationBackupVault:     bv.CrossRegionBackupVaultName,
 		BackupVaultType:            &bv.BackupVaultType,
 		CrossRegionBackupVaultName: bv.CrossRegionBackupVaultName,
+		ExternalUUID:               bv.ExternalUUID,
 		AccountName:                bv.Account.Name,
 	}
 	if bv.ImmutableAttributes != nil {
@@ -393,4 +394,26 @@ func (o *Orchestrator) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Conte
 		return nil, err
 	}
 	return backupVaultUUIDs, nil
+}
+
+// CreateBackupVaultEntryInVCP creates a BackupVault entry directly in the VCP database for cross-region operations
+func (o *Orchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	se := o.storage
+	account, err := getOrCreateAccount(ctx, se, bv.AccountVendorID)
+	if err != nil {
+		return nil, err
+	}
+	bv.AccountID = account.ID
+	return se.CreateBackupVaultEntryInVCP(ctx, bv)
+}
+
+// GetBackupVaultByExternalUUIDAndOwnerID gets a BackupVault by external UUID directly from storage for cross-region operations
+// The external UUID is used as the identifier for cross-region BackupVault references
+func (o *Orchestrator) GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, ownerID string) (*datamodel.BackupVault, error) {
+	se := o.storage
+	account, err := getOrCreateAccount(ctx, se, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	return se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, account.ID)
 }

@@ -4346,3 +4346,368 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 		assert.Equal(tt, false, updatedPool.AutoTieringConfig.TieringPaused, "TieringPaused should not change")
 	})
 }
+
+func TestGetBackupVaultByExternalUUIDAndOwnerID_Persistence_store(t *testing.T) {
+	t.Run("WhenBackupVaultExistsWithValidExternalUUIDAndAccountID", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create backup vault with external UUID
+		externalUUID := "external-backup-vault-uuid-123"
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-vault-uuid",
+			},
+			Name:                  "test_backup_vault",
+			AccountID:             account.ID,
+			Account:               account,
+			ExternalUUID:          &externalUUID,
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVaultType:       "STANDARD",
+			AccountVendorID:       "test-vendor-id",
+		}
+		createdVault, err := store.CreateBackupVaultEntryInVCP(ctx, backupVault)
+		assert.NoError(tt, err, "Failed to create backup vault")
+		assert.NotNil(tt, createdVault, "Created backup vault should not be nil")
+
+		// Test the method
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, account.ID)
+		assert.NoError(tt, err, "Expected no error when getting backup vault")
+		assert.NotNil(tt, result, "Result should not be nil")
+		assert.Equal(tt, createdVault.UUID, result.UUID, "UUID should match")
+		assert.Equal(tt, backupVault.Name, result.Name, "Name should match")
+		assert.Equal(tt, account.ID, result.AccountID, "AccountID should match")
+		assert.Equal(tt, externalUUID, *result.ExternalUUID, "ExternalUUID should match")
+		assert.NotNil(tt, result.Account, "Account should be preloaded")
+		assert.Equal(tt, account.Name, result.Account.Name, "Account name should match")
+	})
+
+	t.Run("WhenBackupVaultNotFoundByExternalUUID", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Try to get backup vault with non-existent external UUID
+		nonExistentExternalUUID := "non-existent-external-uuid"
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(ctx, nonExistentExternalUUID, account.ID)
+		assert.Error(tt, err, "Expected error when backup vault not found")
+		assert.Nil(tt, result, "Result should be nil when not found")
+
+		// Verify it's a not found error
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrResourceNotFound, customErr.TrackingID, "Error code should be ErrResourceNotFound")
+		}
+	})
+
+	t.Run("WhenBackupVaultNotFoundByAccountID", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create another account
+		account2 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid-2",
+			},
+			Name: "test_account_2",
+		}
+		createdAccount2, err := store.CreateAccount(ctx, account2)
+		assert.NoError(tt, err, "Failed to create second account")
+		account2 = createdAccount2
+
+		// Create backup vault with external UUID for first account
+		externalUUID := "external-backup-vault-uuid-456"
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-vault-uuid",
+			},
+			Name:                  "test_backup_vault",
+			AccountID:             account.ID,
+			Account:               account,
+			ExternalUUID:          &externalUUID,
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVaultType:       "STANDARD",
+			AccountVendorID:       "test-vendor-id",
+		}
+		_, err = store.CreateBackupVaultEntryInVCP(ctx, backupVault)
+		assert.NoError(tt, err, "Failed to create backup vault")
+
+		// Try to get backup vault with correct external UUID but wrong account ID
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, account2.ID)
+		assert.Error(tt, err, "Expected error when backup vault not found for different account")
+		assert.Nil(tt, result, "Result should be nil when not found")
+
+		// Verify it's a not found error
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrResourceNotFound, customErr.TrackingID, "Error code should be ErrResourceNotFound")
+		}
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Try to get backup vault with non-existent account ID
+		nonExistentAccountID := int64(999999)
+		externalUUID := "some-external-uuid"
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, nonExistentAccountID)
+		assert.Error(tt, err, "Expected error when account does not exist")
+		assert.Nil(tt, result, "Result should be nil when account not found")
+
+		// Verify it's a not found error
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrResourceNotFound, customErr.TrackingID, "Error code should be ErrResourceNotFound")
+		}
+	})
+
+	t.Run("WhenBackupVaultHasNullExternalUUID", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create backup vault without external UUID (null)
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-vault-uuid",
+			},
+			Name:                  "test_backup_vault",
+			AccountID:             account.ID,
+			Account:               account,
+			ExternalUUID:          nil, // null external UUID
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVaultType:       "STANDARD",
+			AccountVendorID:       "test-vendor-id",
+		}
+		_, err = store.CreateBackupVaultEntryInVCP(ctx, backupVault)
+		assert.NoError(tt, err, "Failed to create backup vault")
+
+		// Try to get backup vault with external UUID that doesn't match null
+		searchExternalUUID := "some-external-uuid"
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(ctx, searchExternalUUID, account.ID)
+		assert.Error(tt, err, "Expected error when backup vault has null external UUID")
+		assert.Nil(tt, result, "Result should be nil when external UUID doesn't match")
+
+		// Verify it's a not found error
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrResourceNotFound, customErr.TrackingID, "Error code should be ErrResourceNotFound")
+		}
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		// Create test account first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(context.Background(), account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Use a cancelled context to trigger a database error
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel the context immediately
+
+		externalUUID := "some-external-uuid"
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(cancelledCtx, externalUUID, account.ID)
+		assert.Error(tt, err, "Expected error due to cancelled context")
+		assert.Nil(tt, result, "Result should be nil when database error occurs")
+		// The error might be wrapped by retry mechanism, so just verify an error occurred
+	})
+
+	t.Run("WhenMultipleBackupVaultsExistForSameAccount", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create multiple backup vaults with different external UUIDs
+		externalUUID1 := "external-backup-vault-uuid-1"
+		backupVault1 := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-vault-uuid-1",
+			},
+			Name:                  "test_backup_vault_1",
+			AccountID:             account.ID,
+			Account:               account,
+			ExternalUUID:          &externalUUID1,
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVaultType:       "STANDARD",
+			AccountVendorID:       "test-vendor-id-1",
+		}
+		createdVault1, err := store.CreateBackupVaultEntryInVCP(ctx, backupVault1)
+		assert.NoError(tt, err, "Failed to create first backup vault")
+
+		externalUUID2 := "external-backup-vault-uuid-2"
+		backupVault2 := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-vault-uuid-2",
+			},
+			Name:                  "test_backup_vault_2",
+			AccountID:             account.ID,
+			Account:               account,
+			ExternalUUID:          &externalUUID2,
+			LifeCycleState:        models.LifeCycleStateCreating,
+			LifeCycleStateDetails: models.LifeCycleStateCreatingDetails,
+			BackupVaultType:       "PREMIUM",
+			AccountVendorID:       "test-vendor-id-2",
+		}
+		createdVault2, err := store.CreateBackupVaultEntryInVCP(ctx, backupVault2)
+		assert.NoError(tt, err, "Failed to create second backup vault")
+
+		// Test getting first backup vault
+		result1, err := store.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID1, account.ID)
+		assert.NoError(tt, err, "Expected no error when getting first backup vault")
+		assert.NotNil(tt, result1, "First result should not be nil")
+		assert.Equal(tt, createdVault1.UUID, result1.UUID, "First vault UUID should match")
+		assert.Equal(tt, backupVault1.Name, result1.Name, "First vault name should match")
+		assert.Equal(tt, "STANDARD", result1.BackupVaultType, "First vault type should match")
+
+		// Test getting second backup vault
+		result2, err := store.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID2, account.ID)
+		assert.NoError(tt, err, "Expected no error when getting second backup vault")
+		assert.NotNil(tt, result2, "Second result should not be nil")
+		assert.Equal(tt, createdVault2.UUID, result2.UUID, "Second vault UUID should match")
+		assert.Equal(tt, backupVault2.Name, result2.Name, "Second vault name should match")
+		assert.Equal(tt, "PREMIUM", result2.BackupVaultType, "Second vault type should match")
+
+		// Verify that the results are different
+		assert.NotEqual(tt, result1.UUID, result2.UUID, "The two backup vaults should be different")
+		assert.NotEqual(tt, result1.Name, result2.Name, "The two backup vault names should be different")
+	})
+
+	t.Run("WhenEmptyExternalUUIDProvided", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Try to get backup vault with empty external UUID
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(ctx, "", account.ID)
+		assert.Error(tt, err, "Expected error when external UUID is empty")
+		assert.Nil(tt, result, "Result should be nil when external UUID is empty")
+
+		// Verify it's a not found error
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrResourceNotFound, customErr.TrackingID, "Error code should be ErrResourceNotFound")
+		}
+	})
+}

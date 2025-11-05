@@ -971,6 +971,10 @@ func (s *PersistenceStore) GetBackupVaultByUUIDndOwnerID(ctx context.Context, ba
 	return s.dataStore.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 }
 
+func (s *PersistenceStore) GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, accountID int64) (*datamodel.BackupVault, error) {
+	return s.dataStore.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, accountID)
+}
+
 func (s *PersistenceStore) CreateBackupVaultEntryInVCP(ctx context.Context, backupVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	return s.dataStore.CreateBackupVaultEntryInVCP(ctx, backupVault)
 }

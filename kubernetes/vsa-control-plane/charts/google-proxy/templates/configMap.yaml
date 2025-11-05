@@ -42,6 +42,7 @@ data:
   BACKUP_ENABLED: "{{ index .Values "backupEnabled" }}"
   QA_ENABLED: "{{ index .Values "qaEnabled" }}"
   IMMUTABLE_BACKUP_ENABLED: "{{ index .Values "immutableBackupEnabled" }}"
+  CROSS_REGION_BACKUP_ENABLED: "{{ index .Values "crossRegionBackupEnabled" }}"
   CRR_ENABLED: "{{ index .Values "crrEnabled" }}"
   CPCRR_ENABLED: "{{ index .Values "cpcrrEnabled" }}"
   CZCRR_ENABLED: "{{ index .Values "czcrrEnabled" }}"

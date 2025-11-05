@@ -1138,3 +1138,322 @@ func TestReturnsErrorWhenTransactionFails(tt *testing.T) {
 	assert.Error(tt, err)
 	assert.Equal(tt, "mock transaction failure", err.Error())
 }
+
+func TestGetBackupVaultByExternalUUIDAndOwnerID(t *testing.T) {
+	t.Run("WhenBackupVaultExistsWithExternalUUID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 123},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                  "test_backup_vault",
+			AccountID:             account.ID,
+			Account:               account,
+			ExternalUUID:          &externalUUID,
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.db.Create(backupVault).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(context.Background(), externalUUID, account.ID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, backupVault.UUID, result.UUID)
+		assert.Equal(tt, backupVault.Name, result.Name)
+		assert.Equal(tt, backupVault.AccountID, result.AccountID)
+		assert.Equal(tt, externalUUID, *result.ExternalUUID)
+		assert.NotNil(tt, result.Account)
+		assert.Equal(tt, account.Name, result.Account.Name)
+	})
+
+	t.Run("WhenBackupVaultNotFoundByExternalUUID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 123},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		nonExistentExternalUUID := "non-existent-external-uuid"
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(context.Background(), nonExistentExternalUUID, account.ID)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "backup vault")
+	})
+
+	t.Run("WhenBackupVaultNotFoundByOwnerID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 123},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		backupVault := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:         "test_backup_vault",
+			AccountID:    account.ID,
+			Account:      account,
+			ExternalUUID: &externalUUID,
+		}
+		err = store.db.Create(backupVault).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		// Try to find with wrong owner ID
+		wrongOwnerID := int64(999)
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(context.Background(), externalUUID, wrongOwnerID)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "backup vault")
+	})
+
+	t.Run("WhenBackupVaultExistsButBelongsToDifferentAccount", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		// Create first account and backup vault
+		account1 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-1-uuid", ID: 123},
+			Name:      "test_account_1",
+		}
+		err = store.db.Create(account1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account 1: %v", err)
+		}
+
+		// Create second account
+		account2 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-2-uuid", ID: 456},
+			Name:      "test_account_2",
+		}
+		err = store.db.Create(account2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account 2: %v", err)
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		backupVault := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:         "test_backup_vault",
+			AccountID:    account1.ID, // Belongs to account1
+			Account:      account1,
+			ExternalUUID: &externalUUID,
+		}
+		err = store.db.Create(backupVault).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		// Try to find with account2's ID
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(context.Background(), externalUUID, account2.ID)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "backup vault")
+	})
+
+	t.Run("WhenBackupVaultExistsWithoutExternalUUID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 123},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create backup vault without external UUID
+		backupVault := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:         "test_backup_vault",
+			AccountID:    account.ID,
+			Account:      account,
+			ExternalUUID: nil, // No external UUID
+		}
+		err = store.db.Create(backupVault).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		// Try to find by some external UUID
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(context.Background(), "some-external-uuid", account.ID)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "backup vault")
+	})
+
+	t.Run("WhenDatabaseConnectionFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		// Close the database connection to simulate failure
+		sqlDB, _ := db.DB()
+		err = sqlDB.Close()
+		if err != nil {
+			tt.Fatalf("Failed to close database connection: %v", err)
+		}
+
+		result, err := store.GetBackupVaultByExternalUUIDAndOwnerID(context.Background(), "some-external-uuid", 123)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		// Should get a database connection error, not a "not found" error
+		assert.NotContains(tt, err.Error(), "backup vault")
+	})
+
+	t.Run("WhenMultipleBackupVaultsExistWithSameExternalUUID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		// Create two accounts
+		account1 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-1-uuid", ID: 123},
+			Name:      "test_account_1",
+		}
+		err = store.db.Create(account1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account 1: %v", err)
+		}
+
+		account2 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-2-uuid", ID: 456},
+			Name:      "test_account_2",
+		}
+		err = store.db.Create(account2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account 2: %v", err)
+		}
+
+		externalUUID := "shared-external-uuid"
+
+		// Create backup vault for account1
+		backupVault1 := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-vault-1-uuid"},
+			Name:         "test_backup_vault_1",
+			AccountID:    account1.ID,
+			Account:      account1,
+			ExternalUUID: &externalUUID,
+		}
+		err = store.db.Create(backupVault1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault 1: %v", err)
+		}
+
+		// Create backup vault for account2 with same external UUID
+		backupVault2 := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-vault-2-uuid"},
+			Name:         "test_backup_vault_2",
+			AccountID:    account2.ID,
+			Account:      account2,
+			ExternalUUID: &externalUUID,
+		}
+		err = store.db.Create(backupVault2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault 2: %v", err)
+		}
+
+		// Should return the backup vault for account1
+		result1, err := store.GetBackupVaultByExternalUUIDAndOwnerID(context.Background(), externalUUID, account1.ID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result1)
+		assert.Equal(tt, backupVault1.UUID, result1.UUID)
+		assert.Equal(tt, account1.ID, result1.AccountID)
+
+		// Should return the backup vault for account2
+		result2, err := store.GetBackupVaultByExternalUUIDAndOwnerID(context.Background(), externalUUID, account2.ID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result2)
+		assert.Equal(tt, backupVault2.UUID, result2.UUID)
+		assert.Equal(tt, account2.ID, result2.AccountID)
+	})
+}

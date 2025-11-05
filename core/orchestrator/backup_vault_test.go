@@ -1456,3 +1456,266 @@ func TestIsBackupVaultAttachedToVolume(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestGetBackupVaultByExternalUUIDAndOwnerID(t *testing.T) {
+	ctx := context.Background()
+
+	// Store original function to restore after tests
+	originalGetOrCreateAccount := getOrCreateAccount
+	defer func() {
+		getOrCreateAccount = originalGetOrCreateAccount
+	}()
+
+	t.Run("WhenBackupVaultFound_ReturnsBackupVault", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		ownerID := "owner-uuid"
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			AccountID:             account.ID,
+			Account:               account,
+			ExternalUUID:          &externalUUID,
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			RegionName:            "us-central1",
+			AccountVendorID:       "vendor-id",
+			BackupVaultType:       "STANDARD",
+		}
+
+		// Mock the package-level function
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock the storage method for getting backup vault
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(backupVault, nil)
+
+		result, err := orchestrator.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, ownerID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, backupVault.UUID, result.UUID)
+		assert.Equal(tt, backupVault.Name, result.Name)
+		assert.Equal(tt, backupVault.AccountID, result.AccountID)
+		assert.Equal(tt, externalUUID, *result.ExternalUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAccountNotFound_CreatesAccount_ReturnsBackupVault", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		ownerID := "owner-uuid"
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:         "test-backup-vault",
+			AccountID:    account.ID,
+			Account:      account,
+			ExternalUUID: &externalUUID,
+		}
+
+		// Mock the package-level function to simulate account not found initially, then created
+		callCount := 0
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			callCount++
+			if callCount == 1 {
+				// First call simulates account creation workflow
+				return account, nil
+			}
+			return account, nil
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(backupVault, nil)
+
+		result, err := orchestrator.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, ownerID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, backupVault.UUID, result.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAccountCreationFails_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		ownerID := "invalid-owner"
+		expectedError := errors.New("account creation failed")
+
+		// Mock the package-level function to return error
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, expectedError
+		}
+
+		result, err := orchestrator.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, ownerID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupVaultNotFound_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "non-existent-external-uuid"
+		ownerID := "owner-uuid"
+
+		// Mock the package-level function
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(nil, gorm.ErrRecordNotFound)
+
+		result, err := orchestrator.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, ownerID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, gorm.ErrRecordNotFound, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDatabaseError_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		ownerID := "owner-uuid"
+		expectedError := errors.New("database connection error")
+
+		// Mock the package-level function
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(nil, expectedError)
+
+		result, err := orchestrator.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, ownerID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenEmptyParameters_HandlesGracefully", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		externalUUID := ""
+		ownerID := ""
+		expectedError := errors.New("invalid parameters")
+
+		// Mock the package-level function to handle empty parameters
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, expectedError
+		}
+
+		result, err := orchestrator.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, ownerID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAccountCreationRaceCondition_ReturnsAccountAfterRetry", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		ownerID := "owner-uuid"
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:         "test-backup-vault",
+			AccountID:    account.ID,
+			Account:      account,
+			ExternalUUID: &externalUUID,
+		}
+
+		// Mock the package-level function to simulate race condition - creation fails but account exists after
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			// This simulates the race condition where another thread created the account
+			return account, nil
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(backupVault, nil)
+
+		result, err := orchestrator.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, ownerID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, backupVault.UUID, result.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+}

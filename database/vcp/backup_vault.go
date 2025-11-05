@@ -128,6 +128,20 @@ func (d *DataStoreRepository) GetBackupVaultByUUIDndOwnerID(ctx context.Context,
 	return dbBackupVault, nil
 }
 
+// GetBackupVaultByExternalUUIDAndOwnerID gets a BackupVault by external UUID and owner ID (account ID)
+func (d *DataStoreRepository) GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, accountID int64) (*datamodel.BackupVault, error) {
+	var bv datamodel.BackupVault
+	db := d.db.GORM().WithContext(ctx)
+	err := db.Preload("Account").Where("external_uuid = ? AND account_id = ?", externalUUID, accountID).First(&bv).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("backup vault", &externalUUID)
+		}
+		return nil, err
+	}
+	return &bv, nil
+}
+
 func (d *DataStoreRepository) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

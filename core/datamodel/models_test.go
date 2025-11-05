@@ -225,6 +225,128 @@ func TestBackupAttributes_Value(t *testing.T) {
 	assert.JSONEq(t, expectedJSON, string(val.([]byte)))
 }
 
+func TestBackupVault_ExternalUUID(t *testing.T) {
+	t.Run("ExternalUUID_WithValue", func(t *testing.T) {
+		externalUUID := "vault-12345-abcde-67890"
+		backupVault := BackupVault{
+			BaseModel:             BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:                  "test-vault",
+			AccountID:             123,
+			RegionName:            "us-central1",
+			LifeCycleState:        "CREATING",
+			LifeCycleStateDetails: "Backup vault is being created",
+			BackupVaultType:       "LOCAL",
+			AccountVendorID:       "project-12345",
+			ExternalUUID:          &externalUUID,
+		}
+
+		// Test that ExternalUUID is properly set
+		assert.NotNil(t, backupVault.ExternalUUID)
+		assert.Equal(t, "vault-12345-abcde-67890", *backupVault.ExternalUUID)
+
+		// Test JSON marshaling includes ExternalUUID with correct JSON tag
+		jsonData, err := json.Marshal(backupVault)
+		assert.NoError(t, err)
+
+		var unmarshaled map[string]interface{}
+		err = json.Unmarshal(jsonData, &unmarshaled)
+		assert.NoError(t, err)
+		assert.Equal(t, "vault-12345-abcde-67890", unmarshaled["externalUuid"])
+	})
+
+	t.Run("ExternalUUID_Nil", func(t *testing.T) {
+		backupVault := BackupVault{
+			BaseModel:             BaseModel{ID: 2, UUID: "backup-vault-uuid-2"},
+			Name:                  "test-vault-2",
+			AccountID:             456,
+			RegionName:            "us-west1",
+			LifeCycleState:        "ACTIVE",
+			LifeCycleStateDetails: "Backup vault is active",
+			BackupVaultType:       "CROSS_REGION",
+			AccountVendorID:       "project-67890",
+			ExternalUUID:          nil,
+		}
+
+		// Test that ExternalUUID can be nil
+		assert.Nil(t, backupVault.ExternalUUID)
+
+		// Test JSON marshaling with nil ExternalUUID
+		jsonData, err := json.Marshal(backupVault)
+		assert.NoError(t, err)
+
+		var unmarshaled map[string]interface{}
+		err = json.Unmarshal(jsonData, &unmarshaled)
+		assert.NoError(t, err)
+
+		// Nil pointer should serialize as null in JSON
+		externalUuidValue, exists := unmarshaled["externalUuid"]
+		assert.True(t, exists)
+		assert.Nil(t, externalUuidValue)
+	})
+
+	t.Run("ExternalUUID_JSONUnmarshaling", func(t *testing.T) {
+		// Test unmarshaling JSON with ExternalUUID
+		jsonWithExternalUUID := `{
+			"id": 3,
+			"uuid": "backup-vault-uuid-3",
+			"name": "test-vault-from-json",
+			"regionName": "europe-west1",
+			"lifeCycleState": "ACTIVE",
+			"lifeCycleStateDetails": "Ready for backups",
+			"backupVaultType": "LOCAL",
+			"accountVendorID": "project-json-test",
+			"externalUuid": "json-vault-uuid-12345"
+		}`
+
+		var backupVault BackupVault
+		err := json.Unmarshal([]byte(jsonWithExternalUUID), &backupVault)
+		assert.NoError(t, err)
+		assert.NotNil(t, backupVault.ExternalUUID)
+		assert.Equal(t, "json-vault-uuid-12345", *backupVault.ExternalUUID)
+
+		// Test unmarshaling JSON with null ExternalUUID
+		jsonWithNullExternalUUID := `{
+			"id": 4,
+			"uuid": "backup-vault-uuid-4",
+			"name": "test-vault-null-external-uuid",
+			"regionName": "asia-southeast1",
+			"lifeCycleState": "CREATING",
+			"externalUuid": null
+		}`
+
+		var backupVaultWithNull BackupVault
+		err = json.Unmarshal([]byte(jsonWithNullExternalUUID), &backupVaultWithNull)
+		assert.NoError(t, err)
+		assert.Nil(t, backupVaultWithNull.ExternalUUID)
+	})
+
+	t.Run("ExternalUUID_FieldModification", func(t *testing.T) {
+		backupVault := BackupVault{
+			BaseModel:    BaseModel{ID: 5, UUID: "backup-vault-uuid-5"},
+			Name:         "modifiable-vault",
+			ExternalUUID: nil,
+		}
+
+		// Initially nil
+		assert.Nil(t, backupVault.ExternalUUID)
+
+		// Set a value
+		newExternalUUID := "new-external-uuid-67890"
+		backupVault.ExternalUUID = &newExternalUUID
+		assert.NotNil(t, backupVault.ExternalUUID)
+		assert.Equal(t, "new-external-uuid-67890", *backupVault.ExternalUUID)
+
+		// Modify the value
+		modifiedExternalUUID := "modified-external-uuid-12345"
+		backupVault.ExternalUUID = &modifiedExternalUUID
+		assert.Equal(t, "modified-external-uuid-12345", *backupVault.ExternalUUID)
+
+		// Set back to nil
+		backupVault.ExternalUUID = nil
+		assert.Nil(t, backupVault.ExternalUUID)
+	})
+}
+
 func TestPoolUniqueConstraint(t *testing.T) {
 	// Test that the GORM tags are set up correctly for composite unique constraint
 	pool1 := &Pool{

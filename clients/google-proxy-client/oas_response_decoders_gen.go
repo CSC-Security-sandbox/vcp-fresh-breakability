@@ -316,8 +316,8 @@ func decodeGetHealthResponse(resp *http.Response) (res GetHealthRes, _ error) {
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res GetHealthRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -367,7 +367,7 @@ func decodeGetHealthResponse(resp *http.Response) (res GetHealthRes, _ error) {
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCheckKmsConfigResponse(resp *http.Response) (res V1betaCheckKmsConfigRes, _ error) {
@@ -760,8 +760,8 @@ func decodeV1betaCheckKmsConfigResponse(resp *http.Response) (res V1betaCheckKms
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCheckKmsConfigRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -811,7 +811,7 @@ func decodeV1betaCheckKmsConfigResponse(resp *http.Response) (res V1betaCheckKms
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreateActiveDirectoryResponse(resp *http.Response) (res V1betaCreateActiveDirectoryRes, _ error) {
@@ -1169,8 +1169,8 @@ func decodeV1betaCreateActiveDirectoryResponse(resp *http.Response) (res V1betaC
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreateActiveDirectoryRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -1220,7 +1220,7 @@ func decodeV1betaCreateActiveDirectoryResponse(resp *http.Response) (res V1betaC
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreateBackupResponse(resp *http.Response) (res V1betaCreateBackupRes, _ error) {
@@ -1666,8 +1666,8 @@ func decodeV1betaCreateBackupResponse(resp *http.Response) (res V1betaCreateBack
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreateBackupRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -1717,7 +1717,7 @@ func decodeV1betaCreateBackupResponse(resp *http.Response) (res V1betaCreateBack
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreateBackupPolicyResponse(resp *http.Response) (res V1betaCreateBackupPolicyRes, _ error) {
@@ -2119,8 +2119,8 @@ func decodeV1betaCreateBackupPolicyResponse(resp *http.Response) (res V1betaCrea
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreateBackupPolicyRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -2170,7 +2170,7 @@ func decodeV1betaCreateBackupPolicyResponse(resp *http.Response) (res V1betaCrea
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreateBackupVaultResponse(resp *http.Response) (res V1betaCreateBackupVaultRes, _ error) {
@@ -2528,8 +2528,8 @@ func decodeV1betaCreateBackupVaultResponse(resp *http.Response) (res V1betaCreat
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreateBackupVaultRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -2579,7 +2579,7 @@ func decodeV1betaCreateBackupVaultResponse(resp *http.Response) (res V1betaCreat
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreateHostGroupResponse(resp *http.Response) (res V1betaCreateHostGroupRes, _ error) {
@@ -2981,8 +2981,8 @@ func decodeV1betaCreateHostGroupResponse(resp *http.Response) (res V1betaCreateH
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreateHostGroupRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -3032,7 +3032,7 @@ func decodeV1betaCreateHostGroupResponse(resp *http.Response) (res V1betaCreateH
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreateKmsConfigurationResponse(resp *http.Response) (res V1betaCreateKmsConfigurationRes, _ error) {
@@ -3390,8 +3390,8 @@ func decodeV1betaCreateKmsConfigurationResponse(resp *http.Response) (res V1beta
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreateKmsConfigurationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -3441,7 +3441,7 @@ func decodeV1betaCreateKmsConfigurationResponse(resp *http.Response) (res V1beta
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreatePoolResponse(resp *http.Response) (res V1betaCreatePoolRes, _ error) {
@@ -3799,8 +3799,8 @@ func decodeV1betaCreatePoolResponse(resp *http.Response) (res V1betaCreatePoolRe
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreatePoolRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -3850,7 +3850,7 @@ func decodeV1betaCreatePoolResponse(resp *http.Response) (res V1betaCreatePoolRe
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreateReplicationResponse(resp *http.Response) (res V1betaCreateReplicationRes, _ error) {
@@ -4208,8 +4208,8 @@ func decodeV1betaCreateReplicationResponse(resp *http.Response) (res V1betaCreat
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreateReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -4259,7 +4259,7 @@ func decodeV1betaCreateReplicationResponse(resp *http.Response) (res V1betaCreat
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreateSnapshotResponse(resp *http.Response) (res V1betaCreateSnapshotRes, _ error) {
@@ -4661,8 +4661,8 @@ func decodeV1betaCreateSnapshotResponse(resp *http.Response) (res V1betaCreateSn
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreateSnapshotRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -4712,7 +4712,7 @@ func decodeV1betaCreateSnapshotResponse(resp *http.Response) (res V1betaCreateSn
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaCreateVolumeResponse(resp *http.Response) (res V1betaCreateVolumeRes, _ error) {
@@ -5070,8 +5070,8 @@ func decodeV1betaCreateVolumeResponse(resp *http.Response) (res V1betaCreateVolu
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaCreateVolumeRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -5121,7 +5121,7 @@ func decodeV1betaCreateVolumeResponse(resp *http.Response) (res V1betaCreateVolu
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeleteActiveDirectoryResponse(resp *http.Response) (res V1betaDeleteActiveDirectoryRes, _ error) {
@@ -5479,8 +5479,8 @@ func decodeV1betaDeleteActiveDirectoryResponse(resp *http.Response) (res V1betaD
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeleteActiveDirectoryRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -5530,7 +5530,7 @@ func decodeV1betaDeleteActiveDirectoryResponse(resp *http.Response) (res V1betaD
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeleteBackupPolicyResponse(resp *http.Response) (res V1betaDeleteBackupPolicyRes, _ error) {
@@ -5979,8 +5979,8 @@ func decodeV1betaDeleteBackupPolicyResponse(resp *http.Response) (res V1betaDele
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeleteBackupPolicyRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -6030,7 +6030,7 @@ func decodeV1betaDeleteBackupPolicyResponse(resp *http.Response) (res V1betaDele
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeleteBackupUnderBackupVaultResponse(resp *http.Response) (res V1betaDeleteBackupUnderBackupVaultRes, _ error) {
@@ -6520,8 +6520,8 @@ func decodeV1betaDeleteBackupUnderBackupVaultResponse(resp *http.Response) (res 
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeleteBackupUnderBackupVaultRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -6571,7 +6571,7 @@ func decodeV1betaDeleteBackupUnderBackupVaultResponse(resp *http.Response) (res 
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeleteBackupVaultResponse(resp *http.Response) (res V1betaDeleteBackupVaultRes, _ error) {
@@ -6976,8 +6976,8 @@ func decodeV1betaDeleteBackupVaultResponse(resp *http.Response) (res V1betaDelet
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeleteBackupVaultRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -7027,7 +7027,7 @@ func decodeV1betaDeleteBackupVaultResponse(resp *http.Response) (res V1betaDelet
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeleteHostGroupResponse(resp *http.Response) (res V1betaDeleteHostGroupRes, _ error) {
@@ -7344,8 +7344,8 @@ func decodeV1betaDeleteHostGroupResponse(resp *http.Response) (res V1betaDeleteH
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeleteHostGroupRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -7395,7 +7395,7 @@ func decodeV1betaDeleteHostGroupResponse(resp *http.Response) (res V1betaDeleteH
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeleteKmsConfigurationResponse(resp *http.Response) (res V1betaDeleteKmsConfigurationRes, _ error) {
@@ -7800,8 +7800,8 @@ func decodeV1betaDeleteKmsConfigurationResponse(resp *http.Response) (res V1beta
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeleteKmsConfigurationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -7851,7 +7851,7 @@ func decodeV1betaDeleteKmsConfigurationResponse(resp *http.Response) (res V1beta
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeletePoolResponse(resp *http.Response) (res V1betaDeletePoolRes, _ error) {
@@ -8256,8 +8256,8 @@ func decodeV1betaDeletePoolResponse(resp *http.Response) (res V1betaDeletePoolRe
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeletePoolRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -8307,7 +8307,7 @@ func decodeV1betaDeletePoolResponse(resp *http.Response) (res V1betaDeletePoolRe
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeleteReplicationResponse(resp *http.Response) (res V1betaDeleteReplicationRes, _ error) {
@@ -8665,8 +8665,8 @@ func decodeV1betaDeleteReplicationResponse(resp *http.Response) (res V1betaDelet
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeleteReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -8716,7 +8716,7 @@ func decodeV1betaDeleteReplicationResponse(resp *http.Response) (res V1betaDelet
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeleteSnapshotResponse(resp *http.Response) (res V1betaDeleteSnapshotRes, _ error) {
@@ -9165,8 +9165,8 @@ func decodeV1betaDeleteSnapshotResponse(resp *http.Response) (res V1betaDeleteSn
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeleteSnapshotRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -9216,7 +9216,7 @@ func decodeV1betaDeleteSnapshotResponse(resp *http.Response) (res V1betaDeleteSn
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDeleteVolumeResponse(resp *http.Response) (res V1betaDeleteVolumeRes, _ error) {
@@ -9621,8 +9621,8 @@ func decodeV1betaDeleteVolumeResponse(resp *http.Response) (res V1betaDeleteVolu
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDeleteVolumeRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -9672,7 +9672,7 @@ func decodeV1betaDeleteVolumeResponse(resp *http.Response) (res V1betaDeleteVolu
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribeActiveDirectoryResponse(resp *http.Response) (res V1betaDescribeActiveDirectoryRes, _ error) {
@@ -10030,8 +10030,8 @@ func decodeV1betaDescribeActiveDirectoryResponse(resp *http.Response) (res V1bet
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribeActiveDirectoryRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -10081,7 +10081,7 @@ func decodeV1betaDescribeActiveDirectoryResponse(resp *http.Response) (res V1bet
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribeBackupResponse(resp *http.Response) (res V1betaDescribeBackupRes, _ error) {
@@ -10439,8 +10439,8 @@ func decodeV1betaDescribeBackupResponse(resp *http.Response) (res V1betaDescribe
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribeBackupRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -10490,7 +10490,7 @@ func decodeV1betaDescribeBackupResponse(resp *http.Response) (res V1betaDescribe
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribeBackupPolicyResponse(resp *http.Response) (res V1betaDescribeBackupPolicyRes, _ error) {
@@ -10936,8 +10936,8 @@ func decodeV1betaDescribeBackupPolicyResponse(resp *http.Response) (res V1betaDe
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribeBackupPolicyRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -10987,7 +10987,7 @@ func decodeV1betaDescribeBackupPolicyResponse(resp *http.Response) (res V1betaDe
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribeBackupVaultResponse(resp *http.Response) (res V1betaDescribeBackupVaultRes, _ error) {
@@ -11345,8 +11345,8 @@ func decodeV1betaDescribeBackupVaultResponse(resp *http.Response) (res V1betaDes
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribeBackupVaultRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -11396,7 +11396,7 @@ func decodeV1betaDescribeBackupVaultResponse(resp *http.Response) (res V1betaDes
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribeHostGroupResponse(resp *http.Response) (res V1betaDescribeHostGroupRes, _ error) {
@@ -11710,8 +11710,8 @@ func decodeV1betaDescribeHostGroupResponse(resp *http.Response) (res V1betaDescr
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribeHostGroupRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -11761,7 +11761,7 @@ func decodeV1betaDescribeHostGroupResponse(resp *http.Response) (res V1betaDescr
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribeKmsConfigurationResponse(resp *http.Response) (res V1betaDescribeKmsConfigurationRes, _ error) {
@@ -12163,8 +12163,8 @@ func decodeV1betaDescribeKmsConfigurationResponse(resp *http.Response) (res V1be
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribeKmsConfigurationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -12214,7 +12214,7 @@ func decodeV1betaDescribeKmsConfigurationResponse(resp *http.Response) (res V1be
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribeOperationResponse(resp *http.Response) (res V1betaDescribeOperationRes, _ error) {
@@ -12616,8 +12616,8 @@ func decodeV1betaDescribeOperationResponse(resp *http.Response) (res V1betaDescr
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribeOperationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -12667,7 +12667,7 @@ func decodeV1betaDescribeOperationResponse(resp *http.Response) (res V1betaDescr
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribePoolResponse(resp *http.Response) (res V1betaDescribePoolRes, _ error) {
@@ -13025,8 +13025,8 @@ func decodeV1betaDescribePoolResponse(resp *http.Response) (res V1betaDescribePo
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribePoolRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -13076,7 +13076,7 @@ func decodeV1betaDescribePoolResponse(resp *http.Response) (res V1betaDescribePo
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribeSnapshotResponse(resp *http.Response) (res V1betaDescribeSnapshotRes, _ error) {
@@ -13390,8 +13390,8 @@ func decodeV1betaDescribeSnapshotResponse(resp *http.Response) (res V1betaDescri
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribeSnapshotRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -13441,7 +13441,7 @@ func decodeV1betaDescribeSnapshotResponse(resp *http.Response) (res V1betaDescri
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaDescribeVolumeResponse(resp *http.Response) (res V1betaDescribeVolumeRes, _ error) {
@@ -13755,8 +13755,8 @@ func decodeV1betaDescribeVolumeResponse(resp *http.Response) (res V1betaDescribe
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaDescribeVolumeRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -13806,7 +13806,7 @@ func decodeV1betaDescribeVolumeResponse(resp *http.Response) (res V1betaDescribe
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaEncryptVolumesResponse(resp *http.Response) (res V1betaEncryptVolumesRes, _ error) {
@@ -14208,8 +14208,8 @@ func decodeV1betaEncryptVolumesResponse(resp *http.Response) (res V1betaEncryptV
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaEncryptVolumesRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -14259,7 +14259,7 @@ func decodeV1betaEncryptVolumesResponse(resp *http.Response) (res V1betaEncryptV
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaEstablishVolumePeeringResponse(resp *http.Response) (res V1betaEstablishVolumePeeringRes, _ error) {
@@ -14661,8 +14661,8 @@ func decodeV1betaEstablishVolumePeeringResponse(resp *http.Response) (res V1beta
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaEstablishVolumePeeringRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -14712,7 +14712,7 @@ func decodeV1betaEstablishVolumePeeringResponse(resp *http.Response) (res V1beta
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaFinishProjectEventResponse(resp *http.Response) (res V1betaFinishProjectEventRes, _ error) {
@@ -15249,8 +15249,8 @@ func decodeV1betaFinishProjectEventResponse(resp *http.Response) (res V1betaFini
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaFinishProjectEventRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -15300,7 +15300,7 @@ func decodeV1betaFinishProjectEventResponse(resp *http.Response) (res V1betaFini
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleActiveDirectoriesResponse(resp *http.Response) (res V1betaGetMultipleActiveDirectoriesRes, _ error) {
@@ -15614,8 +15614,8 @@ func decodeV1betaGetMultipleActiveDirectoriesResponse(resp *http.Response) (res 
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleActiveDirectoriesRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -15665,7 +15665,7 @@ func decodeV1betaGetMultipleActiveDirectoriesResponse(resp *http.Response) (res 
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleBackupPoliciesResponse(resp *http.Response) (res V1betaGetMultipleBackupPoliciesRes, _ error) {
@@ -15979,8 +15979,8 @@ func decodeV1betaGetMultipleBackupPoliciesResponse(resp *http.Response) (res V1b
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleBackupPoliciesRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -16030,7 +16030,7 @@ func decodeV1betaGetMultipleBackupPoliciesResponse(resp *http.Response) (res V1b
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleBackupVaultsResponse(resp *http.Response) (res V1betaGetMultipleBackupVaultsRes, _ error) {
@@ -16344,8 +16344,8 @@ func decodeV1betaGetMultipleBackupVaultsResponse(resp *http.Response) (res V1bet
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleBackupVaultsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -16395,7 +16395,7 @@ func decodeV1betaGetMultipleBackupVaultsResponse(resp *http.Response) (res V1bet
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleBackupsResponse(resp *http.Response) (res V1betaGetMultipleBackupsRes, _ error) {
@@ -16709,8 +16709,8 @@ func decodeV1betaGetMultipleBackupsResponse(resp *http.Response) (res V1betaGetM
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleBackupsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -16760,7 +16760,7 @@ func decodeV1betaGetMultipleBackupsResponse(resp *http.Response) (res V1betaGetM
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleHostGroupsResponse(resp *http.Response) (res V1betaGetMultipleHostGroupsRes, _ error) {
@@ -17118,8 +17118,8 @@ func decodeV1betaGetMultipleHostGroupsResponse(resp *http.Response) (res V1betaG
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleHostGroupsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -17169,7 +17169,7 @@ func decodeV1betaGetMultipleHostGroupsResponse(resp *http.Response) (res V1betaG
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleKmsConfigsResponse(resp *http.Response) (res V1betaGetMultipleKmsConfigsRes, _ error) {
@@ -17483,8 +17483,8 @@ func decodeV1betaGetMultipleKmsConfigsResponse(resp *http.Response) (res V1betaG
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleKmsConfigsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -17534,7 +17534,7 @@ func decodeV1betaGetMultipleKmsConfigsResponse(resp *http.Response) (res V1betaG
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultiplePoolsResponse(resp *http.Response) (res V1betaGetMultiplePoolsRes, _ error) {
@@ -17892,8 +17892,8 @@ func decodeV1betaGetMultiplePoolsResponse(resp *http.Response) (res V1betaGetMul
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultiplePoolsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -17943,7 +17943,7 @@ func decodeV1betaGetMultiplePoolsResponse(resp *http.Response) (res V1betaGetMul
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleReplicationsResponse(resp *http.Response) (res V1betaGetMultipleReplicationsRes, _ error) {
@@ -18345,8 +18345,8 @@ func decodeV1betaGetMultipleReplicationsResponse(resp *http.Response) (res V1bet
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleReplicationsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -18396,7 +18396,7 @@ func decodeV1betaGetMultipleReplicationsResponse(resp *http.Response) (res V1bet
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleReplicationsInternalResponse(resp *http.Response) (res V1betaGetMultipleReplicationsInternalRes, _ error) {
@@ -18798,8 +18798,8 @@ func decodeV1betaGetMultipleReplicationsInternalResponse(resp *http.Response) (r
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleReplicationsInternalRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -18849,7 +18849,7 @@ func decodeV1betaGetMultipleReplicationsInternalResponse(resp *http.Response) (r
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleSnapshotsResponse(resp *http.Response) (res V1betaGetMultipleSnapshotsRes, _ error) {
@@ -19207,8 +19207,8 @@ func decodeV1betaGetMultipleSnapshotsResponse(resp *http.Response) (res V1betaGe
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleSnapshotsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -19258,7 +19258,7 @@ func decodeV1betaGetMultipleSnapshotsResponse(resp *http.Response) (res V1betaGe
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetMultipleVolumesResponse(resp *http.Response) (res V1betaGetMultipleVolumesRes, _ error) {
@@ -19616,8 +19616,8 @@ func decodeV1betaGetMultipleVolumesResponse(resp *http.Response) (res V1betaGetM
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetMultipleVolumesRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -19667,7 +19667,7 @@ func decodeV1betaGetMultipleVolumesResponse(resp *http.Response) (res V1betaGetM
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetReplicationCountResponse(resp *http.Response) (res V1betaGetReplicationCountRes, _ error) {
@@ -19972,8 +19972,8 @@ func decodeV1betaGetReplicationCountResponse(resp *http.Response) (res V1betaGet
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetReplicationCountRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -20023,7 +20023,7 @@ func decodeV1betaGetReplicationCountResponse(resp *http.Response) (res V1betaGet
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaGetVolumeCountResponse(resp *http.Response) (res V1betaGetVolumeCountRes, _ error) {
@@ -20328,8 +20328,8 @@ func decodeV1betaGetVolumeCountResponse(resp *http.Response) (res V1betaGetVolum
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaGetVolumeCountRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -20379,7 +20379,7 @@ func decodeV1betaGetVolumeCountResponse(resp *http.Response) (res V1betaGetVolum
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalAcceptClusterPeerResponse(resp *http.Response) (res V1betaInternalAcceptClusterPeerRes, _ error) {
@@ -20781,8 +20781,8 @@ func decodeV1betaInternalAcceptClusterPeerResponse(resp *http.Response) (res V1b
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalAcceptClusterPeerRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -20832,7 +20832,7 @@ func decodeV1betaInternalAcceptClusterPeerResponse(resp *http.Response) (res V1b
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalAuthorizeVolumeReplicationResponse(resp *http.Response) (res V1betaInternalAuthorizeVolumeReplicationRes, _ error) {
@@ -21234,8 +21234,8 @@ func decodeV1betaInternalAuthorizeVolumeReplicationResponse(resp *http.Response)
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalAuthorizeVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -21285,7 +21285,321 @@ func decodeV1betaInternalAuthorizeVolumeReplicationResponse(resp *http.Response)
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
+}
+
+func decodeV1betaInternalCreateBackupVaultResponse(resp *http.Response) (res V1betaInternalCreateBackupVaultRes, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response BackupVaultInternalV1beta
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 400:
+		// Code 400.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalCreateBackupVaultBadRequest
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 401:
+		// Code 401.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalCreateBackupVaultUnauthorized
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 403:
+		// Code 403.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalCreateBackupVaultForbidden
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 409:
+		// Code 409.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalCreateBackupVaultConflict
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 422:
+		// Code 422.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalCreateBackupVaultUnprocessableEntity
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 500:
+		// Code 500.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalCreateBackupVaultInternalServerError
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	}
+	return res, validate.UnexpectedStatusCode(resp.StatusCode)
 }
 
 func decodeV1betaInternalCreateVolumeReplicationResponse(resp *http.Response) (res V1betaInternalCreateVolumeReplicationRes, _ error) {
@@ -21687,8 +22001,8 @@ func decodeV1betaInternalCreateVolumeReplicationResponse(resp *http.Response) (r
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalCreateVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -21738,7 +22052,7 @@ func decodeV1betaInternalCreateVolumeReplicationResponse(resp *http.Response) (r
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalDeleteVolumeReplicationResponse(resp *http.Response) (res V1betaInternalDeleteVolumeReplicationRes, _ error) {
@@ -22143,8 +22457,8 @@ func decodeV1betaInternalDeleteVolumeReplicationResponse(resp *http.Response) (r
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalDeleteVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -22194,7 +22508,7 @@ func decodeV1betaInternalDeleteVolumeReplicationResponse(resp *http.Response) (r
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(resp *http.Response) (res V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, _ error) {
@@ -22596,8 +22910,8 @@ func decodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(resp *http.Respo
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -22647,7 +22961,372 @@ func decodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(resp *http.Respo
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
+}
+
+func decodeV1betaInternalDescribeBackupVaultResponse(resp *http.Response) (res V1betaInternalDescribeBackupVaultRes, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response BackupVaultInternalV1beta
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 400:
+		// Code 400.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalDescribeBackupVaultBadRequest
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 401:
+		// Code 401.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalDescribeBackupVaultUnauthorized
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 403:
+		// Code 403.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalDescribeBackupVaultForbidden
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 404:
+		// Code 404.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalDescribeBackupVaultNotFound
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 422:
+		// Code 422.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalDescribeBackupVaultUnprocessableEntity
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	case 500:
+		// Code 500.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response V1betaInternalDescribeBackupVaultInternalServerError
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	}
+	// Default response.
+	res, err := func() (res V1betaInternalDescribeBackupVaultRes, err error) {
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "application/json":
+			buf, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return res, err
+			}
+			d := jx.DecodeBytes(buf)
+
+			var response Error
+			if err := func() error {
+				if err := response.Decode(d); err != nil {
+					return err
+				}
+				if err := d.Skip(); err != io.EOF {
+					return errors.New("unexpected trailing data")
+				}
+				return nil
+			}(); err != nil {
+				err = &ogenerrors.DecodeBodyError{
+					ContentType: ct,
+					Body:        buf,
+					Err:         err,
+				}
+				return res, err
+			}
+			// Validate response.
+			if err := func() error {
+				if err := response.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return res, errors.Wrap(err, "validate")
+			}
+			return &ErrorStatusCode{
+				StatusCode: resp.StatusCode,
+				Response:   response,
+			}, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	}()
+	if err != nil {
+		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
+	}
+	return res, nil
 }
 
 func decodeV1betaInternalDescribePoolResponse(resp *http.Response) (res V1betaInternalDescribePoolRes, _ error) {
@@ -23049,8 +23728,8 @@ func decodeV1betaInternalDescribePoolResponse(resp *http.Response) (res V1betaIn
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalDescribePoolRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -23100,7 +23779,7 @@ func decodeV1betaInternalDescribePoolResponse(resp *http.Response) (res V1betaIn
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalDescribeVolumeResponse(resp *http.Response) (res V1betaInternalDescribeVolumeRes, _ error) {
@@ -23414,8 +24093,8 @@ func decodeV1betaInternalDescribeVolumeResponse(resp *http.Response) (res V1beta
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalDescribeVolumeRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -23465,7 +24144,7 @@ func decodeV1betaInternalDescribeVolumeResponse(resp *http.Response) (res V1beta
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalDescribeVolumeReplicationResponse(resp *http.Response) (res V1betaInternalDescribeVolumeReplicationRes, _ error) {
@@ -23867,8 +24546,8 @@ func decodeV1betaInternalDescribeVolumeReplicationResponse(resp *http.Response) 
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalDescribeVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -23918,7 +24597,7 @@ func decodeV1betaInternalDescribeVolumeReplicationResponse(resp *http.Response) 
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalGetReplicationJobsResponse(resp *http.Response) (res V1betaInternalGetReplicationJobsRes, _ error) {
@@ -24320,8 +24999,8 @@ func decodeV1betaInternalGetReplicationJobsResponse(resp *http.Response) (res V1
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalGetReplicationJobsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -24371,7 +25050,7 @@ func decodeV1betaInternalGetReplicationJobsResponse(resp *http.Response) (res V1
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalMountVolumeReplicationResponse(resp *http.Response) (res V1betaInternalMountVolumeReplicationRes, _ error) {
@@ -24773,8 +25452,8 @@ func decodeV1betaInternalMountVolumeReplicationResponse(resp *http.Response) (re
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalMountVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -24824,7 +25503,7 @@ func decodeV1betaInternalMountVolumeReplicationResponse(resp *http.Response) (re
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalReleaseVolumeReplicationResponse(resp *http.Response) (res V1betaInternalReleaseVolumeReplicationRes, _ error) {
@@ -25229,8 +25908,8 @@ func decodeV1betaInternalReleaseVolumeReplicationResponse(resp *http.Response) (
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalReleaseVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -25280,7 +25959,7 @@ func decodeV1betaInternalReleaseVolumeReplicationResponse(resp *http.Response) (
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalResumeVolumeReplicationResponse(resp *http.Response) (res V1betaInternalResumeVolumeReplicationRes, _ error) {
@@ -25682,8 +26361,8 @@ func decodeV1betaInternalResumeVolumeReplicationResponse(resp *http.Response) (r
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalResumeVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -25733,7 +26412,7 @@ func decodeV1betaInternalResumeVolumeReplicationResponse(resp *http.Response) (r
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalReverseVolumeReplicationResponse(resp *http.Response) (res V1betaInternalReverseVolumeReplicationRes, _ error) {
@@ -26135,8 +26814,8 @@ func decodeV1betaInternalReverseVolumeReplicationResponse(resp *http.Response) (
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalReverseVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -26186,7 +26865,7 @@ func decodeV1betaInternalReverseVolumeReplicationResponse(resp *http.Response) (
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalStopVolumeReplicationResponse(resp *http.Response) (res V1betaInternalStopVolumeReplicationRes, _ error) {
@@ -26588,8 +27267,8 @@ func decodeV1betaInternalStopVolumeReplicationResponse(resp *http.Response) (res
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalStopVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -26639,7 +27318,7 @@ func decodeV1betaInternalStopVolumeReplicationResponse(resp *http.Response) (res
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalUpdateVolumeResponse(resp *http.Response) (res V1betaInternalUpdateVolumeRes, _ error) {
@@ -27044,8 +27723,8 @@ func decodeV1betaInternalUpdateVolumeResponse(resp *http.Response) (res V1betaIn
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalUpdateVolumeRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -27095,7 +27774,7 @@ func decodeV1betaInternalUpdateVolumeResponse(resp *http.Response) (res V1betaIn
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalUpdateVolumeReplicationResponse(resp *http.Response) (res V1betaInternalUpdateVolumeReplicationRes, _ error) {
@@ -27500,8 +28179,8 @@ func decodeV1betaInternalUpdateVolumeReplicationResponse(resp *http.Response) (r
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalUpdateVolumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -27551,7 +28230,7 @@ func decodeV1betaInternalUpdateVolumeReplicationResponse(resp *http.Response) (r
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaInternalUpdateVolumeReplicationAttributesResponse(resp *http.Response) (res V1betaInternalUpdateVolumeReplicationAttributesRes, _ error) {
@@ -27953,8 +28632,8 @@ func decodeV1betaInternalUpdateVolumeReplicationAttributesResponse(resp *http.Re
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaInternalUpdateVolumeReplicationAttributesRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -28004,7 +28683,7 @@ func decodeV1betaInternalUpdateVolumeReplicationAttributesResponse(resp *http.Re
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListActiveDirectoriesResponse(resp *http.Response) (res V1betaListActiveDirectoriesRes, _ error) {
@@ -28318,8 +28997,8 @@ func decodeV1betaListActiveDirectoriesResponse(resp *http.Response) (res V1betaL
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListActiveDirectoriesRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -28369,7 +29048,7 @@ func decodeV1betaListActiveDirectoriesResponse(resp *http.Response) (res V1betaL
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListBackupPoliciesResponse(resp *http.Response) (res V1betaListBackupPoliciesRes, _ error) {
@@ -28683,8 +29362,8 @@ func decodeV1betaListBackupPoliciesResponse(resp *http.Response) (res V1betaList
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListBackupPoliciesRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -28734,7 +29413,7 @@ func decodeV1betaListBackupPoliciesResponse(resp *http.Response) (res V1betaList
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListBackupVaultsResponse(resp *http.Response) (res V1betaListBackupVaultsRes, _ error) {
@@ -29092,8 +29771,8 @@ func decodeV1betaListBackupVaultsResponse(resp *http.Response) (res V1betaListBa
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListBackupVaultsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -29143,7 +29822,7 @@ func decodeV1betaListBackupVaultsResponse(resp *http.Response) (res V1betaListBa
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListBackupsResponse(resp *http.Response) (res V1betaListBackupsRes, _ error) {
@@ -29457,8 +30136,8 @@ func decodeV1betaListBackupsResponse(resp *http.Response) (res V1betaListBackups
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListBackupsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -29508,7 +30187,7 @@ func decodeV1betaListBackupsResponse(resp *http.Response) (res V1betaListBackups
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListHostGroupsResponse(resp *http.Response) (res V1betaListHostGroupsRes, _ error) {
@@ -29778,8 +30457,8 @@ func decodeV1betaListHostGroupsResponse(resp *http.Response) (res V1betaListHost
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListHostGroupsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -29829,7 +30508,7 @@ func decodeV1betaListHostGroupsResponse(resp *http.Response) (res V1betaListHost
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListKmsConfigurationsResponse(resp *http.Response) (res V1betaListKmsConfigurationsRes, _ error) {
@@ -30187,8 +30866,8 @@ func decodeV1betaListKmsConfigurationsResponse(resp *http.Response) (res V1betaL
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListKmsConfigurationsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -30238,7 +30917,7 @@ func decodeV1betaListKmsConfigurationsResponse(resp *http.Response) (res V1betaL
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListPoolsResponse(resp *http.Response) (res V1betaListPoolsRes, _ error) {
@@ -30552,8 +31231,8 @@ func decodeV1betaListPoolsResponse(resp *http.Response) (res V1betaListPoolsRes,
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListPoolsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -30603,7 +31282,7 @@ func decodeV1betaListPoolsResponse(resp *http.Response) (res V1betaListPoolsRes,
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListReplicationsResponse(resp *http.Response) (res V1betaListReplicationsRes, _ error) {
@@ -31005,8 +31684,8 @@ func decodeV1betaListReplicationsResponse(resp *http.Response) (res V1betaListRe
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListReplicationsRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -31056,7 +31735,7 @@ func decodeV1betaListReplicationsResponse(resp *http.Response) (res V1betaListRe
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListSnapshotResponse(resp *http.Response) (res V1betaListSnapshotRes, _ error) {
@@ -31458,8 +32137,8 @@ func decodeV1betaListSnapshotResponse(resp *http.Response) (res V1betaListSnapsh
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListSnapshotRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -31509,7 +32188,7 @@ func decodeV1betaListSnapshotResponse(resp *http.Response) (res V1betaListSnapsh
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaListVolumesResponse(resp *http.Response) (res V1betaListVolumesRes, _ error) {
@@ -31823,8 +32502,8 @@ func decodeV1betaListVolumesResponse(resp *http.Response) (res V1betaListVolumes
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaListVolumesRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -31874,7 +32553,7 @@ func decodeV1betaListVolumesResponse(resp *http.Response) (res V1betaListVolumes
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaResourceStateUpdateResponse(resp *http.Response) (res V1betaResourceStateUpdateRes, _ error) {
@@ -32411,8 +33090,8 @@ func decodeV1betaResourceStateUpdateResponse(resp *http.Response) (res V1betaRes
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaResourceStateUpdateRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -32462,7 +33141,7 @@ func decodeV1betaResourceStateUpdateResponse(resp *http.Response) (res V1betaRes
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaResumeReplicationResponse(resp *http.Response) (res V1betaResumeReplicationRes, _ error) {
@@ -32820,8 +33499,8 @@ func decodeV1betaResumeReplicationResponse(resp *http.Response) (res V1betaResum
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaResumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -32871,7 +33550,7 @@ func decodeV1betaResumeReplicationResponse(resp *http.Response) (res V1betaResum
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaReverseAndResumeReplicationResponse(resp *http.Response) (res V1betaReverseAndResumeReplicationRes, _ error) {
@@ -33229,8 +33908,8 @@ func decodeV1betaReverseAndResumeReplicationResponse(resp *http.Response) (res V
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaReverseAndResumeReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -33280,7 +33959,7 @@ func decodeV1betaReverseAndResumeReplicationResponse(resp *http.Response) (res V
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaRevertVolumeResponse(resp *http.Response) (res V1betaRevertVolumeRes, _ error) {
@@ -33685,8 +34364,8 @@ func decodeV1betaRevertVolumeResponse(resp *http.Response) (res V1betaRevertVolu
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaRevertVolumeRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -33736,7 +34415,7 @@ func decodeV1betaRevertVolumeResponse(resp *http.Response) (res V1betaRevertVolu
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaStartProjectEventResponse(resp *http.Response) (res V1betaStartProjectEventRes, _ error) {
@@ -34273,8 +34952,8 @@ func decodeV1betaStartProjectEventResponse(resp *http.Response) (res V1betaStart
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaStartProjectEventRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -34324,7 +35003,7 @@ func decodeV1betaStartProjectEventResponse(resp *http.Response) (res V1betaStart
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaStopReplicationResponse(resp *http.Response) (res V1betaStopReplicationRes, _ error) {
@@ -34682,8 +35361,8 @@ func decodeV1betaStopReplicationResponse(resp *http.Response) (res V1betaStopRep
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaStopReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -34733,7 +35412,7 @@ func decodeV1betaStopReplicationResponse(resp *http.Response) (res V1betaStopRep
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaSyncReplicationResponse(resp *http.Response) (res V1betaSyncReplicationRes, _ error) {
@@ -35135,8 +35814,8 @@ func decodeV1betaSyncReplicationResponse(resp *http.Response) (res V1betaSyncRep
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaSyncReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -35186,7 +35865,7 @@ func decodeV1betaSyncReplicationResponse(resp *http.Response) (res V1betaSyncRep
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdateActiveDirectoryResponse(resp *http.Response) (res V1betaUpdateActiveDirectoryRes, _ error) {
@@ -35588,8 +36267,8 @@ func decodeV1betaUpdateActiveDirectoryResponse(resp *http.Response) (res V1betaU
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdateActiveDirectoryRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -35639,7 +36318,7 @@ func decodeV1betaUpdateActiveDirectoryResponse(resp *http.Response) (res V1betaU
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdateBackupResponse(resp *http.Response) (res V1betaUpdateBackupRes, _ error) {
@@ -36088,8 +36767,8 @@ func decodeV1betaUpdateBackupResponse(resp *http.Response) (res V1betaUpdateBack
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdateBackupRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -36139,7 +36818,7 @@ func decodeV1betaUpdateBackupResponse(resp *http.Response) (res V1betaUpdateBack
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdateBackupPolicyResponse(resp *http.Response) (res V1betaUpdateBackupPolicyRes, _ error) {
@@ -36588,8 +37267,8 @@ func decodeV1betaUpdateBackupPolicyResponse(resp *http.Response) (res V1betaUpda
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdateBackupPolicyRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -36639,7 +37318,7 @@ func decodeV1betaUpdateBackupPolicyResponse(resp *http.Response) (res V1betaUpda
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdateBackupVaultResponse(resp *http.Response) (res V1betaUpdateBackupVaultRes, _ error) {
@@ -36997,8 +37676,8 @@ func decodeV1betaUpdateBackupVaultResponse(resp *http.Response) (res V1betaUpdat
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdateBackupVaultRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -37048,7 +37727,7 @@ func decodeV1betaUpdateBackupVaultResponse(resp *http.Response) (res V1betaUpdat
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdateHostGroupResponse(resp *http.Response) (res V1betaUpdateHostGroupRes, _ error) {
@@ -37450,8 +38129,8 @@ func decodeV1betaUpdateHostGroupResponse(resp *http.Response) (res V1betaUpdateH
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdateHostGroupRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -37501,7 +38180,7 @@ func decodeV1betaUpdateHostGroupResponse(resp *http.Response) (res V1betaUpdateH
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdateKmsConfigurationResponse(resp *http.Response) (res V1betaUpdateKmsConfigurationRes, _ error) {
@@ -37947,8 +38626,8 @@ func decodeV1betaUpdateKmsConfigurationResponse(resp *http.Response) (res V1beta
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdateKmsConfigurationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -37998,7 +38677,7 @@ func decodeV1betaUpdateKmsConfigurationResponse(resp *http.Response) (res V1beta
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdatePoolResponse(resp *http.Response) (res V1betaUpdatePoolRes, _ error) {
@@ -38403,8 +39082,8 @@ func decodeV1betaUpdatePoolResponse(resp *http.Response) (res V1betaUpdatePoolRe
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdatePoolRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -38454,7 +39133,7 @@ func decodeV1betaUpdatePoolResponse(resp *http.Response) (res V1betaUpdatePoolRe
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdateReplicationResponse(resp *http.Response) (res V1betaUpdateReplicationRes, _ error) {
@@ -38812,8 +39491,8 @@ func decodeV1betaUpdateReplicationResponse(resp *http.Response) (res V1betaUpdat
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdateReplicationRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -38863,7 +39542,7 @@ func decodeV1betaUpdateReplicationResponse(resp *http.Response) (res V1betaUpdat
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdateSnapshotResponse(resp *http.Response) (res V1betaUpdateSnapshotRes, _ error) {
@@ -39221,8 +39900,8 @@ func decodeV1betaUpdateSnapshotResponse(resp *http.Response) (res V1betaUpdateSn
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdateSnapshotRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -39272,7 +39951,7 @@ func decodeV1betaUpdateSnapshotResponse(resp *http.Response) (res V1betaUpdateSn
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }
 
 func decodeV1betaUpdateVolumeResponse(resp *http.Response) (res V1betaUpdateVolumeRes, _ error) {
@@ -39677,8 +40356,8 @@ func decodeV1betaUpdateVolumeResponse(resp *http.Response) (res V1betaUpdateVolu
 			return res, validate.InvalidContentType(ct)
 		}
 	}
-	// Convenient error response.
-	defRes, err := func() (res *ErrorStatusCode, err error) {
+	// Default response.
+	res, err := func() (res V1betaUpdateVolumeRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
@@ -39728,5 +40407,5 @@ func decodeV1betaUpdateVolumeResponse(resp *http.Response) (res V1betaUpdateVolu
 	if err != nil {
 		return res, errors.Wrapf(err, "default (code %d)", resp.StatusCode)
 	}
-	return res, errors.Wrap(defRes, "error")
+	return res, nil
 }

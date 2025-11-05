@@ -3,16 +3,11 @@
 package gcpserver
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
 )
-
-func (s *ErrorStatusCode) Error() string {
-	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
-}
 
 // Ref: #/components/schemas/ActiveDirectoryIdList_v1beta
 type ActiveDirectoryIdListV1beta struct {
@@ -1936,6 +1931,464 @@ func (s *BackupVaultCreateV1beta) SetBackupRetentionPolicy(val OptBackupRetentio
 	s.BackupRetentionPolicy = val
 }
 
+// Internal BackupVault model for cross-region operations.
+// Ref: #/components/schemas/BackupVaultInternal_v1beta
+type BackupVaultInternalV1beta struct {
+	// Uuid v4 used to identify the Id of the resource.
+	BackupVaultId string `json:"backupVaultId"`
+	// Human readable name of the backup vault.
+	ResourceId string `json:"resourceId"`
+	// Description of backup vault.
+	Description OptString `json:"description"`
+	// The destination region the backup needs to be stored in.
+	BackupRegion OptString `json:"backupRegion"`
+	// The source region of the backup.
+	SourceRegion OptString `json:"sourceRegion"`
+	// The destination region backup vault.
+	DestinationBackupVault OptString `json:"destinationBackupVault"`
+	// The source region backup vault.
+	SourceBackupVault OptString `json:"sourceBackupVault"`
+	// Type of the backup vault.
+	BackupVaultType BackupVaultInternalV1betaBackupVaultType `json:"backupVaultType"`
+	// The current lifecycle state of the backup vault.
+	LifeCycleState BackupVaultInternalV1betaLifeCycleState `json:"lifeCycleState"`
+	// Details about the current lifecycle state.
+	LifeCycleStateDetails OptString `json:"lifeCycleStateDetails"`
+	// Account vendor ID (project number).
+	AccountVendorId string `json:"accountVendorId"`
+	// Cross-region backup vault name.
+	CrossRegionBackupVaultName OptString `json:"crossRegionBackupVaultName"`
+	// External UUID used for cross-region backup vault identification.
+	ExternalUuid OptString `json:"externalUuid"`
+	// Creation date of the resource.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Last update date of the resource.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// Date the resource was deleted.
+	DeletedAt OptDateTime `json:"deletedAt"`
+	// Immutable backup retention attributes stored as JSONB.
+	ImmutableAttributes OptBackupVaultInternalV1betaImmutableAttributes `json:"immutableAttributes"`
+	// Bucket details for the backup vault stored as JSONB array.
+	BucketDetails []BackupVaultInternalV1betaBucketDetailsItem `json:"bucketDetails"`
+}
+
+// GetBackupVaultId returns the value of BackupVaultId.
+func (s *BackupVaultInternalV1beta) GetBackupVaultId() string {
+	return s.BackupVaultId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BackupVaultInternalV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupVaultInternalV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetBackupRegion returns the value of BackupRegion.
+func (s *BackupVaultInternalV1beta) GetBackupRegion() OptString {
+	return s.BackupRegion
+}
+
+// GetSourceRegion returns the value of SourceRegion.
+func (s *BackupVaultInternalV1beta) GetSourceRegion() OptString {
+	return s.SourceRegion
+}
+
+// GetDestinationBackupVault returns the value of DestinationBackupVault.
+func (s *BackupVaultInternalV1beta) GetDestinationBackupVault() OptString {
+	return s.DestinationBackupVault
+}
+
+// GetSourceBackupVault returns the value of SourceBackupVault.
+func (s *BackupVaultInternalV1beta) GetSourceBackupVault() OptString {
+	return s.SourceBackupVault
+}
+
+// GetBackupVaultType returns the value of BackupVaultType.
+func (s *BackupVaultInternalV1beta) GetBackupVaultType() BackupVaultInternalV1betaBackupVaultType {
+	return s.BackupVaultType
+}
+
+// GetLifeCycleState returns the value of LifeCycleState.
+func (s *BackupVaultInternalV1beta) GetLifeCycleState() BackupVaultInternalV1betaLifeCycleState {
+	return s.LifeCycleState
+}
+
+// GetLifeCycleStateDetails returns the value of LifeCycleStateDetails.
+func (s *BackupVaultInternalV1beta) GetLifeCycleStateDetails() OptString {
+	return s.LifeCycleStateDetails
+}
+
+// GetAccountVendorId returns the value of AccountVendorId.
+func (s *BackupVaultInternalV1beta) GetAccountVendorId() string {
+	return s.AccountVendorId
+}
+
+// GetCrossRegionBackupVaultName returns the value of CrossRegionBackupVaultName.
+func (s *BackupVaultInternalV1beta) GetCrossRegionBackupVaultName() OptString {
+	return s.CrossRegionBackupVaultName
+}
+
+// GetExternalUuid returns the value of ExternalUuid.
+func (s *BackupVaultInternalV1beta) GetExternalUuid() OptString {
+	return s.ExternalUuid
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *BackupVaultInternalV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *BackupVaultInternalV1beta) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *BackupVaultInternalV1beta) GetDeletedAt() OptDateTime {
+	return s.DeletedAt
+}
+
+// GetImmutableAttributes returns the value of ImmutableAttributes.
+func (s *BackupVaultInternalV1beta) GetImmutableAttributes() OptBackupVaultInternalV1betaImmutableAttributes {
+	return s.ImmutableAttributes
+}
+
+// GetBucketDetails returns the value of BucketDetails.
+func (s *BackupVaultInternalV1beta) GetBucketDetails() []BackupVaultInternalV1betaBucketDetailsItem {
+	return s.BucketDetails
+}
+
+// SetBackupVaultId sets the value of BackupVaultId.
+func (s *BackupVaultInternalV1beta) SetBackupVaultId(val string) {
+	s.BackupVaultId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BackupVaultInternalV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupVaultInternalV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetBackupRegion sets the value of BackupRegion.
+func (s *BackupVaultInternalV1beta) SetBackupRegion(val OptString) {
+	s.BackupRegion = val
+}
+
+// SetSourceRegion sets the value of SourceRegion.
+func (s *BackupVaultInternalV1beta) SetSourceRegion(val OptString) {
+	s.SourceRegion = val
+}
+
+// SetDestinationBackupVault sets the value of DestinationBackupVault.
+func (s *BackupVaultInternalV1beta) SetDestinationBackupVault(val OptString) {
+	s.DestinationBackupVault = val
+}
+
+// SetSourceBackupVault sets the value of SourceBackupVault.
+func (s *BackupVaultInternalV1beta) SetSourceBackupVault(val OptString) {
+	s.SourceBackupVault = val
+}
+
+// SetBackupVaultType sets the value of BackupVaultType.
+func (s *BackupVaultInternalV1beta) SetBackupVaultType(val BackupVaultInternalV1betaBackupVaultType) {
+	s.BackupVaultType = val
+}
+
+// SetLifeCycleState sets the value of LifeCycleState.
+func (s *BackupVaultInternalV1beta) SetLifeCycleState(val BackupVaultInternalV1betaLifeCycleState) {
+	s.LifeCycleState = val
+}
+
+// SetLifeCycleStateDetails sets the value of LifeCycleStateDetails.
+func (s *BackupVaultInternalV1beta) SetLifeCycleStateDetails(val OptString) {
+	s.LifeCycleStateDetails = val
+}
+
+// SetAccountVendorId sets the value of AccountVendorId.
+func (s *BackupVaultInternalV1beta) SetAccountVendorId(val string) {
+	s.AccountVendorId = val
+}
+
+// SetCrossRegionBackupVaultName sets the value of CrossRegionBackupVaultName.
+func (s *BackupVaultInternalV1beta) SetCrossRegionBackupVaultName(val OptString) {
+	s.CrossRegionBackupVaultName = val
+}
+
+// SetExternalUuid sets the value of ExternalUuid.
+func (s *BackupVaultInternalV1beta) SetExternalUuid(val OptString) {
+	s.ExternalUuid = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *BackupVaultInternalV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *BackupVaultInternalV1beta) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *BackupVaultInternalV1beta) SetDeletedAt(val OptDateTime) {
+	s.DeletedAt = val
+}
+
+// SetImmutableAttributes sets the value of ImmutableAttributes.
+func (s *BackupVaultInternalV1beta) SetImmutableAttributes(val OptBackupVaultInternalV1betaImmutableAttributes) {
+	s.ImmutableAttributes = val
+}
+
+// SetBucketDetails sets the value of BucketDetails.
+func (s *BackupVaultInternalV1beta) SetBucketDetails(val []BackupVaultInternalV1betaBucketDetailsItem) {
+	s.BucketDetails = val
+}
+
+func (*BackupVaultInternalV1beta) v1betaInternalCreateBackupVaultRes()   {}
+func (*BackupVaultInternalV1beta) v1betaInternalDescribeBackupVaultRes() {}
+
+// Type of the backup vault.
+type BackupVaultInternalV1betaBackupVaultType string
+
+const (
+	BackupVaultInternalV1betaBackupVaultTypeINREGION    BackupVaultInternalV1betaBackupVaultType = "IN_REGION"
+	BackupVaultInternalV1betaBackupVaultTypeCROSSREGION BackupVaultInternalV1betaBackupVaultType = "CROSS_REGION"
+)
+
+// AllValues returns all BackupVaultInternalV1betaBackupVaultType values.
+func (BackupVaultInternalV1betaBackupVaultType) AllValues() []BackupVaultInternalV1betaBackupVaultType {
+	return []BackupVaultInternalV1betaBackupVaultType{
+		BackupVaultInternalV1betaBackupVaultTypeINREGION,
+		BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupVaultInternalV1betaBackupVaultType) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupVaultInternalV1betaBackupVaultTypeINREGION:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaBackupVaultTypeCROSSREGION:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupVaultInternalV1betaBackupVaultType) UnmarshalText(data []byte) error {
+	switch BackupVaultInternalV1betaBackupVaultType(data) {
+	case BackupVaultInternalV1betaBackupVaultTypeINREGION:
+		*s = BackupVaultInternalV1betaBackupVaultTypeINREGION
+		return nil
+	case BackupVaultInternalV1betaBackupVaultTypeCROSSREGION:
+		*s = BackupVaultInternalV1betaBackupVaultTypeCROSSREGION
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type BackupVaultInternalV1betaBucketDetailsItem struct {
+	// Name of the GCS bucket.
+	BucketName OptString `json:"bucketName"`
+	// Service account used for bucket access.
+	ServiceAccountName OptString `json:"serviceAccountName"`
+	// Vendor subnet ID.
+	VendorSubnetId OptString `json:"vendorSubnetId"`
+	// Tenant project number.
+	TenantProjectNumber OptString `json:"tenantProjectNumber"`
+}
+
+// GetBucketName returns the value of BucketName.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) GetBucketName() OptString {
+	return s.BucketName
+}
+
+// GetServiceAccountName returns the value of ServiceAccountName.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) GetServiceAccountName() OptString {
+	return s.ServiceAccountName
+}
+
+// GetVendorSubnetId returns the value of VendorSubnetId.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) GetVendorSubnetId() OptString {
+	return s.VendorSubnetId
+}
+
+// GetTenantProjectNumber returns the value of TenantProjectNumber.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) GetTenantProjectNumber() OptString {
+	return s.TenantProjectNumber
+}
+
+// SetBucketName sets the value of BucketName.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) SetBucketName(val OptString) {
+	s.BucketName = val
+}
+
+// SetServiceAccountName sets the value of ServiceAccountName.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) SetServiceAccountName(val OptString) {
+	s.ServiceAccountName = val
+}
+
+// SetVendorSubnetId sets the value of VendorSubnetId.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) SetVendorSubnetId(val OptString) {
+	s.VendorSubnetId = val
+}
+
+// SetTenantProjectNumber sets the value of TenantProjectNumber.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) SetTenantProjectNumber(val OptString) {
+	s.TenantProjectNumber = val
+}
+
+// Immutable backup retention attributes stored as JSONB.
+type BackupVaultInternalV1betaImmutableAttributes struct {
+	// Backup minimum enforced retention period in days.
+	BackupMinimumEnforcedRetentionDuration OptInt `json:"backupMinimumEnforcedRetentionDuration"`
+	// Whether daily backups are immutable.
+	IsDailyBackupImmutable OptBool `json:"isDailyBackupImmutable"`
+	// Whether weekly backups are immutable.
+	IsWeeklyBackupImmutable OptBool `json:"isWeeklyBackupImmutable"`
+	// Whether monthly backups are immutable.
+	IsMonthlyBackupImmutable OptBool `json:"isMonthlyBackupImmutable"`
+	// Whether ad-hoc backups are immutable.
+	IsAdhocBackupImmutable OptBool `json:"isAdhocBackupImmutable"`
+}
+
+// GetBackupMinimumEnforcedRetentionDuration returns the value of BackupMinimumEnforcedRetentionDuration.
+func (s *BackupVaultInternalV1betaImmutableAttributes) GetBackupMinimumEnforcedRetentionDuration() OptInt {
+	return s.BackupMinimumEnforcedRetentionDuration
+}
+
+// GetIsDailyBackupImmutable returns the value of IsDailyBackupImmutable.
+func (s *BackupVaultInternalV1betaImmutableAttributes) GetIsDailyBackupImmutable() OptBool {
+	return s.IsDailyBackupImmutable
+}
+
+// GetIsWeeklyBackupImmutable returns the value of IsWeeklyBackupImmutable.
+func (s *BackupVaultInternalV1betaImmutableAttributes) GetIsWeeklyBackupImmutable() OptBool {
+	return s.IsWeeklyBackupImmutable
+}
+
+// GetIsMonthlyBackupImmutable returns the value of IsMonthlyBackupImmutable.
+func (s *BackupVaultInternalV1betaImmutableAttributes) GetIsMonthlyBackupImmutable() OptBool {
+	return s.IsMonthlyBackupImmutable
+}
+
+// GetIsAdhocBackupImmutable returns the value of IsAdhocBackupImmutable.
+func (s *BackupVaultInternalV1betaImmutableAttributes) GetIsAdhocBackupImmutable() OptBool {
+	return s.IsAdhocBackupImmutable
+}
+
+// SetBackupMinimumEnforcedRetentionDuration sets the value of BackupMinimumEnforcedRetentionDuration.
+func (s *BackupVaultInternalV1betaImmutableAttributes) SetBackupMinimumEnforcedRetentionDuration(val OptInt) {
+	s.BackupMinimumEnforcedRetentionDuration = val
+}
+
+// SetIsDailyBackupImmutable sets the value of IsDailyBackupImmutable.
+func (s *BackupVaultInternalV1betaImmutableAttributes) SetIsDailyBackupImmutable(val OptBool) {
+	s.IsDailyBackupImmutable = val
+}
+
+// SetIsWeeklyBackupImmutable sets the value of IsWeeklyBackupImmutable.
+func (s *BackupVaultInternalV1betaImmutableAttributes) SetIsWeeklyBackupImmutable(val OptBool) {
+	s.IsWeeklyBackupImmutable = val
+}
+
+// SetIsMonthlyBackupImmutable sets the value of IsMonthlyBackupImmutable.
+func (s *BackupVaultInternalV1betaImmutableAttributes) SetIsMonthlyBackupImmutable(val OptBool) {
+	s.IsMonthlyBackupImmutable = val
+}
+
+// SetIsAdhocBackupImmutable sets the value of IsAdhocBackupImmutable.
+func (s *BackupVaultInternalV1betaImmutableAttributes) SetIsAdhocBackupImmutable(val OptBool) {
+	s.IsAdhocBackupImmutable = val
+}
+
+// The current lifecycle state of the backup vault.
+type BackupVaultInternalV1betaLifeCycleState string
+
+const (
+	BackupVaultInternalV1betaLifeCycleStateSTATEUNSPECIFIED BackupVaultInternalV1betaLifeCycleState = "STATE_UNSPECIFIED"
+	BackupVaultInternalV1betaLifeCycleStateCREATING         BackupVaultInternalV1betaLifeCycleState = "CREATING"
+	BackupVaultInternalV1betaLifeCycleStateUPDATING         BackupVaultInternalV1betaLifeCycleState = "UPDATING"
+	BackupVaultInternalV1betaLifeCycleStateDELETING         BackupVaultInternalV1betaLifeCycleState = "DELETING"
+	BackupVaultInternalV1betaLifeCycleStateREADY            BackupVaultInternalV1betaLifeCycleState = "READY"
+	BackupVaultInternalV1betaLifeCycleStateDELETED          BackupVaultInternalV1betaLifeCycleState = "DELETED"
+	BackupVaultInternalV1betaLifeCycleStateERROR            BackupVaultInternalV1betaLifeCycleState = "ERROR"
+)
+
+// AllValues returns all BackupVaultInternalV1betaLifeCycleState values.
+func (BackupVaultInternalV1betaLifeCycleState) AllValues() []BackupVaultInternalV1betaLifeCycleState {
+	return []BackupVaultInternalV1betaLifeCycleState{
+		BackupVaultInternalV1betaLifeCycleStateSTATEUNSPECIFIED,
+		BackupVaultInternalV1betaLifeCycleStateCREATING,
+		BackupVaultInternalV1betaLifeCycleStateUPDATING,
+		BackupVaultInternalV1betaLifeCycleStateDELETING,
+		BackupVaultInternalV1betaLifeCycleStateREADY,
+		BackupVaultInternalV1betaLifeCycleStateDELETED,
+		BackupVaultInternalV1betaLifeCycleStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupVaultInternalV1betaLifeCycleState) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupVaultInternalV1betaLifeCycleStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaLifeCycleStateCREATING:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaLifeCycleStateUPDATING:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaLifeCycleStateDELETING:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaLifeCycleStateREADY:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaLifeCycleStateDELETED:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaLifeCycleStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupVaultInternalV1betaLifeCycleState) UnmarshalText(data []byte) error {
+	switch BackupVaultInternalV1betaLifeCycleState(data) {
+	case BackupVaultInternalV1betaLifeCycleStateSTATEUNSPECIFIED:
+		*s = BackupVaultInternalV1betaLifeCycleStateSTATEUNSPECIFIED
+		return nil
+	case BackupVaultInternalV1betaLifeCycleStateCREATING:
+		*s = BackupVaultInternalV1betaLifeCycleStateCREATING
+		return nil
+	case BackupVaultInternalV1betaLifeCycleStateUPDATING:
+		*s = BackupVaultInternalV1betaLifeCycleStateUPDATING
+		return nil
+	case BackupVaultInternalV1betaLifeCycleStateDELETING:
+		*s = BackupVaultInternalV1betaLifeCycleStateDELETING
+		return nil
+	case BackupVaultInternalV1betaLifeCycleStateREADY:
+		*s = BackupVaultInternalV1betaLifeCycleStateREADY
+		return nil
+	case BackupVaultInternalV1betaLifeCycleStateDELETED:
+		*s = BackupVaultInternalV1betaLifeCycleStateDELETED
+		return nil
+	case BackupVaultInternalV1betaLifeCycleStateERROR:
+		*s = BackupVaultInternalV1betaLifeCycleStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BackupVaultUpdate_v1beta
 type BackupVaultUpdateV1beta struct {
 	// Description of the resource.
@@ -2945,6 +3398,100 @@ func (s *ErrorStatusCode) SetStatusCode(val int) {
 func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
+
+func (*ErrorStatusCode) getHealthRes()                                       {}
+func (*ErrorStatusCode) v1betaCheckKmsConfigRes()                            {}
+func (*ErrorStatusCode) v1betaCreateActiveDirectoryRes()                     {}
+func (*ErrorStatusCode) v1betaCreateBackupPolicyRes()                        {}
+func (*ErrorStatusCode) v1betaCreateBackupRes()                              {}
+func (*ErrorStatusCode) v1betaCreateBackupVaultRes()                         {}
+func (*ErrorStatusCode) v1betaCreateHostGroupRes()                           {}
+func (*ErrorStatusCode) v1betaCreateKmsConfigurationRes()                    {}
+func (*ErrorStatusCode) v1betaCreatePoolRes()                                {}
+func (*ErrorStatusCode) v1betaCreateReplicationRes()                         {}
+func (*ErrorStatusCode) v1betaCreateSnapshotRes()                            {}
+func (*ErrorStatusCode) v1betaCreateVolumeRes()                              {}
+func (*ErrorStatusCode) v1betaDeleteActiveDirectoryRes()                     {}
+func (*ErrorStatusCode) v1betaDeleteBackupPolicyRes()                        {}
+func (*ErrorStatusCode) v1betaDeleteBackupUnderBackupVaultRes()              {}
+func (*ErrorStatusCode) v1betaDeleteBackupVaultRes()                         {}
+func (*ErrorStatusCode) v1betaDeleteHostGroupRes()                           {}
+func (*ErrorStatusCode) v1betaDeleteKmsConfigurationRes()                    {}
+func (*ErrorStatusCode) v1betaDeletePoolRes()                                {}
+func (*ErrorStatusCode) v1betaDeleteReplicationRes()                         {}
+func (*ErrorStatusCode) v1betaDeleteSnapshotRes()                            {}
+func (*ErrorStatusCode) v1betaDeleteVolumeRes()                              {}
+func (*ErrorStatusCode) v1betaDescribeActiveDirectoryRes()                   {}
+func (*ErrorStatusCode) v1betaDescribeBackupPolicyRes()                      {}
+func (*ErrorStatusCode) v1betaDescribeBackupRes()                            {}
+func (*ErrorStatusCode) v1betaDescribeBackupVaultRes()                       {}
+func (*ErrorStatusCode) v1betaDescribeHostGroupRes()                         {}
+func (*ErrorStatusCode) v1betaDescribeKmsConfigurationRes()                  {}
+func (*ErrorStatusCode) v1betaDescribeOperationRes()                         {}
+func (*ErrorStatusCode) v1betaDescribePoolRes()                              {}
+func (*ErrorStatusCode) v1betaDescribeSnapshotRes()                          {}
+func (*ErrorStatusCode) v1betaDescribeVolumeRes()                            {}
+func (*ErrorStatusCode) v1betaEncryptVolumesRes()                            {}
+func (*ErrorStatusCode) v1betaEstablishVolumePeeringRes()                    {}
+func (*ErrorStatusCode) v1betaFinishProjectEventRes()                        {}
+func (*ErrorStatusCode) v1betaGetMultipleActiveDirectoriesRes()              {}
+func (*ErrorStatusCode) v1betaGetMultipleBackupPoliciesRes()                 {}
+func (*ErrorStatusCode) v1betaGetMultipleBackupVaultsRes()                   {}
+func (*ErrorStatusCode) v1betaGetMultipleBackupsRes()                        {}
+func (*ErrorStatusCode) v1betaGetMultipleHostGroupsRes()                     {}
+func (*ErrorStatusCode) v1betaGetMultipleKmsConfigsRes()                     {}
+func (*ErrorStatusCode) v1betaGetMultiplePoolsRes()                          {}
+func (*ErrorStatusCode) v1betaGetMultipleReplicationsInternalRes()           {}
+func (*ErrorStatusCode) v1betaGetMultipleReplicationsRes()                   {}
+func (*ErrorStatusCode) v1betaGetMultipleSnapshotsRes()                      {}
+func (*ErrorStatusCode) v1betaGetMultipleVolumesRes()                        {}
+func (*ErrorStatusCode) v1betaGetReplicationCountRes()                       {}
+func (*ErrorStatusCode) v1betaGetVolumeCountRes()                            {}
+func (*ErrorStatusCode) v1betaInternalAcceptClusterPeerRes()                 {}
+func (*ErrorStatusCode) v1betaInternalAuthorizeVolumeReplicationRes()        {}
+func (*ErrorStatusCode) v1betaInternalCreateVolumeReplicationRes()           {}
+func (*ErrorStatusCode) v1betaInternalDeleteVolumeReplicationRes()           {}
+func (*ErrorStatusCode) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
+func (*ErrorStatusCode) v1betaInternalDescribeBackupVaultRes()               {}
+func (*ErrorStatusCode) v1betaInternalDescribePoolRes()                      {}
+func (*ErrorStatusCode) v1betaInternalDescribeVolumeReplicationRes()         {}
+func (*ErrorStatusCode) v1betaInternalDescribeVolumeRes()                    {}
+func (*ErrorStatusCode) v1betaInternalGetReplicationJobsRes()                {}
+func (*ErrorStatusCode) v1betaInternalMountVolumeReplicationRes()            {}
+func (*ErrorStatusCode) v1betaInternalReleaseVolumeReplicationRes()          {}
+func (*ErrorStatusCode) v1betaInternalResumeVolumeReplicationRes()           {}
+func (*ErrorStatusCode) v1betaInternalReverseVolumeReplicationRes()          {}
+func (*ErrorStatusCode) v1betaInternalStopVolumeReplicationRes()             {}
+func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
+func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationRes()           {}
+func (*ErrorStatusCode) v1betaInternalUpdateVolumeRes()                      {}
+func (*ErrorStatusCode) v1betaListActiveDirectoriesRes()                     {}
+func (*ErrorStatusCode) v1betaListBackupPoliciesRes()                        {}
+func (*ErrorStatusCode) v1betaListBackupVaultsRes()                          {}
+func (*ErrorStatusCode) v1betaListBackupsRes()                               {}
+func (*ErrorStatusCode) v1betaListHostGroupsRes()                            {}
+func (*ErrorStatusCode) v1betaListKmsConfigurationsRes()                     {}
+func (*ErrorStatusCode) v1betaListPoolsRes()                                 {}
+func (*ErrorStatusCode) v1betaListReplicationsRes()                          {}
+func (*ErrorStatusCode) v1betaListSnapshotRes()                              {}
+func (*ErrorStatusCode) v1betaListVolumesRes()                               {}
+func (*ErrorStatusCode) v1betaResourceStateUpdateRes()                       {}
+func (*ErrorStatusCode) v1betaResumeReplicationRes()                         {}
+func (*ErrorStatusCode) v1betaReverseAndResumeReplicationRes()               {}
+func (*ErrorStatusCode) v1betaRevertVolumeRes()                              {}
+func (*ErrorStatusCode) v1betaStartProjectEventRes()                         {}
+func (*ErrorStatusCode) v1betaStopReplicationRes()                           {}
+func (*ErrorStatusCode) v1betaSyncReplicationRes()                           {}
+func (*ErrorStatusCode) v1betaUpdateActiveDirectoryRes()                     {}
+func (*ErrorStatusCode) v1betaUpdateBackupPolicyRes()                        {}
+func (*ErrorStatusCode) v1betaUpdateBackupRes()                              {}
+func (*ErrorStatusCode) v1betaUpdateBackupVaultRes()                         {}
+func (*ErrorStatusCode) v1betaUpdateHostGroupRes()                           {}
+func (*ErrorStatusCode) v1betaUpdateKmsConfigurationRes()                    {}
+func (*ErrorStatusCode) v1betaUpdatePoolRes()                                {}
+func (*ErrorStatusCode) v1betaUpdateReplicationRes()                         {}
+func (*ErrorStatusCode) v1betaUpdateSnapshotRes()                            {}
+func (*ErrorStatusCode) v1betaUpdateVolumeRes()                              {}
 
 // Parameters to establish peering for a FlexCache / hybrid replication relationship.
 // Ref: #/components/schemas/EstablishPeeringRequest_v1beta
@@ -6376,6 +6923,52 @@ func (o OptBackupV1betaState) Get() (v BackupV1betaState, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBackupV1betaState) Or(d BackupV1betaState) BackupV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupVaultInternalV1betaImmutableAttributes returns new OptBackupVaultInternalV1betaImmutableAttributes with value set to v.
+func NewOptBackupVaultInternalV1betaImmutableAttributes(v BackupVaultInternalV1betaImmutableAttributes) OptBackupVaultInternalV1betaImmutableAttributes {
+	return OptBackupVaultInternalV1betaImmutableAttributes{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupVaultInternalV1betaImmutableAttributes is optional BackupVaultInternalV1betaImmutableAttributes.
+type OptBackupVaultInternalV1betaImmutableAttributes struct {
+	Value BackupVaultInternalV1betaImmutableAttributes
+	Set   bool
+}
+
+// IsSet returns true if OptBackupVaultInternalV1betaImmutableAttributes was set.
+func (o OptBackupVaultInternalV1betaImmutableAttributes) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupVaultInternalV1betaImmutableAttributes) Reset() {
+	var v BackupVaultInternalV1betaImmutableAttributes
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupVaultInternalV1betaImmutableAttributes) SetTo(v BackupVaultInternalV1betaImmutableAttributes) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupVaultInternalV1betaImmutableAttributes) Get() (v BackupVaultInternalV1betaImmutableAttributes, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupVaultInternalV1betaImmutableAttributes) Or(d BackupVaultInternalV1betaImmutableAttributes) BackupVaultInternalV1betaImmutableAttributes {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -17431,6 +18024,30 @@ type V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity Error
 func (*V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity) v1betaInternalAuthorizeVolumeReplicationRes() {
 }
 
+type V1betaInternalCreateBackupVaultBadRequest Error
+
+func (*V1betaInternalCreateBackupVaultBadRequest) v1betaInternalCreateBackupVaultRes() {}
+
+type V1betaInternalCreateBackupVaultConflict Error
+
+func (*V1betaInternalCreateBackupVaultConflict) v1betaInternalCreateBackupVaultRes() {}
+
+type V1betaInternalCreateBackupVaultForbidden Error
+
+func (*V1betaInternalCreateBackupVaultForbidden) v1betaInternalCreateBackupVaultRes() {}
+
+type V1betaInternalCreateBackupVaultInternalServerError Error
+
+func (*V1betaInternalCreateBackupVaultInternalServerError) v1betaInternalCreateBackupVaultRes() {}
+
+type V1betaInternalCreateBackupVaultUnauthorized Error
+
+func (*V1betaInternalCreateBackupVaultUnauthorized) v1betaInternalCreateBackupVaultRes() {}
+
+type V1betaInternalCreateBackupVaultUnprocessableEntity Error
+
+func (*V1betaInternalCreateBackupVaultUnprocessableEntity) v1betaInternalCreateBackupVaultRes() {}
+
 type V1betaInternalCreateVolumeReplicationBadRequest Error
 
 func (*V1betaInternalCreateVolumeReplicationBadRequest) v1betaInternalCreateVolumeReplicationRes() {}
@@ -17547,6 +18164,30 @@ type V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity Error
 
 func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
 }
+
+type V1betaInternalDescribeBackupVaultBadRequest Error
+
+func (*V1betaInternalDescribeBackupVaultBadRequest) v1betaInternalDescribeBackupVaultRes() {}
+
+type V1betaInternalDescribeBackupVaultForbidden Error
+
+func (*V1betaInternalDescribeBackupVaultForbidden) v1betaInternalDescribeBackupVaultRes() {}
+
+type V1betaInternalDescribeBackupVaultInternalServerError Error
+
+func (*V1betaInternalDescribeBackupVaultInternalServerError) v1betaInternalDescribeBackupVaultRes() {}
+
+type V1betaInternalDescribeBackupVaultNotFound Error
+
+func (*V1betaInternalDescribeBackupVaultNotFound) v1betaInternalDescribeBackupVaultRes() {}
+
+type V1betaInternalDescribeBackupVaultUnauthorized Error
+
+func (*V1betaInternalDescribeBackupVaultUnauthorized) v1betaInternalDescribeBackupVaultRes() {}
+
+type V1betaInternalDescribeBackupVaultUnprocessableEntity Error
+
+func (*V1betaInternalDescribeBackupVaultUnprocessableEntity) v1betaInternalDescribeBackupVaultRes() {}
 
 type V1betaInternalDescribePoolBadRequest Error
 

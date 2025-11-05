@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -21,6 +23,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -61,6 +65,9 @@ var (
 )
 
 var fetchTemporalClient = _fetchTemporalClient
+
+// GetSignedJwtTokenFunc is a variable to allow mocking of auth.GetSignedJwtToken in tests
+var GetSignedJwtTokenFunc = auth.GetSignedJwtToken
 
 func _fetchTemporalClient(ctx context.Context) client.Client {
 	return activity.GetClient(ctx)
@@ -549,26 +556,26 @@ func (a VolumeCreateActivity) FindTenancy(ctx context.Context, consumerVPC strin
 	return FindTenancy(gcpService, consumerVPC, customerProjectNumber, tenantProjectRegion)
 }
 
-func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volume *datamodel.Volume, region string) error {
+func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volume *datamodel.Volume, region string) (*datamodel.BackupVault, error) {
 	bvId := volume.DataProtection.BackupVaultID
 	backupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, bvId, volume.AccountID)
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
-			return err
+			return nil, err
 		}
 	}
 	if backupVault != nil {
 		if backupVault.ImmutableAttributes != nil && !utils.IsImmutableBackupEnabled() {
 			err := validateImmutableBackupVault(*backupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
-		err := validateCRBBackupVault(backupVault.BackupVaultType)
+		err := validateCRBBackupVault(backupVault)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return nil
+		return backupVault, nil
 	}
 	bvParams := &datamodel.BackupVault{}
 
@@ -583,10 +590,10 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 	})
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
-			return errors.NewNotFoundErr("Backup vault", nil)
+			return nil, errors.NewNotFoundErr("Backup vault", nil)
 		}
 		logger.Error("Error checking backupVault : ", err)
-		return err
+		return nil, err
 	}
 
 	bvs := vaults.Payload.BackupVaults
@@ -596,17 +603,16 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 			if bv.BackupRetentionPolicy != nil && !utils.IsImmutableBackupEnabled() {
 				err := validateImmutableBackupVault(*bv.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDays)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
-			err := validateCRBBackupVault(*bv.BackupVaultType)
-			if err != nil {
-				return err
-			}
-
 			bvModel, err := ConvertToBackupVaultDataModel(bv, region)
 			if err != nil {
-				return err
+				return nil, err
+			}
+			err = validateCRBBackupVault(bvModel)
+			if err != nil {
+				return nil, err
 			}
 			bvParams = bvModel
 			break
@@ -614,17 +620,34 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 	}
 
 	bvParams.AccountID = volume.AccountID
-	_, err = se.CreateBackupVaultEntryInVCP(ctx, bvParams)
+	createdBackupVault, err := se.CreateBackupVaultEntryInVCP(ctx, bvParams)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return createdBackupVault, nil
 }
 
-func validateCRBBackupVault(backupVaultType string) error {
-	if backupVaultType == CrossRegionBackupType {
-		return errors.NewBadRequestErr(CrossRegionBackupVaultErrMsg)
+func validateCRBBackupVault(backupVault *datamodel.BackupVault) error {
+	if backupVault.BackupVaultType == CrossRegionBackupType {
+		if !utils.IsCrossRegionBackupEnabled() {
+			return errors.NewBadRequestErr(CrossRegionBackupVaultErrMsg)
+		}
+		if backupVault.SourceRegionName == nil || *backupVault.SourceRegionName == "" {
+			return errors.NewBadRequestErr("Source region must be specified for cross-region backup vault")
+		}
+		if backupVault.BackupRegionName == nil || *backupVault.BackupRegionName == "" {
+			return errors.NewBadRequestErr("Backup region must be specified for cross-region backup vault")
+		}
+		if *backupVault.SourceRegionName == *backupVault.BackupRegionName {
+			return errors.NewBadRequestErr("Backup region must be different from source region for cross-region backup vault")
+		}
+		if backupVault.CrossRegionBackupVaultName == nil || *backupVault.CrossRegionBackupVaultName == "" {
+			return errors.NewBadRequestErr("Cross-region backup vault name must be specified for cross-region backup vault")
+		}
+		if backupVault.LifeCycleState != models.LifeCycleStateREADY {
+			return errors.NewBadRequestErr("Cross-region backup vault must be in READY state")
+		}
 	}
 	return nil
 }
@@ -636,8 +659,12 @@ func validateImmutableBackupVault(minRetentionDuration int64) error {
 	return nil
 }
 
-func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, volume *datamodel.Volume, region string) error {
+func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, volume *datamodel.Volume, region string) (*datamodel.BackupVault, error) {
 	return CheckBackupVaultExistsInVCP(ctx, a.SE, volume, region)
+}
+
+func (a VolumeCreateActivity) UpdateRemoteBackupVaultDetailsInVCP(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails, backupVault *datamodel.BackupVault) error {
+	return UpdateRemoteBackupVaultDetailsInVCP(ctx, volume, bucketDetails, backupVault)
 }
 
 func (a VolumeCreateActivity) CheckForBucketResourceName(ctx context.Context, volume *datamodel.Volume) (*common.BucketDetails, error) {
@@ -751,6 +778,193 @@ func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context
 	}
 
 	return nil
+}
+
+func UpdateRemoteBackupVaultDetailsInVCP(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails, backupVault *datamodel.BackupVault) error {
+	logger := util.GetLogger(ctx)
+	if backupVault.BackupVaultType != CrossRegionBackupType ||
+		backupVault.SourceRegionName == nil || backupVault.BackupRegionName == nil ||
+		*backupVault.SourceRegionName == *backupVault.BackupRegionName {
+		return nil
+	}
+
+	if !utils.IsCrossRegionBackupEnabled() {
+		return errors.NewBadRequestErr(CrossRegionBackupVaultErrMsg)
+	}
+
+	newBucketDetail := convertCommonToDatamodel(bucketDetails)
+	projectNumber := volume.Account.Name
+
+	remoteBackupVault, err := FetchRemoteBackupVaultFromVCP(ctx, backupVault.UUID, projectNumber, *backupVault.BackupRegionName)
+	if err != nil && !errors.IsNotFoundErr(err) {
+		logger.Error("Failed to fetch remote BackupVault from VCP", "error", err.Error())
+		return err
+	}
+
+	if remoteBackupVault == nil {
+		logger.Info("BackupVault not found in remote VCP, fetching from CVP",
+			"region", *backupVault.BackupRegionName,
+			"backupVaultName", backupVault.Name)
+
+		remoteBackupVault, err = FetchRemoteBackupVaultFromCVP(ctx, backupVault.Name, projectNumber, *backupVault.BackupRegionName)
+		if err != nil {
+			logger.Error("Failed to fetch remote BackupVault from CVP", "error", err.Error())
+			return err
+		}
+
+		remoteBackupVault.AccountID = volume.AccountID
+		remoteBackupVault.ExternalUUID = &backupVault.UUID
+	}
+
+	if bucketDetailsExist(remoteBackupVault.BucketDetails, newBucketDetail) {
+		logger.Debug("Bucket details already exist in remote BackupVault, skipping update")
+		return nil
+	}
+
+	remoteBackupVault.BucketDetails = append(remoteBackupVault.BucketDetails, newBucketDetail)
+
+	_, err = createRemoteBackupVaultWithBucketDetailsInVCP(ctx, volume, remoteBackupVault, *backupVault.BackupRegionName)
+	if err != nil {
+		logger.Error("Failed to create remote BackupVault with bucket details", "error", err.Error())
+		return err
+	}
+
+	logger.Info("Successfully updated remote BackupVault with bucket details", "bucketName", newBucketDetail.BucketName)
+	return nil
+}
+
+// FetchRemoteBackupVaultFromVCP calls the internal GET endpoint to fetch BackupVault from a remote region
+func FetchRemoteBackupVaultFromVCP(ctx context.Context, backupVaultUUID, projectNumber, region string) (*datamodel.BackupVault, error) {
+	logger := util.GetLogger(ctx)
+	basePath, jwtToken, err := getRemoteRegionConfig(region, projectNumber)
+	if err != nil {
+		logger.Error("Failed to get remote region configuration", "region", region, "error", err)
+		return nil, err
+	}
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	params := googleproxyclient.V1betaInternalDescribeBackupVaultParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     region,
+		BackupVaultId:  backupVaultUUID,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalDescribeBackupVault(ctx, params)
+	if err != nil {
+		logger.Error("Failed to fetch remote BackupVault", "error", err.Error(), "region", region, "backupVaultID", backupVaultUUID)
+		return nil, errors.NewNotFoundErr("remote backup vault", &backupVaultUUID)
+	}
+
+	backupVault, ok := res.(*googleproxyclient.BackupVaultInternalV1beta)
+	if !ok {
+		logger.Error("Unexpected response type from remote BackupVault fetch", "type", fmt.Sprintf("%T", res))
+		return nil, errors.NewNotFoundErr("remote backup vault", &backupVaultUUID)
+	}
+
+	result := convertInternalAPIToDatamodel(backupVault)
+	logger.Info("Successfully fetched remote BackupVault", "backupVaultID", result.Name, "region", region)
+	return result, nil
+}
+
+// FetchRemoteBackupVaultFromCVP calls the CVP service to fetch BackupVault from a remote region
+func FetchRemoteBackupVaultFromCVP(ctx context.Context, backupVaultName, projectNumber, region string) (*datamodel.BackupVault, error) {
+	logger := util.GetLogger(ctx)
+	cvpHostsJSON := env.GetString("CVP_HOSTS", "")
+	if cvpHostsJSON == "" {
+		return nil, errors.New("CVP_HOSTS environment variable not configured")
+	}
+
+	var cvpHosts map[string]string
+	if err := json.Unmarshal([]byte(cvpHostsJSON), &cvpHosts); err != nil {
+		return nil, fmt.Errorf("failed to parse CVP_HOSTS JSON: %w", err)
+	}
+
+	cvpHost, exists := cvpHosts[region]
+	if !exists {
+		return nil, fmt.Errorf("no CVP host configured for region: %s in CVP_HOSTS", region)
+	}
+
+	originalHost := cvp.CVP_HOST
+	cvp.SetCVPHost(cvpHost)
+	defer cvp.SetCVPHost(originalHost)
+
+	cvpClient := CvpCreateClient(logger, utils.GetAuthTokenFromContext(ctx))
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(&backup_vault.V1betaListBackupVaultsParams{
+		LocationID:     region,
+		ProjectNumber:  projectNumber,
+		XCorrelationID: &correlationID,
+	})
+	if err != nil {
+		logger.Error("Error fetching backup vaults from CVP", "error", err.Error(), "region", region)
+		if errors.IsNotFoundErr(err) {
+			return nil, errors.NewNotFoundErr("backup vault", &backupVaultName)
+		}
+		return nil, err
+	}
+
+	if vaults == nil || vaults.Payload == nil || vaults.Payload.BackupVaults == nil {
+		return nil, errors.NewNotFoundErr("backup vault", &backupVaultName)
+	}
+
+	for _, bv := range vaults.Payload.BackupVaults {
+		if bv.BackupVaultType == nil || *bv.BackupVaultType != CrossRegionBackupType {
+			continue
+		}
+		if bv.SourceBackupVault != nil && strings.HasSuffix(*bv.SourceBackupVault, "/"+backupVaultName) {
+			logger.Info("Found matching cross-region BackupVault in CVP",
+				"backupVaultID", bv.BackupVaultID,
+				"backupVaultName", bv.ResourceID,
+				"sourceBackupVault", *bv.SourceBackupVault,
+				"region", region)
+
+			return ConvertToBackupVaultDataModel(bv, region)
+		}
+	}
+
+	logger.Error("BackupVault not found in CVP", "backupVaultName", backupVaultName, "region", region)
+	return nil, errors.NewNotFoundErr("backup vault", &backupVaultName)
+}
+
+// createRemoteBackupVaultWithBucketDetailsInVCP calls the internal POST endpoint to create BackupVault in a remote region
+func createRemoteBackupVaultWithBucketDetailsInVCP(ctx context.Context, volume *datamodel.Volume, backupVault *datamodel.BackupVault, region string) (*datamodel.BackupVault, error) {
+	logger := util.GetLogger(ctx)
+
+	basePath, jwtToken, err := getRemoteRegionConfig(region, volume.Account.Name)
+	if err != nil {
+		logger.Error("Failed to get remote region configuration", "region", region, "error", err.Error())
+		return nil, err
+	}
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	params := googleproxyclient.V1betaInternalCreateBackupVaultParams{
+		ProjectNumber:  volume.Account.Name,
+		LocationId:     region,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalCreateBackupVault(ctx, convertDatamodelToInternalAPI(backupVault), params)
+	if err != nil {
+		logger.Error("Failed to create remote BackupVault with bucket details", "error", err.Error())
+		return nil, err
+	}
+
+	createdBackupVault, ok := res.(*googleproxyclient.BackupVaultInternalV1beta)
+	if !ok {
+		return nil, errors.New("unexpected response type from remote BackupVault creation")
+	}
+
+	result := convertInternalAPIToDatamodel(createdBackupVault)
+	logger.Info("Successfully created remote BackupVault with bucket details",
+		"backupVaultID", result.Name,
+		"bucketCount", len(result.BucketDetails))
+	return result, nil
 }
 
 func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*hyperscalermodels.ServiceAccount, []*common.BucketDetails, error) {
@@ -1214,4 +1428,186 @@ func (a VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, 
 		return nil, err
 	}
 	return asyncResp, nil
+}
+
+// getRemoteRegionConfig gets the base path and JWT token for a remote region
+func getRemoteRegionConfig(region, projectNumber string) (string, string, error) {
+	regionsGroupJSON := env.GetString("VCP_PAIRED_REGIONS", "")
+	if regionsGroupJSON == "" {
+		return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
+	}
+
+	var regionsGroup map[string]string
+	if err := json.Unmarshal([]byte(regionsGroupJSON), &regionsGroup); err != nil {
+		return "", "", fmt.Errorf("failed to parse VCP_PAIRED_REGIONS JSON: %w", err)
+	}
+
+	basePath, exists := regionsGroup[region]
+	if !exists {
+		return "", "", fmt.Errorf("no base path configured for region: %s in VCP_PAIRED_REGIONS", region)
+	}
+
+	jwtToken, err := GetSignedJwtTokenFunc(projectNumber)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get JWT token for project %s: %w", projectNumber, err)
+	}
+
+	return basePath, jwtToken, nil
+}
+
+// convertCommonToDatamodel converts common.BucketDetails to datamodel.BucketDetails
+func convertCommonToDatamodel(b *common.BucketDetails) *datamodel.BucketDetails {
+	if b == nil {
+		return nil
+	}
+	return &datamodel.BucketDetails{
+		BucketName:          b.BucketName,
+		ServiceAccountName:  b.ServiceAccountName,
+		VendorSubnetID:      b.VendorSubnetID,
+		TenantProjectNumber: b.TenantProjectNumber,
+	}
+}
+
+// convertInternalAPIToDatamodel converts internal API BackupVault to datamodel BackupVault
+func convertInternalAPIToDatamodel(apiBackupVault *googleproxyclient.BackupVaultInternalV1beta) *datamodel.BackupVault {
+	if apiBackupVault == nil {
+		return nil
+	}
+
+	backupVault := &datamodel.BackupVault{
+		Name:            apiBackupVault.BackupVaultId,
+		AccountVendorID: apiBackupVault.AccountVendorId,
+		LifeCycleState:  string(apiBackupVault.LifeCycleState),
+		BackupVaultType: string(apiBackupVault.BackupVaultType),
+	}
+
+	if apiBackupVault.Description.IsSet() && apiBackupVault.Description.Value != "" {
+		desc := apiBackupVault.Description.Value
+		backupVault.Description = &desc
+	}
+
+	if apiBackupVault.LifeCycleStateDetails.IsSet() && apiBackupVault.LifeCycleStateDetails.Value != "" {
+		details := apiBackupVault.LifeCycleStateDetails.Value
+		backupVault.LifeCycleStateDetails = details
+	}
+
+	if apiBackupVault.SourceRegion.IsSet() && apiBackupVault.SourceRegion.Value != "" {
+		sourceRegion := apiBackupVault.SourceRegion.Value
+		backupVault.SourceRegionName = &sourceRegion
+	}
+
+	if apiBackupVault.BackupRegion.IsSet() && apiBackupVault.BackupRegion.Value != "" {
+		backupRegion := apiBackupVault.BackupRegion.Value
+		backupVault.BackupRegionName = &backupRegion
+	}
+
+	if apiBackupVault.CrossRegionBackupVaultName.IsSet() && apiBackupVault.CrossRegionBackupVaultName.Value != "" {
+		crossRegionName := apiBackupVault.CrossRegionBackupVaultName.Value
+		backupVault.CrossRegionBackupVaultName = &crossRegionName
+	}
+
+	if apiBackupVault.ExternalUuid.IsSet() && apiBackupVault.ExternalUuid.Value != "" {
+		externalUuid := apiBackupVault.ExternalUuid.Value
+		backupVault.ExternalUUID = &externalUuid
+	}
+
+	if len(apiBackupVault.BucketDetails) > 0 {
+		bucketDetails := make(datamodel.BucketDetailsArray, 0, len(apiBackupVault.BucketDetails))
+		for _, bucket := range apiBackupVault.BucketDetails {
+			bucketDetail := &datamodel.BucketDetails{}
+
+			if bucket.BucketName.IsSet() && bucket.BucketName.Value != "" {
+				bucketDetail.BucketName = bucket.BucketName.Value
+			}
+			if bucket.ServiceAccountName.IsSet() {
+				bucketDetail.ServiceAccountName = bucket.ServiceAccountName.Value
+			}
+			if bucket.VendorSubnetId.IsSet() && bucket.VendorSubnetId.Value != "" {
+				bucketDetail.VendorSubnetID = bucket.VendorSubnetId.Value
+			}
+			if bucket.TenantProjectNumber.IsSet() && bucket.TenantProjectNumber.Value != "" {
+				bucketDetail.TenantProjectNumber = bucket.TenantProjectNumber.Value
+			}
+
+			if bucketDetail.BucketName != "" {
+				bucketDetails = append(bucketDetails, bucketDetail)
+			}
+		}
+		if len(bucketDetails) > 0 {
+			backupVault.BucketDetails = bucketDetails
+		}
+	}
+
+	return backupVault
+}
+
+// convertDatamodelToInternalAPI converts datamodel BackupVault to internal API BackupVault
+func convertDatamodelToInternalAPI(datamodelBackupVault *datamodel.BackupVault) *googleproxyclient.BackupVaultInternalV1beta {
+	if datamodelBackupVault == nil {
+		return nil
+	}
+
+	apiBackupVault := &googleproxyclient.BackupVaultInternalV1beta{
+		BackupVaultId:   datamodelBackupVault.UUID,
+		ResourceId:      datamodelBackupVault.Name,
+		AccountVendorId: datamodelBackupVault.AccountVendorID,
+	}
+
+	apiBackupVault.BackupVaultType = googleproxyclient.BackupVaultInternalV1betaBackupVaultType(datamodelBackupVault.BackupVaultType)
+	apiBackupVault.LifeCycleState = googleproxyclient.BackupVaultInternalV1betaLifeCycleState(datamodelBackupVault.LifeCycleState)
+
+	if datamodelBackupVault.Description != nil {
+		apiBackupVault.Description = googleproxyclient.NewOptString(*datamodelBackupVault.Description)
+	}
+
+	if datamodelBackupVault.LifeCycleStateDetails != "" {
+		apiBackupVault.LifeCycleStateDetails = googleproxyclient.NewOptString(datamodelBackupVault.LifeCycleStateDetails)
+	}
+
+	if datamodelBackupVault.SourceRegionName != nil {
+		apiBackupVault.SourceRegion = googleproxyclient.NewOptString(*datamodelBackupVault.SourceRegionName)
+	}
+
+	if datamodelBackupVault.BackupRegionName != nil {
+		apiBackupVault.BackupRegion = googleproxyclient.NewOptString(*datamodelBackupVault.BackupRegionName)
+	}
+
+	if datamodelBackupVault.CrossRegionBackupVaultName != nil {
+		apiBackupVault.CrossRegionBackupVaultName = googleproxyclient.NewOptString(*datamodelBackupVault.CrossRegionBackupVaultName)
+	}
+
+	if datamodelBackupVault.ExternalUUID != nil {
+		apiBackupVault.ExternalUuid = googleproxyclient.NewOptString(*datamodelBackupVault.ExternalUUID)
+	}
+
+	if len(datamodelBackupVault.BucketDetails) > 0 {
+		var bucketDetails []googleproxyclient.BackupVaultInternalV1betaBucketDetailsItem
+		for _, bucket := range datamodelBackupVault.BucketDetails {
+			bucketDetail := googleproxyclient.BackupVaultInternalV1betaBucketDetailsItem{
+				BucketName:          googleproxyclient.NewOptString(bucket.BucketName),
+				ServiceAccountName:  googleproxyclient.NewOptString(bucket.ServiceAccountName),
+				VendorSubnetId:      googleproxyclient.NewOptString(bucket.VendorSubnetID),
+				TenantProjectNumber: googleproxyclient.NewOptString(bucket.TenantProjectNumber),
+			}
+			bucketDetails = append(bucketDetails, bucketDetail)
+		}
+		apiBackupVault.BucketDetails = bucketDetails
+	}
+
+	return apiBackupVault
+}
+
+// bucketDetailsExist checks if bucket details already exist in the array
+func bucketDetailsExist(existingBuckets datamodel.BucketDetailsArray, newBucket *datamodel.BucketDetails) bool {
+	if newBucket == nil {
+		return false
+	}
+
+	for _, existing := range existingBuckets {
+		if existing.BucketName == newBucket.BucketName &&
+			existing.VendorSubnetID == newBucket.VendorSubnetID {
+			return true
+		}
+	}
+	return false
 }
