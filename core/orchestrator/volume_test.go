@@ -14396,8 +14396,9 @@ func TestConvertDatastoreVolumeToModelAutoTieringPolicy(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test-pool",
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test-pool",
+			AllowAutoTiering: true,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -14444,8 +14445,9 @@ func TestConvertDatastoreVolumeToModelAutoTieringPolicy(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test-pool",
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test-pool",
+			AllowAutoTiering: true,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -14481,6 +14483,202 @@ func TestConvertDatastoreVolumeToModelAutoTieringPolicy(t *testing.T) {
 		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
 		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled, "HotTierBypassModeEnabled should be false")
+	})
+
+	t.Run("ConvertVolumeWithPAUSEDTierActionAndPoolAutoTieringEnabled", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test-pool",
+			AllowAutoTiering: true,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:               "test-volume",
+			Description:        "test description",
+			SizeInBytes:        107374182400,
+			AutoTieringEnabled: false, // PAUSED state
+			Account:            account,
+			Pool:               pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolISCSI},
+			},
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     30,
+				RetrievalPolicy:          "default",
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		// Should return AutoTieringPolicy because pool has AllowAutoTiering enabled,
+		// regardless of the volume's AutoTieringEnabled state (PAUSED)
+		assert.NotNil(tt, result.AutoTieringPolicy, "AutoTieringPolicy should be returned when pool has auto tiering enabled")
+		assert.False(tt, result.AutoTieringPolicy.AutoTieringEnabled, "AutoTieringEnabled should be false (PAUSED)")
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("ConvertVolumeWithPAUSEDTierActionAndPoolAutoTieringDisabled", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test-pool",
+			AllowAutoTiering: false,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:               "test-volume",
+			Description:        "test description",
+			SizeInBytes:        107374182400,
+			AutoTieringEnabled: false, // PAUSED state
+			Account:            account,
+			Pool:               pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolISCSI},
+			},
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     30,
+				RetrievalPolicy:          "default",
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		// Should NOT return AutoTieringPolicy when pool doesn't have auto tiering enabled,
+		// regardless of the volume's AutoTieringEnabled state
+		assert.Nil(tt, result.AutoTieringPolicy, "AutoTieringPolicy should not be returned when pool doesn't have auto tiering enabled")
+	})
+
+	t.Run("ConvertVolumeWithPAUSEDTierActionAndPoolAutoTieringEnabledWithHotTierBypass", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test-pool",
+			AllowAutoTiering: true,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:               "test-volume",
+			Description:        "test description",
+			SizeInBytes:        107374182400,
+			AutoTieringEnabled: false, // PAUSED state
+			Account:            account,
+			Pool:               pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolISCSI},
+			},
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "all",
+				CoolingThresholdDays:     45,
+				RetrievalPolicy:          "default",
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		// Should return AutoTieringPolicy because pool has AllowAutoTiering enabled,
+		// regardless of the volume's AutoTieringEnabled state (PAUSED)
+		assert.NotNil(tt, result.AutoTieringPolicy, "AutoTieringPolicy should be returned when pool has auto tiering enabled")
+		assert.False(tt, result.AutoTieringPolicy.AutoTieringEnabled, "AutoTieringEnabled should be false (PAUSED)")
+		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(45), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled, "HotTierBypassModeEnabled should be true")
+	})
+
+	t.Run("ConvertVolumeWithAutoTieringEnabledTrueButPoolAutoTieringDisabled", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test-pool",
+			AllowAutoTiering: false,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:               "test-volume",
+			Description:        "test description",
+			SizeInBytes:        107374182400,
+			AutoTieringEnabled: true, // Enabled on volume
+			Account:            account,
+			Pool:               pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolISCSI},
+			},
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     30,
+				RetrievalPolicy:          "default",
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		// Should NOT return AutoTieringPolicy when pool doesn't have auto tiering enabled,
+		// even if the volume's AutoTieringEnabled is true
+		assert.Nil(tt, result.AutoTieringPolicy, "AutoTieringPolicy should not be returned when pool doesn't have auto tiering enabled, even if volume AutoTieringEnabled is true")
 	})
 }
 

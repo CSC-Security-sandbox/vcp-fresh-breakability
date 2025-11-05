@@ -4961,3 +4961,270 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		assert.Equal(tt, int64(0), dbPool.ActiveDirectoryID.Int64)
 	})
 }
+
+// TestMergeUpdateParamsIntoPoolModel tests the mergeUpdateParamsIntoPoolModel function
+// Only pool size and auto tiering parameters are updated from params if provided.
+// All other fields remain from poolModel.
+func TestMergeUpdateParamsIntoPoolModel(t *testing.T) {
+	basePoolModel := &models.Pool{
+		BaseModel: models.BaseModel{
+			UUID: "test-pool-uuid",
+		},
+		Name:             "test-pool",
+		Description:      "original description",
+		SizeInBytes:      2 * utils.TiBInBytes,
+		QosType:          "auto",
+		AllowAutoTiering: false,
+		PoolAttributes: &models.PoolAttributes{
+			Labels: map[string]string{
+				"env":  "dev",
+				"team": "storage",
+			},
+		},
+		CustomPerformanceParams: &models.CustomPerformanceParams{
+			Enabled:    true,
+			Throughput: 64.0,
+			Iops:       1024,
+		},
+		ActiveDirectoryConfigId: "original-ad-id",
+	}
+
+	t.Run("OnlySizeInBytesUpdated_OtherFieldsUnchanged", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes: 4 * utils.TiBInBytes, // Provided in params
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(basePoolModel, params)
+
+		// SizeInBytes should be updated from params
+		assert.Equal(tt, uint64(4*utils.TiBInBytes), merged.SizeInBytes)
+		// All other fields should remain from poolModel
+		assert.Equal(tt, basePoolModel.Description, merged.Description)
+		assert.Equal(tt, basePoolModel.QosType, merged.QosType)
+		assert.Equal(tt, basePoolModel.AllowAutoTiering, merged.AllowAutoTiering)
+		assert.Equal(tt, basePoolModel.Name, merged.Name)
+		assert.Equal(tt, basePoolModel.CustomPerformanceParams.Throughput, merged.CustomPerformanceParams.Throughput)
+		assert.Equal(tt, basePoolModel.CustomPerformanceParams.Iops, merged.CustomPerformanceParams.Iops)
+	})
+
+	t.Run("SizeInBytesAndAutoTieringUpdated", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:             4 * utils.TiBInBytes,
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      2 * utils.TiBInBytes,
+			EnableHotTierAutoResize: true,
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(basePoolModel, params)
+
+		// SizeInBytes should be updated from params
+		assert.Equal(tt, uint64(4*utils.TiBInBytes), merged.SizeInBytes)
+		// AutoTieringConfig should be created and updated
+		assert.NotNil(tt, merged.AutoTieringConfig)
+		assert.Equal(tt, uint64(2*utils.TiBInBytes), merged.AutoTieringConfig.HotTierSizeInBytes)
+		assert.Equal(tt, true, merged.AutoTieringConfig.EnableHotTierAutoResize)
+		// Other fields remain from poolModel
+		assert.Equal(tt, basePoolModel.Description, merged.Description)
+		assert.Equal(tt, basePoolModel.QosType, merged.QosType)
+	})
+
+	t.Run("DescriptionNotUpdated_RemainsFromPoolModel", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes: 4 * utils.TiBInBytes,
+			Description: "updated description", // Provided but not used
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(basePoolModel, params)
+
+		// Description should remain from poolModel, not updated from params
+		assert.Equal(tt, basePoolModel.Description, merged.Description)
+		assert.Equal(tt, "original description", merged.Description)
+	})
+
+	t.Run("LabelsNotUpdated_RemainFromPoolModel", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes: 4 * utils.TiBInBytes,
+			Labels: &datamodel.JSONB{
+				"env":  "prod",
+				"team": "platform",
+				"new":  "value",
+			},
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(basePoolModel, params)
+
+		// Labels should remain from poolModel, not updated from params
+		assert.NotNil(tt, merged.PoolAttributes)
+		assert.NotNil(tt, merged.PoolAttributes.Labels)
+		assert.Equal(tt, "dev", merged.PoolAttributes.Labels["env"])
+		assert.Equal(tt, "storage", merged.PoolAttributes.Labels["team"])
+		assert.NotContains(tt, merged.PoolAttributes.Labels, "new")
+	})
+
+	t.Run("ThroughputAndIOPSNotUpdated_RemainFromPoolModel", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:              4 * utils.TiBInBytes,
+			TotalThroughputMibps:     128,
+			TotalIops:                nillable.ToPointer(int64(2048)),
+			CustomPerformanceEnabled: true,
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(basePoolModel, params)
+
+		// Throughput and IOPS should remain from poolModel, not updated from params
+		assert.NotNil(tt, merged.CustomPerformanceParams)
+		assert.Equal(tt, 64.0, merged.CustomPerformanceParams.Throughput)  // Original value
+		assert.Equal(tt, int64(1024), merged.CustomPerformanceParams.Iops) // Original value
+	})
+
+	t.Run("AutoTieringConfigUpdated_ParamsUsedDirectly", func(tt *testing.T) {
+		poolWithAutoTiering := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      2 * utils.TiBInBytes,
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1 * utils.TiBInBytes,
+				EnableHotTierAutoResize: false,
+				BucketName:              "original-bucket",
+			},
+		}
+
+		params := &common.UpdatePoolParams{
+			Description:             poolWithAutoTiering.Description,
+			SizeInBytes:             poolWithAutoTiering.SizeInBytes,
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      2 * utils.TiBInBytes, // Params contain merged value
+			EnableHotTierAutoResize: true,                 // Params contain merged value
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(poolWithAutoTiering, params)
+
+		// Params already contain merged values, so they are used directly without conditional checks
+		assert.NotNil(tt, merged.AutoTieringConfig)
+		// HotTierSizeInBytes from params is used directly (merged value from request or existing pool)
+		assert.Equal(tt, uint64(2*utils.TiBInBytes), merged.AutoTieringConfig.HotTierSizeInBytes)
+		// EnableHotTierAutoResize from params is used directly (merged value from request or existing pool)
+		assert.Equal(tt, true, merged.AutoTieringConfig.EnableHotTierAutoResize)
+		// Existing fields from deep copy should be preserved (BucketName not in params)
+		assert.Equal(tt, "original-bucket", merged.AutoTieringConfig.BucketName)
+	})
+
+	t.Run("ActiveDirectoryConfigIdNotUpdated_RemainsFromPoolModel", func(tt *testing.T) {
+		basePoolModelWithAD := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:                      "test-pool",
+			Description:               basePoolModel.Description,
+			SizeInBytes:               basePoolModel.SizeInBytes,
+			ActiveDirectoryConfigId:   "original-ad-id",
+			ActiveDirectoryResourceId: "original-ad-resource-id",
+		}
+
+		params := &common.UpdatePoolParams{
+			SizeInBytes:             4 * utils.TiBInBytes,
+			ActiveDirectoryConfigId: "new-ad-id", // Provided but not used
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(basePoolModelWithAD, params)
+
+		// ActiveDirectoryConfigId should remain from poolModel, not updated from params
+		assert.Equal(tt, "original-ad-id", merged.ActiveDirectoryConfigId)
+		assert.Equal(tt, "original-ad-resource-id", merged.ActiveDirectoryResourceId)
+	})
+
+	t.Run("ShallowCopyVerification_OriginalNotMutated", func(tt *testing.T) {
+		originalDescription := basePoolModel.Description
+		originalSize := basePoolModel.SizeInBytes
+		originalLabels := make(map[string]string)
+		for k, v := range basePoolModel.PoolAttributes.Labels {
+			originalLabels[k] = v
+		}
+
+		params := &common.UpdatePoolParams{
+			SizeInBytes: 4 * utils.TiBInBytes,
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(basePoolModel, params)
+
+		// Modify merged pool
+		merged.Description = "modified description"
+		merged.SizeInBytes = 8 * utils.TiBInBytes
+		if merged.PoolAttributes != nil && merged.PoolAttributes.Labels != nil {
+			merged.PoolAttributes.Labels["modified"] = "value"
+		}
+
+		// Original should not be affected (shallow copy prevents mutation)
+		assert.Equal(tt, originalDescription, basePoolModel.Description)
+		assert.Equal(tt, originalSize, basePoolModel.SizeInBytes)
+		assert.Equal(tt, originalLabels["env"], basePoolModel.PoolAttributes.Labels["env"])
+		assert.NotContains(tt, basePoolModel.PoolAttributes.Labels, "modified")
+	})
+
+	t.Run("AutoTieringConfigCreated_WhenNotExists", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:             4 * utils.TiBInBytes,
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      1 * utils.TiBInBytes,
+			EnableHotTierAutoResize: true,
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(basePoolModel, params)
+
+		// AutoTieringConfig should be created since it doesn't exist in poolModel
+		assert.NotNil(tt, merged.AutoTieringConfig)
+		assert.Equal(tt, uint64(1*utils.TiBInBytes), merged.AutoTieringConfig.HotTierSizeInBytes)
+		assert.Equal(tt, true, merged.AutoTieringConfig.EnableHotTierAutoResize)
+	})
+
+	t.Run("AutoTieringConfigPreservesExistingFields", func(tt *testing.T) {
+		poolWithAutoTiering := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      2 * utils.TiBInBytes,
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1 * utils.TiBInBytes,
+				EnableHotTierAutoResize: false,
+				BucketName:              "original-bucket",
+				HotTierConsumption:      100,
+				ColdTierConsumption:     200,
+			},
+		}
+
+		params := &common.UpdatePoolParams{
+			SizeInBytes:             4 * utils.TiBInBytes,
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      2 * utils.TiBInBytes,
+			EnableHotTierAutoResize: true,
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(poolWithAutoTiering, params)
+
+		// Updated fields from params
+		assert.NotNil(tt, merged.AutoTieringConfig)
+		assert.Equal(tt, uint64(2*utils.TiBInBytes), merged.AutoTieringConfig.HotTierSizeInBytes)
+		assert.Equal(tt, true, merged.AutoTieringConfig.EnableHotTierAutoResize)
+		// Existing fields preserved from shallow copy
+		assert.Equal(tt, "original-bucket", merged.AutoTieringConfig.BucketName)
+		assert.Equal(tt, int64(100), merged.AutoTieringConfig.HotTierConsumption)
+		assert.Equal(tt, int64(200), merged.AutoTieringConfig.ColdTierConsumption)
+	})
+
+	t.Run("SizeInBytesNotUpdated_WhenZero", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes: 0, // Zero value means not provided
+		}
+
+		merged := mergeUpdateParamsIntoPoolModel(basePoolModel, params)
+
+		// SizeInBytes should remain from poolModel when params.SizeInBytes is 0
+		assert.Equal(tt, basePoolModel.SizeInBytes, merged.SizeInBytes)
+		assert.Equal(tt, uint64(2*utils.TiBInBytes), merged.SizeInBytes)
+	})
+}

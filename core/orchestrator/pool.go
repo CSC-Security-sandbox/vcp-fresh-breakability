@@ -313,7 +313,59 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		return nil, "", err
 	}
 	poolView := database.ConvertPoolToPoolView(pool)
-	return convertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
+	poolModel := convertDatastorePoolToModel(poolView, account.Name)
+	// Merge update params into the pool model for 202 response
+	// Params already contain merged values (either new from request or existing from pool)
+	mergedPoolModel := mergeUpdateParamsIntoPoolModel(poolModel, params)
+	return mergedPoolModel, createdJob.UUID, nil
+}
+
+// mergeUpdateParamsIntoPoolModel merges update params into a pool model.
+// Only auto tiering parameters and pool size are updated from params if they are provided.
+// Reuses poolModel and only creates a shallow copy to avoid mutating the original.
+func mergeUpdateParamsIntoPoolModel(poolModel *models.Pool, params *commonparams.UpdatePoolParams) *models.Pool {
+	// Shallow copy poolModel to avoid mutating the original
+	merged := *poolModel
+
+	// Copy PoolAttributes to avoid mutating the original
+	if merged.PoolAttributes != nil {
+		poolAttributesCopy := *merged.PoolAttributes
+		// Copy Labels map to avoid sharing the same map reference
+		if poolAttributesCopy.Labels != nil {
+			labelsCopy := make(map[string]string)
+			for k, v := range poolAttributesCopy.Labels {
+				labelsCopy[k] = v
+			}
+			poolAttributesCopy.Labels = labelsCopy
+		}
+		merged.PoolAttributes = &poolAttributesCopy
+	}
+
+	// Update pool size if provided in params
+	if params.SizeInBytes > 0 {
+		merged.SizeInBytes = params.SizeInBytes
+	}
+
+	// Update AutoTieringConfig only if auto tiering parameters are provided in params
+	if params.AllowAutoTiering || params.HotTierSizeInBytes > 0 {
+		// Create a copy of AutoTieringConfig if it exists, otherwise create new
+		if merged.AutoTieringConfig != nil {
+			// Shallow copy the existing config
+			autoTieringConfigCopy := *merged.AutoTieringConfig
+			merged.AutoTieringConfig = &autoTieringConfigCopy
+		} else {
+			// Create new AutoTieringConfig if it doesn't exist
+			merged.AutoTieringConfig = &models.AutoTieringConfig{}
+		}
+
+		// Update only the fields that are provided in params
+		if params.HotTierSizeInBytes > 0 {
+			merged.AutoTieringConfig.HotTierSizeInBytes = params.HotTierSizeInBytes
+		}
+		merged.AutoTieringConfig.EnableHotTierAutoResize = params.EnableHotTierAutoResize
+	}
+
+	return &merged
 }
 
 // GetPool gets the specified pool

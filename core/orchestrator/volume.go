@@ -1390,7 +1390,10 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		}
 	}
 
-	if volume.AutoTieringEnabled && volume.AutoTieringPolicy != nil {
+	// Return AutoTieringPolicy if pool has auto tiering enabled.
+	// This ensures volumes created with PAUSED tierAction still return their tieringPolicy
+	// when the pool supports auto tiering, regardless of the volume's AutoTieringEnabled state.
+	if volume.AutoTieringPolicy != nil && (volume.Pool != nil && volume.Pool.AllowAutoTiering) {
 		res.AutoTieringPolicy = &models.AutoTieringPolicy{
 			AutoTieringEnabled:       volume.AutoTieringEnabled,
 			CoolingThresholdDays:     volume.AutoTieringPolicy.CoolingThresholdDays,
