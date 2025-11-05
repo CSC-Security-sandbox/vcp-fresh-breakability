@@ -319,6 +319,7 @@ func TestUpdateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 			State:            models.LifeCycleStateREADY,
 			SizeInBytes:      100000000000,
 			VolumeAttributes: &datamodel.VolumeAttributes{},
+			Pool:             database.ConvertPoolViewToPool(pool),
 		}
 
 		job := &datamodel.Job{
@@ -342,7 +343,7 @@ func TestUpdateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		}()
 
 		mockStorage.On("GetVolume", ctx, params.VolumeId).Return(volume, nil)
-		mockStorage.On("GetPool", ctx, params.PoolID, volume.AccountID).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "pool-uuid", volume.AccountID).Return(pool, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 
 		// Mock workflow failure
@@ -940,6 +941,7 @@ func TestUpdateVolume_FailedJobUpdateOnError_Line1163(t *testing.T) {
 			State:            models.LifeCycleStateREADY,
 			SizeInBytes:      100000000000,
 			VolumeAttributes: &datamodel.VolumeAttributes{},
+			Pool:             database.ConvertPoolViewToPool(pool),
 		}
 
 		job := &datamodel.Job{
@@ -1023,6 +1025,7 @@ func TestUpdateVolume_FailedVolumeUpdateOnError_Line1185(t *testing.T) {
 			State:            models.LifeCycleStateREADY,
 			SizeInBytes:      100000000000,
 			VolumeAttributes: &datamodel.VolumeAttributes{},
+			Pool:             database.ConvertPoolViewToPool(pool),
 		}
 
 		job := &datamodel.Job{

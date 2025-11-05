@@ -9616,10 +9616,14 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(1024 * 1024 * 1024)}
-		dbVolume := &datamodel.Volume{SizeInBytes: int64(2 * 1024 * 1024 * 1024), State: "READY"}
+		dbVolume := &datamodel.Volume{
+			SizeInBytes: int64(2 * 1024 * 1024 * 1024),
+			State:       "READY",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "pool-uuid", dbVolume.AccountID).Return(poolView, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.EqualError(tt, err, "volume size cannot be reduced")
@@ -9631,14 +9635,18 @@ func TestUpdateVolume(t *testing.T) {
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024)}
 		dbVolume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: int64(1024 * 1024 * 1024), Name: "vol", State: "READY",
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Name:        "vol",
+			State:       "READY",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				SnapReserve: 10,
 			},
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "pool-uuid", dbVolume.AccountID).Return(poolView, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job error"))
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -9650,12 +9658,18 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024)}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: int64(1024 * 1024 * 1024), Name: "vol", State: "READY"}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Name:        "vol",
+			State:       "READY",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
 		jobUUID := "wid"
 		job := &datamodel.Job{WorkflowID: jobUUID, BaseModel: datamodel.BaseModel{UUID: jobUUID}}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "pool-uuid", dbVolume.AccountID).Return(poolView, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update state error")).Once()
 		// Mock UpdateJob call when error occurs in defer function
@@ -9671,12 +9685,18 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024)}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: int64(1024 * 1024 * 1024), Name: "vol", State: "READY"}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Name:        "vol",
+			State:       "READY",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
 		jobUUID := "wid"
 		job := &datamodel.Job{WorkflowID: jobUUID, BaseModel: datamodel.BaseModel{UUID: jobUUID}}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "pool-uuid", dbVolume.AccountID).Return(poolView, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Mock UpdateJob call when error occurs in defer function
@@ -9717,8 +9737,8 @@ func TestUpdateVolume(t *testing.T) {
 
 		job := &datamodel.Job{WorkflowID: "wid"}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -9756,8 +9776,8 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -9791,8 +9811,8 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 			BaseModel: datamodel.BaseModel{UUID: "hg2"},
 		}}, nil)
@@ -9828,8 +9848,8 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 			BaseModel: datamodel.BaseModel{UUID: "hg1"}, Name: "hg1", State: models.LifeCycleStateError,
 		}, {BaseModel: datamodel.BaseModel{UUID: "hg2"}, State: models.LifeCycleStateREADY}}, nil)
@@ -9865,8 +9885,8 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 			BaseModel: datamodel.BaseModel{UUID: "hg1"}, Hosts: datamodel.Hosts{Hosts: []string{"a", "b"}}, State: models.LifeCycleStateREADY,
 		}, {BaseModel: datamodel.BaseModel{UUID: "hg2"}, Hosts: datamodel.Hosts{Hosts: []string{"a"}}, State: models.LifeCycleStateREADY}}, nil)
@@ -9898,8 +9918,8 @@ func TestUpdateVolume(t *testing.T) {
 
 		job := &datamodel.Job{WorkflowID: "wid"}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -9933,8 +9953,8 @@ func TestUpdateVolume(t *testing.T) {
 
 		job := &datamodel.Job{WorkflowID: "wid"}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -9968,8 +9988,8 @@ func TestUpdateVolume(t *testing.T) {
 
 		job := &datamodel.Job{WorkflowID: "wid"}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
@@ -10005,8 +10025,8 @@ func TestUpdateVolume(t *testing.T) {
 
 		job := &datamodel.Job{WorkflowID: "wid"}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -10050,8 +10070,8 @@ func TestUpdateVolume(t *testing.T) {
 		job := &datamodel.Job{WorkflowID: "wid"}
 
 		// Mock expectations
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		// Expect GetBackupsByBackupVaultOwnerIDAndFilter to be called with volume-specific filter
 		// and return empty list (no backups for this volume)
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", mock.Anything, [][]interface{}{{"volume_uuid = ?", "vid"}}).Return([]*datamodel.Backup{}, nil)
@@ -10092,8 +10112,8 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", int64(0), mock.Anything).Return(nil, errors.New("no backups found"))
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -10131,8 +10151,8 @@ func TestUpdateVolume(t *testing.T) {
 			},
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", mock.Anything, mock.Anything).Return(backups, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -10170,8 +10190,8 @@ func TestUpdateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: backupVaultId},
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		se.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultId, mock.Anything).Return(dbBackupVault, nil)
@@ -10206,8 +10226,8 @@ func TestUpdateVolume(t *testing.T) {
 			State:          "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Error(tt, err)
@@ -10238,8 +10258,8 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Error(tt, err)
@@ -10271,7 +10291,6 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -10309,8 +10328,8 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyId, poolView.Account.ID).Return(nil, errors.NewNotFoundErr("backup policy", &backupPolicyId))
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -10348,8 +10367,8 @@ func TestUpdateVolume(t *testing.T) {
 			State:          "READY",
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultId, poolView.Account.ID).Return(nil, errors.NewNotFoundErr("backup vault", &backupVaultId))
 		se.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyId, poolView.Account.ID).Return(nil, errors.New("Internal server error"))
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
@@ -10390,8 +10409,8 @@ func TestUpdateVolume(t *testing.T) {
 
 		job := &datamodel.Job{WorkflowID: "wid"}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyId, poolView.Account.ID).Return(nil, errors.NewNotFoundErr("backup policy", &backupPolicyId))
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -10433,8 +10452,8 @@ func TestUpdateVolume(t *testing.T) {
 
 		job := &datamodel.Job{WorkflowID: "wid"}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyId, poolView.Account.ID).Return(nil, errors.NewNotFoundErr("backup policy", &backupPolicyId))
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -10449,10 +10468,16 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024)}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: int64(1024 * 1024 * 1024), Name: "vol", State: models.LifeCycleStateUpdating}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Name:        "vol",
+			State:       models.LifeCycleStateUpdating,
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "pool-uuid", dbVolume.AccountID).Return(poolView, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Contains(tt, err.Error(), "An update operation is already in progress for this volume")
@@ -10485,8 +10510,8 @@ func TestUpdateVolume(t *testing.T) {
 			SnapshotPolicy: nil,
 		}
 
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Error(tt, err)
@@ -10498,14 +10523,19 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		poolViewNoTiering := &datamodel.PoolView{Pool: datamodel.Pool{AllowAutoTiering: false, SizeInBytes: 2199023255552}}
+		poolViewNoTiering := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AllowAutoTiering: false, SizeInBytes: 2199023255552}}
 		param := &common.UpdateVolumeParams{
 			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
 			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 10},
 		}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol"}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolViewNoTiering, nil)
+		se.On("GetPool", ctx, "pool-uuid", dbVolume.AccountID).Return(poolViewNoTiering, nil)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Contains(tt, err.Error(), "Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
 		assert.Nil(tt, volume)
@@ -10519,9 +10549,14 @@ func TestUpdateVolume(t *testing.T) {
 			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
 			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 1},
 		}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol"}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
+		se.On("GetPool", ctx, "pool-uuid", dbVolume.AccountID).Return(poolView, nil)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Contains(tt, err.Error(), "Auto Tiering Cooling Threshold days must be between 2 and 183 days")
 		assert.Nil(tt, volume)
@@ -10535,9 +10570,14 @@ func TestUpdateVolume(t *testing.T) {
 			AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
 			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 200},
 		}
-		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol"}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
+		se.On("GetPool", ctx, "pool-uuid", dbVolume.AccountID).Return(poolView, nil)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.Contains(tt, err.Error(), "Auto Tiering Cooling Threshold days must be between 2 and 183 days")
 		assert.Nil(tt, volume)
@@ -10568,7 +10608,7 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 		job := &datamodel.Job{WorkflowID: "wid"}
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
@@ -10603,7 +10643,7 @@ func TestUpdateVolume(t *testing.T) {
 			State: "READY",
 		}
 		job := &datamodel.Job{WorkflowID: "wid"}
-		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)

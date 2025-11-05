@@ -1626,6 +1626,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if err != nil {
 		return nil, "", err
 	}
+	params.PoolID = dbVolume.Pool.UUID // In update volume we don't get Pool UUID from request, Set pool ID for backwards compatibility
 
 	if params.DataProtection != nil {
 		// If backup vault is already attached to the volume and the backup vault is changed or removed
@@ -1780,7 +1781,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		// Calculate the size increase
 		sizeIncrease := params.QuotaInBytes - volume.SizeInBytes
 
-		log.Debugf("Current Volume Size: %d, New Volume Size: %d, Size Increase: %d, Pool Size: %d, Clones Shared Bytes: %d", volume.SizeInBytes, params.QuotaInBytes, sizeIncrease, pool.SizeInBytes, volume.ClonesSharedBytes)
+		log.Debugf("Current Volume Size: %d, New Volume Size: %d, Size Increase: %d, Pool Size: %d, Pool Quota: %d, Clones Shared Bytes: %d", volume.SizeInBytes, params.QuotaInBytes, sizeIncrease, pool.SizeInBytes, pool.QuotaInBytes, volume.ClonesSharedBytes)
 
 		// Check if adding the increase to current pool usage exceeds pool size
 		if sizeIncrease > 0 && pool.QuotaInBytes+uint64(sizeIncrease)-volume.ClonesSharedBytes > uint64(pool.SizeInBytes) {
