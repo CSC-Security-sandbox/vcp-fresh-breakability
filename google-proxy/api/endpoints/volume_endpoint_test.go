@@ -1056,6 +1056,116 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
+
+	t.Run("FilesClone_WithIncrementalSpaceInBytes_Success", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:              "testvolume",
+				CreationToken:           gcpgenserver.NewOptString("test-token"),
+				PoolId:                  gcpgenserver.NewNilString("test-pool"),
+				Protocols:               []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3}, // Files protocol
+				IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024),           // 100GB
+			},
+			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:             "test-project",
+			Region:                  "test-region",
+			Zone:                    "test-zone",
+			Name:                    "testvolume",
+			VendorID:                "/projects/test-project/locations/test-location/volumes/testvolume",
+			CreationToken:           "test-token",
+			PoolID:                  "test-pool",
+			Protocols:               []string{"NFSV3"},
+			SnapshotID:              "test-snapshot-id",
+			IncrementalSpaceInBytes: 100 * 1024 * 1024 * 1024, // 100GB
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected.IncrementalSpaceInBytes, result.IncrementalSpaceInBytes)
+		assert.Equal(tt, expected.SnapshotID, result.SnapshotID)
+	})
+
+	t.Run("FilesClone_WithoutIncrementalSpaceInBytes_Error", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3}, // Files protocol
+				// QuotaInBytes is NOT set
+				// IncrementalSpaceInBytes is NOT set
+			},
+			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "QuotaInBytes or IncrementalSpaceInBytes is required for Files clone")
+	})
+
+	t.Run("FilesClone_WithSMBProtocol_Success", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:              "testvolume",
+				CreationToken:           gcpgenserver.NewOptString("test-token"),
+				PoolId:                  gcpgenserver.NewNilString("test-pool"),
+				Protocols:               []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaSMB}, // SMB is also a Files protocol
+				IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024),          // 50GB
+			},
+			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, uint64(50*1024*1024*1024), result.IncrementalSpaceInBytes)
+		assert.Equal(tt, "test-snapshot-id", result.SnapshotID)
+	})
+
+	t.Run("FilesClone_WithNFSv4Protocol_Success", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:              "testvolume",
+				CreationToken:           gcpgenserver.NewOptString("test-token"),
+				PoolId:                  gcpgenserver.NewNilString("test-pool"),
+				Protocols:               []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4}, // NFSv4 is also a Files protocol
+				IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(75 * 1024 * 1024 * 1024),            // 75GB
+			},
+			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, uint64(75*1024*1024*1024), result.IncrementalSpaceInBytes)
+		assert.Equal(tt, "test-snapshot-id", result.SnapshotID)
+	})
 }
 
 func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
@@ -3575,6 +3685,55 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		assert.Equal(t, "backup-vault-id", *param.DataProtection.BackupVaultID)
 		assert.Equal(t, "backup-policy-id", *param.DataProtection.BackupPolicyId)
 	})
+
+	t.Run("WhenIncrementalSpaceInBytesSet_ThenFieldIsMapped", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024), // 50GB
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(50*1024*1024*1024), out.IncrementalSpaceInBytes)
+	})
+
+	t.Run("WhenIncrementalSpaceInBytesNotSet_ThenFieldIsZero", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			// IncrementalSpaceInBytes is not set
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(0), out.IncrementalSpaceInBytes)
+		assert.Equal(t, int64(107374182400), out.QuotaInBytes)
+	})
+
+	t.Run("WhenIncrementalSpaceInBytesSetWithLargeValue_ThenFieldIsMapped", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024 * 1024), // 100 TiB
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(100*1024*1024*1024*1024), out.IncrementalSpaceInBytes)
+	})
+
+	t.Run("WhenBothQuotaInBytesAndIncrementalSpaceInBytesSet_ThenBothAreMapped", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			QuotaInBytes:            gcpgenserver.NewOptNilFloat64(107374182400),            // 100GB
+			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024), // 50GB
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(107374182400), out.QuotaInBytes)
+		assert.Equal(t, uint64(50*1024*1024*1024), out.IncrementalSpaceInBytes)
+	})
+
+	t.Run("WhenIncrementalSpaceInBytesSetToZero_ThenFieldIsMapped", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(0), // 0 bytes
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(0), out.IncrementalSpaceInBytes)
+	})
 }
 
 func TestV1betaGetVolumeCount(t *testing.T) {
@@ -5415,7 +5574,7 @@ func TestPrepareUpdateVolumeParams_SnapReserveCannotBeGreaterThan100(t *testing.
 	result, err := _prepareUpdateVolumeParams(req, params, region)
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "SnapReserve cannot be greater than 100")
+	assert.Contains(t, err.Error(), "SnapReserve should be less than 100")
 }
 
 func TestPrepareUpdateVolumeParams_HG(t *testing.T) {
@@ -5432,7 +5591,7 @@ func TestPrepareUpdateVolumeParams_HG(t *testing.T) {
 	result, err := _prepareUpdateVolumeParams(req, params, region)
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "SnapReserve cannot be greater than 100")
+	assert.Contains(t, err.Error(), "SnapReserve should be less than 100")
 }
 
 func TestPrepareUpdateVolumeParams_QuotaValidation(t *testing.T) {

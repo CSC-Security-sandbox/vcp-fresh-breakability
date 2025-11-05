@@ -132,6 +132,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	clonesSharedBytes := uint64(0)
+	volumeSizeInBytes := params.QuotaInBytes
 	if params.SnapshotID != "" {
 		dbSnapshot, err := se.GetSnapshotByPoolID(ctx, params.SnapshotID, account.ID, pool.ID, true)
 		if err != nil {
@@ -174,13 +175,18 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		if !thinCloneGASupport || params.IsClone {
 			clonesSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
 		}
+
+		if params.IncrementalSpaceInBytes != 0 {
+			usedSizeBytes := uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
+			volumeSizeInBytes = uint64(float64(params.IncrementalSpaceInBytes+usedSizeBytes) / (1 - float64(params.SnapReserve)/100))
+		}
 	}
 	dbPool := database.ConvertPoolViewToPool(pool)
 	volumeObj := &datamodel.Volume{
 		Name:        params.Name,
 		Account:     account,
 		AccountID:   account.ID,
-		SizeInBytes: int64(params.QuotaInBytes),
+		SizeInBytes: int64(volumeSizeInBytes),
 		Description: params.Description,
 		PoolID:      pool.ID,
 		SvmID:       svm.ID,
@@ -956,6 +962,12 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return customerrors.NewUserInputValidationErr("pool large capacity setting does not match volume large capacity setting")
 	}
 
+	incrementalSpaceInBytesSet := false
+
+	if params.SnapshotID != "" && params.IncrementalSpaceInBytes != 0 {
+		incrementalSpaceInBytesSet = true
+	}
+
 	if params.LargeCapacity {
 		if utils.IsSanProtocols(params.Protocols) {
 			return customerrors.NewUserInputValidationErr("SAN protocols are not supported for large capacity volumes")
@@ -984,7 +996,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			}
 		}
 
-		if params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume {
+		if !incrementalSpaceInBytesSet && (params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume) {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
 				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolume),
 				utils.FmtUint64Bytes(utils.MaxQuotaInBytesLargeVolume)))
@@ -996,7 +1008,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			return customerrors.NewUserInputValidationErr("Large Volume constituent count is only supported for large capacity volumes")
 		}
 
-		if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
+		if !incrementalSpaceInBytesSet && (params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume) {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
 				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(minQuotaInBytesVolume),
 				utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
@@ -1025,9 +1037,37 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 
 			cloneSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
 		}
+
+		if utils.IsNasProtocols(params.Protocols) && incrementalSpaceInBytesSet {
+			usedSizeBytes := uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
+			volumeSizeInBytes := float64(params.IncrementalSpaceInBytes+usedSizeBytes) / (1 - float64(params.SnapReserve)/100)
+			snapReserveBytes := uint64(volumeSizeInBytes * (float64(params.SnapReserve) / 100.0))
+
+			if params.LargeCapacity && (uint64(volumeSizeInBytes) < utils.MinQuotaInBytesLargeVolume || uint64(volumeSizeInBytes) > utils.MaxQuotaInBytesLargeVolume) {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
+					utils.FmtUint64Bytes(uint64(volumeSizeInBytes)), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolume),
+					utils.FmtUint64Bytes(utils.MaxQuotaInBytesLargeVolume)))
+			}
+
+			if !params.LargeCapacity && (uint64(volumeSizeInBytes) < minQuotaInBytesVolume || uint64(volumeSizeInBytes) > maxQuotaInBytesVolume) {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
+					utils.FmtUint64Bytes(uint64(volumeSizeInBytes)), utils.FmtUint64Bytes(minQuotaInBytesVolume),
+					utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
+			}
+
+			if params.IsClone {
+				if pool.QuotaInBytes+snapReserveBytes+params.IncrementalSpaceInBytes > uint64(pool.SizeInBytes) {
+					return customerrors.NewUserInputValidationErr("volume size cannot be greater than pool size")
+				}
+			} else { // for files thick clones
+				if pool.QuotaInBytes+uint64(volumeSizeInBytes) > uint64(pool.SizeInBytes) {
+					return customerrors.NewUserInputValidationErr("volume size cannot be greater than pool size")
+				}
+			}
+		}
 	}
 
-	if pool.QuotaInBytes+params.QuotaInBytes-cloneSharedBytes > uint64(pool.SizeInBytes) {
+	if !incrementalSpaceInBytesSet && (pool.QuotaInBytes+params.QuotaInBytes-cloneSharedBytes > uint64(pool.SizeInBytes)) {
 		return customerrors.NewUserInputValidationErr("volume size cannot be greater than pool size")
 	}
 
@@ -1779,6 +1819,10 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Volume %s cannot be updated, while in transitioning state: %s", volume.Name, volume.State))
 	}
 
+	if params.QuotaInBytes > 0 && params.IncrementalSpaceInBytes > 0 && volume.ClonesSharedBytes != 0 && utils.IsNasProtocols(volume.VolumeAttributes.Protocols) {
+		return customerrors.NewUserInputValidationErr("Use either QuotaInBytes or IncrementalSpaceInBytes to update the files thin clone volume size, not both")
+	}
+
 	// Greater than 0 means the value was provided in the request
 	if params.QuotaInBytes > 0 {
 		if params.QuotaInBytes < volume.SizeInBytes {
@@ -1807,6 +1851,54 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 					utils.FmtUint64Bytes(uint64(params.QuotaInBytes)), utils.FmtUint64Bytes(minQuotaInBytesVolume),
 					utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
 			}
+		}
+	}
+
+	if params.IncrementalSpaceInBytes > 0 {
+		if volume.ClonesSharedBytes == 0 || utils.IsSanProtocols(volume.VolumeAttributes.Protocols) {
+			return customerrors.NewUserInputValidationErr("Incremental space can only be added to file thin clone volumes")
+		}
+
+		clonesSharedBytes := volume.ClonesSharedBytes
+
+		originalIncrementalSpace := uint64(float64(volume.SizeInBytes*(100-volume.VolumeAttributes.SnapReserve))/100) - clonesSharedBytes
+
+		if params.IncrementalSpaceInBytes < originalIncrementalSpace {
+			return customerrors.NewUserInputValidationErr("volume size cannot be reduced, provide a larger incremental space ")
+		}
+
+		snapReserve := int64(0)
+		if volume.VolumeAttributes != nil {
+			snapReserve = volume.VolumeAttributes.SnapReserve
+		}
+		if params.SnapReserve != nil && *params.SnapReserve != snapReserve {
+			snapReserve = *params.SnapReserve
+		}
+
+		newVolumeSize := int64(float64(params.IncrementalSpaceInBytes+clonesSharedBytes) / (1 - float64(snapReserve)/100))
+
+		if newVolumeSize < volume.SizeInBytes {
+			return customerrors.NewUserInputValidationErr("volume size cannot be reduced, provide a larger incremental space")
+		}
+
+		sizeIncrease := newVolumeSize - volume.SizeInBytes
+
+		log.Debugf("Current Volume Size: %d, New Volume Size: %d, Size Increase: %d, Pool Size: %d, Clones Shared Bytes: %d", volume.SizeInBytes, newVolumeSize, sizeIncrease, pool.SizeInBytes, volume.ClonesSharedBytes)
+
+		if sizeIncrease > 0 && pool.QuotaInBytes+uint64(sizeIncrease) > uint64(pool.SizeInBytes) {
+			return customerrors.NewUserInputValidationErr("Total size of volumes in a pool cannot exceed the pool capacity.")
+		}
+
+		if pool.LargeCapacity && (uint64(newVolumeSize) < utils.MinQuotaInBytesLargeVolume || uint64(newVolumeSize) > utils.MaxQuotaInBytesLargeVolume) {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
+				utils.FmtUint64Bytes(uint64(newVolumeSize)), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolume),
+				utils.FmtUint64Bytes(utils.MaxQuotaInBytesLargeVolume)))
+		}
+
+		if !pool.LargeCapacity && (uint64(newVolumeSize) < minQuotaInBytesVolume || uint64(newVolumeSize) > maxQuotaInBytesVolume) {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
+				utils.FmtUint64Bytes(uint64(newVolumeSize)), utils.FmtUint64Bytes(minQuotaInBytesVolume),
+				utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
 		}
 	}
 

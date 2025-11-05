@@ -41,9 +41,20 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	volumeSizeInBytes := params.QuotaInBytes
+	if params.IncrementalSpaceInBytes != 0 {
+		snapReserve := int64(0)
+		if volume.VolumeAttributes != nil {
+			snapReserve = volume.VolumeAttributes.SnapReserve
+		}
+		if params.SnapReserve != nil && *params.SnapReserve != snapReserve {
+			snapReserve = *params.SnapReserve
+		}
+		volumeSizeInBytes = int64(float64(params.IncrementalSpaceInBytes+volume.ClonesSharedBytes) / (1 - float64(snapReserve)/100))
+	}
 	updateVolumeParams := &vsa.UpdateVolumeParams{
 		UUID:        volume.VolumeAttributes.ExternalUUID,
-		Size:        params.QuotaInBytes,
+		Size:        volumeSizeInBytes,
 		SnapReserve: params.SnapReserve,
 	}
 
@@ -376,6 +387,15 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 
 	if params.QuotaInBytes != 0 {
 		updates["size_in_bytes"] = params.QuotaInBytes
+	} else if params.IncrementalSpaceInBytes != 0 {
+		snapReserve := int64(0)
+		if volume.VolumeAttributes != nil {
+			snapReserve = volume.VolumeAttributes.SnapReserve
+		}
+		if params.SnapReserve != nil && *params.SnapReserve != snapReserve {
+			snapReserve = *params.SnapReserve
+		}
+		updates["size_in_bytes"] = int64(float64(params.IncrementalSpaceInBytes+volume.ClonesSharedBytes) / (1 - float64(snapReserve)/100))
 	}
 
 	if volume.VolumeAttributes == nil {

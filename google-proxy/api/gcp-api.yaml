@@ -7715,6 +7715,14 @@ components:
           example: 4000000000000
           nullable: true
           x-omitempty: true
+        incrementalSpaceInBytes:
+          title: incrementalSpaceInBytes
+          type: number
+          format: double
+          description: Incremental space in bytes for a files thin clone volume
+          example: 4000000000000
+          nullable: true
+          x-omitempty: true
     InternalVolume_v1beta:
       title: Volume v1beta model definition
       type: object
@@ -8135,6 +8143,14 @@ components:
           example: My Volume description
         cacheParameters:
           $ref: '#/components/schemas/FlexCache_v1beta'
+        incrementalSpaceInBytes:
+          title: incrementalSpaceInBytes
+          type: number
+          format: double
+          description: Incremental space in bytes for a files clone volume
+          example: 4000000000000
+          nullable: true
+          x-omitempty: true
     SnapshotPolicy_v1beta:
       title: SnapshotPolicy
       type: object

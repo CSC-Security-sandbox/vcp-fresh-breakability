@@ -119,6 +119,7 @@ type CreateVolumeParams struct {
 	LargeVolumeConstituentCount int32
 	SnapshotDirectory           bool
 	IsClone                     bool
+	IncrementalSpaceInBytes     uint64
 }
 
 type SnapmirrorRelationshipParams struct {
@@ -178,6 +179,7 @@ type UpdateVolumeParams struct {
 	CorrelationID           string
 	SnapshotDirectoryAccess *bool
 	CacheParameters         *models.CacheParameters
+	IncrementalSpaceInBytes uint64
 }
 
 type CreateLunMapParams struct {

@@ -249,8 +249,24 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		return nil, errors.NewUserInputValidationErr("The Resource ID can only contain lowercase letters, numbers, and underscores. It must start with a letter and cannot end with an underscore.")
 	}
 
+	isFilesClone := false
+	if req.SnapshotId.IsSet() {
+		for _, protocol := range req.Volume.GetProtocols() {
+			protocolStr, _ := protocol.MarshalText()
+			if utils.IsFilesProtocol(string(protocolStr)) {
+				isFilesClone = true
+				break
+			}
+		}
+	}
+
 	if !req.Volume.QuotaInBytes.IsSet() {
-		return nil, errors.NewUserInputValidationErr("QuotaInBytes is required")
+		if isFilesClone && !req.Volume.IncrementalSpaceInBytes.IsSet() {
+			return nil, errors.NewUserInputValidationErr("QuotaInBytes or IncrementalSpaceInBytes is required for Files clone")
+		}
+		if !isFilesClone {
+			return nil, errors.NewUserInputValidationErr("QuotaInBytes is required")
+		}
 	}
 
 	var backupPath string
@@ -449,6 +465,9 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if req.IsClone.IsSet() {
 			param.IsClone, _ = req.IsClone.Get()
 		}
+		if req.Volume.IncrementalSpaceInBytes.IsSet() && isFilesClone {
+			param.IncrementalSpaceInBytes = uint64(req.Volume.IncrementalSpaceInBytes.Value)
+		}
 		if req.Volume.LargeVolumeConstituentCount.IsSet() {
 			return nil, errors.NewUserInputValidationErr("LargeVolumeConstituentCount cannot be set when SnapshotId is provided")
 		}
@@ -611,6 +630,10 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		param.QuotaInBytes = int64(quota)
 	}
 
+	if req.IncrementalSpaceInBytes.IsSet() {
+		param.IncrementalSpaceInBytes = uint64(req.IncrementalSpaceInBytes.Value)
+	}
+
 	for _, protocol := range req.GetProtocols() {
 		protocolStr, err := protocol.MarshalText()
 		if err != nil {
@@ -722,8 +745,8 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 
 	if req.SnapReserve.IsSet() {
 		snapReserve := int64(req.SnapReserve.Value)
-		if snapReserve > 100 {
-			return nil, errors.NewUserInputValidationErr("SnapReserve cannot be greater than 100")
+		if snapReserve >= 100 {
+			return nil, errors.NewUserInputValidationErr("SnapReserve should be less than 100")
 		}
 		param.SnapReserve = nillable.ToPointer(snapReserve)
 	} else {

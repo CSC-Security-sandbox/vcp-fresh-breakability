@@ -22045,6 +22045,8 @@ type VolumeUpdateV1beta struct {
 	// Description of the volume.
 	Description     OptNilString       `json:"description"`
 	CacheParameters OptFlexCacheV1beta `json:"cacheParameters"`
+	// Incremental space in bytes for a files clone volume.
+	IncrementalSpaceInBytes OptNilFloat64 `json:"incrementalSpaceInBytes"`
 }
 
 // GetQuotaInBytes returns the value of QuotaInBytes.
@@ -22137,6 +22139,11 @@ func (s *VolumeUpdateV1beta) GetCacheParameters() OptFlexCacheV1beta {
 	return s.CacheParameters
 }
 
+// GetIncrementalSpaceInBytes returns the value of IncrementalSpaceInBytes.
+func (s *VolumeUpdateV1beta) GetIncrementalSpaceInBytes() OptNilFloat64 {
+	return s.IncrementalSpaceInBytes
+}
+
 // SetQuotaInBytes sets the value of QuotaInBytes.
 func (s *VolumeUpdateV1beta) SetQuotaInBytes(val OptNilFloat64) {
 	s.QuotaInBytes = val
@@ -22225,6 +22232,11 @@ func (s *VolumeUpdateV1beta) SetDescription(val OptNilString) {
 // SetCacheParameters sets the value of CacheParameters.
 func (s *VolumeUpdateV1beta) SetCacheParameters(val OptFlexCacheV1beta) {
 	s.CacheParameters = val
+}
+
+// SetIncrementalSpaceInBytes sets the value of IncrementalSpaceInBytes.
+func (s *VolumeUpdateV1beta) SetIncrementalSpaceInBytes(val OptNilFloat64) {
+	s.IncrementalSpaceInBytes = val
 }
 
 // JSON dictionary of resource labels to allow linking of billing labels to a volume.
@@ -22350,6 +22362,8 @@ type VolumeV1beta struct {
 	CacheParameters             OptFlexCacheV1beta `json:"cacheParameters"`
 	// Volume footprint in hot storage.
 	HotTierSizeGib OptNilFloat64 `json:"hotTierSizeGib"`
+	// Incremental space in bytes for a files thin clone volume.
+	IncrementalSpaceInBytes OptNilFloat64 `json:"incrementalSpaceInBytes"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -22602,6 +22616,11 @@ func (s *VolumeV1beta) GetHotTierSizeGib() OptNilFloat64 {
 	return s.HotTierSizeGib
 }
 
+// GetIncrementalSpaceInBytes returns the value of IncrementalSpaceInBytes.
+func (s *VolumeV1beta) GetIncrementalSpaceInBytes() OptNilFloat64 {
+	return s.IncrementalSpaceInBytes
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *VolumeV1beta) SetResourceId(val string) {
 	s.ResourceId = val
@@ -22850,6 +22869,11 @@ func (s *VolumeV1beta) SetCacheParameters(val OptFlexCacheV1beta) {
 // SetHotTierSizeGib sets the value of HotTierSizeGib.
 func (s *VolumeV1beta) SetHotTierSizeGib(val OptNilFloat64) {
 	s.HotTierSizeGib = val
+}
+
+// SetIncrementalSpaceInBytes sets the value of IncrementalSpaceInBytes.
+func (s *VolumeV1beta) SetIncrementalSpaceInBytes(val OptNilFloat64) {
+	s.IncrementalSpaceInBytes = val
 }
 
 func (*VolumeV1beta) v1betaDescribeVolumeRes() {}

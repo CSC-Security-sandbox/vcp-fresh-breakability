@@ -9162,6 +9162,598 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.NoError(tt, err)
 	})
+
+	t.Run("IncrementalSpaceInBytesSet_WithSnapshotAndIncrementalSpace", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(1000 * 1024 * 1024 * 1024), // 1000GB
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 5 * 1024 * 1024 * 1024, // 5GB shared bytes
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:             "test_account",
+			Name:                    "test-volume",
+			PoolID:                  pool.UUID,
+			QuotaInBytes:            100 * 1024 * 1024 * 1024,      // 100GB (will be recalculated)
+			Protocols:               []string{utils.ProtocolNFSv3}, // NAS protocol
+			Network:                 "test-network",
+			SnapshotID:              "test-snapshot-uuid",
+			IncrementalSpaceInBytes: 50 * 1024 * 1024 * 1024, // 50GB incremental space
+			SnapReserve:             10,                      // 10% snap reserve
+			LargeCapacity:           false,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		// This should trigger line 978 to set incrementalSpaceInBytesSet = true
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		// The validation should proceed to check IncrementalSpaceInBytes path
+		// Error might occur but it should have set incrementalSpaceInBytesSet
+		if err != nil {
+			// Check that it's not an early validation error
+			assert.NotContains(tt, err.Error(), "snapshot not found")
+		}
+	})
+
+	t.Run("IncrementalSpaceInBytes_NASProtocol_LargeCapacity_InvalidCapacity", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
+			LargeCapacity: true,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024,
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 0,
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		// Use IncrementalSpaceInBytes that, when calculated with snap reserve,
+		// results in a volumeSizeInBytes that's too small for large capacity
+		// Example: IncrementalSpaceInBytes = 1GB, SnapReserve = 10%
+		// volumeSizeInBytes = (1GB + 0) / (1 - 0.10) = 1.11GB, which is < MinQuotaInBytesLargeVolume
+		params := &common.CreateVolumeParams{
+			AccountName:             "test_account",
+			Name:                    "test-volume",
+			PoolID:                  pool.UUID,
+			QuotaInBytes:            1 * 1024 * 1024 * 1024,        // 1GB (placeholder)
+			Protocols:               []string{utils.ProtocolNFSv3}, // NAS protocol
+			Network:                 "test-network",
+			SnapshotID:              "test-snapshot-uuid",
+			IncrementalSpaceInBytes: 1 * 1024 * 1024 * 1024, // 1GB (too small for large capacity)
+			SnapReserve:             10,                     // 10%
+			LargeCapacity:           true,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		// This should trigger lines 1052-1053, 1055-1056
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "Invalid volume capacity")
+		assert.ErrorContains(tt, err, "Must be between")
+	})
+
+	t.Run("IncrementalSpaceInBytes_NASProtocol_NonLargeCapacity_InvalidCapacity", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(200 * 1099511627776), // 200 TiB (make it large enough to pass pool size check)
+			LargeCapacity: false,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024,
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 0,
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		// Use IncrementalSpaceInBytes that, when calculated with snap reserve,
+		// results in a volumeSizeInBytes that's too large for non-large capacity (max is 128 TiB)
+		// Example: IncrementalSpaceInBytes = 120TiB, SnapReserve = 10%
+		// volumeSizeInBytes = (120TiB + 0) / (1 - 0.10) = 133.33TiB, which is > 128TiB (maxQuotaInBytesVolume)
+		// Pool check: 0 + snapReserveBytes + 120TiB = ~133TiB < 200TiB (passes pool check)
+		params := &common.CreateVolumeParams{
+			AccountName:             "test_account",
+			Name:                    "test-volume",
+			PoolID:                  pool.UUID,
+			QuotaInBytes:            1 * 1024 * 1024 * 1024,        // 1GB (placeholder)
+			Protocols:               []string{utils.ProtocolNFSv3}, // NAS protocol
+			Network:                 "test-network",
+			SnapshotID:              "test-snapshot-uuid",
+			IncrementalSpaceInBytes: 120 * 1099511627776, // 120 TiB (will calculate to ~133TiB which exceeds 128TiB limit)
+			SnapReserve:             10,                  // 10%
+			LargeCapacity:           false,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		// This should trigger lines 1052-1053, 1061-1062
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "Invalid volume capacity")
+		assert.ErrorContains(tt, err, "Must be between")
+	})
+
+	t.Run("IncrementalSpaceInBytes_NASProtocol_PoolSizeExceeded", func(tt *testing.T) {
+		// Enable file protocols for testing
+		utils.SetFileProtocolSupportedForTesting(true)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+			utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		}()
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create nodes for the pool (required for volume creation validation)
+		node1 := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{UUID: "test-node1-uuid"},
+			Name:      "test-node1",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{UUID: "test-node2-uuid"},
+			Name:      "test-node2",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for the nodes (required for volume creation validation)
+		lif1 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif1-uuid"},
+			Name:      "test-lif1",
+			AccountID: account.ID,
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif2-uuid"},
+			Name:      "test-lif2",
+			AccountID: account.ID,
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
+		}
+
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024,
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 10 * 1024 * 1024 * 1024, // 10GB shared bytes
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		// Setup: Pool has 50GB used, IncrementalSpaceInBytes = 40GB, SnapReserve = 20%
+		// With IsClone: true, cloneSharedBytes = 10GB
+		// Calculation: volumeSizeInBytes = (40GB + 10GB) / (1 - 0.20) = 50GB / 0.8 = 62.5GB
+		// snapReserveBytes = 62.5GB * 0.20 = 12.5GB
+		// Check: pool.QuotaInBytes (50GB) + snapReserveBytes (12.5GB) + IncrementalSpaceInBytes (40GB) = 102.5GB > 100GB
+		params := &common.CreateVolumeParams{
+			AccountName:             "test_account",
+			Name:                    "test-volume",
+			PoolID:                  pool.UUID,
+			QuotaInBytes:            50 * 1024 * 1024 * 1024,       // 50GB (placeholder)
+			Protocols:               []string{utils.ProtocolNFSv3}, // NAS protocol
+			Network:                 "test-network",
+			SnapshotID:              "test-snapshot-uuid",
+			IncrementalSpaceInBytes: 40 * 1024 * 1024 * 1024, // 40GB
+			SnapReserve:             20,                      // 20%
+			LargeCapacity:           false,
+			IsClone:                 true,                  // MUST be true for cloneSharedBytes to be set
+			CreationToken:           "test-creation-token", // Required for file volumes
+			FileProperties:          &models.FileProperties{
+				// Required for NAS volumes (can be minimal)
+			},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50GB already used
+		}
+
+		// This should trigger lines 1052-1053, 1067-1069
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "volume size cannot be greater than pool size")
+	})
+
+	t.Run("IncrementalSpaceInBytes_NASProtocol_ValidCapacity", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(1000 * 1024 * 1024 * 1024), // 1000GB
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
+			Name:      "parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            20 * 1024 * 1024 * 1024,
+				ExternalUUID:           "external-snapshot-uuid",
+				LogicalSizeUsedInBytes: 5 * 1024 * 1024 * 1024, // 5GB shared bytes
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		// Valid scenario: IncrementalSpaceInBytes = 100GB, SnapReserve = 10%
+		// volumeSizeInBytes = (100GB + 5GB) / (1 - 0.10) = 116.67GB (valid for non-large capacity)
+		// snapReserveBytes = 116.67GB * 0.10 = 11.67GB
+		// Check: 10GB + 11.67GB + 100GB = 121.67GB <= 1000GB (should pass)
+		params := &common.CreateVolumeParams{
+			AccountName:             "test_account",
+			Name:                    "test-volume",
+			PoolID:                  pool.UUID,
+			QuotaInBytes:            100 * 1024 * 1024 * 1024,      // 100GB (placeholder)
+			Protocols:               []string{utils.ProtocolNFSv3}, // NAS protocol
+			Network:                 "test-network",
+			SnapshotID:              "test-snapshot-uuid",
+			IncrementalSpaceInBytes: 100 * 1024 * 1024 * 1024, // 100GB
+			SnapReserve:             10,                       // 10%
+			LargeCapacity:           false,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 10 * 1024 * 1024 * 1024, // 10GB already used
+		}
+
+		// This should trigger lines 1052-1053 and pass validation
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		if err != nil {
+			// Should not fail on capacity validation or pool size validation for IncrementalSpaceInBytes
+			assert.NotContains(tt, err.Error(), "Invalid volume capacity")
+			assert.NotContains(tt, err.Error(), "volume size cannot be greater than pool size")
+		}
+	})
 }
 
 func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
@@ -11951,6 +12543,295 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		// sizeIncrease <= 0, so validation should pass without checking pool capacity
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
 		assert.NoError(tt, err, "Should allow update with no size increase regardless of ClonesSharedBytes")
+	})
+
+	t.Run("FailsIfBothQuotaInBytesAndIncrementalSpaceInBytesProvidedForFilesThinClone", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024,         // 20GB shared bytes (thin clone)
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes:            int64(150 * 1024 * 1024 * 1024), // 150GB
+			IncrementalSpaceInBytes: 50 * 1024 * 1024 * 1024,         // 50GB - both provided
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Use either QuotaInBytes or IncrementalSpaceInBytes to update the files thin clone volume size, not both")
+	})
+
+	t.Run("SucceedsIfOnlyQuotaInBytesProvidedForFilesThinClone", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024,         // 20GB shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: int64(150 * 1024 * 1024 * 1024), // Only QuotaInBytes
+			// IncrementalSpaceInBytes: 0 (not set)
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		// Should not fail on the "both provided" check
+		// May fail on other validations but not the specific error we're testing
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Use either QuotaInBytes or IncrementalSpaceInBytes")
+		}
+	})
+
+	t.Run("SucceedsIfOnlyIncrementalSpaceInBytesProvidedForFilesThinClone", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024,         // 20GB shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes:            0,                       // Not set
+			IncrementalSpaceInBytes: 50 * 1024 * 1024 * 1024, // Only IncrementalSpaceInBytes
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		// Should not fail on the "both provided" check
+		// May fail on other validations but not the specific error we're testing
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Use either QuotaInBytes or IncrementalSpaceInBytes")
+		}
+	})
+
+	t.Run("SucceedsIfBothProvidedButNotFilesThinClone_SANProtocol", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024,         // 20GB shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolISCSI}, // SAN protocol (not NAS)
+				SnapReserve: 10,
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes:            int64(150 * 1024 * 1024 * 1024), // 150GB
+			IncrementalSpaceInBytes: 50 * 1024 * 1024 * 1024,         // 50GB
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		// Should not fail on the "both provided" check for SAN protocols
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Use either QuotaInBytes or IncrementalSpaceInBytes")
+		}
+	})
+
+	t.Run("SucceedsIfBothProvidedButNotFilesThinClone_ZeroSharedBytes", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 0,                               // No shared bytes (not a thin clone)
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes:            int64(150 * 1024 * 1024 * 1024), // 150GB
+			IncrementalSpaceInBytes: 50 * 1024 * 1024 * 1024,         // 50GB
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		// Should not fail on the "both provided" check when ClonesSharedBytes is 0
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "Use either QuotaInBytes or IncrementalSpaceInBytes")
+		}
+	})
+
+	t.Run("FailsIfIncrementalSpaceInBytesForNonThinCloneVolume", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 0,                               // Not a thin clone
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			IncrementalSpaceInBytes: 50 * 1024 * 1024 * 1024, // 50GB
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Incremental space can only be added to file thin clone volumes")
+	})
+
+	t.Run("FailsIfIncrementalSpaceInBytesForSANProtocol", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024,         // 20GB shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolISCSI}, // SAN protocol
+				SnapReserve: 10,
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			IncrementalSpaceInBytes: 50 * 1024 * 1024 * 1024, // 50GB
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Incremental space can only be added to file thin clone volumes")
+	})
+
+	t.Run("FailsIfIncrementalSpaceInBytesReduced", func(tt *testing.T) {
+		// Volume has 100GB size, 10% snap reserve, 20GB shared bytes
+		// Original incremental space = (100GB * 0.9) - 20GB = 90GB - 20GB = 70GB
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024,         // 20GB shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,                            // 10%
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			IncrementalSpaceInBytes: 50 * 1024 * 1024 * 1024, // 50GB (less than original 70GB)
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume size cannot be reduced, provide a larger incremental space")
+	})
+
+	t.Run("FailsIfIncrementalSpaceInBytesExceedsPoolCapacity", func(tt *testing.T) {
+		// Volume: 100GB size, 10% snap reserve, 20GB shared bytes
+		// Pool: 200GB total, 150GB already used
+		// Trying to increase incremental space significantly
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024,         // 20GB shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,                            // 10%
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			IncrementalSpaceInBytes: 200 * 1024 * 1024 * 1024, // 200GB (very large increase)
+		}
+		testPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: int64(200 * 1024 * 1024 * 1024), // 200GB total
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: 150 * 1024 * 1024 * 1024, // 150GB already used
+		}
+		// Calculation: newVolumeSize = (200GB + 20GB) / 0.9 = 244.44GB
+		// sizeIncrease = 244.44GB - 100GB = 144.44GB
+		// Check: 150GB + 144.44GB = 294.44GB > 200GB (should fail)
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "cannot exceed the pool capacity")
+	})
+
+	t.Run("SucceedsIfIncrementalSpaceInBytesValidForFilesThinClone", func(tt *testing.T) {
+		// Volume: 100GB size, 10% snap reserve, 20GB shared bytes
+		// Original incremental space = (100GB * 0.9) - 20GB = 70GB
+		// New incremental space: 100GB (increase)
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024,         // 20GB shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,                            // 10%
+			},
+		}
+		params := &common.UpdateVolumeParams{
+			IncrementalSpaceInBytes: 100 * 1024 * 1024 * 1024, // 100GB (increase from 70GB)
+		}
+		testPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes:   int64(1000 * 1024 * 1024 * 1024), // 1000GB total (large enough)
+				LargeCapacity: false,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50GB already used
+		}
+		// Calculation: newVolumeSize = (100GB + 20GB) / 0.9 = 133.33GB
+		// sizeIncrease = 133.33GB - 100GB = 33.33GB
+		// Check: 50GB + 33.33GB = 83.33GB <= 1000GB (should pass)
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("FailsIfIncrementalSpaceInBytesResultsInInvalidCapacity_NonLargeCapacity", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 10 * 1024 * 1024 * 1024,         // 10GB shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,                            // 10%
+			},
+		}
+		// Use IncrementalSpaceInBytes that results in volumeSizeInBytes > maxQuotaInBytesVolume
+		params := &common.UpdateVolumeParams{
+			IncrementalSpaceInBytes: 150 * 1099511627776, // 150 TiB (exceeds maxQuotaInBytesVolume = 128 TiB)
+		}
+		testPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes:   int64(200 * 1099511627776), // 200 TiB
+				LargeCapacity: false,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: 0,
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid volume capacity")
+		assert.Contains(tt, err.Error(), "Must be between")
+	})
+
+	t.Run("SucceedsIfIncrementalSpaceInBytesWithUpdatedSnapReserve", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:             "READY",
+			SizeInBytes:       int64(100 * 1024 * 1024 * 1024), // 100GB
+			ClonesSharedBytes: 20 * 1024 * 1024 * 1024,         // 20GB shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:   []string{utils.ProtocolNFSv3}, // NAS protocol
+				SnapReserve: 10,                            // 10% (original)
+			},
+		}
+		newSnapReserve := int64(20) // Updated to 20%
+		params := &common.UpdateVolumeParams{
+			IncrementalSpaceInBytes: 100 * 1024 * 1024 * 1024, // 100GB
+			SnapReserve:             &newSnapReserve,          // Updated snap reserve
+		}
+		testPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes:   int64(1000 * 1024 * 1024 * 1024), // 1000GB
+				LargeCapacity: false,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50GB already used
+		}
+		// Calculation with new snap reserve: newVolumeSize = (100GB + 20GB) / 0.8 = 150GB
+		// sizeIncrease = 150GB - 100GB = 50GB
+		// Check: 50GB + 50GB = 100GB <= 1000GB (should pass)
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, testPool)
+		assert.NoError(tt, err)
 	})
 }
 

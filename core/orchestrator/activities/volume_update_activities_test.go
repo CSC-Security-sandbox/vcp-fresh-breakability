@@ -3882,3 +3882,144 @@ func TestUpdateAutoTieringParams_WithSnapshotOnlyPolicy(t *testing.T) {
 	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(5), result.CoolnessPeriod)
 }
+
+func TestUpdateVolumeInONTAP_WithIncrementalSpaceInBytes_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			SnapReserve:  10,
+		},
+		ClonesSharedBytes: 100 * 1024 * 1024, // 100MB
+	}
+
+	// IncrementalSpaceInBytes = 1GB, ClonesSharedBytes = 100MB, SnapReserve = 10%
+	// Expected size: (1GB + 100MB) / (1 - 0.10) = 1.1GB / 0.9 = 1.222GB
+	incrementalSpace := uint64(1024 * 1024 * 1024) // 1GB
+	params := &common.UpdateVolumeParams{
+		IncrementalSpaceInBytes: incrementalSpace,
+		QuotaInBytes:            0, // Not set when IncrementalSpaceInBytes is used
+	}
+	node := &models.Node{}
+
+	expectedSize := int64(float64(incrementalSpace+volume.ClonesSharedBytes) / (1 - float64(volume.VolumeAttributes.SnapReserve)/100))
+
+	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
+		UUID:        volume.VolumeAttributes.ExternalUUID,
+		Size:        expectedSize,
+		SnapReserve: (*int64)(nil),
+	}).Return(nil)
+
+	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateVolumeInONTAP_WithIncrementalSpaceInBytesAndSnapReserveChange_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+			SnapReserve:  10, // Original snap reserve
+		},
+		ClonesSharedBytes: 200 * 1024 * 1024, // 200MB
+	}
+
+	incrementalSpace := uint64(2 * 1024 * 1024 * 1024) // 2GB
+	newSnapReserve := int64(20)                        // New snap reserve
+	params := &common.UpdateVolumeParams{
+		IncrementalSpaceInBytes: incrementalSpace,
+		QuotaInBytes:            0,
+		SnapReserve:             &newSnapReserve,
+	}
+	node := &models.Node{}
+
+	// Should use new snap reserve (20%) for calculation
+	expectedSize := int64(float64(incrementalSpace+volume.ClonesSharedBytes) / (1 - float64(newSnapReserve)/100))
+
+	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
+		UUID:        volume.VolumeAttributes.ExternalUUID,
+		Size:        expectedSize,
+		SnapReserve: &newSnapReserve,
+	}).Return(nil)
+
+	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestGetUpdatedFieldsFromParams_WithIncrementalSpaceInBytes_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	volume := &datamodel.Volume{
+		SizeInBytes:       5 * 1024 * 1024 * 1024, // 5GB
+		ClonesSharedBytes: 100 * 1024 * 1024,      // 100MB
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SnapReserve: 10,
+		},
+	}
+
+	incrementalSpace := uint64(1024 * 1024 * 1024) // 1GB
+	params := &common.UpdateVolumeParams{
+		IncrementalSpaceInBytes: incrementalSpace,
+		QuotaInBytes:            0,
+	}
+
+	fields, err := getUpdatedFieldsFromParams(context.Background(), mockStorage, volume, params)
+	assert.NoError(t, err)
+
+	// Expected size: (1GB + 100MB) / (1 - 0.10) = 1.1GB / 0.9 = 1.222GB
+	expectedSize := int64(float64(incrementalSpace+volume.ClonesSharedBytes) / (1 - float64(volume.VolumeAttributes.SnapReserve)/100))
+
+	sizeInBytes, ok := fields["size_in_bytes"].(int64)
+	assert.True(t, ok)
+	assert.Equal(t, expectedSize, sizeInBytes)
+}
+
+func TestGetUpdatedFieldsFromParams_WithIncrementalSpaceInBytesAndSnapReserveChange_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	volume := &datamodel.Volume{
+		SizeInBytes:       5 * 1024 * 1024 * 1024, // 5GB
+		ClonesSharedBytes: 200 * 1024 * 1024,      // 200MB
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			SnapReserve: 10, // Original snap reserve
+		},
+	}
+
+	incrementalSpace := uint64(2 * 1024 * 1024 * 1024) // 2GB
+	newSnapReserve := int64(20)                        // New snap reserve
+	params := &common.UpdateVolumeParams{
+		IncrementalSpaceInBytes: incrementalSpace,
+		QuotaInBytes:            0,
+		SnapReserve:             &newSnapReserve,
+	}
+
+	fields, err := getUpdatedFieldsFromParams(context.Background(), mockStorage, volume, params)
+	assert.NoError(t, err)
+
+	// Should use new snap reserve (20%) for calculation
+	expectedSize := int64(float64(incrementalSpace+volume.ClonesSharedBytes) / (1 - float64(newSnapReserve)/100))
+
+	sizeInBytes, ok := fields["size_in_bytes"].(int64)
+	assert.True(t, ok)
+	assert.Equal(t, expectedSize, sizeInBytes)
+}
