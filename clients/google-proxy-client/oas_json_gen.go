@@ -54203,9 +54203,15 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 			s.CacheParameters.Encode(e)
 		}
 	}
+	{
+		if s.IncrementalSpaceInBytes.Set {
+			e.FieldStart("incrementalSpaceInBytes")
+			s.IncrementalSpaceInBytes.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumeUpdateV1beta = [18]string{
+var jsonFieldsNameOfVolumeUpdateV1beta = [19]string{
 	0:  "quotaInBytes",
 	1:  "snapReserve",
 	2:  "snapshotDirectory",
@@ -54224,6 +54230,7 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [18]string{
 	15: "poolId",
 	16: "description",
 	17: "cacheParameters",
+	18: "incrementalSpaceInBytes",
 }
 
 // Decode decodes VolumeUpdateV1beta from json.
@@ -54425,6 +54432,16 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cacheParameters\"")
+			}
+		case "incrementalSpaceInBytes":
+			if err := func() error {
+				s.IncrementalSpaceInBytes.Reset()
+				if err := s.IncrementalSpaceInBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"incrementalSpaceInBytes\"")
 			}
 		default:
 			return d.Skip()
@@ -54821,9 +54838,27 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 			s.HotTierSizeGib.Encode(e)
 		}
 	}
+	{
+		if s.IsClone.Set {
+			e.FieldStart("isClone")
+			s.IsClone.Encode(e)
+		}
+	}
+	{
+		if s.CloneSharedBytes.Set {
+			e.FieldStart("cloneSharedBytes")
+			s.CloneSharedBytes.Encode(e)
+		}
+	}
+	{
+		if s.IncrementalSpaceInBytes.Set {
+			e.FieldStart("incrementalSpaceInBytes")
+			s.IncrementalSpaceInBytes.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumeV1beta = [50]string{
+var jsonFieldsNameOfVolumeV1beta = [53]string{
 	0:  "resourceId",
 	1:  "volumeId",
 	2:  "created",
@@ -54874,6 +54909,9 @@ var jsonFieldsNameOfVolumeV1beta = [50]string{
 	47: "largeVolumeConstituentCount",
 	48: "cacheParameters",
 	49: "hotTierSizeGib",
+	50: "isClone",
+	51: "cloneSharedBytes",
+	52: "incrementalSpaceInBytes",
 }
 
 // Decode decodes VolumeV1beta from json.
@@ -55407,6 +55445,36 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"hotTierSizeGib\"")
+			}
+		case "isClone":
+			if err := func() error {
+				s.IsClone.Reset()
+				if err := s.IsClone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isClone\"")
+			}
+		case "cloneSharedBytes":
+			if err := func() error {
+				s.CloneSharedBytes.Reset()
+				if err := s.CloneSharedBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cloneSharedBytes\"")
+			}
+		case "incrementalSpaceInBytes":
+			if err := func() error {
+				s.IncrementalSpaceInBytes.Reset()
+				if err := s.IncrementalSpaceInBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"incrementalSpaceInBytes\"")
 			}
 		default:
 			return d.Skip()

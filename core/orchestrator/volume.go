@@ -1250,11 +1250,23 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		UsedBytes:             volume.UsedBytes,
 		SnapReserve:           volume.VolumeAttributes.SnapReserve,
 		SnapshotDirectory:     volume.VolumeAttributes.SnapshotDirectory,
+		IsClone:               volume.ClonesSharedBytes > 0,
+		CloneSharedBytes:      volume.ClonesSharedBytes,
 	}
 	attributes := volume.VolumeAttributes
 	res.VendorSubnetID = attributes.VendorSubnetID
 	res.CreationToken = attributes.CreationToken
 	res.ProtocolTypes = attributes.Protocols
+
+	if res.IsClone {
+		snapReserveBytes := uint64((volume.SizeInBytes * volume.VolumeAttributes.SnapReserve) / 100.0)
+		totalUsed := volume.ClonesSharedBytes + snapReserveBytes
+		if totalUsed >= uint64(volume.SizeInBytes) {
+			res.IncrementalSpaceInBytes = 0
+		} else {
+			res.IncrementalSpaceInBytes = uint64(volume.SizeInBytes) - totalUsed
+		}
+	}
 
 	if volume.Svm != nil {
 		res.SvmName = volume.Svm.Name

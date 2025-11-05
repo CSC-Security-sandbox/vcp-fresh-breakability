@@ -12260,6 +12260,11 @@ func (s *VolumeUpdateV1beta) SetFake() {
 			s.CacheParameters.SetFake()
 		}
 	}
+	{
+		{
+			s.IncrementalSpaceInBytes.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -12544,6 +12549,21 @@ func (s *VolumeV1beta) SetFake() {
 	{
 		{
 			s.HotTierSizeGib.SetFake()
+		}
+	}
+	{
+		{
+			s.IsClone.SetFake()
+		}
+	}
+	{
+		{
+			s.CloneSharedBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.IncrementalSpaceInBytes.SetFake()
 		}
 	}
 }

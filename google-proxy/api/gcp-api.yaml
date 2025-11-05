@@ -562,6 +562,9 @@ paths:
                 tieringPolicy:
                   tierAction: ENABLE
                   coolingThresholdDays: 40
+                isClone: true
+                cloneSharedBytes: 100000000000
+                incrementalSpaceInBytes: 10000000000
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -7806,14 +7809,33 @@ components:
           example: 4000000000000
           nullable: true
           x-omitempty: true
+        isClone:
+          title: isClone
+          type: boolean
+          description: Flag indicating if the volume is a thin clone of another volume
+          readOnly: true
+          default: false
+        cloneSharedBytes:
+          title: cloneSharedBytes
+          minimum: 0
+          type: number
+          description: The amount of data (in bytes) shared from parent volume to this
+            thin clone volume.
+          format: double
+          nullable: true
+          readOnly: true
+          example: 101010.0
+          default: 0.0
         incrementalSpaceInBytes:
           title: incrementalSpaceInBytes
+          minimum: 0
           type: number
+          description: The amount of data (in bytes) written to the thin clone volume
+                that is not shared with the parent volume.
           format: double
-          description: Incremental space in bytes for a files thin clone volume
-          example: 4000000000000
           nullable: true
-          x-omitempty: true
+          example: 101010.0
+          default: 0.0
     InternalVolume_v1beta:
       title: Volume v1beta model definition
       type: object

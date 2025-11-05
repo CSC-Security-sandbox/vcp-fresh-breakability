@@ -37,6 +37,9 @@ type Volume struct {
 	SvmName                     string
 	KmsConfig                   *KmsConfig
 	CacheParameters             *CacheParameters
+	IsClone                     bool
+	CloneSharedBytes            uint64
+	IncrementalSpaceInBytes     uint64
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume

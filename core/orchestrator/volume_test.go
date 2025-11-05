@@ -14553,6 +14553,319 @@ func TestConvertDatastoreVolumeToModelCacheParameters(t *testing.T) {
 	})
 }
 
+func TestConvertDatastoreVolumeToModel_CloneFields(t *testing.T) {
+	t.Run("WhenVolumeIsNotAClone_IsCloneShouldBeFalse", func(tt *testing.T) {
+		// Setup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			Account:           account,
+			Pool:              pool,
+			SizeInBytes:       1073741824, // 1 GiB
+			ClonesSharedBytes: 0,          // Not a clone
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: 5, // 5%
+			},
+		}
+
+		ipAddresses := []string{"10.0.0.1"}
+
+		// Execute
+		result := _convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		// Assert
+		assert.False(tt, result.IsClone, "IsClone should be false when ClonesSharedBytes is 0")
+		assert.Equal(tt, uint64(0), result.CloneSharedBytes, "CloneSharedBytes should be 0")
+		assert.Equal(tt, uint64(0), result.IncrementalSpaceInBytes, "IncrementalSpaceInBytes should be 0 for non-clone volumes")
+	})
+
+	t.Run("WhenVolumeIsAClone_IsCloneShouldBeTrue", func(tt *testing.T) {
+		// Setup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			Account:           account,
+			Pool:              pool,
+			SizeInBytes:       1073741824, // 1 GiB
+			ClonesSharedBytes: 104857600,  // 100 MiB - this is a clone
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: 5, // 5%
+			},
+		}
+
+		ipAddresses := []string{"10.0.0.1"}
+
+		// Execute
+		result := _convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		// Assert
+		assert.True(tt, result.IsClone, "IsClone should be true when ClonesSharedBytes > 0")
+		assert.Equal(tt, uint64(104857600), result.CloneSharedBytes, "CloneSharedBytes should match the datamodel value")
+	})
+
+	t.Run("WhenVolumeIsAClone_IncrementalSpaceInBytesShouldBeCalculatedCorrectly", func(tt *testing.T) {
+		// Setup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		sizeInBytes := int64(1073741824)       // 1 GiB
+		snapReserve := int64(5)                // 5%
+		clonesSharedBytes := uint64(104857600) // 100 MiB
+
+		// Expected calculation:
+		// snapReserveBytes = (1073741824 * 5) / 100 = 53687091
+		// totalUsed = 104857600 + 53687091 = 158544691
+		// incrementalSpace = 1073741824 - 158544691 = 915197133
+		expectedSnapReserveBytes := uint64((sizeInBytes * snapReserve) / 100)
+		expectedTotalUsed := clonesSharedBytes + expectedSnapReserveBytes
+		expectedIncrementalSpace := uint64(sizeInBytes) - expectedTotalUsed
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			Account:           account,
+			Pool:              pool,
+			SizeInBytes:       sizeInBytes,
+			ClonesSharedBytes: clonesSharedBytes,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: snapReserve,
+			},
+		}
+
+		ipAddresses := []string{"10.0.0.1"}
+
+		// Execute
+		result := _convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		// Assert
+		assert.True(tt, result.IsClone, "IsClone should be true")
+		assert.Equal(tt, expectedIncrementalSpace, result.IncrementalSpaceInBytes,
+			"IncrementalSpaceInBytes should be SizeInBytes - (ClonesSharedBytes + snapReserveBytes)")
+	})
+
+	t.Run("WhenVolumeIsAClone_AndTotalUsedExceedsSizeInBytes_IncrementalSpaceShouldBeZero", func(tt *testing.T) {
+		// Setup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		sizeInBytes := int64(1073741824)        // 1 GiB
+		snapReserve := int64(10)                // 10%
+		clonesSharedBytes := uint64(1000000000) // ~931 MiB
+
+		// This will cause totalUsed to exceed or equal sizeInBytes
+		// snapReserveBytes = (1073741824 * 10) / 100 = 107374182
+		// totalUsed = 1000000000 + 107374182 = 1107374182 > 1073741824
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			Account:           account,
+			Pool:              pool,
+			SizeInBytes:       sizeInBytes,
+			ClonesSharedBytes: clonesSharedBytes,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: snapReserve,
+			},
+		}
+
+		ipAddresses := []string{"10.0.0.1"}
+
+		// Execute
+		result := _convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		// Assert
+		assert.True(tt, result.IsClone, "IsClone should be true")
+		assert.Equal(tt, uint64(0), result.IncrementalSpaceInBytes,
+			"IncrementalSpaceInBytes should be 0 when totalUsed >= SizeInBytes")
+	})
+
+	t.Run("WhenVolumeIsAClone_AndTotalUsedEqualsSizeInBytes_IncrementalSpaceShouldBeZero", func(tt *testing.T) {
+		// Setup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		sizeInBytes := int64(1000000000)                              // ~931 MiB
+		snapReserve := int64(10)                                      // 10%
+		snapReserveBytes := uint64((sizeInBytes * snapReserve) / 100) // 100000000
+		clonesSharedBytes := uint64(sizeInBytes) - snapReserveBytes   // 900000000
+
+		// totalUsed = 900000000 + 100000000 = 1000000000 == sizeInBytes
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			Account:           account,
+			Pool:              pool,
+			SizeInBytes:       sizeInBytes,
+			ClonesSharedBytes: clonesSharedBytes,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: snapReserve,
+			},
+		}
+
+		ipAddresses := []string{"10.0.0.1"}
+
+		// Execute
+		result := _convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		// Assert
+		assert.True(tt, result.IsClone, "IsClone should be true")
+		assert.Equal(tt, uint64(0), result.IncrementalSpaceInBytes,
+			"IncrementalSpaceInBytes should be 0 when totalUsed equals SizeInBytes")
+	})
+
+	t.Run("WhenVolumeIsAClone_WithZeroSnapReserve_IncrementalSpaceShouldBeCalculatedCorrectly", func(tt *testing.T) {
+		// Setup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		sizeInBytes := int64(1073741824)       // 1 GiB
+		snapReserve := int64(0)                // 0% - no snapshot reserve
+		clonesSharedBytes := uint64(104857600) // 100 MiB
+
+		// Expected: snapReserveBytes = 0, incrementalSpace = 1073741824 - 104857600 = 968884224
+		expectedIncrementalSpace := uint64(sizeInBytes) - clonesSharedBytes
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			Account:           account,
+			Pool:              pool,
+			SizeInBytes:       sizeInBytes,
+			ClonesSharedBytes: clonesSharedBytes,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: snapReserve,
+			},
+		}
+
+		ipAddresses := []string{"10.0.0.1"}
+
+		// Execute
+		result := _convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		// Assert
+		assert.True(tt, result.IsClone, "IsClone should be true")
+		assert.Equal(tt, expectedIncrementalSpace, result.IncrementalSpaceInBytes,
+			"IncrementalSpaceInBytes should be SizeInBytes - ClonesSharedBytes when SnapReserve is 0")
+	})
+
+	t.Run("WhenVolumeIsAClone_WithHighSnapReserve_IncrementalSpaceShouldBeCalculatedCorrectly", func(tt *testing.T) {
+		// Setup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		sizeInBytes := int64(1073741824)       // 1 GiB
+		snapReserve := int64(20)               // 20% - high snapshot reserve
+		clonesSharedBytes := uint64(104857600) // 100 MiB
+
+		// Expected calculation:
+		// snapReserveBytes = (1073741824 * 20) / 100 = 214748364
+		// totalUsed = 104857600 + 214748364 = 319605964
+		// incrementalSpace = 1073741824 - 319605964 = 754135860
+		expectedSnapReserveBytes := uint64((sizeInBytes * snapReserve) / 100)
+		expectedTotalUsed := clonesSharedBytes + expectedSnapReserveBytes
+		expectedIncrementalSpace := uint64(sizeInBytes) - expectedTotalUsed
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			Account:           account,
+			Pool:              pool,
+			SizeInBytes:       sizeInBytes,
+			ClonesSharedBytes: clonesSharedBytes,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				SnapReserve: snapReserve,
+			},
+		}
+
+		ipAddresses := []string{"10.0.0.1"}
+
+		// Execute
+		result := _convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		// Assert
+		assert.True(tt, result.IsClone, "IsClone should be true")
+		assert.Equal(tt, expectedIncrementalSpace, result.IncrementalSpaceInBytes,
+			"IncrementalSpaceInBytes should be calculated correctly with high SnapReserve")
+	})
+}
+
 func TestValidateAllowedClients(t *testing.T) {
 	tests := []struct {
 		name    string

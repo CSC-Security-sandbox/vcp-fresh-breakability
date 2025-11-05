@@ -12553,6 +12553,16 @@ func (s *VolumeV1beta) SetFake() {
 	}
 	{
 		{
+			s.IsClone.SetFake()
+		}
+	}
+	{
+		{
+			s.CloneSharedBytes.SetFake()
+		}
+	}
+	{
+		{
 			s.IncrementalSpaceInBytes.SetFake()
 		}
 	}
