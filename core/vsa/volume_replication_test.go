@@ -2635,3 +2635,405 @@ func TestReverseVolumeReplication(t *testing.T) {
 		mockSnapmirrorClient.AssertExpectations(tt)
 	})
 }
+
+func TestAbortVolumeReplication(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	// Set poll interval to 0 for faster test execution
+	originalPollInterval := waitForMirrorStatePollInterval
+	waitForMirrorStatePollInterval = 0
+	defer func() { waitForMirrorStatePollInterval = originalPollInterval }()
+
+	// Test data setup
+	relationshipID := "test-relationship-id"
+	transferUUID := "test-transfer-uuid"
+	volRep := &VolumeReplication{
+		RelationshipID:     relationshipID,
+		TransferUUID:       transferUUID,
+		RelationshipStatus: SnapMirrorRelationshipStatusTransferring,
+	}
+
+	t.Run("WhenGetOntapClientFuncReturnsError", func(tt *testing.T) {
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClient error")
+		}
+		provider := &OntapRestProvider{}
+
+		result, err := provider.AbortVolumeReplication(volRep)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "getOntapClient error", err.Error())
+	})
+
+	t.Run("WhenSnapmirrorRelationshipTransferModifyReturnsError", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+		expectedError := errors.New("failed to modify transfer")
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         relationshipID,
+			TransferUUID: transferUUID,
+			State:        &volRep.RelationshipStatus,
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(expectedError)
+
+		result, err := provider.AbortVolumeReplication(volRep)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, expectedError, err)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSnapmirrorRelationshipTransferModifyReturnsNotFound", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+		notFoundError := errors.New("snapmirror relationship not found")
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         relationshipID,
+			TransferUUID: transferUUID,
+			State:        &volRep.RelationshipStatus,
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(notFoundError)
+
+		result, err := provider.AbortVolumeReplication(volRep)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, notFoundError, err)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSnapmirrorRelationshipGetReturnsError", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+		expectedError := errors.New("failed to get snapmirror")
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         relationshipID,
+			TransferUUID: transferUUID,
+			State:        &volRep.RelationshipStatus,
+		}
+		getParams := &ontaprest.SnapmirrorRelationshipGetParams{UUID: relationshipID}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(nil)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(nil, expectedError)
+
+		result, err := provider.AbortVolumeReplication(volRep)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, expectedError, err)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenTransferStateIsNotTransferringAfterFirstCheck", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         relationshipID,
+			TransferUUID: transferUUID,
+			State:        &volRep.RelationshipStatus,
+		}
+		getParams := &ontaprest.SnapmirrorRelationshipGetParams{UUID: relationshipID}
+
+		// Mock snapmirror with non-transferring state
+		snapmirror := &ontaprest.SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: nillable.ToPointer(models.SnapmirrorRelationshipInlineTransferStateSuccess),
+				},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(nil)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil)
+
+		result, err := provider.AbortVolumeReplication(volRep)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, volRep, result)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenTransferStateRemainsTransferringAndTimesOut", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         relationshipID,
+			TransferUUID: transferUUID,
+			State:        &volRep.RelationshipStatus,
+		}
+		getParams := &ontaprest.SnapmirrorRelationshipGetParams{UUID: relationshipID}
+
+		// Mock snapmirror with transferring state that never changes
+		snapmirror := &ontaprest.SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: nillable.ToPointer(models.SnapmirrorRelationshipInlineTransferStateTransferring),
+				},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(nil)
+		// Mock the method to be called waitForReplicationStateMaxRetries times (10 times)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(waitForReplicationStateMaxRetries)
+
+		result, err := provider.AbortVolumeReplication(volRep)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "Transfer abort did not finish in time", err.Error())
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenTransferStateChangesFromTransferringToAborted", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         relationshipID,
+			TransferUUID: transferUUID,
+			State:        &volRep.RelationshipStatus,
+		}
+		getParams := &ontaprest.SnapmirrorRelationshipGetParams{UUID: relationshipID}
+
+		// Mock first call returns transferring, second call returns aborted
+		snapmirrorTransferring := &ontaprest.SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: nillable.ToPointer(models.SnapmirrorRelationshipInlineTransferStateTransferring),
+				},
+			},
+		}
+		snapmirrorAborted := &ontaprest.SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: nillable.ToPointer(models.SnapmirrorRelationshipInlineTransferStateAborted),
+				},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(nil)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirrorTransferring, nil).Once()
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirrorAborted, nil).Once()
+
+		result, err := provider.AbortVolumeReplication(volRep)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, volRep, result)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSnapmirrorRelationshipGetErrorOnSecondCall", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+		expectedError := errors.New("second get call failed")
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         relationshipID,
+			TransferUUID: transferUUID,
+			State:        &volRep.RelationshipStatus,
+		}
+		getParams := &ontaprest.SnapmirrorRelationshipGetParams{UUID: relationshipID}
+
+		// Mock first call succeeds with transferring state, second call fails
+		snapmirrorTransferring := &ontaprest.SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: nillable.ToPointer(models.SnapmirrorRelationshipInlineTransferStateTransferring),
+				},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(nil)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirrorTransferring, nil).Once()
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(nil, expectedError).Once()
+
+		result, err := provider.AbortVolumeReplication(volRep)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, expectedError, err)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenTransferStateIsNilAfterFirstCheck", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         relationshipID,
+			TransferUUID: transferUUID,
+			State:        &volRep.RelationshipStatus,
+		}
+		getParams := &ontaprest.SnapmirrorRelationshipGetParams{UUID: relationshipID}
+
+		// Mock snapmirror with nil transfer state
+		snapmirror := &ontaprest.SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: nil,
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(nil)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil)
+
+		result, err := provider.AbortVolumeReplication(volRep)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, volRep, result)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+	
+	t.Run("WhenEmptyRelationshipID", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+
+		volRepEmptyID := &VolumeReplication{
+			RelationshipID:     "", // Empty relationship ID
+			TransferUUID:       transferUUID,
+			RelationshipStatus: SnapMirrorRelationshipStatusTransferring,
+		}
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         "",
+			TransferUUID: transferUUID,
+			State:        &volRepEmptyID.RelationshipStatus,
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(errors.New("invalid UUID"))
+
+		result, err := provider.AbortVolumeReplication(volRepEmptyID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenEmptyTransferUUID", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{
+			Logger: log.NewLogger(),
+		}
+
+		volRepEmptyTransferID := &VolumeReplication{
+			RelationshipID:     relationshipID,
+			TransferUUID:       "", // Empty transfer UUID
+			RelationshipStatus: SnapMirrorRelationshipStatusTransferring,
+		}
+
+		modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+			UUID:         relationshipID,
+			TransferUUID: "",
+			State:        &volRepEmptyTransferID.RelationshipStatus,
+		}
+		getParams := &ontaprest.SnapmirrorRelationshipGetParams{UUID: relationshipID}
+
+		snapmirror := &ontaprest.SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: nillable.ToPointer(models.SnapmirrorRelationshipInlineTransferStateSuccess),
+				},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(nil)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil)
+
+		result, err := provider.AbortVolumeReplication(volRepEmptyTransferID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, volRepEmptyTransferID, result)
+		mockClient.AssertExpectations(tt)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+}

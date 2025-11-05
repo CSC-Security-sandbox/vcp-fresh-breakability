@@ -533,6 +533,7 @@ func (rc *OntapRestProvider) BreakVolumeReplication(volRep *VolumeReplication) (
 	}
 	_, job, err := client.Snapmirror().SnapmirrorRelationshipModify(modifyParams)
 	if err != nil {
+		rc.Logger.Error("Failed to break volume replication in ontap", "error", err)
 		return nil, err
 	}
 
@@ -555,9 +556,23 @@ func (rc *OntapRestProvider) AbortVolumeReplication(volRep *VolumeReplication) (
 	}
 	err = client.Snapmirror().SnapmirrorRelationshipTransferModify(modifyTransferParams)
 	if err != nil {
+		rc.Logger.Error("Failed to abort volume replication in ontap", "error", err)
 		return nil, err
 	}
-	return volRep, nil
+	for retries := 0; retries < waitForReplicationStateMaxRetries; retries++ {
+		snapmirror, err := client.Snapmirror().SnapmirrorRelationshipGet(&ontaprest.SnapmirrorRelationshipGetParams{UUID: volRep.RelationshipID})
+		if err != nil {
+			rc.Logger.Error("Failed to get volume replication in ontap", "error", err)
+			return nil, err
+		}
+		if snapmirror.TransferState() != SnapMirrorRelationshipStatusTransferring {
+			return volRep, nil
+		}
+
+		time.Sleep(time.Duration(waitForMirrorStatePollInterval) * time.Second)
+	}
+	rc.Logger.Error("Transfer abort did not finish in time")
+	return nil, errors.New("Transfer abort did not finish in time")
 }
 
 func modifyVsaVolumeReplication(provider *OntapRestProvider, volRep *VolumeReplication) (*VolumeReplication, error) {

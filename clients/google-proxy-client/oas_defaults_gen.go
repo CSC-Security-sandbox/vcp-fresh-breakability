@@ -159,6 +159,14 @@ func (s *HourlyScheduleV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *InternalOperationV1beta) setDefaults() {
+	{
+		val := bool(false)
+		s.Done.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *InternalVolumeV1beta) setDefaults() {
 	{
 		val := InternalVolumeV1betaServiceLevel("PREMIUM")
@@ -359,6 +367,14 @@ func (s *VolumeBackupDetailsV1beta) setDefaults() {
 	{
 		val := bool(false)
 		s.PolicyEnabled.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *VolumeCreateV1beta) setDefaults() {
+	{
+		val := bool(false)
+		s.IsClone.SetTo(val)
 	}
 }
 

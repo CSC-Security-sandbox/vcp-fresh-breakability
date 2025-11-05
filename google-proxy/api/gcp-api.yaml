@@ -2074,6 +2074,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/operations/{operationId}:
+    get:
+      operationId: v1beta_internalDescribeOperation
+      summary: Describes a long running operation with internal tracking details
+      description: Retrieves detailed operation information including tracking ID for internal debugging and monitoring purposes
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/operationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalOperation_v1beta'
+              examples:
+                successExample:
+                  summary: Successful operation with internal details
+                  value:
+                    done: true
+                    name: /v1beta/internal/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                    trackingId: 2001
+                inProgressExample:
+                  summary: Operation in progress with tracking details
+                  value:
+                    done: false
+                    name: /v1beta/internal/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                    trackingId: 0
+                failedExample:
+                  summary: Failed operation with error tracking
+                  value:
+                    done: true
+                    error:
+                      code: 400
+                      message: Error when creating destination volume
+                    name: /v1beta/internal/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                    trackingId: 4001
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications:
     post:
       operationId: v1beta_createReplication
@@ -6711,6 +6774,34 @@ components:
           title: response
           additionalProperties:
             type: object
+    InternalOperation_v1beta:
+      title: InternalOperation
+      type: object
+      description: Internal operation structure that includes tracking ID for debugging and monitoring purposes
+      properties:
+        name:
+          title: name
+          type: string
+          description: The full resource name of the operation
+          example: projects/123456789/locations/us-east4/operations/00000000-0000-0000-0000-000000000000
+        metadata:
+          $ref: '#/components/schemas/Any_v1Beta'
+        done:
+          title: done
+          type: boolean
+          description: Is the operation done yet
+          default: false
+        error:
+          $ref: '#/components/schemas/Status_v1Beta'
+        response:
+          title: response
+          additionalProperties:
+            type: object
+        trackingId:
+          title: trackingId
+          type: integer
+          description: Internal tracking ID for error categorization and debugging
+          example: 2001
     BlockProperties_v1beta:
       title: BlockProperties
       type: object

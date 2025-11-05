@@ -1209,13 +1209,13 @@ func TestDescribeRemoteJobVolumeUpdate(t *testing.T) {
 		}
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 		jobId := "remote-job-uuid"
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    jobId,
 			ProjectNumber:  event.Remote.ProjectNumber,
 			LocationId:     event.Remote.Location,
 			XCorrelationID: googleproxyclient.NewOptString(event.CorrelationID),
 		}
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.InternalOperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
 		err := activity.DescribeRemoteJobVolumeUpdate(ctx, event, jobId)
 		assert.NotNil(tt, err)
 	})
@@ -1240,13 +1240,13 @@ func TestDescribeRemoteJobVolumeUpdate(t *testing.T) {
 		}
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 		jobId := "remote-job-uuid"
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    jobId,
 			ProjectNumber:  event.Remote.ProjectNumber,
 			LocationId:     event.Remote.Location,
 			XCorrelationID: googleproxyclient.NewOptString(event.CorrelationID),
 		}
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.InternalOperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
 		err := activity.DescribeRemoteJobVolumeUpdate(ctx, event, jobId)
 		assert.Nil(tt, err)
 	})

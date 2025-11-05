@@ -25,7 +25,7 @@ func TestGetSvmPeer(t *testing.T) {
 		}
 		ontapProvider := &OntapRestProvider{}
 		emptySvmPeerCollectionResponse := make([]*ontaprest.SvmPeer, 0)
-		expectedError := errors.NewNotFoundErr("SVM peer not found", nil)
+		expectedError := errors.NewNotFoundErr("SVM peer", nil)
 		mockClient.On("SVM").Return(mm)
 		mm.On("SvmPeerCollectionGet", mock.Anything).Return(emptySvmPeerCollectionResponse, nil).Times(1)
 		svmPeer, err := ontapProvider.GetSVMPeer(&localSVMName, &remoteSVMName)
@@ -801,7 +801,7 @@ func TestCreateSVMPeer(t *testing.T) {
 		mm := new(ontaprest.MockSVMClient)
 		getOntapClientFunc = func(p ontaprest.RESTClientParams) (ontaprest.RESTClient, error) { return mockClient, nil }
 		provider := &OntapRestProvider{}
-		expectedError := errors.NewNotFoundErr("SVM peer not found", nil)
+		expectedError := errors.NewNotFoundErr("SVM peer", nil)
 		mockClient.On("SVM").Return(mm)
 		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
 		mm.On("SvmPeerCollectionGet", mock.Anything).Return([]*ontaprest.SvmPeer{}, nil).Times(1)

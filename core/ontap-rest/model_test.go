@@ -2236,3 +2236,159 @@ func TestFlexCacheModifyParamsToONTAP(t *testing.T) {
 		}
 	})
 }
+
+func TestSnapmirrorRelationshipTransferState(t *testing.T) {
+	t.Run("WhenSnapmirrorRelationshipIsNil", func(tt *testing.T) {
+		var snapmirror *SnapmirrorRelationship = nil
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenTransferIsNil", func(tt *testing.T) {
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: nil,
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenTransferStateIsNil", func(tt *testing.T) {
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: nil,
+				},
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenTransferStateIsAborted", func(tt *testing.T) {
+		state := models.SnapmirrorRelationshipInlineTransferStateAborted
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: &state,
+				},
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateAborted, result)
+	})
+
+	t.Run("WhenTransferStateIsFailed", func(tt *testing.T) {
+		state := models.SnapmirrorRelationshipInlineTransferStateFailed
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: &state,
+				},
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateFailed, result)
+	})
+
+	t.Run("WhenTransferStateIsHardAborted", func(tt *testing.T) {
+		state := models.SnapmirrorRelationshipInlineTransferStateHardAborted
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: &state,
+				},
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateHardAborted, result)
+	})
+
+	t.Run("WhenTransferStateIsQueued", func(tt *testing.T) {
+		state := models.SnapmirrorRelationshipInlineTransferStateQueued
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: &state,
+				},
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateQueued, result)
+	})
+
+	t.Run("WhenTransferStateIsSuccess", func(tt *testing.T) {
+		state := models.SnapmirrorRelationshipInlineTransferStateSuccess
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: &state,
+				},
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateSuccess, result)
+	})
+
+	t.Run("WhenTransferStateIsTransferring", func(tt *testing.T) {
+		state := models.SnapmirrorRelationshipInlineTransferStateTransferring
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: &state,
+				},
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateTransferring, result)
+	})
+
+	t.Run("WhenTransferStateIsCustomString", func(tt *testing.T) {
+		customState := "custom_state"
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: &customState,
+				},
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, "custom_state", result)
+	})
+
+	t.Run("WhenTransferStateIsEmptyString", func(tt *testing.T) {
+		emptyState := ""
+		snapmirror := &SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Transfer: &models.SnapmirrorRelationshipInlineTransfer{
+					State: &emptyState,
+				},
+			},
+		}
+		
+		result := snapmirror.TransferState()
+		
+		assert.Equal(tt, "", result)
+	})
+}

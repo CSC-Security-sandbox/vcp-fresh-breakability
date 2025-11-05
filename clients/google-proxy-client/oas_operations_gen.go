@@ -61,6 +61,7 @@ const (
 	V1betaInternalDeleteVolumeReplicationOperation           OperationName = "V1betaInternalDeleteVolumeReplication"
 	V1betaInternalDeleteVolumeSnapmirrorSnapshotOperation    OperationName = "V1betaInternalDeleteVolumeSnapmirrorSnapshot"
 	V1betaInternalDescribeBackupVaultOperation               OperationName = "V1betaInternalDescribeBackupVault"
+	V1betaInternalDescribeOperationOperation                 OperationName = "V1betaInternalDescribeOperation"
 	V1betaInternalDescribePoolOperation                      OperationName = "V1betaInternalDescribePool"
 	V1betaInternalDescribeVolumeOperation                    OperationName = "V1betaInternalDescribeVolume"
 	V1betaInternalDescribeVolumeReplicationOperation         OperationName = "V1betaInternalDescribeVolumeReplication"

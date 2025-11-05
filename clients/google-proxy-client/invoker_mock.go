@@ -3294,6 +3294,65 @@ func (_c *MockInvoker_V1betaInternalDescribeBackupVault_Call) RunAndReturn(run f
 	return _c
 }
 
+// V1betaInternalDescribeOperation provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1betaInternalDescribeOperation(ctx context.Context, params V1betaInternalDescribeOperationParams) (V1betaInternalDescribeOperationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalDescribeOperation")
+	}
+
+	var r0 V1betaInternalDescribeOperationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDescribeOperationParams) (V1betaInternalDescribeOperationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDescribeOperationParams) V1betaInternalDescribeOperationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalDescribeOperationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalDescribeOperationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaInternalDescribeOperation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalDescribeOperation'
+type MockInvoker_V1betaInternalDescribeOperation_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalDescribeOperation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalDescribeOperationParams
+func (_e *MockInvoker_Expecter) V1betaInternalDescribeOperation(ctx interface{}, params interface{}) *MockInvoker_V1betaInternalDescribeOperation_Call {
+	return &MockInvoker_V1betaInternalDescribeOperation_Call{Call: _e.mock.On("V1betaInternalDescribeOperation", ctx, params)}
+}
+
+func (_c *MockInvoker_V1betaInternalDescribeOperation_Call) Run(run func(ctx context.Context, params V1betaInternalDescribeOperationParams)) *MockInvoker_V1betaInternalDescribeOperation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalDescribeOperationParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaInternalDescribeOperation_Call) Return(_a0 V1betaInternalDescribeOperationRes, _a1 error) *MockInvoker_V1betaInternalDescribeOperation_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaInternalDescribeOperation_Call) RunAndReturn(run func(context.Context, V1betaInternalDescribeOperationParams) (V1betaInternalDescribeOperationRes, error)) *MockInvoker_V1betaInternalDescribeOperation_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaInternalDescribePool provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1betaInternalDescribePool(ctx context.Context, params V1betaInternalDescribePoolParams) (V1betaInternalDescribePoolRes, error) {
 	ret := _m.Called(ctx, params)

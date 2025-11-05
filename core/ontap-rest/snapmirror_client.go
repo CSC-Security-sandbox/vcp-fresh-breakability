@@ -2,12 +2,12 @@ package ontap_rest
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/snapmirror"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	snapmirrorpriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/snapmirror"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 // SnapmirrorClient describes a snapmirror client
@@ -146,7 +146,9 @@ func (s *snapmirrorClient) SnapmirrorRelationshipModify(params *SnapmirrorRelati
 func (s *snapmirrorClient) SnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams) error {
 	_, err := s.api.SnapmirrorRelationshipTransferModify(snapmirrorRelationshipTransferModifyParamsToONTAP(params), nil)
 	if err != nil {
-		return err
+		if !errors.IsNotFoundErr(err) {
+			return err
+		}
 	}
 	return nil
 }

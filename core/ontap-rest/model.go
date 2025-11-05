@@ -1119,7 +1119,7 @@ func flexCacheModifyParamsToONTAP(params *FlexcacheModifyParams) *storage.Flexca
 			Enabled: params.WritebackEnabled,
 		}
 	}
-	
+
 	// Prepopulate
 	if len(params.PrepopulateDirPaths) > 0 ||
 		len(params.PrepopulateExcludeDirPaths) > 0 ||
@@ -3894,4 +3894,12 @@ func objectStoreEndpointInfoGetParamsToONTAP(params *ObjectStoreEndpointInfoGetP
 		otParams.SetUUID(params.UUID)
 	}
 	return otParams
+}
+
+// TransferState returns the transfer status on a Snapmirror relationship if it exists
+func (s *SnapmirrorRelationship) TransferState() string {
+	if s == nil || s.Transfer == nil || s.Transfer.State == nil {
+		return ""
+	}
+	return *s.Transfer.State
 }

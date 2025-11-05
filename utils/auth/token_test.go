@@ -105,6 +105,7 @@ func TestGetSignedJwtToken(t *testing.T) {
 		// Mock createIamClient to return error to test the error path
 		clientErr := errors.New("SomeError")
 		mm.On("createIamClient", mock.Anything).Return(nil, clientErr)
+		mockLogger.On("Error", "Error when creating iam client", clientErr)
 
 		token, err := GetSignedJwtToken(projectNumber)
 
@@ -137,6 +138,7 @@ func TestGetSignedJwtToken(t *testing.T) {
 		mm.On("timeNow").Return(expectedTime)
 		mm.On("LogGetLogger", ctx).Return(mockLogger, nil)
 		mm.On("createIamClient", ctx).Return(nil, clientErr)
+		mockLogger.On("Error", "Error when creating iam client", clientErr)
 
 		token, err := GetSignedJwtToken(projectNumber)
 

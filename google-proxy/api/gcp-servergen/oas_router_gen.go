@@ -273,6 +273,39 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 
+							case 'o': // Prefix: "operations/"
+
+								if l := len("operations/"); len(elem) >= l && elem[0:l] == "operations/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "operationId"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[2] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "GET":
+										s.handleV1betaInternalDescribeOperationRequest([3]string{
+											args[0],
+											args[1],
+											args[2],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET")
+									}
+
+									return
+								}
+
 							case 'p': // Prefix: "pool/"
 
 								if l := len("pool/"); len(elem) >= l && elem[0:l] == "pool/" {
@@ -2595,6 +2628,39 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/getMultipleReplications"
 										r.args = args
 										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 'o': // Prefix: "operations/"
+
+								if l := len("operations/"); len(elem) >= l && elem[0:l] == "operations/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "operationId"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[2] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "GET":
+										r.name = V1betaInternalDescribeOperationOperation
+										r.summary = "Describes a long running operation with internal tracking details"
+										r.operationID = "v1beta_internalDescribeOperation"
+										r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/operations/{operationId}"
+										r.args = args
+										r.count = 3
 										return r, true
 									default:
 										return

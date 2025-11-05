@@ -841,14 +841,14 @@ func TestDescribeRemoteJob(t *testing.T) {
 		}
 
 		correlationID := "test-correlation-id"
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.DstProjectNumber,
 			LocationId:     result.Event.DestinationLocationID,
 			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.InternalOperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
 
 		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, &correlationID)
 
@@ -877,13 +877,13 @@ func TestDescribeRemoteJob(t *testing.T) {
 		}
 
 		correlationID := "test-correlation-id"
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.DstProjectNumber,
 			LocationId:     result.Event.DestinationLocationID,
 			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))
 		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, &correlationID)
 
 		assert.Error(tt, err)
@@ -911,13 +911,13 @@ func TestDescribeRemoteJob(t *testing.T) {
 		}
 
 		correlationID := "test-correlation-id"
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.DstProjectNumber,
 			LocationId:     result.Event.DestinationLocationID,
 			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.InternalOperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
 		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, &correlationID)
 
 		assert.Error(tt, err)
@@ -944,14 +944,14 @@ func TestDescribeRemoteJob(t *testing.T) {
 		}
 
 		correlationID := "test-correlation-id"
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.DstProjectNumber,
 			LocationId:     result.Event.DestinationLocationID,
 			XCorrelationID: googleproxyclient.NewOptString(correlationID),
 		}
 
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true), Error: googleproxyclient.NewOptStatusV1Beta(googleproxyclient.StatusV1Beta{Message: googleproxyclient.NewOptString("failed")})}, nil)
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.InternalOperationV1beta{Done: googleproxyclient.NewOptBool(true), Error: googleproxyclient.NewOptStatusV1Beta(googleproxyclient.StatusV1Beta{Message: googleproxyclient.NewOptString("failed")})}, nil)
 
 		err := DescribeJob(ctx, result.JobId, result.DstBasePath, result.DstJwtToken, result.DstProjectNumber, &result.Event.DestinationLocationID, &correlationID)
 

@@ -26,7 +26,7 @@ func (rc *OntapRestProvider) GetSVMPeer(localSVMName, remoteSVMName *string) (*S
 	}
 
 	if len(svmPeers) == 0 {
-		return nil, errors.NewNotFoundErr("SVM peer not found", nil)
+		return nil, errors.NewNotFoundErr("SVM peer", nil)
 	}
 
 	if len(svmPeers) > 1 {

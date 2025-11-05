@@ -62,6 +62,7 @@ func _getSignedJwtToken(projectNumber string) (string, error) {
 	}
 
 	if err != nil {
+		logger.Error("Error when creating iam client", err)
 		return "", errs.NewVCPError(errs.ErrFailedToCreateNewIamCred, err)
 	}
 	defer func(c credentialsClientWrapper) {

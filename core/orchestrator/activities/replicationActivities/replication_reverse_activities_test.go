@@ -328,14 +328,14 @@ func TestDescribeRemoteJobOnsrc(t *testing.T) {
 			SrcJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.SrcProjectNumber,
 			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
 			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.InternalOperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
 
 		err := activity.DescribeRemoteJobOnSrc(ctx, result)
 
@@ -371,14 +371,14 @@ func TestDescribeRemoteJobOnsrc(t *testing.T) {
 			SrcJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.SrcProjectNumber,
 			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
 			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.InternalOperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
 		err := activity.DescribeRemoteJobOnSrc(ctx, result)
 
 		assert.Error(tt, err)
@@ -413,14 +413,14 @@ func TestDescribeRemoteJobOnsrc(t *testing.T) {
 			SrcJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.SrcProjectNumber,
 			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
 			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))
 		err := activity.DescribeRemoteJobOnSrc(ctx, result)
 
 		assert.Error(tt, err)
@@ -458,14 +458,14 @@ func TestDescribeRemoteJobReverseOnDst(t *testing.T) {
 			DstJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.DstProjectNumber,
 			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.InternalOperationV1beta{Done: googleproxyclient.NewOptBool(true)}, nil)
 
 		err := activity.DescribeRemoteJobOnDst(ctx, result)
 
@@ -501,14 +501,14 @@ func TestDescribeRemoteJobReverseOnDst(t *testing.T) {
 			DstJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.DstProjectNumber,
 			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.OperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(&googleproxyclient.InternalOperationV1beta{Done: googleproxyclient.NewOptBool(false)}, nil)
 		err := activity.DescribeRemoteJobOnDst(ctx, result)
 
 		assert.Error(tt, err)
@@ -543,14 +543,14 @@ func TestDescribeRemoteJobReverseOnDst(t *testing.T) {
 			DstJwtToken: nillable.GetStringPtr("jwt-token"),
 		}
 
-		describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+		describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 			OperationId:    *result.JobId,
 			ProjectNumber:  *result.DstProjectNumber,
 			LocationId:     result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
 		}
 
-		mockClient.EXPECT().V1betaDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))
+		mockClient.EXPECT().V1betaInternalDescribeOperation(ctx, describeOperationParams).Return(nil, errors.New("some error"))
 		err := activity.DescribeRemoteJobOnDst(ctx, result)
 
 		assert.Error(tt, err)

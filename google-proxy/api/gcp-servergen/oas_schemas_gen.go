@@ -3453,6 +3453,7 @@ func (*ErrorStatusCode) v1betaInternalCreateVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalDeleteVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
 func (*ErrorStatusCode) v1betaInternalDescribeBackupVaultRes()               {}
+func (*ErrorStatusCode) v1betaInternalDescribeOperationRes()                 {}
 func (*ErrorStatusCode) v1betaInternalDescribePoolRes()                      {}
 func (*ErrorStatusCode) v1betaInternalDescribeVolumeReplicationRes()         {}
 func (*ErrorStatusCode) v1betaInternalDescribeVolumeRes()                    {}
@@ -4901,6 +4902,82 @@ func (s *InternalJobV1beta) SetScheduledAt(val OptDateTime) {
 }
 
 func (*InternalJobV1beta) v1betaInternalMountVolumeReplicationRes() {}
+
+// Internal operation structure that includes tracking ID for debugging and monitoring purposes.
+// Ref: #/components/schemas/InternalOperation_v1beta
+type InternalOperationV1beta struct {
+	// The full resource name of the operation.
+	Name     OptString    `json:"name"`
+	Metadata OptAnyV1Beta `json:"metadata"`
+	// Is the operation done yet.
+	Done     OptBool         `json:"done"`
+	Error    OptStatusV1Beta `json:"error"`
+	Response jx.Raw          `json:"response"`
+	// Internal tracking ID for error categorization and debugging.
+	TrackingId OptInt `json:"trackingId"`
+}
+
+// GetName returns the value of Name.
+func (s *InternalOperationV1beta) GetName() OptString {
+	return s.Name
+}
+
+// GetMetadata returns the value of Metadata.
+func (s *InternalOperationV1beta) GetMetadata() OptAnyV1Beta {
+	return s.Metadata
+}
+
+// GetDone returns the value of Done.
+func (s *InternalOperationV1beta) GetDone() OptBool {
+	return s.Done
+}
+
+// GetError returns the value of Error.
+func (s *InternalOperationV1beta) GetError() OptStatusV1Beta {
+	return s.Error
+}
+
+// GetResponse returns the value of Response.
+func (s *InternalOperationV1beta) GetResponse() jx.Raw {
+	return s.Response
+}
+
+// GetTrackingId returns the value of TrackingId.
+func (s *InternalOperationV1beta) GetTrackingId() OptInt {
+	return s.TrackingId
+}
+
+// SetName sets the value of Name.
+func (s *InternalOperationV1beta) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetMetadata sets the value of Metadata.
+func (s *InternalOperationV1beta) SetMetadata(val OptAnyV1Beta) {
+	s.Metadata = val
+}
+
+// SetDone sets the value of Done.
+func (s *InternalOperationV1beta) SetDone(val OptBool) {
+	s.Done = val
+}
+
+// SetError sets the value of Error.
+func (s *InternalOperationV1beta) SetError(val OptStatusV1Beta) {
+	s.Error = val
+}
+
+// SetResponse sets the value of Response.
+func (s *InternalOperationV1beta) SetResponse(val jx.Raw) {
+	s.Response = val
+}
+
+// SetTrackingId sets the value of TrackingId.
+func (s *InternalOperationV1beta) SetTrackingId(val OptInt) {
+	s.TrackingId = val
+}
+
+func (*InternalOperationV1beta) v1betaInternalDescribeOperationRes() {}
 
 // Ref: #/components/schemas/InternalVolume_v1beta
 type InternalVolumeV1beta struct {
@@ -18188,6 +18265,38 @@ func (*V1betaInternalDescribeBackupVaultUnauthorized) v1betaInternalDescribeBack
 type V1betaInternalDescribeBackupVaultUnprocessableEntity Error
 
 func (*V1betaInternalDescribeBackupVaultUnprocessableEntity) v1betaInternalDescribeBackupVaultRes() {}
+
+type V1betaInternalDescribeOperationBadRequest Error
+
+func (*V1betaInternalDescribeOperationBadRequest) v1betaInternalDescribeOperationRes() {}
+
+type V1betaInternalDescribeOperationForbidden Error
+
+func (*V1betaInternalDescribeOperationForbidden) v1betaInternalDescribeOperationRes() {}
+
+type V1betaInternalDescribeOperationInternalServerError Error
+
+func (*V1betaInternalDescribeOperationInternalServerError) v1betaInternalDescribeOperationRes() {}
+
+type V1betaInternalDescribeOperationNotFound Error
+
+func (*V1betaInternalDescribeOperationNotFound) v1betaInternalDescribeOperationRes() {}
+
+type V1betaInternalDescribeOperationServiceUnavailable Error
+
+func (*V1betaInternalDescribeOperationServiceUnavailable) v1betaInternalDescribeOperationRes() {}
+
+type V1betaInternalDescribeOperationTooManyRequests Error
+
+func (*V1betaInternalDescribeOperationTooManyRequests) v1betaInternalDescribeOperationRes() {}
+
+type V1betaInternalDescribeOperationUnauthorized Error
+
+func (*V1betaInternalDescribeOperationUnauthorized) v1betaInternalDescribeOperationRes() {}
+
+type V1betaInternalDescribeOperationUnprocessableEntity Error
+
+func (*V1betaInternalDescribeOperationUnprocessableEntity) v1betaInternalDescribeOperationRes() {}
 
 type V1betaInternalDescribePoolBadRequest Error
 

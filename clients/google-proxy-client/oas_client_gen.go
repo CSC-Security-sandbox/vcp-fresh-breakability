@@ -37,7 +37,7 @@ type Invoker interface {
 	//
 	// Creates Active Directory credentials for the active user.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 	V1betaCreateActiveDirectory(ctx context.Context, request *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams) (V1betaCreateActiveDirectoryRes, error)
 	// V1betaCreateBackup invokes v1beta_createBackup operation.
 	//
@@ -100,7 +100,7 @@ type Invoker interface {
 	// resource not found, since that could be interpreted as resource already deleted, and therefore
 	// will return operation done instead.
 	//
-	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 	V1betaDeleteActiveDirectory(ctx context.Context, params V1betaDeleteActiveDirectoryParams) (V1betaDeleteActiveDirectoryRes, error)
 	// V1betaDeleteBackupPolicy invokes v1beta_deleteBackupPolicy operation.
 	//
@@ -166,7 +166,7 @@ type Invoker interface {
 	//
 	// Returns the description of the specified Active Directory credentials by active-directory Id.
 	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 	V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error)
 	// V1betaDescribeBackup invokes v1beta_describeBackup operation.
 	//
@@ -244,7 +244,7 @@ type Invoker interface {
 	//
 	// Returns descriptions of Active Directory credentials that is listed in request body.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories
 	V1betaGetMultipleActiveDirectories(ctx context.Context, request *ActiveDirectoryIdListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error)
 	// V1betaGetMultipleBackupPolicies invokes v1beta_getMultipleBackupPolicies operation.
 	//
@@ -363,6 +363,13 @@ type Invoker interface {
 	//
 	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
 	V1betaInternalDescribeBackupVault(ctx context.Context, params V1betaInternalDescribeBackupVaultParams) (V1betaInternalDescribeBackupVaultRes, error)
+	// V1betaInternalDescribeOperation invokes v1beta_internalDescribeOperation operation.
+	//
+	// Retrieves detailed operation information including tracking ID for internal debugging and
+	// monitoring purposes.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/operations/{operationId}
+	V1betaInternalDescribeOperation(ctx context.Context, params V1betaInternalDescribeOperationParams) (V1betaInternalDescribeOperationRes, error)
 	// V1betaInternalDescribePool invokes v1beta_internalDescribePool operation.
 	//
 	// Returns the description of the specified volume replication by volume replication Id.
@@ -446,7 +453,7 @@ type Invoker interface {
 	//
 	// Returns descriptions of all Active Directory credentials owned by the caller.
 	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 	V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error)
 	// V1betaListBackupPolicies invokes v1beta_listBackupPolicies operation.
 	//
@@ -548,7 +555,7 @@ type Invoker interface {
 	//
 	// Update the Active Directory credentials.
 	//
-	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 	V1betaUpdateActiveDirectory(ctx context.Context, request *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (V1betaUpdateActiveDirectoryRes, error)
 	// V1betaUpdateBackup invokes v1beta_updateBackup operation.
 	//
@@ -794,7 +801,7 @@ func (c *Client) sendV1betaCheckKmsConfig(ctx context.Context, params V1betaChec
 //
 // Creates Active Directory credentials for the active user.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 func (c *Client) V1betaCreateActiveDirectory(ctx context.Context, request *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams) (V1betaCreateActiveDirectoryRes, error) {
 	res, err := c.sendV1betaCreateActiveDirectory(ctx, request, params)
 	return res, err
@@ -851,7 +858,7 @@ func (c *Client) sendV1betaCreateActiveDirectory(ctx context.Context, request *A
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/activeDirectories"
+	pathParts[4] = "/storage/activeDirectory"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	r, err := ht.NewRequest(ctx, "POST", u)
@@ -1888,7 +1895,7 @@ func (c *Client) sendV1betaCreateVolume(ctx context.Context, request *VolumeCrea
 // resource not found, since that could be interpreted as resource already deleted, and therefore
 // will return operation done instead.
 //
-// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 func (c *Client) V1betaDeleteActiveDirectory(ctx context.Context, params V1betaDeleteActiveDirectoryParams) (V1betaDeleteActiveDirectoryRes, error) {
 	res, err := c.sendV1betaDeleteActiveDirectory(ctx, params)
 	return res, err
@@ -1936,7 +1943,7 @@ func (c *Client) sendV1betaDeleteActiveDirectory(ctx context.Context, params V1b
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/activeDirectories/"
+	pathParts[4] = "/storage/activeDirectory/"
 	{
 		// Encode "activeDirectoryId" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -3046,7 +3053,7 @@ func (c *Client) sendV1betaDeleteVolume(ctx context.Context, request OptV1betaDe
 //
 // Returns the description of the specified Active Directory credentials by active-directory Id.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 func (c *Client) V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error) {
 	res, err := c.sendV1betaDescribeActiveDirectory(ctx, params)
 	return res, err
@@ -3094,7 +3101,7 @@ func (c *Client) sendV1betaDescribeActiveDirectory(ctx context.Context, params V
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/activeDirectories/"
+	pathParts[4] = "/storage/activeDirectory/"
 	{
 		// Encode "activeDirectoryId" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -4536,7 +4543,7 @@ func (c *Client) sendV1betaFinishProjectEvent(ctx context.Context, request *Proj
 //
 // Returns descriptions of Active Directory credentials that is listed in request body.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleActiveDirectories
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/getMultipleActiveDirectories
 func (c *Client) V1betaGetMultipleActiveDirectories(ctx context.Context, request *ActiveDirectoryIdListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error) {
 	res, err := c.sendV1betaGetMultipleActiveDirectories(ctx, request, params)
 	return res, err
@@ -4593,7 +4600,7 @@ func (c *Client) sendV1betaGetMultipleActiveDirectories(ctx context.Context, req
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/getMultipleActiveDirectories"
+	pathParts[4] = "/storage/getMultipleActiveDirectories"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	r, err := ht.NewRequest(ctx, "POST", u)
@@ -6824,6 +6831,115 @@ func (c *Client) sendV1betaInternalDescribeBackupVault(ctx context.Context, para
 	return result, nil
 }
 
+// V1betaInternalDescribeOperation invokes v1beta_internalDescribeOperation operation.
+//
+// Retrieves detailed operation information including tracking ID for internal debugging and
+// monitoring purposes.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/operations/{operationId}
+func (c *Client) V1betaInternalDescribeOperation(ctx context.Context, params V1betaInternalDescribeOperationParams) (V1betaInternalDescribeOperationRes, error) {
+	res, err := c.sendV1betaInternalDescribeOperation(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaInternalDescribeOperation(ctx context.Context, params V1betaInternalDescribeOperationParams) (res V1betaInternalDescribeOperationRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [6]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/operations/"
+	{
+		// Encode "operationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "operationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.OperationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaInternalDescribeOperationResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaInternalDescribePool invokes v1beta_internalDescribePool operation.
 //
 // Returns the description of the specified volume replication by volume replication Id.
@@ -8198,7 +8314,7 @@ func (c *Client) sendV1betaInternalUpdateVolumeReplicationAttributes(ctx context
 //
 // Returns descriptions of all Active Directory credentials owned by the caller.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 func (c *Client) V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error) {
 	res, err := c.sendV1betaListActiveDirectories(ctx, params)
 	return res, err
@@ -8246,7 +8362,7 @@ func (c *Client) sendV1betaListActiveDirectories(ctx context.Context, params V1b
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/activeDirectories"
+	pathParts[4] = "/storage/activeDirectory"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	r, err := ht.NewRequest(ctx, "GET", u)
@@ -10141,7 +10257,7 @@ func (c *Client) sendV1betaSyncReplication(ctx context.Context, params V1betaSyn
 //
 // Update the Active Directory credentials.
 //
-// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/{activeDirectoryId}
 func (c *Client) V1betaUpdateActiveDirectory(ctx context.Context, request *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (V1betaUpdateActiveDirectoryRes, error) {
 	res, err := c.sendV1betaUpdateActiveDirectory(ctx, request, params)
 	return res, err
@@ -10198,7 +10314,7 @@ func (c *Client) sendV1betaUpdateActiveDirectory(ctx context.Context, request *A
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/activeDirectories/"
+	pathParts[4] = "/storage/activeDirectory/"
 	{
 		// Encode "activeDirectoryId" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{

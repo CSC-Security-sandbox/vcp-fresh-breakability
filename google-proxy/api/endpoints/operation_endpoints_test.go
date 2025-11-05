@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -489,4 +491,483 @@ func TestReturnsOperationForJobStateErrorWithRestoreVolumeValidation(t *testing.
 	operationResult := result.(*gcpgenserver.OperationV1beta)
 	assert.True(t, operationResult.Done.Value)
 	assert.Equal(t, "Custom restore volume validation error message", operationResult.Error.Value.Message.Value)
+}
+
+// Tests for V1betaDescribeInternalOperation
+
+func TestV1betaInternalDescribeOperation_BadRequest(t *testing.T) {
+	handler := Handler{}
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber: "test-project",
+		LocationId:    "invalid-location",
+		OperationId:   "op-123",
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	badRequest, ok := result.(*gcpgenserver.V1betaInternalDescribeOperationBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequest.Code)
+}
+
+func TestV1betaInternalDescribeOperation_VCPJobSuccess_NEW(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	// Mock job with NEW state
+	job := &models.Job{
+		TrackingID: 2001,
+		State:      models.JobsStateNEW,
+	}
+
+	mockOrch.On("GetJob", mock.Anything, mock.Anything).Return(job, nil)
+	handler := Handler{Orchestrator: mockOrch}
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-central1",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	internalOp, ok := result.(*gcpgenserver.InternalOperationV1beta)
+	assert.True(t, ok)
+	assert.Equal(t, 2001, internalOp.TrackingId.Value)
+	assert.False(t, internalOp.Done.Value) // NEW state should not be done
+	assert.Contains(t, internalOp.Name.Value, "internal/operations/b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a")
+}
+
+func TestV1betaInternalDescribeOperation_VCPJobSuccess_DONE(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	job := &models.Job{
+		TrackingID: 2002,
+		State:      models.JobsStateDONE,
+	}
+
+	operationId := "ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+	mockOrch.On("GetJob", ctx, operationId).Return(job, nil)
+	handler := Handler{Orchestrator: mockOrch}
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-central1",
+		OperationId:   operationId,
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	internalOp := result.(*gcpgenserver.InternalOperationV1beta)
+	assert.Equal(t, 2002, internalOp.TrackingId.Value)
+	assert.True(t, internalOp.Done.Value) // DONE state should be done
+}
+
+func TestV1betaInternalDescribeOperation_VCPJobSuccess_ERROR(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	job := &models.Job{
+		TrackingID: 4001,
+		State:      models.JobsStateERROR,
+	}
+
+	operationId := "ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+	mockOrch.On("GetJob", ctx, operationId).Return(job, nil)
+	handler := Handler{Orchestrator: mockOrch}
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-central1",
+		OperationId:   operationId,
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	internalOp := result.(*gcpgenserver.InternalOperationV1beta)
+	assert.Equal(t, 4001, internalOp.TrackingId.Value)
+	assert.True(t, internalOp.Done.Value) // ERROR state should be done
+	assert.True(t, internalOp.Error.Set)  // Should have error set
+}
+
+func TestV1betaInternalDescribeOperation_Success(t *testing.T) {
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := &Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Add location validation mock like other tests
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	operationId := uuid.New().String()
+	job := &models.Job{
+		BaseModel: models.BaseModel{
+			UUID: operationId,
+		},
+		TrackingID: 2001,
+		State:      models.JobsStateDONE,
+	}
+
+	mockOrchestrator.EXPECT().GetJob(mock.Anything, operationId).Return(job, nil)
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber:  "123456789",
+		LocationId:     "us-central1",
+		OperationId:    operationId,
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation"),
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.InternalOperationV1beta{}, result)
+
+	operation := result.(*gcpgenserver.InternalOperationV1beta)
+	assert.True(t, operation.Done.Value)
+	assert.Equal(t, 2001, operation.TrackingId.Value)
+}
+
+func TestV1betaInternalDescribeOperation_JobInProgress(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	handler := &Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	operationId := uuid.New().String()
+	job := &models.Job{
+		BaseModel: models.BaseModel{
+			UUID: operationId,
+		},
+		CorrelationID: "test-correlation-id",
+		TrackingID:    0,
+		State:         models.JobsStatePROCESSING,
+		WorkflowID:    "CreateVolumeWorkflow_test",
+	}
+
+	mockOrchestrator.On("GetJob", ctx, operationId).Return(job, nil)
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber:  "123456789",
+		LocationId:     "us-central1",
+		OperationId:    operationId,
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation"),
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.InternalOperationV1beta{}, result)
+
+	operation := result.(*gcpgenserver.InternalOperationV1beta)
+	assert.False(t, operation.Done.Value)
+	assert.Equal(t, 0, operation.TrackingId.Value)
+}
+
+func TestV1betaInternalDescribeOperation_JobError(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	handler := &Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	operationId := uuid.New().String()
+	job := &models.Job{
+		BaseModel: models.BaseModel{
+			UUID: operationId,
+		},
+		CorrelationID: "test-correlation-id",
+		TrackingID:    vsaerrors.ErrDatabaseConnectionClosed,
+		State:         models.JobsStateERROR,
+		WorkflowID:    "CreateVolumeWorkflow_test",
+		ErrorDetails:  []byte("Database connection was closed unexpectedly"),
+	}
+
+	mockOrchestrator.On("GetJob", ctx, operationId).Return(job, nil)
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber:  "123456789",
+		LocationId:     "us-central1",
+		OperationId:    operationId,
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation"),
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.InternalOperationV1beta{}, result)
+
+	operation := result.(*gcpgenserver.InternalOperationV1beta)
+	assert.True(t, operation.Done.Value)
+	assert.Equal(t, vsaerrors.ErrDatabaseConnectionClosed, operation.TrackingId.Value)
+	assert.True(t, operation.Error.Set)
+	assert.NotEmpty(t, operation.Error.Value.Message.Value)
+}
+
+func TestV1betaInternalDescribeOperation_RestoreVolumeValidationError(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	handler := &Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	operationId := uuid.New().String()
+	customErrorDetails := "Cannot restore volume - size too small"
+	job := &models.Job{
+		BaseModel: models.BaseModel{
+			UUID: operationId,
+		},
+		CorrelationID: "test-correlation-id",
+		TrackingID:    vsaerrors.ErrRestoreVolumeValidation,
+		State:         models.JobsStateERROR,
+		WorkflowID:    "RestoreVolumeWorkflow_test",
+		ErrorDetails:  []byte(customErrorDetails),
+	}
+
+	mockOrchestrator.On("GetJob", ctx, operationId).Return(job, nil)
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber:  "123456789",
+		LocationId:     "us-central1",
+		OperationId:    operationId,
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation"),
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.InternalOperationV1beta{}, result)
+
+	operation := result.(*gcpgenserver.InternalOperationV1beta)
+	assert.True(t, operation.Done.Value)
+	assert.Equal(t, vsaerrors.ErrRestoreVolumeValidation, operation.TrackingId.Value)
+	assert.True(t, operation.Error.Set)
+	assert.Equal(t, customErrorDetails, operation.Error.Value.Message.Value)
+}
+
+func TestV1betaInternalDescribeOperation_InvalidOperationId(t *testing.T) {
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := &Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber:  "123456789",
+		LocationId:     "us-central1",
+		OperationId:    "invalid-uuid",
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation"),
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaInternalDescribeOperationBadRequest{}, result)
+
+	errorResponse := result.(*gcpgenserver.V1betaInternalDescribeOperationBadRequest)
+	assert.Equal(t, float64(400), errorResponse.Code)
+	assert.Contains(t, errorResponse.Message, "invalid UUID")
+}
+
+func TestV1betaInternalDescribeOperation_InvalidLocation(t *testing.T) {
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := &Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	operationId := uuid.New().String()
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber:  "123456789",
+		LocationId:     "invalid-location",
+		OperationId:    operationId,
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation"),
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaInternalDescribeOperationBadRequest{}, result)
+
+	errorResponse := result.(*gcpgenserver.V1betaInternalDescribeOperationBadRequest)
+	assert.Equal(t, float64(400), errorResponse.Code)
+}
+
+func TestV1betaInternalDescribeOperation_DatabaseError(t *testing.T) {
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := &Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	operationId := uuid.New().String()
+	dbErr := assert.AnError
+
+	mockOrchestrator.EXPECT().GetJob(mock.Anything, operationId).Return(nil, dbErr)
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber:  "123456789",
+		LocationId:     "us-central1",
+		OperationId:    operationId,
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation"),
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaInternalDescribeOperationInternalServerError{}, result)
+
+	errorResponse := result.(*gcpgenserver.V1betaInternalDescribeOperationInternalServerError)
+	assert.Equal(t, float64(500), errorResponse.Code)
+}
+
+func TestV1betaInternalDescribeOperation_JobStatesMapping(t *testing.T) {
+	testCases := []struct {
+		name         string
+		jobState     models.JobState
+		expectedDone bool
+	}{
+		{"New Job", models.JobsStateNEW, false},
+		{"Processing Job", models.JobsStatePROCESSING, false},
+		{"Waiting for Temporal", models.JobsStateWaitForTemporal, false},
+		{"Done Job", models.JobsStateDONE, true},
+		{"Error Job", models.JobsStateERROR, true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+			handler := &Handler{
+				Orchestrator: mockOrchestrator,
+			}
+
+			originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+			defer func() {
+				utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			}()
+			utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+				return "us-central1", "us-central1-a", nil
+			}
+
+			operationId := uuid.New().String()
+			job := &models.Job{
+				BaseModel: models.BaseModel{
+					UUID: operationId,
+				},
+				CorrelationID: "test-correlation-id",
+				TrackingID:    0,
+				State:         tc.jobState,
+				WorkflowID:    "TestWorkflow",
+			}
+
+			mockOrchestrator.EXPECT().GetJob(mock.Anything, operationId).Return(job, nil)
+
+			params := gcpgenserver.V1betaInternalDescribeOperationParams{
+				ProjectNumber:  "123456789",
+				LocationId:     "us-central1",
+				OperationId:    operationId,
+				XCorrelationID: gcpgenserver.NewOptString("test-correlation"),
+			}
+
+			result, err := handler.V1betaInternalDescribeOperation(context.Background(), params)
+
+			assert.NoError(t, err)
+			assert.IsType(t, &gcpgenserver.InternalOperationV1beta{}, result)
+
+			operation := result.(*gcpgenserver.InternalOperationV1beta)
+			assert.Equal(t, tc.expectedDone, operation.Done.Value)
+			// Only verify trackingId since other fields were removed
+		})
+	}
 }

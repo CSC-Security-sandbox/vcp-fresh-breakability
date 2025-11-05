@@ -1403,6 +1403,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "6217": {
+    "description": "Replication is in transferring state, cannot stop replication",
+    "message": "Replication is in transferring state, cannot stop replication",
+    "retriable": false,
+    "http_code": 400
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

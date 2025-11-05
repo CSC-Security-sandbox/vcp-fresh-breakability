@@ -350,6 +350,13 @@ type Handler interface {
 	//
 	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
 	V1betaInternalDescribeBackupVault(ctx context.Context, params V1betaInternalDescribeBackupVaultParams) (V1betaInternalDescribeBackupVaultRes, error)
+	// V1betaInternalDescribeOperation implements v1beta_internalDescribeOperation operation.
+	//
+	// Retrieves detailed operation information including tracking ID for internal debugging and
+	// monitoring purposes.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/operations/{operationId}
+	V1betaInternalDescribeOperation(ctx context.Context, params V1betaInternalDescribeOperationParams) (V1betaInternalDescribeOperationRes, error)
 	// V1betaInternalDescribePool implements v1beta_internalDescribePool operation.
 	//
 	// Returns the description of the specified volume replication by volume replication Id.

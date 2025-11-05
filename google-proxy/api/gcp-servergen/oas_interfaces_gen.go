@@ -221,6 +221,10 @@ type V1betaInternalDescribeBackupVaultRes interface {
 	v1betaInternalDescribeBackupVaultRes()
 }
 
+type V1betaInternalDescribeOperationRes interface {
+	v1betaInternalDescribeOperationRes()
+}
+
 type V1betaInternalDescribePoolRes interface {
 	v1betaInternalDescribePoolRes()
 }

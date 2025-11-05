@@ -318,7 +318,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 		// Check that the error is a VCPError with ErrProviderBreakVolumeReplication
 		var customErr *vsaerrors.CustomError
 		assert.True(tt, vsaerrors.As(err, &customErr))
-		assert.Equal(tt, vsaerrors.ErrProviderBreakVolumeReplication, customErr.TrackingID)
+		assert.Equal(tt, vsaerrors.ErrBreakReplicationStateTransferring, customErr.TrackingID)
 		mockProvider.AssertExpectations(tt)
 	})
 }

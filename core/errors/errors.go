@@ -266,6 +266,7 @@ const (
 	ErrDestPoolTieringPolicyMismatch                                                         = 6214
 	ErrDestVolumeTieringThresholdOutOfRange                                                  = 6215
 	ErrHydrateVolumeReplicationCreate                                                        = 6216
+	ErrBreakReplicationStateTransferring                                                     = 6217
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

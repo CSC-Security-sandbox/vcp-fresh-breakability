@@ -83,23 +83,23 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 	logger := util.GetLogger(ctx)
 	googleProxyClient := googleproxyclient.GetGProxyClient(*basepath, *jwtToken, logger)
 
-	describeOperationParams := googleproxyclient.V1betaDescribeOperationParams{
+	describeOperationParams := googleproxyclient.V1betaInternalDescribeOperationParams{
 		OperationId:    *jobId,
 		ProjectNumber:  *projectNumber,
 		LocationId:     *location,
 		XCorrelationID: googleproxyclient.NewOptString(*correlationId),
 	}
 
-	res, err := googleProxyClient.Invoker.V1betaDescribeOperation(ctx, describeOperationParams)
+	res, err := googleProxyClient.Invoker.V1betaInternalDescribeOperation(ctx, describeOperationParams)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDescribingJobAPI, err)
 	}
-	operation, ok := res.(*googleproxyclient.OperationV1beta)
+	operation, ok := res.(*googleproxyclient.InternalOperationV1beta)
 	if ok {
 		if operation.Done.Value {
 			if operation.Error.IsSet() {
 				logger.Errorf("Job with operation id: %s failed", describeOperationParams.OperationId)
-				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrJobFailed, errors2.New("job failed with error: "+operation.Error.Value.Message.Value)))
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(operation.TrackingId.Value, errors2.New("job failed with error: "+operation.Error.Value.Message.Value)))
 			}
 			return nil
 		}

@@ -218,3 +218,79 @@ func encodeOperationV1Beta(res interface{}) jx.Raw {
 	data, _ := json.Marshal(res)
 	return data
 }
+
+func (h Handler) V1betaInternalDescribeOperation(ctx context.Context, params gcpgenserver.V1betaInternalDescribeOperationParams) (gcpgenserver.V1betaInternalDescribeOperationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaInternalDescribeOperationBadRequest{
+			Code:    400,
+			Message: parsingErr.GetMessage(),
+		}, nil
+	}
+	jobUUID, err := uuid.Parse(params.OperationId)
+	if err != nil {
+		return &gcpgenserver.V1betaInternalDescribeOperationBadRequest{
+			Code:    400,
+			Message: err.Error(),
+		}, nil
+	}
+	job, err := h.Orchestrator.GetJob(ctx, jobUUID.String())
+	if err != nil {
+		logger.Error("Failed to describe internal operation", "error", err.Error())
+		return &gcpgenserver.V1betaInternalDescribeOperationInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, job)
+
+	// Build the base internal operation response
+	baseOperation := &gcpgenserver.InternalOperationV1beta{
+		Name:       gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/internal/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
+		TrackingId: gcpgenserver.NewOptInt(job.TrackingID),
+	}
+
+	switch job.State {
+	case models.JobsStateERROR:
+		errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
+		detailedErrorMessage := errMsg.Message
+		if job.TrackingID == vsaerrors.ErrRestoreVolumeValidation {
+			detailedErrorMessage = string(job.ErrorDetails)
+		}
+		baseOperation.Done = gcpgenserver.NewOptBool(jobFinished)
+		baseOperation.Error = gcpgenserver.OptStatusV1Beta{
+			Value: gcpgenserver.StatusV1Beta{
+				Code:    gcpgenserver.NewOptFloat64(float64(*errMsg.HttpCode)),
+				Message: gcpgenserver.NewOptString(detailedErrorMessage),
+			},
+			Set: true,
+		}
+		return baseOperation, nil
+
+	case models.JobsStateNEW:
+		baseOperation.Done = gcpgenserver.NewOptBool(jobNotFinished)
+		baseOperation.Response = encodeOperationV1Beta(jobNewStateDetails)
+		return baseOperation, nil
+
+	case models.JobsStatePROCESSING:
+		baseOperation.Done = gcpgenserver.NewOptBool(jobNotFinished)
+		baseOperation.Response = encodeOperationV1Beta(jobInProgressDetails)
+		return baseOperation, nil
+
+	case models.JobsStateDONE:
+		baseOperation.Done = gcpgenserver.NewOptBool(jobFinished)
+		return baseOperation, nil
+
+	case models.JobsStateWaitForTemporal:
+		baseOperation.Done = gcpgenserver.NewOptBool(jobNotFinished)
+		baseOperation.Response = encodeOperationV1Beta(jobNewStateDetails)
+		return baseOperation, nil
+
+	default:
+		baseOperation.Done = gcpgenserver.NewOptBool(jobNotFinished)
+		baseOperation.Response = encodeOperationV1Beta(jobInProgressDetails)
+		return baseOperation, nil
+	}
+}

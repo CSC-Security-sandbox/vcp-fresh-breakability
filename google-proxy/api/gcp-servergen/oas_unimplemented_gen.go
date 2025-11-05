@@ -520,6 +520,16 @@ func (UnimplementedHandler) V1betaInternalDescribeBackupVault(ctx context.Contex
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalDescribeOperation implements v1beta_internalDescribeOperation operation.
+//
+// Retrieves detailed operation information including tracking ID for internal debugging and
+// monitoring purposes.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/operations/{operationId}
+func (UnimplementedHandler) V1betaInternalDescribeOperation(ctx context.Context, params V1betaInternalDescribeOperationParams) (r V1betaInternalDescribeOperationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalDescribePool implements v1beta_internalDescribePool operation.
 //
 // Returns the description of the specified volume replication by volume replication Id.

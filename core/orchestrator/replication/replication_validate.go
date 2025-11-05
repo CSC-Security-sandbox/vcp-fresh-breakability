@@ -284,6 +284,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	destVolumeID := event.CreateReplicationParams.DestinationVolumeParameters.VolumeID
 	if destVolumeID == "" {
 		destVolumeID = event.SourceVolume.Name
+		event.CreateReplicationParams.DestinationVolumeParameters.VolumeID = destVolumeID
 	}
 	destVolume, err := getVolume(ctx, destBasePath, dstToken, event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, destVolumeID)
 	if err != nil {

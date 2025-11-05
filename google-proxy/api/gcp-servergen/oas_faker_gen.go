@@ -1924,6 +1924,40 @@ func (s *InternalJobV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *InternalOperationV1beta) SetFake() {
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.Metadata.SetFake()
+		}
+	}
+	{
+		{
+			s.Done.SetFake()
+		}
+	}
+	{
+		{
+			s.Error.SetFake()
+		}
+	}
+	{
+		{
+			s.Response = []byte("null")
+		}
+	}
+	{
+		{
+			s.TrackingId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *InternalVolumeV1beta) SetFake() {
 	{
 		{
@@ -8500,6 +8534,78 @@ func (s *V1betaInternalDescribeBackupVaultUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaInternalDescribeBackupVaultUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeOperationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeOperationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeOperationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeOperationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeOperationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeOperationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeOperationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeOperationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeOperationServiceUnavailable) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeOperationServiceUnavailable(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeOperationTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeOperationTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeOperationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeOperationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeOperationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeOperationUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

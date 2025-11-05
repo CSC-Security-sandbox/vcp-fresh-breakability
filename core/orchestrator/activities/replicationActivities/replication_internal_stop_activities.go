@@ -43,7 +43,7 @@ func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx conte
 		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderGetVolumeReplication, err))
 	}
 	if snapmirror.RelationshipStatus == models.SnapmirrorRelationshipTransferring {
-		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderBreakVolumeReplication, errors.New("Replication is in transferring state, cannot stop replication")))
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrBreakReplicationStateTransferring, errors.New("Replication is in transferring state, cannot stop replication")))
 	}
 	snapmirror.MirrorState = models.OntapBrokenOff
 

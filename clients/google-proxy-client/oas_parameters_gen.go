@@ -641,6 +641,18 @@ type V1betaInternalDescribeBackupVaultParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaInternalDescribeOperationParams is parameters of v1beta_internalDescribeOperation operation.
+type V1betaInternalDescribeOperationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuidv4 used to identity a long running operation.
+	OperationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaInternalDescribePoolParams is parameters of v1beta_internalDescribePool operation.
 type V1betaInternalDescribePoolParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

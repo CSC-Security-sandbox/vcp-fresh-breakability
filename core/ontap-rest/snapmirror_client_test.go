@@ -12,6 +12,7 @@ import (
 	snapPriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/snapmirror"
 	privModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	utilsErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func TestSnapmirrorRelationshipDelete(t *testing.T) {
@@ -597,5 +598,44 @@ func TestSnapmirrorRelationshipReverse(t *testing.T) {
 		assert.Nil(tt, snapmirror)
 		assert.NotNil(tt, asyncResponse)
 		assert.Equal(tt, ontapResponse.Payload.Job.UUID.String(), asyncResponse.JobUUID)
+	})
+}
+
+func TestSnapmirrorRelationshipTransferModify(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		err := client.SnapmirrorRelationshipTransferModify(&SnapmirrorRelationshipTransferModifyParams{
+			UUID:         "test-uuid",
+			TransferUUID: "transfer-uuid",
+			State:        nillable.ToPointer("aborted"),
+		})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSnapmirrorRelationshipNotFound", func(tt *testing.T) {
+		notFoundErr := utilsErrors.NewNotFoundErr("SnapmirrorRelationship", nillable.ToPointer("test-uuid"))
+		transport := &mockTransport{err: notFoundErr}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		err := client.SnapmirrorRelationshipTransferModify(&SnapmirrorRelationshipTransferModifyParams{
+			UUID:         "test-uuid",
+			TransferUUID: "transfer-uuid",
+			State:        nillable.ToPointer("aborted"),
+		})
+		assert.NoError(tt, err) // Function should return nil when not found
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorRelationshipTransferModifyOK{}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		err := client.SnapmirrorRelationshipTransferModify(&SnapmirrorRelationshipTransferModifyParams{
+			UUID:         "test-uuid",
+			TransferUUID: "transfer-uuid",
+			State:        nillable.ToPointer("aborted"),
+		})
+		assert.NoError(tt, err)
 	})
 }
