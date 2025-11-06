@@ -38,6 +38,7 @@ var (
 	autoTieringEnabled            = env.GetBool("AUTO_TIERING_ENABLED", false)
 	qaEnabled                     = env.GetBool("QA_ENABLED", false)
 	flexCacheEnabled              = env.GetBool("FLEXCACHE_ENABLED", false)
+	thinCloneGASupport            = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
 )
 
 const (
@@ -463,10 +464,17 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	if req.SnapshotId.IsSet() {
 		param.SnapshotID = req.SnapshotId.Value
 		if req.IsClone.IsSet() {
+			if !thinCloneGASupport {
+				return nil, errors.NewUserInputValidationErr("IsClone cannot be set as Thin Clone support isn't available yet.")
+			}
 			param.IsClone, _ = req.IsClone.Get()
 		}
-		if req.Volume.IncrementalSpaceInBytes.IsSet() && isFilesClone {
-			param.IncrementalSpaceInBytes = uint64(req.Volume.IncrementalSpaceInBytes.Value)
+		if req.Volume.IncrementalSpaceInBytes.IsSet() {
+			if !thinCloneGASupport {
+				return nil, errors.NewUserInputValidationErr("IncrementalSpaceInBytes cannot be set as Thin Clone support isn't available yet.")
+			} else if isFilesClone {
+				param.IncrementalSpaceInBytes = uint64(req.Volume.IncrementalSpaceInBytes.Value)
+			}
 		}
 		if req.Volume.LargeVolumeConstituentCount.IsSet() {
 			return nil, errors.NewUserInputValidationErr("LargeVolumeConstituentCount cannot be set when SnapshotId is provided")
@@ -631,6 +639,9 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 	}
 
 	if req.IncrementalSpaceInBytes.IsSet() {
+		if !thinCloneGASupport {
+			return nil, errors.NewUserInputValidationErr("IncrementalSpaceInBytes cannot be updated as Thin Clone support isn't available yet.")
+		}
 		param.IncrementalSpaceInBytes = uint64(req.IncrementalSpaceInBytes.Value)
 	}
 

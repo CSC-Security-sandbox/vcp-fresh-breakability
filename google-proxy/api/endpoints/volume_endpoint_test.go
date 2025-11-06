@@ -903,6 +903,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("SnapshotIdWithIsCloneThin_ValidInput", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
 				ResourceId:    "testvolume",
@@ -955,6 +959,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("SnapshotIdWithIsCloneThick_ValidInput", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
 				ResourceId:    "testvolume",
@@ -1058,6 +1066,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("FilesClone_WithIncrementalSpaceInBytes_Success", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
 				ResourceId:              "testvolume",
@@ -1120,6 +1132,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("FilesClone_WithSMBProtocol_Success", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
 				ResourceId:              "testvolume",
@@ -1144,6 +1160,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("FilesClone_WithNFSv4Protocol_Success", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
 				ResourceId:              "testvolume",
@@ -3673,6 +3693,10 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("WhenBackupConfigSet_WithFewFields", func(t *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
 				BackupVaultId:  gcpgenserver.NewOptNilString("backup-vault-id"),
@@ -3687,6 +3711,10 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("WhenIncrementalSpaceInBytesSet_ThenFieldIsMapped", func(t *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024), // 50GB
 		}
@@ -3707,6 +3735,10 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("WhenIncrementalSpaceInBytesSetWithLargeValue_ThenFieldIsMapped", func(t *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024 * 1024), // 100 TiB
 		}
@@ -3716,6 +3748,10 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("WhenBothQuotaInBytesAndIncrementalSpaceInBytesSet_ThenBothAreMapped", func(t *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			QuotaInBytes:            gcpgenserver.NewOptNilFloat64(107374182400),            // 100GB
 			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024), // 50GB
@@ -3727,6 +3763,9 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 	})
 
 	t.Run("WhenIncrementalSpaceInBytesSetToZero_ThenFieldIsMapped", func(t *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(0), // 0 bytes
 		}
@@ -5296,6 +5335,93 @@ func TestPrepareCreateVolumeParams_BackupDisabled(t *testing.T) {
 	assert.Nil(t, out)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
+}
+
+// TestPrepareCreateVolumeParams_IsCloneNotSupported tests the scenario where IsClone is set but thinCloneGASupport is false
+func TestPrepareCreateVolumeParams_IsCloneNotSupported(t *testing.T) {
+	origThinCloneGASupport := thinCloneGASupport
+	defer func() { thinCloneGASupport = origThinCloneGASupport }()
+	thinCloneGASupport = false
+
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testvolume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaISCSI,
+			},
+		},
+		SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+		IsClone:    gcpgenserver.NewOptNilBool(true),
+	}
+
+	out, err := _prepareCreateVolumeParams(req, params, "region", "zone")
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "IsClone cannot be set as Thin Clone support isn't available yet.")
+}
+
+// TestPrepareCreateVolumeParams_IncrementalSpaceInBytesNotSupported tests the scenario where IncrementalSpaceInBytes is set but thinCloneGASupport is false
+func TestPrepareCreateVolumeParams_IncrementalSpaceInBytesNotSupported(t *testing.T) {
+	origThinCloneGASupport := thinCloneGASupport
+	defer func() { thinCloneGASupport = origThinCloneGASupport }()
+	thinCloneGASupport = false
+
+	// Setup file protocol support for NFS tests
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:              "testvolume",
+			CreationToken:           gcpgenserver.NewOptString("test-token"),
+			PoolId:                  gcpgenserver.NewNilString("test-pool"),
+			Protocols:               []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3}, // Files protocol
+			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024),           // 100GB
+		},
+		SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+	}
+
+	out, err := _prepareCreateVolumeParams(req, params, "region", "zone")
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "IncrementalSpaceInBytes cannot be set as Thin Clone support isn't available yet.")
+}
+
+// TestPrepareUpdateVolumeParams_IncrementalSpaceInBytesNotSupported tests the scenario where IncrementalSpaceInBytes is set in update but thinCloneGASupport is false
+func TestPrepareUpdateVolumeParams_IncrementalSpaceInBytesNotSupported(t *testing.T) {
+	origThinCloneGASupport := thinCloneGASupport
+	defer func() { thinCloneGASupport = origThinCloneGASupport }()
+	thinCloneGASupport = false
+
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "vol-1",
+	}
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		PoolId:                  gcpgenserver.NewOptNilString("test-pool"),
+		IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024), // 100GB
+	}
+
+	out, err := _prepareUpdateVolumeParams(req, params, "region")
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "IncrementalSpaceInBytes cannot be updated as Thin Clone support isn't available yet.")
 }
 
 // TestV1betaUpdateVolume_BackupNotSupported tests the scenario where backup is disabled
