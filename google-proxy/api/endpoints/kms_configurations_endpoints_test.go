@@ -3825,7 +3825,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		assert.Equal(t, "unknown error during the list kms configurations", resultPtr.Message)
 	})
 
-	t.Run("WhenVcpKmsConfigStateIsError", func(t *testing.T) {
+	t.Run("WhenSdeKmsConfigStateIsError", func(t *testing.T) {
 		// Setup mock client with valid response
 		mockClient := kms_configurations.NewMockClientService(t)
 		keyFullPath := "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"
@@ -3834,7 +3834,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 			UUID:        "test-id",
 			ResourceID:  &resourceID,
 			KeyFullPath: &keyFullPath,
-			KmsState:    "ACTIVE",
+			KmsState:    vsaCoreModels.LifeCycleStateError,
 		}
 		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
 			Payload: []*models.KmsConfigV1beta{&kmsConfig},
@@ -3853,7 +3853,18 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		// Setup mock orchestrator factory that returns a KmsConfig with Error state
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		vcpKmsConfig := &vsaCoreModels.KmsConfig{
-			State: vsaCoreModels.LifeCycleStateError,
+			BaseModel: vsaCoreModels.BaseModel{
+				UUID: "test-id",
+			},
+			State: vsaCoreModels.LifeCycleStateCreated,
+			KmsAttributes: &vsaCoreModels.KmsAttributes{
+				SdeServiceAccountEmail: "test@example.com",
+			},
+			KeyProjectID:    "test-project",
+			KeyRingLocation: "us-central1",
+			KeyRing:         "test-keyring",
+			KeyName:         "test-key",
+			ResourceID:      "resource-123",
 		}
 		mockOrchestrator.EXPECT().
 			GetKmsConfig(mock.Anything, mock.MatchedBy(func(params *common.GetKmsConfigParams) bool {
@@ -3876,7 +3887,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		assert.Equal(t, "ERROR", string(resultSlice[0].KmsState.Value))
 	})
 
-	t.Run("WhenVcpKmsConfigStateIsInUse", func(t *testing.T) {
+	t.Run("WhenSdeKmsConfigStateIsInUse", func(t *testing.T) {
 		// Setup mock client with valid response
 		mockClient := kms_configurations.NewMockClientService(t)
 		keyFullPath := "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"
@@ -3885,7 +3896,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 			UUID:        "test-id",
 			ResourceID:  &resourceID,
 			KeyFullPath: &keyFullPath,
-			KmsState:    "ACTIVE",
+			KmsState:    vsaCoreModels.LifeCycleStateInUse,
 		}
 		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
 			Payload: []*models.KmsConfigV1beta{&kmsConfig},
@@ -3904,7 +3915,18 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		// Setup mock orchestrator factory that returns a KmsConfig with InUse state
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		vcpKmsConfig := &vsaCoreModels.KmsConfig{
-			State: vsaCoreModels.LifeCycleStateInUse,
+			BaseModel: vsaCoreModels.BaseModel{
+				UUID: "test-id",
+			},
+			State: vsaCoreModels.LifeCycleStateCreated,
+			KmsAttributes: &vsaCoreModels.KmsAttributes{
+				SdeServiceAccountEmail: "test@example.com",
+			},
+			KeyProjectID:    "test-project",
+			KeyRingLocation: "us-central1",
+			KeyRing:         "test-keyring",
+			KeyName:         "test-key",
+			ResourceID:      "resource-123",
 		}
 		mockOrchestrator.EXPECT().
 			GetKmsConfig(mock.Anything, mock.MatchedBy(func(params *common.GetKmsConfigParams) bool {
@@ -3927,7 +3949,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		assert.Equal(t, "IN_USE", string(resultSlice[0].KmsState.Value))
 	})
 
-	t.Run("WhenVcpKmsConfigStateIsOtherValue", func(t *testing.T) {
+	t.Run("WhenSdeKmsConfigStateIsOtherThanErrorOrInUse", func(t *testing.T) {
 		// Setup mock client with valid response
 		mockClient := kms_configurations.NewMockClientService(t)
 		keyFullPath := "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"
@@ -3936,7 +3958,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 			UUID:        "test-id",
 			ResourceID:  &resourceID,
 			KeyFullPath: &keyFullPath,
-			KmsState:    "ACTIVE",
+			KmsState:    vsaCoreModels.LifeCycleStateREADY,
 		}
 		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
 			Payload: []*models.KmsConfigV1beta{&kmsConfig},
@@ -3955,7 +3977,18 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		// Setup mock orchestrator factory that returns a KmsConfig with some other state
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		vcpKmsConfig := &vsaCoreModels.KmsConfig{
-			State: vsaCoreModels.LifeCycleStateCreated, // This should not modify the CVP state
+			BaseModel: vsaCoreModels.BaseModel{
+				UUID: "test-id",
+			},
+			State: vsaCoreModels.LifeCycleStateCreated,
+			KmsAttributes: &vsaCoreModels.KmsAttributes{
+				SdeServiceAccountEmail: "test@example.com",
+			},
+			KeyProjectID:    "test-project",
+			KeyRingLocation: "us-central1",
+			KeyRing:         "test-keyring",
+			KeyName:         "test-key",
+			ResourceID:      "resource-123",
 		}
 		mockOrchestrator.EXPECT().
 			GetKmsConfig(mock.Anything, mock.MatchedBy(func(params *common.GetKmsConfigParams) bool {
@@ -3968,14 +4001,14 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		// Call the method under test
 		result, err := handler.V1betaListKmsConfigurations(context.Background(), params)
 
-		// Assertions - state should remain as from CVP
+		// Assertions - VCP state should be displayed
 		assert.NoError(t, err)
 		resultPtr, ok := result.(*gcpgenserver.V1betaListKmsConfigurationsOKApplicationJSON)
 		assert.True(t, ok)
 		resultSlice := *resultPtr
 		assert.Len(t, resultSlice, 1)
 		assert.Equal(t, "test-id", resultSlice[0].UUID.Value)
-		assert.Equal(t, "ACTIVE", string(resultSlice[0].KmsState.Value)) // Original CVP state preserved
+		assert.Equal(t, "KEY_CHECK_PENDING", string(resultSlice[0].KmsState.Value)) // VCP state is shown
 	})
 }
 

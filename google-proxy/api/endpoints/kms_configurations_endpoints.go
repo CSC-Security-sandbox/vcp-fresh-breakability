@@ -633,13 +633,18 @@ func (h Handler) V1betaListKmsConfigurations(ctx context.Context, params gcpgens
 				}, nil
 			}
 		}
+
+		// Always use VCP state when KMS config exists in VCP DB
 		if vcpKmsConfig != nil {
-			switch vcpKmsConfig.State {
+			// Update VCP state with SDE state for ERROR and IN_USE cases
+			switch kmsConfig.KmsState {
 			case coremodel.LifeCycleStateError, coremodel.LifeCycleStateInUse:
-				kmsConfig.KmsState = vcpKmsConfig.State
+				vcpKmsConfig.State = kmsConfig.KmsState
 			}
+			operationResponse = append(operationResponse, *convertModelToKmsConfigV1Beta(vcpKmsConfig))
+		} else {
+			operationResponse = append(operationResponse, *convertToKmsConfigV1beta(kmsConfig))
 		}
-		operationResponse = append(operationResponse, *convertToKmsConfigV1beta(kmsConfig))
 	}
 	return &operationResponse, nil
 }
