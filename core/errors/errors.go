@@ -283,6 +283,7 @@ const (
 	ErrDeletingFlexCacheVolume   = 10003
 	ErrUpdateFlexCacheVolume     = 10004
 	ErrHydrateFlexCacheVolume    = 10005
+	ErrUnencryptedVolume         = 10006
 
 	// Peering specific errors (11000-11999 range)
 	ErrClusterPeerError          = 11000

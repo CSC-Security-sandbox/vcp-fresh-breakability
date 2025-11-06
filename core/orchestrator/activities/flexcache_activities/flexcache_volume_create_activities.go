@@ -19,9 +19,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -78,6 +78,33 @@ func (a *FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx
 	logger.Debug("flexcache volume created successfully")
 
 	result.VolumeResponse = res
+
+	return result, nil
+}
+
+func (a *FlexCacheVolumeCreateActivity) VerifyVolumeEncryptionActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	volume := result.DBVolume
+	volumeAttributes := volume.VolumeAttributes
+	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	params := vsa.GetVolumeParams{
+		UUID: volumeAttributes.ExternalUUID,
+	}
+
+	res, err := provider.GetVolumeEncryptionStatus(params)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if res.Encryption.Enabled != nil && !*res.Encryption.Enabled {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrUnencryptedVolume, fmt.Errorf("origin volume is not encrypted")))
+	}
+
+	logger.Debug("flexcache volume encryption verified successfully")
 
 	return result, nil
 }
@@ -264,14 +291,12 @@ func (a *FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeDetailsActivity(ctx
 	volume.CacheParameters.Command = nil
 	volume.CacheParameters.CommandExpiryTime = nil
 	volume.CacheParameters.Passphrase = nil
-	volume.VolumeAttributes.ExternalUUID = result.VolumeResponse.ExternalUUID
 	a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePEERED)
 
 	updates := map[string]interface{}{
-		"cache_parameters":  volume.CacheParameters,
-		"volume_attributes": volume.VolumeAttributes,
-		"state":             coremodels.LifeCycleStateREADY,
-		"state_details":     coremodels.LifeCycleStateAvailableDetails,
+		"cache_parameters": volume.CacheParameters,
+		"state":            coremodels.LifeCycleStateREADY,
+		"state_details":    coremodels.LifeCycleStateAvailableDetails,
 	}
 	if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -307,14 +332,18 @@ func (a *FlexCacheVolumeCreateActivity) HydrateFlexCacheState(ctx context.Contex
 
 func (a *FlexCacheVolumeCreateActivity) UpdateVolumeDetailsOnErrorActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) error {
 	volume := result.DBVolume
-	updates := map[string]interface{}{
-		"cache_parameters": volume.CacheParameters,
-	}
+	// Clear out peering fields on error except for state details
+	volume.CacheParameters.Command = nil
+	volume.CacheParameters.CommandExpiryTime = nil
+	volume.CacheParameters.Passphrase = nil
+	updates := map[string]interface{}{}
 
 	if a.shouldSetErrorState(result) {
+		a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStateERROR)
 		updates["state"] = coremodels.LifeCycleStateError
 		updates["state_details"] = coremodels.LifeCycleStateCreationErrorDetails
 	}
+	updates["cache_parameters"] = volume.CacheParameters
 
 	if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -614,7 +643,7 @@ func mapJobTypeToError(jobType string) int {
 }
 
 // EnsureClusterPeerInOntapActivity checks the status of an existing cluster peer or decides to create a new one.
-func (a FlexCacheVolumeCreateActivity) EnsureClusterPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) EnsureClusterPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
 
@@ -685,7 +714,7 @@ func (a FlexCacheVolumeCreateActivity) EnsureClusterPeerInOntapActivity(ctx cont
 }
 
 // EnsureSVMPeerInOntapActivity checks the status of an existing SVM peer or decides to create a new one.
-func (a FlexCacheVolumeCreateActivity) EnsureSVMPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+func (a *FlexCacheVolumeCreateActivity) EnsureSVMPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
 	volume := result.DBVolume
 

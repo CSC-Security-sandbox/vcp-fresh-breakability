@@ -112,8 +112,7 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 	}()
 
 	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
@@ -124,48 +123,35 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		Node:     node,
 	}
 
-	err = workflow.ExecuteActivity(ctx, deleteActivity.UnmountVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, deleteActivity.UnmountVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// If the volume was never created in ontap, there will be no unmount job to wait for
-	if flexCacheResult.UnmountJobResponse != nil {
-		err = workflows.WaitForONTAPJob(ctx, flexCacheResult.UnmountJobResponse, node, time.Minute*10)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to unmount volume: %w", err))
-		}
+	if err = workflows.WaitForONTAPJob(ctx, flexCacheResult.UnmountJobResponse, node, time.Minute*10); err != nil {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to unmount volume: %w", err))
 	}
 
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteFlexCacheVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteFlexCacheVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// If the volume was never created in ontap or the volume was deleted synchronously, there will be no delete job to wait for
-	if flexCacheResult.DeleteJobResponse != nil {
-		err = workflows.WaitForONTAPJob(ctx, flexCacheResult.DeleteJobResponse, node, time.Minute*10)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to delete FlexCache volume: %w", err))
-		}
+	if err = workflows.WaitForONTAPJob(ctx, flexCacheResult.DeleteJobResponse, node, time.Minute*10); err != nil {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to delete FlexCache volume: %w", err))
 	}
 
 	if err = workflow.ExecuteActivity(ctx, activities.VolumeDeleteActivity.DeleteExportPolicy, &flexCacheResult.DBVolume, &flexCacheResult.Node).Get(ctx, nil); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSVMPeeringInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSVMPeeringInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteClusterPeerInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteClusterPeerInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, activities.VolumeDeleteActivity.DeleteVolume, &dbVolume).Get(ctx, nil)
-	if err != nil {
+	if err = workflow.ExecuteActivity(ctx, activities.VolumeDeleteActivity.DeleteVolume, &dbVolume).Get(ctx, nil); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 

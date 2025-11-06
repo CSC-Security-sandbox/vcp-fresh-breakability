@@ -119,6 +119,116 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 	})
 }
 
+func TestFlexCacheVolumeCreateActivity_VerifyVolumeEncryptionActivity(t *testing.T) {
+	dbVolume := &datamodel.Volume{
+		Svm:     &datamodel.Svm{Name: "svm-name"},
+		Account: &datamodel.Account{Name: "account-name"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "volume-external-uuid",
+			FileProperties: &datamodel.FileProperties{},
+		},
+	}
+
+	t.Run("Success", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolume}
+
+		enabled := true
+		volumeResp := &vsa.VolumeResponse{
+			Encryption: vsa.Encryption{Enabled: &enabled},
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().GetVolumeEncryptionStatus(mock.MatchedBy(func(params vsa.GetVolumeParams) bool {
+			return params.UUID == "volume-external-uuid"
+		})).Return(volumeResp, nil)
+		logger.EXPECT().Debug("flexcache volume encryption verified successfully")
+
+		newResult, err := activity.VerifyVolumeEncryptionActivity(ctx, flexcacheResult)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcacheResult, newResult)
+	})
+
+	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolume}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(nil, assert.AnError)
+
+		_, err := activity.VerifyVolumeEncryptionActivity(ctx, flexcacheResult)
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenGetVolumeEncryptionStatusFails", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolume}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().GetVolumeEncryptionStatus(mock.Anything).Return(nil, assert.AnError)
+
+		_, err := activity.VerifyVolumeEncryptionActivity(ctx, flexcacheResult)
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenEncryptionIsDisabled", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolume}
+
+		enabled := false
+		volumeResp := &vsa.VolumeResponse{
+			Encryption: vsa.Encryption{Enabled: &enabled},
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().GetVolumeEncryptionStatus(mock.Anything).Return(volumeResp, nil)
+
+		_, err := activity.VerifyVolumeEncryptionActivity(ctx, flexcacheResult)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Origin volume is not encrypted")
+	})
+
+	t.Run("WhenEncryptionEnabledIsNil", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolume}
+
+		volumeResp := &vsa.VolumeResponse{
+			Encryption: vsa.Encryption{Enabled: nil},
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().GetVolumeEncryptionStatus(mock.Anything).Return(volumeResp, nil)
+		logger.EXPECT().Debug("flexcache volume encryption verified successfully")
+
+		newResult, err := activity.VerifyVolumeEncryptionActivity(ctx, flexcacheResult)
+		assert.NoError(tt, err)
+		assert.Equal(tt, flexcacheResult, newResult)
+	})
+}
+
 func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testing.T) {
 	t.Run("Success", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)

@@ -1487,6 +1487,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "10006": {
+    "description": "Origin volume not encrypted",
+    "message": "Error creating FlexCache volume - Origin volume is not encrypted",
+    "retriable": false,
+    "http_code": 409
+  },
   "11000": {
     "description": "Error during cluster peering",
     "message": "Error during cluster peering",

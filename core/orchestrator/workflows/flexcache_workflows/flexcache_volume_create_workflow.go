@@ -266,7 +266,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	clearActiveJob()
-
+	
 	// CCFE compatibility: Internal job
 	if err = workflow.ExecuteActivity(
 		ctx,
@@ -334,6 +334,16 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	// Persisting ExternalUUID in the database to ensure it is available for any cleanup
+	dbVolume.VolumeAttributes.ExternalUUID = flexcacheResult.VolumeResponse.ExternalUUID
+	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeAttributesInDB, &flexcacheResult.DBVolume.UUID, &flexcacheResult.DBVolume.VolumeAttributes).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.VerifyVolumeEncryptionActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.CreateExportPolicyInOntap, &flexcacheResult.DBVolume, &flexcacheResult.Node).Get(ctx, nil); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -363,6 +373,9 @@ func updateStateDetailsAndCode(result *flexcache.CreateFlexCacheResult, err erro
 	var vsaErr *vsaerrors.CustomError
 	if errors.As(err, &vsaErr) {
 		switch vsaErr.TrackingID {
+		case vsaerrors.ErrClusterPeerError:
+			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringClusterPeerCode
+			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringClusterPeer
 		case vsaerrors.ErrClusterPeerTimeout:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ClusterPeeringExpiredCode
 			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ClusterPeeringExpired
@@ -372,9 +385,12 @@ func updateStateDetailsAndCode(result *flexcache.CreateFlexCacheResult, err erro
 		case vsaerrors.ErrSVMPeerError:
 			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringSVMPeeringCode
 			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringSVMPeering
+		case vsaerrors.ErrUnencryptedVolume:
+			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorUnencryptedVolumeCode
+			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorUnencryptedVolume
 		default:
-			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringClusterPeerCode
-			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringClusterPeer
+			result.DBVolume.CacheParameters.CacheStateDetailsCode = coremodels.DefaultCode
+			result.DBVolume.CacheParameters.CacheStateDetails = coremodels.ErrorCreatingCacheVolume
 		}
 	}
 }

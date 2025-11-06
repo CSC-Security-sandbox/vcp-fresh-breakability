@@ -87,6 +87,8 @@ const (
 	WaitingForSVMPeering     = "Waiting for SVM peering to be established"
 	ErrorDuringSVMPeering    = "SVM peering failed, please try again"
 	SVMPeeringExpired        = "SVM peering expired"
+	ErrorUnencryptedVolume   = "Origin volume is not encrypted"
+	ErrorCreatingCacheVolume = "Error creating cache volume"
 )
 
 const (
@@ -100,6 +102,7 @@ const (
 	InitiatingSVMPeeringCode     = 100006
 	WaitingForSVMPeeringCode     = 100007
 	InitiatingClusterPeeringCode = 100008
+	ErrorUnencryptedVolumeCode   = 100009
 )
 
 // SVM represents a single SVM resource
