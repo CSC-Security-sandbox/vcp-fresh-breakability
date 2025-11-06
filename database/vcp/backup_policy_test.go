@@ -6,7 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -630,5 +632,299 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		result, err := store.UpdateBackupPolicy(context.Background(), backupPolicy.UUID, updates)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
+	})
+}
+
+func TestListBackupPoliciesWithPagination(t *testing.T) {
+	t.Run("WhenListBackupPoliciesWithPaginationReturnsBackupPolicies", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 90, UUID: "test-account-uuid-9"},
+			Name:      "test_account_9",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		// Create multiple backup policies
+		backupPolicies := []*datamodel.BackupPolicy{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-9"},
+				Name:      "backup-policy-name-9",
+				AccountID: account.ID,
+				Account:   account,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-10"},
+				Name:      "backup-policy-name-10",
+				AccountID: account.ID,
+				Account:   account,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-11"},
+				Name:      "backup-policy-name-11",
+				AccountID: account.ID,
+				Account:   account,
+			},
+		}
+		for _, bp := range backupPolicies {
+			err = store.db.Create(bp).Error()
+			assert.NoError(tt, err, "Expected no error when creating backup policy")
+		}
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  2,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(context.Background(), [][]interface{}{{"account_id = ?", account.ID}}, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2, "Expected 2 backup policies with limit 2")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithOffset", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 91, UUID: "test-account-uuid-91"},
+			Name:      "test_account_91",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		// Create multiple backup policies
+		backupPolicies := []*datamodel.BackupPolicy{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-12"},
+				Name:      "backup-policy-name-12",
+				AccountID: account.ID,
+				Account:   account,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-13"},
+				Name:      "backup-policy-name-13",
+				AccountID: account.ID,
+				Account:   account,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-14"},
+				Name:      "backup-policy-name-14",
+				AccountID: account.ID,
+				Account:   account,
+			},
+		}
+		for _, bp := range backupPolicies {
+			err = store.db.Create(bp).Error()
+			assert.NoError(tt, err, "Expected no error when creating backup policy")
+		}
+
+		pagination := &dbutils.Pagination{
+			Offset: 1,
+			Limit:  2,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(context.Background(), [][]interface{}{{"account_id = ?", account.ID}}, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2, "Expected 2 backup policies with offset 1 and limit 2")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithNilPagination", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 92, UUID: "test-account-uuid-92"},
+			Name:      "test_account_92",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-15"},
+			Name:      "backup-policy-name-15",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(backupPolicy).Error()
+		assert.NoError(tt, err, "Expected no error when creating backup policy")
+
+		result, err := store.ListBackupPoliciesWithPagination(context.Background(), [][]interface{}{{"account_id = ?", account.ID}}, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1, "Expected all backup policies when pagination is nil")
+		assert.Equal(tt, backupPolicy.UUID, result[0].UUID)
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithEmptyConditions", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 93, UUID: "test-account-uuid-93"},
+			Name:      "test_account_93",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-16"},
+			Name:      "backup-policy-name-16",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(backupPolicy).Error()
+		assert.NoError(tt, err, "Expected no error when creating backup policy")
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  10,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(context.Background(), [][]interface{}{}, pagination)
+		assert.NoError(tt, err)
+		assert.GreaterOrEqual(tt, len(result), 1, "Expected at least 1 backup policy with empty conditions")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationReturnsEmptySlice", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 94, UUID: "test-account-uuid-94"},
+			Name:      "test_account_94",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  10,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(context.Background(), [][]interface{}{{"account_id = ?", 9999}}, pagination)
+		assert.NoError(tt, err)
+		assert.Empty(tt, result, "Expected empty slice when no backup policies match conditions")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithLimitZero", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 95, UUID: "test-account-uuid-95"},
+			Name:      "test_account_95",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-17"},
+			Name:      "backup-policy-name-17",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(backupPolicy).Error()
+		assert.NoError(tt, err, "Expected no error when creating backup policy")
+
+		// Limit 0 should use default limit of 1000
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  0,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(context.Background(), [][]interface{}{{"account_id = ?", account.ID}}, pagination)
+		assert.NoError(tt, err)
+		assert.GreaterOrEqual(tt, len(result), 1, "Expected at least 1 backup policy with limit 0 (default)")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithMultipleConditions", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 96, UUID: "test-account-uuid-96"},
+			Name:      "test_account_96",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		backupPolicyUUIDs := []string{"test-backup-policy-uuid-18", "test-backup-policy-uuid-19"}
+		for _, uuid := range backupPolicyUUIDs {
+			backupPolicy := &datamodel.BackupPolicy{
+				BaseModel: datamodel.BaseModel{UUID: uuid},
+				Name:      "backup-policy-name-" + uuid,
+				AccountID: account.ID,
+				Account:   account,
+			}
+			err = store.db.Create(backupPolicy).Error()
+			assert.NoError(tt, err, "Expected no error when creating backup policy")
+		}
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  10,
+		}
+		conditions := [][]interface{}{
+			{"account_id = ?", account.ID},
+			{"uuid IN ?", backupPolicyUUIDs},
+		}
+		result, err := store.ListBackupPoliciesWithPagination(context.Background(), conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2, "Expected 2 backup policies matching conditions")
+		for _, bp := range result {
+			assert.Contains(tt, backupPolicyUUIDs, bp.UUID)
+		}
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationReturnsError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  10,
+		}
+		// Using invalid condition that will cause a database error
+		_, err = store.ListBackupPoliciesWithPagination(context.Background(), [][]interface{}{{"invalid_column = ?", "value"}}, pagination)
+		assert.Error(tt, err, "Expected error when listing backup policies with invalid conditions")
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a VCPError")
+		assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, customErr.TrackingID, "Expected database read error code")
 	})
 }

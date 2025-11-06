@@ -1103,6 +1103,10 @@ func (s *PersistenceStore) ListBackupPolicies(ctx context.Context, conditions []
 	return s.dataStore.ListBackupPolicies(ctx, conditions)
 }
 
+func (s *PersistenceStore) ListBackupPoliciesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupPolicy, error) {
+	return s.dataStore.ListBackupPoliciesWithPagination(ctx, conditions, pagination)
+}
+
 func (s *PersistenceStore) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
 	return s.dataStore.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 }

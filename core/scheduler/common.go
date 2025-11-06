@@ -7,5 +7,6 @@ const (
 	JobStatusScheduled = "SCHEDULED"
 	JobStatusDeleted   = "DELETED"
 
-	JobManagerWorkflowID = "job-manager-workflow"
+	JobManagerWorkflowID           = "job-manager-workflow"
+	UpdateBackupScheduleWorkflowID = "update-backup-schedule-workflow"
 )

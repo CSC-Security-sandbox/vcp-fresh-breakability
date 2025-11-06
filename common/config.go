@@ -75,6 +75,9 @@ type Config struct {
 	// Admin job specifications configuration
 	RefreshAdminJobSpecs bool
 
+	// Update backup schedule workflow configuration
+	UpdateBackupSchedules bool
+
 	EnableBackgroundTask bool
 }
 
@@ -105,6 +108,7 @@ func LoadConfig() *Config {
 	dbAdminPassword := env.GetString("DB_ADMIN_PASSWORD", "")
 	dbMSIUser := env.GetString("DB_MSI_USER", "")
 	refreshAdminJobSpecs := env.GetBool("REFRESH_ADMIN_JOB_SPECS", true)
+	updateBackupSchedules := env.GetBool("UPDATE_BACKUP_SCHEDULES", true)
 	enableBackgroundTask := env.GetBool("ENABLE_BACKGROUND_TASKS", true)
 
 	metricsDBType := env.GetString("METRICS_DB_TYPE", "postgres")
@@ -140,32 +144,33 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		GCPPort:              gcpPort,
-		GCPHost:              gcpHost,
-		CorePort:             corePort,
-		CoreHost:             coreHost,
-		ReadTimeout:          readTimeout,
-		WriteTimeout:         writeTimeout,
-		IdleTimeout:          idleTimeout,
-		ReadHeaderTimeout:    readHeaderTimeout,
-		RunMigrationOnStart:  runMigrationOnStart,
-		DBType:               dbType,
-		DBHost:               dbHost,
-		DBPort:               dbPort,
-		DBUser:               dbUser,
-		DBPassword:           dbPassword,
-		DBName:               dbName,
-		DBSSLMode:            dbSSLMode,
-		DBTimeZone:           location,
-		DBMaxOpenConns:       dbMaxOpenConns,
-		DBMaxIdleConns:       dbMaxIdleConns,
-		DBConnMaxLifetime:    dbConnMaxLifetime,
-		DBAdminUser:          dbAdminUser,
-		DBAdminPassword:      dbAdminPassword,
-		MSIEnabled:           msiEnabled,
-		MSIDBUser:            dbMSIUser,
-		RefreshAdminJobSpecs: refreshAdminJobSpecs,
-		EnableBackgroundTask: enableBackgroundTask,
+		GCPPort:               gcpPort,
+		GCPHost:               gcpHost,
+		CorePort:              corePort,
+		CoreHost:              coreHost,
+		ReadTimeout:           readTimeout,
+		WriteTimeout:          writeTimeout,
+		IdleTimeout:           idleTimeout,
+		ReadHeaderTimeout:     readHeaderTimeout,
+		RunMigrationOnStart:   runMigrationOnStart,
+		DBType:                dbType,
+		DBHost:                dbHost,
+		DBPort:                dbPort,
+		DBUser:                dbUser,
+		DBPassword:            dbPassword,
+		DBName:                dbName,
+		DBSSLMode:             dbSSLMode,
+		DBTimeZone:            location,
+		DBMaxOpenConns:        dbMaxOpenConns,
+		DBMaxIdleConns:        dbMaxIdleConns,
+		DBConnMaxLifetime:     dbConnMaxLifetime,
+		DBAdminUser:           dbAdminUser,
+		DBAdminPassword:       dbAdminPassword,
+		MSIEnabled:            msiEnabled,
+		MSIDBUser:             dbMSIUser,
+		RefreshAdminJobSpecs:  refreshAdminJobSpecs,
+		UpdateBackupSchedules: updateBackupSchedules,
+		EnableBackgroundTask:  enableBackgroundTask,
 
 		MetricsDBType:            metricsDBType,
 		MetricsDBHost:            metricsDBHost,

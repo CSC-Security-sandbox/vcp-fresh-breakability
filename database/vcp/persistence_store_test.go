@@ -1587,6 +1587,323 @@ func TestListBackupPolicies_Persistence_Store(t *testing.T) {
 	assert.Equal(t, "policy1", policies[0].Name)
 }
 
+func TestListBackupPoliciesWithPagination_Persistence_Store(t *testing.T) {
+	t.Run("WhenListBackupPoliciesWithPaginationReturnsBackupPolicies", func(tt *testing.T) {
+		logger := &log.MockLogger{}
+		store, err := NewTestStorage(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 200, UUID: "test-account-uuid-pagination-1"},
+			Name:      "test_account_pagination_1",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create multiple backup policies
+		backupPolicies := []*datamodel.BackupPolicy{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-pag-1"},
+				Name:      "backup-policy-name-pag-1",
+				AccountID: createdAccount.ID,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-pag-2"},
+				Name:      "backup-policy-name-pag-2",
+				AccountID: createdAccount.ID,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-pag-3"},
+				Name:      "backup-policy-name-pag-3",
+				AccountID: createdAccount.ID,
+			},
+		}
+		for _, bp := range backupPolicies {
+			_, err = store.CreateBackupPolicyEntryInVCP(ctx, bp)
+			assert.NoError(tt, err, "Expected no error when creating backup policy")
+		}
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  2,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(ctx, [][]interface{}{{"account_id = ?", createdAccount.ID}}, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2, "Expected 2 backup policies with limit 2")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithOffset", func(tt *testing.T) {
+		logger := &log.MockLogger{}
+		store, err := NewTestStorage(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 201, UUID: "test-account-uuid-pagination-2"},
+			Name:      "test_account_pagination_2",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create multiple backup policies
+		backupPolicies := []*datamodel.BackupPolicy{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-pag-4"},
+				Name:      "backup-policy-name-pag-4",
+				AccountID: createdAccount.ID,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-pag-5"},
+				Name:      "backup-policy-name-pag-5",
+				AccountID: createdAccount.ID,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-pag-6"},
+				Name:      "backup-policy-name-pag-6",
+				AccountID: createdAccount.ID,
+			},
+		}
+		for _, bp := range backupPolicies {
+			_, err = store.CreateBackupPolicyEntryInVCP(ctx, bp)
+			assert.NoError(tt, err, "Expected no error when creating backup policy")
+		}
+
+		pagination := &dbutils.Pagination{
+			Offset: 1,
+			Limit:  2,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(ctx, [][]interface{}{{"account_id = ?", createdAccount.ID}}, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2, "Expected 2 backup policies with offset 1 and limit 2")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithNilPagination", func(tt *testing.T) {
+		logger := &log.MockLogger{}
+		store, err := NewTestStorage(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 202, UUID: "test-account-uuid-pagination-3"},
+			Name:      "test_account_pagination_3",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-pag-7"},
+			Name:      "backup-policy-name-pag-7",
+			AccountID: createdAccount.ID,
+		}
+		_, err = store.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+		assert.NoError(tt, err, "Expected no error when creating backup policy")
+
+		result, err := store.ListBackupPoliciesWithPagination(ctx, [][]interface{}{{"account_id = ?", createdAccount.ID}}, nil)
+		assert.NoError(tt, err)
+		assert.GreaterOrEqual(tt, len(result), 1, "Expected at least 1 backup policy when pagination is nil")
+		assert.Equal(tt, backupPolicy.UUID, result[0].UUID)
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithEmptyConditions", func(tt *testing.T) {
+		logger := &log.MockLogger{}
+		store, err := NewTestStorage(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 203, UUID: "test-account-uuid-pagination-4"},
+			Name:      "test_account_pagination_4",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-pag-8"},
+			Name:      "backup-policy-name-pag-8",
+			AccountID: createdAccount.ID,
+		}
+		_, err = store.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+		assert.NoError(tt, err, "Expected no error when creating backup policy")
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  10,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(ctx, [][]interface{}{}, pagination)
+		assert.NoError(tt, err)
+		assert.GreaterOrEqual(tt, len(result), 1, "Expected at least 1 backup policy with empty conditions")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationReturnsEmptySlice", func(tt *testing.T) {
+		logger := &log.MockLogger{}
+		store, err := NewTestStorage(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 204, UUID: "test-account-uuid-pagination-5"},
+			Name:      "test_account_pagination_5",
+		}
+		_, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  10,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(ctx, [][]interface{}{{"account_id = ?", 99999}}, pagination)
+		assert.NoError(tt, err)
+		assert.Empty(tt, result, "Expected empty slice when no backup policies match conditions")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithMultipleConditions", func(tt *testing.T) {
+		logger := &log.MockLogger{}
+		store, err := NewTestStorage(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 205, UUID: "test-account-uuid-pagination-6"},
+			Name:      "test_account_pagination_6",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		backupPolicyUUIDs := []string{"test-backup-policy-uuid-pag-9", "test-backup-policy-uuid-pag-10"}
+		for _, uuid := range backupPolicyUUIDs {
+			backupPolicy := &datamodel.BackupPolicy{
+				BaseModel: datamodel.BaseModel{UUID: uuid},
+				Name:      "backup-policy-name-" + uuid,
+				AccountID: createdAccount.ID,
+			}
+			_, err = store.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+			assert.NoError(tt, err, "Expected no error when creating backup policy")
+		}
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  10,
+		}
+		conditions := [][]interface{}{
+			{"account_id = ?", createdAccount.ID},
+			{"uuid IN ?", backupPolicyUUIDs},
+		}
+		result, err := store.ListBackupPoliciesWithPagination(ctx, conditions, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2, "Expected 2 backup policies matching conditions")
+		for _, bp := range result {
+			assert.Contains(tt, backupPolicyUUIDs, bp.UUID)
+		}
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationWithLargeLimit", func(tt *testing.T) {
+		logger := &log.MockLogger{}
+		store, err := NewTestStorage(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 206, UUID: "test-account-uuid-pagination-7"},
+			Name:      "test_account_pagination_7",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create multiple backup policies
+		for i := 0; i < 5; i++ {
+			backupPolicy := &datamodel.BackupPolicy{
+				BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("test-backup-policy-uuid-pag-%d", i+11)},
+				Name:      fmt.Sprintf("backup-policy-name-pag-%d", i+11),
+				AccountID: createdAccount.ID,
+			}
+			_, err = store.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+			assert.NoError(tt, err, "Expected no error when creating backup policy")
+		}
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  100,
+		}
+		result, err := store.ListBackupPoliciesWithPagination(ctx, [][]interface{}{{"account_id = ?", createdAccount.ID}}, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 5, "Expected all 5 backup policies with large limit")
+	})
+
+	t.Run("WhenListBackupPoliciesWithPaginationReturnsError", func(tt *testing.T) {
+		logger := &log.MockLogger{}
+		store, err := NewTestStorage(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		pagination := &dbutils.Pagination{
+			Offset: 0,
+			Limit:  10,
+		}
+		// Using invalid condition that will cause a database error
+		_, err = store.ListBackupPoliciesWithPagination(ctx, [][]interface{}{{"invalid_column = ?", "value"}}, pagination)
+		assert.Error(tt, err, "Expected error when listing backup policies with invalid conditions")
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a VCPError")
+		assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, customErr.TrackingID, "Expected database read error code")
+	})
+}
+
 func TestBatchCreateSnapshots_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)

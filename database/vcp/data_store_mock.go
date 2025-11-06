@@ -9982,6 +9982,66 @@ func (_c *MockDataStore_ListBackupPolicies_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// ListBackupPoliciesWithPagination provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockDataStore) ListBackupPoliciesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.BackupPolicy, error) {
+	ret := _m.Called(ctx, conditions, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListBackupPoliciesWithPagination")
+	}
+
+	var r0 []*datamodel.BackupPolicy
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.BackupPolicy, error)); ok {
+		return rf(ctx, conditions, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.BackupPolicy); ok {
+		r0 = rf(ctx, conditions, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.BackupPolicy)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListBackupPoliciesWithPagination_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackupPoliciesWithPagination'
+type MockDataStore_ListBackupPoliciesWithPagination_Call struct {
+	*mock.Call
+}
+
+// ListBackupPoliciesWithPagination is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) ListBackupPoliciesWithPagination(ctx interface{}, conditions interface{}, pagination interface{}) *MockDataStore_ListBackupPoliciesWithPagination_Call {
+	return &MockDataStore_ListBackupPoliciesWithPagination_Call{Call: _e.mock.On("ListBackupPoliciesWithPagination", ctx, conditions, pagination)}
+}
+
+func (_c *MockDataStore_ListBackupPoliciesWithPagination_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockDataStore_ListBackupPoliciesWithPagination_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListBackupPoliciesWithPagination_Call) Return(_a0 []*datamodel.BackupPolicy, _a1 error) *MockDataStore_ListBackupPoliciesWithPagination_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListBackupPoliciesWithPagination_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.BackupPolicy, error)) *MockDataStore_ListBackupPoliciesWithPagination_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListBackupPolicyVolumeCount provides a mock function with given fields: ctx, conditions
 func (_m *MockDataStore) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
 	ret := _m.Called(ctx, conditions)

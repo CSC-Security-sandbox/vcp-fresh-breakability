@@ -15,6 +15,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler/adminbackgroundjobs"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/drivers/postgres"
 	dbtuils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -26,6 +28,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 	"golang.org/x/sync/errgroup"
 )
@@ -73,6 +76,12 @@ func main() {
 	err = refreshAdminJobSpecs(ctx, cfg, dbCon, workflowClient.GetTemporalClient(), logger)
 	if err != nil {
 		logger.Errorf("Failed to refresh admin job specs: %v", err)
+		os.Exit(1)
+	}
+
+	err = launchUpdateBackupScheduleWorkflow(ctx, cfg, workflowClient.GetTemporalClient(), logger)
+	if err != nil {
+		logger.Errorf("Failed to launch update backup schedule workflow: %v", err)
 		os.Exit(1)
 	}
 
@@ -231,6 +240,28 @@ func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 		IdleTimeout:       cfg.IdleTimeout,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 	}
+}
+
+func launchUpdateBackupScheduleWorkflow(ctx context.Context, cfg *common.Config, temporalClient client.Client, logger log.Logger) error {
+	if !cfg.UpdateBackupSchedules {
+		logger.Info("Update backup schedule workflow skipped because UpdateBackupSchedules=false")
+		return nil
+	}
+
+	_, err := temporalClient.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:                workflowengine.BackgroundTaskQueue,
+			ID:                       scheduler.UpdateBackupScheduleWorkflowID,
+			WorkflowIDConflictPolicy: enums.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING,
+		},
+		backgroundworkflows.UpdateBackupScheduleWorkflow,
+	)
+	if err != nil {
+		logger.Errorf("Failed to launch update backup schedule workflow: %v", err)
+		return err
+	}
+	logger.Info("Successfully launched update backup schedule workflow")
+	return nil
 }
 
 func handleGracefulShutdown(eg *errgroup.Group, ctx context.Context, httpServer *http.Server, logger log.Logger) {

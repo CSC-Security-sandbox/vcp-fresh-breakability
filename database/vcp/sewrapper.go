@@ -2792,6 +2792,22 @@ func (re *retryEngine) ListBackupPolicies(ctx context.Context, conditions [][]in
 	return var0, err
 }
 
+func (re *retryEngine) ListBackupPoliciesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupPolicy, error) {
+	var var0 []*datamodel.BackupPolicy
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListBackupPoliciesWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("ListBackupPoliciesWithPagination", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
 	var var0 *datamodel.BackupPolicy
 	err := retry.Do(func(attempt int) (bool, error) {

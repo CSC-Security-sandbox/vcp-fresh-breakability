@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
@@ -101,6 +102,20 @@ func (d *DataStoreRepository) ListBackupPolicies(ctx context.Context, conditions
 	err := db.Find(&backupPolicies).Error
 	if err != nil {
 		return nil, err
+	}
+	return backupPolicies, nil
+}
+
+// ListBackupPoliciesWithPagination retrieves backup policies with pagination support.
+func (d *DataStoreRepository) ListBackupPoliciesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupPolicy, error) {
+	return _listBackupPoliciesWithPagination(d.db.ApplyFilter(conditions).GORM().WithContext(ctx), pagination)
+}
+
+func _listBackupPoliciesWithPagination(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.BackupPolicy, error) {
+	var backupPolicies []*datamodel.BackupPolicy
+	err := db.Scopes(dbutils.Paginate(pagination)).Find(&backupPolicies).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return backupPolicies, nil
 }
