@@ -8,7 +8,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -64,7 +63,7 @@ func Do(fn Retriable) error {
 
 		if attempt >= getMaxRetries() {
 			logger.Error("Exceeded function retry limit.", "attempt", *pAttempt, "error", err.Error(), "function", getCallerName(2))
-			return errors.NewTransientErr("System is too busy to process this operation - try again later. Details: " + err.Error())
+			return err
 		}
 
 		attempt++
