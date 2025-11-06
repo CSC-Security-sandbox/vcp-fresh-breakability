@@ -1008,7 +1008,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsBatch_S
 		expectedMetrics := map[metadata.MeasuredType]float64{
 			metadata.PoolAllocatedSize:        1000,
 			metadata.AllocatedUsed:            500,
-			metadata.PoolTotalThroughputMibps: -64,
+			metadata.PoolTotalThroughputMibps: 0,
 			metadata.PoolTotalIops:            0,
 		}
 
@@ -1302,7 +1302,7 @@ func validateHydratedMetrics(metrics []metricsdm.HydratedMetrics) bool {
 			ResourceType:    metadata.VolumePool,
 			ConsumerID:      "validation-account",
 			ResourceName:    "validation-pool",
-			Quantity:        -64,
+			Quantity:        0,
 			MetricTimestamp: time.Now(), // This needs to be checked more precisely
 		},
 		metadata.PoolTotalIops: {

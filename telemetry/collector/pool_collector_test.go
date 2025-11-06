@@ -244,6 +244,31 @@ func Test_GetPoolMetrics_ListPoolsError(t *testing.T) {
 	assert.Empty(t, result.HydratedMetricsDataModel)
 }
 
+// Test for zero throughput handling in setupHydratedMetricsDataModel
+func TestSetupHydratedMetricsDataModel_PoolTotalThroughputMibps_ZeroQuantity(t *testing.T) {
+	resourceMetadata := metadata.ResourceMetadata{}
+	resourceName := "zero-throughput-pool"
+	regionName := "us-west-2"
+	deploymentName := "zero-deployment"
+	sizeInBytes := int64(1024)
+	throughput := 0.0
+
+	resourceMetadata.SetResourceName(resourceName)
+	resourceMetadata.SetRegionName(regionName)
+	resourceMetadata.SetDeploymentName(deploymentName)
+	resourceMetadata.SetSizeInBytes(sizeInBytes)
+	resourceMetadata.SetThroughput(throughput)
+
+	measuredType := metadata.PoolTotalThroughputMibps
+	resourceType := metadata.VolumePool
+	projectID := "test-project-456"
+	timestamp := time.Now()
+
+	result := setupHydratedMetricsDataModel(measuredType, resourceType, projectID, resourceMetadata, timestamp, throughput)
+	assert.NotNil(t, result)
+	assert.Equal(t, 0.0, result.Quantity)
+}
+
 // Test for the new setupHydratedMetricsDataModel function
 func TestSetupHydratedMetricsDataModel(t *testing.T) {
 	// Create test metadata

@@ -54,15 +54,6 @@ continent VARCHAR (255) NOT NULL
      'VOLUME_POOL_REGIONAL_HA',
      'BACKUP'
      ) and
-    measured_type in (
-     'XREGION_REPLICATION_TOTAL_TRANSFER_BYTES', 
-     'ALLOCATED_USED', 
-     'POOL_ALLOCATED_SIZE', 
-     'ALLOCATED_SIZE', 
-     'LOGICAL_SIZE',
-     'VOLUME_BACKUP_SIZE',
-     'BACKUP_ENABLED_VOLUME_ALLOCATED_SIZE'
-     ) and
  	service_level is not null
  ;
  `
@@ -193,7 +184,7 @@ continent VARCHAR (255) NOT NULL
  		sum(case when(measured_type = 'CBS_CROSS_REGION_VOLUME_BACKUP_TRANSFER_BYTES' or measured_type = 'CBS_CROSS_REGION_VOLUME_RESTORE_TRANSFER_BYTES') then quantity else 0 end) as hourly_cross_region_backup_transferred_bytes,
  		sum(case when(measured_type = 'POOL_TOTAL_THROUGHPUT_MIBPS') then quantity else 0 end) as pool_throughput_mibps,
     	sum(case when(measured_type = 'POOL_TOTAL_IOPS') then quantity else 0 end) as pool_billable_iops,
- 		sum(case when(state = 0) then quantity else 0 end) as submitted_quantity
+ 		sum(case when(state = 1) then quantity else 0 end) as submitted_quantity
  	from aggregated_usage_constrained
  	group by account_id, aggregation_start, destination_region, service_level, source_region, resource_type, volume_style, replication_type
  	) as agg

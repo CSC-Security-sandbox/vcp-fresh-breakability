@@ -127,7 +127,7 @@ func setupHydratedMetricsDataModel(measuredType metadata.MeasuredType, resourceT
 
 	switch measuredType {
 	case metadata.PoolTotalThroughputMibps:
-		quantity = quantity - BaseThroughputMibps
+		quantity = max(quantity-BaseThroughputMibps, 0)
 		// Billable Throughput = Total Throughput set by the user - 64 (Minimum throughput included in the base price)
 	case metadata.PoolTotalIops:
 		if resourceMetadata.Throughput == nil {
