@@ -893,7 +893,13 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 	dummyOperationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + uuid.UUID{}.String()
 	if volume != nil && volume.LifeCycleState == models.LifeCycleStateDeleting {
 		log := util.GetLogger(ctx)
-		job, jobErr := h.Orchestrator.GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume))
+
+		jobType := string(models.JobTypeDeleteVolume)
+		if volume.LargeCapacity {
+			jobType = string(models.JobTypeDeleteLargeVolume)
+		}
+
+		job, jobErr := h.Orchestrator.GetJobByResourceUUID(ctx, volume.UUID, jobType)
 		if jobErr != nil {
 			log.Error("Failed to find job for deleting volume", "volumeUUID", volume.UUID, "error", jobErr.Error())
 			// Return the volume response even if job lookup fails

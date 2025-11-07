@@ -6127,6 +6127,43 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		assert.Equal(tt, 0, len(operation.Response)) // No response for already deleting/deleted volume
 	})
 
+	t.Run("FlexGroupVolumeAlreadyDeleting", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateDeleting,
+			CreationToken:  "token",
+			DisplayName:    "testvolume",
+			LargeCapacity:  true,
+		}
+		job := &models.Job{
+			BaseModel: models.BaseModel{UUID: "job-uuid"},
+			Type:      models.JobTypeDeleteLargeVolume,
+			JobAttributes: &models.JobAttributes{
+				ResourceUUID: "deleting-pool-id",
+			},
+			State: models.JobsStatePROCESSING,
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(models.JobTypeDeleteLargeVolume)).Return(job, nil)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		operation, isOperation := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, isOperation)
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/test-project/locations/test-location/operations/job-uuid")
+		assert.False(tt, false, operation.Done.Value)
+		assert.Equal(tt, 0, len(operation.Response)) // No response for already deleting/deleted volume
+	})
+
 	t.Run("VolumeAlreadyDeleted", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
