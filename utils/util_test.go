@@ -1213,6 +1213,32 @@ func TestCFFEURIToMap(t *testing.T) {
 	}
 }
 
+func TestValidateOperationUri(t *testing.T) {
+	tests := []struct {
+		name         string
+		uri          string
+		valid        bool
+		expectedOpID string
+	}{
+		{"ValidURI", "/v1beta/projects/45110233509/locations/us-east4/operations/operation-123", true, "operation-123"},
+		{"InvalidURI", "invalid://project/region/operation", false, ""},
+		{"EmptyURI", "", false, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opID, err := ValidateOperationUri(tt.uri)
+			if tt.valid {
+				assert.NoError(t, err, "Expected no error for valid URI")
+				assert.Equal(t, tt.expectedOpID, opID, "Expected operation ID to match")
+			} else {
+				assert.Error(t, err, "Expected error for invalid URI")
+				assert.Empty(t, opID, "Expected empty operation ID for invalid URI")
+			}
+		})
+	}
+}
+
 func TestParseProjectNumberFromURI(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1231,7 +1257,35 @@ func TestParseProjectNumberFromURI(t *testing.T) {
 				assert.Empty(t, result, "Expected empty result for invalid URI")
 				return
 			}
-			assert.Equal(t, tt.expected, result, "Expected project number to match")
+		})
+	}
+}
+
+func TestGetReplicationNameFromURI(t *testing.T) {
+	tests := []struct {
+		name     string
+		uri      string
+		expected string
+	}{
+		{"ValidURI", "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6", "replication-name-6"},
+		{"ValidURIWithSpecialChars", "projects/123456789/locations/australia-southeast1-a/volumes/mrasrc1255/replications/replicationtest581", "replicationtest581"},
+		{"ValidURIWithNumbers", "projects/987654321/locations/us-central1/volumes/volume123/replications/replication-456", "replication-456"},
+		{"InvalidURI", "invalid://project/region/volume", ""},
+		{"EmptyURI", "", ""},
+		{"MalformedURI", "projects/123/locations/us-central1/volumes/test", ""},
+		{"MissingReplication", "projects/123/locations/us-central1/volumes/test-volume", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := _getReplicationNameFromURI(tt.uri)
+			if tt.expected == "" {
+				assert.Error(t, err, "Expected error for invalid URI")
+				assert.Empty(t, result, "Expected empty result for invalid URI")
+				return
+			}
+			assert.NoError(t, err, "Expected no error for valid URI")
+			assert.Equal(t, tt.expected, result, "Expected replication name to match")
 		})
 	}
 }

@@ -1483,9 +1483,9 @@ func (_c *MockOrchestratorFactory_DeletePool_Call) RunAndReturn(run func(context
 	return _c
 }
 
-// DeleteReplication provides a mock function with given fields: ctx, params, isCleanUp
-func (_m *MockOrchestratorFactory) DeleteReplication(ctx context.Context, params *common.DeleteReplicationParams, isCleanUp bool) (*models.VolumeReplication, string, error) {
-	ret := _m.Called(ctx, params, isCleanUp)
+// DeleteReplication provides a mock function with given fields: ctx, params, cleanupResourcesJobId, isCleanUp
+func (_m *MockOrchestratorFactory) DeleteReplication(ctx context.Context, params *common.DeleteReplicationParams, cleanupResourcesJobId string, isCleanUp bool) (*models.VolumeReplication, string, error) {
+	ret := _m.Called(ctx, params, cleanupResourcesJobId, isCleanUp)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteReplication")
@@ -1494,25 +1494,25 @@ func (_m *MockOrchestratorFactory) DeleteReplication(ctx context.Context, params
 	var r0 *models.VolumeReplication
 	var r1 string
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteReplicationParams, bool) (*models.VolumeReplication, string, error)); ok {
-		return rf(ctx, params, isCleanUp)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteReplicationParams, string, bool) (*models.VolumeReplication, string, error)); ok {
+		return rf(ctx, params, cleanupResourcesJobId, isCleanUp)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteReplicationParams, bool) *models.VolumeReplication); ok {
-		r0 = rf(ctx, params, isCleanUp)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteReplicationParams, string, bool) *models.VolumeReplication); ok {
+		r0 = rf(ctx, params, cleanupResourcesJobId, isCleanUp)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*models.VolumeReplication)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteReplicationParams, bool) string); ok {
-		r1 = rf(ctx, params, isCleanUp)
+	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteReplicationParams, string, bool) string); ok {
+		r1 = rf(ctx, params, cleanupResourcesJobId, isCleanUp)
 	} else {
 		r1 = ret.Get(1).(string)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, *common.DeleteReplicationParams, bool) error); ok {
-		r2 = rf(ctx, params, isCleanUp)
+	if rf, ok := ret.Get(2).(func(context.Context, *common.DeleteReplicationParams, string, bool) error); ok {
+		r2 = rf(ctx, params, cleanupResourcesJobId, isCleanUp)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1528,14 +1528,15 @@ type MockOrchestratorFactory_DeleteReplication_Call struct {
 // DeleteReplication is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params *common.DeleteReplicationParams
+//   - cleanupResourcesJobId string
 //   - isCleanUp bool
-func (_e *MockOrchestratorFactory_Expecter) DeleteReplication(ctx interface{}, params interface{}, isCleanUp interface{}) *MockOrchestratorFactory_DeleteReplication_Call {
-	return &MockOrchestratorFactory_DeleteReplication_Call{Call: _e.mock.On("DeleteReplication", ctx, params, isCleanUp)}
+func (_e *MockOrchestratorFactory_Expecter) DeleteReplication(ctx interface{}, params interface{}, cleanupResourcesJobId interface{}, isCleanUp interface{}) *MockOrchestratorFactory_DeleteReplication_Call {
+	return &MockOrchestratorFactory_DeleteReplication_Call{Call: _e.mock.On("DeleteReplication", ctx, params, cleanupResourcesJobId, isCleanUp)}
 }
 
-func (_c *MockOrchestratorFactory_DeleteReplication_Call) Run(run func(ctx context.Context, params *common.DeleteReplicationParams, isCleanUp bool)) *MockOrchestratorFactory_DeleteReplication_Call {
+func (_c *MockOrchestratorFactory_DeleteReplication_Call) Run(run func(ctx context.Context, params *common.DeleteReplicationParams, cleanupResourcesJobId string, isCleanUp bool)) *MockOrchestratorFactory_DeleteReplication_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*common.DeleteReplicationParams), args[2].(bool))
+		run(args[0].(context.Context), args[1].(*common.DeleteReplicationParams), args[2].(string), args[3].(bool))
 	})
 	return _c
 }
@@ -1545,7 +1546,7 @@ func (_c *MockOrchestratorFactory_DeleteReplication_Call) Return(_a0 *models.Vol
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_DeleteReplication_Call) RunAndReturn(run func(context.Context, *common.DeleteReplicationParams, bool) (*models.VolumeReplication, string, error)) *MockOrchestratorFactory_DeleteReplication_Call {
+func (_c *MockOrchestratorFactory_DeleteReplication_Call) RunAndReturn(run func(context.Context, *common.DeleteReplicationParams, string, bool) (*models.VolumeReplication, string, error)) *MockOrchestratorFactory_DeleteReplication_Call {
 	_c.Call.Return(run)
 	return _c
 }

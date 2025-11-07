@@ -1409,6 +1409,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "6218": {
+    "description": "Failed to Delete volume replication",
+    "message": "Failed to Delete volume replication",
+    "retriable": false,
+    "http_code": 400
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

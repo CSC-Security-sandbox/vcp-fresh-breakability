@@ -1312,7 +1312,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("Invalid input"))
+		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("Invalid input"))
 
 		resp, err := handler.V1betaDeleteReplication(context.Background(), &req, params)
 
@@ -1344,7 +1344,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, "", errors.New("some error"))
+		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, "", errors.New("some error"))
 
 		resp, err := handler.V1betaDeleteReplication(context.Background(), &req, params)
 
@@ -1380,7 +1380,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 			return &gcpgenserver.ReplicationV1beta{}
 		}
 
-		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything).Return(&models2.VolumeReplication{}, "job-uuid", nil)
+		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models2.VolumeReplication{}, "job-uuid", nil)
 
 		resp, err := handler.V1betaDeleteReplication(context.Background(), &req, params)
 
@@ -1419,7 +1419,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 			State: models2.LifeCycleStateDeleting,
 		}
 
-		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
+		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
 
 		resp, err := handler.V1betaDeleteReplication(context.Background(), &req, params)
 
@@ -1455,7 +1455,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 			State: models2.LifeCycleStateDeleting,
 		}
 
-		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
+		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
 
 		resp, err := handler.V1betaDeleteReplication(context.Background(), &req, params)
 
@@ -1486,7 +1486,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, "", errors2.NewVCPError(errors2.ErrorCvpReplicationJobAlreadyInProcess, errors2.New("some error")))
+		mockOrchestrator.On("DeleteReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, "", errors2.NewVCPError(errors2.ErrorCvpReplicationJobAlreadyInProcess, errors2.New("some error")))
 
 		resp, err := handler.V1betaDeleteReplication(context.Background(), &req, params)
 

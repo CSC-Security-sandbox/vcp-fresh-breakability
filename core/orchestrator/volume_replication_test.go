@@ -3300,6 +3300,7 @@ func TestResumeReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -3666,6 +3667,7 @@ func TestResumeReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -4141,6 +4143,7 @@ func TestStopReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -4513,6 +4516,7 @@ func TestStopReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5077,7 +5081,7 @@ func TestDeleteReplication(t *testing.T) {
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
 		}
-		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "account not found", err.Error())
 	})
@@ -5090,6 +5094,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5107,7 +5112,7 @@ func TestDeleteReplication(t *testing.T) {
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
 		}
-		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "validation error", err.Error())
 	})
@@ -5155,7 +5160,7 @@ func TestDeleteReplication(t *testing.T) {
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
 		}
-		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to verify destination replication", err.Error())
 	})
@@ -5198,14 +5203,20 @@ func TestDeleteReplication(t *testing.T) {
 		}
 
 		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
-			return nil, nil
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+			}, nil
 		}
+
+		// Mock CreateJob to fail
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
 
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
 		}
-		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to create job", err.Error())
 	})
@@ -5246,18 +5257,23 @@ func TestDeleteReplication(t *testing.T) {
 			return nil, nil, nil
 		}
 		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
-			return nil, nil
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+			}, nil
 		}
+
+		// Mock CreateJob for successful cases
 		jobResponse := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,
 				UUID: "job-uuid",
 			},
 		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 
 		expectedError := errors.New("failed to execute workflow")
-
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 
 		// Mock the UpdateJob call that should happen in the defer block
 		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
@@ -5267,7 +5283,7 @@ func TestDeleteReplication(t *testing.T) {
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
 		}
-		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
 
@@ -5311,18 +5327,23 @@ func TestDeleteReplication(t *testing.T) {
 			return nil, nil, nil
 		}
 		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
-			return nil, nil
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+			}, nil
 		}
+
+		// Mock CreateJob for successful cases
 		jobResponse := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,
 				UUID: "job-uuid",
 			},
 		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 
 		expectedError := errors.New("failed to execute workflow")
-
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 
 		// Mock the UpdateJob call that should happen in the defer block
 		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
@@ -5332,7 +5353,7 @@ func TestDeleteReplication(t *testing.T) {
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
 		}
-		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, true)
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", true)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
 
@@ -5393,7 +5414,7 @@ func TestDeleteReplication(t *testing.T) {
 			AccountName: "account-name",
 		}
 
-		resp, jobuuid, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		resp, jobuuid, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
@@ -5459,7 +5480,7 @@ func TestDeleteReplication(t *testing.T) {
 			Zone:        "us-central1-a", // Set zone parameter
 		}
 
-		resp, jobuuid, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		resp, jobuuid, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
@@ -5530,7 +5551,7 @@ func TestDeleteReplication(t *testing.T) {
 			Zone:        "", // Empty zone parameter
 		}
 
-		resp, jobuuid, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		resp, jobuuid, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
@@ -5549,6 +5570,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5579,11 +5601,423 @@ func TestDeleteReplication(t *testing.T) {
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",
 		}
-		result, jobUUID, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, false)
+		result, jobUUID, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
 		assert.Nil(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, existingJobUUID, jobUUID)
 		// Note: State and StateDetails are no longer updated when duplicate job exists
+	})
+	t.Run("WhenCleanupResourcesJobIdIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "1234567890",
+				},
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil, nil, nil
+		}
+		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+			}, nil
+		}
+
+		// Mock CreateJob for successful cases
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockStorage.On("UpdateJob", ctx, mock.Anything, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+		}
+
+		// Test with empty cleanupResourcesJobId
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
+		assert.Nil(tt, err)
+	})
+	t.Run("WhenCleanupResourcesJobIdHasValidFormat", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "1234567890",
+				},
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil, nil, nil
+		}
+		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+			}, nil
+		}
+
+		// Mock CreateJob for successful cases
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		// Mock GetJob to return a job with valid resource name
+		expectedJobUUID := "6294efb1-c7c1-4742-a014-425f774dc986"
+		expectedResourceName := "projects/45110233509/locations/australia-southeast1-a/volumes/mrasrc1255/replications/replicationtest581"
+		mockJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: expectedJobUUID,
+			},
+			ResourceName: expectedResourceName,
+		}
+
+		mockStorage.On("GetJob", ctx, expectedJobUUID).Return(mockJob, nil)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "account-name",
+			ReplicationResourceId: "replicationtest581",
+		}
+
+		cleanupResourcesJobId := "/v1beta/projects/242512777037/locations/us-central1/operations/" + expectedJobUUID
+
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, cleanupResourcesJobId, false)
+		assert.Nil(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenGetJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetJob to return an error
+		expectedJobUUID := "6294efb1-c7c1-4742-a014-425f774dc986"
+		mockStorage.On("GetJob", ctx, expectedJobUUID).Return(nil, errors.New("job not found"))
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+		}
+
+		cleanupResourcesJobId := "/v1beta/projects/242512777037/locations/us-central1/operations/" + expectedJobUUID
+
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, cleanupResourcesJobId, false)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "job not found")
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenReplicationNameMismatch", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetJob to return a job with different replication name
+		expectedJobUUID := "6294efb1-c7c1-4742-a014-425f774dc986"
+		expectedResourceName := "projects/45110233509/locations/australia-southeast1-a/volumes/mrasrc1255/replications/differentreplication"
+		mockJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: expectedJobUUID,
+			},
+			ResourceName: expectedResourceName,
+		}
+
+		mockStorage.On("GetJob", ctx, expectedJobUUID).Return(mockJob, nil)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "account-name",
+			ReplicationResourceId: "replicationtest581", // Different from job's replication name
+		}
+
+		cleanupResourcesJobId := "/v1beta/projects/242512777037/locations/us-central1/operations/" + expectedJobUUID
+
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, cleanupResourcesJobId, false)
+		assert.NotNil(tt, err)
+		var vcpErr *errors2.CustomError
+		if assert.ErrorAs(tt, err, &vcpErr) {
+			assert.Contains(tt, vcpErr.Error(), "Failed to Delete volume replication")
+		}
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenResourceNameIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "1234567890",
+				},
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil, nil, nil
+		}
+		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+			}, nil
+		}
+
+		// Mock CreateJob for successful cases
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		// Mock GetJob to return a job with empty resource name
+		expectedJobUUID := "6294efb1-c7c1-4742-a014-425f774dc986"
+		mockJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: expectedJobUUID,
+			},
+			ResourceName: "", // Empty resource name
+		}
+
+		mockStorage.On("GetJob", ctx, expectedJobUUID).Return(mockJob, nil)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+		}
+
+		cleanupResourcesJobId := "/v1beta/projects/242512777037/locations/us-central1/operations/" + expectedJobUUID
+
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, cleanupResourcesJobId, false)
+		assert.Nil(tt, err) // Should succeed when resource name is empty
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenCleanupResourcesJobIdHasInvalidFormat", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "1234567890",
+				},
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil, nil, nil
+		}
+		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+			}, nil
+		}
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+		}
+
+		// Test with invalid format (no slashes) - ValidateOperationUri will fail before GetJob is called
+		cleanupResourcesJobId := "invalid-job-id-format"
+
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, cleanupResourcesJobId, false)
+		assert.NotNil(tt, err) // Should fail because ValidateOperationUri fails
+		assert.Contains(tt, err.Error(), "OperationURIs should match")
+	})
+	t.Run("WhenCleanupResourcesJobIdHasOnlySlash", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyDstReplicationDelete = replication.VerifyDstReplication
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "1234567890",
+				},
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil, nil, nil
+		}
+		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+			}, nil
+		}
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+		}
+
+		// Test with only slash - ValidateOperationUri will fail before GetJob is called
+		cleanupResourcesJobId := "/"
+
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, cleanupResourcesJobId, false)
+		assert.NotNil(tt, err) // Should fail because ValidateOperationUri fails
+		assert.Contains(tt, err.Error(), "OperationURIs should match")
 	})
 }
 

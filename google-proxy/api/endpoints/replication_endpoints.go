@@ -582,10 +582,10 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 	isCleanUp := false
+	var cleanupResourcesJobId string
 	if req.CleanupResourcesJobId.IsSet() {
-		if req.CleanupResourcesJobId.Value != "" {
-			isCleanUp = true
-		}
+		cleanupResourcesJobId = req.CleanupResourcesJobId.Value
+		isCleanUp = true
 	}
 
 	deleteReplicationParams := &common.DeleteReplicationParams{
@@ -597,7 +597,7 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 		Zone:                  zone,
 	}
 
-	volumeRep, jobUUID, err := h.Orchestrator.DeleteReplication(ctx, deleteReplicationParams, isCleanUp)
+	volumeRep, jobUUID, err := h.Orchestrator.DeleteReplication(ctx, deleteReplicationParams, cleanupResourcesJobId, isCleanUp)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaDeleteReplicationBadRequest{

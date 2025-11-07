@@ -65,10 +65,12 @@ var (
 	ConvertStringToMap              = _convertStringToMap
 	ConvertBytesToGib               = _convertBytesToGib
 	ValidateCcfeReplicationUri      = _validateCcfeReplicationUri
+	ValidateOperationUri            = _validateOperationUri
 	RenameSnapshotName              = _renameSnapshotName
 	ConvertToGcpResourceName        = _convertToGcpResourceName
 	CheckForGcpNamingConvention     = _checkForGcpNamingConvention
 	ParseProjectNumberFromURI       = _parseProjectNumberFromURI
+	GetReplicationNameFromURI       = _getReplicationNameFromURI
 	quotaLimitExceededRegex         = regexp.MustCompile(`^Quota limit`)
 	sleep                           = _sleep
 	exponentialBackOffErrors        = []int{429}
@@ -76,6 +78,7 @@ var (
 	jitterBase                      = time.Millisecond
 	generateRandomString            = _generateRandomString
 	ReplicationUriRegex             = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
+	OperationUriRegex               = "^/v1beta/projects/([^/]+)/locations/([^/]+)/operations/([^/]+)$"
 	GetLocation                     = _getLocation
 	GetBackupRegion                 = _getBackupRegion
 	GetSourceVolumePathFromBackup   = _getSourceVolumePathFromBackup
@@ -729,6 +732,7 @@ func IsTransitionalState(state string) bool {
 }
 
 var compiledRegex = regexp.MustCompile(ReplicationUriRegex)
+var compiledOperationRegex = regexp.MustCompile(OperationUriRegex)
 
 func _validateCcfeReplicationUri(uri string) error {
 	uriList := strings.Split(uri, "/")
@@ -742,6 +746,26 @@ func _validateCcfeReplicationUri(uri string) error {
 	}
 
 	return nil
+}
+
+func _validateOperationUri(uri string) (string, error) {
+	uriList := strings.Split(uri, "/")
+	if len(uriList) < 8 {
+		return "", fmt.Errorf("OperationURIs should match %s", OperationUriRegex)
+	}
+
+	valid := compiledOperationRegex.MatchString(uri)
+	if !valid {
+		return "", fmt.Errorf("OperationURIs should match %s", OperationUriRegex)
+	}
+
+	// Extract operation ID from URI (last part after last slash)
+	parts := strings.Split(uri, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1], nil
+	}
+
+	return "", fmt.Errorf("OperationURIs should match %s", OperationUriRegex)
 }
 
 // CFFEURIToMap Takes CFFEURI and returns a map of that string split by /
@@ -769,6 +793,17 @@ func _parseProjectNumberFromURI(uri string) (string, error) {
 	}
 
 	return uriMap["projects"], nil
+}
+
+// _getReplicationNameFromURI extracts the replication name from a CFFE URI
+// URI format: "projects/45110233509/locations/australia-southeast1-a/volumes/mrasrc1255/replications/replicationtest581"
+func _getReplicationNameFromURI(uri string) (string, error) {
+	uriMap, err := CFFEURIToMap(uri)
+	if err != nil {
+		return "", err
+	}
+
+	return uriMap["replications"], nil
 }
 
 // LoadJsonFromFile reads a JSON file from the given path and unmarshals its contents into the provided variable v.

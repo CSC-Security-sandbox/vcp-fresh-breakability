@@ -102,7 +102,7 @@ func _createVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeCreateVolumeReplicationInternal),
 		State:         string(models.JobsStateNEW),
-		ResourceName:  params.VolumeReplication.Uri,
+		ResourceName:  params.VolumeReplication.RemoteUri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -1575,17 +1575,48 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 	return convertDataStoreReplicationToModel(dbVolumeReplication), createdJob, nil
 }
 
-func (o *Orchestrator) DeleteReplication(ctx context.Context, params *commonparams.DeleteReplicationParams, isCleanUp bool) (*models.VolumeReplication, string, error) {
-	return deleteReplication(ctx, o.storage, o.temporal, params, isCleanUp)
+func (o *Orchestrator) DeleteReplication(ctx context.Context, params *commonparams.DeleteReplicationParams, cleanupResourcesJobId string, isCleanUp bool) (*models.VolumeReplication, string, error) {
+	return deleteReplication(ctx, o.storage, o.temporal, params, cleanupResourcesJobId, isCleanUp)
 }
 
-func _deleteReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.DeleteReplicationParams, isCleanUp bool) (*models.VolumeReplication, string, error) {
+func _deleteReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.DeleteReplicationParams, cleanupResourcesJobId string, isCleanUp bool) (*models.VolumeReplication, string, error) {
 	logger := util.GetLogger(ctx)
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
 		logger.Error("Failed to get or create account", "error", err)
 
 		return nil, "", err
+	}
+
+	// Extract job UUID from cleanupResourcesJobId
+	// Format: "/v1beta/projects/242512777037/locations/us-central1/operations/6294efb1-c7c1-4742-a014-425f774dc986"
+	var jobUUID string
+	if cleanupResourcesJobId != "" {
+		jobUUID, err = utils.ValidateOperationUri(cleanupResourcesJobId)
+		if err != nil {
+			return nil, "", err
+		}
+
+		// Get job by UUID to extract resource name
+		cleanupJob, err := se.GetJob(ctx, jobUUID)
+		if err != nil {
+			logger.Debug("Failed to get cleanup job by UUID", "jobUUID", jobUUID, "error", err)
+			return nil, "", err
+		}
+
+		// Parse resource name to extract components using existing utility functions
+		// Format: "projects/45110233509/locations/australia-southeast1-a/volumes/mrasrc1255/replications/replicationtest581"
+		resourceName := cleanupJob.ResourceName
+		if resourceName != "" {
+			// Extract replication name using dedicated utility function
+			replicationName, err := utils.GetReplicationNameFromURI(resourceName)
+			if err != nil {
+				return nil, "", err
+			}
+			if replicationName != params.ReplicationResourceId {
+				return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrDeleteVolumeReplication, errors.New("Mismatch between replication resource ID in delete request and cleanup job"))
+			}
+		}
 	}
 
 	event := replication.DeleteReplicationEvent{
