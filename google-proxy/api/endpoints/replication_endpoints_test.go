@@ -593,6 +593,30 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Equal(tt, "replication-id-1", successResult.Replications[0].ResourceId.Value)
 	})
+	t.Run("WhenVolumeResourceIdInvalidForCVP", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaGetMultipleReplicationsParams{
+			LocationId:       "location-id",
+			ProjectNumber:    "project-number",
+			VolumeResourceId: "volume_resource_id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationURIListV1beta{
+			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume_resource_id/replications/replication-name-6"},
+		}
+
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(nil, nil)
+
+		result, err := handler.V1betaGetMultipleReplications(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, 0, len(result.(*gcpgenserver.V1betaGetMultipleReplicationsOK).Replications))
+	})
 }
 
 func TestV1betaGetReplicationCount(t *testing.T) {

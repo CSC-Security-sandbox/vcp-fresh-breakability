@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ var (
 	validateReplicationURIList                             = _validateReplicationURIList
 	convertVcpReplicationModelToVCPVolumeReplicationV1beta = _convertVcpReplicationModelToVCPVolumeReplicationV1beta
 	crrEnabled                                             = env.GetBool("CRR_ENABLED", true)
+	volumeResourceIdPattern                                = regexp.MustCompile(`^(?:-|([a-z]([a-z0-9-]{0,61}[a-z0-9])?))$`)
 )
 
 func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams) (gcpgenserver.V1betaCreateReplicationRes, error) {
@@ -161,6 +163,12 @@ func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgens
 	}
 
 	// If not all replications are found in VCP, proceed with CVP API call
+
+	// check volumeResourceId pattern (as it is different in sde)
+	if !volumeResourceIdPattern.MatchString(params.VolumeResourceId) {
+		return &gcpgenserver.V1betaGetMultipleReplicationsOK{}, nil
+	}
+
 	body := &models.ReplicationURIListV1beta{
 		ReplicationUris: replicationURIs,
 	}
