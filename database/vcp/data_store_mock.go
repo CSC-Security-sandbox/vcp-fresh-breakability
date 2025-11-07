@@ -2495,6 +2495,53 @@ func (_c *MockDataStore_DeleteBackupVaultInVCP_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// DeleteClusterPeeringRow provides a mock function with given fields: ctx, clusterPeeringRow
+func (_m *MockDataStore) DeleteClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error {
+	ret := _m.Called(ctx, clusterPeeringRow)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteClusterPeeringRow")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ClusterPeerings) error); ok {
+		r0 = rf(ctx, clusterPeeringRow)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_DeleteClusterPeeringRow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteClusterPeeringRow'
+type MockDataStore_DeleteClusterPeeringRow_Call struct {
+	*mock.Call
+}
+
+// DeleteClusterPeeringRow is a helper method to define mock.On call
+//   - ctx context.Context
+//   - clusterPeeringRow *datamodel.ClusterPeerings
+func (_e *MockDataStore_Expecter) DeleteClusterPeeringRow(ctx interface{}, clusterPeeringRow interface{}) *MockDataStore_DeleteClusterPeeringRow_Call {
+	return &MockDataStore_DeleteClusterPeeringRow_Call{Call: _e.mock.On("DeleteClusterPeeringRow", ctx, clusterPeeringRow)}
+}
+
+func (_c *MockDataStore_DeleteClusterPeeringRow_Call) Run(run func(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings)) *MockDataStore_DeleteClusterPeeringRow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ClusterPeerings))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeleteClusterPeeringRow_Call) Return(_a0 error) *MockDataStore_DeleteClusterPeeringRow_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_DeleteClusterPeeringRow_Call) RunAndReturn(run func(context.Context, *datamodel.ClusterPeerings) error) *MockDataStore_DeleteClusterPeeringRow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID
 func (_m *MockDataStore) DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID int64) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroupUUID, accountID)
@@ -5809,6 +5856,63 @@ func (_c *MockDataStore_GetEligibleVolumes_Call) Return(_a0 []*datamodel.Volume,
 }
 
 func (_c *MockDataStore_GetEligibleVolumes_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Volume, error)) *MockDataStore_GetEligibleVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetFlexCacheVolumeCountByClusterPeerID provides a mock function with given fields: ctx, clusterPeerID
+func (_m *MockDataStore) GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
+	ret := _m.Called(ctx, clusterPeerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetFlexCacheVolumeCountByClusterPeerID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, clusterPeerID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, clusterPeerID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, clusterPeerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFlexCacheVolumeCountByClusterPeerID'
+type MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call struct {
+	*mock.Call
+}
+
+// GetFlexCacheVolumeCountByClusterPeerID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - clusterPeerID int64
+func (_e *MockDataStore_Expecter) GetFlexCacheVolumeCountByClusterPeerID(ctx interface{}, clusterPeerID interface{}) *MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call {
+	return &MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call{Call: _e.mock.On("GetFlexCacheVolumeCountByClusterPeerID", ctx, clusterPeerID)}
+}
+
+func (_c *MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call) Run(run func(ctx context.Context, clusterPeerID int64)) *MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call) Return(_a0 int64, _a1 error) *MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_GetFlexCacheVolumeCountByClusterPeerID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -9170,6 +9274,63 @@ func (_c *MockDataStore_GetVolumeReplicationCount_Call) Return(_a0 int64, _a1 er
 }
 
 func (_c *MockDataStore_GetVolumeReplicationCount_Call) RunAndReturn(run func(context.Context, string) (int64, error)) *MockDataStore_GetVolumeReplicationCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetVolumeReplicationCountByClusterPeerID provides a mock function with given fields: ctx, clusterPeerID
+func (_m *MockDataStore) GetVolumeReplicationCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
+	ret := _m.Called(ctx, clusterPeerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeReplicationCountByClusterPeerID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, clusterPeerID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, clusterPeerID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, clusterPeerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeReplicationCountByClusterPeerID'
+type MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call struct {
+	*mock.Call
+}
+
+// GetVolumeReplicationCountByClusterPeerID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - clusterPeerID int64
+func (_e *MockDataStore_Expecter) GetVolumeReplicationCountByClusterPeerID(ctx interface{}, clusterPeerID interface{}) *MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call {
+	return &MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call{Call: _e.mock.On("GetVolumeReplicationCountByClusterPeerID", ctx, clusterPeerID)}
+}
+
+func (_c *MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call) Run(run func(ctx context.Context, clusterPeerID int64)) *MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call) Return(_a0 int64, _a1 error) *MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_GetVolumeReplicationCountByClusterPeerID_Call {
 	_c.Call.Return(run)
 	return _c
 }

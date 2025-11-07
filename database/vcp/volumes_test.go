@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
@@ -3564,5 +3566,128 @@ func TestBatchUpdateVolumeTieringFields(t *testing.T) {
 				assert.Equal(tt, UpdateVolumeTieringBatchSize, batchSize, "Full batch should equal batch size")
 			}
 		}
+	})
+}
+
+func TestGetFlexCacheVolumeCountByClusterPeerID(t *testing.T) {
+	// Inline helper: setup repository
+	newStore := func(tt *testing.T) *DataStoreRepository {
+		tt.Helper()
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "setup db failed")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "clear db failed")
+		return store
+	}
+
+	// Inline helper: create account and pool
+	createAccountAndPool := func(tt *testing.T, store *DataStoreRepository) (*datamodel.Account, *datamodel.Pool) {
+		tt.Helper()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+			Name:      "acct-flexcache",
+		}
+		assert.NoError(tt, store.db.Create(account).Error(), "create account failed")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+			Name:      "pool-flexcache",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error(), "create pool failed")
+		return account, pool
+	}
+
+	createVolumeWithClusterPeer := func(tt *testing.T, store *DataStoreRepository, account *datamodel.Account, pool *datamodel.Pool, name string, clusterPeerID int64) {
+		tt.Helper()
+		vol := &datamodel.Volume{
+			BaseModel:     datamodel.BaseModel{UUID: utils.RandomUUID()},
+			Name:          name,
+			AccountID:     account.ID,
+			Account:       account,
+			PoolID:        pool.ID,
+			Pool:          pool,
+			State:         models.LifeCycleStateREADY,
+			StateDetails:  models.LifeCycleStateAvailableDetails,
+			ClusterPeerID: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+		}
+		assert.NoError(tt, store.db.Create(vol).Error(), "create volume failed")
+	}
+
+	t.Run("WhenVolumesExistForClusterPeerID", func(tt *testing.T) {
+		store := newStore(tt)
+		account, pool := createAccountAndPool(tt, store)
+
+		peerA := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: utils.RandomUUID()},
+			AccountID:      account.ID,
+			OnprempCluster: "peer-A",
+		}
+		peerB := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: utils.RandomUUID()},
+			AccountID:      account.ID,
+			OnprempCluster: "peer-B",
+		}
+		assert.NoError(tt, store.db.Create(peerA).Error(), "create peerA failed")
+		assert.NoError(tt, store.db.Create(peerB).Error(), "create peerB failed")
+
+		createVolumeWithClusterPeer(tt, store, account, pool, "vol-a", peerA.ID)
+		createVolumeWithClusterPeer(tt, store, account, pool, "vol-b", peerA.ID)
+		createVolumeWithClusterPeer(tt, store, account, pool, "vol-c", peerB.ID)
+
+		count, err := store.GetFlexCacheVolumeCountByClusterPeerID(context.Background(), peerA.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(2), count)
+	})
+
+	t.Run("WhenNoVolumesExistForClusterPeerID", func(tt *testing.T) {
+		store := newStore(tt)
+		account, pool := createAccountAndPool(tt, store)
+
+		createVolumeWithClusterPeer(tt, store, account, pool, "vol-x", 100)
+		createVolumeWithClusterPeer(tt, store, account, pool, "vol-y", 101)
+
+		count, err := store.GetFlexCacheVolumeCountByClusterPeerID(context.Background(), 999)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), count)
+	})
+
+	t.Run("WhenClusterPeerIDIsZero", func(tt *testing.T) {
+		store := newStore(tt)
+		account, pool := createAccountAndPool(tt, store)
+
+		createVolumeWithClusterPeer(tt, store, account, pool, "vol-z", 321)
+
+		count, err := store.GetFlexCacheVolumeCountByClusterPeerID(context.Background(), 0)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), count)
+	})
+
+	t.Run("WhenContextIsCanceled", func(tt *testing.T) {
+		store := newStore(tt)
+		account, pool := createAccountAndPool(tt, store)
+		createVolumeWithClusterPeer(tt, store, account, pool, "vol-cancel", 55)
+
+		cctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		count, err := store.GetFlexCacheVolumeCountByClusterPeerID(cctx, 55)
+		assert.Error(tt, err)
+		assert.Equal(tt, int64(0), count)
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		store := newStore(tt)
+		account, pool := createAccountAndPool(tt, store)
+		createVolumeWithClusterPeer(tt, store, account, pool, "vol-db", 777)
+
+		sqlDB, _ := store.db.GORM().DB()
+		_ = sqlDB.Close()
+
+		count, err := store.GetFlexCacheVolumeCountByClusterPeerID(context.Background(), 777)
+		assert.Error(tt, err)
+		assert.Equal(tt, int64(0), count)
 	})
 }

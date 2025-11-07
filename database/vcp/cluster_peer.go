@@ -31,6 +31,10 @@ func (d *DataStoreRepository) ListClusterPeeringRowsByAccountID(ctx context.Cont
 	return listClusterPeeringRowsByAccountID(d.db.GORM().WithContext(ctx), accountID)
 }
 
+func (d *DataStoreRepository) DeleteClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error {
+	return deleteClusterPeeringRow(d.db.GORM().WithContext(ctx), clusterPeeringRow)
+}
+
 // getClusterPeerByAccountIDExternalClusterAndPoolID retrieves a cluster peer by account ID, external cluster name, and pool ID
 func getClusterPeerByAccountIDExternalClusterAndPoolID(db *gorm.DB, accountID int64, onPrempCluster string, poolID int64) (*datamodel.ClusterPeerings, error) {
 	clusterPeeringRow := &datamodel.ClusterPeerings{}
@@ -77,4 +81,20 @@ func listClusterPeeringRowsByAccountID(db *gorm.DB, accountID int64) ([]*datamod
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "cluster peering rows", nil))
 	}
 	return clusterPeeringRows, nil
+}
+
+// deleteClusterPeeringRow doing soft-delete of a cluster peering row in the database
+// keeping the record by setting deleted_at and updated_at fields
+func deleteClusterPeeringRow(db *gorm.DB, clusterPeeringRow *datamodel.ClusterPeerings) error {
+	res := db.Delete(clusterPeeringRow)
+	if res.Error != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataDeleteError, res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return vsaerrors.NewVCPError(
+			vsaerrors.ErrClusterPeerNotFound,
+			customerrors.NewNotFoundErr("cluster peer", nil),
+		)
+	}
+	return nil
 }

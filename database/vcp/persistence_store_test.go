@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -5025,6 +5026,71 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID_Persistence_store(t *testing.T) 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
 			assert.Equal(tt, vsaerrors.ErrResourceNotFound, customErr.TrackingID, "Error code should be ErrResourceNotFound")
+		}
+	})
+}
+
+func TestDeleteClusterPeeringRow_Persistence_Store(t *testing.T) {
+	newStore := func(t *testing.T) *PersistenceStore {
+		logger := log.NewMockLogger(t)
+
+		// AutoMigrate log
+		logger.On("InfoContext", mock.Anything, "Running AutoMigrate for model changes").Return().Maybe()
+		// Generic logs used during delete / retry paths
+		logger.On("DebugContext", mock.Anything, mock.Anything).Return().Maybe()
+		logger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+
+		st, err := SetupStorageForTest(logger)
+		require.NoError(t, err)
+		return st.(*PersistenceStore)
+	}
+
+	t.Run("WhenClusterPeeringRowDeletedSuccessfully", func(tt *testing.T) {
+		ps := newStore(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-del-ok"}, Name: "acct-del-ok"}
+		require.NoError(tt, ps.DB().Create(account).Error)
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-del-ok"}, Name: "pool-del-ok", AccountID: account.ID, Account: account}
+		require.NoError(tt, ps.DB().Create(pool).Error)
+
+		row := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "peer-del-ok"},
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+			OnprempCluster: "ext-cluster-success",
+		}
+		_, err := ps.CreateClusterPeeringRow(ctx, row)
+		require.NoError(tt, err)
+
+		err = ps.DeleteClusterPeeringRow(ctx, row)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenClusterPeeringRowNotFound", func(tt *testing.T) {
+		ps := newStore(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-del-nf"}, Name: "acct-del-nf"}
+		require.NoError(tt, ps.DB().Create(account).Error)
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-del-nf"}, Name: "pool-del-nf", AccountID: account.ID, Account: account}
+		require.NoError(tt, ps.DB().Create(pool).Error)
+
+		// Provide a non-zero ID to avoid GORM "WHERE conditions required" error
+		notFound := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{ID: 999999, UUID: "peer-non-existent"},
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+			OnprempCluster: "ext-cluster-missing",
+		}
+
+		err := ps.DeleteClusterPeeringRow(ctx, notFound)
+		assert.Error(tt, err)
+		var vErr *vsaerrors.CustomError
+		if assert.True(tt, vsaerrors.As(err, &vErr)) {
+			// Adjust expected code if repository maps this to a specific not found error
+			assert.Equal(tt, vsaerrors.ErrClusterPeerNotFound, vErr.TrackingID)
 		}
 	})
 }

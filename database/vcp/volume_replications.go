@@ -236,6 +236,20 @@ func (d *DataStoreRepository) GetVolumeReplicationCount(ctx context.Context, acc
 	return count, nil
 }
 
+func (d *DataStoreRepository) GetVolumeReplicationCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
+	var count int64
+	err := d.db.GORM().
+		WithContext(ctx).
+		Model(&datamodel.VolumeReplication{}).
+		Joins("JOIN cluster_peerings ON cluster_peerings.id = volume_replications.cluster_peer_id AND cluster_peerings.deleted_at IS NULL").
+		Where("volume_replications.cluster_peer_id = ?", clusterPeerID).
+		Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (d *DataStoreRepository) GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
 	var count int64
 	account, err := d.GetAccount(ctx, accountName)

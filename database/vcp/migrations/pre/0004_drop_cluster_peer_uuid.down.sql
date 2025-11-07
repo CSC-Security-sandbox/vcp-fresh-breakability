@@ -1,0 +1,1 @@
+ALTER TABLE volumes ADD COLUMN IF NOT EXISTS cluster_peer_uuid text;

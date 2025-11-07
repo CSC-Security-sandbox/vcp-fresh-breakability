@@ -2,6 +2,7 @@ package flexcache_activities
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -51,7 +52,11 @@ func allowAnyLogs(logger *log.MockLogger) {
 	logger.On("Errorf", mock.Anything, mock.Anything, mock.Anything).Maybe()
 	logger.On("Warnf", mock.Anything, mock.Anything).Maybe()
 	logger.On("Warnf", mock.Anything, mock.Anything, mock.Anything).Maybe()
+	logger.On("Warn", mock.Anything).Maybe()
 	logger.On("Debug", mock.Anything).Maybe()
+	logger.On("Infof", mock.Anything, mock.Anything).Maybe()
+	logger.On("Infof", mock.Anything, mock.Anything, mock.Anything).Maybe()
+	logger.On("Infof", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 }
 
 func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T) {
@@ -324,7 +329,8 @@ func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeForClusterPeering(t 
 		externalUUID := "cluster-peer-external-uuid"
 		expiry := strfmt.DateTime(time.Now().Add(time.Hour))
 		clusterPeer := &vsa.ClusterPeer{ExternalUUID: externalUUID, Passphrase: &pass, ExpiryTime: &expiry}
-		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeer: clusterPeer}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeer: clusterPeer,
+			ClusterPeeringRow: &datamodel.ClusterPeerings{OntapPeerUUID: externalUUID}}
 
 		interclusterLifs := []*vsa.InterclusterLif{{Address: ontaprestmodel.IPAddress("10.0.0.1")}, {Address: ontaprestmodel.IPAddress("10.0.0.2")}}
 
@@ -332,13 +338,13 @@ func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeForClusterPeering(t 
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
 		mockProvider.EXPECT().GetInterclusterLIFs(vsa.InterclusterServicePolicyName).Return(interclusterLifs, nil)
 		mockStorage.On("UpdateVolumeFields", ctx, vol.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
-			return updates["cache_parameters"] != nil && updates["cluster_peer_uuid"] != nil
+			return updates["cache_parameters"] != nil
 		})).Return(nil)
 		logger.EXPECT().Debug("cluster peer command updated successfully")
 
 		res, err := activity.UpdateFlexCacheVolumeForClusterPeeringActivity(ctx, flexcacheResult)
 		assert.NoError(tt, err)
-		assert.Equal(tt, externalUUID, *res.DBVolume.ClusterPeerUUID)
+		assert.Equal(tt, externalUUID, res.ClusterPeeringRow.OntapPeerUUID)
 		assert.NotNil(tt, res.DBVolume.CacheParameters.Command)
 		assert.Contains(tt, *res.DBVolume.CacheParameters.Command, "cluster peer create")
 		assert.Equal(tt, cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING, res.DBVolume.CacheParameters.CacheState)
@@ -400,7 +406,6 @@ func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeForClusterPeering(t 
 
 func TestFlexCacheVolumeCreateActivity_WaitForClusterPeerActivity(t *testing.T) {
 	baseVolume := func() *datamodel.Volume {
-		clusterPeerUUID := "cluster-peer-uuid"
 		return &datamodel.Volume{
 			BaseModel:        datamodel.BaseModel{UUID: "volume-uuid"},
 			Name:             "flexcache-vol",
@@ -408,9 +413,9 @@ func TestFlexCacheVolumeCreateActivity_WaitForClusterPeerActivity(t *testing.T) 
 			Account:          &datamodel.Account{Name: "account-name"},
 			CacheParameters:  &datamodel.CacheParameters{},
 			VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{}},
-			ClusterPeerUUID:  &clusterPeerUUID}
+		}
 	}
-
+	clusterPeerUUID := "cluster-peer-uuid"
 	t.Run("Success", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		mockProvider := vsa.NewMockProvider(tt)
@@ -418,16 +423,19 @@ func TestFlexCacheVolumeCreateActivity_WaitForClusterPeerActivity(t *testing.T) 
 		ctx := context.Background()
 		vol := baseVolume()
 		peer := &vsa.ClusterPeer{
-			UUID:                "cluster-peer-uuid",
+			UUID:                clusterPeerUUID,
 			AuthenticationState: vsa.ClusterPeerAuthenticationStateOK,
 			Availability:        vsa.ClusterPeerAvailabilityStateAvailable,
 		}
-		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: &datamodel.ClusterPeerings{OntapPeerUUID: clusterPeerUUID},
+		}
+
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
-		mockProvider.EXPECT().GetClusterPeer(*vol.ClusterPeerUUID).Return(peer, nil)
-		res, err := activity.WaitForClusterPeerActivity(ctx, flexcacheResult)
+		mockProvider.EXPECT().GetClusterPeer(clusterPeerUUID).Return(peer, nil)
+		_, err := activity.WaitForClusterPeerActivity(ctx, flexcacheResult)
 		assert.NoError(tt, err)
-		assert.Equal(tt, vol.ClusterPeerUUID, res.DBVolume.ClusterPeerUUID)
 	})
 
 	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
@@ -447,9 +455,9 @@ func TestFlexCacheVolumeCreateActivity_WaitForClusterPeerActivity(t *testing.T) 
 		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
 		ctx := context.Background()
 		vol := baseVolume()
-		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: &datamodel.ClusterPeerings{OntapPeerUUID: clusterPeerUUID}}
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
-		mockProvider.EXPECT().GetClusterPeer(*vol.ClusterPeerUUID).Return(nil, errors.New("any failure"))
+		mockProvider.EXPECT().GetClusterPeer(clusterPeerUUID).Return(nil, errors.New("any failure"))
 		_, err := activity.WaitForClusterPeerActivity(ctx, flexcacheResult)
 		assert.Error(tt, err)
 	})
@@ -465,10 +473,10 @@ func TestFlexCacheVolumeCreateActivity_WaitForClusterPeerActivity(t *testing.T) 
 			AuthenticationState: vsa.ClusterPeerAuthenticationStateProblem,
 			Availability:        vsa.ClusterPeerAvailabilityStateUnavailable,
 		}
-		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: &datamodel.ClusterPeerings{OntapPeerUUID: clusterPeerUUID}}
 
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
-		mockProvider.EXPECT().GetClusterPeer(*vol.ClusterPeerUUID).Return(peer, nil)
+		mockProvider.EXPECT().GetClusterPeer(clusterPeerUUID).Return(peer, nil)
 		_, err := activity.WaitForClusterPeerActivity(ctx, flexcacheResult)
 
 		assert.Error(tt, err)
@@ -486,9 +494,9 @@ func TestFlexCacheVolumeCreateActivity_WaitForClusterPeerActivity(t *testing.T) 
 			AuthenticationState: vsa.ClusterPeerAuthenticationStatePending,
 			Availability:        vsa.ClusterPeerAvailabilityStateUnavailable,
 		}
-		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: &datamodel.ClusterPeerings{OntapPeerUUID: clusterPeerUUID}}
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
-		mockProvider.EXPECT().GetClusterPeer(*vol.ClusterPeerUUID).Return(peer, nil)
+		mockProvider.EXPECT().GetClusterPeer(clusterPeerUUID).Return(peer, nil)
 		_, err := activity.WaitForClusterPeerActivity(ctx, flexcacheResult)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "cluster peer is not ready yet")
@@ -1448,6 +1456,10 @@ func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 		}
 	}
 
+	clusterPeeringRow := &datamodel.ClusterPeerings{
+		OntapPeerUUID: "peer-uuid",
+	}
+
 	t.Run("WhenClusterPeerUUIDAbsent", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
@@ -1455,8 +1467,8 @@ func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 		act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
 		ctx := context.Background()
 
-		vol := newVolume() // ClusterPeerUUID nil
-		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		vol := newVolume()
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: &datamodel.ClusterPeerings{}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
@@ -1477,14 +1489,13 @@ func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 
 		uuid := "peer-uuid"
 		vol := newVolume()
-		vol.ClusterPeerUUID = &uuid
-		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: clusterPeeringRow}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
 		provider.EXPECT().GetClusterPeer(uuid).Return(nil, assert.AnError)
 		logger.EXPECT().Infof(mock.MatchedBy(func(format string) bool {
-			return true // accept the formatted Infof
+			return true
 		}), mock.Anything)
 
 		out, err := act.EnsureClusterPeerInOntapActivity(ctx, res)
@@ -1502,8 +1513,7 @@ func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 
 		uuid := "peer-uuid"
 		vol := newVolume()
-		vol.ClusterPeerUUID = &uuid
-		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: clusterPeeringRow}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
@@ -1524,8 +1534,7 @@ func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 
 		uuid := "peer-uuid"
 		vol := newVolume()
-		vol.ClusterPeerUUID = &uuid
-		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: clusterPeeringRow}
 
 		cp := &vsa.ClusterPeer{
 			UUID:                uuid,
@@ -1554,8 +1563,7 @@ func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 		expired := time.Now().Add(-5 * time.Minute)
 		expiredFmt := strfmt.DateTime(expired)
 		vol := newVolume()
-		vol.ClusterPeerUUID = &uuid
-		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: clusterPeeringRow}
 
 		cp := &vsa.ClusterPeer{
 			UUID:                uuid,
@@ -1583,8 +1591,7 @@ func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 
 		uuid := "peer-uuid"
 		vol := newVolume()
-		vol.ClusterPeerUUID = &uuid
-		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: clusterPeeringRow}
 
 		cp := &vsa.ClusterPeer{
 			UUID:                uuid,
@@ -1612,8 +1619,7 @@ func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 
 		uuid := "peer-uuid"
 		vol := newVolume()
-		vol.ClusterPeerUUID = &uuid
-		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: clusterPeeringRow}
 
 		cp := &vsa.ClusterPeer{
 			UUID:                uuid,
@@ -1641,13 +1647,12 @@ func TestFlexCacheVolumeCreateActivity_EnsureClusterPeerActivity(t *testing.T) {
 
 		uuid := "peer-uuid"
 		vol := newVolume()
-		vol.ClusterPeerUUID = &uuid
-		res := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		res := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: clusterPeeringRow}
 
 		cp := &vsa.ClusterPeer{
 			UUID:                uuid,
 			AuthenticationState: vsa.ClusterPeerAuthenticationStateOK,
-			Availability:        vsa.ClusterPeerAvailabilityStateUnavailable, // triggers fallback
+			Availability:        vsa.ClusterPeerAvailabilityStateUnavailable,
 		}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
@@ -1726,7 +1731,8 @@ func TestFlexCacheVolumeCreateActivity_EnsureSVMPeerActivity(t *testing.T) {
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
-		provider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).Return(nil, utilserrors.NewNotFoundErr("svmPeer", nil))
+		provider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).Return(nil,
+			customerrors.NewNotFoundErr("svmPeer", nil))
 		logger.EXPECT().Infof(mock.Anything, mock.Anything)
 
 		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
@@ -1872,5 +1878,619 @@ func TestFlexCacheVolumeCreateActivity_EnsureSVMPeerActivity(t *testing.T) {
 		out, err := act.EnsureSVMPeerInOntapActivity(ctx, res)
 		assert.NoError(tt, err)
 		assert.Equal(tt, flexcache.ActionCreate, out.SVMPeerAction)
+	})
+}
+
+func TestFlexCacheVolumeCreateActivity_GetClusterPeeringRowFromDBActivity(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+	makeVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 11}},
+			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 22}},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster-A",
+			},
+		}
+	}
+
+	t.Run("SuccessExistingRow", func(tt *testing.T) {
+		vol := makeVolume()
+		result := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		existing := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "peer-row-1"},
+			AccountID:      vol.Account.ID,
+			PoolID:         vol.Pool.ID,
+			OnprempCluster: vol.CacheParameters.PeerClusterName,
+		}
+
+		mockStorage.
+			On("GetClusterPeerByAccountIDExternalClusterAndPoolID", ctx,
+				vol.Account.ID, vol.CacheParameters.PeerClusterName, vol.Pool.ID).
+			Return(existing, nil).Once()
+
+		out, err := act.GetClusterPeeringRowFromDBActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, existing, out.ClusterPeeringRow)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("NotFoundReturnsNilRow", func(tt *testing.T) {
+		vol := makeVolume()
+		result := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		notFoundErr := customerrors.NewNotFoundErr("cluster peering row", nil)
+		mockStorage.
+			On("GetClusterPeerByAccountIDExternalClusterAndPoolID", ctx,
+				vol.Account.ID, vol.CacheParameters.PeerClusterName, vol.Pool.ID).
+			Return(nil, notFoundErr).Once()
+
+		out, err := act.GetClusterPeeringRowFromDBActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, out)
+		assert.Nil(tt, out.ClusterPeeringRow)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetError", func(tt *testing.T) {
+		vol := makeVolume()
+		result := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		mockStorage.
+			On("GetClusterPeerByAccountIDExternalClusterAndPoolID", ctx,
+				vol.Account.ID, vol.CacheParameters.PeerClusterName, vol.Pool.ID).
+			Return(nil, assert.AnError).Once()
+
+		out, err := act.GetClusterPeeringRowFromDBActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, out)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestFlexCacheVolumeCreateActivity_CreateClusterPeeringRowInDBActivity(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+
+	makeVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-create"},
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 55}},
+			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 77}},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster-B",
+			},
+		}
+	}
+
+	t.Run("NoOpWhenExistingRow", func(tt *testing.T) {
+		vol := makeVolume()
+		existing := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{UUID: "existing-row"},
+			AccountID: vol.Account.ID,
+			PoolID:    vol.Pool.ID,
+		}
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: existing,
+		}
+
+		// Expect no CreateClusterPeeringRow call.
+		out, err := act.CreateClusterPeeringRowInDBActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, existing, out.ClusterPeeringRow)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CreateSuccess", func(tt *testing.T) {
+		vol := makeVolume()
+		result := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		mockStorage.
+			On("CreateClusterPeeringRow", ctx, mock.MatchedBy(func(row *datamodel.ClusterPeerings) bool {
+				return row.AccountID == vol.Account.ID &&
+					row.PoolID == vol.Pool.ID &&
+					row.OnprempCluster == vol.CacheParameters.PeerClusterName &&
+					row.UUID != ""
+			})).
+			Return(func(_ context.Context, row *datamodel.ClusterPeerings) *datamodel.ClusterPeerings {
+				// Simulate DB assigning same UUID passed in
+				return row
+			}, nil).Once()
+
+		out, err := act.CreateClusterPeeringRowInDBActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, out.ClusterPeeringRow)
+		assert.Equal(tt, vol.Account.ID, out.ClusterPeeringRow.AccountID)
+		assert.Equal(tt, vol.Pool.ID, out.ClusterPeeringRow.PoolID)
+		assert.Equal(tt, vol.CacheParameters.PeerClusterName, out.ClusterPeeringRow.OnprempCluster)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CreateError", func(tt *testing.T) {
+		vol := makeVolume()
+		result := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+
+		mockStorage.
+			On("CreateClusterPeeringRow", ctx, mock.Anything).
+			Return(nil, assert.AnError).Once()
+
+		out, err := act.CreateClusterPeeringRowInDBActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, out)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestFlexCacheVolumeCreateActivity_UpdateClusterPeeringInVolume(t *testing.T) {
+	ctx := context.Background()
+	activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(t)}
+
+	baseVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "vol-upd-peering"},
+			CacheParameters: &datamodel.CacheParameters{},
+		}
+	}
+
+	t.Run("SuccessWithClusterPeeringRow", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity.SE = mockStorage
+		vol := baseVolume()
+		row := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{ID: 321, UUID: "row-uuid"},
+		}
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: row,
+		}
+
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		allowAnyLogs(logger)
+
+		mockStorage.
+			On("UpdateVolumeFields", ctx, vol.UUID, mock.MatchedBy(func(upd map[string]interface{}) bool {
+				cp, ok := upd["cluster_peer_id"].(sql.NullInt64)
+				return ok && cp.Valid && cp.Int64 == int64(row.ID)
+			})).
+			Return(nil).Once()
+
+		updated, err := activity.UpdateClusterPeeringInVolume(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, updated)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity.SE = mockStorage
+		vol := baseVolume()
+		row := &datamodel.ClusterPeerings{BaseModel: datamodel.BaseModel{ID: 777, UUID: "row-fail"}}
+		result := &flexcache.CreateFlexCacheResult{DBVolume: vol, ClusterPeeringRow: row}
+
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		allowAnyLogs(logger)
+
+		mockStorage.
+			On("UpdateVolumeFields", ctx, vol.UUID, mock.MatchedBy(func(upd map[string]interface{}) bool {
+				cp, ok := upd["cluster_peer_id"].(sql.NullInt64)
+				return ok && cp.Valid && cp.Int64 == int64(row.ID)
+			})).
+			Return(errors.New("db error")).Once()
+
+		updated, err := activity.UpdateClusterPeeringInVolume(ctx, result)
+		assert.Nil(tt, updated)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func Test_updateClusterPeeringRowStateInDBActivity(t *testing.T) {
+	ctx := context.Background()
+
+	newVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "vol-uuid"},
+			CacheParameters: &datamodel.CacheParameters{}, // kept minimal
+		}
+	}
+	newRow := func(uuid string) *datamodel.ClusterPeerings {
+		return &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{UUID: uuid, ID: 1},
+			State:     coremodels.CvpClusterPeeringStatusCREATING,
+		}
+	}
+	newPeer := func() *vsa.ClusterPeer {
+		return &vsa.ClusterPeer{UUID: "peer-uuid"}
+	}
+
+	t.Run("PendingWithClusterPeer", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: ms}
+		row := newRow("row-pending-peer")
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          newVolume(),
+			ClusterPeeringRow: row,
+			ClusterPeer:       newPeer(),
+		}
+		ms.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
+			return r.State == coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
+		})).Return(nil).Once()
+
+		out, err := act.updateClusterPeeringRowStateInDBActivity(ctx, res, coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING)
+		assert.NoError(tt, err)
+		assert.Equal(tt, coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING, out.ClusterPeeringRow.State)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("PendingWithoutClusterPeer", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: ms}
+		row := newRow("row-pending-np")
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          newVolume(),
+			ClusterPeeringRow: row,
+		}
+		ms.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
+			return r.State == coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
+		})).Return(nil).Once()
+
+		out, err := act.updateClusterPeeringRowStateInDBActivity(ctx, res, coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING)
+		assert.NoError(tt, err)
+		assert.Equal(tt, coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING, out.ClusterPeeringRow.State)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("PeeredState", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: ms}
+		row := newRow("row-peered")
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          newVolume(),
+			ClusterPeeringRow: row,
+		}
+		ms.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
+			return r.State == coremodels.CvpClusterPeeringStatusPEERED
+		})).Return(nil).Once()
+
+		out, err := act.updateClusterPeeringRowStateInDBActivity(ctx, res, coremodels.CvpClusterPeeringStatusPEERED)
+		assert.NoError(tt, err)
+		assert.Equal(tt, coremodels.CvpClusterPeeringStatusPEERED, out.ClusterPeeringRow.State)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("ErrorState", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: ms}
+		row := newRow("row-error")
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          newVolume(),
+			ClusterPeeringRow: row,
+			ClusterPeer:       newPeer(), // should not affect overwrite logic
+		}
+		ms.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
+			return r.State == coremodels.CvpClusterPeeringStatusERROR
+		})).Return(nil).Once()
+
+		out, err := act.updateClusterPeeringRowStateInDBActivity(ctx, res, coremodels.CvpClusterPeeringStatusERROR)
+		assert.NoError(tt, err)
+		assert.Equal(tt, coremodels.CvpClusterPeeringStatusERROR, out.ClusterPeeringRow.State)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateFails", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: ms}
+		row := newRow("row-update-fail")
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          newVolume(),
+			ClusterPeeringRow: row,
+		}
+		ms.On("UpdateClusterPeeringRow", ctx, mock.Anything).Return(errors.New("db fail")).Once()
+
+		out, err := act.updateClusterPeeringRowStateInDBActivity(ctx, res, coremodels.CvpClusterPeeringStatusPEERED)
+		assert.Nil(tt, out)
+		assert.Error(tt, err)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("InvalidState", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: ms}
+		row := newRow("row-invalid")
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          newVolume(),
+			ClusterPeeringRow: row,
+		}
+		out, err := act.updateClusterPeeringRowStateInDBActivity(ctx, res, coremodels.ClusterPeeringStatus("BAD_STATE"))
+		assert.Nil(tt, out)
+		assert.Error(tt, err)
+		ms.AssertExpectations(tt)
+	})
+}
+
+func TestUpdateClusterPeeringRowStatePendingInDBActivity(t *testing.T) {
+	ctx := context.Background()
+	activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(t)}
+
+	newVolume := func() *datamodel.Volume {
+		pass := nillable.ToPointer("passphrase-1")
+		cmd := nillable.ToPointer("cluster peer create ...")
+		exp := time.Now().Add(10 * time.Minute)
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+			CacheParameters: &datamodel.CacheParameters{
+				Passphrase:        pass,
+				Command:           cmd,
+				CommandExpiryTime: &exp,
+			},
+		}
+	}
+
+	t.Run("SuccessWithClusterPeer", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		activity.SE = ms
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		allowAnyLogs(logger)
+
+		vol := newVolume()
+		row := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{UUID: "row-pending-peer"},
+			State:     coremodels.ClusterPeeringStatus(""),
+		}
+		clusterPeer := &vsa.ClusterPeer{
+			UUID:            "cp-uuid",
+			ExternalUUID:    "ext-peer-uuid",
+			PeerClusterName: "onprem-cluster-A",
+		}
+
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: row,
+			ClusterPeer:       clusterPeer,
+		}
+
+		ms.
+			On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
+				assert.Equal(tt, clusterPeer.ExternalUUID, r.OntapPeerUUID)
+				assert.Equal(tt, clusterPeer.PeerClusterName, r.OnprempCluster)
+				assert.Equal(tt, coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING, r.State)
+				if assert.NotNil(tt, r.ClusterPeeringAttributes) {
+					assert.Equal(tt, vol.CacheParameters.Passphrase, r.ClusterPeeringAttributes.PassPhrase)
+					assert.Equal(tt, vol.CacheParameters.Command, r.ClusterPeeringAttributes.Command)
+					assert.Equal(tt, vol.CacheParameters.CommandExpiryTime, r.ClusterPeeringAttributes.ExpiryTime)
+				}
+				return true
+			})).
+			Return(nil).Once()
+
+		out, err := activity.UpdateClusterPeeringRowStatePendingInDBActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING, out.ClusterPeeringRow.State)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateFails", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		activity.SE = ms
+
+		vol := newVolume()
+		row := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{UUID: "row-update-fail"},
+		}
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: row,
+		}
+
+		ms.On("UpdateClusterPeeringRow", ctx, mock.Anything).Return(errors.New("db failure")).Once()
+
+		out, err := activity.UpdateClusterPeeringRowStatePendingInDBActivity(ctx, res)
+		assert.Nil(tt, out)
+		assert.Error(tt, err)
+		ms.AssertExpectations(tt)
+	})
+}
+
+func TestUpdateClusterPeeringRowStatePeeredInDBActivity(t *testing.T) {
+	ctx := context.Background()
+	activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(t)}
+
+	newVolume := func() *datamodel.Volume {
+		pass := nillable.ToPointer("passphrase-1")
+		cmd := nillable.ToPointer("cluster peer create ...")
+		exp := time.Now().Add(10 * time.Minute)
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+			CacheParameters: &datamodel.CacheParameters{
+				Passphrase:        pass,
+				Command:           cmd,
+				CommandExpiryTime: &exp,
+			},
+		}
+	}
+
+	t.Run("SuccessWithClusterPeer", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		activity.SE = ms
+
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		allowAnyLogs(logger)
+
+		exp := time.Now().Add(2 * time.Minute)
+
+		vol := newVolume()
+		row := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "row-peered-success"},
+			OntapPeerUUID:  "ontap-peer-uuid-old",
+			OnprempCluster: "onprem-cluster-old",
+			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
+				PassPhrase: nillable.ToPointer("row-pass-old"),
+				Command:    nillable.ToPointer("row-cmd-old"),
+				ExpiryTime: &exp,
+			},
+		}
+		clusterPeer := &vsa.ClusterPeer{
+			UUID:                "ontap-peer-uuid-new",
+			AuthenticationState: vsa.ClusterPeerAuthenticationStateOK,
+			Availability:        vsa.ClusterPeerAvailabilityStateAvailable,
+		}
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: row,
+			ClusterPeer:       clusterPeer,
+		}
+
+		ms.
+			On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
+				return r.UUID == row.UUID &&
+					r.State == coremodels.CvpClusterPeeringStatusPEERED &&
+					r.OntapPeerUUID == row.OntapPeerUUID &&
+					r.ClusterPeeringAttributes.PassPhrase == row.ClusterPeeringAttributes.PassPhrase
+			})).
+			Return(nil).
+			Once()
+
+		out, err := activity.UpdateClusterPeeringRowStatePeeredInDBActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, coremodels.CvpClusterPeeringStatusPEERED, out.ClusterPeeringRow.State)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateFails", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		activity.SE = ms
+		exp := time.Now().Add(5 * time.Minute)
+
+		vol := newVolume()
+		row := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{UUID: "row-peered-fail"},
+			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
+				PassPhrase: nillable.ToPointer("row-pass"),
+				Command:    nillable.ToPointer("row-cmd"),
+				ExpiryTime: &exp,
+			},
+		}
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: row,
+		}
+
+		ms.On("UpdateClusterPeeringRow", ctx, mock.Anything).Return(errors.New("db failure")).Once()
+
+		out, err := activity.UpdateClusterPeeringRowStatePeeredInDBActivity(ctx, res)
+		assert.Nil(tt, out)
+		assert.Error(tt, err)
+		ms.AssertExpectations(tt)
+	})
+}
+
+func TestUpdateClusterPeeringRowStateErrorInDBActivity(t *testing.T) {
+	ctx := context.Background()
+	act := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(t)}
+	exp := time.Now().Add(30 * time.Minute)
+
+	newVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-error"},
+			CacheParameters: &datamodel.CacheParameters{
+				Passphrase:        nillable.ToPointer("vol-pass"),
+				Command:           nillable.ToPointer("vol-cmd"),
+				CommandExpiryTime: &exp,
+			},
+		}
+	}
+
+	timePtr := func(t time.Time) *time.Time { return &t }
+
+	t.Run("SuccessWithClusterPeer", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		act.SE = ms
+		vol := newVolume()
+
+		// Existing row already has attributes that must remain unchanged.
+		pass := nillable.ToPointer("row-pass")
+		cmd := nillable.ToPointer("row-cmd")
+		exp := time.Now().Add(10 * time.Minute)
+		row := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{UUID: "row-error-with-peer"},
+			State:     coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
+			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
+				PassPhrase: pass,
+				Command:    cmd,
+				ExpiryTime: &exp,
+			},
+		}
+
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: row,
+			ClusterPeer:       &vsa.ClusterPeer{UUID: "peer-uuid"},
+		}
+
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		allowAnyLogs(logger)
+
+		ms.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
+			return r.UUID == row.UUID &&
+				r.State == coremodels.CvpClusterPeeringStatusERROR &&
+				r.ClusterPeeringAttributes == row.ClusterPeeringAttributes &&
+				r.ClusterPeeringAttributes.PassPhrase == pass &&
+				r.ClusterPeeringAttributes.Command == cmd &&
+				r.ClusterPeeringAttributes.ExpiryTime.Equal(exp)
+		})).Return(nil).Once()
+
+		out, err := act.UpdateClusterPeeringRowStateErrorInDBActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, coremodels.CvpClusterPeeringStatusERROR, out.ClusterPeeringRow.State)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateFails", func(tt *testing.T) {
+		ms := database.NewMockStorage(tt)
+		act.SE = ms
+		vol := newVolume()
+
+		row := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{UUID: "row-error-update-fail"},
+			State:     coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING,
+			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
+				PassPhrase: nillable.ToPointer("keep-pass"),
+				Command:    nillable.ToPointer("keep-cmd"),
+				ExpiryTime: timePtr(time.Now().Add(5 * time.Minute)),
+			},
+		}
+
+		res := &flexcache.CreateFlexCacheResult{
+			DBVolume:          vol,
+			ClusterPeeringRow: row,
+		}
+
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		allowAnyLogs(logger)
+
+		ms.On("UpdateClusterPeeringRow", ctx, mock.Anything).Return(errors.New("db failure")).Once()
+
+		out, err := act.UpdateClusterPeeringRowStateErrorInDBActivity(ctx, res)
+		assert.Nil(tt, out)
+		assert.Error(tt, err)
+		ms.AssertExpectations(tt)
 	})
 }

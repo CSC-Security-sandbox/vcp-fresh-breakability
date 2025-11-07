@@ -530,6 +530,20 @@ func (d *DataStoreRepository) GetVolumeCountByPoolID(ctx context.Context, poolID
 	return count, nil
 }
 
+func (d *DataStoreRepository) GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
+	var count int64
+	err := d.db.GORM().
+		WithContext(ctx).
+		Model(&datamodel.Volume{}).
+		Joins("JOIN cluster_peerings ON cluster_peerings.id = volumes.cluster_peer_id AND cluster_peerings.deleted_at IS NULL").
+		Where("volumes.cluster_peer_id = ?", clusterPeerID).
+		Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (d *DataStoreRepository) GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
 	return getMultipleVolumes(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
 }

@@ -771,6 +771,22 @@ func (re *retryEngine) GetVolumeCountByPoolID(ctx context.Context, poolID int64)
 	return var0, err
 }
 
+func (re *retryEngine) GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetFlexCacheVolumeCountByClusterPeerID(ctx, clusterPeerID)
+		if err != nil {
+			re.logError("GetFlexCacheVolumeCountByClusterPeerID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
 	var var0 []*datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -966,6 +982,22 @@ func (re *retryEngine) GetVolumeReplicationCount(ctx context.Context, accountNam
 		var0, err = re.dataStore.GetVolumeReplicationCount(ctx, accountName)
 		if err != nil {
 			re.logError("GetVolumeReplicationCount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetVolumeReplicationCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumeReplicationCountByClusterPeerID(ctx, clusterPeerID)
+		if err != nil {
+			re.logError("GetVolumeReplicationCountByClusterPeerID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -3977,4 +4009,19 @@ func (re *retryEngine) GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, 
 		return true, err
 	})
 	return var0, err
+}
+
+func (re *retryEngine) DeleteClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteClusterPeeringRow(ctx, clusterPeeringRow)
+		if err != nil {
+			re.logError("DeleteClusterPeeringRow", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
 }

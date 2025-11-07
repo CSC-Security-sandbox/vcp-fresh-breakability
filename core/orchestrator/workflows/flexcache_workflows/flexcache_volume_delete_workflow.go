@@ -147,8 +147,26 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteClusterPeerInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+	if err = workflow.ExecuteActivity(ctx, deleteActivity.GetClusterPeeringFromDBActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	if err = workflow.ExecuteActivity(ctx, deleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	if flexCacheResult.VolumeReplicationCountOnClusterPeering == 0 && flexCacheResult.FlexCacheVolumeCountOnClusterPeering == 1 {
+		if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteClusterPeerInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		if err = workflow.ExecuteActivity(ctx, deleteActivity.UpdateClusterPeeringRowStateDeletedInDBActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteClusterPeeringRowInDBActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	if err = workflow.ExecuteActivity(ctx, activities.VolumeDeleteActivity.DeleteVolume, &dbVolume).Get(ctx, nil); err != nil {

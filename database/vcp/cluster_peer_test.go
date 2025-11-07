@@ -899,6 +899,98 @@ func TestListClusterPeeringRowsByAccountIDWithConditions(t *testing.T) {
 	})
 }
 
+func TestDeleteClusterPeeringRow(t *testing.T) {
+	t.Run("WhenClusterPeeringRowDeletedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Account and Pool
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-del-success"}, Name: "acct"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-del-success"}, Name: "pool", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Cluster peer row
+		row := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "cluster-peer-del-success"},
+			State:          "PEERED",
+			StateDetails:   "ok",
+			OnprempCluster: "cluster-A",
+			OntapPeerUUID:  "peer-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		assert.NoError(tt, store.db.Create(row).Error())
+
+		// Delete
+		err = store.DeleteClusterPeeringRow(context.Background(), row)
+		assert.NoError(tt, err, "expected successful soft delete")
+
+		// Verify soft delete (DeletedAt set) and subsequent lookup fails
+		fetched, fetchErr := store.GetClusterPeerByAccountIDExternalClusterAndPoolID(context.Background(), account.ID, "cluster-A", pool.ID)
+		assert.Nil(tt, fetched)
+		assert.Error(tt, fetchErr)
+		var vErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(fetchErr, &vErr))
+		assert.Equal(tt, vsaerrors.ErrClusterPeerNotFound, vErr.TrackingID)
+	})
+
+	t.Run("WhenClusterPeeringRowNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Row with non-existent ID
+		phantom := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{ID: 999999, UUID: "phantom-row-uuid"},
+		}
+
+		err = store.DeleteClusterPeeringRow(context.Background(), phantom)
+		assert.Error(tt, err)
+		var vErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &vErr))
+		assert.Equal(tt, vsaerrors.ErrClusterPeerNotFound, vErr.TrackingID)
+	})
+
+	t.Run("WhenDatabaseDeleteFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-del-fail"}, Name: "acct-fail"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-del-fail"}, Name: "pool-fail", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+		row := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "cluster-peer-del-fail"},
+			State:          "CREATING",
+			StateDetails:   "in-progress",
+			OnprempCluster: "cluster-B",
+			OntapPeerUUID:  "peer-uuid-B",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		assert.NoError(tt, store.db.Create(row).Error())
+
+		// Cancelled context to force DB error
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		err = store.DeleteClusterPeeringRow(cancelledCtx, row)
+		assert.Error(tt, err)
+		var vErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &vErr))
+		assert.Equal(tt, vsaerrors.ErrDatabaseDataDeleteError, vErr.TrackingID)
+	})
+}
+
 // Helper functions
 func stringPtr(s string) *string {
 	return &s

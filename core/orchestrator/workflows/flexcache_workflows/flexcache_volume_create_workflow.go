@@ -7,7 +7,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
@@ -57,7 +56,7 @@ func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumePa
 			// Run’s own defer should handle job failure; we only handle pre-Run here.
 			log.Errorf("panic in CreateFlexCacheWorkflow: %v", r)
 			if !enteredRun {
-				_ = flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), fmt.Errorf("panic: %v", r))
+				_ = flexCacheWf.UpdateJobStatus(ctx, string(coremodels.JobsStateERROR), fmt.Errorf("panic: %v", r))
 			}
 			retErr = fmt.Errorf("panic: %v", r)
 		}
@@ -68,7 +67,7 @@ func CreateFlexCacheWorkflow(ctx workflow.Context, params *common.CreateVolumePa
 		return err
 	}
 	flexCacheWf.Status = workflows.WorkflowStatusRunning
-	if err := flexCacheWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil); err != nil {
+	if err := flexCacheWf.UpdateJobStatus(ctx, string(coremodels.JobsStatePROCESSING), nil); err != nil {
 		log.Errorf("Failed to update job status to Processing for CreateFlexCacheWorkflow: %v", err)
 		return err
 	}
@@ -130,7 +129,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	flexcacheResult := flexcache.CreateFlexCacheResult{
 		Event:         event,
 		DBVolume:      dbVolume,
-		ActiveJobType: models.JobTypeFlexCacheCreateVolume,
+		ActiveJobType: coremodels.JobTypeFlexCacheCreateVolume,
 		JobInput: &flexcache.JobActivityInput{
 			ResourceName: dbVolume.Name,
 			ResourceUUID: dbVolume.UUID,
@@ -165,6 +164,15 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 				).Get(ctx, nil)
 			}
 
+			// Update cluster peering row state to ERROR in DB if not PEERED
+			if flexcacheResult.ClusterPeeringRow != nil && flexcacheResult.ClusterPeeringRow.State !=
+				coremodels.CvpClusterPeeringStatusPEERED {
+				err2 := workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStateErrorInDBActivity, &flexcacheResult).Get(ctx, nil)
+				if err2 != nil {
+					log.Errorf("Failed to update cluster peering row state in DB: %v", err2)
+				}
+			}
+
 			// Execute rollback in disconnected context
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
@@ -172,7 +180,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}()
 
 	// Active job helpers
-	setActiveJob := func(jobType models.JobType) {
+	setActiveJob := func(jobType coremodels.JobType) {
 		flexcacheResult.ActiveJobType = jobType
 	}
 
@@ -225,29 +233,54 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		AuthType:       dbVolume.Pool.PoolCredentials.AuthType,
 	})
 
+	// Fetch cluster peering row from DB if exists
+	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.GetClusterPeeringRowFromDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	// check the status of cluster peer before creating new cluster peer
 	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// delete cluster peer on ONTAP if already created in previous attempt and has problem before creating new one
-	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate && flexcacheResult.ClusterPeer != nil {
-		log.Debugf("Deleting existing cluster peer on ONTAP before creating a new one as a part of "+
-			"Establish Peering for flexcache volume %s", dbVolume.Name)
-		err = workflow.ExecuteActivity(ctx, flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity,
-			convertCreateResultToDeleteResult(&flexcacheResult)).Get(ctx, nil)
+	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate {
+		// delete cluster peer on ONTAP if already created in previous attempt and has problem before creating new one
+		if flexcacheResult.ClusterPeer != nil {
+			log.Debugf("Deleting existing cluster peer on ONTAP before creating a new one as a part of "+
+				"Establish Peering for flexcache volume %s", dbVolume.Name)
+			err = workflow.ExecuteActivity(ctx, flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity,
+				convertCreateResultToDeleteResult(&flexcacheResult)).Get(ctx, nil)
+			if err != nil {
+				log.Errorf("Failed to delete cluster peer on ONTAP before creating a new one: %v", err)
+				return nil, workflows.ConvertToVSAError(err)
+			}
+			flexcacheResult.ClusterPeer = nil
+		}
+
+		// delete cluster peering row on DB if already created in previous attempt and has problem before creating new one
+		if flexcacheResult.ClusterPeeringRow != nil {
+			err = workflow.ExecuteActivity(ctx, flexCacheVolumeDeleteActivity.DeleteClusterPeeringRowInDBActivity, convertCreateResultToDeleteResult(&flexcacheResult)).Get(ctx, nil)
+			if err != nil {
+				log.Errorf("Failed to delete cluster peering row in DB before creating a new one: %v", err)
+				return nil, workflows.ConvertToVSAError(err)
+			}
+			flexcacheResult.ClusterPeeringRow = nil
+		}
+
+		// Create cluster peering row in DB if not exists
+		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeeringRowInDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 		if err != nil {
-			log.Errorf("Failed to delete cluster peer on ONTAP before creating a new one: %v", err)
 			return nil, workflows.ConvertToVSAError(err)
 		}
-		flexcacheResult.DBVolume.ClusterPeerUUID = nil
-		flexcacheResult.ClusterPeer = nil
-		// TODO: Update DB for consistency in case subsequent steps fail, as Volume table is gonna change in future. We can add the logic for table change later
-		// https://jira.ngage.netapp.com/browse/VSCP-1217
-	}
 
-	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate {
+		// Add cluster peering foreign key relationship to volume in DB
+		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringInVolume, &flexcacheResult).Get(ctx, &flexcacheResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
 		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -266,7 +299,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	clearActiveJob()
-	
+
 	// CCFE compatibility: Internal job
 	if err = workflow.ExecuteActivity(
 		ctx,
@@ -275,7 +308,15 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	).Get(ctx, nil); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
-	setActiveJob(models.JobTypeFlexCacheInternalPeering)
+	setActiveJob(coremodels.JobTypeFlexCacheInternalPeering)
+
+	if flexcacheResult.ClusterPeeringRow.State == coremodels.CvpClusterPeeringStatusCREATING {
+		// Update cluster peering row state to PENDING_CLUSTER_PEERING and update other details
+		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStatePendingInDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
 
 	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate || flexcacheResult.ClusterPeerAction == flexcache.ActionWait {
 		clusterPeerWaitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
@@ -283,6 +324,14 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			if temporal.IsTimeoutError(err) {
 				err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerTimeout, err))
 			}
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
+
+	if flexcacheResult.ClusterPeeringRow.State == coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING {
+		// Update cluster peering row state to PEERED
+		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStatePeeredInDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
 	}
@@ -301,9 +350,6 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 		flexcacheResult.DBVolume.SvmPeerUUID = nil
 		flexcacheResult.SVMPeer = nil
-
-		// TODO: Update DB for consistency in case subsequent steps fail, as table is gonna change in future. We can add the logic for table change later
-		// https://jira.ngage.netapp.com/browse/VSCP-1217
 	}
 
 	if flexcacheResult.SVMPeerAction == flexcache.ActionCreate {
@@ -420,8 +466,9 @@ func getWaitContext(ctx workflow.Context, cacheParams *datamodel.CacheParameters
 
 func convertCreateResultToDeleteResult(createResult *flexcache.CreateFlexCacheResult) *flexcache.DeleteFlexCacheResult {
 	return &flexcache.DeleteFlexCacheResult{
-		DBVolume: createResult.DBVolume,
-		Node:     createResult.Node,
+		DBVolume:          createResult.DBVolume,
+		Node:              createResult.Node,
+		ClusterPeeringRow: createResult.ClusterPeeringRow,
 	}
 }
 

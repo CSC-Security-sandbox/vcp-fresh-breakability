@@ -19,6 +19,7 @@ type CreateFlexCacheResult struct {
 	ErrorMessage      string
 	ClusterPeerAction Action
 	SVMPeerAction     Action
+	ClusterPeeringRow *datamodel.ClusterPeerings
 }
 
 type JobActivityInput struct {
@@ -32,8 +33,11 @@ type JobActivityInput struct {
 }
 
 type DeleteFlexCacheResult struct {
-	DBVolume           *datamodel.Volume
-	Node               *models.Node
-	UnmountJobResponse *vsa.OntapAsyncResponse
-	DeleteJobResponse  *vsa.OntapAsyncResponse
+	DBVolume                               *datamodel.Volume
+	Node                                   *models.Node
+	UnmountJobResponse                     *vsa.OntapAsyncResponse
+	DeleteJobResponse                      *vsa.OntapAsyncResponse
+	ClusterPeeringRow                      *datamodel.ClusterPeerings
+	VolumeReplicationCountOnClusterPeering int64
+	FlexCacheVolumeCountOnClusterPeering   int64
 }

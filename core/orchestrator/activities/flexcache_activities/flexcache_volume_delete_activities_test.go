@@ -2,6 +2,7 @@ package flexcache_activities
 
 import (
 	"context"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -340,17 +341,15 @@ func TestFlexCacheVolumeDeleteActivity_DeleteSVMPeeringInOntapActivity(t *testin
 
 func TestFlexCacheVolumeDeleteActivity_DeleteClusterPeerInOntapActivity(t *testing.T) {
 	baseVolume := func() *datamodel.Volume {
-		clusterPeerUUID := "cluster-peer-uuid"
 		return &datamodel.Volume{
 			BaseModel:        datamodel.BaseModel{UUID: "volume-uuid-cluster-peer"},
 			Name:             "flexcache-vol",
 			Svm:              &datamodel.Svm{Name: "local-svm"},
-			ClusterPeerUUID:  &clusterPeerUUID,
 			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "external-uuid"},
 		}
 	}
 	createNode := func() *models.Node { return &models.Node{Name: "test-node"} }
-
+	clusterPeerUUID := "cluster-peer-uuid"
 	t.Run("Success", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)
@@ -359,15 +358,12 @@ func TestFlexCacheVolumeDeleteActivity_DeleteClusterPeerInOntapActivity(t *testi
 		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
 		ctx := context.Background()
 		vol := baseVolume()
-		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode(),
+			ClusterPeeringRow: &datamodel.ClusterPeerings{OntapPeerUUID: clusterPeerUUID}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
 		mockProvider.EXPECT().DeleteClusterPeer("cluster-peer-uuid").Return(nil)
-		mockStorage.EXPECT().UpdateVolumeFields(ctx, vol.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
-			v, ok := updates["cluster_peer_uuid"]
-			return ok && v == nil
-		})).Return(nil).Once()
 		logger.EXPECT().Debugf("Cluster peering with UUID %s deleted successfully", "cluster-peer-uuid")
 
 		resp, err := activity.DeleteClusterPeerInOntapActivity(ctx, result)
@@ -401,31 +397,12 @@ func TestFlexCacheVolumeDeleteActivity_DeleteClusterPeerInOntapActivity(t *testi
 		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
 		ctx := context.Background()
 		vol := baseVolume()
-		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode(),
+			ClusterPeeringRow: &datamodel.ClusterPeerings{OntapPeerUUID: clusterPeerUUID}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
 		mockProvider.EXPECT().DeleteClusterPeer("cluster-peer-uuid").Return(assert.AnError)
-
-		resp, err := activity.DeleteClusterPeerInOntapActivity(ctx, result)
-		assert.Error(tt, err)
-		assert.Nil(tt, resp)
-	})
-
-	t.Run("WhenUpdateVolumeFieldsFails", func(tt *testing.T) {
-		mm := newMonkeyMockAndPatch(tt)
-		logger := log.NewMockLogger(tt)
-		mockProvider := vsa.NewMockProvider(tt)
-		mockStorage := database.NewMockStorage(tt)
-		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
-		ctx := context.Background()
-		vol := baseVolume()
-		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
-
-		mm.EXPECT().utilGetLogger(ctx).Return(logger)
-		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
-		mockProvider.EXPECT().DeleteClusterPeer("cluster-peer-uuid").Return(nil)
-		mockStorage.EXPECT().UpdateVolumeFields(ctx, vol.UUID, mock.Anything).Return(assert.AnError).Once()
 
 		resp, err := activity.DeleteClusterPeerInOntapActivity(ctx, result)
 		assert.Error(tt, err)
@@ -440,8 +417,8 @@ func TestFlexCacheVolumeDeleteActivity_DeleteClusterPeerInOntapActivity(t *testi
 		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
 		ctx := context.Background()
 		vol := baseVolume()
-		vol.ClusterPeerUUID = nil
-		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode(),
+			ClusterPeeringRow: &datamodel.ClusterPeerings{OntapPeerUUID: ""}}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
@@ -449,5 +426,359 @@ func TestFlexCacheVolumeDeleteActivity_DeleteClusterPeerInOntapActivity(t *testi
 		resp, err := activity.DeleteClusterPeerInOntapActivity(ctx, result)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, resp)
+	})
+}
+
+func TestFlexCacheVolumeDeleteActivity_DeleteClusterPeeringRowInDBActivity(t *testing.T) {
+	ctx := context.Background()
+
+	makeVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-del-cpr"},
+			Name:      "flexcache-vol",
+			AccountID: 11,
+			PoolID:    22,
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster-A",
+			},
+		}
+	}
+
+	makeRow := func() *datamodel.ClusterPeerings {
+		return &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{ID: 77, UUID: "cluster-peering-row-uuid"},
+			AccountID: 11,
+			PoolID:    22,
+			State:     "PEERED",
+		}
+	}
+
+	t.Run("Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		vol := makeVolume()
+		row := makeRow()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, ClusterPeeringRow: row}
+
+		logger := log.NewMockLogger(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+
+		mockStorage.EXPECT().
+			DeleteClusterPeeringRow(ctx, row).
+			Return(nil).Once()
+
+		logger.EXPECT().Debugf("Cluster peering row with ID %d deleted successfully", row.ID)
+
+		resp, err := activity.DeleteClusterPeeringRowInDBActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteClusterPeeringRowFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		vol := makeVolume()
+		row := makeRow()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, ClusterPeeringRow: row}
+
+		logger := log.NewMockLogger(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+
+		mockStorage.EXPECT().
+			DeleteClusterPeeringRow(ctx, row).
+			Return(assert.AnError).Once()
+
+		resp, err := activity.DeleteClusterPeeringRowInDBActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestFlexCacheVolumeDeleteActivity_GetFlexCacheAndReplicationCountsOnClusterPeeringActivity(t *testing.T) {
+	ctx := context.Background()
+
+	makeVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-counts"},
+			Name:      "flexcache-vol",
+			AccountID: 101,
+			PoolID:    202,
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster-X",
+			},
+		}
+	}
+
+	makeRow := func() *datamodel.ClusterPeerings {
+		return &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{ID: 909, UUID: "cluster-peering-row-counts"},
+			AccountID: 101,
+			PoolID:    202,
+			State:     "PEERED",
+		}
+	}
+
+	t.Run("Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		vol := makeVolume()
+		row := makeRow()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, ClusterPeeringRow: makeRow()}
+
+		mockStorage.EXPECT().
+			GetVolumeReplicationCountByClusterPeerID(ctx, row.ID).
+			Return(int64(5), nil).Once()
+		mockStorage.EXPECT().
+			GetFlexCacheVolumeCountByClusterPeerID(ctx, row.ID).
+			Return(int64(3), nil).Once()
+
+		resp, err := activity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, int64(5), resp.VolumeReplicationCountOnClusterPeering)
+		assert.Equal(tt, int64(3), resp.FlexCacheVolumeCountOnClusterPeering)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ClusterPeerNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		vol := makeVolume()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol}
+
+		resp, err := activity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity(ctx, result)
+		assert.NoError(tt, err, "Should not error when cluster peer is not found")
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, int64(0), resp.VolumeReplicationCountOnClusterPeering)
+		assert.Equal(tt, int64(0), resp.FlexCacheVolumeCountOnClusterPeering)
+		assert.Nil(tt, resp.ClusterPeeringRow, "ClusterPeeringRow should remain nil when not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReplicationCountFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		vol := makeVolume()
+		row := makeRow()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, ClusterPeeringRow: row}
+
+		mockStorage.EXPECT().
+			GetVolumeReplicationCountByClusterPeerID(ctx, row.ID).
+			Return(int64(0), assert.AnError).Once()
+
+		resp, err := activity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("FlexCacheCountFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		vol := makeVolume()
+		row := makeRow()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, ClusterPeeringRow: row}
+
+		mockStorage.EXPECT().
+			GetVolumeReplicationCountByClusterPeerID(ctx, row.ID).
+			Return(int64(7), nil).Once()
+		mockStorage.EXPECT().
+			GetFlexCacheVolumeCountByClusterPeerID(ctx, row.ID).
+			Return(int64(0), assert.AnError).Once()
+
+		resp, err := activity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestFlexCacheVolumeDeleteActivity_UpdateClusterPeeringRowStateDeletedInDBActivity(t *testing.T) {
+	ctx := context.Background()
+
+	makeRow := func() *datamodel.ClusterPeerings {
+		return &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{UUID: "cluster-peering-row-uuid"},
+			AccountID: 11,
+			PoolID:    22,
+			State:     "PEERED",
+		}
+	}
+
+	makeResult := func(row *datamodel.ClusterPeerings) *flexcache.DeleteFlexCacheResult {
+		return &flexcache.DeleteFlexCacheResult{
+			DBVolume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-del-cpr"},
+				AccountID: 11,
+				PoolID:    22,
+			},
+			ClusterPeeringRow: row,
+		}
+	}
+
+	t.Run("Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		row := makeRow()
+		result := makeResult(row)
+
+		logger := log.NewMockLogger(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mockStorage.
+			On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
+				return r == row && r.State == models.CvpClusterPeeringStatusDELETED
+			})).
+			Return(nil).Once()
+		logger.EXPECT().Infof("Cluster peering row with UUID %s updated to state %s", row.UUID, models.CvpClusterPeeringStatusDELETED)
+
+		updated, err := activity.UpdateClusterPeeringRowStateDeletedInDBActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updated)
+		assert.Equal(tt, models.CvpClusterPeeringStatusDELETED, updated.ClusterPeeringRow.State)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		row := makeRow()
+		result := makeResult(row)
+
+		logger := log.NewMockLogger(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mockStorage.
+			On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(r *datamodel.ClusterPeerings) bool {
+				return r == row && r.State == models.CvpClusterPeeringStatusDELETED
+			})).
+			Return(assert.AnError).Once()
+		logger.EXPECT().Errorf("Failed to update cluster peering row in DB: %v", assert.AnError)
+
+		updated, err := activity.UpdateClusterPeeringRowStateDeletedInDBActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, updated)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+// go
+func TestFlexCacheVolumeDeleteActivity_GetClusterPeeringFromDBActivity(t *testing.T) {
+	ctx := context.Background()
+
+	makeVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			AccountID: 11,
+			PoolID:    22,
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 11}},
+			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 22}},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster-A",
+			},
+		}
+	}
+
+	t.Run("SuccessExistingRow", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		vol := makeVolume()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol}
+
+		existing := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "peer-row-1"},
+			AccountID:      vol.AccountID,
+			PoolID:         vol.PoolID,
+			OnprempCluster: vol.CacheParameters.PeerClusterName,
+		}
+
+		logger := log.NewMockLogger(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		logger.EXPECT().Debugf(mock.Anything, mock.Anything).Maybe()
+
+		mockStorage.EXPECT().
+			GetClusterPeerByAccountIDExternalClusterAndPoolID(
+				mock.Anything,
+				vol.AccountID,
+				vol.CacheParameters.PeerClusterName,
+				vol.PoolID,
+			).
+			Return(existing, nil).Once()
+
+		out, err := act.GetClusterPeeringFromDBActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, out)
+		assert.Equal(tt, existing, out.ClusterPeeringRow)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("NotFoundReturnsNilRow", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		vol := makeVolume()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol}
+
+		notFoundErr := customerrors.NewNotFoundErr("cluster peering row", nil)
+
+		logger := log.NewMockLogger(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		logger.EXPECT().
+			Debugf(
+				"Cluster peering row not found (account=%d cluster=%s pool=%d)",
+				vol.AccountID,
+				vol.CacheParameters.PeerClusterName,
+				vol.PoolID,
+			).Once()
+
+		mockStorage.EXPECT().
+			GetClusterPeerByAccountIDExternalClusterAndPoolID(
+				mock.Anything,
+				vol.AccountID,
+				vol.CacheParameters.PeerClusterName,
+				vol.PoolID,
+			).
+			Return(nil, notFoundErr).Once()
+
+		out, err := act.GetClusterPeeringFromDBActivity(ctx, result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, out)
+		assert.Nil(tt, out.ClusterPeeringRow)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		vol := makeVolume()
+		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol}
+
+		logger := log.NewMockLogger(tt)
+		mm := newMonkeyMockAndPatch(tt)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		logger.EXPECT().
+			Errorf(
+				"Failed to get cluster peering row from database: %v",
+				assert.AnError,
+			).Once()
+
+		mockStorage.EXPECT().
+			GetClusterPeerByAccountIDExternalClusterAndPoolID(
+				mock.Anything,
+				vol.AccountID,
+				vol.CacheParameters.PeerClusterName,
+				vol.PoolID,
+			).
+			Return(nil, assert.AnError).Once()
+
+		out, err := act.GetClusterPeeringFromDBActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, out)
+		mockStorage.AssertExpectations(tt)
 	})
 }

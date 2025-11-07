@@ -19,9 +19,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -168,7 +169,6 @@ func (a *FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForClusterPeeringAc
 
 	convertedTime := time.Time(*clusterPeer.ExpiryTime)
 
-	volume.ClusterPeerUUID = &clusterPeer.ExternalUUID
 	volume.CacheParameters.Passphrase = (*string)(clusterPeer.Passphrase)
 	volume.CacheParameters.CommandExpiryTime = &convertedTime
 	volume.CacheParameters.Command = &peerCommand
@@ -177,8 +177,7 @@ func (a *FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeForClusterPeeringAc
 	a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING)
 
 	updates := map[string]interface{}{
-		"cache_parameters":  volume.CacheParameters,
-		"cluster_peer_uuid": volume.ClusterPeerUUID,
+		"cache_parameters": volume.CacheParameters,
 	}
 	if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -194,7 +193,7 @@ func (a *FlexCacheVolumeCreateActivity) WaitForClusterPeerActivity(ctx context.C
 	if err != nil {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
-	clusterPeer, err := provider.GetClusterPeer(*result.DBVolume.ClusterPeerUUID)
+	clusterPeer, err := provider.GetClusterPeer(result.ClusterPeeringRow.OntapPeerUUID)
 	if err != nil {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
@@ -645,7 +644,6 @@ func mapJobTypeToError(jobType string) int {
 // EnsureClusterPeerInOntapActivity checks the status of an existing cluster peer or decides to create a new one.
 func (a *FlexCacheVolumeCreateActivity) EnsureClusterPeerInOntapActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
 	logger := utilGetLogger(ctx)
-	volume := result.DBVolume
 
 	provider, err := hyperscalerGetProviderByNode(ctx, result.Node)
 	if err != nil {
@@ -653,14 +651,15 @@ func (a *FlexCacheVolumeCreateActivity) EnsureClusterPeerInOntapActivity(ctx con
 	}
 
 	// No stored UUID -> create
-	if volume.ClusterPeerUUID == nil {
+	if result.ClusterPeeringRow == nil || result.ClusterPeeringRow.OntapPeerUUID == "" {
 		result.ClusterPeerAction = flexcache.ActionCreate
 		logger.Debug("cluster peer UUID absent; will create")
 		return result, nil
 	}
 
+	clusterPeerUUID := result.ClusterPeeringRow.OntapPeerUUID
 	// Fetch existing
-	cp, getErr := provider.GetClusterPeer(*volume.ClusterPeerUUID)
+	cp, getErr := provider.GetClusterPeer(clusterPeerUUID)
 	if getErr != nil || cp == nil {
 		result.ClusterPeerAction = flexcache.ActionCreate
 		logger.Infof("stored cluster peer UUID not found; will create new (err=%v)", getErr)
@@ -684,7 +683,7 @@ func (a *FlexCacheVolumeCreateActivity) EnsureClusterPeerInOntapActivity(ctx con
 		now.After(time.Time(*cp.ExpiryTime).UTC()) &&
 		!(cp.AuthenticationState == vsa.ClusterPeerAuthenticationStateOK &&
 			cp.Availability == vsa.ClusterPeerAvailabilityStateAvailable):
-		logger.Infof("cluster peer command expired (uuid=%s); scheduling recreation", *volume.ClusterPeerUUID)
+		logger.Infof("cluster peer command expired (uuid=%s); scheduling recreation", clusterPeerUUID)
 		result.ClusterPeerAction = flexcache.ActionCreate
 		return result, nil
 
@@ -734,7 +733,7 @@ func (a *FlexCacheVolumeCreateActivity) EnsureSVMPeerInOntapActivity(ctx context
 	svmPeer, err := provider.GetSVMPeer(&volume.Svm.Name, &volume.CacheParameters.PeerSvmName)
 	if err != nil {
 		// retryable if not found and we have no existing peer
-		if errors.IsNotFoundErr(err) {
+		if customerrors.IsNotFoundErr(err) {
 			result.SVMPeerAction = flexcache.ActionCreate
 			logger.Infof("stored SVM peer UUID not found; will create new (err=%v)", err)
 			return result, nil
@@ -769,4 +768,132 @@ func (a *FlexCacheVolumeCreateActivity) EnsureSVMPeerInOntapActivity(ctx context
 		result.SVMPeerAction = flexcache.ActionCreate
 		return result, nil
 	}
+}
+
+func (a *FlexCacheVolumeCreateActivity) GetClusterPeeringRowFromDBActivity(ctx context.Context,
+	result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	volume := result.DBVolume
+	cacheParams := volume.CacheParameters
+
+	existingPeer, err := a.SE.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, volume.Account.ID,
+		cacheParams.PeerClusterName, volume.Pool.ID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger.Debugf("Cluster peering row not found (account=%d cluster=%s pool=%d)",
+				volume.Account.ID, cacheParams.PeerClusterName, volume.Pool.ID)
+			return result, nil
+		}
+		logger.Errorf("Failed to get cluster peering row from database: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	result.ClusterPeeringRow = existingPeer
+	logger.Debugf("Found existing cluster peering row in database: %s", existingPeer.UUID)
+	return result, nil
+}
+
+func (a *FlexCacheVolumeCreateActivity) CreateClusterPeeringRowInDBActivity(ctx context.Context,
+	result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	if result.ClusterPeeringRow != nil {
+		logger.Debugf("CreateClusterPeeringRowInDBActivity: existing row uuid=%s (no-op)", result.ClusterPeeringRow.UUID)
+		return result, nil
+	}
+
+	vol := result.DBVolume
+	cp := vol.CacheParameters
+
+	newRow := &datamodel.ClusterPeerings{
+		State:          coremodels.CvpClusterPeeringStatusCREATING,
+		AccountID:      vol.Account.ID,
+		PoolID:         vol.Pool.ID,
+		OnprempCluster: cp.PeerClusterName,
+	}
+	newRow.UUID = utils.RandomUUID()
+
+	created, err := a.SE.CreateClusterPeeringRow(ctx, newRow)
+	if err != nil {
+		logger.Errorf("CreateClusterPeeringRowInDBActivity: create failed: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	result.ClusterPeeringRow = created
+	logger.Infof("CreateClusterPeeringRowInDBActivity: created row uuid=%s", created.UUID)
+	return result, nil
+}
+
+func (a *FlexCacheVolumeCreateActivity) updateClusterPeeringRowStateInDBActivity(ctx context.Context,
+	result *flexcache.CreateFlexCacheResult, targetState coremodels.ClusterPeeringStatus) (*flexcache.CreateFlexCacheResult, error) {
+	logger := utilGetLogger(ctx)
+	row := result.ClusterPeeringRow
+	vol := result.DBVolume
+
+	switch targetState {
+	case coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING:
+		if result.ClusterPeer != nil {
+			row.OntapPeerUUID = result.ClusterPeer.ExternalUUID
+			row.OnprempCluster = result.ClusterPeer.PeerClusterName
+		}
+		row.ClusterPeeringAttributes = &datamodel.ClusterPeeringAttributes{
+			PassPhrase: vol.CacheParameters.Passphrase,
+			Command:    vol.CacheParameters.Command,
+			ExpiryTime: vol.CacheParameters.CommandExpiryTime,
+		}
+		row.State = coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING
+
+	case coremodels.CvpClusterPeeringStatusPEERED:
+		row.State = coremodels.CvpClusterPeeringStatusPEERED
+
+	case coremodels.CvpClusterPeeringStatusERROR:
+		row.State = coremodels.CvpClusterPeeringStatusERROR
+
+	default:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("unsupported target state: %s", targetState))
+	}
+
+	if err := a.SE.UpdateClusterPeeringRow(ctx, row); err != nil {
+		logger.Errorf("Failed to update cluster peering row (state=%s): %v", targetState, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Cluster peering row %s updated to state %s", row.UUID, row.State)
+	return result, nil
+}
+
+func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringRowStatePendingInDBActivity(ctx context.Context,
+	result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	return a.updateClusterPeeringRowStateInDBActivity(ctx, result, coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING)
+}
+
+func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringRowStatePeeredInDBActivity(ctx context.Context,
+	result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	return a.updateClusterPeeringRowStateInDBActivity(ctx, result, coremodels.CvpClusterPeeringStatusPEERED)
+}
+
+func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringRowStateErrorInDBActivity(ctx context.Context,
+	result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	return a.updateClusterPeeringRowStateInDBActivity(ctx, result, coremodels.CvpClusterPeeringStatusERROR)
+}
+
+func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringInVolume(ctx context.Context,
+	result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+	se := a.SE
+	logger := utilGetLogger(ctx)
+	logger.Debugf("UpdateClusterPeeringInVolume - Starting update of cluster peering in volume")
+	dbVolume := result.DBVolume
+	clusterPeerID := sql.NullInt64{Int64: result.ClusterPeeringRow.ID, Valid: true}
+	dbVolume.ClusterPeerID = clusterPeerID
+
+	update := map[string]interface{}{
+		"cluster_peer_id": clusterPeerID,
+	}
+	// Update the volume in the database
+	if err := se.UpdateVolumeFields(ctx, dbVolume.UUID, update); err != nil {
+		logger.Errorf("Failed to update volume cluster peer ID: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	result.DBVolume = dbVolume
+	logger.Debugf("Volume %s cluster peer reference updated successfully in the database", dbVolume.Name)
+	return result, nil
 }

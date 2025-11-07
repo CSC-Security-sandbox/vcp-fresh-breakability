@@ -86,6 +86,7 @@ type (
 		ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error)
 		GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error)
 		GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)
+		GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error)
 		GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error)
 		VerifyVolumeOwnership(ctx context.Context, volumeID string, accountName string) (*datamodel.Volume, error)
 		GetAllVolumesForHG(ctx context.Context, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error)
@@ -100,6 +101,7 @@ type (
 		DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error)
 		GetVolumeReplicationByProjectId(ctx context.Context, accountId int64) ([]*datamodel.VolumeReplication, error)
 		GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error)
+		GetVolumeReplicationCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error)
 		GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error)
 		GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error)
 		ListVolumeReplications(ctx context.Context, filter dbutils.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error)
@@ -321,5 +323,6 @@ type (
 		GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error)
 		ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error)
 		GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, uuids []string) ([]*datamodel.ActiveDirectory, error)
+		DeleteClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error
 	}
 )

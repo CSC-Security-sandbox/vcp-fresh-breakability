@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vcputils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1815,5 +1816,122 @@ func TestGetVolumeReplicationCountByPeerName(t *testing.T) {
 		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "test_account", "peer-svm-1", "peer-volume-1")
 		assert.Error(tt, err, "Expected error when volume_replications table is dropped")
 		assert.Equal(tt, int64(0), count, "Expected count to be 0 when database error occurs")
+	})
+}
+
+func TestGetVolumeReplicationCountByClusterPeerID(t *testing.T) {
+	logger := log.NewLogger()
+	baseCtx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
+
+	newStore := func(t *testing.T) *DataStoreRepository {
+		t.Helper()
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "setup db failed")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err, "clear db failed")
+		return store
+	}
+
+	createReplication := func(t *testing.T, store *DataStoreRepository, account *datamodel.Account, volume *datamodel.Volume, clusterPeerID int64) {
+		t.Helper()
+		rep := &datamodel.VolumeReplication{
+			BaseModel:     datamodel.BaseModel{UUID: vcputils.RandomUUID()},
+			AccountID:     account.ID,
+			VolumeID:      volume.ID,
+			State:         models.LifeCycleStateCreating,
+			StateDetails:  models.LifeCycleStateCreatingDetails,
+			ClusterPeerId: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+		}
+		err := store.db.Create(rep).Error()
+		assert.NoError(t, err, "create replication failed")
+	}
+
+	t.Run("WhenReplicationsExistForClusterPeerID", func(tt *testing.T) {
+		store := newStore(tt)
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err)
+
+		// Create cluster peerings that will be referenced
+		peerA := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: vcputils.RandomUUID()},
+			AccountID:      account.ID,
+			OnprempCluster: "peer-A",
+		}
+		peerB := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: vcputils.RandomUUID()},
+			AccountID:      account.ID,
+			OnprempCluster: "peer-B",
+		}
+
+		assert.NoError(tt, store.db.Create(peerA).Error())
+		assert.NoError(tt, store.db.Create(peerB).Error())
+
+		// Two replications for peerA, one for peerB
+		createReplication(tt, store, account, volume, peerA.ID)
+		createReplication(tt, store, account, volume, peerA.ID)
+		createReplication(tt, store, account, volume, peerB.ID)
+
+		count, err := store.GetVolumeReplicationCountByClusterPeerID(baseCtx, peerA.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(2), count)
+	})
+
+	t.Run("WhenNoReplicationsExistForClusterPeerID", func(tt *testing.T) {
+		store := newStore(tt)
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err)
+
+		createReplication(tt, store, account, volume, 100)
+		createReplication(tt, store, account, volume, 101)
+
+		count, err := store.GetVolumeReplicationCountByClusterPeerID(baseCtx, 999)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), count)
+	})
+
+	t.Run("WhenContextIsCanceled", func(tt *testing.T) {
+		store := newStore(tt)
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err)
+
+		createReplication(tt, store, account, volume, 55)
+
+		cctx, cancel := context.WithCancel(baseCtx)
+		cancel()
+		count, err := store.GetVolumeReplicationCountByClusterPeerID(cctx, 55)
+		assert.Error(tt, err)
+		assert.Equal(tt, int64(0), count)
+	})
+
+	t.Run("WhenClusterPeerIDIsZero", func(tt *testing.T) {
+		store := newStore(tt)
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err)
+
+		createReplication(tt, store, account, volume, 321)
+
+		count, err := store.GetVolumeReplicationCountByClusterPeerID(baseCtx, 0)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), count)
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		store := newStore(tt)
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err)
+		createReplication(tt, store, account, volume, 777)
+
+		sqlDB, _ := store.db.GORM().DB()
+		_ = sqlDB.Close()
+
+		count, err := store.GetVolumeReplicationCountByClusterPeerID(baseCtx, 777)
+		assert.Error(tt, err)
+		assert.Equal(tt, int64(0), count)
+		var vErr *errors2.CustomError
+		if errors2.As(err, &vErr) {
+			assert.Equal(tt, errors2.ErrDatabaseDataReadError, vErr.TrackingID)
+		}
 	})
 }

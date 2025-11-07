@@ -475,6 +475,10 @@ func (s *PersistenceStore) GetVolumeReplicationCount(ctx context.Context, accoun
 	return s.dataStore.GetVolumeReplicationCount(ctx, accountName)
 }
 
+func (s *PersistenceStore) GetVolumeReplicationCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
+	return s.dataStore.GetVolumeReplicationCountByClusterPeerID(ctx, clusterPeerID)
+}
+
 func (s *PersistenceStore) GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error) {
 	return s.dataStore.GetVolumeReplicationCountByVolumeID(ctx, volumeID)
 }
@@ -569,6 +573,10 @@ func (s *PersistenceStore) ListVolumesWithPagination(ctx context.Context, condit
 
 func (s *PersistenceStore) GetVolumeCount(ctx context.Context, accountName string) (int64, error) {
 	return s.dataStore.GetVolumeCount(ctx, accountName)
+}
+
+func (s *PersistenceStore) GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
+	return s.dataStore.GetFlexCacheVolumeCountByClusterPeerID(ctx, clusterPeerID)
 }
 
 func (s *PersistenceStore) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
@@ -1355,4 +1363,8 @@ func (s *PersistenceStore) ListActiveDirectories(ctx context.Context, accountID 
 
 func (s *PersistenceStore) GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, uuids []string) ([]*datamodel.ActiveDirectory, error) {
 	return s.dataStore.GetMultipleActiveDirectoriesByUUIDs(ctx, uuids)
+}
+
+func (s *PersistenceStore) DeleteClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error {
+	return s.dataStore.DeleteClusterPeeringRow(ctx, clusterPeeringRow)
 }
