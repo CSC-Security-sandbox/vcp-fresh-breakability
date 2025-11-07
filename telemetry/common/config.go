@@ -34,6 +34,8 @@ type TelemetryConfig struct {
 	NumWorkersBizOps                int
 	GoogleBillingLabelsMaxEntries   int
 	PoolVolumeLabelPageSize         int
+	EnableBatchUsageUpdates         bool // Feature flag for batch usage updates
+	ResultUpdateBatchSize           int
 }
 
 type MetricItem struct {
@@ -67,6 +69,8 @@ func LoadConfig() *TelemetryConfig {
 	numWorkersBizOps := env.GetInt("NUM_WORKERS_BIZOPS", 10)
 	googleBillingLabelsMaxEntries := env.GetInt("GOOGLE_BILLING_LABELS_MAX_ENTRIES", 64)
 	poolVolumeLabelPageSize := env.GetInt("POOL_VOLUME_LABEL_PAGE_SIZE", 5000)
+	enableBatchUsageUpdates := env.GetBool("ENABLE_BATCH_USAGE_UPDATES", false)
+	resultUpdateBatchSize := env.GetInt("RESULT_UPDATE_BATCH_SIZE", 100)
 
 	return &TelemetryConfig{
 		RootUrl:                         rootUrl,
@@ -88,6 +92,8 @@ func LoadConfig() *TelemetryConfig {
 		NumWorkersBizOps:                numWorkersBizOps,
 		GoogleBillingLabelsMaxEntries:   googleBillingLabelsMaxEntries,
 		PoolVolumeLabelPageSize:         poolVolumeLabelPageSize,
+		EnableBatchUsageUpdates:         enableBatchUsageUpdates,
+		ResultUpdateBatchSize:           resultUpdateBatchSize,
 	}
 }
 

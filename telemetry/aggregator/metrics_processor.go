@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -89,7 +90,9 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 	if err != nil {
 		logger.Errorf("error getting unsent google usages", "error", err)
 	}
-
+	if len(aggregatedRecordsToRetry) > 0 {
+		logger.Infof("Fetched %d aggregated usage records to retry sending to Google Cloud Billing", len(aggregatedRecordsToRetry))
+	}
 	// Process each job definition
 	for key, jobDef := range common.DefaultAggregationJobDefinitions {
 		var metrics []datamodel2.HydratedMetrics
@@ -122,7 +125,7 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 		// Process each resource group
 		for resourceIdentifier, resourceMetrics := range resourceGroups {
-			if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, resourceCollection, &aggregatedRecords); err != nil {
+			if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, resourceCollection, &aggregatedRecords, logger); err != nil {
 				logger.Errorf("Failed to process metrics for resource %s and customer id %s : %v", resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID, err)
 				continue
 			}
@@ -801,8 +804,7 @@ func (p *BillingProvider) filterMetricsForCounterAndIntegralAggregationSorted(me
 	return result
 }
 
-func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics []datamodel2.HydratedMetrics, jobDef common.AggregationJobDefinition, start, end time.Time, resourceCollection *ResourceCollection, aggregatedRecords *[]datamodel2.AggregatedUsage) error {
-	logger := util.GetLogger(ctx)
+func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics []datamodel2.HydratedMetrics, jobDef common.AggregationJobDefinition, start, end time.Time, resourceCollection *ResourceCollection, aggregatedRecords *[]datamodel2.AggregatedUsage, logger log.Logger) error {
 	if len(metrics) == 0 {
 		logger.Infof("No metrics found for resource key %s and customer id %s", resourceKey, resourceKey.ConsumerID)
 		return nil

@@ -152,7 +152,7 @@ func (client *GoogleMetricsClient) reportOperationList(ctx context.Context, oper
 				}
 			}()
 
-			logger.Infof("For service: %s; Google Metrics Operation list is %v", client.config.PusherServiceName, spew.Sdump(operationList))
+			logger.Debugf("For service: %s; Google Metrics Operation list is %v", client.config.PusherServiceName, spew.Sdump(operationList))
 
 			serviceControl, err := createServiceControlClient(client.config.PusherServiceProject, client.rootURL, logger)
 			if err != nil {

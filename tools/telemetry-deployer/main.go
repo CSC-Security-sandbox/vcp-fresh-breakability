@@ -419,6 +419,7 @@ func getDefaultEnvVars() map[string]string {
 		"ENABLE_BACKUP_METRICS":              getEnvOrDefault("ENABLE_BACKUP_METRICS", "false"),
 		"ENABLE_BACKUP_BILLING_METRICS":      getEnvOrDefault("ENABLE_BACKUP_BILLING_METRICS", "false"),
 		"ENABLE_REPLICATION_BILLING_METRICS": getEnvOrDefault("ENABLE_REPLICATION_BILLING_METRICS", "false"),
+		"ENABLE_BATCH_USAGE_UPDATES":         getEnvOrDefault("ENABLE_BATCH_USAGE_UPDATES", "false"),
 		"PUSH_BATCH_SIZE":                    getEnvOrDefault("PUSH_BATCH_SIZE", "1000"),
 		"MAX_GOOGLE_BILLING_PUSH_RETRY":      getEnvOrDefault("MAX_GOOGLE_BILLING_PUSH_RETRY", "5"),
 		"PAGE_SIZE":                          getEnvOrDefault("PAGE_SIZE", "1000"),

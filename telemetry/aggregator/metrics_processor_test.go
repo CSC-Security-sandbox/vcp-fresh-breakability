@@ -17,6 +17,7 @@ import (
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 // MockUsageSink is a mock implementation of the UsageSink interface for testing
@@ -297,7 +298,7 @@ func TestProcessMetricsWithJobDef_UnsupportedAggregation(t *testing.T) {
 		PoolData:   make(map[ResourceKey]ResourceData),
 		VolumeData: make(map[ResourceKey]ResourceData),
 	}
-	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, jobDef, now.Add(-1*time.Hour), now, resourceCollection, &aggregatedRecords)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, jobDef, now.Add(-1*time.Hour), now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported job type")
 
@@ -428,7 +429,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			PoolData:   make(map[ResourceKey]ResourceData),
 			VolumeData: make(map[ResourceKey]ResourceData),
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, []datamodel2.HydratedMetrics{}, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, []datamodel2.HydratedMetrics{}, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
 		assert.NoError(t, err)
 		// No DB call should be made, but record should be collected for batch
 		assert.Len(t, aggregatedUsageForDB, 0) // No metrics means no aggregated records
@@ -449,7 +450,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
@@ -471,7 +472,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
 		assert.NoError(t, err)
 		// Verify that the record was collected and has LastCounterValue set
 		assert.Len(t, aggregatedRecords, 1)
@@ -493,7 +494,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
@@ -514,7 +515,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, resourceCollection, &aggregatedRecords)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
@@ -536,7 +537,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
 		assert.NoError(t, err) // No error in collection phase
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
@@ -589,7 +590,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			},
 		}
 
-		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, repMetrics, common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords)
+		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, repMetrics, common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
 		assert.NoError(t, err)
 		// Verify that the record was collected and has LastCounterValue set
 		assert.Len(t, aggregatedRecords, 1)
@@ -1241,7 +1242,7 @@ func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 		AccountID: 123,
 		Labels:    Labels{"env": "test"},
 	}
-	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, metrics, common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
 
 	assert.NoError(t, err)
 	// With batch approach, records are collected regardless of billability
@@ -2233,6 +2234,52 @@ func TestGetResourceDataForAggregationUsage(t *testing.T) {
 	}
 }
 
+func TestSetServiceLevelForCRR(t *testing.T) {
+	tests := []struct {
+		name     string
+		schedule string
+		expected string
+	}{
+		{
+			name:     "10minutely schedule should return service level 1",
+			schedule: "10minutely",
+			expected: "1",
+		},
+		{
+			name:     "hourly schedule should return service level 2",
+			schedule: "hourly",
+			expected: "2",
+		},
+		{
+			name:     "daily schedule should return service level 3",
+			schedule: "daily",
+			expected: "3",
+		},
+		{
+			name:     "unknown schedule should return empty string",
+			schedule: "unknown",
+			expected: "",
+		},
+		{
+			name:     "empty schedule should return empty string",
+			schedule: "",
+			expected: "",
+		},
+		{
+			name:     "weekly schedule should return empty string",
+			schedule: "weekly",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := setServiceLevelForCRR(tt.schedule)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 // Helper function to create JSONB from map
 func createJSONB(data map[string]string) *datamodel.JSONB {
 	jsonb := datamodel.JSONB{}
@@ -2956,50 +3003,4 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	assert.Equal(t, Labels{"env": "prod"}, data2.Labels)
 
 	mockVCPDB.AssertExpectations(t)
-}
-
-func TestSetServiceLevelForCRR(t *testing.T) {
-	tests := []struct {
-		name     string
-		schedule string
-		expected string
-	}{
-		{
-			name:     "10minutely schedule should return service level 1",
-			schedule: "10minutely",
-			expected: "1",
-		},
-		{
-			name:     "hourly schedule should return service level 2",
-			schedule: "hourly",
-			expected: "2",
-		},
-		{
-			name:     "daily schedule should return service level 3",
-			schedule: "daily",
-			expected: "3",
-		},
-		{
-			name:     "unknown schedule should return empty string",
-			schedule: "unknown",
-			expected: "",
-		},
-		{
-			name:     "empty schedule should return empty string",
-			schedule: "",
-			expected: "",
-		},
-		{
-			name:     "weekly schedule should return empty string",
-			schedule: "weekly",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := setServiceLevelForCRR(tt.schedule)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
 }

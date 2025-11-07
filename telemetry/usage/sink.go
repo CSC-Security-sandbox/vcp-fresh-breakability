@@ -3,12 +3,14 @@ package usage
 import (
 	"context"
 	"encoding/json"
-	"github.com/davecgh/go-spew/spew"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/googlePusher"
@@ -18,23 +20,74 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"gorm.io/gorm"
 )
 
 // GoogleUsageSink is responsible for delivering metrics to Google.
 type GoogleUsageSink struct {
-	metricClient googlePusher.GoogleMetricsClient
-	metricsdb    database2.Storage
-	logger       log.Logger
-	config       *common.TelemetryConfig
+	metricClient         googlePusher.GoogleMetricsClient
+	metricsdb            database2.Storage
+	logger               log.Logger
+	config               *common.TelemetryConfig
+	aggregatedUsageTable string // Cached table name for AggregatedUsage
 }
 
+// updateInfo holds information needed for batch database updates
+type updateInfo struct {
+	id      int64
+	updates map[string]interface{}
+}
+
+// Constants for bulk update query field count
+// These fields are: id, state, error_message, error_count, submission
+const bulkUpdateFieldCount = 5
+
 func NewSink(ctx context.Context, config *common.TelemetryConfig, metricsdb database2.Storage) *GoogleUsageSink {
-	return &GoogleUsageSink{
+	sink := &GoogleUsageSink{
 		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.RootUrl, config),
 		logger:       util.GetLogger(ctx),
 		metricsdb:    metricsdb,
 		config:       config,
 	}
+
+	// Initialize cached table name for AggregatedUsage
+	sink.initializeTableName()
+
+	return sink
+}
+
+// initializeTableName computes and caches the table name for AggregatedUsage
+func (s *GoogleUsageSink) initializeTableName() {
+	// Get a temporary GORM connection to determine table name with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err := s.metricsdb.WithTransaction(ctx, func(tx dbutils.Transaction) error {
+		// Handle case where tx.GORM() might return nil (e.g., in tests)
+		db := tx.GORM()
+		if db == nil {
+			s.logger.Warnf("GORM database is nil during table name initialization, using fallback")
+			s.aggregatedUsageTable = "aggregated_usages"
+			return nil
+		}
+
+		stmt := &gorm.Statement{DB: db}
+		if err := stmt.Parse(&datamodel.AggregatedUsage{}); err != nil {
+			s.logger.Warnf("Error parsing GORM statement for table name during initialization: %v", err)
+			// Fallback to hardcoded table name following VSA Control Plane patterns
+			s.aggregatedUsageTable = "aggregated_usages"
+		} else {
+			s.aggregatedUsageTable = stmt.Schema.Table
+		}
+		return nil
+	})
+
+	if err != nil {
+		s.logger.Warnf("Error initializing table name, using fallback: %v", err)
+		s.aggregatedUsageTable = "aggregated_usages"
+	}
+
+	s.logger.Debugf("Initialized AggregatedUsage table name: %s", s.aggregatedUsageTable)
 }
 
 func (s *GoogleUsageSink) DeliverMetrics(ctx context.Context, aggregatedRecords []datamodel.AggregatedUsage) (count int, err error) {
@@ -165,6 +218,16 @@ func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults 
 	s.logger.Infof("%d metrics were successfully reported.", len(goodResults))
 	s.logger.Infof("%d metrics were not reported.", len(errorResults)+len(exceptionResults))
 
+	// Check feature flag to determine update strategy
+	if s.config.EnableBatchUsageUpdates {
+		s.processMetricsResultsBatch(ctx, gcpResults)
+	} else {
+		s.processMetricsResultsSingle(ctx, gcpResults)
+	}
+}
+
+// processMetricsResultsSingle processes updates one by one (fallback implementation)
+func (s *GoogleUsageSink) processMetricsResultsSingle(ctx context.Context, gcpResults []common.MetricsResult) {
 	for _, result := range gcpResults {
 		billingRecord, err := result.GoogleMetric.GetAsUsageBillingMetric()
 		if err != nil {
@@ -209,6 +272,203 @@ func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults 
 
 		if err := s.metricsdb.UpdateAggregatedUsage(ctx, billingRecord.ID, updates); err != nil {
 			s.logger.Warnf("Error updating usage information - billingRecord ID: %d, error: %v", billingRecord.ID, err)
+		}
+	}
+}
+
+// processMetricsResultsBatch processes updates in batches using PostgreSQL bulk operations
+func (s *GoogleUsageSink) processMetricsResultsBatch(ctx context.Context, gcpResults []common.MetricsResult) {
+	// Collect all updates first
+	updatesBatch := make([]updateInfo, 0, len(gcpResults))
+
+	for _, result := range gcpResults {
+		billingRecord, err := result.GoogleMetric.GetAsUsageBillingMetric()
+		if err != nil {
+			s.logger.Warnf("It appears that a non-billing Google Metric was reported by the billing paradigm. "+
+				"This should not happen, and its response cannot be processed.", "The error is:", err,
+				"The Google Metric is:", result)
+			continue
+		}
+
+		resultCode := common.GetCode(&result)
+		s.logger.Debugf("Processing the Google Metric Result for service: %s; result is %v, resultCode: %s", s.config.PusherServiceName, spew.Sdump(result), resultCode)
+		billingRecord.Submission = nillable.ToPointer(result.GetOperationID())
+		errorMessage := ""
+		if isSuccessful(result.ReportResponse) {
+			billingRecord.State = datamodel.Submitted
+			billingRecord.ErrorMessage = nil
+		} else {
+			errorMessage = common.GetErrorMessage(&result)
+			billingRecord.ErrorMessage = &errorMessage
+			billingRecord.ErrorCount = billingRecord.ErrorCount + 1
+			billingRecord.State = datamodel.Error
+		}
+		s.logger.Infof("Preparing batch update for billingRecord ID: %d, state: %s", billingRecord.ID, billingRecord.State)
+
+		// Create update map with only the fields that need to be updated
+		updates := map[string]interface{}{
+			"state":         billingRecord.State,
+			"error_message": billingRecord.ErrorMessage,
+			"error_count":   billingRecord.ErrorCount,
+		}
+
+		// Handle submission field - it's a JSONB field in database, so JSON-encode the string value
+		if billingRecord.Submission != nil {
+			// JSON-encode the UUID string for JSONB storage
+			submissionJSON, err := json.Marshal(*billingRecord.Submission)
+			if err != nil {
+				s.logger.Warnf("Error marshaling submission for database update - submission: %s, error: %v", *billingRecord.Submission, err)
+			} else {
+				updates["submission"] = string(submissionJSON)
+			}
+		}
+
+		updatesBatch = append(updatesBatch, updateInfo{
+			id:      billingRecord.ID,
+			updates: updates,
+		})
+	}
+
+	// Process updates in batch
+	s.batchUpdateAggregatedUsage(ctx, updatesBatch)
+}
+
+// batchUpdateAggregatedUsage performs high-performance batch updates using PostgreSQL bulk operations
+func (s *GoogleUsageSink) batchUpdateAggregatedUsage(ctx context.Context, updatesBatch []updateInfo) {
+	if len(updatesBatch) == 0 {
+		return
+	}
+
+	batchSize := s.config.ResultUpdateBatchSize
+	for i := 0; i < len(updatesBatch); i += batchSize {
+		end := i + batchSize
+		if end > len(updatesBatch) {
+			end = len(updatesBatch)
+		}
+		batch := updatesBatch[i:end]
+
+		// Process batch updates within a transaction using PostgreSQL bulk update
+		err := s.metricsdb.WithTransaction(ctx, func(tx dbutils.Transaction) error {
+			sql, args := s.buildBulkUpdateQuery(tx.GORM(), batch)
+			if strings.TrimSpace(sql) == "" {
+				s.logger.Warnf("Skipping bulk update for batch %d-%d: empty SQL query generated", i+1, end)
+				return nil
+			}
+			if err := tx.GORM().Exec(sql, args...).Error; err != nil {
+				s.logger.Warnf("Error executing bulk update for batch %d-%d: %v", i+1, end, err)
+				return err
+			}
+			return nil
+		})
+
+		if err != nil {
+			s.logger.Warnf("Error executing batch update transaction for batch %d-%d: %v", i+1, end, err)
+			// Fallback to individual updates if batch fails
+			s.logger.Warnf("Falling back to individual updates for batch %d-%d", i+1, end)
+			s.fallbackToIndividualUpdates(ctx, batch)
+		}
+	}
+
+	s.logger.Infof("Completed batch update of %d usage records", len(updatesBatch))
+}
+
+// buildBulkUpdateQuery creates a PostgreSQL bulk update query using UPDATE ... FROM VALUES pattern
+// This is much more efficient than individual UPDATE statements
+func (s *GoogleUsageSink) buildBulkUpdateQuery(db *gorm.DB, batch []updateInfo) (string, []interface{}) {
+	if len(batch) == 0 {
+		return "", nil
+	}
+
+	// Build VALUES clause with placeholders
+	// Each update has: id, state, error_message, error_count, submission
+	placeholders := make([]string, 0, len(batch))
+	args := make([]interface{}, 0, len(batch)*bulkUpdateFieldCount) // bulkUpdateFieldCount fields per update
+	paramCounter := 1
+
+	for _, update := range batch {
+		idParam := paramCounter
+		stateParam := paramCounter + 1
+		errorMsgParam := paramCounter + 2
+		errorCountParam := paramCounter + 3
+		submissionParam := paramCounter + 4
+
+		// Build placeholder: (id, state, error_message, error_count, submission)
+		placeholders = append(placeholders, fmt.Sprintf(
+			"($%d::bigint, $%d::integer, $%d::text, $%d::integer, $%d::jsonb)",
+			idParam, stateParam, errorMsgParam, errorCountParam, submissionParam))
+
+		// Extract values from updates map
+		var state int32
+		var errorMessage interface{}
+		var errorCount int32
+		var submission interface{}
+
+		if val, ok := update.updates["state"]; ok {
+			if stateVal, ok := val.(datamodel.TrackingState); ok {
+				state = int32(stateVal)
+			} else {
+				s.logger.Warnf("Type assertion for 'state' failed: got value=%#v (type=%T) for billingRecord ID: %d", val, val, update.id)
+				// Use zero value as fallback - caller should ensure proper type
+			}
+		}
+
+		if val, ok := update.updates["error_message"]; ok {
+			errorMessage = val // Can be nil for NULL
+		} else {
+			errorMessage = nil
+		}
+
+		if val, ok := update.updates["error_count"]; ok {
+			if countVal, ok := val.(int32); ok {
+				errorCount = countVal
+			} else {
+				s.logger.Warnf("Type assertion for 'error_count' failed: got value=%#v (type=%T) for billingRecord ID: %d", val, val, update.id)
+				// Use zero value as fallback - caller should ensure proper type
+			}
+		}
+
+		if val, ok := update.updates["submission"]; ok {
+			// submission is already JSON-encoded string from the calling code
+			if submissionStr, ok := val.(string); ok {
+				submission = submissionStr
+			} else {
+				s.logger.Warnf("Type assertion for 'submission' failed: got value=%#v (type=%T) for billingRecord ID: %d", val, val, update.id)
+				submission = nil
+			}
+		} else {
+			submission = nil
+		}
+
+		// Add arguments
+		args = append(args, update.id, state, errorMessage, errorCount, submission)
+		paramCounter += bulkUpdateFieldCount
+	}
+
+	// Use cached table name for efficiency
+	tableName := s.aggregatedUsageTable
+
+	// Build the SQL query
+	// Use COALESCE to preserve existing submission when NULL is provided
+	sql := fmt.Sprintf(`
+		UPDATE %s 
+		SET 
+			state = tmp.state,
+			error_message = tmp.error_message,
+			error_count = tmp.error_count,
+			submission = COALESCE(tmp.submission::jsonb, %s.submission),
+			updated_at = NOW()
+		FROM (VALUES %s) AS tmp(id, state, error_message, error_count, submission)
+		WHERE %s.id = tmp.id`,
+		tableName, tableName, strings.Join(placeholders, ", "), tableName)
+
+	return sql, args
+}
+
+// fallbackToIndividualUpdates falls back to individual updates if batch update fails
+func (s *GoogleUsageSink) fallbackToIndividualUpdates(ctx context.Context, batch []updateInfo) {
+	for _, update := range batch {
+		if err := s.metricsdb.UpdateAggregatedUsage(ctx, update.id, update.updates); err != nil {
+			s.logger.Warnf("Error updating usage information (fallback) - billingRecord ID: %d, error: %v", update.id, err)
 		}
 	}
 }
