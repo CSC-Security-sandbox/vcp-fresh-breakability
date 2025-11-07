@@ -7,7 +7,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
-
 )
 
 const (
@@ -29,11 +28,11 @@ const (
 	UpdateVSAClusterDeploymentWorkflowName  = "vlm.UpdateVSAClusterDeploymentWorkflow"
 	UpgradeVSAClusterDeploymentWorkflowName = "vlm.UpgradeVSAClusterDeploymentWorkflow"
 	ClusterPowerCycleWorkflowName           = "vlm.ClusterPowerCycle"
-	GetClusterZiZsDetailsWorkflowName       = "vlm.GetClusterZiZsDetails"
 	ClusterHealthCheckWorkflowName          = "vlm.ClusterHealthCheck"
-	UpdateLicenseWorkflowName               = "vlm.UpdateLicenseWorkflow"
+	GetClusterZiZsDetailsWorkflowName       = "vlm.GetClusterZiZsDetails"
 	UpdateVSAMediatorWorkflowName           = "vlm.UpdateVSAMediatorWorkflow"
 	CreateVSAExpertModeUserWorkflowName     = "vlm.CreateVSAExpertModeUserWorkflow"
+	UpdateLicenseWorkflowName               = "vlm.UpdateLicenseWorkflow"
 	ASUPTriggerWaitWorkflowName             = "vlm.ASUPTriggerWaitWorkflow"
 
 	GCP_DISK_PD_SSD              = "pd-ssd"
@@ -65,7 +64,7 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	GetClusterZiZsDetailsWorkflowName:       time.Duration(env.GetInt("VLM_GET_CLUSTER_ZIZS_DETAILS_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
 	UpdateVSAMediatorWorkflowName:           time.Duration(env.GetInt("VLM_UPDATE_VSA_MEDIATOR_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
 	UpdateLicenseWorkflowName:               10 * time.Minute,
-	}
+}
 
 type VLMConfig struct {
 	Cloud      CloudConfig          `json:"cloud"`
@@ -78,6 +77,11 @@ type VLMConfig struct {
 
 type CloudConfig struct {
 	HAPairs []HAPair `json:"ha_pair"` // sde need not fill this
+}
+
+type DeploymentConfigFlags struct {
+	EnableAASupportSvm bool `json:"enable_aa_support_svm"` // Enable AA support for svm
+	EnableIlbSupport   bool `json:"enable_ilb_support"`    // Enable ILB support
 }
 
 type DeploymentConfig struct {
@@ -112,6 +116,8 @@ type DeploymentConfig struct {
 	DevFlags   DevFlags                     `json:"dev_flags"`   // Development flags
 	NTPServers []string                     `json:"ntp_servers"` // NTP servers for time synchronization
 	DNSServers []string                     `json:"dns_servers"` // DNS servers for name resolution
+	// DeploymentConfigFlags added for future flags
+	DeploymentConfigFlags DeploymentConfigFlags `json:"additional_deployment_config_flags"`
 }
 
 type DevFlags struct {
@@ -168,10 +174,10 @@ type OntapCredentials struct {
 
 // Will be revisted during multi svm support
 type GCPILBHaResources struct {
-	ForwardingRule  string `json:"forwarding_rule"`   // Forwarding rule for ILB
-	BackendService  string `json:"backend_service"`   // Backend service for ILB
-	HealthCheck     string `json:"health_check"`      // Health check for ILB
-	HealthCheckPort int32  `json:"health_check_port"` // Health check port for ILB
+	ForwardingRules  []string `json:"forwarding_rules"`   // Array of forwarding rules for ILB
+	BackendServices  []string `json:"backend_services"`   // Array of backend services for ILB
+	HealthChecks     []string `json:"health_checks"`      // Array of health checks for ILB
+	HealthCheckPorts []int32  `json:"health_check_ports"` // Array of health check ports for ILB
 }
 
 type OntapExpertModeUserConfig struct {
@@ -180,10 +186,11 @@ type OntapExpertModeUserConfig struct {
 	ExpertModeUserCredentials OntapCredentials `json:"expert_mode_credentials"`       // expert mode credentials
 	Username                  string           `json:"username,omitempty"`            // expert mode username
 	AuthenticationType        string           `json:"authentication_type,omitempty"` // "password" or "certificate", default is password
+	RbacFileURL               string           `json:"rbac_file_url,omitempty"`       // URL for the RBAC file
 }
 
 type GCPILBVmResources struct {
-	Negs string `json:"negs"` // Neg name where the vm is attached
+	Negs []string `json:"negs"` // Neg name where the vm is attached
 }
 
 type AdditionalVmResources struct {
@@ -263,6 +270,7 @@ type LIFConfig struct {
 	NetworkConfig NetworkConfig `json:"network_config"` //Network configuration for the LIF
 	Region        string        `json:"region"`         //Region for the LIF
 	HomeNode      string        `json:"home_node"`      //Home node for the LIF
+	ProbePort     int32         `json:"probe_port"`     // NFS probe port for the LIF only used for nas lif
 }
 
 type NetworkConfig struct {
@@ -352,6 +360,7 @@ type UpdateMediatorRequest struct {
 	VLMConfig        VLMConfig            `json:"vlm_config"`        // VLM configuration
 	MediatorUpdate   MediatorUpdateConfig `json:"mediator_update"`   // Mediator update configuration
 	OntapCredentials OntapCredentials     `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
+	HAPairIndices    []int                `json:"ha_pair_indices"`   // Indices of the HA pairs to update (empty or nil to update all)
 }
 
 type UpdateMediatorResponse struct {
