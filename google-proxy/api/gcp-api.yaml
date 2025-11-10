@@ -6961,6 +6961,7 @@ components:
             - UPDATING
             - DELETING
             - ERROR
+            - DISABLED
         stateDetails:
           title: stateDetails
           type: string

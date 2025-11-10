@@ -4279,6 +4279,7 @@ const (
 	HostGroupV1betaStateUPDATING         HostGroupV1betaState = "UPDATING"
 	HostGroupV1betaStateDELETING         HostGroupV1betaState = "DELETING"
 	HostGroupV1betaStateERROR            HostGroupV1betaState = "ERROR"
+	HostGroupV1betaStateDISABLED         HostGroupV1betaState = "DISABLED"
 )
 
 // AllValues returns all HostGroupV1betaState values.
@@ -4290,6 +4291,7 @@ func (HostGroupV1betaState) AllValues() []HostGroupV1betaState {
 		HostGroupV1betaStateUPDATING,
 		HostGroupV1betaStateDELETING,
 		HostGroupV1betaStateERROR,
+		HostGroupV1betaStateDISABLED,
 	}
 }
 
@@ -4307,6 +4309,8 @@ func (s HostGroupV1betaState) MarshalText() ([]byte, error) {
 	case HostGroupV1betaStateDELETING:
 		return []byte(s), nil
 	case HostGroupV1betaStateERROR:
+		return []byte(s), nil
+	case HostGroupV1betaStateDISABLED:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -4333,6 +4337,9 @@ func (s *HostGroupV1betaState) UnmarshalText(data []byte) error {
 		return nil
 	case HostGroupV1betaStateERROR:
 		*s = HostGroupV1betaStateERROR
+		return nil
+	case HostGroupV1betaStateDISABLED:
+		*s = HostGroupV1betaStateDISABLED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

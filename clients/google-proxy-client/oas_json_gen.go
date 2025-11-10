@@ -8022,6 +8022,8 @@ func (s *HostGroupV1betaState) Decode(d *jx.Decoder) error {
 		*s = HostGroupV1betaStateDELETING
 	case HostGroupV1betaStateERROR:
 		*s = HostGroupV1betaStateERROR
+	case HostGroupV1betaStateDISABLED:
+		*s = HostGroupV1betaStateDISABLED
 	default:
 		*s = HostGroupV1betaState(v)
 	}

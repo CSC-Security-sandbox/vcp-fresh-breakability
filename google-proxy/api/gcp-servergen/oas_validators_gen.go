@@ -3771,6 +3771,8 @@ func (s HostGroupV1betaState) Validate() error {
 		return nil
 	case "ERROR":
 		return nil
+	case "DISABLED":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
