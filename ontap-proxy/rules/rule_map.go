@@ -7,6 +7,20 @@ import (
 
 func GetProxyRules() map[string]actions.Rule {
 	return map[string]actions.Rule{
+		"/api/private/*": {
+			GET: &processor.Deny{
+				Name: "Private API access denied",
+			},
+			POST: &processor.Deny{
+				Name: "Private API access denied",
+			},
+			PATCH: &processor.Deny{
+				Name: "Private API access denied",
+			},
+			DELETE: &processor.Deny{
+				Name: "Private API access denied",
+			},
+		},
 		"/api/storage/volumes": {
 			GET: &processor.VolumeAction{
 				Name: "Allow volume listing",

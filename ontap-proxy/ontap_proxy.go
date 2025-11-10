@@ -13,8 +13,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
+	ontapProxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	extractOntapPath = utils.ExtractOntapPath
 )
 
 type AuthTransport struct{}
@@ -200,25 +205,6 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 	return proxy
 }
 
-func extractOntapPath(fullPath string) string {
-	parts := strings.Split(fullPath, "/")
-
-	ontapApiIndex := -1
-	for i, part := range parts {
-		if part == "ontap-api" {
-			ontapApiIndex = i
-			break
-		}
-	}
-
-	if ontapApiIndex == -1 {
-		return ""
-	}
-
-	ontapPath := "/" + strings.Join(parts[ontapApiIndex+1:], "/")
-	return ontapPath
-}
-
 func buildTargetURL(ontapAddress, ontapPath, rawQuery string) string {
 	if !strings.HasPrefix(ontapAddress, "https://") && !strings.HasPrefix(ontapAddress, "http://") {
 		ontapAddress = "https://" + ontapAddress
@@ -257,7 +243,7 @@ func logCurlCommand(req *http.Request, targetURL string) {
 
 func _getAPICallCertificate(cert *models.Certificate) (*x509.CertPool, tls.Certificate, error) {
 	if len(cert.InterMediateCertificates) > 0 && cert.SignedCertificate != "" && cert.PrivateKey != "" {
-		rootCA, err := utils.ParsePEMCertificate(cert.InterMediateCertificates, "CERTIFICATE")
+		rootCA, err := ontapProxyutils.ParsePEMCertificate(cert.InterMediateCertificates, "CERTIFICATE")
 		if err != nil {
 			return nil, tls.Certificate{}, fmt.Errorf("error parsing root CA certificate: %v", err)
 		}

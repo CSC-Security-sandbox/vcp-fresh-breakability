@@ -407,6 +407,27 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		assert.True(t, nextCalled, "Next handler should be called")
 		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
 	})
+
+	t.Run("WhenPrivateAPIPath_ShouldBlockRequest", func(t *testing.T) {
+		nextCalled := false
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			nextCalled = true
+		})
+
+		middleware := RuleEngineMiddleware()
+		handler := middleware(nextHandler)
+
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/private/cli/snapmirror/break", nil)
+		assert.NoError(t, err, "Failed to create request")
+
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		assert.False(t, nextCalled, "Next handler should not be called")
+		assert.Equal(t, http.StatusForbidden, rr.Code, "Should return 403 Forbidden")
+		assert.Contains(t, rr.Body.String(), "Request denied", "Should contain denial message")
+	})
 }
 
 func TestExtractOntapPath(t *testing.T) {
@@ -1029,6 +1050,50 @@ func TestRuleMap_AggregateActions(t *testing.T) {
 		action := rule.DELETE.(*processor.Deny)
 
 		req, _ := http.NewRequest("DELETE", "/api/storage/aggregates", nil)
+		allowed, err := action.ShouldAllow(req)
+		assert.NoError(t, err)
+		assert.False(t, allowed)
+	})
+}
+
+func TestRuleMap_PrivateCLIActions(t *testing.T) {
+	proxyRules := rules.GetProxyRules()
+
+	t.Run("GET /api/private/* - Denied", func(t *testing.T) {
+		rule := proxyRules["/api/private/*"]
+		action := rule.GET.(*processor.Deny)
+
+		req, _ := http.NewRequest("GET", "/api/private/cli/snapmirror/break", nil)
+		allowed, err := action.ShouldAllow(req)
+		assert.NoError(t, err)
+		assert.False(t, allowed)
+	})
+
+	t.Run("POST /api/private/* - Denied", func(t *testing.T) {
+		rule := proxyRules["/api/private/*"]
+		action := rule.POST.(*processor.Deny)
+
+		req, _ := http.NewRequest("POST", "/api/private/cli/vserver/start", strings.NewReader(`{}`))
+		allowed, err := action.ShouldAllow(req)
+		assert.NoError(t, err)
+		assert.False(t, allowed)
+	})
+
+	t.Run("PATCH /api/private/* - Denied", func(t *testing.T) {
+		rule := proxyRules["/api/private/*"]
+		action := rule.PATCH.(*processor.Deny)
+
+		req, _ := http.NewRequest("PATCH", "/api/private/cli/snapmirror/break", strings.NewReader(`{}`))
+		allowed, err := action.ShouldAllow(req)
+		assert.NoError(t, err)
+		assert.False(t, allowed)
+	})
+
+	t.Run("DELETE /api/private/* - Denied", func(t *testing.T) {
+		rule := proxyRules["/api/private/*"]
+		action := rule.DELETE.(*processor.Deny)
+
+		req, _ := http.NewRequest("DELETE", "/api/private/cli/vserver/stop", nil)
 		allowed, err := action.ShouldAllow(req)
 		assert.NoError(t, err)
 		assert.False(t, allowed)

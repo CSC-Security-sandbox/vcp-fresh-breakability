@@ -9,8 +9,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/rules"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	extractOntapPathUtil = utils.ExtractOntapPath
 )
 
 // uuidPattern is a compiled regex pattern for matching UUIDs in URL paths
@@ -75,43 +80,30 @@ func findMatchingRule(requestPath string, logger log.Logger) (actions.Rule, stri
 
 	proxyRules := rules.GetProxyRules()
 
-	var matchedRule actions.Rule
-	var matchedPath string
+	if rule, ok := proxyRules[path]; ok {
+		return rule, path, true
+	}
+
 	for rulePath, rule := range proxyRules {
-		if path == rulePath {
-			matchedRule = rule
-			matchedPath = rulePath
-			break
+		if strings.HasSuffix(rulePath, "/*") {
+			prefix := strings.TrimSuffix(rulePath, "/*")
+			if path == prefix || strings.HasPrefix(path, prefix+"/") {
+				return rule, rulePath, true
+			}
 		}
 	}
 
-	if matchedPath == "" {
-		logger.Debug("No rule found for path", "path", path)
-		return actions.Rule{}, "", false
-	}
-
-	return matchedRule, matchedPath, true
+	logger.Debug("No rule found for path", "path", path)
+	return actions.Rule{}, "", false
 }
 
 func extractOntapPath(fullPath string) string {
-	parts := strings.Split(fullPath, "/")
-
-	ontapApiIndex := -1
-	for i, part := range parts {
-		if part == "ontap-api" {
-			ontapApiIndex = i
-			break
-		}
-	}
-
-	if ontapApiIndex == -1 {
+	ontapPath := extractOntapPathUtil(fullPath)
+	if ontapPath == "" {
 		return ""
 	}
 
-	ontapPath := "/" + strings.Join(parts[ontapApiIndex+1:], "/")
-
 	normalizedPath := normalizeUUIDs(ontapPath)
-
 	return normalizedPath
 }
 
