@@ -472,11 +472,14 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 			Description:     "test",
 		}
 
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
+		// Mock ExecuteWorkflow to fail with a retryable error (connection refused is retryable)
+		// WorkflowExecutor will retry up to 3 times for retryable errors
+		workflowErr := errors.New("connection refused")
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowErr).Times(3)
 
 		snapshot, _, err := orch.CreateSnapshot(ctx, params)
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
-		assert.EqualError(tt, err, "workflow error")
+		assert.Contains(tt, err.Error(), "connection refused")
 	})
 
 	t.Run("WhenSnapshotCreationWithSameNameInDifferentVolumes", func(tt *testing.T) {
@@ -762,7 +765,7 @@ func TestVolumeOwnershipCheck(t *testing.T) {
 		}
 
 		_, err = VolumeOwnershipCheck(ctx, store, volume.UUID, account.Name)
-		assert.ErrorContains(tt, err, "failed to validate volume ownership")
+		assert.ErrorContains(tt, err, "Volume not found. Please ensure the volume exists and belongs to your account.")
 	})
 
 	t.Run("WhenVolumeIsIncorrect", func(tt *testing.T) {
@@ -783,7 +786,7 @@ func TestVolumeOwnershipCheck(t *testing.T) {
 		}
 
 		_, err = VolumeOwnershipCheck(ctx, store, volume.UUID, account.Name)
-		assert.ErrorContains(tt, err, "failed to validate volume ownership")
+		assert.ErrorContains(tt, err, "Volume not found. Please ensure the volume exists and belongs to your account.")
 	})
 }
 
@@ -885,7 +888,7 @@ func TestValidateCreateSnapshotOperation(t *testing.T) {
 		}
 		params := &common.CreateSnapshotParams{}
 
-		err := validateCreatSnapshotOperation(volume, params, nil)
+		err := validateCreateSnapshotOperation(volume, params, nil)
 		assert.ErrorContains(tt, err, "Snapshot name is empty")
 	})
 
@@ -902,7 +905,7 @@ func TestValidateCreateSnapshotOperation(t *testing.T) {
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
 		}
-		err := validateCreatSnapshotOperation(volume, params, account)
+		err := validateCreateSnapshotOperation(volume, params, account)
 		assert.ErrorContains(tt, err, "volume is in creating stage.")
 	})
 
@@ -919,7 +922,7 @@ func TestValidateCreateSnapshotOperation(t *testing.T) {
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
 		}
-		err := validateCreatSnapshotOperation(volume, params, account)
+		err := validateCreateSnapshotOperation(volume, params, account)
 		assert.ErrorContains(tt, err, "volume is in deleting stage.")
 	})
 }
@@ -1697,14 +1700,20 @@ func TestDeleteSnapshot(t *testing.T) {
 		}
 		snapshot, _, err := orch.DeleteSnapshot(ctx, params)
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
-		assertErrContainsOriginal(tt, err, "failed to validate volume ownership")
+		assertErrContainsOriginal(tt, err, "Volume not found. Please ensure the volume exists and belongs to your account.")
 	})
 
 	t.Run("WhenSnapshotDeletionFailsDueToWorkflowError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
 		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
 		}
 		err = database.ClearInMemoryDB(store.DB())
 		if err != nil {
@@ -1742,6 +1751,116 @@ func TestDeleteSnapshot(t *testing.T) {
 		err = store.DB().Create(snapshot).Error
 		if err != nil {
 			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.DeleteSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			SnapshotID: snapshot.UUID,
+		}
+
+		// Mock SignalWithStartWorkflow to fail with a retryable error (connection refused is retryable)
+		// WorkflowExecutor will retry up to 3 times for retryable errors (triggers line 496 error logging)
+		// DeleteSnapshot uses ExecuteSequentialWorkflow which calls SignalWithStartWorkflow internally
+		workflowErr := errors.New("connection refused")
+		temporal.EXPECT().SignalWithStartWorkflow(
+			mock.Anything, // ctx
+			mock.Anything, // controlWorkflowID
+			mock.Anything, // signal name
+			mock.Anything, // SignalWorkflowParams
+			mock.Anything, // StartWorkflowOptions
+			mock.Anything, // workflow function
+		).Return(nil, workflowErr).Times(3)
+
+		_, _, err = orch.DeleteSnapshot(ctx, params)
+		assert.Contains(tt, err.Error(), "connection refused")
+	})
+
+	t.Run("WhenSnapshotDeletionFailsAndSnapshotStateReverted", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool: &datamodel.Pool{
+				VendorID: "/projects/project123/locations/location123/pools/pool123",
+			},
+			Account: account,
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		// Create snapshot in READY state, it will be set to DELETING by DeletingSnapshot
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			State:     models.LifeCycleStateREADY,
+			Account:   account,
+			Volume:    volume,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.DeleteSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			SnapshotID: snapshot.UUID,
+		}
+
+		// Mock SignalWithStartWorkflow to fail with a retryable error (triggers line 496 error logging)
+		// DeleteSnapshot uses ExecuteSequentialWorkflow which calls SignalWithStartWorkflow internally
+		workflowErr := errors.New("connection refused")
+		temporal.EXPECT().SignalWithStartWorkflow(
+			mock.Anything, // ctx
+			mock.Anything, // controlWorkflowID
+			mock.Anything, // signal name
+			mock.Anything, // SignalWorkflowParams
+			mock.Anything, // StartWorkflowOptions
+			mock.Anything, // workflow function
+		).Return(nil, workflowErr).Times(3)
+
+		_, _, err = orch.DeleteSnapshot(ctx, params)
+		assert.Contains(tt, err.Error(), "connection refused")
+
+		// Verify snapshot state was reverted to READY after workflow failure (lines 451-456)
+		updatedSnapshot, _ := store.GetSnapshotByUUID(ctx, snapshot.UUID, account.ID, volume.ID)
+		if updatedSnapshot != nil {
+			assert.Equal(tt, models.LifeCycleStateREADY, updatedSnapshot.State)
+			assert.Equal(tt, models.LifeCycleStateAvailableDetails, updatedSnapshot.StateDetails)
 		}
 	})
 
@@ -2418,7 +2537,7 @@ func TestDeleteSnapshots(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 		orch := Orchestrator{
 			storage:  store,
 			temporal: temporal,
@@ -2468,10 +2587,13 @@ func TestDeleteSnapshots(t *testing.T) {
 			},
 		}
 
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
+		// Mock ExecuteWorkflow to fail with a retryable error (connection refused is retryable)
+		// WorkflowExecutor will retry up to 3 times for retryable errors
+		workflowErr := errors.New("connection refused")
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowErr).Times(3)
 
 		_, err = orch.DeleteSnapmirrorSnapshots(ctx, params)
-		assert.EqualError(tt, err, "workflow error")
+		assert.Contains(tt, err.Error(), "connection refused")
 	})
 
 	t.Run("WhenSnapshotDeletionFailsDueToWrongState", func(tt *testing.T) {

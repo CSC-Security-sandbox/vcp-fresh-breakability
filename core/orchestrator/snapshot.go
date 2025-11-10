@@ -3,7 +3,6 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -20,9 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/workflow"
 )
 
 const (
@@ -93,7 +90,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		}
 	}
 
-	err = validateCreatSnapshotOperation(volume, params, account)
+	err = validateCreateSnapshotOperation(volume, params, account)
 	if err != nil {
 		return nil, "", err
 	}
@@ -196,20 +193,17 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    job.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflowWithRetry(
+		ctx,
+		job.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.CreateSnapshotWorkflow,
 		params,
 		dbSnapshot,
 	)
-
 	if err != nil {
-		logger.Errorf("Failed to start create snapshot workflow. Error: %v ", err)
+		logger.Errorf("Failed to start create snapshot workflow after retries. Error: %v ", err)
 		return nil, "", err
 	}
 
@@ -368,16 +362,16 @@ func _convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snap
 	return res
 }
 
-func validateCreatSnapshotOperation(volume *datamodel.Volume, params *common.CreateSnapshotParams, account *datamodel.Account) error {
+func validateCreateSnapshotOperation(volume *datamodel.Volume, params *common.CreateSnapshotParams, account *datamodel.Account) error {
 	if params.Name == "" {
 		return customerrors.NewUserInputValidationErr("Snapshot name is empty. Please provide a valid name.")
 	}
 
 	if volume.State == models.LifeCycleStateCreating {
-		return customerrors.NewConflictErr("Can not create a snapshot when volume is in creating stage.")
+		return customerrors.NewConflictErr("Cannot create a snapshot when volume is in creating stage.")
 	}
 	if volume.State == models.LifeCycleStateDeleting {
-		return customerrors.NewConflictErr("Can not create a snapshot when volume is in deleting stage.")
+		return customerrors.NewConflictErr("Cannot create a snapshot when volume is in deleting stage.")
 	}
 
 	// @TODO: Include DataProtection check when implemented
@@ -453,6 +447,13 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	// Cleanup in case of error
 	defer func() {
 		if err != nil {
+			// Revert snapshot state back to READY
+			logger.Warnf("Error occurred during snapshot deletion, reverting snapshot state to READY. Snapshot UUID: %s", snapshot.UUID)
+			snapshot.State = models.LifeCycleStateREADY
+			snapshot.StateDetails = models.LifeCycleStateAvailableDetails
+			if _, updateErr := se.UpdateSnapshot(ctx, snapshot); updateErr != nil {
+				logger.Errorf("Failed to revert snapshot state to READY: %v", updateErr)
+			}
 			if job != nil && job.UUID != "" {
 				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
 				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
@@ -479,26 +480,18 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	// controlWorkflowID defines the workflow ID for the control workflow
-	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, volume.Account.ID, location, volume.Pool.Name)
-	err = workflows.ExecuteWorkflowSequentially(
-		temporal,
+	controlWorkflowID := workflows.GenerateControlWorkflowID(volume.Account.ID, location, volume.Pool.Name)
+	workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, job.WorkflowID)
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteSequentialWorkflow(
 		ctx,
-		client.StartWorkflowOptions{
-			TaskQueue: workflowengine.CustomerTaskQueue,
-			ID:        controlWorkflowID,
-		},
+		workflowOptions,
 		workflows.DeleteSnapshotWorkflow,
-		workflow.ChildWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			WorkflowID:            job.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
 		params,
 		snapshot,
 	)
 	if err != nil {
-		logger.Error("Failed to start delete snapshot workflow: ", "error", err)
+		logger.Error("Failed to start delete snapshot workflow after retries: ", "error", err)
 		return nil, "", err
 	}
 
@@ -515,7 +508,7 @@ func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID 
 			return nil, customerrors.NewUserInputValidationErr("Volume not found")
 		}
 		logger.Errorf("Failed to verify volume ownership: %v", err)
-		return nil, customerrors.NewUserInputValidationErr("failed to validate volume ownership")
+		return nil, customerrors.NewUserInputValidationErr("Volume not found. Please ensure the volume exists and belongs to your account.")
 	}
 
 	return volume, nil
@@ -597,18 +590,16 @@ func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	params.Volume = dbVolume
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    job.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflowWithRetry(
+		ctx,
+		job.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		replicationWorkflows.DeleteInternalSnapshotWorkflow,
 		params,
 	)
 	if err != nil {
-		logger.Error("Failed to start delete snapshot workflow: ", "error", err)
+		logger.Error("Failed to start delete snapshot workflow after retries: ", "error", err)
 		return "", err
 	}
 

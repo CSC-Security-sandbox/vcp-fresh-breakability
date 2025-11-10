@@ -16109,6 +16109,19 @@ func TestRevertVolume(t *testing.T) {
 		assert.Nil(tt, resultVolume)
 		assert.Empty(tt, jobUUID)
 		assert.Contains(tt, err.Error(), "workflow execution failed")
+
+		// Verify volume state is reverted back to READY
+		updatedVolume, volErr := store.GetVolume(ctx, volume.UUID)
+		assert.NoError(tt, volErr)
+		assert.Equal(tt, models.LifeCycleStateREADY, updatedVolume.State)
+
+		// Verify job is deleted - GetJobByResourceUUID should return error (not found)
+		_, jobErr := store.GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeRevertVolume))
+		assert.Error(tt, jobErr)
+		// Check if it's a not found error (GORM returns "record not found" which may not be wrapped)
+		if !customerrors.IsNotFoundErr(jobErr) {
+			assert.Contains(tt, jobErr.Error(), "not found")
+		}
 	})
 }
 

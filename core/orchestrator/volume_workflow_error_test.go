@@ -191,8 +191,8 @@ func TestRevertVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 			workflows.ExecuteWorkflowSeq = workflows.ExecuteWorkflowSequentially
 		}()
 
-		// Mock UpdateJob call to mark job as error
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
+		// Mock DeleteJob call to delete job on error
+		mockStorage.On("DeleteJob", ctx, job.UUID, workflowErr.Error()).Return(nil)
 
 		// Mock UpdateVolumeFields call to revert volume back to READY state
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
@@ -646,9 +646,9 @@ func TestRevertVolume_FailedJobUpdateOnError_Line376(t *testing.T) {
 			workflows.ExecuteWorkflowSeq = workflows.ExecuteWorkflowSequentially
 		}()
 
-		// Mock UpdateJob call to fail - this is what triggers line 376
-		jobUpdateErr := errors.New("failed to update job")
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(jobUpdateErr)
+		// Mock DeleteJob call to fail - this tests error handling when DeleteJob fails
+		jobDeleteErr := errors.New("failed to delete job")
+		mockStorage.On("DeleteJob", ctx, job.UUID, workflowErr.Error()).Return(jobDeleteErr)
 
 		// Mock UpdateVolumeFields call to succeed
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
@@ -738,10 +738,10 @@ func TestRevertVolume_FailedVolumeUpdateBackToReady(t *testing.T) {
 			workflows.ExecuteWorkflowSeq = workflows.ExecuteWorkflowSequentially
 		}()
 
-		// Mock UpdateJob call to succeed
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
+		// Mock DeleteJob call to succeed
+		mockStorage.On("DeleteJob", ctx, job.UUID, workflowErr.Error()).Return(nil)
 
-		// Mock UpdateVolumeFields call to fail - this is what triggers line 396
+		// Mock UpdateVolumeFields call to fail - this tests error handling when volume update fails
 		volumeUpdateErr := errors.New("failed to update volume fields")
 		mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, map[string]interface{}{
 			"state":         models.LifeCycleStateREADY,

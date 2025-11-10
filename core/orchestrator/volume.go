@@ -32,7 +32,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/workflow"
 )
 
 var (
@@ -454,6 +453,7 @@ func (o *Orchestrator) RevertVolume(ctx context.Context, params *common.RevertVo
 
 func _revertVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.RevertVolumeParams) (*models.Volume, string, error) {
 	logger := util.GetLogger(ctx)
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
@@ -508,12 +508,15 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	// Defer to mark job as error if workflow execution fails
+	// Defer to mark job as deleted if any error happens
 	defer func() {
 		if err != nil {
-			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
-			if updateErr != nil {
-				logger.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
+			// Delete job if error occurred
+			if createdJob != nil && createdJob.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", createdJob.UUID)
+				if delErr := se.DeleteJob(ctx, createdJob.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
 			}
 		}
 	}()
@@ -525,15 +528,19 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to update volume state in database", "error", err)
 		return nil, "", err
 	}
-	// Defer to mark job as error if workflow execution fails
+	// Defer to revert the resource state
 	defer func() {
 		if err != nil {
-			volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-				"state":         previousState,
-				"state_details": previousStateDetails,
-			})
-			if volumeUpdateErr != nil {
-				logger.Error("Failed to update volume state back to READY", "volume_id", volume.UUID, "error", volumeUpdateErr)
+			// Revert volume state back to previous state if it was set to REVERTING
+			if volume.State == models.LifeCycleStateReverting {
+				logger.Warnf("Error occurred during volume revert, reverting volume state to READY. Volume UUID: %s", volume.UUID)
+				volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+					"state":         previousState,
+					"state_details": previousStateDetails,
+				})
+				if volumeUpdateErr != nil {
+					logger.Errorf("Failed to revert volume state to previous volume state: %v", volumeUpdateErr)
+				}
 			}
 		}
 	}()
@@ -545,27 +552,18 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	// controlWorkflowID defines the workflow ID for the control workflow
-	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, volume.Account.ID, location, volume.Pool.Name)
-	err = workflows.ExecuteWorkflowSequentially(
-		temporal,
+	controlWorkflowID := workflows.GenerateControlWorkflowID(volume.Account.ID, location, volume.Pool.Name)
+	workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, createdJob.WorkflowID)
+	err = workflowExecutor.ExecuteSequentialWorkflow(
 		ctx,
-		client.StartWorkflowOptions{
-			TaskQueue: workflowengine.CustomerTaskQueue,
-			ID:        controlWorkflowID,
-		},
+		workflowOptions,
 		workflows.RevertVolumeWorkflow,
-		workflow.ChildWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			WorkflowID:            createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
 		params,
 		volume,
 		snapshot,
 	)
 	if err != nil {
-		logger.Error("Failed to start revert volume workflow: ", "error", err)
+		logger.Error("Failed to start revert volume workflow after retries: ", "error", err)
 		return nil, "", err
 	}
 
