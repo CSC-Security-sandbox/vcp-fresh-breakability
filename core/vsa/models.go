@@ -590,6 +590,7 @@ type CreateClusterPeerParams struct {
 	ExpiryTime          *strfmt.DateTime
 	GeneratePassphrase  bool
 	Passphrase          *string
+	LocalRole           *string
 }
 
 const (
@@ -618,6 +619,7 @@ type ClusterPeer struct {
 	AccountUUID         string
 	AccountName         string
 	ExpiryTime          *strfmt.DateTime
+	LocalRole           *string
 }
 
 // InterclusterLif describes the storage model for intercluster LIFs

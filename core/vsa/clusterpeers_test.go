@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 func TestCreateClusterPeer(t *testing.T) {
@@ -79,6 +80,37 @@ func TestCreateClusterPeer(t *testing.T) {
 		assert.Equal(tt, "1234", result.ExternalUUID)
 		assert.Equal(tt, createClusterPeerParams.PeerName, result.PeerClusterName)
 		assert.Equal(tt, createClusterPeerParams.PeerAddresses, result.PeerAddresses)
+	})
+	t.Run("WhenContextDeadlineExceeded", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClusterClient := new(ontaprest.MockClusterClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		ontapProvider := &OntapRestProvider{
+			Logger: log.NewLogger().(*log.Slogger),
+		}
+
+		timeoutError := fmt.Errorf("context deadline exceeded")
+
+		expectedParams := ontaprest.ClusterPeerCreateParams{
+			IPAddresses:        createClusterPeerParams.PeerAddresses,
+			Name:               createClusterPeerParams.PeerName,
+			GeneratePassphrase: true,
+			ExpiryTime:         nil,
+			IPSpace:            "ipspace",
+		}
+
+		mockClient.On("Cluster").Return(mockClusterClient)
+		mockClusterClient.On("ClusterPeerCreate", expectedParams).Return(nil, timeoutError)
+
+		_, err := ontapProvider.CreateClusterPeer(createClusterPeerParams)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Operation timed out: unable to establish communication between ONTAP systems")
+		assert.Contains(tt, err.Error(), "context deadline exceeded")
 	})
 }
 

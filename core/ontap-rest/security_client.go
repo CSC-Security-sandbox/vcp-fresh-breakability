@@ -17,6 +17,10 @@ type SecurityClient interface { // generate:mock
 	SecurityAuditGet() (*SecurityAudit, error)
 	GcpKmsModify(params *GcpKmsModifyParams) (*GcpKms, *JobAccepted, error)
 	EnableAutoVolOfflineCronForGCPKMS() error
+	RoleCreate(params *RoleCreateParams) (string, error)
+	RoleGet(params *RoleGetParams) (*Role, error)
+	RolePrivilegeModify(params *RolePrivilegeModifyParams) error
+	RoleCollectionGet(params *RoleCollectionGetParams) (*RoleCollectionGetResponse, error)
 }
 
 type securityClient struct {
@@ -145,4 +149,52 @@ func (sc *securityClient) EnableAutoVolOfflineCronForGCPKMS() error {
 		return errors.New("ontap-rest response for EnableAutoVolOfflineCronForGCPKMS is unsuccessful")
 	}
 	return nil
+}
+
+// RoleCreate invokes pkg/ontap-rest/client/security/Client.RoleCreate
+func (sc *securityClient) RoleCreate(params *RoleCreateParams) (string, error) {
+	response, err := (*sc.api).RoleCreate(roleCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return "", err
+	}
+	return response.Location, err
+}
+
+// RoleGet invokes pkg/ontap-rest/client/security/Client.RoleGet
+func (sc *securityClient) RoleGet(params *RoleGetParams) (*Role, error) {
+	response, err := (*sc.api).RoleGet(roleGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil || response.Payload == nil {
+		return nil, errors.New("unexpected response from RoleGet")
+	}
+
+	resp := &Role{Role: *response.Payload}
+	return resp, nil
+}
+
+// RolePrivilegeModify invokes pkg/ontap-rest/client/security/Client.RolePrivilegeModify
+func (sc *securityClient) RolePrivilegeModify(params *RolePrivilegeModifyParams) error {
+	_, err := (*sc.api).RolePrivilegeModify(rolePrivilegeModifyParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// RoleCollectionGet invokes pkg/ontap-rest/client/security/Client.RoleCollectionGet
+func (sc *securityClient) RoleCollectionGet(params *RoleCollectionGetParams) (*RoleCollectionGetResponse, error) {
+	response, err := (*sc.api).RoleCollectionGet(roleCollectionGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil || response.Payload == nil {
+		return nil, errors.New("unexpected response from RoleCollectionGet")
+	}
+
+	resp := &RoleCollectionGetResponse{RoleCollectionGetOK: response}
+	return resp, nil
 }

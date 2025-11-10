@@ -346,6 +346,28 @@ func TestClusterPeerToONTAPCreate(t *testing.T) {
 		}
 		assert.Equal(tt, params.IPAddresses, ipAddresses)
 	})
+	t.Run("WithLocalRole", func(tt *testing.T) {
+		localRole := nillable.ToPointer("some-role")
+		params := ClusterPeerCreateParams{
+			Name:               "test",
+			IPAddresses:        []string{"1.2.3.4"},
+			GeneratePassphrase: false,
+			LocalRole:          localRole,
+		}
+		otParams := clusterPeerToONTAPCreate(params)
+		assert.NotNil(tt, otParams.Info.LocalRole)
+		assert.Equal(tt, "some-role", *otParams.Info.LocalRole)
+	})
+	t.Run("WithoutLocalRole", func(tt *testing.T) {
+		params := ClusterPeerCreateParams{
+			Name:               "test",
+			IPAddresses:        []string{"1.2.3.4"},
+			GeneratePassphrase: false,
+			LocalRole:          nil,
+		}
+		otParams := clusterPeerToONTAPCreate(params)
+		assert.Nil(tt, otParams.Info.LocalRole)
+	})
 }
 
 func TestClusterPeerToONTAPAccept(t *testing.T) {
@@ -2240,9 +2262,11 @@ func TestFlexCacheModifyParamsToONTAP(t *testing.T) {
 func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 	t.Run("WhenSnapmirrorRelationshipIsNil", func(tt *testing.T) {
 		var snapmirror *SnapmirrorRelationship = nil
-		
-		result := snapmirror.TransferState()
-		
+
+		var result string
+		assert.NotPanics(tt, func() {
+			result = snapmirror.TransferState()
+		})
 		assert.Equal(tt, "", result)
 	})
 
@@ -2252,9 +2276,9 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				Transfer: nil,
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, "", result)
 	})
 
@@ -2266,9 +2290,9 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				},
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, "", result)
 	})
 
@@ -2281,9 +2305,9 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				},
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateAborted, result)
 	})
 
@@ -2296,9 +2320,9 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				},
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateFailed, result)
 	})
 
@@ -2311,9 +2335,9 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				},
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateHardAborted, result)
 	})
 
@@ -2326,9 +2350,9 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				},
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateQueued, result)
 	})
 
@@ -2341,9 +2365,9 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				},
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateSuccess, result)
 	})
 
@@ -2356,9 +2380,9 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				},
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, models.SnapmirrorRelationshipInlineTransferStateTransferring, result)
 	})
 
@@ -2371,9 +2395,9 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				},
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, "custom_state", result)
 	})
 
@@ -2386,9 +2410,487 @@ func TestSnapmirrorRelationshipTransferState(t *testing.T) {
 				},
 			},
 		}
-		
+
 		result := snapmirror.TransferState()
-		
+
 		assert.Equal(tt, "", result)
+	})
+}
+
+func TestRoleCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := roleCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+		assert.Nil(tt, otParams.Info)
+	})
+
+	t.Run("WhenParamsSetWithNoPrivileges", func(tt *testing.T) {
+		params := &RoleCreateParams{
+			Name:       "test-role",
+			Privileges: []*RolePrivilege{},
+		}
+		otParams := roleCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "test-role", *otParams.Info.Name)
+		assert.Empty(tt, otParams.Info.RoleInlinePrivileges)
+	})
+
+	t.Run("WhenParamsSetWithNilPrivileges", func(tt *testing.T) {
+		params := &RoleCreateParams{
+			Name:       "test-role",
+			Privileges: nil,
+		}
+		otParams := roleCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "test-role", *otParams.Info.Name)
+		assert.Empty(tt, otParams.Info.RoleInlinePrivileges)
+	})
+
+	t.Run("WhenParamsSetWithSinglePrivilege", func(tt *testing.T) {
+		params := &RoleCreateParams{
+			Name: "test-role",
+			Privileges: []*RolePrivilege{
+				{
+					Path:   "/api/storage/volumes",
+					Access: "all",
+					Query:  "",
+				},
+			},
+		}
+		otParams := roleCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "test-role", *otParams.Info.Name)
+		assert.Len(tt, otParams.Info.RoleInlinePrivileges, 1)
+		assert.Equal(tt, "/api/storage/volumes", *otParams.Info.RoleInlinePrivileges[0].Path)
+		assert.Equal(tt, models.RolePrivilegeLevelAll, *otParams.Info.RoleInlinePrivileges[0].Access)
+		assert.Equal(tt, "", *otParams.Info.RoleInlinePrivileges[0].Query)
+	})
+
+	t.Run("WhenParamsSetWithMultiplePrivileges", func(tt *testing.T) {
+		params := &RoleCreateParams{
+			Name: "test-role",
+			Privileges: []*RolePrivilege{
+				{
+					Path:   "/api/storage/volumes",
+					Access: "all",
+					Query:  "",
+				},
+				{
+					Path:   "/api/svm/svms",
+					Access: "readonly",
+					Query:  "",
+				},
+				{
+					Path:   "volume move start",
+					Access: "read_create",
+					Query:  "-vserver vs1|vs2 -destination-aggregate aggr1",
+				},
+			},
+		}
+		otParams := roleCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "test-role", *otParams.Info.Name)
+		assert.Len(tt, otParams.Info.RoleInlinePrivileges, 3)
+
+		// Check first privilege
+		assert.Equal(tt, "/api/storage/volumes", *otParams.Info.RoleInlinePrivileges[0].Path)
+		assert.Equal(tt, models.RolePrivilegeLevelAll, *otParams.Info.RoleInlinePrivileges[0].Access)
+		assert.Equal(tt, "", *otParams.Info.RoleInlinePrivileges[0].Query)
+
+		// Check second privilege
+		assert.Equal(tt, "/api/svm/svms", *otParams.Info.RoleInlinePrivileges[1].Path)
+		assert.Equal(tt, models.RolePrivilegeLevelReadonly, *otParams.Info.RoleInlinePrivileges[1].Access)
+		assert.Equal(tt, "", *otParams.Info.RoleInlinePrivileges[1].Query)
+
+		// Check third privilege
+		assert.Equal(tt, "volume move start", *otParams.Info.RoleInlinePrivileges[2].Path)
+		assert.Equal(tt, models.RolePrivilegeLevelReadCreate, *otParams.Info.RoleInlinePrivileges[2].Access)
+		assert.Equal(tt, "-vserver vs1|vs2 -destination-aggregate aggr1", *otParams.Info.RoleInlinePrivileges[2].Query)
+	})
+
+	t.Run("WhenParamsSetWithDifferentAccessLevels", func(tt *testing.T) {
+		params := &RoleCreateParams{
+			Name: "test-role",
+			Privileges: []*RolePrivilege{
+				{
+					Path:   "/api/storage/volumes",
+					Access: "none",
+					Query:  "",
+				},
+				{
+					Path:   "/api/svm/svms",
+					Access: "read_modify",
+					Query:  "",
+				},
+				{
+					Path:   "/api/cluster",
+					Access: "read_create_modify",
+					Query:  "",
+				},
+			},
+		}
+		otParams := roleCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "test-role", *otParams.Info.Name)
+		assert.Len(tt, otParams.Info.RoleInlinePrivileges, 3)
+
+		assert.Equal(tt, models.RolePrivilegeLevelNone, *otParams.Info.RoleInlinePrivileges[0].Access)
+		assert.Equal(tt, models.RolePrivilegeLevelReadModify, *otParams.Info.RoleInlinePrivileges[1].Access)
+		assert.Equal(tt, models.RolePrivilegeLevelReadCreateModify, *otParams.Info.RoleInlinePrivileges[2].Access)
+	})
+}
+
+func TestRoleGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := roleGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithAllFields", func(tt *testing.T) {
+		ownerUUID := "owner-uuid-123"
+		params := &RoleGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"name", "privileges", "owner"},
+			},
+			Name:      "test-role",
+			OwnerUUID: &ownerUUID,
+		}
+		otParams := roleGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, ownerUUID, otParams.OwnerUUID)
+		assert.Equal(tt, []string{"name", "privileges", "owner"}, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithOnlyName", func(tt *testing.T) {
+		params := &RoleGetParams{
+			BaseParams: BaseParams{},
+			Name:       "test-role",
+			OwnerUUID:  nil,
+		}
+		otParams := roleGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Empty(tt, otParams.OwnerUUID)
+		assert.Nil(tt, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithNameAndOwnerUUID", func(tt *testing.T) {
+		ownerUUID := "owner-uuid-456"
+		params := &RoleGetParams{
+			BaseParams: BaseParams{},
+			Name:       "test-role",
+			OwnerUUID:  &ownerUUID,
+		}
+		otParams := roleGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, ownerUUID, otParams.OwnerUUID)
+		assert.Nil(tt, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithNameAndFields", func(tt *testing.T) {
+		params := &RoleGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"name", "scope"},
+			},
+			Name:      "test-role",
+			OwnerUUID: nil,
+		}
+		otParams := roleGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Empty(tt, otParams.OwnerUUID)
+		assert.Equal(tt, []string{"name", "scope"}, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithEmptyFields", func(tt *testing.T) {
+		params := &RoleGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{},
+			},
+			Name:      "test-role",
+			OwnerUUID: nil,
+		}
+		otParams := roleGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Empty(tt, otParams.OwnerUUID)
+		assert.Empty(tt, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithEmptyName", func(tt *testing.T) {
+		ownerUUID := "owner-uuid-789"
+		params := &RoleGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"name"},
+			},
+			Name:      "",
+			OwnerUUID: &ownerUUID,
+		}
+		otParams := roleGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", otParams.Name)
+		assert.Equal(tt, ownerUUID, otParams.OwnerUUID)
+		assert.Equal(tt, []string{"name"}, otParams.Fields)
+	})
+}
+
+func TestRoleCollectionGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := roleCollectionGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithAllFields", func(tt *testing.T) {
+		roleName := "test-role"
+		params := &RoleCollectionGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"name", "privileges", "owner", "scope"},
+			},
+			Name: &roleName,
+		}
+		otParams := roleCollectionGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, roleName, *otParams.Name)
+		assert.Equal(tt, []string{"name", "privileges", "owner", "scope"}, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithOnlyName", func(tt *testing.T) {
+		roleName := "test-role"
+		params := &RoleCollectionGetParams{
+			BaseParams: BaseParams{},
+			Name:       &roleName,
+		}
+		otParams := roleCollectionGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, roleName, *otParams.Name)
+		assert.Nil(tt, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithOnlyFields", func(tt *testing.T) {
+		params := &RoleCollectionGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"name", "scope"},
+			},
+			Name: nil,
+		}
+		otParams := roleCollectionGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Nil(tt, otParams.Name)
+		assert.Equal(tt, []string{"name", "scope"}, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithEmptyFields", func(tt *testing.T) {
+		roleName := "test-role"
+		params := &RoleCollectionGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{},
+			},
+			Name: &roleName,
+		}
+		otParams := roleCollectionGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, roleName, *otParams.Name)
+		assert.Empty(tt, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithEmptyName", func(tt *testing.T) {
+		emptyName := ""
+		params := &RoleCollectionGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"name"},
+			},
+			Name: &emptyName,
+		}
+		otParams := roleCollectionGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", *otParams.Name)
+		assert.Equal(tt, []string{"name"}, otParams.Fields)
+	})
+
+	t.Run("WhenParamsSetWithNilNameAndNoFields", func(tt *testing.T) {
+		params := &RoleCollectionGetParams{
+			BaseParams: BaseParams{},
+			Name:       nil,
+		}
+		otParams := roleCollectionGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Nil(tt, otParams.Name)
+		assert.Nil(tt, otParams.Fields)
+	})
+}
+
+func TestRolePrivilegeModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := rolePrivilegeModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithAllFields", func(tt *testing.T) {
+		params := &RolePrivilegeModifyParams{
+			OwnerID: "owner-uuid-123",
+			Name:    "test-role",
+			Access:  "all",
+			Query:   "-vserver vs1|vs2 -destination-aggregate aggr1",
+			Path:    "volume move start",
+		}
+		otParams := rolePrivilegeModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-123", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "volume move start", otParams.Path)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, models.RolePrivilegeLevelAll, *otParams.Info.Access)
+		assert.Equal(tt, "-vserver vs1|vs2 -destination-aggregate aggr1", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithReadonlyAccess", func(tt *testing.T) {
+		params := &RolePrivilegeModifyParams{
+			OwnerID: "owner-uuid-456",
+			Name:    "test-role",
+			Access:  "readonly",
+			Query:   "",
+			Path:    "/api/storage/volumes",
+		}
+		otParams := rolePrivilegeModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-456", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "/api/storage/volumes", otParams.Path)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, models.RolePrivilegeLevelReadonly, *otParams.Info.Access)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithReadCreateAccess", func(tt *testing.T) {
+		params := &RolePrivilegeModifyParams{
+			OwnerID: "owner-uuid-789",
+			Name:    "test-role",
+			Access:  "read_create",
+			Query:   "test-query",
+			Path:    "/api/svm/svms",
+		}
+		otParams := rolePrivilegeModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-789", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "/api/svm/svms", otParams.Path)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, models.RolePrivilegeLevelReadCreate, *otParams.Info.Access)
+		assert.Equal(tt, "test-query", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithReadModifyAccess", func(tt *testing.T) {
+		params := &RolePrivilegeModifyParams{
+			OwnerID: "owner-uuid-101",
+			Name:    "test-role",
+			Access:  "read_modify",
+			Query:   "",
+			Path:    "/api/cluster",
+		}
+		otParams := rolePrivilegeModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-101", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "/api/cluster", otParams.Path)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, models.RolePrivilegeLevelReadModify, *otParams.Info.Access)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithReadCreateModifyAccess", func(tt *testing.T) {
+		params := &RolePrivilegeModifyParams{
+			OwnerID: "owner-uuid-202",
+			Name:    "test-role",
+			Access:  "read_create_modify",
+			Query:   "query-param",
+			Path:    "command path",
+		}
+		otParams := rolePrivilegeModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-202", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "command path", otParams.Path)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, models.RolePrivilegeLevelReadCreateModify, *otParams.Info.Access)
+		assert.Equal(tt, "query-param", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithNoneAccess", func(tt *testing.T) {
+		params := &RolePrivilegeModifyParams{
+			OwnerID: "owner-uuid-303",
+			Name:    "test-role",
+			Access:  "none",
+			Query:   "",
+			Path:    "/api/storage",
+		}
+		otParams := rolePrivilegeModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-303", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "/api/storage", otParams.Path)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, models.RolePrivilegeLevelNone, *otParams.Info.Access)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithEmptyStrings", func(tt *testing.T) {
+		params := &RolePrivilegeModifyParams{
+			OwnerID: "",
+			Name:    "",
+			Access:  "all",
+			Query:   "",
+			Path:    "",
+		}
+		otParams := rolePrivilegeModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", otParams.OwnerUUID)
+		assert.Equal(tt, "", otParams.Name)
+		assert.Equal(tt, "", otParams.Path)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, models.RolePrivilegeLevelAll, *otParams.Info.Access)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithRESTEndpointPath", func(tt *testing.T) {
+		params := &RolePrivilegeModifyParams{
+			OwnerID: "owner-uuid-404",
+			Name:    "test-role",
+			Access:  "all",
+			Query:   "",
+			Path:    "/api/storage/volumes/{volume.uuid}/snapshots",
+		}
+		otParams := rolePrivilegeModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-404", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "/api/storage/volumes/{volume.uuid}/snapshots", otParams.Path)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, models.RolePrivilegeLevelAll, *otParams.Info.Access)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithCommandPathAndQuery", func(tt *testing.T) {
+		params := &RolePrivilegeModifyParams{
+			OwnerID: "owner-uuid-505",
+			Name:    "test-role",
+			Access:  "read_create",
+			Query:   "-vserver vs1 -volume vol1 -destination-aggregate aggr1",
+			Path:    "volume move start",
+		}
+		otParams := rolePrivilegeModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-505", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "volume move start", otParams.Path)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, models.RolePrivilegeLevelReadCreate, *otParams.Info.Access)
+		assert.Equal(tt, "-vserver vs1 -volume vol1 -destination-aggregate aggr1", *otParams.Info.Query)
 	})
 }

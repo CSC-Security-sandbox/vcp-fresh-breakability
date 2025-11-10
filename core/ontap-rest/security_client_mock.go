@@ -291,6 +291,224 @@ func (_c *MockSecurityClient_GcpKmsModify_Call) RunAndReturn(run func(*GcpKmsMod
 	return _c
 }
 
+// RoleCollectionGet provides a mock function with given fields: params
+func (_m *MockSecurityClient) RoleCollectionGet(params *RoleCollectionGetParams) (*RoleCollectionGetResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RoleCollectionGet")
+	}
+
+	var r0 *RoleCollectionGetResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*RoleCollectionGetParams) (*RoleCollectionGetResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*RoleCollectionGetParams) *RoleCollectionGetResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*RoleCollectionGetResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*RoleCollectionGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_RoleCollectionGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RoleCollectionGet'
+type MockSecurityClient_RoleCollectionGet_Call struct {
+	*mock.Call
+}
+
+// RoleCollectionGet is a helper method to define mock.On call
+//   - params *RoleCollectionGetParams
+func (_e *MockSecurityClient_Expecter) RoleCollectionGet(params interface{}) *MockSecurityClient_RoleCollectionGet_Call {
+	return &MockSecurityClient_RoleCollectionGet_Call{Call: _e.mock.On("RoleCollectionGet", params)}
+}
+
+func (_c *MockSecurityClient_RoleCollectionGet_Call) Run(run func(params *RoleCollectionGetParams)) *MockSecurityClient_RoleCollectionGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*RoleCollectionGetParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_RoleCollectionGet_Call) Return(_a0 *RoleCollectionGetResponse, _a1 error) *MockSecurityClient_RoleCollectionGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_RoleCollectionGet_Call) RunAndReturn(run func(*RoleCollectionGetParams) (*RoleCollectionGetResponse, error)) *MockSecurityClient_RoleCollectionGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RoleCreate provides a mock function with given fields: params
+func (_m *MockSecurityClient) RoleCreate(params *RoleCreateParams) (string, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RoleCreate")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*RoleCreateParams) (string, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*RoleCreateParams) string); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(*RoleCreateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_RoleCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RoleCreate'
+type MockSecurityClient_RoleCreate_Call struct {
+	*mock.Call
+}
+
+// RoleCreate is a helper method to define mock.On call
+//   - params *RoleCreateParams
+func (_e *MockSecurityClient_Expecter) RoleCreate(params interface{}) *MockSecurityClient_RoleCreate_Call {
+	return &MockSecurityClient_RoleCreate_Call{Call: _e.mock.On("RoleCreate", params)}
+}
+
+func (_c *MockSecurityClient_RoleCreate_Call) Run(run func(params *RoleCreateParams)) *MockSecurityClient_RoleCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*RoleCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_RoleCreate_Call) Return(_a0 string, _a1 error) *MockSecurityClient_RoleCreate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_RoleCreate_Call) RunAndReturn(run func(*RoleCreateParams) (string, error)) *MockSecurityClient_RoleCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RoleGet provides a mock function with given fields: params
+func (_m *MockSecurityClient) RoleGet(params *RoleGetParams) (*Role, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RoleGet")
+	}
+
+	var r0 *Role
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*RoleGetParams) (*Role, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*RoleGetParams) *Role); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Role)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*RoleGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_RoleGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RoleGet'
+type MockSecurityClient_RoleGet_Call struct {
+	*mock.Call
+}
+
+// RoleGet is a helper method to define mock.On call
+//   - params *RoleGetParams
+func (_e *MockSecurityClient_Expecter) RoleGet(params interface{}) *MockSecurityClient_RoleGet_Call {
+	return &MockSecurityClient_RoleGet_Call{Call: _e.mock.On("RoleGet", params)}
+}
+
+func (_c *MockSecurityClient_RoleGet_Call) Run(run func(params *RoleGetParams)) *MockSecurityClient_RoleGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*RoleGetParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_RoleGet_Call) Return(_a0 *Role, _a1 error) *MockSecurityClient_RoleGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_RoleGet_Call) RunAndReturn(run func(*RoleGetParams) (*Role, error)) *MockSecurityClient_RoleGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RolePrivilegeModify provides a mock function with given fields: params
+func (_m *MockSecurityClient) RolePrivilegeModify(params *RolePrivilegeModifyParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RolePrivilegeModify")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*RolePrivilegeModifyParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockSecurityClient_RolePrivilegeModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RolePrivilegeModify'
+type MockSecurityClient_RolePrivilegeModify_Call struct {
+	*mock.Call
+}
+
+// RolePrivilegeModify is a helper method to define mock.On call
+//   - params *RolePrivilegeModifyParams
+func (_e *MockSecurityClient_Expecter) RolePrivilegeModify(params interface{}) *MockSecurityClient_RolePrivilegeModify_Call {
+	return &MockSecurityClient_RolePrivilegeModify_Call{Call: _e.mock.On("RolePrivilegeModify", params)}
+}
+
+func (_c *MockSecurityClient_RolePrivilegeModify_Call) Run(run func(params *RolePrivilegeModifyParams)) *MockSecurityClient_RolePrivilegeModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*RolePrivilegeModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_RolePrivilegeModify_Call) Return(_a0 error) *MockSecurityClient_RolePrivilegeModify_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockSecurityClient_RolePrivilegeModify_Call) RunAndReturn(run func(*RolePrivilegeModifyParams) error) *MockSecurityClient_RolePrivilegeModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SecurityAuditGet provides a mock function with no fields
 func (_m *MockSecurityClient) SecurityAuditGet() (*SecurityAudit, error) {
 	ret := _m.Called()

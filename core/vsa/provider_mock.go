@@ -1023,6 +1023,62 @@ func (_c *MockProvider_CreateRESTClient_Call) RunAndReturn(run func() (ontap_res
 	return _c
 }
 
+// CreateRole provides a mock function with given fields: params
+func (_m *MockProvider) CreateRole(params CreateRoleParams) (string, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateRole")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(CreateRoleParams) (string, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(CreateRoleParams) string); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(CreateRoleParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CreateRole_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateRole'
+type MockProvider_CreateRole_Call struct {
+	*mock.Call
+}
+
+// CreateRole is a helper method to define mock.On call
+//   - params CreateRoleParams
+func (_e *MockProvider_Expecter) CreateRole(params interface{}) *MockProvider_CreateRole_Call {
+	return &MockProvider_CreateRole_Call{Call: _e.mock.On("CreateRole", params)}
+}
+
+func (_c *MockProvider_CreateRole_Call) Run(run func(params CreateRoleParams)) *MockProvider_CreateRole_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(CreateRoleParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateRole_Call) Return(_a0 string, _a1 error) *MockProvider_CreateRole_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CreateRole_Call) RunAndReturn(run func(CreateRoleParams) (string, error)) *MockProvider_CreateRole_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSVM provides a mock function with given fields: params
 func (_m *MockProvider) CreateSVM(params CreateSvmParams) (*ProviderResponse, error) {
 	ret := _m.Called(params)
@@ -2646,6 +2702,122 @@ func (_c *MockProvider_GetReplicationDetails_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// GetRole provides a mock function with given fields: params
+func (_m *MockProvider) GetRole(params GetRoleParams) (*Role, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRole")
+	}
+
+	var r0 *Role
+	var r1 error
+	if rf, ok := ret.Get(0).(func(GetRoleParams) (*Role, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(GetRoleParams) *Role); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Role)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(GetRoleParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetRole_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRole'
+type MockProvider_GetRole_Call struct {
+	*mock.Call
+}
+
+// GetRole is a helper method to define mock.On call
+//   - params GetRoleParams
+func (_e *MockProvider_Expecter) GetRole(params interface{}) *MockProvider_GetRole_Call {
+	return &MockProvider_GetRole_Call{Call: _e.mock.On("GetRole", params)}
+}
+
+func (_c *MockProvider_GetRole_Call) Run(run func(params GetRoleParams)) *MockProvider_GetRole_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(GetRoleParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetRole_Call) Return(_a0 *Role, _a1 error) *MockProvider_GetRole_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetRole_Call) RunAndReturn(run func(GetRoleParams) (*Role, error)) *MockProvider_GetRole_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetRoleCollection provides a mock function with given fields: params
+func (_m *MockProvider) GetRoleCollection(params GetRoleCollectionParams) ([]*Role, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRoleCollection")
+	}
+
+	var r0 []*Role
+	var r1 error
+	if rf, ok := ret.Get(0).(func(GetRoleCollectionParams) ([]*Role, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(GetRoleCollectionParams) []*Role); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*Role)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(GetRoleCollectionParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetRoleCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRoleCollection'
+type MockProvider_GetRoleCollection_Call struct {
+	*mock.Call
+}
+
+// GetRoleCollection is a helper method to define mock.On call
+//   - params GetRoleCollectionParams
+func (_e *MockProvider_Expecter) GetRoleCollection(params interface{}) *MockProvider_GetRoleCollection_Call {
+	return &MockProvider_GetRoleCollection_Call{Call: _e.mock.On("GetRoleCollection", params)}
+}
+
+func (_c *MockProvider_GetRoleCollection_Call) Run(run func(params GetRoleCollectionParams)) *MockProvider_GetRoleCollection_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(GetRoleCollectionParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetRoleCollection_Call) Return(_a0 []*Role, _a1 error) *MockProvider_GetRoleCollection_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetRoleCollection_Call) RunAndReturn(run func(GetRoleCollectionParams) ([]*Role, error)) *MockProvider_GetRoleCollection_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSVMPeer provides a mock function with given fields: localSVMName, remoteSVMName
 func (_m *MockProvider) GetSVMPeer(localSVMName *string, remoteSVMName *string) (*SvmPeer, error) {
 	ret := _m.Called(localSVMName, remoteSVMName)
@@ -3806,6 +3978,64 @@ func (_c *MockProvider_ListClusterPeers_Call) RunAndReturn(run func() ([]*Cluste
 	return _c
 }
 
+// ListSVMPeersByRemoteSVMName provides a mock function with given fields: remoteSVMName
+func (_m *MockProvider) ListSVMPeersByRemoteSVMName(remoteSVMName *string) ([]*SvmPeer, error) {
+	ret := _m.Called(remoteSVMName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListSVMPeersByRemoteSVMName")
+	}
+
+	var r0 []*SvmPeer
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*string) ([]*SvmPeer, error)); ok {
+		return rf(remoteSVMName)
+	}
+	if rf, ok := ret.Get(0).(func(*string) []*SvmPeer); ok {
+		r0 = rf(remoteSVMName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*SvmPeer)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*string) error); ok {
+		r1 = rf(remoteSVMName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_ListSVMPeersByRemoteSVMName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListSVMPeersByRemoteSVMName'
+type MockProvider_ListSVMPeersByRemoteSVMName_Call struct {
+	*mock.Call
+}
+
+// ListSVMPeersByRemoteSVMName is a helper method to define mock.On call
+//   - remoteSVMName *string
+func (_e *MockProvider_Expecter) ListSVMPeersByRemoteSVMName(remoteSVMName interface{}) *MockProvider_ListSVMPeersByRemoteSVMName_Call {
+	return &MockProvider_ListSVMPeersByRemoteSVMName_Call{Call: _e.mock.On("ListSVMPeersByRemoteSVMName", remoteSVMName)}
+}
+
+func (_c *MockProvider_ListSVMPeersByRemoteSVMName_Call) Run(run func(remoteSVMName *string)) *MockProvider_ListSVMPeersByRemoteSVMName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ListSVMPeersByRemoteSVMName_Call) Return(_a0 []*SvmPeer, _a1 error) *MockProvider_ListSVMPeersByRemoteSVMName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_ListSVMPeersByRemoteSVMName_Call) RunAndReturn(run func(*string) ([]*SvmPeer, error)) *MockProvider_ListSVMPeersByRemoteSVMName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListSnapmirrorSnapshots provides a mock function with given fields: volumeUUID
 func (_m *MockProvider) ListSnapmirrorSnapshots(volumeUUID string) ([]*SnapshotListResponse, error) {
 	ret := _m.Called(volumeUUID)
@@ -4182,6 +4412,52 @@ func (_c *MockProvider_ModifyGcpKms_Call) Return(_a0 *ontap_rest.GcpKms, _a1 *st
 }
 
 func (_c *MockProvider_ModifyGcpKms_Call) RunAndReturn(run func(string, *log.Secret) (*ontap_rest.GcpKms, *string, error)) *MockProvider_ModifyGcpKms_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ModifyRolePrivilege provides a mock function with given fields: params
+func (_m *MockProvider) ModifyRolePrivilege(params ModifyRolePrivilegeParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ModifyRolePrivilege")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(ModifyRolePrivilegeParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_ModifyRolePrivilege_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ModifyRolePrivilege'
+type MockProvider_ModifyRolePrivilege_Call struct {
+	*mock.Call
+}
+
+// ModifyRolePrivilege is a helper method to define mock.On call
+//   - params ModifyRolePrivilegeParams
+func (_e *MockProvider_Expecter) ModifyRolePrivilege(params interface{}) *MockProvider_ModifyRolePrivilege_Call {
+	return &MockProvider_ModifyRolePrivilege_Call{Call: _e.mock.On("ModifyRolePrivilege", params)}
+}
+
+func (_c *MockProvider_ModifyRolePrivilege_Call) Run(run func(params ModifyRolePrivilegeParams)) *MockProvider_ModifyRolePrivilege_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(ModifyRolePrivilegeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ModifyRolePrivilege_Call) Return(_a0 error) *MockProvider_ModifyRolePrivilege_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_ModifyRolePrivilege_Call) RunAndReturn(run func(ModifyRolePrivilegeParams) error) *MockProvider_ModifyRolePrivilege_Call {
 	_c.Call.Return(run)
 	return _c
 }

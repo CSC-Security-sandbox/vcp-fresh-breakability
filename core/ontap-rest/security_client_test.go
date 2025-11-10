@@ -324,3 +324,147 @@ func TestEnableAutoVolOfflineCronForGCPKMS(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 }
+
+func TestRoleCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.RoleCreate(&RoleCreateParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Equal(tt, "", response)
+	})
+
+	t.Run("WhenResponseHasLocation_ThenReturnLocation", func(tt *testing.T) {
+		expectedLocation := "/api/security/roles/test-role"
+		transport := &mockTransport{response: &security.RoleCreateCreated{
+			Location: expectedLocation,
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.RoleCreate(&RoleCreateParams{})
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedLocation, response)
+	})
+
+	t.Run("WhenResponseHasEmptyLocation_ThenReturnEmptyString", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RoleCreateCreated{
+			Location: "",
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.RoleCreate(&RoleCreateParams{})
+		assert.NoError(tt, err)
+		assert.Equal(tt, "", response)
+	})
+}
+
+func TestRoleGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.RoleGet(&RoleGetParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenResponseIsNil_ThenReturnUnhandledResponseError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RoleGetOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.RoleGet(&RoleGetParams{})
+		assert.EqualError(tt, err, "unexpected response from RoleGet")
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenResponseHasPayload_ThenReturnRole", func(tt *testing.T) {
+		roleName := "test-role"
+		role := &models.Role{
+			Name: &roleName,
+		}
+		transport := &mockTransport{response: &security.RoleGetOK{
+			Payload: role,
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.RoleGet(&RoleGetParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Equal(tt, role, &response.Role)
+	})
+}
+
+func TestRolePrivilegeModify(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.RolePrivilegeModify(&RolePrivilegeModifyParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenResponseIsSuccessful_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RolePrivilegeModifyOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.RolePrivilegeModify(&RolePrivilegeModifyParams{})
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenResponseIsAccepted_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RolePrivilegeModifyOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.RolePrivilegeModify(&RolePrivilegeModifyParams{})
+		assert.NoError(tt, err)
+	})
+}
+
+func TestRoleCollectionGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.RoleCollectionGet(&RoleCollectionGetParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenResponseIsNil_ThenReturnUnhandledResponseError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RoleCollectionGetOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.RoleCollectionGet(&RoleCollectionGetParams{})
+		assert.EqualError(tt, err, "unexpected response from RoleCollectionGet")
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenResponseHasPayload_ThenReturnRoleCollectionGetResponse", func(tt *testing.T) {
+		roleName := "test-role"
+		role := &models.Role{
+			Name: &roleName,
+		}
+		transport := &mockTransport{response: &security.RoleCollectionGetOK{
+			Payload: &models.RoleResponse{
+				NumRecords: nillable.ToPointer(int64(1)),
+				RoleResponseInlineRecords: []*models.Role{
+					role,
+				},
+			},
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.RoleCollectionGet(&RoleCollectionGetParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Equal(tt, &security.RoleCollectionGetOK{
+			Payload: &models.RoleResponse{
+				NumRecords: nillable.ToPointer(int64(1)),
+				RoleResponseInlineRecords: []*models.Role{
+					role,
+				},
+			},
+		}, response.RoleCollectionGetOK)
+	})
+}

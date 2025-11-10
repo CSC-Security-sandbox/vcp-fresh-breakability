@@ -1,6 +1,8 @@
 package vsa
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-openapi/strfmt"
@@ -21,6 +23,7 @@ func (rc *OntapRestProvider) CreateClusterPeer(params CreateClusterPeerParams) (
 		GeneratePassphrase: true,
 		IPSpace:            params.IPSpace,
 		ExpiryTime:         convertToOntapTime(params.ExpiryTime),
+		LocalRole:          params.LocalRole,
 	}
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
@@ -28,6 +31,10 @@ func (rc *OntapRestProvider) CreateClusterPeer(params CreateClusterPeerParams) (
 	}
 	createdClusterPeer, err := client.Cluster().ClusterPeerCreate(createParams)
 	if err != nil {
+		if strings.Contains(err.Error(), "context deadline exceeded") {
+			rc.Logger.Errorf("Cluster peer creation timed out: unable to establish communication between ONTAP systems: %v", err)
+			return nil, fmt.Errorf("Operation timed out: unable to establish communication between ONTAP systems: %w", err)
+		}
 		return nil, err
 	}
 
@@ -36,6 +43,7 @@ func (rc *OntapRestProvider) CreateClusterPeer(params CreateClusterPeerParams) (
 		PeerClusterName: params.PeerName,
 		PeerAddresses:   params.PeerAddresses,
 		IPSpace:         params.IPSpace,
+		LocalRole:       params.LocalRole,
 	}
 	if createdClusterPeer.GeneratedPassphrase != nil {
 		clusterPeer.Passphrase = (*log.Secret)(createdClusterPeer.GeneratedPassphrase)

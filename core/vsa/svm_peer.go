@@ -54,6 +54,61 @@ func (rc *OntapRestProvider) GetSVMPeer(localSVMName, remoteSVMName *string) (*S
 	return storageSvmPeer, nil
 }
 
+// ListSVMPeersByRemoteSVMName returns all SVM peers matching the given criteria
+func (rc *OntapRestProvider) ListSVMPeersByRemoteSVMName(remoteSVMName *string) ([]*SvmPeer, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+
+	svmPeers, err := client.SVM().SvmPeerCollectionGet(&ontapRest.SvmPeerGetCollectionParams{
+		BaseParams:  ontapRest.BaseParams{Fields: []string{"state", "svm", "applications", "peer"}},
+		PeerSvmName: remoteSVMName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*SvmPeer
+	for _, svmPeer := range svmPeers {
+		if svmPeer.UUID == nil || *svmPeer.UUID == "" {
+			continue // Skip peers with invalid UUID
+		}
+
+		var applications []string
+		for _, app := range svmPeer.SvmPeerInlineApplications {
+			applications = append(applications, string(*app))
+		}
+
+		// Extract peer information safely
+		var peerSvmName, peerSvmUUID, peerClusterName string
+		if svmPeer.Peer != nil {
+			if svmPeer.Peer.Svm != nil {
+				peerSvmName = nillable.GetString(svmPeer.Peer.Svm.Name, "")
+				peerSvmUUID = nillable.GetString(svmPeer.Peer.Svm.UUID, "")
+			}
+			if svmPeer.Peer.Cluster != nil {
+				peerClusterName = nillable.GetString(svmPeer.Peer.Cluster.Name, "")
+			}
+		}
+
+		storageSvmPeer := &SvmPeer{
+			State:           nillable.GetString(svmPeer.State, ""),
+			UUID:            *svmPeer.UUID,
+			Applications:    applications,
+			LocalSvmName:    nillable.GetString(svmPeer.Svm.Name, ""),
+			LocalSvmUUID:    nillable.GetString(svmPeer.Svm.UUID, ""),
+			PeerSvmName:     peerSvmName,
+			PeerSvmUUID:     peerSvmUUID,
+			PeerClusterName: peerClusterName,
+		}
+
+		result = append(result, storageSvmPeer)
+	}
+
+	return result, nil
+}
+
 func (rc *OntapRestProvider) acceptSVMPeer(svmPeerUUID string) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {

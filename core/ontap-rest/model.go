@@ -1711,6 +1711,7 @@ type ClusterPeerCreateParams struct {
 	IPSpace            string
 	ExpiryTime         *string
 	Passphrase         *string
+	LocalRole          *string
 }
 
 // ClusterPeer is a simple wrapper of models.ClusterPeer
@@ -2032,6 +2033,17 @@ type RoleGetParams struct {
 	BaseParams
 	Name      string
 	OwnerUUID *string
+}
+
+// RoleCollectionGetParams is the input param struct for securityClient.RoleCollectionGet
+type RoleCollectionGetParams struct {
+	BaseParams
+	Name *string
+}
+
+// RoleCollectionGetResponse is the response struct for securityClient.RoleCollectionGet
+type RoleCollectionGetResponse struct {
+	*security.RoleCollectionGetOK
 }
 
 // RoleCreateParams is the input param struct for securityClient.RoleCreate
@@ -2633,6 +2645,12 @@ func clusterPeerToONTAPCreate(params ClusterPeerCreateParams) *priv.ClusterPeerC
 		ipAddresses = append(ipAddresses, nillable.ToPointer(privmodels.IPAddress(address)))
 	}
 
+	// Ensure that there is always a local role is assigned for all external cluster peers.
+	// GCNV-GCNV cluster peers should not have any local role assigned
+	var localRole *string
+	if params.LocalRole != nil {
+		localRole = params.LocalRole
+	}
 	clusterPeer := &privmodels.ClusterPeer{
 		Name: &params.Name,
 		Remote: &privmodels.ClusterPeerInlineRemote{
@@ -2643,6 +2661,7 @@ func clusterPeerToONTAPCreate(params ClusterPeerCreateParams) *priv.ClusterPeerC
 			ExpiryTime:         params.ExpiryTime,
 			Passphrase:         params.Passphrase,
 		},
+		LocalRole: localRole,
 		Ipspace: &privmodels.ClusterPeerInlineIpspace{
 			Name: &params.IPSpace,
 		},
@@ -3056,8 +3075,12 @@ func svmPeerGetCollectionParamsToONTAP(params *SvmPeerGetCollectionParams) *svm.
 	if params == nil {
 		return otParams
 	}
-	otParams.SetSvmName(params.SvmName)
-	otParams.SetPeerSvmName(params.PeerSvmName)
+	if params.SvmName != nil {
+		otParams.SetSvmName(params.SvmName)
+	}
+	if params.PeerSvmName != nil {
+		otParams.SetPeerSvmName(params.PeerSvmName)
+	}
 	otParams.SetFields(params.Fields)
 
 	return otParams
@@ -3470,6 +3493,69 @@ func gcpKmsModifyParamsToONTAP(params *GcpKmsModifyParams) *security.GcpKmsModif
 		})
 	}
 	otParams.SetUUID(params.UUID)
+	return otParams
+}
+
+func roleCreateParamsToONTAP(params *RoleCreateParams) *security.RoleCreateParams {
+	otParams := security.NewRoleCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	privileges := make([]*models.RolePrivilege, 0)
+	for _, privilege := range params.Privileges {
+		access := models.RolePrivilegeLevel(privilege.Access)
+		privileges = append(privileges, &models.RolePrivilege{
+			Path:   &privilege.Path,
+			Access: &access,
+			Query:  &privilege.Query,
+		})
+	}
+	otParams.SetInfo(&models.Role{
+		Name:                 &params.Name,
+		RoleInlinePrivileges: privileges,
+	})
+	return otParams
+}
+
+func roleGetParamsToONTAP(params *RoleGetParams) *security.RoleGetParams {
+	otParams := security.NewRoleGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.WithName(params.Name)
+	otParams.WithOwnerUUID(nillable.FromPointer(params.OwnerUUID))
+	otParams.WithFields(params.Fields)
+	return otParams
+}
+
+func roleCollectionGetParamsToONTAP(params *RoleCollectionGetParams) *security.RoleCollectionGetParams {
+	otParams := security.NewRoleCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.WithName(params.Name)
+	otParams.WithFields(params.Fields)
+	return otParams
+}
+
+func rolePrivilegeModifyParamsToONTAP(params *RolePrivilegeModifyParams) *security.RolePrivilegeModifyParams {
+	otParams := security.NewRolePrivilegeModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.WithOwnerUUID(params.OwnerID)
+	otParams.WithName(params.Name)
+	otParams.WithPath(params.Path)
+
+	access := models.RolePrivilegeLevel(params.Access)
+	otParams.WithInfo(&models.RolePrivilege{
+		Access: &access,
+		Query:  &params.Query,
+	})
 	return otParams
 }
 

@@ -66,6 +66,7 @@ type Provider interface {
 	CreateSvmPeering(srcClusterName, srcSVMName, dstSVMName string, snapmirrorApplication ontaprestmodels.SvmPeerApplications) error
 	AcceptSvmPeering(srcSVMName, dstSVMName string) error
 	GetSVMPeer(localSVMName, remoteSVMName *string) (*SvmPeer, error)
+	ListSVMPeersByRemoteSVMName(remoteSVMName *string) ([]*SvmPeer, error)
 	DeleteSVMPeer(svmPeerUUID string, force bool) error
 	CreateSVMPeer(params CreateSVMPeerParams) (*SvmPeer, error)
 	CreateVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
@@ -125,6 +126,10 @@ type Provider interface {
 	UpdateJSwapMode(targetNodeUUID string, backingType JSWAPBackingType) (bool, error)
 	UpdateJSwapModeWithClient(targetNodeUUID string, backingType JSWAPBackingType, client ontapRest.RESTClient) (bool, error)
 	CreateRESTClient() (ontapRest.RESTClient, error)
+	CreateRole(params CreateRoleParams) (string, error)
+	GetRole(params GetRoleParams) (*Role, error)
+	GetRoleCollection(params GetRoleCollectionParams) ([]*Role, error)
+	ModifyRolePrivilege(params ModifyRolePrivilegeParams) error
 }
 
 type OntapRestProvider struct {
