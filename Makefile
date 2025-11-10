@@ -87,17 +87,11 @@ vcp-cloudrun-deployer-linux:
 .PHONY: generate-google-proxy
 generate-google-proxy:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package gcpserver --config google-proxy/api/.ogenserver.yml --target google-proxy/api/gcp-servergen google-proxy/api/gcp-api.yaml
+	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package googleproxyclient --config clients/google-proxy-client/.ogenserver.yml --target clients/google-proxy-client google-proxy/api/gcp-api.yaml
 
 .PHONY: generate-core-api
 generate-core-api:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapiserver --config core/core-api/.ogenserver.yml --target core/core-api/core-servergen core/core-api/api.yaml
-
-.PHONY: generate-google-proxy-client
-generate-google-proxy-client:
-	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package googleproxyclient --config clients/google-proxy-client/.ogenserver.yml --target clients/google-proxy-client google-proxy/api/gcp-api.yaml
-
-.PHONY: generate-core-api-client
-generate-core-api-client:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapi --config clients/core-api/.ogenclient.yml --target clients/core-api core/core-api/api.yaml
 
 .PHONY: generate-metrics-api
@@ -110,6 +104,14 @@ generate-retry-engine-wrapper:
 	cd scripts; ./generate-retry-engine.sh vcp core
 	cd cmd/retry-engine-generator; go run main.go metrics telemetry
 	cd scripts; ./generate-retry-engine.sh metrics telemetry
+
+.PHONY: generate
+generate: generate-google-proxy generate-core-api generate-metrics-api generate-retry-engine-wrapper
+
+.PHONY: verify-generated
+verify-generated: generate
+verify-generated: 
+	cd scripts; ./verify-generated.sh
 
 .PHONY: test
 PACKAGES="./..."

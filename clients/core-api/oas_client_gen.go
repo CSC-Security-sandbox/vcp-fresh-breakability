@@ -35,6 +35,12 @@ type Invoker interface {
 	//
 	// DELETE /v1/pools/{poolId}
 	V1DeletePool(ctx context.Context, params V1DeletePoolParams) (V1DeletePoolRes, error)
+	// V1GetClusterUpgradeStatus invokes v1_getClusterUpgradeStatus operation.
+	//
+	// Retrieves the status and progress of a cluster upgrade operation.
+	//
+	// GET /v1/clusters/upgrade/{jobId}
+	V1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error)
 	// V1GetMultipleReplicationsByExternalUUID invokes v1_getMultipleReplicationsByExternalUUID operation.
 	//
 	// Returns replications filtered by external UUIDs and endpoint type.
@@ -53,6 +59,13 @@ type Invoker interface {
 	//
 	// GET /v1/pools/{poolId}
 	V1GetPool(ctx context.Context, params V1GetPoolParams) (V1GetPoolRes, error)
+	// V1ListAvailableVersions invokes v1_listAvailableVersions operation.
+	//
+	// Lists all available ONTAP versions for cluster upgrades, including the current VCP version and
+	// supported versions from the database.
+	//
+	// GET /v1/clusters/versions
+	V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error)
 	// V1ListPools invokes v1_listPools operation.
 	//
 	// Returns descriptions of all pools owned by the caller.
@@ -71,6 +84,12 @@ type Invoker interface {
 	//
 	// PUT /v1/pools/{poolId}
 	V1UpdatePool(ctx context.Context, request *PoolUpdateV1, params V1UpdatePoolParams) (V1UpdatePoolRes, error)
+	// V1UpgradeCluster invokes v1_upgradeCluster operation.
+	//
+	// Initiates an upgrade of a VSA cluster to the latest or specified ONTAP version.
+	//
+	// POST /v1/clusters/{clusterId}/upgrade
+	V1UpgradeCluster(ctx context.Context, request *ClusterUpgradeRequestV1, params V1UpgradeClusterParams) (V1UpgradeClusterRes, error)
 }
 
 // Client implements OAS client.
@@ -241,6 +260,60 @@ func (c *Client) sendV1DeletePool(ctx context.Context, params V1DeletePoolParams
 	defer resp.Body.Close()
 
 	result, err := decodeV1DeletePoolResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1GetClusterUpgradeStatus invokes v1_getClusterUpgradeStatus operation.
+//
+// Retrieves the status and progress of a cluster upgrade operation.
+//
+// GET /v1/clusters/upgrade/{jobId}
+func (c *Client) V1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error) {
+	res, err := c.sendV1GetClusterUpgradeStatus(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (res V1GetClusterUpgradeStatusRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v1/clusters/upgrade/"
+	{
+		// Encode "jobId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "jobId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.JobId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1GetClusterUpgradeStatusResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -496,6 +569,59 @@ func (c *Client) sendV1GetPool(ctx context.Context, params V1GetPoolParams) (res
 	return result, nil
 }
 
+// V1ListAvailableVersions invokes v1_listAvailableVersions operation.
+//
+// Lists all available ONTAP versions for cluster upgrades, including the current VCP version and
+// supported versions from the database.
+//
+// GET /v1/clusters/versions
+func (c *Client) V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error) {
+	res, err := c.sendV1ListAvailableVersions(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (res V1ListAvailableVersionsRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v1/clusters/versions"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1ListAvailableVersionsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1ListPools invokes v1_listPools operation.
 //
 // Returns descriptions of all pools owned by the caller.
@@ -710,6 +836,64 @@ func (c *Client) sendV1UpdatePool(ctx context.Context, request *PoolUpdateV1, pa
 	defer resp.Body.Close()
 
 	result, err := decodeV1UpdatePoolResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1UpgradeCluster invokes v1_upgradeCluster operation.
+//
+// Initiates an upgrade of a VSA cluster to the latest or specified ONTAP version.
+//
+// POST /v1/clusters/{clusterId}/upgrade
+func (c *Client) V1UpgradeCluster(ctx context.Context, request *ClusterUpgradeRequestV1, params V1UpgradeClusterParams) (V1UpgradeClusterRes, error) {
+	res, err := c.sendV1UpgradeCluster(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1UpgradeCluster(ctx context.Context, request *ClusterUpgradeRequestV1, params V1UpgradeClusterParams) (res V1UpgradeClusterRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v1/clusters/"
+	{
+		// Encode "clusterId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "clusterId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ClusterId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/upgrade"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1UpgradeClusterRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1UpgradeClusterResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

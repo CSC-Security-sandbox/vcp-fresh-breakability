@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
+
 	"github.com/ogen-go/ogen/conv"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -21,7 +22,7 @@ type V1CreatePoolParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString `json:",omitempty,omitzero"`
+	XCorrelationID OptString
 }
 
 func unpackV1CreatePoolParams(packed middleware.Parameters) (params V1CreatePoolParams) {
@@ -126,7 +127,7 @@ type V1DeletePoolParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString `json:",omitempty,omitzero"`
+	XCorrelationID OptString
 }
 
 func unpackV1DeletePoolParams(packed middleware.Parameters) (params V1DeletePoolParams) {
@@ -375,12 +376,12 @@ func decodeV1GetClusterUpgradeStatusParams(args [1]string, argsEscaped bool, r *
 // V1GetMultipleReplicationsByExternalUUIDParams is parameters of v1_getMultipleReplicationsByExternalUUID operation.
 type V1GetMultipleReplicationsByExternalUUIDParams struct {
 	// Correlation identifier.
-	XCorrelationID OptString `json:",omitempty,omitzero"`
+	XCorrelationID OptString
 	// Comma-separated list of external UUIDs to filter by.
 	ExternalUuids string
 	// Whether to include source endpoints in results. If false (default), only destination endpoints are
 	// returned.
-	IncludeSourceEndpoints OptBool `json:",omitempty,omitzero"`
+	IncludeSourceEndpoints OptBool
 }
 
 func unpackV1GetMultipleReplicationsByExternalUUIDParams(packed middleware.Parameters) (params V1GetMultipleReplicationsByExternalUUIDParams) {
@@ -544,9 +545,9 @@ type V1GetOntapCredentialsParams struct {
 	// UUID v4 used to identify the pool.
 	PoolId string
 	// User name.
-	UserName OptString `json:",omitempty,omitzero"`
+	UserName OptString
 	// Account name.
-	AccountName OptString `json:",omitempty,omitzero"`
+	AccountName OptString
 }
 
 func unpackV1GetOntapCredentialsParams(packed middleware.Parameters) (params V1GetOntapCredentialsParams) {
@@ -735,7 +736,7 @@ type V1GetPoolParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString `json:",omitempty,omitzero"`
+	XCorrelationID OptString
 }
 
 func unpackV1GetPoolParams(packed middleware.Parameters) (params V1GetPoolParams) {
@@ -902,7 +903,7 @@ func decodeV1GetPoolParams(args [1]string, argsEscaped bool, r *http.Request) (p
 // V1ListAvailableVersionsParams is parameters of v1_listAvailableVersions operation.
 type V1ListAvailableVersionsParams struct {
 	// Correlation identifier.
-	XCorrelationID OptString `json:",omitempty,omitzero"`
+	XCorrelationID OptString
 }
 
 func unpackV1ListAvailableVersionsParams(packed middleware.Parameters) (params V1ListAvailableVersionsParams) {
@@ -969,9 +970,9 @@ type V1ListPoolsParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString `json:",omitempty,omitzero"`
+	XCorrelationID OptString
 	// If true, response will include deleted storage pools.
-	IncludeDeleted OptBool `json:",omitempty,omitzero"`
+	IncludeDeleted OptBool
 }
 
 func unpackV1ListPoolsParams(packed middleware.Parameters) (params V1ListPoolsParams) {
@@ -1214,7 +1215,7 @@ type V1UpdatePoolParams struct {
 	// The location/region to perform the operation in.
 	LocationId string
 	// Correlation identifier.
-	XCorrelationID OptString `json:",omitempty,omitzero"`
+	XCorrelationID OptString
 }
 
 func unpackV1UpdatePoolParams(packed middleware.Parameters) (params V1UpdatePoolParams) {

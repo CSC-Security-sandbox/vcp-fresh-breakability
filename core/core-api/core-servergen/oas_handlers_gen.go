@@ -8,15 +8,16 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.opentelemetry.io/otel/trace"
+
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/otelogen"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type codeRecorder struct {
@@ -85,7 +86,7 @@ func (s *Server) handleV1CreatePoolRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -113,9 +114,7 @@ func (s *Server) handleV1CreatePoolRequest(args [0]string, argsEscaped bool, w h
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeV1CreatePoolRequest(r)
+	request, close, err := s.decodeV1CreatePoolRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -139,7 +138,6 @@ func (s *Server) handleV1CreatePoolRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "Create a new pool",
 			OperationID:      "v1_createPool",
 			Body:             request,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "projectNumber",
@@ -262,7 +260,7 @@ func (s *Server) handleV1DeletePoolRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -291,8 +289,6 @@ func (s *Server) handleV1DeletePoolRequest(args [1]string, argsEscaped bool, w h
 		return
 	}
 
-	var rawBody []byte
-
 	var response V1DeletePoolRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -301,7 +297,6 @@ func (s *Server) handleV1DeletePoolRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "Delete a storage pool",
 			OperationID:      "v1_deletePool",
 			Body:             nil,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "poolId",
@@ -426,7 +421,7 @@ func (s *Server) handleV1GetClusterUpgradeStatusRequest(args [1]string, argsEsca
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -455,8 +450,6 @@ func (s *Server) handleV1GetClusterUpgradeStatusRequest(args [1]string, argsEsca
 		return
 	}
 
-	var rawBody []byte
-
 	var response V1GetClusterUpgradeStatusRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -465,7 +458,6 @@ func (s *Server) handleV1GetClusterUpgradeStatusRequest(args [1]string, argsEsca
 			OperationSummary: "Get cluster upgrade status",
 			OperationID:      "v1_getClusterUpgradeStatus",
 			Body:             nil,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "jobId",
@@ -578,7 +570,7 @@ func (s *Server) handleV1GetMultipleReplicationsByExternalUUIDRequest(args [0]st
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -607,8 +599,6 @@ func (s *Server) handleV1GetMultipleReplicationsByExternalUUIDRequest(args [0]st
 		return
 	}
 
-	var rawBody []byte
-
 	var response V1GetMultipleReplicationsByExternalUUIDRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -617,7 +607,6 @@ func (s *Server) handleV1GetMultipleReplicationsByExternalUUIDRequest(args [0]st
 			OperationSummary: "List replications by external UUID",
 			OperationID:      "v1_getMultipleReplicationsByExternalUUID",
 			Body:             nil,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "x-correlation-id",
@@ -738,7 +727,7 @@ func (s *Server) handleV1GetOntapCredentialsRequest(args [1]string, argsEscaped 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -767,8 +756,6 @@ func (s *Server) handleV1GetOntapCredentialsRequest(args [1]string, argsEscaped 
 		return
 	}
 
-	var rawBody []byte
-
 	var response V1GetOntapCredentialsRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -777,7 +764,6 @@ func (s *Server) handleV1GetOntapCredentialsRequest(args [1]string, argsEscaped 
 			OperationSummary: "Get ONTAP credentials",
 			OperationID:      "v1_getOntapCredentials",
 			Body:             nil,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "poolId",
@@ -898,7 +884,7 @@ func (s *Server) handleV1GetPoolRequest(args [1]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -927,8 +913,6 @@ func (s *Server) handleV1GetPoolRequest(args [1]string, argsEscaped bool, w http
 		return
 	}
 
-	var rawBody []byte
-
 	var response V1GetPoolRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -937,7 +921,6 @@ func (s *Server) handleV1GetPoolRequest(args [1]string, argsEscaped bool, w http
 			OperationSummary: "Describe a pool",
 			OperationID:      "v1_getPool",
 			Body:             nil,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "poolId",
@@ -1063,7 +1046,7 @@ func (s *Server) handleV1ListAvailableVersionsRequest(args [0]string, argsEscape
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1092,8 +1075,6 @@ func (s *Server) handleV1ListAvailableVersionsRequest(args [0]string, argsEscape
 		return
 	}
 
-	var rawBody []byte
-
 	var response V1ListAvailableVersionsRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -1102,7 +1083,6 @@ func (s *Server) handleV1ListAvailableVersionsRequest(args [0]string, argsEscape
 			OperationSummary: "List available ONTAP versions",
 			OperationID:      "v1_listAvailableVersions",
 			Body:             nil,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "x-correlation-id",
@@ -1215,7 +1195,7 @@ func (s *Server) handleV1ListPoolsRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1244,8 +1224,6 @@ func (s *Server) handleV1ListPoolsRequest(args [0]string, argsEscaped bool, w ht
 		return
 	}
 
-	var rawBody []byte
-
 	var response V1ListPoolsRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -1254,7 +1232,6 @@ func (s *Server) handleV1ListPoolsRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "List all pools",
 			OperationID:      "v1_listPools",
 			Body:             nil,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "projectNumber",
@@ -1379,7 +1356,7 @@ func (s *Server) handleV1RotateGcpKmsConfigRequest(args [1]string, argsEscaped b
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1407,9 +1384,7 @@ func (s *Server) handleV1RotateGcpKmsConfigRequest(args [1]string, argsEscaped b
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeV1RotateGcpKmsConfigRequest(r)
+	request, close, err := s.decodeV1RotateGcpKmsConfigRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -1433,7 +1408,6 @@ func (s *Server) handleV1RotateGcpKmsConfigRequest(args [1]string, argsEscaped b
 			OperationSummary: "Rotate gcp kms config service account key",
 			OperationID:      "v1_rotateGcpKmsConfig",
 			Body:             request,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "uuid",
@@ -1546,7 +1520,7 @@ func (s *Server) handleV1UpdatePoolRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1574,9 +1548,7 @@ func (s *Server) handleV1UpdatePoolRequest(args [1]string, argsEscaped bool, w h
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeV1UpdatePoolRequest(r)
+	request, close, err := s.decodeV1UpdatePoolRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -1600,7 +1572,6 @@ func (s *Server) handleV1UpdatePoolRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "Update a pool",
 			OperationID:      "v1_updatePool",
 			Body:             request,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "poolId",
@@ -1725,7 +1696,7 @@ func (s *Server) handleV1UpgradeClusterRequest(args [1]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code < 100 || code >= 500 {
+			if code >= 100 && code < 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1753,9 +1724,7 @@ func (s *Server) handleV1UpgradeClusterRequest(args [1]string, argsEscaped bool,
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeV1UpgradeClusterRequest(r)
+	request, close, err := s.decodeV1UpgradeClusterRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -1779,7 +1748,6 @@ func (s *Server) handleV1UpgradeClusterRequest(args [1]string, argsEscaped bool,
 			OperationSummary: "Upgrade a VSA cluster",
 			OperationID:      "v1_upgradeCluster",
 			Body:             request,
-			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "clusterId",

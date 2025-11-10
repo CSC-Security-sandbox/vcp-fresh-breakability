@@ -371,14 +371,6 @@ func (s *VolumeBackupDetailsV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *VolumeCreateV1beta) setDefaults() {
-	{
-		val := bool(false)
-		s.IsClone.SetTo(val)
-	}
-}
-
-// setDefaults set default value of fields.
 func (s *VolumeSnapshotCreateV1beta) setDefaults() {
 	{
 		val := bool(false)
@@ -451,10 +443,6 @@ func (s *VolumeV1beta) setDefaults() {
 	{
 		val := float64(0)
 		s.CloneSharedBytes.SetTo(val)
-	}
-	{
-		val := float64(0)
-		s.IncrementalSpaceInBytes.SetTo(val)
 	}
 }
 

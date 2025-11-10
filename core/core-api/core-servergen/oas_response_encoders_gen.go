@@ -7,9 +7,10 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
-	ht "github.com/ogen-go/ogen/http"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+
+	ht "github.com/ogen-go/ogen/http"
 )
 
 func encodeV1CreatePoolResponse(response V1CreatePoolRes, w http.ResponseWriter, span trace.Span) error {

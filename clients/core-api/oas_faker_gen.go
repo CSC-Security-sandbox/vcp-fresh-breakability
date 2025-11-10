@@ -26,6 +26,40 @@ func (s *AnyV1AnyValue) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *AvailableVersionV1) SetFake() {
+	{
+		{
+			s.OntapVersion = "string"
+		}
+	}
+	{
+		{
+			s.VsaImagePath = "string"
+		}
+	}
+	{
+		{
+			s.VsaName = "string"
+		}
+	}
+	{
+		{
+			s.MediatorName = "string"
+		}
+	}
+	{
+		{
+			s.IsCurrent = true
+		}
+	}
+	{
+		{
+			s.IsActive = true
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *ChildAsset) SetFake() {
 	{
 		{
@@ -44,6 +78,109 @@ func (s *ChildAsset) SetFake() {
 			}
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *ClusterUpgradeRequestV1) SetFake() {
+	{
+		{
+			s.VsaBuildImage.SetFake()
+		}
+	}
+	{
+		{
+			s.MediatorBuildImage.SetFake()
+		}
+	}
+	{
+		{
+			s.ForceUpgrade.SetFake()
+		}
+	}
+	{
+		{
+			s.Metadata.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ClusterUpgradeRequestV1Metadata) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *ClusterUpgradeResponseV1) SetFake() {
+	{
+		{
+			s.ClusterId = "string"
+		}
+	}
+	{
+		{
+			s.Status.SetFake()
+		}
+	}
+	{
+		{
+			s.JobId = "string"
+		}
+	}
+	{
+		{
+			s.CreatedAt = time.Now()
+		}
+	}
+	{
+		{
+			s.UpdatedAt = time.Now()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ClusterUpgradeResponseV1Status) SetFake() {
+	*s = ClusterUpgradeResponseV1StatusPENDING
+}
+
+// SetFake set fake values.
+func (s *ClusterUpgradeStatusV1) SetFake() {
+	{
+		{
+			s.ClusterId = "string"
+		}
+	}
+	{
+		{
+			s.Status.SetFake()
+		}
+	}
+	{
+		{
+			s.StartTime.SetFake()
+		}
+	}
+	{
+		{
+			s.EndTime.SetFake()
+		}
+	}
+	{
+		{
+			s.CurrentStep.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ClusterUpgradeStatusV1Status) SetFake() {
+	*s = ClusterUpgradeStatusV1StatusPENDING
 }
 
 // SetFake set fake values.
@@ -225,6 +362,27 @@ func (s *JobV1State) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ListAvailableVersionsResponseV1) SetFake() {
+	{
+		{
+			s.Versions = nil
+			for i := 0; i < 0; i++ {
+				var elem AvailableVersionV1
+				{
+					elem.SetFake()
+				}
+				s.Versions = append(s.Versions, elem)
+			}
+		}
+	}
+	{
+		{
+			s.Current = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *OntapCredentialsV1) SetFake() {
 	{
 		{
@@ -321,6 +479,15 @@ func (s *OptBool) SetFake() {
 	var elem bool
 	{
 		elem = true
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptClusterUpgradeRequestV1Metadata) SetFake() {
+	var elem ClusterUpgradeRequestV1Metadata
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -899,6 +1066,90 @@ func (s *StorageClassV1) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *UpgradeErrorV1) SetFake() {
+	{
+		{
+			s.Code = "string"
+		}
+	}
+	{
+		{
+			s.Message = "string"
+		}
+	}
+	{
+		{
+			s.Type = "string"
+		}
+	}
+	{
+		{
+			s.Retryable = true
+		}
+	}
+	{
+		{
+			s.ClusterId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *UpgradeProgressV1) SetFake() {
+	{
+		{
+			s.JobId = "string"
+		}
+	}
+	{
+		{
+			s.Status.SetFake()
+		}
+	}
+	{
+		{
+			s.Clusters = nil
+			for i := 0; i < 0; i++ {
+				var elem ClusterUpgradeStatusV1
+				{
+					elem.SetFake()
+				}
+				s.Clusters = append(s.Clusters, elem)
+			}
+		}
+	}
+	{
+		{
+			s.Errors = nil
+			for i := 0; i < 0; i++ {
+				var elem UpgradeErrorV1
+				{
+					elem.SetFake()
+				}
+				s.Errors = append(s.Errors, elem)
+			}
+		}
+	}
+	{
+		{
+			s.Warnings = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.Warnings = append(s.Warnings, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *UpgradeProgressV1Status) SetFake() {
+	*s = UpgradeProgressV1StatusPENDING
+}
+
+// SetFake set fake values.
 func (s *V1CreatePoolBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1022,6 +1273,69 @@ func (s *V1DeletePoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1DeletePoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetClusterUpgradeStatusBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetClusterUpgradeStatusBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetClusterUpgradeStatusForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetClusterUpgradeStatusForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetClusterUpgradeStatusInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetClusterUpgradeStatusInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetClusterUpgradeStatusNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetClusterUpgradeStatusNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetClusterUpgradeStatusTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetClusterUpgradeStatusTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetClusterUpgradeStatusUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetClusterUpgradeStatusUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetClusterUpgradeStatusUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetClusterUpgradeStatusUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -1248,6 +1562,69 @@ func (s *V1GetPoolUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1ListAvailableVersionsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAvailableVersionsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAvailableVersionsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAvailableVersionsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAvailableVersionsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAvailableVersionsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAvailableVersionsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAvailableVersionsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAvailableVersionsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAvailableVersionsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAvailableVersionsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAvailableVersionsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAvailableVersionsUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAvailableVersionsUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1ListPoolsBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1459,4 +1836,76 @@ func (s *V1UpdatePoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1UpdatePoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpgradeClusterBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpgradeClusterBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpgradeClusterConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpgradeClusterConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpgradeClusterForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpgradeClusterForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpgradeClusterInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpgradeClusterInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpgradeClusterNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpgradeClusterNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpgradeClusterTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpgradeClusterTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpgradeClusterUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpgradeClusterUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpgradeClusterUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpgradeClusterUnprocessableEntity(unwrapped)
 }

@@ -42,6 +42,83 @@ func (s *AnyV1) SetAnyValue(val *AnyV1AnyValue) {
 
 type AnyV1AnyValue struct{}
 
+// An available ONTAP version for cluster upgrades.
+// Ref: #/components/schemas/AvailableVersion_v1
+type AvailableVersionV1 struct {
+	// ONTAP version string.
+	OntapVersion string `json:"ontapVersion"`
+	// VSA image path for this ONTAP version.
+	VsaImagePath string `json:"vsaImagePath"`
+	// VSA image name for this ONTAP version.
+	VsaName string `json:"vsaName"`
+	// Mediator image name for this ONTAP version.
+	MediatorName string `json:"mediatorName"`
+	// Whether this is the current VCP version.
+	IsCurrent bool `json:"isCurrent"`
+	// Whether this version is active and available for upgrades.
+	IsActive bool `json:"isActive"`
+}
+
+// GetOntapVersion returns the value of OntapVersion.
+func (s *AvailableVersionV1) GetOntapVersion() string {
+	return s.OntapVersion
+}
+
+// GetVsaImagePath returns the value of VsaImagePath.
+func (s *AvailableVersionV1) GetVsaImagePath() string {
+	return s.VsaImagePath
+}
+
+// GetVsaName returns the value of VsaName.
+func (s *AvailableVersionV1) GetVsaName() string {
+	return s.VsaName
+}
+
+// GetMediatorName returns the value of MediatorName.
+func (s *AvailableVersionV1) GetMediatorName() string {
+	return s.MediatorName
+}
+
+// GetIsCurrent returns the value of IsCurrent.
+func (s *AvailableVersionV1) GetIsCurrent() bool {
+	return s.IsCurrent
+}
+
+// GetIsActive returns the value of IsActive.
+func (s *AvailableVersionV1) GetIsActive() bool {
+	return s.IsActive
+}
+
+// SetOntapVersion sets the value of OntapVersion.
+func (s *AvailableVersionV1) SetOntapVersion(val string) {
+	s.OntapVersion = val
+}
+
+// SetVsaImagePath sets the value of VsaImagePath.
+func (s *AvailableVersionV1) SetVsaImagePath(val string) {
+	s.VsaImagePath = val
+}
+
+// SetVsaName sets the value of VsaName.
+func (s *AvailableVersionV1) SetVsaName(val string) {
+	s.VsaName = val
+}
+
+// SetMediatorName sets the value of MediatorName.
+func (s *AvailableVersionV1) SetMediatorName(val string) {
+	s.MediatorName = val
+}
+
+// SetIsCurrent sets the value of IsCurrent.
+func (s *AvailableVersionV1) SetIsCurrent(val bool) {
+	s.IsCurrent = val
+}
+
+// SetIsActive sets the value of IsActive.
+func (s *AvailableVersionV1) SetIsActive(val bool) {
+	s.IsActive = val
+}
+
 // Ref: #/components/schemas/ChildAsset
 type ChildAsset struct {
 	AssetType  OptString `json:"asset_type"`
@@ -66,6 +143,336 @@ func (s *ChildAsset) SetAssetType(val OptString) {
 // SetAssetNames sets the value of AssetNames.
 func (s *ChildAsset) SetAssetNames(val []string) {
 	s.AssetNames = val
+}
+
+// Request to upgrade a VSA cluster.
+// Ref: #/components/schemas/ClusterUpgradeRequest_v1
+type ClusterUpgradeRequestV1 struct {
+	// VSA build image to upgrade to (requires forceUpgrade=true).
+	VsaBuildImage OptString `json:"vsaBuildImage"`
+	// Mediator build image to upgrade to (requires forceUpgrade=true).
+	MediatorBuildImage OptString `json:"mediatorBuildImage"`
+	// Whether to force upgrade (required when specifying build images, or when upgrade gap > 1).
+	ForceUpgrade OptBool `json:"forceUpgrade"`
+	// Additional metadata for the upgrade operation.
+	Metadata OptClusterUpgradeRequestV1Metadata `json:"metadata"`
+}
+
+// GetVsaBuildImage returns the value of VsaBuildImage.
+func (s *ClusterUpgradeRequestV1) GetVsaBuildImage() OptString {
+	return s.VsaBuildImage
+}
+
+// GetMediatorBuildImage returns the value of MediatorBuildImage.
+func (s *ClusterUpgradeRequestV1) GetMediatorBuildImage() OptString {
+	return s.MediatorBuildImage
+}
+
+// GetForceUpgrade returns the value of ForceUpgrade.
+func (s *ClusterUpgradeRequestV1) GetForceUpgrade() OptBool {
+	return s.ForceUpgrade
+}
+
+// GetMetadata returns the value of Metadata.
+func (s *ClusterUpgradeRequestV1) GetMetadata() OptClusterUpgradeRequestV1Metadata {
+	return s.Metadata
+}
+
+// SetVsaBuildImage sets the value of VsaBuildImage.
+func (s *ClusterUpgradeRequestV1) SetVsaBuildImage(val OptString) {
+	s.VsaBuildImage = val
+}
+
+// SetMediatorBuildImage sets the value of MediatorBuildImage.
+func (s *ClusterUpgradeRequestV1) SetMediatorBuildImage(val OptString) {
+	s.MediatorBuildImage = val
+}
+
+// SetForceUpgrade sets the value of ForceUpgrade.
+func (s *ClusterUpgradeRequestV1) SetForceUpgrade(val OptBool) {
+	s.ForceUpgrade = val
+}
+
+// SetMetadata sets the value of Metadata.
+func (s *ClusterUpgradeRequestV1) SetMetadata(val OptClusterUpgradeRequestV1Metadata) {
+	s.Metadata = val
+}
+
+// Additional metadata for the upgrade operation.
+type ClusterUpgradeRequestV1Metadata map[string]string
+
+func (s *ClusterUpgradeRequestV1Metadata) init() ClusterUpgradeRequestV1Metadata {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Response for a cluster upgrade request.
+// Ref: #/components/schemas/ClusterUpgradeResponse_v1
+type ClusterUpgradeResponseV1 struct {
+	// UUID of the cluster being upgraded.
+	ClusterId string `json:"clusterId"`
+	// Current status of the upgrade.
+	Status ClusterUpgradeResponseV1Status `json:"status"`
+	// Unique job identifier for tracking the upgrade.
+	JobId string `json:"jobId"`
+	// Timestamp when the upgrade was initiated.
+	CreatedAt time.Time `json:"createdAt"`
+	// Timestamp when the upgrade status was last updated.
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// GetClusterId returns the value of ClusterId.
+func (s *ClusterUpgradeResponseV1) GetClusterId() string {
+	return s.ClusterId
+}
+
+// GetStatus returns the value of Status.
+func (s *ClusterUpgradeResponseV1) GetStatus() ClusterUpgradeResponseV1Status {
+	return s.Status
+}
+
+// GetJobId returns the value of JobId.
+func (s *ClusterUpgradeResponseV1) GetJobId() string {
+	return s.JobId
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ClusterUpgradeResponseV1) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ClusterUpgradeResponseV1) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetClusterId sets the value of ClusterId.
+func (s *ClusterUpgradeResponseV1) SetClusterId(val string) {
+	s.ClusterId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ClusterUpgradeResponseV1) SetStatus(val ClusterUpgradeResponseV1Status) {
+	s.Status = val
+}
+
+// SetJobId sets the value of JobId.
+func (s *ClusterUpgradeResponseV1) SetJobId(val string) {
+	s.JobId = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ClusterUpgradeResponseV1) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ClusterUpgradeResponseV1) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+func (*ClusterUpgradeResponseV1) v1UpgradeClusterRes() {}
+
+// Current status of the upgrade.
+type ClusterUpgradeResponseV1Status string
+
+const (
+	ClusterUpgradeResponseV1StatusPENDING    ClusterUpgradeResponseV1Status = "PENDING"
+	ClusterUpgradeResponseV1StatusINPROGRESS ClusterUpgradeResponseV1Status = "IN_PROGRESS"
+	ClusterUpgradeResponseV1StatusCOMPLETED  ClusterUpgradeResponseV1Status = "COMPLETED"
+	ClusterUpgradeResponseV1StatusFAILED     ClusterUpgradeResponseV1Status = "FAILED"
+	ClusterUpgradeResponseV1StatusCANCELLED  ClusterUpgradeResponseV1Status = "CANCELLED"
+)
+
+// AllValues returns all ClusterUpgradeResponseV1Status values.
+func (ClusterUpgradeResponseV1Status) AllValues() []ClusterUpgradeResponseV1Status {
+	return []ClusterUpgradeResponseV1Status{
+		ClusterUpgradeResponseV1StatusPENDING,
+		ClusterUpgradeResponseV1StatusINPROGRESS,
+		ClusterUpgradeResponseV1StatusCOMPLETED,
+		ClusterUpgradeResponseV1StatusFAILED,
+		ClusterUpgradeResponseV1StatusCANCELLED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ClusterUpgradeResponseV1Status) MarshalText() ([]byte, error) {
+	switch s {
+	case ClusterUpgradeResponseV1StatusPENDING:
+		return []byte(s), nil
+	case ClusterUpgradeResponseV1StatusINPROGRESS:
+		return []byte(s), nil
+	case ClusterUpgradeResponseV1StatusCOMPLETED:
+		return []byte(s), nil
+	case ClusterUpgradeResponseV1StatusFAILED:
+		return []byte(s), nil
+	case ClusterUpgradeResponseV1StatusCANCELLED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ClusterUpgradeResponseV1Status) UnmarshalText(data []byte) error {
+	switch ClusterUpgradeResponseV1Status(data) {
+	case ClusterUpgradeResponseV1StatusPENDING:
+		*s = ClusterUpgradeResponseV1StatusPENDING
+		return nil
+	case ClusterUpgradeResponseV1StatusINPROGRESS:
+		*s = ClusterUpgradeResponseV1StatusINPROGRESS
+		return nil
+	case ClusterUpgradeResponseV1StatusCOMPLETED:
+		*s = ClusterUpgradeResponseV1StatusCOMPLETED
+		return nil
+	case ClusterUpgradeResponseV1StatusFAILED:
+		*s = ClusterUpgradeResponseV1StatusFAILED
+		return nil
+	case ClusterUpgradeResponseV1StatusCANCELLED:
+		*s = ClusterUpgradeResponseV1StatusCANCELLED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Status of a single cluster in an upgrade operation.
+// Ref: #/components/schemas/ClusterUpgradeStatus_v1
+type ClusterUpgradeStatusV1 struct {
+	// UUID of the cluster.
+	ClusterId string `json:"clusterId"`
+	// Current status of the cluster upgrade.
+	Status ClusterUpgradeStatusV1Status `json:"status"`
+	// Timestamp when the cluster upgrade started.
+	StartTime OptDateTime `json:"startTime"`
+	// Timestamp when the cluster upgrade completed.
+	EndTime OptDateTime `json:"endTime"`
+	// Current step in the upgrade process.
+	CurrentStep OptString `json:"currentStep"`
+}
+
+// GetClusterId returns the value of ClusterId.
+func (s *ClusterUpgradeStatusV1) GetClusterId() string {
+	return s.ClusterId
+}
+
+// GetStatus returns the value of Status.
+func (s *ClusterUpgradeStatusV1) GetStatus() ClusterUpgradeStatusV1Status {
+	return s.Status
+}
+
+// GetStartTime returns the value of StartTime.
+func (s *ClusterUpgradeStatusV1) GetStartTime() OptDateTime {
+	return s.StartTime
+}
+
+// GetEndTime returns the value of EndTime.
+func (s *ClusterUpgradeStatusV1) GetEndTime() OptDateTime {
+	return s.EndTime
+}
+
+// GetCurrentStep returns the value of CurrentStep.
+func (s *ClusterUpgradeStatusV1) GetCurrentStep() OptString {
+	return s.CurrentStep
+}
+
+// SetClusterId sets the value of ClusterId.
+func (s *ClusterUpgradeStatusV1) SetClusterId(val string) {
+	s.ClusterId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ClusterUpgradeStatusV1) SetStatus(val ClusterUpgradeStatusV1Status) {
+	s.Status = val
+}
+
+// SetStartTime sets the value of StartTime.
+func (s *ClusterUpgradeStatusV1) SetStartTime(val OptDateTime) {
+	s.StartTime = val
+}
+
+// SetEndTime sets the value of EndTime.
+func (s *ClusterUpgradeStatusV1) SetEndTime(val OptDateTime) {
+	s.EndTime = val
+}
+
+// SetCurrentStep sets the value of CurrentStep.
+func (s *ClusterUpgradeStatusV1) SetCurrentStep(val OptString) {
+	s.CurrentStep = val
+}
+
+// Current status of the cluster upgrade.
+type ClusterUpgradeStatusV1Status string
+
+const (
+	ClusterUpgradeStatusV1StatusPENDING     ClusterUpgradeStatusV1Status = "PENDING"
+	ClusterUpgradeStatusV1StatusINPROGRESS  ClusterUpgradeStatusV1Status = "IN_PROGRESS"
+	ClusterUpgradeStatusV1StatusCOMPLETED   ClusterUpgradeStatusV1Status = "COMPLETED"
+	ClusterUpgradeStatusV1StatusFAILED      ClusterUpgradeStatusV1Status = "FAILED"
+	ClusterUpgradeStatusV1StatusCANCELLED   ClusterUpgradeStatusV1Status = "CANCELLED"
+	ClusterUpgradeStatusV1StatusROLLINGBACK ClusterUpgradeStatusV1Status = "ROLLING_BACK"
+)
+
+// AllValues returns all ClusterUpgradeStatusV1Status values.
+func (ClusterUpgradeStatusV1Status) AllValues() []ClusterUpgradeStatusV1Status {
+	return []ClusterUpgradeStatusV1Status{
+		ClusterUpgradeStatusV1StatusPENDING,
+		ClusterUpgradeStatusV1StatusINPROGRESS,
+		ClusterUpgradeStatusV1StatusCOMPLETED,
+		ClusterUpgradeStatusV1StatusFAILED,
+		ClusterUpgradeStatusV1StatusCANCELLED,
+		ClusterUpgradeStatusV1StatusROLLINGBACK,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ClusterUpgradeStatusV1Status) MarshalText() ([]byte, error) {
+	switch s {
+	case ClusterUpgradeStatusV1StatusPENDING:
+		return []byte(s), nil
+	case ClusterUpgradeStatusV1StatusINPROGRESS:
+		return []byte(s), nil
+	case ClusterUpgradeStatusV1StatusCOMPLETED:
+		return []byte(s), nil
+	case ClusterUpgradeStatusV1StatusFAILED:
+		return []byte(s), nil
+	case ClusterUpgradeStatusV1StatusCANCELLED:
+		return []byte(s), nil
+	case ClusterUpgradeStatusV1StatusROLLINGBACK:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ClusterUpgradeStatusV1Status) UnmarshalText(data []byte) error {
+	switch ClusterUpgradeStatusV1Status(data) {
+	case ClusterUpgradeStatusV1StatusPENDING:
+		*s = ClusterUpgradeStatusV1StatusPENDING
+		return nil
+	case ClusterUpgradeStatusV1StatusINPROGRESS:
+		*s = ClusterUpgradeStatusV1StatusINPROGRESS
+		return nil
+	case ClusterUpgradeStatusV1StatusCOMPLETED:
+		*s = ClusterUpgradeStatusV1StatusCOMPLETED
+		return nil
+	case ClusterUpgradeStatusV1StatusFAILED:
+		*s = ClusterUpgradeStatusV1StatusFAILED
+		return nil
+	case ClusterUpgradeStatusV1StatusCANCELLED:
+		*s = ClusterUpgradeStatusV1StatusCANCELLED
+		return nil
+	case ClusterUpgradeStatusV1StatusROLLINGBACK:
+		*s = ClusterUpgradeStatusV1StatusROLLINGBACK
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Error response.
@@ -750,6 +1157,37 @@ func (s *JobV1State) UnmarshalText(data []byte) error {
 	}
 }
 
+// Response containing all available ONTAP versions for cluster upgrades.
+// Ref: #/components/schemas/ListAvailableVersionsResponse_v1
+type ListAvailableVersionsResponseV1 struct {
+	// List of available ONTAP versions.
+	Versions []AvailableVersionV1 `json:"versions"`
+	// Current VCP ONTAP version.
+	Current string `json:"current"`
+}
+
+// GetVersions returns the value of Versions.
+func (s *ListAvailableVersionsResponseV1) GetVersions() []AvailableVersionV1 {
+	return s.Versions
+}
+
+// GetCurrent returns the value of Current.
+func (s *ListAvailableVersionsResponseV1) GetCurrent() string {
+	return s.Current
+}
+
+// SetVersions sets the value of Versions.
+func (s *ListAvailableVersionsResponseV1) SetVersions(val []AvailableVersionV1) {
+	s.Versions = val
+}
+
+// SetCurrent sets the value of Current.
+func (s *ListAvailableVersionsResponseV1) SetCurrent(val string) {
+	s.Current = val
+}
+
+func (*ListAvailableVersionsResponseV1) v1ListAvailableVersionsRes() {}
+
 // Ref: #/components/schemas/OntapCredentials_v1
 type OntapCredentialsV1 struct {
 	// The secret ID for authentication.
@@ -997,6 +1435,52 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptClusterUpgradeRequestV1Metadata returns new OptClusterUpgradeRequestV1Metadata with value set to v.
+func NewOptClusterUpgradeRequestV1Metadata(v ClusterUpgradeRequestV1Metadata) OptClusterUpgradeRequestV1Metadata {
+	return OptClusterUpgradeRequestV1Metadata{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptClusterUpgradeRequestV1Metadata is optional ClusterUpgradeRequestV1Metadata.
+type OptClusterUpgradeRequestV1Metadata struct {
+	Value ClusterUpgradeRequestV1Metadata
+	Set   bool
+}
+
+// IsSet returns true if OptClusterUpgradeRequestV1Metadata was set.
+func (o OptClusterUpgradeRequestV1Metadata) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptClusterUpgradeRequestV1Metadata) Reset() {
+	var v ClusterUpgradeRequestV1Metadata
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptClusterUpgradeRequestV1Metadata) SetTo(v ClusterUpgradeRequestV1Metadata) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptClusterUpgradeRequestV1Metadata) Get() (v ClusterUpgradeRequestV1Metadata, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptClusterUpgradeRequestV1Metadata) Or(d ClusterUpgradeRequestV1Metadata) ClusterUpgradeRequestV1Metadata {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -3419,6 +3903,208 @@ func (s *StorageClassV1) UnmarshalText(data []byte) error {
 	}
 }
 
+// Error information for an upgrade operation.
+// Ref: #/components/schemas/UpgradeError_v1
+type UpgradeErrorV1 struct {
+	// Error code.
+	Code string `json:"code"`
+	// Error message.
+	Message string `json:"message"`
+	// Error type.
+	Type string `json:"type"`
+	// Whether the error is retryable.
+	Retryable bool `json:"retryable"`
+	// UUID of the cluster where the error occurred.
+	ClusterId OptString `json:"clusterId"`
+}
+
+// GetCode returns the value of Code.
+func (s *UpgradeErrorV1) GetCode() string {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *UpgradeErrorV1) GetMessage() string {
+	return s.Message
+}
+
+// GetType returns the value of Type.
+func (s *UpgradeErrorV1) GetType() string {
+	return s.Type
+}
+
+// GetRetryable returns the value of Retryable.
+func (s *UpgradeErrorV1) GetRetryable() bool {
+	return s.Retryable
+}
+
+// GetClusterId returns the value of ClusterId.
+func (s *UpgradeErrorV1) GetClusterId() OptString {
+	return s.ClusterId
+}
+
+// SetCode sets the value of Code.
+func (s *UpgradeErrorV1) SetCode(val string) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *UpgradeErrorV1) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetType sets the value of Type.
+func (s *UpgradeErrorV1) SetType(val string) {
+	s.Type = val
+}
+
+// SetRetryable sets the value of Retryable.
+func (s *UpgradeErrorV1) SetRetryable(val bool) {
+	s.Retryable = val
+}
+
+// SetClusterId sets the value of ClusterId.
+func (s *UpgradeErrorV1) SetClusterId(val OptString) {
+	s.ClusterId = val
+}
+
+// Progress information for a cluster upgrade operation.
+// Ref: #/components/schemas/UpgradeProgress_v1
+type UpgradeProgressV1 struct {
+	// Unique job identifier for tracking the upgrade.
+	JobId string `json:"jobId"`
+	// Current status of the upgrade.
+	Status UpgradeProgressV1Status `json:"status"`
+	// Status of individual clusters in the upgrade operation.
+	Clusters []ClusterUpgradeStatusV1 `json:"clusters"`
+	// Any errors that occurred during the upgrade.
+	Errors []UpgradeErrorV1 `json:"errors"`
+	// Any warnings that occurred during the upgrade.
+	Warnings []string `json:"warnings"`
+}
+
+// GetJobId returns the value of JobId.
+func (s *UpgradeProgressV1) GetJobId() string {
+	return s.JobId
+}
+
+// GetStatus returns the value of Status.
+func (s *UpgradeProgressV1) GetStatus() UpgradeProgressV1Status {
+	return s.Status
+}
+
+// GetClusters returns the value of Clusters.
+func (s *UpgradeProgressV1) GetClusters() []ClusterUpgradeStatusV1 {
+	return s.Clusters
+}
+
+// GetErrors returns the value of Errors.
+func (s *UpgradeProgressV1) GetErrors() []UpgradeErrorV1 {
+	return s.Errors
+}
+
+// GetWarnings returns the value of Warnings.
+func (s *UpgradeProgressV1) GetWarnings() []string {
+	return s.Warnings
+}
+
+// SetJobId sets the value of JobId.
+func (s *UpgradeProgressV1) SetJobId(val string) {
+	s.JobId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *UpgradeProgressV1) SetStatus(val UpgradeProgressV1Status) {
+	s.Status = val
+}
+
+// SetClusters sets the value of Clusters.
+func (s *UpgradeProgressV1) SetClusters(val []ClusterUpgradeStatusV1) {
+	s.Clusters = val
+}
+
+// SetErrors sets the value of Errors.
+func (s *UpgradeProgressV1) SetErrors(val []UpgradeErrorV1) {
+	s.Errors = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *UpgradeProgressV1) SetWarnings(val []string) {
+	s.Warnings = val
+}
+
+func (*UpgradeProgressV1) v1GetClusterUpgradeStatusRes() {}
+
+// Current status of the upgrade.
+type UpgradeProgressV1Status string
+
+const (
+	UpgradeProgressV1StatusPENDING     UpgradeProgressV1Status = "PENDING"
+	UpgradeProgressV1StatusINPROGRESS  UpgradeProgressV1Status = "IN_PROGRESS"
+	UpgradeProgressV1StatusCOMPLETED   UpgradeProgressV1Status = "COMPLETED"
+	UpgradeProgressV1StatusFAILED      UpgradeProgressV1Status = "FAILED"
+	UpgradeProgressV1StatusCANCELLED   UpgradeProgressV1Status = "CANCELLED"
+	UpgradeProgressV1StatusROLLINGBACK UpgradeProgressV1Status = "ROLLING_BACK"
+)
+
+// AllValues returns all UpgradeProgressV1Status values.
+func (UpgradeProgressV1Status) AllValues() []UpgradeProgressV1Status {
+	return []UpgradeProgressV1Status{
+		UpgradeProgressV1StatusPENDING,
+		UpgradeProgressV1StatusINPROGRESS,
+		UpgradeProgressV1StatusCOMPLETED,
+		UpgradeProgressV1StatusFAILED,
+		UpgradeProgressV1StatusCANCELLED,
+		UpgradeProgressV1StatusROLLINGBACK,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s UpgradeProgressV1Status) MarshalText() ([]byte, error) {
+	switch s {
+	case UpgradeProgressV1StatusPENDING:
+		return []byte(s), nil
+	case UpgradeProgressV1StatusINPROGRESS:
+		return []byte(s), nil
+	case UpgradeProgressV1StatusCOMPLETED:
+		return []byte(s), nil
+	case UpgradeProgressV1StatusFAILED:
+		return []byte(s), nil
+	case UpgradeProgressV1StatusCANCELLED:
+		return []byte(s), nil
+	case UpgradeProgressV1StatusROLLINGBACK:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *UpgradeProgressV1Status) UnmarshalText(data []byte) error {
+	switch UpgradeProgressV1Status(data) {
+	case UpgradeProgressV1StatusPENDING:
+		*s = UpgradeProgressV1StatusPENDING
+		return nil
+	case UpgradeProgressV1StatusINPROGRESS:
+		*s = UpgradeProgressV1StatusINPROGRESS
+		return nil
+	case UpgradeProgressV1StatusCOMPLETED:
+		*s = UpgradeProgressV1StatusCOMPLETED
+		return nil
+	case UpgradeProgressV1StatusFAILED:
+		*s = UpgradeProgressV1StatusFAILED
+		return nil
+	case UpgradeProgressV1StatusCANCELLED:
+		*s = UpgradeProgressV1StatusCANCELLED
+		return nil
+	case UpgradeProgressV1StatusROLLINGBACK:
+		*s = UpgradeProgressV1StatusROLLINGBACK
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type V1CreatePoolBadRequest Error
 
 func (*V1CreatePoolBadRequest) v1CreatePoolRes() {}
@@ -3479,6 +4165,34 @@ func (*V1DeletePoolUnauthorized) v1DeletePoolRes() {}
 type V1DeletePoolUnprocessableEntity Error
 
 func (*V1DeletePoolUnprocessableEntity) v1DeletePoolRes() {}
+
+type V1GetClusterUpgradeStatusBadRequest Error
+
+func (*V1GetClusterUpgradeStatusBadRequest) v1GetClusterUpgradeStatusRes() {}
+
+type V1GetClusterUpgradeStatusForbidden Error
+
+func (*V1GetClusterUpgradeStatusForbidden) v1GetClusterUpgradeStatusRes() {}
+
+type V1GetClusterUpgradeStatusInternalServerError Error
+
+func (*V1GetClusterUpgradeStatusInternalServerError) v1GetClusterUpgradeStatusRes() {}
+
+type V1GetClusterUpgradeStatusNotFound Error
+
+func (*V1GetClusterUpgradeStatusNotFound) v1GetClusterUpgradeStatusRes() {}
+
+type V1GetClusterUpgradeStatusTooManyRequests Error
+
+func (*V1GetClusterUpgradeStatusTooManyRequests) v1GetClusterUpgradeStatusRes() {}
+
+type V1GetClusterUpgradeStatusUnauthorized Error
+
+func (*V1GetClusterUpgradeStatusUnauthorized) v1GetClusterUpgradeStatusRes() {}
+
+type V1GetClusterUpgradeStatusUnprocessableEntity Error
+
+func (*V1GetClusterUpgradeStatusUnprocessableEntity) v1GetClusterUpgradeStatusRes() {}
 
 type V1GetMultipleReplicationsByExternalUUIDBadRequest Error
 
@@ -3596,6 +4310,34 @@ type V1GetPoolUnprocessableEntity Error
 
 func (*V1GetPoolUnprocessableEntity) v1GetPoolRes() {}
 
+type V1ListAvailableVersionsBadRequest Error
+
+func (*V1ListAvailableVersionsBadRequest) v1ListAvailableVersionsRes() {}
+
+type V1ListAvailableVersionsForbidden Error
+
+func (*V1ListAvailableVersionsForbidden) v1ListAvailableVersionsRes() {}
+
+type V1ListAvailableVersionsInternalServerError Error
+
+func (*V1ListAvailableVersionsInternalServerError) v1ListAvailableVersionsRes() {}
+
+type V1ListAvailableVersionsNotFound Error
+
+func (*V1ListAvailableVersionsNotFound) v1ListAvailableVersionsRes() {}
+
+type V1ListAvailableVersionsTooManyRequests Error
+
+func (*V1ListAvailableVersionsTooManyRequests) v1ListAvailableVersionsRes() {}
+
+type V1ListAvailableVersionsUnauthorized Error
+
+func (*V1ListAvailableVersionsUnauthorized) v1ListAvailableVersionsRes() {}
+
+type V1ListAvailableVersionsUnprocessableEntity Error
+
+func (*V1ListAvailableVersionsUnprocessableEntity) v1ListAvailableVersionsRes() {}
+
 type V1ListPoolsBadRequest Error
 
 func (*V1ListPoolsBadRequest) v1ListPoolsRes() {}
@@ -3704,3 +4446,35 @@ func (*V1UpdatePoolUnauthorized) v1UpdatePoolRes() {}
 type V1UpdatePoolUnprocessableEntity Error
 
 func (*V1UpdatePoolUnprocessableEntity) v1UpdatePoolRes() {}
+
+type V1UpgradeClusterBadRequest Error
+
+func (*V1UpgradeClusterBadRequest) v1UpgradeClusterRes() {}
+
+type V1UpgradeClusterConflict Error
+
+func (*V1UpgradeClusterConflict) v1UpgradeClusterRes() {}
+
+type V1UpgradeClusterForbidden Error
+
+func (*V1UpgradeClusterForbidden) v1UpgradeClusterRes() {}
+
+type V1UpgradeClusterInternalServerError Error
+
+func (*V1UpgradeClusterInternalServerError) v1UpgradeClusterRes() {}
+
+type V1UpgradeClusterNotFound Error
+
+func (*V1UpgradeClusterNotFound) v1UpgradeClusterRes() {}
+
+type V1UpgradeClusterTooManyRequests Error
+
+func (*V1UpgradeClusterTooManyRequests) v1UpgradeClusterRes() {}
+
+type V1UpgradeClusterUnauthorized Error
+
+func (*V1UpgradeClusterUnauthorized) v1UpgradeClusterRes() {}
+
+type V1UpgradeClusterUnprocessableEntity Error
+
+func (*V1UpgradeClusterUnprocessableEntity) v1UpgradeClusterRes() {}

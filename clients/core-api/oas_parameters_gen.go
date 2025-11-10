@@ -24,6 +24,12 @@ type V1DeletePoolParams struct {
 	XCorrelationID OptString
 }
 
+// V1GetClusterUpgradeStatusParams is parameters of v1_getClusterUpgradeStatus operation.
+type V1GetClusterUpgradeStatusParams struct {
+	// Job ID of the upgrade operation.
+	JobId string
+}
+
 // V1GetMultipleReplicationsByExternalUUIDParams is parameters of v1_getMultipleReplicationsByExternalUUID operation.
 type V1GetMultipleReplicationsByExternalUUIDParams struct {
 	// Correlation identifier.
@@ -57,6 +63,12 @@ type V1GetPoolParams struct {
 	XCorrelationID OptString
 }
 
+// V1ListAvailableVersionsParams is parameters of v1_listAvailableVersions operation.
+type V1ListAvailableVersionsParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1ListPoolsParams is parameters of v1_listPools operation.
 type V1ListPoolsParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -85,4 +97,10 @@ type V1UpdatePoolParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
+}
+
+// V1UpgradeClusterParams is parameters of v1_upgradeCluster operation.
+type V1UpgradeClusterParams struct {
+	// UUID of the cluster to upgrade.
+	ClusterId string
 }

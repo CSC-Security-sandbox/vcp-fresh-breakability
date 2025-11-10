@@ -272,6 +272,34 @@ jobs:
           skaffold build || exit 1
           make vcp-db-migrate-image imageVersion=test-build || exit 1
           make vcp-cloudrun-deployer-linux-image imageVersion=test-build || exit 1
+  
+  verify_autogen_code:
+    name: Verify autogen code
+    needs: setup-vsacictl
+    runs-on: [ self-hosted, linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
+      options: --user root
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+      - name: Clean Workspace
+        run: |
+          git reset --hard && git submodule foreach git reset --hard  && git clean -fd
+      - name: Verify autogen code
+        run: make verify-generated
+      
   lint:
     needs: setup-vsacictl
     runs-on: [self-hosted, linux]
