@@ -26,6 +26,8 @@ var (
 	listVolumesWithDetails       = _listVolumesWithDetails
 	listAllVolumesWithDetails    = _listAllVolumesWithDetails
 	eligibleVolDetails           = _eligibleVolDetails
+	FindVolumeInRegionalPool     = _findVolumeInRegionalPool
+	FindVolumeInZonalPool        = _findVolumeInZonalPool
 	UpdateVolumeTieringBatchSize = env.GetInt("UPDATE_VOLUME_TIERING_BATCH_SIZE", 20)
 )
 
@@ -38,16 +40,14 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 	var err error
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
-	// Check for existing volume with same name in the same zone (pool's primary zone)
-	// Using efficient single-query JOIN approach
-	var existingVolume datamodel.Volume
-	err2 := tx.Table("volumes v").
-		Joins("JOIN pools existing_pool ON v.pool_id = existing_pool.id").
-		Joins("JOIN pools target_pool ON target_pool.id = ?", volume.PoolID).
-		Where("v.name = ? AND v.account_id = ? AND existing_pool.pool_attributes->>'primary_zone' = target_pool.pool_attributes->>'primary_zone'",
-			volume.Name, volume.AccountID).
-		First(&existingVolume).Error
-	if errors.Is(err2, gorm.ErrRecordNotFound) {
+	var volErr error
+	if volume.Pool.PoolAttributes.IsRegionalHA {
+		_, volErr = FindVolumeInRegionalPool(tx, volume.Name, volume.AccountID, false)
+	} else {
+		_, volErr = FindVolumeInZonalPool(tx, volume.Name, volume.AccountID, volume.Pool.PoolAttributes.PrimaryZone, false)
+	}
+
+	if errors.Is(volErr, gorm.ErrRecordNotFound) {
 		volume.UUID = utils.RandomUUID()
 		if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
 			// This is volume restore case
@@ -70,8 +70,8 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 			return nil, err
 		}
 		return volume, nil
-	} else if err2 != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err2)
+	} else if volErr != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, volErr)
 	}
 	// Volume already exists in the same zone
 	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("volume with this name already exists in the same zone"))
@@ -93,28 +93,6 @@ func (d *DataStoreRepository) GetVolumeWithAccountID(ctx context.Context, volUUI
 
 func (d *DataStoreRepository) GetVolumeByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.Volume, error) {
 	return getVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Volume{Name: name, AccountID: accountID})
-}
-
-func (d *DataStoreRepository) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, primaryZone string) (*datamodel.Volume, error) {
-	volume := &datamodel.Volume{}
-	db := d.db.GORM().WithContext(ctx)
-
-	// Join with pools table and filter by pool's primary zone
-	err := db.Preload("Account").
-		Preload("Pool").
-		Joins("JOIN pools ON volumes.pool_id = pools.id").
-		Where("volumes.name = ? AND volumes.account_id = ? AND pools.pool_attributes->>'primary_zone' = ?",
-			name, accountID, primaryZone).
-		First(&volume).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeNotFound,
-				customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "volume", nil))
-		}
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
-	}
-	return volume, nil
 }
 
 func (d *DataStoreRepository) GetVolumeByName(ctx context.Context, volName string) (*datamodel.Volume, error) {
@@ -665,4 +643,67 @@ func _eligibleVolDetails(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamo
 		return nil, err
 	}
 	return volumes, nil
+}
+
+// _findVolumeInRegionalPool finds a volume by name and account ID in regional pools
+// Returns gorm.ErrRecordNotFound if no matching volume exists
+func _findVolumeInRegionalPool(db *gorm.DB, volumeName string, accountID int64, preloadAssociations bool) (*datamodel.Volume, error) {
+	var volume datamodel.Volume
+	query := db.Table("volumes").
+		Joins("JOIN pools ON volumes.pool_id = pools.id").
+		Where("volumes.name = ? AND volumes.account_id = ?", volumeName, accountID).
+		Where("pools.pool_attributes->>'is_regional_ha' = 'true'")
+
+	if preloadAssociations {
+		query = query.Preload("Account").Preload("Pool")
+	}
+
+	err := query.First(&volume).Error
+	if err != nil {
+		return nil, err
+	}
+	return &volume, nil
+}
+
+// _findVolumeInZonalPool finds a volume by name and account ID in a specific zone's non-regional i.e zonal pools
+// Returns gorm.ErrRecordNotFound if no matching volume exists
+func _findVolumeInZonalPool(db *gorm.DB, volumeName string, accountID int64, zone string, preloadAssociations bool) (*datamodel.Volume, error) {
+	var volume datamodel.Volume
+	query := db.Table("volumes").
+		Joins("JOIN pools ON volumes.pool_id = pools.id").
+		Where("volumes.name = ? AND volumes.account_id = ?", volumeName, accountID).
+		Where("pools.pool_attributes->>'primary_zone' = ?", zone).
+		Where("pools.pool_attributes->>'is_regional_ha' = 'false'")
+
+	if preloadAssociations {
+		query = query.Preload("Account").Preload("Pool")
+	}
+
+	err := query.First(&volume).Error
+	if err != nil {
+		return nil, err
+	}
+	return &volume, nil
+}
+
+func (d *DataStoreRepository) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, zone string, isRegionalPool bool) (*datamodel.Volume, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	var volume *datamodel.Volume
+	var err error
+
+	if isRegionalPool {
+		volume, err = FindVolumeInRegionalPool(db, name, accountID, true)
+	} else {
+		volume, err = FindVolumeInZonalPool(db, name, accountID, zone, true)
+	}
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeNotFound,
+				customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "volume", nil))
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return volume, nil
 }

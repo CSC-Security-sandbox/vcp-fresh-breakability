@@ -90,7 +90,7 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		}()
 
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
-		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone).Return(nil, errors.New("volume not found"))
+		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.IsRegionalHA).Return(nil, errors.New("volume not found"))
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(volume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
@@ -441,7 +441,7 @@ func TestCreateVolume_FailedVolumeDeleteOnError(t *testing.T) {
 		}()
 
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
-		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone).Return(nil, gorm.ErrRecordNotFound)
+		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.IsRegionalHA).Return(nil, gorm.ErrRecordNotFound)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(volume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
@@ -543,7 +543,7 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 		}()
 
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
-		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone).Return(nil, gorm.ErrRecordNotFound)
+		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.IsRegionalHA).Return(nil, gorm.ErrRecordNotFound)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
 		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(volume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)

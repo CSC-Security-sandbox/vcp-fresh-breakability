@@ -8836,9 +8836,9 @@ func (_c *MockStorage_GetVolumeByName_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
-// GetVolumeByNameAccountIDAndZone provides a mock function with given fields: ctx, name, accountID, primaryZone
-func (_m *MockStorage) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, primaryZone string) (*datamodel.Volume, error) {
-	ret := _m.Called(ctx, name, accountID, primaryZone)
+// GetVolumeByNameAccountIDAndZone provides a mock function with given fields: ctx, name, accountID, zone, isRegionalPool
+func (_m *MockStorage) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, zone string, isRegionalPool bool) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, name, accountID, zone, isRegionalPool)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetVolumeByNameAccountIDAndZone")
@@ -8846,19 +8846,19 @@ func (_m *MockStorage) GetVolumeByNameAccountIDAndZone(ctx context.Context, name
 
 	var r0 *datamodel.Volume
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) (*datamodel.Volume, error)); ok {
-		return rf(ctx, name, accountID, primaryZone)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string, bool) (*datamodel.Volume, error)); ok {
+		return rf(ctx, name, accountID, zone, isRegionalPool)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) *datamodel.Volume); ok {
-		r0 = rf(ctx, name, accountID, primaryZone)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string, bool) *datamodel.Volume); ok {
+		r0 = rf(ctx, name, accountID, zone, isRegionalPool)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Volume)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, int64, string) error); ok {
-		r1 = rf(ctx, name, accountID, primaryZone)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, string, bool) error); ok {
+		r1 = rf(ctx, name, accountID, zone, isRegionalPool)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -8875,14 +8875,15 @@ type MockStorage_GetVolumeByNameAccountIDAndZone_Call struct {
 //   - ctx context.Context
 //   - name string
 //   - accountID int64
-//   - primaryZone string
-func (_e *MockStorage_Expecter) GetVolumeByNameAccountIDAndZone(ctx interface{}, name interface{}, accountID interface{}, primaryZone interface{}) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
-	return &MockStorage_GetVolumeByNameAccountIDAndZone_Call{Call: _e.mock.On("GetVolumeByNameAccountIDAndZone", ctx, name, accountID, primaryZone)}
+//   - zone string
+//   - isRegionalPool bool
+func (_e *MockStorage_Expecter) GetVolumeByNameAccountIDAndZone(ctx interface{}, name interface{}, accountID interface{}, zone interface{}, isRegionalPool interface{}) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
+	return &MockStorage_GetVolumeByNameAccountIDAndZone_Call{Call: _e.mock.On("GetVolumeByNameAccountIDAndZone", ctx, name, accountID, zone, isRegionalPool)}
 }
 
-func (_c *MockStorage_GetVolumeByNameAccountIDAndZone_Call) Run(run func(ctx context.Context, name string, accountID int64, primaryZone string)) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
+func (_c *MockStorage_GetVolumeByNameAccountIDAndZone_Call) Run(run func(ctx context.Context, name string, accountID int64, zone string, isRegionalPool bool)) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(string), args[4].(bool))
 	})
 	return _c
 }
@@ -8892,7 +8893,7 @@ func (_c *MockStorage_GetVolumeByNameAccountIDAndZone_Call) Return(_a0 *datamode
 	return _c
 }
 
-func (_c *MockStorage_GetVolumeByNameAccountIDAndZone_Call) RunAndReturn(run func(context.Context, string, int64, string) (*datamodel.Volume, error)) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
+func (_c *MockStorage_GetVolumeByNameAccountIDAndZone_Call) RunAndReturn(run func(context.Context, string, int64, string, bool) (*datamodel.Volume, error)) *MockStorage_GetVolumeByNameAccountIDAndZone_Call {
 	_c.Call.Return(run)
 	return _c
 }

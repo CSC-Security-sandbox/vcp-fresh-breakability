@@ -811,6 +811,10 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			Name:      "test-pool",
 			Account:   account,
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
 		}
 		pool, err = se.CreatingPool(ctx, pool)
 		assert.NoError(tt, err)
@@ -913,6 +917,10 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			Name:      "test-pool",
 			Account:   account,
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
 		}
 		pool, err = se.CreatingPool(ctx, pool)
 		assert.NoError(tt, err)
@@ -1141,6 +1149,10 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			Name:      "test-pool",
 			Account:   account,
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
 		}
 		pool, err = se.CreatingPool(ctx, pool)
 		assert.NoError(tt, err)
@@ -1254,6 +1266,10 @@ func TestUpdateBackupPolicy(t *testing.T) {
 			Name:      "test-pool",
 			Account:   account,
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
 		}
 		pool, err = se.CreatingPool(ctx, pool)
 		assert.NoError(tt, err)

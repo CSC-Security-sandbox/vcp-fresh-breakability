@@ -511,8 +511,8 @@ func (s *PersistenceStore) GetVolumeByNameAndAccountID(ctx context.Context, id s
 	return s.dataStore.GetVolumeByNameAndAccountID(ctx, id, accountID)
 }
 
-func (s *PersistenceStore) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, primaryZone string) (*datamodel.Volume, error) {
-	return s.dataStore.GetVolumeByNameAccountIDAndZone(ctx, name, accountID, primaryZone)
+func (s *PersistenceStore) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, zone string, isRegionalPool bool) (*datamodel.Volume, error) {
+	return s.dataStore.GetVolumeByNameAccountIDAndZone(ctx, name, accountID, zone, isRegionalPool)
 }
 
 func (s *PersistenceStore) GetVolumeByName(ctx context.Context, name string) (*datamodel.Volume, error) {

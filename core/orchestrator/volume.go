@@ -93,13 +93,14 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	poolPrimaryZone := pool.PoolAttributes.PrimaryZone
+	isRegionalPool := pool.PoolAttributes.IsRegionalHA
 	// Validate that volume zone matches pool's primary zone for zonal volume
-	if !pool.PoolAttributes.IsRegionalHA && params.Zone != poolPrimaryZone {
+	if !isRegionalPool && params.Zone != poolPrimaryZone {
 		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume zone '%s' does not match pool's primary zone '%s'.", params.Zone, poolPrimaryZone))
 	}
 
 	// Check for existing volume with same name in the determined zone
-	vol, volErr := se.GetVolumeByNameAccountIDAndZone(ctx, params.Name, pool.Account.ID, params.Zone)
+	vol, volErr := se.GetVolumeByNameAccountIDAndZone(ctx, params.Name, pool.Account.ID, params.Zone, isRegionalPool)
 	if volErr != nil {
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(volErr, &customErr) && !customerrors.IsNotFoundErr(customErr.Unwrap()) {
@@ -110,8 +111,19 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			"volume_name", params.Name, "zone", params.Zone)
 	} else {
 		if vol.State != models.LifeCycleStateCreating {
-			return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume with resource_id '%s' already exists in zone '%s'", params.Name, poolPrimaryZone))
+			// Provide appropriate error message based on pool type
+			var errorMsg string
+			if isRegionalPool {
+				errorMsg = fmt.Sprintf("Volume with resource_id '%s' already exists in region '%s'", params.Name, params.Region)
+			} else {
+				errorMsg = fmt.Sprintf("Volume with resource_id '%s' already exists in zone '%s'", params.Name, params.Zone)
+			}
+			return nil, "", customerrors.NewConflictErr(errorMsg)
 		} else {
+			// If volume is in CREATING state, check if it belongs to the same pool
+			if vol.Pool.UUID != pool.UUID {
+				return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume with resource_id '%s' already exists in the '%s' pool, which is different from the requested pool '%s'", params.Name, vol.Pool.Name, pool.Name))
+			}
 			job, jobErr := se.GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeCreateVolume))
 			if jobErr != nil {
 				logger.Error("Failed to fetch existing create volume job for volume in CREATING state", "error", jobErr)

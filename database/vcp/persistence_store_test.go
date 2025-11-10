@@ -321,7 +321,15 @@ func TestCreateVolume_Persistence_Store(t *testing.T) {
 	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	vol := &datamodel.Volume{Name: "vol1"}
+	vol := &datamodel.Volume{
+		Name: "vol1",
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
@@ -332,7 +340,15 @@ func TestGetVolume_Persistence_Store(t *testing.T) {
 	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	vol := &datamodel.Volume{Name: "vol2"}
+	vol := &datamodel.Volume{
+		Name: "vol2",
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	found, err := store.GetVolume(ctx, created.UUID)
@@ -345,7 +361,15 @@ func TestUpdateVolume_Persistence_Store(t *testing.T) {
 	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	vol := &datamodel.Volume{Name: "vol3"}
+	vol := &datamodel.Volume{
+		Name: "vol3",
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	created.Name = "vol3-updated"
@@ -358,7 +382,15 @@ func TestDeleteVolume_Persistence_Store(t *testing.T) {
 	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	vol := &datamodel.Volume{Name: "vol4"}
+	vol := &datamodel.Volume{
+		Name: "vol4",
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	_, err = store.DeleteVolume(ctx, created.UUID)
@@ -627,7 +659,16 @@ func TestGetAppConsistentSnapshotsForVolume_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_snap"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_snap", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_snap",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	// Create a snapshot associated with the account and volume
@@ -651,7 +692,16 @@ func TestGetSnapshotsByVolumeID_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_snap2"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_snap2",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -691,10 +741,28 @@ func TestGetSnapshotsByVolumeIDs_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "test-account"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol1 := &datamodel.Volume{Name: "test-volume-1", AccountID: createdAcc.ID}
+	vol1 := &datamodel.Volume{
+		Name:      "test-volume-1",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol1, err := store.CreateVolume(ctx, vol1)
 	assert.NoError(t, err)
-	vol2 := &datamodel.Volume{Name: "test-volume-2", AccountID: createdAcc.ID}
+	vol2 := &datamodel.Volume{
+		Name:      "test-volume-2",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol2, err := store.CreateVolume(ctx, vol2)
 	assert.NoError(t, err)
 
@@ -728,7 +796,16 @@ func TestBatchDeleteSnapshots_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "test-account"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "test-volume", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "test-volume",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -779,7 +856,16 @@ func TestGetReplicationSnapshotsByVolumeID_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_snap2"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_snap2",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -962,7 +1048,15 @@ func TestUpdateVolumeFields_Persistence_Store(t *testing.T) {
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 
 	// Create a volume to update
-	vol := &datamodel.Volume{Name: "vol-update-fields"}
+	vol := &datamodel.Volume{
+		Name: "vol-update-fields",
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -1110,7 +1204,16 @@ func TestVerifyVolumeOwnership_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_verify"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_verify", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_verify",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -1133,7 +1236,15 @@ func TestIsBackupInCreatingStateByVolume_Persistence_Store(t *testing.T) {
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 
 	// Create a volume
-	vol := &datamodel.Volume{Name: "vol_backup_state"}
+	vol := &datamodel.Volume{
+		Name: "vol_backup_state",
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -1301,7 +1412,16 @@ func TestListVolumeReplications_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_snap2"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_snap2",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -1418,14 +1538,36 @@ func TestGetVolumeCountByBackupVaultID_Persistence_Store(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 
+	// Create a test pool with attributes
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test-pool",
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+	}
+	err := store.DB().Create(pool).Error
+	assert.NoError(t, err)
+
 	// Create a backup vault
 	backupVault := &datamodel.BackupVault{Name: "test-vault"}
 	createdVault, err := store.CreatingBackupVault(ctx, backupVault)
 	assert.NoError(t, err)
 
 	// Create volumes associated with the backup vault
-	volume1 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupVaultID: createdVault.UUID}, Name: "volume1"}
-	volume2 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupVaultID: createdVault.UUID}, Name: "volume2"}
+	volume1 := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: createdVault.UUID},
+		Name:           "volume1",
+		PoolID:         pool.ID,
+		Pool:           pool,
+	}
+	volume2 := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: createdVault.UUID},
+		Name:           "volume2",
+		PoolID:         pool.ID,
+		Pool:           pool,
+	}
 	_, err = store.CreateVolume(ctx, volume1)
 	assert.NoError(t, err)
 	_, err = store.CreateVolume(ctx, volume2)
@@ -1530,6 +1672,18 @@ func TestListBackupPolicyVolumeCount_Persistence_Store(t *testing.T) {
 	store, _ := NewTestStorage(logger)
 	ctx := context.Background()
 
+	// Create a test pool with attributes
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test-pool",
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+	}
+	err := store.DB().Create(pool).Error
+	assert.NoError(t, err)
+
 	// Create backup policies
 	policy1 := &datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "uuid-1"}, Name: "policy1"}
 	policy2 := &datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "uuid-2"}, Name: "policy2"}
@@ -1539,9 +1693,27 @@ func TestListBackupPolicyVolumeCount_Persistence_Store(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create volumes and associate with policies
-	vol1 := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "uuid-1"}, Name: "vol1", DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-1"}}
-	vol2 := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "uuid-2"}, Name: "vol2", DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-1"}}
-	vol3 := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "uuid-3"}, Name: "vol3", DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-2"}}
+	vol1 := &datamodel.Volume{
+		BaseModel:      datamodel.BaseModel{UUID: "uuid-1"},
+		Name:           "vol1",
+		DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-1"},
+		PoolID:         pool.ID,
+		Pool:           pool,
+	}
+	vol2 := &datamodel.Volume{
+		BaseModel:      datamodel.BaseModel{UUID: "uuid-2"},
+		Name:           "vol2",
+		DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-1"},
+		PoolID:         pool.ID,
+		Pool:           pool,
+	}
+	vol3 := &datamodel.Volume{
+		BaseModel:      datamodel.BaseModel{UUID: "uuid-3"},
+		Name:           "vol3",
+		DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-2"},
+		PoolID:         pool.ID,
+		Pool:           pool,
+	}
 	_, err = store.CreateVolume(ctx, vol1)
 	assert.NoError(t, err)
 	_, err = store.CreateVolume(ctx, vol2)
@@ -1915,7 +2087,16 @@ func TestBatchCreateSnapshots_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_batch_create"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_batch_create", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_batch_create",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -1956,7 +2137,16 @@ func TestBatchUpdateSnapshots_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_batch_update"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_batch_update", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_batch_update",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -2004,7 +2194,16 @@ func TestBatchUnDeleteSnapshots_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_batch_undelete"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_batch_undelete", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_batch_undelete",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -2044,7 +2243,16 @@ func TestBatchGetSnapshotsByUUIDs_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_batch_get"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_batch_get", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_batch_get",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -2102,7 +2310,16 @@ func TestBatchGetWronglyDeletedSnapshots_Persistence_Store(t *testing.T) {
 	acc := &datamodel.Account{Name: "acc_wrongly_deleted"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_wrongly_deleted", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_wrongly_deleted",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -2231,7 +2448,16 @@ func TestBatchSnapshotOperations_ChunkingBehavior_Persistence_Store(t *testing.T
 	acc := &datamodel.Account{Name: "acc_chunking"}
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
-	vol := &datamodel.Volume{Name: "vol_chunking", AccountID: createdAcc.ID}
+	vol := &datamodel.Volume{
+		Name:      "vol_chunking",
+		AccountID: createdAcc.ID,
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		},
+	}
 	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
@@ -2275,14 +2501,36 @@ func TestGetVolumeCountByBackupPolicyID_Persistence_Store(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 
+	// Create a test pool with attributes
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test-pool",
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+	}
+	err := store.DB().Create(pool).Error
+	assert.NoError(t, err)
+
 	// Create a backup policy
 	policy := &datamodel.BackupPolicy{Name: "test-policy"}
 	createdPolicy, err := store.CreateBackupPolicyEntryInVCP(ctx, policy)
 	assert.NoError(t, err)
 
 	// Create volumes associated with the backup policy
-	vol1 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupPolicyID: createdPolicy.UUID}, Name: "volume1"}
-	vol2 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupPolicyID: createdPolicy.UUID}, Name: "volume2"}
+	vol1 := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupPolicyID: createdPolicy.UUID},
+		Name:           "volume1",
+		PoolID:         pool.ID,
+		Pool:           pool,
+	}
+	vol2 := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupPolicyID: createdPolicy.UUID},
+		Name:           "volume2",
+		PoolID:         pool.ID,
+		Pool:           pool,
+	}
 	_, err = store.CreateVolume(ctx, vol1)
 	assert.NoError(t, err)
 	_, err = store.CreateVolume(ctx, vol2)
@@ -2831,6 +3079,12 @@ func TestGetEligibleVolumes_Persistence_Store(t *testing.T) {
 			State:     "READY",
 			AccountID: account.ID,
 			Account:   account,
+			Pool: &datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone:  "us-central1-a",
+					IsRegionalHA: false,
+				},
+			},
 		}
 		_, err = store.CreateVolume(ctx, vol)
 		assert.NoError(t, err)
@@ -2874,6 +3128,12 @@ func TestPersistenceStore_ListAllVolumes(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("vol-uuid-%d", i)},
 			Name:      fmt.Sprintf("Volume%d", i),
 			AccountID: account.ID,
+			Pool: &datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone:  "us-central1-a",
+					IsRegionalHA: false,
+				},
+			},
 		}
 		_, err = store.CreateVolume(ctx, vol)
 		require.NoError(t, err)
@@ -4060,6 +4320,10 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			DeploymentName: "test-deployment",
 			VendorID:       "test-vendor-id",
 			Account:        &datamodel.Account{},
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
 		}
 		createdPool, err := store.CreatingPool(ctx, pool)
 		assert.NoError(tt, err, "Failed to create pool")
@@ -4074,6 +4338,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
+			Pool:      pool,
 			Account:   &datamodel.Account{},
 		}
 		createdVolume, err := store.CreateVolume(ctx, volume)
@@ -4089,6 +4354,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			Name:      "test_volume_2",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
+			Pool:      pool,
 			Account:   &datamodel.Account{},
 		}
 		createdVolume2, err := store.CreateVolume(ctx, volume2)
@@ -4103,6 +4369,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			Name:      "test_volume_3",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
+			Pool:      pool,
 			Account:   &datamodel.Account{},
 		}
 		createdVolume3, err := store.CreateVolume(ctx, volume3)
@@ -4304,6 +4571,10 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			DeploymentName: "test-deployment",
 			VendorID:       "test-vendor-id",
 			Account:        &datamodel.Account{},
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
 		}
 		createdPool, err := store.CreatingPool(ctx, pool)
 		assert.NoError(tt, err, "Failed to create pool")
@@ -4317,6 +4588,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
+			Pool:      pool,
 			Account:   &datamodel.Account{},
 		}
 		createdVolume, err := store.CreateVolume(ctx, volume)
@@ -4331,6 +4603,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			Name:      "test_volume_2",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
+			Pool:      pool,
 			Account:   &datamodel.Account{},
 		}
 		createdVolume2, err := store.CreateVolume(ctx, volume2)
@@ -4345,6 +4618,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			Name:      "test_volume_3",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
+			Pool:      pool,
 			Account:   &datamodel.Account{},
 		}
 		createdVolume3, err := store.CreateVolume(ctx, volume3)
@@ -4433,6 +4707,10 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			DeploymentName: "test-deployment",
 			VendorID:       "test-vendor-id",
 			Account:        &datamodel.Account{},
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
 		}
 		createdPool, err := store.CreatingPool(ctx, pool)
 		assert.NoError(tt, err, "Failed to create pool")
@@ -4446,6 +4724,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
+			Pool:      pool,
 			Account:   &datamodel.Account{},
 		}
 		createdVolume, err := store.CreateVolume(ctx, volume)

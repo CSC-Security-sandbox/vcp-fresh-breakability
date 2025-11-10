@@ -519,11 +519,11 @@ func (re *retryEngine) GetVolumeByNameAndAccountID(ctx context.Context, name str
 	return var0, err
 }
 
-func (re *retryEngine) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, primaryZone string) (*datamodel.Volume, error) {
+func (re *retryEngine) GetVolumeByNameAccountIDAndZone(ctx context.Context, name string, accountID int64, zone string, isRegionalPool bool) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetVolumeByNameAccountIDAndZone(ctx, name, accountID, primaryZone)
+		var0, err = re.dataStore.GetVolumeByNameAccountIDAndZone(ctx, name, accountID, zone, isRegionalPool)
 		if err != nil {
 			re.logError("GetVolumeByNameAccountIDAndZone", err)
 			if !dbutils.IsTransientErr(err) {
