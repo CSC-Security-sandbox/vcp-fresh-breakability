@@ -22,6 +22,10 @@ type DeploymentConfig struct {
 	SchedulerRegion    string // Region for Cloud Scheduler (defaults to Region if not specified)
 	MinInstances       int64
 	MaxInstances       int64
+	TelemetryCPU       string // CPU configuration for telemetry container (e.g., "2", "1000m")
+	TelemetryMemory    string // Memory configuration for telemetry container (e.g., "2Gi", "512Mi")
+	SqlProxyCPU        string // CPU configuration for SQL proxy container (e.g., "1", "500m")
+	SqlProxyMemory     string // Memory configuration for SQL proxy container (e.g., "512Mi", "256Mi")
 	EnvVars            map[string]string
 	EnableScheduler    bool
 	SchedulerCron      string
@@ -47,6 +51,10 @@ func main() {
 		vpcConnector       = flag.String("vpc-connector", "", "VPC Access connector")
 		minInstances       = flag.Int64("min-instances", 0, "Minimum number of instances")
 		maxInstances       = flag.Int64("max-instances", 1, "Maximum number of instances (0 for no limit)")
+		telemetryCPU       = flag.String("telemetry-cpu", "2", "CPU allocation for telemetry container (e.g., '2', '1000m')")
+		telemetryMemory    = flag.String("telemetry-memory", "2Gi", "Memory allocation for telemetry container (e.g., '2Gi', '512Mi')")
+		sqlProxyCPU        = flag.String("sql-proxy-cpu", "1", "CPU allocation for SQL proxy container (e.g., '1', '500m')")
+		sqlProxyMemory     = flag.String("sql-proxy-memory", "512Mi", "Memory allocation for SQL proxy container (e.g., '512Mi', '256Mi')")
 		envVarsFlag        = flag.String("env-vars", "", "Environment variables in format KEY1=VALUE1,KEY2=VALUE2")
 		cloudSQLInstances  = flag.String("cloud-sql-instances", "", "Comma-separated list of Cloud SQL instance connection names (project:region:instance)")
 		enableScheduler    = flag.Bool("enable-scheduler", true, "Enable Cloud Scheduler to invoke the service")
@@ -86,6 +94,10 @@ func main() {
 		SchedulerRegion:    schedulerRegionValue,
 		MinInstances:       *minInstances,
 		MaxInstances:       *maxInstances,
+		TelemetryCPU:       *telemetryCPU,
+		TelemetryMemory:    *telemetryMemory,
+		SqlProxyCPU:        *sqlProxyCPU,
+		SqlProxyMemory:     *sqlProxyMemory,
 		EnvVars:            envVars,
 		EnableScheduler:    *enableScheduler,
 		SchedulerCron:      "*/5 * * * *",
@@ -189,13 +201,21 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 		})
 	}
 
-	// Create container configuration
+	// Create container configuration with resources
 	container := &cloudrun.GoogleCloudRunV2Container{
 		Image: config.Image,
 		Env:   envVars,
 		Ports: []*cloudrun.GoogleCloudRunV2ContainerPort{
 			{
 				ContainerPort: 8080,
+			},
+		},
+		Resources: &cloudrun.GoogleCloudRunV2ResourceRequirements{
+			// Set cpuIdle to false for instance-based billing
+			CpuIdle: false,
+			Limits: map[string]string{
+				"cpu":    config.TelemetryCPU,
+				"memory": config.TelemetryMemory,
 			},
 		},
 	}
@@ -214,6 +234,14 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 			"--structured-logs",
 			"--port=5432",
 			cloudSqlInstance,
+		},
+		Resources: &cloudrun.GoogleCloudRunV2ResourceRequirements{
+			// Set cpuIdle to false for instance-based billing
+			CpuIdle: false,
+			Limits: map[string]string{
+				"cpu":    config.SqlProxyCPU,
+				"memory": config.SqlProxyMemory,
+			},
 		},
 	}
 
@@ -464,14 +492,17 @@ func printCloudRunServiceInfo(service *cloudrun.GoogleCloudRunV2Service) {
 
 	if service.Template != nil {
 		if len(service.Template.Containers) > 0 {
-			container := service.Template.Containers[0]
-			log.Printf("Image:        %s\n", container.Image)
+			// Print info for all containers (telemetry is first, SQL proxy is second)
+			for i, container := range service.Template.Containers {
+				log.Printf("Container %d: %s\n", i+1, container.Name)
+				log.Printf("  Image:        %s\n", container.Image)
 
-			if container.Resources != nil {
-				log.Printf("CPU Idle:     %t\n", container.Resources.CpuIdle)
-				if container.Resources.Limits != nil {
-					for k, v := range container.Resources.Limits {
-						log.Printf("Resource %s:  %s\n", k, v)
+				if container.Resources != nil {
+					log.Printf("  CPU Idle:     %t (instance-based billing)\n", container.Resources.CpuIdle)
+					if container.Resources.Limits != nil {
+						for k, v := range container.Resources.Limits {
+							log.Printf("  Resource %s:  %s\n", k, v)
+						}
 					}
 				}
 			}

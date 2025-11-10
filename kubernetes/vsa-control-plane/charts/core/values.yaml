@@ -237,6 +237,13 @@ telemetryDeployer:
   # schedulerRegion: ""  # Optional: GCP region for Cloud Scheduler (defaults to region if not specified)
   minInstances: 1
   maxInstances: 3
+  # CPU and Memory configuration for instance-based billing
+  # Resources for telemetry container
+  telemetryCPU: "2"      # CPU allocation for telemetry container (e.g., "2", "1000m", "4")
+  telemetryMemory: "2Gi" # Memory allocation for telemetry container (e.g., "2Gi", "512Mi", "4Gi")
+  # Resources for SQL proxy container
+  sqlProxyCPU: "1"       # CPU allocation for SQL proxy container (e.g., "1", "500m", "2")
+  sqlProxyMemory: "512Mi" # Memory allocation for SQL proxy container (e.g., "512Mi", "256Mi", "1Gi")
   runMigrationOnStart: false
   rootUrl: "https://servicecontrol.googleapis.com"
   operationBatchSize: 200
