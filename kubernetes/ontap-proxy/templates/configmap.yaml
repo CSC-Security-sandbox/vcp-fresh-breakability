@@ -10,9 +10,6 @@ data:
   # Logging configuration
   LOGGER_LEVEL: {{ .Values.loggerLevel | quote }}
   
-  # Secret Manager configuration
-  SECRET_MANAGER_ENABLED: {{ .Values.secretManagerEnabled | quote }}
-
   # Environment Configuration
   PORT: {{ .Values.config.port | quote }}
   ENV: {{ .Values.config.env | default "production" | quote }}
@@ -21,7 +18,7 @@ data:
   AUTH_DATA_CACHE_EXPIRATION_MINUTES: {{ .Values.cache.authData.expirationMinutes | default "10080" | quote }}
   CA_POOL_DEPLOYED_PROJECT_ID: {{ .Values.gcp.caPool.deployedProjectId | quote }}
   SECRET_MANAGER_PROJECT_ID: {{ .Values.gcp.secretManager.projectId | quote }}
-  REGION: {{ .Values.gcp.region | quote }}
+  LOCAL_REGION: {{ .Values.gcp.region | quote }}
   CA_POOL_NAME: {{ .Values.gcp.caPool.name | quote }}
 
   # GCP Authentication Configuration

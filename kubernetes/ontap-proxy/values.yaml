@@ -43,11 +43,9 @@ images:
     secondary: false
     pullPolicy: IfNotPresent
 
-# Secret Manager configuration
-secretManagerEnabled: false
 
 coreApi:
-  host: ""
+  host: "core-service.vcp.svc.cluster.local:8080"
 
 cache:
   authData:
@@ -64,16 +62,15 @@ config:
 
 # GCP Authentication Configuration
 gcp:
-  projectId: ""
   region: ""
   caPool:
-    name: ""
-    deployedProjectId: ""
+    name: "vsa-pool-ca"
+    deployedProjectId: "266893635349"
   secretManager:
-    projectId: ""
+    projectId: "266893635349"
   auth:
     acceptedServiceAccounts: ""
-  serviceUrl: ""
+  serviceUrl: "https://cloudvolumesgcp-api.netapp.com"
   jwkUrl: "https://www.googleapis.com/service_accounts/v1/metadata/x509/"
   jwkTimeoutSeconds: 10
   certCache:
@@ -81,4 +78,4 @@ gcp:
       sleepRetryIntervalSeconds: 5
 
 serviceAccountAnnotations:
-  "iam.gke.io/gcp-service-account": vcp-ci@gcnv-artifact-registry-nonprod.iam.gserviceaccount.com
+  "iam.gke.io/gcp-service-account": "" # FIXME: update with correct service account
