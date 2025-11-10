@@ -24,7 +24,16 @@ import (
 )
 
 var (
-	createClient = cvp.CreateClient
+	createClient              = cvp.CreateClient
+	getActiveDirectoryFromVCP = _getActiveDirectoryFromVCP
+	// Define the state hierarchy once, in priority order (highest to lowest)
+	activeDirectoryStateHierarchy = []gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState{
+		gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING,
+		gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR,
+		gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE,
+		gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY,
+		// Add more states here in priority order as needed
+	}
 )
 
 // PasswordMask defines the mask used when logging out a password
@@ -275,9 +284,9 @@ func (h Handler) V1betaDeleteActiveDirectory(ctx context.Context, params gcpgens
 func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpgenserver.V1betaDescribeActiveDirectoryParams) (r gcpgenserver.V1betaDescribeActiveDirectoryRes, err error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	var adV1BetaModel gcpgenserver.ActiveDirectoryV1beta
+	var adV1BetaModel *gcpgenserver.ActiveDirectoryV1beta
 	if cvp.CVP_HOST == "" {
-		ad, err := h.Orchestrator.GetActiveDirectory(ctx, params.ActiveDirectoryId)
+		adV1BetaModel, err = getActiveDirectoryFromVCP(ctx, h, params.ActiveDirectoryId)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
 				return &gcpgenserver.V1betaDescribeActiveDirectoryNotFound{
@@ -285,9 +294,12 @@ func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpge
 					Message: err.Error(),
 				}, nil
 			}
-			return nil, err
+			logger.Errorf("Error getting active directory from VCP when cvp is not present with error: %v", err)
+			return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
+				Code:    http.StatusInternalServerError,
+				Message: "internal error during the describe active directory",
+			}, nil
 		}
-		adV1BetaModel = convertOrchestratorActiveDirectoryToV1Beta(ad)
 	} else {
 		pathParams := &active_directories.V1betaDescribeActiveDirectoryParams{
 			LocationID:        params.LocationId,
@@ -351,9 +363,32 @@ func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpge
 				}, nil
 			}
 		}
-		adV1BetaModel = convertToADV1Beta(resp.Payload)
+		if resp == nil || resp.Payload == nil {
+			return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
+				Code:    500,
+				Message: "unknown error during the describe active directory",
+			}, nil
+		}
+		// Converting CVP model to gcpgenserver.ActiveDirectoryV1beta
+		cvpADV1BetaModel := convertToADV1Beta(resp.Payload)
+		adV1BetaModel = &cvpADV1BetaModel
+		// Compare AD state hierarchy
+		vcpAd, vcpErr := getActiveDirectoryFromVCP(ctx, h, params.ActiveDirectoryId)
+		if vcpErr != nil {
+			// If the AD is not found in VCP, return the AD from CVP.
+			if errors.IsNotFoundErr(vcpErr) {
+				logger.Infof("AD %s not found in VCP, returning AD from CVP", params.ActiveDirectoryId)
+				return adV1BetaModel, nil
+			}
+			logger.Errorf("Error getting active directory from VCP when cvp is present with error: %v", vcpErr)
+			return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
+				Code:    500,
+				Message: "internal error during the describe active directory",
+			}, nil
+		}
+		compareADStateHierarchy(adV1BetaModel, vcpAd)
 	}
-	return &adV1BetaModel, nil
+	return adV1BetaModel, nil
 }
 
 func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gcpgenserver.ActiveDirectoryIdListV1beta, params gcpgenserver.V1betaGetMultipleActiveDirectoriesParams) (r gcpgenserver.V1betaGetMultipleActiveDirectoriesRes, _ error) {
@@ -450,9 +485,24 @@ func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gc
 			ActiveDirectories: []gcpgenserver.ActiveDirectoryV1beta{},
 		}
 
-		for _, ad := range resp.Payload.ActiveDirectories {
-			adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, convertToADV1Beta(ad))
+		var vcpADMap map[string]*vcpModels.ActiveDirectory
+		if len(req.ActiveDirectoryUuids) > 0 {
+			ads, vcpErr := h.Orchestrator.GetMultipleActiveDirectories(ctx, req.ActiveDirectoryUuids)
+			if vcpErr != nil {
+				logger.Errorf("Error getting active directories from VCP when cvp is present in getMultipleActiveDirectories with error: %v", vcpErr)
+				return &gcpgenserver.V1betaGetMultipleActiveDirectoriesInternalServerError{
+					Code:    500,
+					Message: "internal error during the get multiple active directory",
+				}, nil
+			} else {
+				vcpADMap = make(map[string]*vcpModels.ActiveDirectory, len(ads))
+				for _, ad := range ads {
+					vcpADMap[ad.UUID] = ad
+				}
+			}
 		}
+
+		adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, mergeActiveDirectoryResponses(resp.Payload.ActiveDirectories, vcpADMap)...)
 	}
 
 	return &adResponse, nil
@@ -599,12 +649,46 @@ func (h Handler) V1betaListActiveDirectories(ctx context.Context, params gcpgens
 		adResponse = gcpgenserver.V1betaListActiveDirectoriesOK{
 			ActiveDirectories: []gcpgenserver.ActiveDirectoryV1beta{},
 		}
-		for _, ad := range resp.Payload.ActiveDirectories {
-			adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, convertToADV1Beta(ad))
+
+		ads, vcpErr := h.Orchestrator.ListActiveDirectories(ctx, params.ProjectNumber)
+		var vcpADMap map[string]*vcpModels.ActiveDirectory
+		if vcpErr != nil {
+			logger.Errorf("Error getting active directories from VCP when cvp is present in listActiveDirectories with error: %v", vcpErr)
+			return &gcpgenserver.V1betaListActiveDirectoriesInternalServerError{
+				Code:    500,
+				Message: "internal error during the list multiple active directory",
+			}, nil
+		} else {
+			vcpADMap = make(map[string]*vcpModels.ActiveDirectory, len(ads))
+			for _, ad := range ads {
+				vcpADMap[ad.UUID] = ad
+			}
 		}
+
+		adResponse.ActiveDirectories = append(adResponse.ActiveDirectories, mergeActiveDirectoryResponses(resp.Payload.ActiveDirectories, vcpADMap)...)
 	}
 
 	return &adResponse, nil
+}
+
+func mergeActiveDirectoryResponses(cvpAds []*models.ActiveDirectoryV1beta, vcpADMap map[string]*vcpModels.ActiveDirectory) []gcpgenserver.ActiveDirectoryV1beta {
+	if len(cvpAds) == 0 {
+		return []gcpgenserver.ActiveDirectoryV1beta{}
+	}
+
+	merged := make([]gcpgenserver.ActiveDirectoryV1beta, 0, len(cvpAds))
+	for _, ad := range cvpAds {
+		cvpAD := convertToADV1Beta(ad)
+		if vcpADMap != nil && cvpAD.ActiveDirectoryId.Set && len(cvpAD.ActiveDirectoryId.Value) > 0 {
+			if vcpAd, ok := vcpADMap[cvpAD.ActiveDirectoryId.Value]; ok {
+				convertedVCP := convertOrchestratorActiveDirectoryToV1Beta(vcpAd)
+				compareADStateHierarchy(&cvpAD, &convertedVCP)
+			}
+		}
+		merged = append(merged, cvpAD)
+	}
+
+	return merged
 }
 
 func convertToADV1Beta(ad *models.ActiveDirectoryV1beta) gcpgenserver.ActiveDirectoryV1beta {
@@ -667,4 +751,58 @@ func mapActiveDirectoryState(state string) gcpgenserver.ActiveDirectoryV1betaAct
 	default:
 		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
 	}
+}
+
+// _getActiveDirectoryFromVCP fetches an active directory by its ID using the orchestrator and converts it to V1Beta format.
+func _getActiveDirectoryFromVCP(ctx context.Context, h Handler, activeDirectoryId string) (*gcpgenserver.ActiveDirectoryV1beta, error) {
+	logger := util.GetLogger(ctx)
+	ad, err := h.Orchestrator.GetActiveDirectory(ctx, activeDirectoryId)
+	if err != nil {
+		logger.Errorf("Error getting active directory from orchestrator for vcp with error: %v", err)
+		return nil, err
+	}
+	vcpAd := convertOrchestratorActiveDirectoryToV1Beta(ad)
+	return &vcpAd, nil
+}
+
+// compareADStateHierarchy evaluates and updates the primary Active Directory state based on the hierarchy of two input AD states.
+// It prioritizes states according to activeDirectoryStateHierarchy (e.g., "UPDATING" > "ERROR" > "INUSE").
+func compareADStateHierarchy(sdeAD, vcpAD *gcpgenserver.ActiveDirectoryV1beta) {
+	sdeState := sdeAD.ActiveDirectoryState.Value
+	vcpState := vcpAD.ActiveDirectoryState.Value
+
+	sdePriority := getStatePriority(sdeState)
+	vcpPriority := getStatePriority(vcpState)
+
+	// Select the state with higher priority (lower index)
+	var selectedState gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState
+
+	// If both states are not in hierarchy, keep the original sdeAD state
+	if sdePriority == -1 && vcpPriority == -1 {
+		return
+	}
+
+	// If one state is not in hierarchy, use the other
+	if sdePriority == -1 {
+		selectedState = vcpState
+	} else if vcpPriority == -1 {
+		selectedState = sdeState
+	} else if sdePriority <= vcpPriority {
+		selectedState = sdeState
+	} else {
+		selectedState = vcpState
+	}
+
+	sdeAD.ActiveDirectoryState = gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(selectedState)
+}
+
+// getStatePriority returns the priority index of a state (lower index = higher priority)
+// Returns -1 if state is not in the hierarchy
+func getStatePriority(state gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState) int {
+	for i, hierarchyState := range activeDirectoryStateHierarchy {
+		if state == hierarchyState {
+			return i
+		}
+	}
+	return -1 // State not found in hierarchy
 }
