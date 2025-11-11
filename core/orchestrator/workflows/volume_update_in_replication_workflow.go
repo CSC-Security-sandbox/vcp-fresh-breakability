@@ -8,11 +8,16 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	UpdateRemoteVolumeJobsRetryMaxAttempts = env.GetInt("UPDATE_REMOTE_VOLUME_JOBS_RETRY_MAX_ATTEMPTS", 10)
 )
 
 type updateVolumeInReplication struct {
@@ -86,6 +91,10 @@ func (wf *updateVolumeInReplication) Run(ctx workflow.Context, args ...interface
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
 
+	ao1 := options
+	ao1.RetryPolicy.MaximumAttempts = int32(UpdateRemoteVolumeJobsRetryMaxAttempts)
+	ctx1 := workflow.WithActivityOptions(ctx, ao1)
+
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
@@ -150,7 +159,7 @@ func (wf *updateVolumeInReplication) Run(ctx workflow.Context, args ...interface
 				return nil, ConvertToVSAError(err)
 			}
 
-			err = workflow.ExecuteActivity(ctx, updateActivity.DescribeRemoteJobVolumeUpdate, event, jobId).Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx1, updateActivity.DescribeRemoteJobVolumeUpdate, event, jobId).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

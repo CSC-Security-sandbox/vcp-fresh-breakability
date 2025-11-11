@@ -225,7 +225,7 @@ func (a *UpdateVolumeInReplicationActivity) ValidateRemoteVolumeUpdate(ctx conte
 		allocatedBytes = pool.AllocatedBytes.Value
 	}
 
-	if (pool.SizeInBytes - allocatedBytes) < float64(params.QuotaInBytes) {
+	if (pool.SizeInBytes - allocatedBytes) < float64(params.QuotaInBytes-dbVolume.SizeInBytes) {
 		return false, errors.NewVCPError(errors.ErrDestPoolSize, errors.New("Volume exceeds destination pool size"))
 	}
 

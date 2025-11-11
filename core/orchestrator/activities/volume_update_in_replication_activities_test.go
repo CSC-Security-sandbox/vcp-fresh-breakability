@@ -904,7 +904,7 @@ func TestValidateRemoteVolumeUpdate(t *testing.T) {
 			AllocatedBytes: googleproxyclient.NewOptNilFloat64(7),
 		}
 		params := &common.UpdateVolumeParams{
-			QuotaInBytes: 5,
+			QuotaInBytes: 7,
 		}
 		dbVolume := &datamodel.Volume{
 			SizeInBytes: 2,

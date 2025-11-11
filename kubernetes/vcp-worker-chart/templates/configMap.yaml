@@ -162,6 +162,8 @@ data:
   NLF_LICENSE_SECRET_PATH: {{$.Values.workerConfig.nlfLicenseSecretPath | quote }}
   HARD_DELETE_RESOURCES: {{$.Values.workerConfig.hardDeleteResources | quote }}
   SCHEDULED_HARD_DELETE: {{$.Values.workerConfig.scheduleHardDelete | quote }}
+  REPLICATION_JOBS_RETRY_MAX_ATTEMPTS: {{ $.Values.workerConfig.replicationJobsRetryMaxAttempts | quote }}
+  UPDATE_REMOTE_VOLUME_JOBS_RETRY_MAX_ATTEMPTS: {{ $.Values.workerConfig.updateRemoteVolumeJobsRetryMaxAttempts | quote }}
 
   MGMT_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.mgmtFirewallSourceRanges | quote }}
   RSM_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.rsmFirewallSourceRanges | quote }}
