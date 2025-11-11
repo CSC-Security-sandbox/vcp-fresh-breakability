@@ -7690,6 +7690,65 @@ func (_c *MockDataStore_GetPoolsByAccountName_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// GetPoolsByActiveDirectoryId provides a mock function with given fields: ctx, activeDirectoryId
+func (_m *MockDataStore) GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error) {
+	ret := _m.Called(ctx, activeDirectoryId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPoolsByActiveDirectoryId")
+	}
+
+	var r0 []*datamodel.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Pool, error)); ok {
+		return rf(ctx, activeDirectoryId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Pool); ok {
+		r0 = rf(ctx, activeDirectoryId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, activeDirectoryId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetPoolsByActiveDirectoryId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPoolsByActiveDirectoryId'
+type MockDataStore_GetPoolsByActiveDirectoryId_Call struct {
+	*mock.Call
+}
+
+// GetPoolsByActiveDirectoryId is a helper method to define mock.On call
+//   - ctx context.Context
+//   - activeDirectoryId string
+func (_e *MockDataStore_Expecter) GetPoolsByActiveDirectoryId(ctx interface{}, activeDirectoryId interface{}) *MockDataStore_GetPoolsByActiveDirectoryId_Call {
+	return &MockDataStore_GetPoolsByActiveDirectoryId_Call{Call: _e.mock.On("GetPoolsByActiveDirectoryId", ctx, activeDirectoryId)}
+}
+
+func (_c *MockDataStore_GetPoolsByActiveDirectoryId_Call) Run(run func(ctx context.Context, activeDirectoryId string)) *MockDataStore_GetPoolsByActiveDirectoryId_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolsByActiveDirectoryId_Call) Return(_a0 []*datamodel.Pool, _a1 error) *MockDataStore_GetPoolsByActiveDirectoryId_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolsByActiveDirectoryId_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Pool, error)) *MockDataStore_GetPoolsByActiveDirectoryId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetPoolsCount provides a mock function with given fields: ctx, filter
 func (_m *MockDataStore) GetPoolsCount(ctx context.Context, filter *utils.Filter) (int64, error) {
 	ret := _m.Called(ctx, filter)

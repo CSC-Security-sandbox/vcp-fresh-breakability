@@ -111,6 +111,7 @@ type OrchestratorFactory interface {
 	CreateOrGetFinishProjectEventJob(ctx context.Context, params *commonparams.FinishProjectEventParams) (string, error)
 
 	CreateActiveDirectory(ctx context.Context, params *commonparams.CreateActiveDirectoryParams) (*models.ActiveDirectory, string, error)
+	UpdateActiveDirectory(ctx context.Context, params *commonparams.UpdateActiveDirectoryParams) (*models.ActiveDirectory, string, error)
 
 	// Cluster upgrade methods
 	UpgradeCluster(ctx context.Context, params *commonparams.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error)

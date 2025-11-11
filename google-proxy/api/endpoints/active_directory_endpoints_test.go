@@ -1201,503 +1201,168 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 // V1betaUpdateActiveDirectory unittests
 func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	t.Run("WhenUpdateActiveDirectorySuccess", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
 
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{
-			Username:                   gcpgenserver.NewOptString("user1"),
-			Password:                   gcpgenserver.NewOptString("pass1"),
-			Domain:                     gcpgenserver.NewOptString("domain1.com"),
-			DNS:                        gcpgenserver.NewOptString("10.20.0.20"),
-			NetBIOS:                    gcpgenserver.NewOptString("domain1"),
-			OrganizationalUnit:         gcpgenserver.NewOptString("OU=Test,DC=domain1,DC=com"),
-			Site:                       gcpgenserver.NewOptString("site.com"),
-			LdapSigning:                gcpgenserver.NewOptBool(true),
-			AllowLocalNFSUsersWithLdap: gcpgenserver.NewOptBool(true),
-			EncryptDCConnections:       gcpgenserver.NewOptBool(true),
-			BackupOperators:            []string{"backup1"},
-			Administrators:             []string{"admin1"},
-			SecurityOperators:          []string{"operator1"},
-			AesEncryption:              gcpgenserver.NewOptBool(true),
-			Description:                gcpgenserver.NewOptString("Test AD"),
-			KdcIP:                      gcpgenserver.NewOptString("10.20.0.20"),
-			KdcHostname:                gcpgenserver.NewOptString("KdcHostname"),
-		}
-
-		// Define mock response
-		mockResponse := &active_directories.V1betaUpdateActiveDirectoryAccepted{
-			Payload: &models.OperationV1beta{
-				Name: "operation-id",
-				Done: nillable.GetBoolPtr(true),
+		mockAD := &vcpModels.ActiveDirectory{
+			BaseModel: vcpModels.BaseModel{
+				UUID: "ad-uuid-1",
+			},
+			AdName:  "updated-ad",
+			Domain:  "updated.example.com",
+			DNS:     "8.8.8.8",
+			NetBIOS: "UPDATED",
+			State:   "UPDATING",
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				Description:                "Updated description",
+				SecurityOperators:          []string{"updated-secop"},
+				BackupOperators:            []string{"updated-backupop"},
+				Administrators:             []string{"updated-admin"},
+				AesEncryption:              true,
+				AllowLocalNFSUsersWithLdap: false,
+				EncryptDCConnections:       true,
+				LdapSigning:                false,
+				OrganizationalUnit:         "updated-ou",
+				Site:                       "updated-site",
+				KdcIP:                      "updated-kdcip",
+				KdcHostname:                "updated-kdchost",
 			},
 		}
+		mockJobID := "update-job-uuid"
 
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(mockResponse, nil)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
+		mockOrchestrator.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(mockAD, mockJobID, nil)
+
+		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{
+			Description:                gcpgenserver.NewOptString("Updated description"),
+			SecurityOperators:          []string{"updated-secop"},
+			BackupOperators:            []string{"updated-backupop"},
+			Administrators:             []string{"updated-admin"},
+			AesEncryption:              gcpgenserver.NewOptBool(true),
+			AllowLocalNFSUsersWithLdap: gcpgenserver.NewOptBool(false),
+			EncryptDCConnections:       gcpgenserver.NewOptBool(true),
+			LdapSigning:                gcpgenserver.NewOptBool(false),
+			OrganizationalUnit:         gcpgenserver.NewOptString("updated-ou"),
+			Site:                       gcpgenserver.NewOptString("updated-site"),
+			KdcIP:                      gcpgenserver.NewOptString("updated-kdcip"),
+			KdcHostname:                gcpgenserver.NewOptString("updated-kdchost"),
 		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
 
-		// Assertions
+		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
+			ProjectNumber:     "12345",
+			LocationId:        "us-central1",
+			ActiveDirectoryId: "ad-uuid-1",
+			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		res, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
+
 		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the operation name is as expected
-		assert.Equal(t, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
-		// Check if the operation done value is as expected
-		assert.Equal(t, true, result.(*gcpgenserver.OperationV1beta).Done.Value)
+		op, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(t, ok)
+		assert.Contains(t, op.Name.Value, "update-job-uuid")
+		assert.False(t, op.Done.Value)
+		assert.NotNil(t, op.Response)
+
+		mockOrchestrator.AssertExpectations(t)
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithBadRequest", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
 
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
+		mockOrchestrator.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", customerrors.NewUserInputValidationErr("invalid input"))
 
-		// Define input parameters
+		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{
+			Description: gcpgenserver.NewOptString(""),
+		}
+
 		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
 			ProjectNumber:     "12345",
+			LocationId:        "us-central1",
+			ActiveDirectoryId: "ad-uuid-1",
 			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
 		}
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{}
-		// Define mock error
-		errorCode := float64(400)
-		errorMessage := "Bad Request"
-		mockError := &active_directories.V1betaUpdateActiveDirectoryBadRequest{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateActiveDirectoryBadRequest).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateActiveDirectoryBadRequest).Message)
-	})
-	t.Run("WhenUpdateActiveDirectoryFailsWithNotFound", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
+		res, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
 
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{}
-		// Define mock error
-		errorCode := float64(404)
-		errorMessage := "Bad Request"
-		mockError := &active_directories.V1betaUpdateActiveDirectoryNotFound{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
-		// Assertions
 		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateActiveDirectoryNotFound).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateActiveDirectoryNotFound).Message)
+		badReq, ok := res.(*gcpgenserver.V1betaUpdateActiveDirectoryBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, float64(400), badReq.Code)
+		assert.Contains(t, badReq.Message, "invalid input")
+
+		mockOrchestrator.AssertExpectations(t)
 	})
 
-	t.Run("WhenUpdateActiveDirectoryFailsWithConflict", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+	t.Run("WhenUpdateActiveDirectoryFailsWithInternalServerError", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
 
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
+		mockOrchestrator.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", errors.New("internal server error"))
 
-		// Define input parameters
+		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Test description"),
+		}
+
 		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
 			ProjectNumber:     "12345",
+			LocationId:        "us-central1",
+			ActiveDirectoryId: "ad-uuid-1",
 			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
 		}
-		// Define request
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{}
-		// Define mock error
-		errorMessage := "Conflict error"
-		errorCode := float64(409)
-		mockError := &active_directories.V1betaUpdateActiveDirectoryConflict{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
 
-		// Assertions
+		res, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
+
 		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateActiveDirectoryConflict).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateActiveDirectoryConflict).Message)
+		serverErr, ok := res.(*gcpgenserver.V1betaUpdateActiveDirectoryInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), serverErr.Code)
+		assert.Contains(t, serverErr.Message, "internal server error")
+
+		mockOrchestrator.AssertExpectations(t)
 	})
+	
+	t.Run("WhenUpdateActiveDirectoryOnlyRequiredFields", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
 
-	t.Run("WhenUpdateActiveDirectoryFailsWithUnprocessableEntry", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{}
-		// Define mock error
-		errorMessage := "Unprocessable error"
-		errorCode := float64(422)
-		mockError := &active_directories.V1betaUpdateActiveDirectoryConflict{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
+		mockAD := &vcpModels.ActiveDirectory{
+			BaseModel: vcpModels.BaseModel{
+				UUID: "ad-uuid-1",
 			},
+			AdName:                    "minimal-ad",
+			Domain:                    "minimal.example.com",
+			DNS:                       "8.8.8.8",
+			NetBIOS:                   "MINIMAL",
+			State:                     "UPDATING",
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{},
 		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
+		mockJobID := "minimal-update-job-uuid"
+
+		mockOrchestrator.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(mockAD, mockJobID, nil)
+
+		// Minimal request with only one optional field
+		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Minimal update"),
 		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
 
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateActiveDirectoryConflict).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateActiveDirectoryConflict).Message)
-	})
-
-	t.Run("WhenUpdateActiveDirectoryFailsWithUnauthorized", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
 		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
 			ProjectNumber:     "12345",
+			LocationId:        "us-central1",
+			ActiveDirectoryId: "ad-uuid-1",
 			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
 		}
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{}
-		// Define mock error
-		errorMessage := "Unauthorized error"
-		errorCode := float64(401)
-		mockError := &active_directories.V1betaUpdateActiveDirectoryUnauthorized{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
 
-		// Assertions
+		res, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
+
 		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateActiveDirectoryUnauthorized).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateActiveDirectoryUnauthorized).Message)
-	})
+		op, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(t, ok)
+		assert.Contains(t, op.Name.Value, "minimal-update-job-uuid")
+		assert.False(t, op.Done.Value)
+		assert.NotNil(t, op.Response)
 
-	t.Run("WhenUpdateActiveDirectoryFailsWithForbidden", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{}
-		// Define mock error
-		errorMessage := "Forbidden error"
-		errorCode := float64(403)
-		mockError := &active_directories.V1betaUpdateActiveDirectoryForbidden{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateActiveDirectoryForbidden).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateActiveDirectoryForbidden).Message)
-	})
-
-	t.Run("WhenUpdateActiveDirectoryFailsWithTooManyRequests", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{}
-		// Define mock error
-		errorMessage := "Too many requests error"
-		errorCode := float64(401)
-		mockError := &active_directories.V1betaUpdateActiveDirectoryTooManyRequests{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateActiveDirectoryTooManyRequests).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateActiveDirectoryTooManyRequests).Message)
-	})
-
-	t.Run("WhenUpdateActiveDirectoryFailsWithDefault", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{}
-		// Define mock error
-		errorMessage := "default error"
-		errorCode := float64(500)
-		mockError := &active_directories.V1betaUpdateActiveDirectoryDefault{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateActiveDirectoryInternalServerError).Code)
-	})
-
-	t.Run("WhenUpdateActiveDirectoryFailsWithUnknownError", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define request
-		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{}
-		// Define mock error
-		errorMessage := "unknown error during the update active directory"
-		errorCode := float64(500)
-		mockError := &active_directories.V1betaUpdateActiveDirectoryInternalServerError{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaUpdateActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateActiveDirectoryInternalServerError).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateActiveDirectoryInternalServerError).Message)
+		mockOrchestrator.AssertExpectations(t)
 	})
 }
 

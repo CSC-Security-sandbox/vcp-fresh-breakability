@@ -50,28 +50,27 @@ func (h Handler) V1betaCreateActiveDirectory(
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
 	param := common.CreateActiveDirectoryParams{
-		AccountId:                   params.ProjectNumber,
-		LocationId:                  params.LocationId,
-		XCorrelationId:              params.XCorrelationID.Value,
-		Username:                    req.Username,
-		ResourceId:                  req.ResourceId,
-		Description:                 req.Description.Value,
-		Password:                    req.Password,
-		Domain:                      req.Domain,
-		DNS:                         req.DNS,
-		NetBIOS:                     req.NetBIOS,
-		OrganizationalUnit:          req.OrganizationalUnit.Value,
-		Site:                        req.Site.Value,
-		KdcIP:                       req.KdcIP.Value,
-		KdcHostname:                 req.KdcHostname.Value,
-		ActiveDirectoryStateDetails: req.ActiveDirectoryStateDetails.Value,
-		LdapSigning:                 req.LdapSigning.Value,
-		AllowLocalNFSUsersWithLdap:  req.AllowLocalNFSUsersWithLdap.Value,
-		EncryptDCConnections:        req.EncryptDCConnections.Value,
-		SecurityOperators:           req.SecurityOperators,
-		BackupOperators:             req.BackupOperators,
-		Administrators:              req.Administrators,
-		AesEncryption:               req.AesEncryption.Value,
+		AccountId:                  params.ProjectNumber,
+		LocationId:                 params.LocationId,
+		XCorrelationId:             params.XCorrelationID.Value,
+		Username:                   req.Username,
+		ResourceId:                 req.ResourceId,
+		Description:                req.Description.Value,
+		Password:                   req.Password,
+		Domain:                     req.Domain,
+		DNS:                        req.DNS,
+		NetBIOS:                    req.NetBIOS,
+		OrganizationalUnit:         req.OrganizationalUnit.Value,
+		Site:                       req.Site.Value,
+		KdcIP:                      req.KdcIP.Value,
+		KdcHostname:                req.KdcHostname.Value,
+		LdapSigning:                req.LdapSigning.Value,
+		AllowLocalNFSUsersWithLdap: req.AllowLocalNFSUsersWithLdap.Value,
+		EncryptDCConnections:       req.EncryptDCConnections.Value,
+		SecurityOperators:          req.SecurityOperators,
+		BackupOperators:            req.BackupOperators,
+		Administrators:             req.Administrators,
+		AesEncryption:              req.AesEncryption.Value,
 	}
 
 	ad, jobUUID, err := h.Orchestrator.CreateActiveDirectory(ctx, &param)
@@ -509,105 +508,39 @@ func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gc
 }
 
 func (h Handler) V1betaUpdateActiveDirectory(ctx context.Context, req *gcpgenserver.ActiveDirectoryUpdateV1beta, params gcpgenserver.V1betaUpdateActiveDirectoryParams) (r gcpgenserver.V1betaUpdateActiveDirectoryRes, _ error) {
-	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	body := &models.ActiveDirectoryUpdateV1beta{
-		DNS:                        req.DNS.Value,
-		Domain:                     req.Domain.Value,
-		NetBIOS:                    req.NetBIOS.Value,
-		Username:                   req.Username.Value,
-		Password:                   req.Password.Value,
-		Administrators:             req.Administrators,
-		SecurityOperators:          req.SecurityOperators,
-		AesEncryption:              &req.AesEncryption.Value,
-		AllowLocalNFSUsersWithLdap: &req.AllowLocalNFSUsersWithLdap.Value,
-		BackupOperators:            req.BackupOperators,
-		Description:                &req.Description.Value,
-		EncryptDCConnections:       &req.EncryptDCConnections.Value,
-		KdcIP:                      req.KdcIP.Value,
-		KdcHostname:                req.KdcHostname.Value,
-		Site:                       &req.Site.Value,
-		LdapSigning:                &req.LdapSigning.Value,
-		OrganizationalUnit:         &req.OrganizationalUnit.Value,
-	}
-	reqPrams := &active_directories.V1betaUpdateActiveDirectoryParams{
-		LocationID:        params.LocationId,
-		ProjectNumber:     params.ProjectNumber,
-		XCorrelationID:    &params.XCorrelationID.Value,
-		ActiveDirectoryID: params.ActiveDirectoryId,
-		Body:              body,
-	}
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-	updated, err := cvpClient.ActiveDirectories.V1betaUpdateActiveDirectory(reqPrams)
+
+	param := convertToUpdateParamsForValidation(req, params)
+
+	ad, jobUUID, err := h.Orchestrator.UpdateActiveDirectory(ctx, param)
+
 	if err != nil {
-		switch e := err.(type) {
-		case *active_directories.V1betaUpdateActiveDirectoryUnprocessableEntity:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaUpdateActiveDirectoryUnprocessableEntity{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaUpdateActiveDirectoryNotFound:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaUpdateActiveDirectoryNotFound{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaUpdateActiveDirectoryBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+		if errors.IsUserInputValidationErr(err) {
 			return &gcpgenserver.V1betaUpdateActiveDirectoryBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaUpdateActiveDirectoryUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaUpdateActiveDirectoryUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
-
-		case *active_directories.V1betaUpdateActiveDirectoryForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaUpdateActiveDirectoryForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
-
-		case *active_directories.V1betaUpdateActiveDirectoryTooManyRequests:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaUpdateActiveDirectoryTooManyRequests{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaUpdateActiveDirectoryConflict:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaUpdateActiveDirectoryConflict{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaUpdateActiveDirectoryDefault:
-			return &gcpgenserver.V1betaUpdateActiveDirectoryInternalServerError{
-				Code:    500,
+				Code:    http.StatusBadRequest,
 				Message: err.Error(),
 			}, nil
 		}
-	}
-	if updated == nil || updated.Payload == nil {
 		return &gcpgenserver.V1betaUpdateActiveDirectoryInternalServerError{
-			Code:    500,
-			Message: "unknown error during the update active directory",
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
 		}, nil
 	}
-	response := convertOperationToOperationV1Beta(updated.Payload)
-	return response, nil
+
+	resp, err := encodeActiveDirectoryV1(convertToActiveDirectoryV1Beta(ad))
+	if err != nil {
+		return &gcpgenserver.V1betaUpdateActiveDirectoryInternalServerError{}, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber +
+		"/locations/" + params.LocationId +
+		"/operations/" + jobUUID
+
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(false),
+	}, nil
 }
 
 func (h Handler) V1betaListActiveDirectories(ctx context.Context, params gcpgenserver.V1betaListActiveDirectoriesParams) (gcpgenserver.V1betaListActiveDirectoriesRes, error) {
@@ -748,6 +681,8 @@ func mapActiveDirectoryState(state string) gcpgenserver.ActiveDirectoryV1betaAct
 		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateDELETING
 	case "ERROR":
 		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR
+	case "UPDATING":
+		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING
 	default:
 		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
 	}
@@ -805,4 +740,49 @@ func getStatePriority(state gcpgenserver.ActiveDirectoryV1betaActiveDirectorySta
 		}
 	}
 	return -1 // State not found in hierarchy
+}
+
+// convertToUpdateParamsForValidation converts the request and params to UpdateActiveDirectoryParams for validation purpose
+func convertToUpdateParamsForValidation(req *gcpgenserver.ActiveDirectoryUpdateV1beta, params gcpgenserver.V1betaUpdateActiveDirectoryParams) *common.UpdateActiveDirectoryParams {
+	param := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: params.ActiveDirectoryId,
+		AccountId:         params.ProjectNumber,
+		LocationId:        params.LocationId,
+		XCorrelationId:    params.XCorrelationID.Value,
+		SecurityOperators: req.SecurityOperators,
+		BackupOperators:   req.BackupOperators,
+		Administrators:    req.Administrators,
+	}
+
+	// Set optional string fields
+	setIfPresent := func(opt gcpgenserver.OptString, target **string) {
+		if opt.IsSet() {
+			val := opt.Value
+			*target = &val
+		}
+	}
+	setIfPresent(req.Username, &param.Username)
+	setIfPresent(req.Description, &param.Description)
+	setIfPresent(req.Password, &param.Password)
+	setIfPresent(req.Domain, &param.Domain)
+	setIfPresent(req.DNS, &param.DNS)
+	setIfPresent(req.NetBIOS, &param.NetBIOS)
+	setIfPresent(req.OrganizationalUnit, &param.OrganizationalUnit)
+	setIfPresent(req.Site, &param.Site)
+	setIfPresent(req.KdcIP, &param.KdcIP)
+	setIfPresent(req.KdcHostname, &param.KdcHostname)
+
+	// Set optional bool fields
+	setIfPresentBool := func(opt gcpgenserver.OptBool, target **bool) {
+		if opt.IsSet() {
+			val := opt.Value
+			*target = &val
+		}
+	}
+	setIfPresentBool(req.LdapSigning, &param.LdapSigning)
+	setIfPresentBool(req.AllowLocalNFSUsersWithLdap, &param.AllowLocalNFSUsersWithLdap)
+	setIfPresentBool(req.EncryptDCConnections, &param.EncryptDCConnections)
+	setIfPresentBool(req.AesEncryption, &param.AesEncryption)
+
+	return param
 }

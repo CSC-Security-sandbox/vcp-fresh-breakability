@@ -61,6 +61,7 @@ type (
 		SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 		UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error)
 		GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error)
+		GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error)
 		GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error)
 		ListTpProjects(ctx context.Context) ([]string, error)
 

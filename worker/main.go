@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"net/http"
 	"os"
 	"time"
@@ -11,7 +12,6 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
@@ -275,6 +275,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(workflows.CreateBackupWorkflowWithContext)
 	worker.RegisterWorkflow(workflows.RestoreBackupWorkflowWithContext)
 	worker.RegisterWorkflow(workflows.CreateActiveDirectoryWorkflow)
+	worker.RegisterWorkflow(workflows.UpdateActiveDirectoryWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
@@ -328,6 +329,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&activities.UpdateVolumeInReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&backgroundactivities.SyncBackupZiZsActivity{SE: dbcon})
 	worker.RegisterActivity(&active_directory_activities.ActiveDirectoryCreateActivity{SE: dbcon, Scheduler: temporalScheduler})
+	worker.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: dbcon})
 }
 

@@ -7,8 +7,8 @@ import (
 	ber "github.com/go-asn1-ber/asn1-ber"
 	"github.com/go-openapi/validate"
 	"github.com/go-playground/validator/v10"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"net"
 	"regexp"
@@ -32,7 +32,9 @@ const (
 	usernameValidationErr = `Active directory username should not contain any of the following characters: /\[]:;|=,+*?"<>`
 )
 
-var usernameInvalidCharsRe = regexp.MustCompile(`[/\\:;|\[\]=,+*?<>"]`)
+var (
+	usernameInvalidCharsRe = regexp.MustCompile(`[/\\:;|\[\]=,+*?<>"]`)
+)
 
 var NewActiveDirectoryValidator = func(ctx context.Context, se database.Storage) *ActiveDirectoryValidator {
 	adValidator := &ActiveDirectoryValidator{
@@ -43,7 +45,7 @@ var NewActiveDirectoryValidator = func(ctx context.Context, se database.Storage)
 	return adValidator
 }
 
-func (adValidator *ActiveDirectoryValidator) ValidateParams(params *common.CreateActiveDirectoryParams) error {
+func (adValidator *ActiveDirectoryValidator) ValidateParams(params interface{}) error {
 	return adValidator.validate.Struct(params)
 }
 
@@ -102,6 +104,12 @@ func (adValidator *ActiveDirectoryValidator) RegisterValidators() error {
 	}
 	adValidator.AddTranslation("ResourceId")
 
+	err = adValidator.validate.RegisterValidation("LocationId", adValidator.regionValidator)
+	if err != nil {
+		return err
+	}
+	adValidator.AddTranslation("LocationId")
+	
 	return nil
 }
 
@@ -197,6 +205,20 @@ func (adValidator *ActiveDirectoryValidator) adNameValidator(fl validator.FieldL
 	if ip != nil {
 		return false
 	}
+	return true
+}
+
+func (adValidator *ActiveDirectoryValidator) regionValidator(fl validator.FieldLevel) bool {
+	_, _, err := utils.ParseAndValidateRegionAndZone(fl.Field().String())
+	if err != nil {
+		// Store error message keyed by field
+		key := fl.StructFieldName()
+		adValidator.dnErrorStore.Store(key, err.Message)
+		return false
+	}
+
+	// Clean up any previous error
+	adValidator.dnErrorStore.Delete(fl.StructFieldName())
 	return true
 }
 

@@ -37,7 +37,8 @@ var (
 func (a ActiveDirectoryCreateActivity) CreateVcpActiveDirectory(ctx context.Context, adRecord *datamodel.ActiveDirectory) error {
 	// As the adRecord with password stored as GCP secret already exists in DB by now, just mark the AD as record and return
 	adRecord.State = models.LifeCycleStateREADY
-	adRecord.StateDetails = models.LifeCycleStateAvailableDetails
+	adRecord.StateDetails = models.LifeCycleStateReadyDetails
+	adRecord.ChangeId = utils.RandomUUID()
 	_, err := a.SE.UpdateActiveDirectory(ctx, adRecord)
 	if err != nil {
 		return err

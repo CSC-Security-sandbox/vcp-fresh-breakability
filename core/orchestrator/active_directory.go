@@ -31,6 +31,7 @@ import (
 
 var (
 	createActiveDirectory        = _createActiveDirectory
+	updateActiveDirectory        = _updateActiveDirectory
 	getActiveDirectory           = _getActiveDirectory
 	listActiveDirectories        = _listActiveDirectories
 	getMultipleActiveDirectories = _getMultipleActiveDirectories
@@ -39,15 +40,6 @@ var (
 
 const (
 	DefaultOrganizationalUnit = "CN=Computers"
-
-	// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group
-	ActiveDirectoryGroupBuiltInBackupOperators = `BUILTIN\Backup Operators`
-
-	// ActiveDirectoryGroupBuiltInAdministrators defines the name of the built-in administrators group
-	ActiveDirectoryGroupBuiltInAdministrators = `BUILTIN\Administrators`
-
-	// ActiveDirectorySeSecurityPrivilege defines the name of the SE security privilege
-	ActiveDirectorySeSecurityPrivilege = `SeSecurityPrivilege`
 )
 
 // _createActiveDirectory orchestrates the creation of an Active Directory resource.
@@ -182,6 +174,7 @@ func convertDatastoreActiveDirectoryToModel(ad *datamodel.ActiveDirectory) *mode
 
 	model := &models.ActiveDirectory{
 		BaseModel: models.BaseModel{
+			ID:        ad.ID,
 			UUID:      ad.UUID,
 			CreatedAt: ad.CreatedAt,
 			UpdatedAt: ad.UpdatedAt,
@@ -330,55 +323,12 @@ func (o *Orchestrator) GetADConfig(ctx context.Context, params *common.GetADPara
 		return nil, err2
 	}
 
-	return convertActiveDirectoryToModel(adConfig), nil
+	return convertDatastoreActiveDirectoryToModel(adConfig), nil
 }
 
 func (o *Orchestrator) GetSDEActiveDirectory(ctx context.Context, getADParams *common.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error) {
 	// Phase 2 implementation
 	return nil, nil
-}
-
-func convertActiveDirectoryToModel(ad *datamodel.ActiveDirectory) *models.ActiveDirectory {
-	if ad == nil {
-		return nil
-	}
-
-	model := &models.ActiveDirectory{
-		BaseModel: models.BaseModel{
-			ID:        ad.ID,
-			UUID:      ad.UUID,
-			CreatedAt: ad.CreatedAt,
-			UpdatedAt: ad.UpdatedAt,
-		},
-		AdName:       ad.AdName,
-		Username:     ad.Username,
-		Password:     ad.CredentialPath,
-		Domain:       ad.Domain,
-		DNS:          ad.DNS,
-		NetBIOS:      ad.NetBIOS,
-		State:        ad.State,
-		StateDetails: ad.StateDetails,
-	}
-
-	// Convert ActiveDirectoryAttributes if available
-	if ad.ActiveDirectoryAttributes != nil {
-		model.ActiveDirectoryAttributes = &models.ActiveDirectoryAttributes{
-			OrganizationalUnit:         ad.ActiveDirectoryAttributes.OrganizationalUnit,
-			Site:                       ad.ActiveDirectoryAttributes.Site,
-			SecurityOperators:          ad.ActiveDirectoryAttributes.AdUsers["SeSecurityPrivilege"],
-			BackupOperators:            ad.ActiveDirectoryAttributes.AdUsers[`BUILTIN\Backup Operators`],
-			Administrators:             ad.ActiveDirectoryAttributes.AdUsers[`BUILTIN\Administrators`],
-			KdcIP:                      ad.ActiveDirectoryAttributes.KdcIP,
-			KdcHostname:                ad.ActiveDirectoryAttributes.KdcHostname,
-			AesEncryption:              ad.ActiveDirectoryAttributes.AesEncryption,
-			EncryptDCConnections:       ad.ActiveDirectoryAttributes.EncryptDCConnections,
-			LdapSigning:                ad.ActiveDirectoryAttributes.LdapSigning,
-			AllowLocalNFSUsersWithLdap: ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap,
-			Description:                ad.ActiveDirectoryAttributes.Description,
-		}
-	}
-
-	return model
 }
 
 // createAdRecordForNonSDE creates a database record for Active Directory when SDE is disabled.
@@ -407,9 +357,9 @@ func createAdRecordForNonSDE(
 			OrganizationalUnit: params.OrganizationalUnit,
 			Site:               params.Site,
 			AdUsers: map[string][]string{
-				ActiveDirectoryGroupBuiltInBackupOperators: params.BackupOperators,
-				ActiveDirectoryGroupBuiltInAdministrators:  params.Administrators,
-				ActiveDirectorySeSecurityPrivilege:         params.SecurityOperators,
+				utils.ActiveDirectoryGroupBuiltInBackupOperators: params.BackupOperators,
+				utils.ActiveDirectoryGroupBuiltInAdministrators:  params.Administrators,
+				utils.ActiveDirectorySeSecurityPrivilege:         params.SecurityOperators,
 			},
 			KdcIP:                      params.KdcIP,
 			KdcHostname:                params.KdcHostname,
@@ -517,4 +467,111 @@ func convertActiveDirectoryParamsToModel(params *common.CreateActiveDirectoryPar
 		},
 	}
 	return ad
+}
+
+// UpdateActiveDirectory is the public orchestrator method for updating an Active Directory resource.
+func (o *Orchestrator) UpdateActiveDirectory(
+	ctx context.Context,
+	params *common.UpdateActiveDirectoryParams,
+) (*models.ActiveDirectory, string, error) {
+	ad, jobUUID, err := updateActiveDirectory(ctx, o.storage, o.temporal, params)
+	if err != nil {
+		return nil, "", err
+	}
+	return ad, jobUUID, nil
+}
+
+// _updateActiveDirectory orchestrates the creation of an Active Directory resource.
+// It validates input, creates a job, and starts the corresponding Temporal workflow.
+func _updateActiveDirectory(
+	ctx context.Context,
+	se database.Storage,
+	temporal client.Client,
+	params *common.UpdateActiveDirectoryParams,
+) (*models.ActiveDirectory, string, error) {
+	logger := util.GetLogger(ctx)
+
+	adValidator := customValidators.NewActiveDirectoryValidator(ctx, se)
+	err := adValidator.RegisterValidators()
+	if err != nil {
+		return nil, "", err
+	}
+	err = adValidator.ValidateParams(params)
+	if err != nil {
+		errMsg := strings.Join(func() []string {
+			var messages []string
+			for _, validationErr := range err.(validator.ValidationErrors) {
+				messages = append(messages, validationErr.Translate(adValidator.Translator))
+			}
+			return messages
+		}(), "; ")
+		return nil, "", customerrors.NewUserInputValidationErr(errMsg)
+	}
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountId)
+	if err != nil {
+		return nil, "", err
+	}
+
+	ad, err := _getActiveDirectory(ctx, se, params.ActiveDirectoryId)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeUpdateActiveDirectory),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  ad.AdName,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: params.ActiveDirectoryId,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	controlWorkflowID := fmt.Sprintf("Account_%d_ActiveDirectory_%s", account.ID, ad.AdName)
+	err = workflowsExecuteWorkflowSequentially(
+		temporal,
+		ctx,
+		client.StartWorkflowOptions{
+			TaskQueue: workflowengine.CustomerTaskQueue,
+			ID:        controlWorkflowID,
+		},
+		workflows.UpdateActiveDirectoryWorkflow,
+		workflow.ChildWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			WorkflowID:            createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		params,
+		ad,
+	)
+	if err != nil {
+		logger.Error("Failed to start update active directory workflow: ", "error", err)
+		if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+			logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+		}
+		return nil, "", err
+	}
+
+	if cvp.CVP_HOST == "" {
+		adRecord, _ := se.GetActiveDirectoryByNameAndAccountID(ctx, ad.AdName, account.ID)
+		if adRecord == nil {
+			return nil, "", customerrors.NewNotFoundErr("ActiveDirectory", &params.ActiveDirectoryId)
+		}
+		adRecord.State = models.LifeCycleStateUpdating
+		adRecord.StateDetails = models.LifeCycleStateUpdatingDetails
+		adRecord, _ = se.UpdateActiveDirectory(ctx, adRecord)
+	}
+
+	ad.State = models.LifeCycleStateUpdating
+	ad.StateDetails = models.LifeCycleStateUpdatingDetails
+	return ad, createdJob.UUID, nil
 }

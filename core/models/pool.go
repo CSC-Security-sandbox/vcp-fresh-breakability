@@ -33,6 +33,7 @@ type Pool struct {
 	AssetMetadata             *AssetMetadata
 	ActiveDirectoryConfigId   string
 	ActiveDirectoryResourceId string
+	ActiveDirectoryChangeId   string
 }
 
 type AssetMetadata struct {

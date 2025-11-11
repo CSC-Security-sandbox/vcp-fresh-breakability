@@ -395,6 +395,10 @@ func (s *PersistenceStore) GetPoolsByAccountName(ctx context.Context, accountNam
 	return s.dataStore.GetPoolsByAccountName(ctx, accountName)
 }
 
+func (s *PersistenceStore) GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error) {
+	return s.dataStore.GetPoolsByActiveDirectoryId(ctx, activeDirectoryId)
+}
+
 func (s *PersistenceStore) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
 	return s.dataStore.DeletePool(ctx, pool)
 }

@@ -664,33 +664,51 @@ type EstablishVolumePeeringParams struct {
 }
 
 type CreateActiveDirectoryParams struct {
-	AccountId                   string
-	LocationId                  string
-	XCorrelationId              string
-	ActiveDirectoryId           string
-	Username                    string `json:"Username" validate:"Username"`
-	ResourceId                  string `json:"ResourceId" validate:"ResourceId"`
-	Password                    string
-	Domain                      string
-	DNS                         string `json:"DNS" validate:"DNS"`
-	NetBIOS                     string `json:"netBIOS" validate:"NetBIOS"`
-	OrganizationalUnit          string `json:"organizationalUnit" validate:"OrganizationalUnit"`
-	Site                        string `json:"Site" validate:"Site"`
-	KdcIP                       string
-	KdcHostname                 string
-	ActiveDirectoryState        string
-	ActiveDirectoryStateDetails string
-	CreatedAt                   time.Time
-	UpdatedAt                   time.Time
-	DeletedAt                   time.Time
-	LdapSigning                 bool
-	AllowLocalNFSUsersWithLdap  bool
-	EncryptDCConnections        bool
-	SecurityOperators           []string `json:"securityOperators" validate:"SecurityOperators"`
-	BackupOperators             []string `json:"backupOperators" validate:"BackupOperators"`
-	Administrators              []string `json:"administrators" validate:"Administrators"`
-	AesEncryption               bool
-	Description                 string
+	AccountId                  string
+	LocationId                 string `json:"LocationId" validate:"LocationId"`
+	XCorrelationId             string
+	Username                   string `json:"Username" validate:"Username"`
+	ResourceId                 string `json:"ResourceId" validate:"ResourceId"`
+	Password                   string
+	Domain                     string
+	DNS                        string `json:"DNS" validate:"DNS"`
+	NetBIOS                    string `json:"netBIOS" validate:"NetBIOS"`
+	OrganizationalUnit         string `json:"organizationalUnit" validate:"OrganizationalUnit"`
+	Site                       string `json:"Site" validate:"Site"`
+	KdcIP                      string
+	KdcHostname                string
+	LdapSigning                bool
+	AllowLocalNFSUsersWithLdap bool
+	EncryptDCConnections       bool
+	SecurityOperators          []string `json:"securityOperators" validate:"SecurityOperators"`
+	BackupOperators            []string `json:"backupOperators" validate:"BackupOperators"`
+	Administrators             []string `json:"administrators" validate:"Administrators"`
+	AesEncryption              bool
+	Description                string
+}
+
+type UpdateActiveDirectoryParams struct {
+	ActiveDirectoryId          string
+	AccountId                  string
+	LocationId                 string `json:"LocationId" validate:"LocationId"`
+	XCorrelationId             string
+	Username                   *string `json:"Username" validate:"omitempty,Username"`
+	Password                   *string
+	Domain                     *string
+	DNS                        *string `json:"DNS" validate:"omitempty,DNS"`
+	NetBIOS                    *string `json:"netBIOS" validate:"omitempty,NetBIOS"`
+	OrganizationalUnit         *string `json:"organizationalUnit" validate:"omitempty,OrganizationalUnit"`
+	Site                       *string `json:"Site" validate:"omitempty,Site"`
+	KdcIP                      *string
+	KdcHostname                *string
+	LdapSigning                *bool
+	AllowLocalNFSUsersWithLdap *bool
+	EncryptDCConnections       *bool
+	SecurityOperators          []string `json:"securityOperators" validate:"omitempty,SecurityOperators"`
+	BackupOperators            []string `json:"backupOperators" validate:"omitempty,BackupOperators"`
+	Administrators             []string `json:"administrators" validate:"omitempty,Administrators"`
+	AesEncryption              *bool
+	Description                *string
 }
 
 // GetADParams describes parameters to get Active Directory configuration
@@ -700,4 +718,8 @@ type GetADParams struct {
 	LocationID    string
 	ProjectNumber string
 	ResourceID    string
+}
+type AdSdeUpdateResult struct {
+	Done *bool   `json:"done,omitempty"`
+	Name *string `json:"name,omitempty"`
 }

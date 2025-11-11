@@ -17,6 +17,7 @@ type ActiveDirectory struct {
 	State                     string                     `gorm:"column:state"`
 	StateDetails              string                     `gorm:"column:state_details"`
 	AccountId                 int64                      `gorm:"column:account_id"`
+	ChangeId                  string                     `gorm:"column:change_id"`
 	ActiveDirectoryAttributes *ActiveDirectoryAttributes `gorm:"column:active_directory_attributes;type:jsonb"`
 }
 

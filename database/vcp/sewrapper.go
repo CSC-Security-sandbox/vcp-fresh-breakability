@@ -407,6 +407,22 @@ func (re *retryEngine) GetPoolsByAccountName(ctx context.Context, accountName st
 	return var0, err
 }
 
+func (re *retryEngine) GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error) {
+	var var0 []*datamodel.Pool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetPoolsByActiveDirectoryId(ctx, activeDirectoryId)
+		if err != nil {
+			re.logError("GetPoolsByActiveDirectoryId", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error) {
 	var var0 string
 	err := retry.Do(func(attempt int) (bool, error) {

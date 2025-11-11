@@ -2,7 +2,10 @@ package orchestrator
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 	"time"
 
@@ -30,6 +33,7 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 	params := &common.CreateActiveDirectoryParams{
 		ResourceId:         "test-ad",
 		AccountId:          "123",
+		LocationId:         "local",
 		Username:           "admin@test.local",
 		Password:           "SecurePass123!",
 		Domain:             "test.local",
@@ -76,6 +80,18 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 		Type:       string(models.JobTypeCreateActiveDirectory),
 		State:      string(models.JobsStateNEW),
 	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
 
 	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
@@ -142,6 +158,18 @@ func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 		Type:       string(models.JobTypeCreateActiveDirectory),
 		State:      string(models.JobsStateNEW),
 	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
 
 	accountID := int64(123)
 	account := &datamodel.Account{
@@ -260,6 +288,17 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 		},
 	}
 
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
@@ -334,6 +373,17 @@ func TestCreateActiveDirectory_DefaultOrganizationalUnit(t *testing.T) {
 		WorkflowID: "workflow-id",
 	}
 
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
@@ -386,6 +436,17 @@ func TestCreateActiveDirectory_JobCreationFailed(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
 	}
 
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
 	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).
@@ -435,6 +496,17 @@ func TestCreateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
 		WorkflowID: "workflow-id",
 	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
 
 	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
@@ -486,6 +558,17 @@ func TestCreateActiveDirectory_PasswordStorageFailed(t *testing.T) {
 		BaseModel: datamodel.BaseModel{ID: 123},
 	}
 
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
 	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
 
 	originalStorePassword := storePasswordSecret
@@ -522,6 +605,17 @@ func TestCreateActiveDirectory_DatabaseRecordCreationFailed(t *testing.T) {
 	}
 
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
 
 	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).
@@ -1477,13 +1571,13 @@ func Test_convertActiveDirectoryToModel_Success(t *testing.T) {
 		},
 	}
 
-	result := convertActiveDirectoryToModel(ad)
+	result := convertDatastoreActiveDirectoryToModel(ad)
 
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-uuid", result.UUID)
 	assert.Equal(t, "test-ad", result.AdName)
 	assert.Equal(t, "testuser", result.Username)
-	assert.Equal(t, "secret-path", result.Password)
+	assert.Equal(t, "******************", result.Password)
 	assert.Equal(t, "example.com", result.Domain)
 	assert.Equal(t, "8.8.8.8", result.DNS)
 	assert.Equal(t, "EXAMPLE", result.NetBIOS)
@@ -1505,7 +1599,7 @@ func Test_convertActiveDirectoryToModel_Success(t *testing.T) {
 }
 
 func Test_convertActiveDirectoryToModel_NilInput(t *testing.T) {
-	result := convertActiveDirectoryToModel(nil)
+	result := convertDatastoreActiveDirectoryToModel(nil)
 	assert.Nil(t, result)
 }
 
@@ -1518,10 +1612,614 @@ func Test_convertActiveDirectoryToModel_NilAttributes(t *testing.T) {
 		ActiveDirectoryAttributes: nil,
 	}
 
-	result := convertActiveDirectoryToModel(ad)
+	result := convertDatastoreActiveDirectoryToModel(ad)
 
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-uuid", result.UUID)
 	assert.Equal(t, "test-ad", result.AdName)
 	assert.Nil(t, result.ActiveDirectoryAttributes)
+}
+
+func TestUpdateActiveDirectory_Success(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:                  "123",
+		ActiveDirectoryId:          "ad-uuid-123",
+		Username:                   nillable.GetStringPtr("updated-admin@test.local"),
+		Domain:                     nillable.GetStringPtr("test.local"),
+		DNS:                        nillable.GetStringPtr("10.0.0.2"),
+		NetBIOS:                    nillable.GetStringPtr("TEST"),
+		SecurityOperators:          []string{"updated-security-user"},
+		BackupOperators:            []string{"updated-backup-user"},
+		Administrators:             []string{"updated-admin-user"},
+		OrganizationalUnit:         nillable.GetStringPtr("CN=UpdatedComputers"),
+		Site:                       nillable.GetStringPtr("Updated-Site"),
+		KdcIP:                      nillable.GetStringPtr("10.0.0.3"),
+		KdcHostname:                nillable.GetStringPtr("updated-kdc.test.local"),
+		AesEncryption:              nillable.GetBoolPtr(false),
+		EncryptDCConnections:       nillable.GetBoolPtr(true),
+		LdapSigning:                nillable.GetBoolPtr(true),
+		AllowLocalNFSUsersWithLdap: nillable.GetBoolPtr(false),
+		Description:                nillable.GetStringPtr("Updated Test AD"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	existingAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		Username:  "admin@test.local",
+		Domain:    "test.local",
+		DNS:       "10.0.0.1",
+		NetBIOS:   "TEST",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	createdJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID:    "workflow-id-123",
+		Type:          string(models.JobTypeUpdateActiveDirectory),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  "test-ad",
+		AccountID:     sql.NullInt64{Int64: 123, Valid: true},
+		CorrelationID: "correlation-id",
+		RequestID:     "request-id",
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: "ad-uuid-123",
+		},
+	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	// Mock getOrCreateAccount
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	// Mock _getActiveDirectory
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+		return existingAD, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
+
+	// Mock workflow execution
+	originalWorkflowExecute := workflowsExecuteWorkflowSequentially
+	workflowsExecuteWorkflowSequentially = func(client client.Client, ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, childOptions workflow.ChildWorkflowOptions, args ...interface{}) error {
+		return nil
+	}
+	defer func() { workflowsExecuteWorkflowSequentially = originalWorkflowExecute }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
+	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(adRecord, nil)
+	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.Equal(t, "job-uuid-123", jobUUID)
+	assert.Equal(t, models.LifeCycleStateUpdating, ad.State)
+	assert.Equal(t, models.LifeCycleStateUpdatingDetails, ad.StateDetails)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateActiveDirectory_ValidationError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		DNS:               nillable.GetStringPtr(""), // Invalid empty DNS
+		ActiveDirectoryId: "ad-uuid-123",
+	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
+	}
+	mockStorage.On("GetAccount", mock.Anything, mock.Anything).Return(account, nil).Maybe()
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+}
+
+func TestUpdateActiveDirectory_AccountNotFound(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "non-existent-account",
+		ActiveDirectoryId: "ad-uuid-123",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+		Domain:            nillable.GetStringPtr("test.local"),
+	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	// Mock getOrCreateAccount to return error
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return nil, customerrors.NewNotFoundErr("Account", &accountName)
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "non-existent-account")
+}
+
+func TestUpdateActiveDirectory_ADNotFound(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "non-existent-ad",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+		Domain:            nillable.GetStringPtr("test.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	// Mock getOrCreateAccount
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	// Mock _getActiveDirectory to return error
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+		return nil, customerrors.NewNotFoundErr("ActiveDirectory", &activeDirectoryUUID)
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "non-existent-ad").Return(nil, errors.New("not found"))
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestUpdateActiveDirectory_JobCreationFailed(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+		Domain:            nillable.GetStringPtr("test.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	existingAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	// Mock getOrCreateAccount
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	// Mock _getActiveDirectory
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+		return existingAD, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+	}
+	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "database error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateActiveDirectory_WorkflowStartFailed(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+		Domain:            nillable.GetStringPtr("test.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	existingAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-id-123",
+		Type:       string(models.JobTypeUpdateActiveDirectory),
+		State:      string(models.JobsStateNEW),
+	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	// Mock getOrCreateAccount
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	// Mock _getActiveDirectory
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+		return existingAD, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
+	mockStorage.On("UpdateJob", mock.Anything, createdJob.UUID, string(models.JobsStateERROR), 0, "workflow start error").Return(nil)
+
+	// Mock workflow execution to fail
+	originalWorkflowExecute := workflowsExecuteWorkflowSequentially
+	workflowsExecuteWorkflowSequentially = func(client client.Client, ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, childOptions workflow.ChildWorkflowOptions, args ...interface{}) error {
+		return errors.New("workflow start error")
+	}
+	defer func() { workflowsExecuteWorkflowSequentially = originalWorkflowExecute }()
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+	}
+	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "workflow start error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+		Domain:            nillable.GetStringPtr("test.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	existingAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-id-123",
+		Type:       string(models.JobTypeUpdateActiveDirectory),
+		State:      string(models.JobsStateNEW),
+	}
+
+	// Mock getOrCreateAccount
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	// Mock _getActiveDirectory
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+		return existingAD, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
+
+	// Mock workflow execution
+	originalWorkflowExecute := workflowsExecuteWorkflowSequentially
+	workflowsExecuteWorkflowSequentially = func(client client.Client, ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, childOptions workflow.ChildWorkflowOptions, args ...interface{}) error {
+		return nil
+	}
+	defer func() { workflowsExecuteWorkflowSequentially = originalWorkflowExecute }()
+
+	// Set CVP_HOST to simulate SDE environment
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "http://cvp.example.com"
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+	}
+	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.Equal(t, "job-uuid-123", jobUUID)
+	assert.Equal(t, models.LifeCycleStateUpdating, ad.State)
+	assert.Equal(t, models.LifeCycleStateUpdatingDetails, ad.StateDetails)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateActiveDirectory_ADRecordNotFoundInDB(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+		Domain:            nillable.GetStringPtr("test.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	existingAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-id-123",
+		Type:       string(models.JobTypeUpdateActiveDirectory),
+		State:      string(models.JobsStateNEW),
+	}
+
+	// Mock getOrCreateAccount
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	// Mock _getActiveDirectory
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+		return existingAD, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
+
+	// Mock workflow execution
+	originalWorkflowExecute := workflowsExecuteWorkflowSequentially
+	workflowsExecuteWorkflowSequentially = func(client client.Client, ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, childOptions workflow.ChildWorkflowOptions, args ...interface{}) error {
+		return nil
+	}
+	defer func() { workflowsExecuteWorkflowSequentially = originalWorkflowExecute }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	// Mock AD record not found in DB
+	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(nil, nil)
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "not found")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestOrchestratorUpdateActiveDirectory(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+		Domain:            nillable.GetStringPtr("test.local"),
+	}
+
+	expectedAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateUpdating,
+	}
+
+	originalUpdate := updateActiveDirectory
+	updateActiveDirectory = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateActiveDirectoryParams) (*models.ActiveDirectory, string, error) {
+		return expectedAD, "job-uuid", nil
+	}
+	defer func() { updateActiveDirectory = originalUpdate }()
+
+	ad, jobUUID, err := orchestrator.UpdateActiveDirectory(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.Equal(t, "job-uuid", jobUUID)
+	assert.Equal(t, "test-ad", ad.AdName)
+	assert.Equal(t, models.LifeCycleStateUpdating, ad.State)
+}
+
+func TestOrchestratorUpdateActiveDirectory_Error(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+		Domain:            nillable.GetStringPtr("test.local"),
+	}
+
+	originalUpdate := updateActiveDirectory
+	updateActiveDirectory = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateActiveDirectoryParams) (*models.ActiveDirectory, string, error) {
+		return nil, "", errors.New("update failed")
+	}
+	defer func() { updateActiveDirectory = originalUpdate }()
+
+	ad, jobUUID, err := orchestrator.UpdateActiveDirectory(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "update failed")
 }

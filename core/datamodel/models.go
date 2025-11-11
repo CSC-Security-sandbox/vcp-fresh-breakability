@@ -41,9 +41,10 @@ type Pool struct {
 	SatisfyZS         bool               `gorm:"column:satisfy_zs;default:false"`
 	AssetMetadata     *AssetMetadata     `gorm:"column:asset_metadata;type:jsonb"`
 	// Build information - images used to create this pool
-	BuildInfo         *PoolBuildInfo   `gorm:"column:build_info;type:jsonb" json:"buildInfo,omitempty"`
-	ActiveDirectoryID sql.NullInt64    `gorm:"column:active_directory_id"`
-	ActiveDirectory   *ActiveDirectory `gorm:"ForeignKey:ActiveDirectoryID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	BuildInfo               *PoolBuildInfo   `gorm:"column:build_info;type:jsonb" json:"buildInfo,omitempty"`
+	ActiveDirectoryID       sql.NullInt64    `gorm:"column:active_directory_id"`
+	ActiveDirectory         *ActiveDirectory `gorm:"ForeignKey:ActiveDirectoryID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	ActiveDirectoryChangeId string           `gorm:"column:active_directory_change_id;type:text"`
 }
 
 type PoolCredentials struct {

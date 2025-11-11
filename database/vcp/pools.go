@@ -368,6 +368,22 @@ func (d *DataStoreRepository) GetPoolsByAccountName(ctx context.Context, account
 	return pools, nil
 }
 
+func (d *DataStoreRepository) GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error) {
+	var pools []*datamodel.Pool
+
+	err := d.db.GORM().WithContext(ctx).
+		Preload("Account").
+		Preload("ActiveDirectory").
+		Where("active_directory_id = ?", activeDirectoryId).
+		Find(&pools).
+		Error
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return pools, nil
+}
+
 // ConvertPoolViewToPool converts a PoolView to a Pool for use in CRUD operations.
 func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 	if view == nil {
