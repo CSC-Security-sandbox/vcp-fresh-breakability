@@ -1,0 +1,21 @@
+{{- range $mapping := $.Values.ontapVersionVlmImageMappings }}
+    {{- $versionName := $mapping.ontapVersion }}
+    {{- $version := ($versionName | lower | replace "." "-") }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: vlm-metrics-service-{{ $version }}
+  annotations:
+    description: "Service for VLM metrics"
+  labels:
+    app: {{ $.Values.app.name }}-{{ $version }}
+spec:
+  ports:
+    - port: 9100
+      targetPort: 9100
+      protocol: TCP
+      name: metrics
+  selector:
+    app: {{ $.Values.app.name }}-{{ $version }}
+{{- end }}
