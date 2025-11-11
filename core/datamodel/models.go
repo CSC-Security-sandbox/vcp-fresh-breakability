@@ -865,6 +865,7 @@ type BackupAttributes struct {
 	SourceVolumeZone               string    `json:"source_volume_zone"`
 	ConstituentCountOfBackup       int32     `json:"constituent_count_of_backup"`
 	IsRegionalHA                   bool      `json:"is_regional_ha"`
+	RestoreVolumeCount             int       `json:"restore_volume_count"`
 }
 
 func (b *BackupAttributes) Scan(value interface{}) error {

@@ -5635,10 +5635,9 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			}, setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp.example.com", "mock-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault that will be called by FetchRemoteBackupVaultFromVCP
@@ -5658,8 +5657,7 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -5688,14 +5686,18 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			}, setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
+				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError:   true,
 			expectedError: "VCP_PAIRED_REGIONS environment variable not set",
-			description:   "Tests getRemoteRegionConfig error when VCP_PAIRED_REGIONS not set",
+			description:   "Tests GetRemoteRegionConfig error when VCP_PAIRED_REGIONS not set",
 		},
 		{
 			name: "FetchVCP_GetRemoteRegionConfig_InvalidJSON",
@@ -5714,15 +5716,18 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			}, setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", "{invalid-json")
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("failed to parse VCP_PAIRED_REGIONS JSON")
+				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError:   true,
 			expectedError: "failed to parse VCP_PAIRED_REGIONS JSON",
-			description:   "Tests getRemoteRegionConfig error when VCP_PAIRED_REGIONS has invalid JSON",
+			description:   "Tests GetRemoteRegionConfig error when VCP_PAIRED_REGIONS has invalid JSON",
 		},
 		{
 			name: "FetchVCP_GetRemoteRegionConfig_RegionNotFound",
@@ -5741,15 +5746,18 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			}, setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-east1":"https://vcp-east.example.com"}`)
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("no base path configured for region: us-west1 in VCP_PAIRED_REGIONS")
+				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError:   true,
 			expectedError: "no base path configured for region: us-west1",
-			description:   "Tests getRemoteRegionConfig error when region not in VCP_PAIRED_REGIONS",
+			description:   "Tests GetRemoteRegionConfig error when region not in VCP_PAIRED_REGIONS",
 		},
 		{
 			name: "FetchVCP_GetRemoteRegionConfig_JWTTokenFailure",
@@ -5769,20 +5777,18 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "", fmt.Errorf("JWT token generation failed")
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("failed to get JWT token for project %s: JWT token generation failed", projectNumber)
 				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError:   true,
 			expectedError: "failed to get JWT token",
-			description:   "Tests getRemoteRegionConfig error when JWT token generation fails",
+			description:   "Tests GetRemoteRegionConfig error when JWT token generation fails",
 		},
 
 		// ========== FetchRemoteBackupVaultFromVCP Non-Error Flow (Lines 791-797) ==========
@@ -5804,10 +5810,9 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault to return a non-NotFound error
@@ -5827,8 +5832,7 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -5855,12 +5859,11 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				_ = os.Unsetenv("CVP_HOSTS") // CVP_HOSTS not configured
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
+				_ = os.Unsetenv("CVP_HOSTS") // CVP_HOSTS not configured
 
 				// Set up mock for V1betaInternalDescribeBackupVault that will be called by FetchRemoteBackupVaultFromVCP
 				mockInvoker := googleproxyclient.NewMockInvoker(t)
@@ -5879,8 +5882,7 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -5905,12 +5907,11 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				_ = os.Setenv("CVP_HOSTS", "{invalid-cvp-json")
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
+				_ = os.Setenv("CVP_HOSTS", "{invalid-cvp-json")
 
 				// Set up mock for V1betaInternalDescribeBackupVault that will be called by FetchRemoteBackupVaultFromVCP
 				mockInvoker := googleproxyclient.NewMockInvoker(t)
@@ -5929,9 +5930,8 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					_ = os.Unsetenv("CVP_HOSTS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -5956,12 +5956,11 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				_ = os.Setenv("CVP_HOSTS", `{"us-east1":"https://cvp-east.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
+				_ = os.Setenv("CVP_HOSTS", `{"us-east1":"https://cvp-east.example.com"}`)
 
 				// Set up mock for V1betaInternalDescribeBackupVault that will be called by FetchRemoteBackupVaultFromVCP
 				mockInvoker := googleproxyclient.NewMockInvoker(t)
@@ -5980,9 +5979,8 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					_ = os.Unsetenv("CVP_HOSTS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6012,10 +6010,9 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
 
 				mockInvoker := googleproxyclient.NewMockInvoker(t)
@@ -6046,8 +6043,7 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6098,10 +6094,9 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault that will be called by FetchRemoteBackupVaultFromVCP
@@ -6121,8 +6116,7 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6149,10 +6143,9 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault
@@ -6171,8 +6164,7 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6199,10 +6191,9 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault
@@ -6221,8 +6212,7 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6253,12 +6243,11 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				_ = os.Setenv("CVP_HOSTS", `{"us-west1":"https://cvp-west.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
+				_ = os.Setenv("CVP_HOSTS", `{"us-west1":"https://cvp-west.example.com"}`)
 
 				mockInvoker := googleproxyclient.NewMockInvoker(t)
 				mockProxyClient := &googleproxyclient.ProxyClient{
@@ -6297,9 +6286,8 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					_ = os.Unsetenv("CVP_HOSTS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6330,10 +6318,9 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
 
 				mockInvoker := googleproxyclient.NewMockInvoker(t)
@@ -6391,8 +6378,7 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6423,10 +6409,9 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-west.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-west.example.com", "mock-jwt-token", nil
 				}
 
 				mockInvoker := googleproxyclient.NewMockInvoker(t)
@@ -6457,8 +6442,7 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6630,10 +6614,9 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-us-west1.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-us-west1.example.com", "mock-jwt-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault
@@ -6652,15 +6635,14 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
 			expectError: true, // Will fail at CVP level
 			errorMsg:    "",
 		},
-		// Test Case 7: FetchRemoteBackupVaultFromVCP - getRemoteRegionConfig error (env not set)
+		// Test Case 7: FetchRemoteBackupVaultFromVCP - GetRemoteRegionConfig error (env not set)
 		{
 			name: "FetchRemoteBackupVault_GetRemoteRegionConfig_EnvNotSet",
 			volume: &datamodel.Volume{
@@ -6682,15 +6664,19 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Unsetenv("VCP_PAIRED_REGIONS") // Trigger error
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
+				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError: true,
 			errorMsg:    "VCP_PAIRED_REGIONS environment variable not set",
 		},
-		// Test Case 8: FetchRemoteBackupVaultFromVCP - getRemoteRegionConfig error (invalid JSON)
+		// Test Case 8: FetchRemoteBackupVaultFromVCP - GetRemoteRegionConfig error (invalid JSON)
 		{
 			name: "FetchRemoteBackupVault_GetRemoteRegionConfig_InvalidJSON",
 			volume: &datamodel.Volume{
@@ -6707,16 +6693,19 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", "{invalid-json") // Invalid JSON
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("failed to parse VCP_PAIRED_REGIONS JSON")
+				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError: true,
 			errorMsg:    "failed to parse VCP_PAIRED_REGIONS JSON",
 		},
-		// Test Case 9: FetchRemoteBackupVaultFromVCP - getRemoteRegionConfig error (region not found)
+		// Test Case 9: FetchRemoteBackupVaultFromVCP - GetRemoteRegionConfig error (region not found)
 		{
 			name: "FetchRemoteBackupVault_GetRemoteRegionConfig_RegionNotFound",
 			volume: &datamodel.Volume{
@@ -6733,16 +6722,19 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-east1":"https://vcp-us-east1.example.com"}`) // Different region
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("no base path configured for region: us-west1 in VCP_PAIRED_REGIONS")
+				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError: true,
 			errorMsg:    "no base path configured for region: us-west1",
 		},
-		// Test Case 10: FetchRemoteBackupVaultFromVCP - getRemoteRegionConfig error (JWT token failure)
+		// Test Case 10: FetchRemoteBackupVaultFromVCP - GetRemoteRegionConfig error (JWT token failure)
 		{
 			name: "FetchRemoteBackupVault_GetRemoteRegionConfig_JWTTokenFailure",
 			volume: &datamodel.Volume{
@@ -6759,15 +6751,13 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-us-west1.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "", fmt.Errorf("JWT token generation failed")
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("failed to get JWT token for project %s: JWT token generation failed", projectNumber)
 				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError: true,
@@ -6790,12 +6780,11 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-us-west1.example.com"}`)
-				_ = os.Unsetenv("CVP_HOSTS") // CVP_HOSTS not set
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-us-west1.example.com", "mock-jwt-token", nil
 				}
+				_ = os.Unsetenv("CVP_HOSTS") // CVP_HOSTS not set
 
 				// Set up mock for V1betaInternalDescribeBackupVault
 				mockInvoker := googleproxyclient.NewMockInvoker(t)
@@ -6813,8 +6802,7 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6849,10 +6837,9 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-us-west1.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-us-west1.example.com", "mock-jwt-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault
@@ -6871,8 +6858,7 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6922,10 +6908,9 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-us-west1.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-us-west1.example.com", "mock-jwt-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault
@@ -6944,8 +6929,7 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -6971,10 +6955,9 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-us-west1.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-us-west1.example.com", "mock-jwt-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault
@@ -6993,8 +6976,7 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -7020,10 +7002,9 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 			setupMocks: func() func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1":"https://vcp-us-west1.example.com"}`)
-				originalGetSignedJwtToken := activities.GetSignedJwtTokenFunc
-				activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-					return "mock-jwt-token", nil
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://vcp-us-west1.example.com", "mock-jwt-token", nil
 				}
 
 				// Set up mock for V1betaInternalDescribeBackupVault
@@ -7042,8 +7023,7 @@ func TestCreateRemoteBackupVaultWithBucketDetailsInVCP(t *testing.T) {
 
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-					activities.GetSignedJwtTokenFunc = originalGetSignedJwtToken
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
@@ -7088,18 +7068,33 @@ func TestConvertInternalAPIToDatamodel_ThroughUpdateRemoteBackupVaultFlow(t *tes
 		utils.SetCrossRegionBackupEnabledForTest(true)
 		defer utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
 
-		// Set up environment variables for getRemoteRegionConfig
-		_ = os.Setenv("VCP_PAIRED_REGIONS", `{
-			"us-west1": {
-				"base_path": "https://test-proxy.googleapis.com",
-				"jwks_url": "https://test-jwks.googleapis.com/.well-known/jwks"
-			}
-		}`)
-		_ = os.Setenv("JWT_TOKEN", "test-jwt-token")
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-			_ = os.Unsetenv("JWT_TOKEN")
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://test-proxy.googleapis.com", "test-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient to prevent race conditions
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock V1betaInternalDescribeBackupVault to return NotFound (will trigger CVP fallback)
+		notFoundErr := utilErrors.NewNotFoundErr("backup vault", nillable.GetStringPtr("test-vault-uuid"))
+		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(
+			nil, notFoundErr,
+		).Once()
 
 		volume := &datamodel.Volume{
 			Account: &datamodel.Account{Name: "123456789"},
@@ -7111,6 +7106,7 @@ func TestConvertInternalAPIToDatamodel_ThroughUpdateRemoteBackupVaultFlow(t *tes
 			VendorSubnetID:      "subnet-123",
 		}
 		backupVault := &datamodel.BackupVault{
+			BaseModel:                  datamodel.BaseModel{UUID: "test-vault-uuid"},
 			Name:                       "test-backup-vault",
 			BackupVaultType:            activities.CrossRegionBackupType,
 			SourceRegionName:           nillable.GetStringPtr("us-central1"),
@@ -7131,6 +7127,7 @@ func TestConvertInternalAPIToDatamodel_ThroughUpdateRemoteBackupVaultFlow(t *tes
 		// The actual testing of conversion logic is better done through unit tests
 		// Since we can't easily inject the mock client, we expect an error but can verify the flow
 		assert.Error(t, err) // Expected since we can't fully mock the HTTP client
+		mockInvoker.AssertExpectations(t)
 	})
 
 	// Test case 2: Minimal data conversion
@@ -7140,17 +7137,32 @@ func TestConvertInternalAPIToDatamodel_ThroughUpdateRemoteBackupVaultFlow(t *tes
 		utils.SetCrossRegionBackupEnabledForTest(true)
 		defer utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
 
-		_ = os.Setenv("VCP_PAIRED_REGIONS", `{
-			"us-west1": {
-				"base_path": "https://test-proxy.googleapis.com",
-				"jwks_url": "https://test-jwks.googleapis.com/.well-known/jwks"
-			}
-		}`)
-		_ = os.Setenv("JWT_TOKEN", "test-jwt-token")
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-			_ = os.Unsetenv("JWT_TOKEN")
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://test-proxy.googleapis.com", "test-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient to prevent race conditions
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock V1betaInternalDescribeBackupVault to return NotFound (will trigger CVP fallback)
+		notFoundErr := utilErrors.NewNotFoundErr("backup vault", nillable.GetStringPtr("minimal-vault-uuid"))
+		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(
+			nil, notFoundErr,
+		).Once()
 
 		volume := &datamodel.Volume{
 			Account: &datamodel.Account{Name: "123456789"},
@@ -7159,6 +7171,7 @@ func TestConvertInternalAPIToDatamodel_ThroughUpdateRemoteBackupVaultFlow(t *tes
 			BucketName: "minimal-bucket",
 		}
 		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "minimal-vault-uuid"},
 			Name:             "minimal-vault",
 			BackupVaultType:  activities.CrossRegionBackupType,
 			SourceRegionName: nillable.GetStringPtr("us-central1"),
@@ -7171,6 +7184,7 @@ func TestConvertInternalAPIToDatamodel_ThroughUpdateRemoteBackupVaultFlow(t *tes
 
 		// Assert
 		assert.Error(t, err) // Expected since we can't fully mock the HTTP client
+		mockInvoker.AssertExpectations(t)
 	})
 
 	// Test case 3: Empty bucket details
@@ -7180,17 +7194,32 @@ func TestConvertInternalAPIToDatamodel_ThroughUpdateRemoteBackupVaultFlow(t *tes
 		utils.SetCrossRegionBackupEnabledForTest(true)
 		defer utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
 
-		_ = os.Setenv("VCP_PAIRED_REGIONS", `{
-			"us-west1": {
-				"base_path": "https://test-proxy.googleapis.com",
-				"jwks_url": "https://test-jwks.googleapis.com/.well-known/jwks"
-			}
-		}`)
-		_ = os.Setenv("JWT_TOKEN", "test-jwt-token")
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-			_ = os.Unsetenv("JWT_TOKEN")
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://test-proxy.googleapis.com", "test-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient to prevent race conditions
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock V1betaInternalDescribeBackupVault to return NotFound (will trigger CVP fallback)
+		notFoundErr := utilErrors.NewNotFoundErr("backup vault", nillable.GetStringPtr("empty-bucket-vault-uuid"))
+		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(
+			nil, notFoundErr,
+		).Once()
 
 		volume := &datamodel.Volume{
 			Account: &datamodel.Account{Name: "123456789"},
@@ -7199,6 +7228,7 @@ func TestConvertInternalAPIToDatamodel_ThroughUpdateRemoteBackupVaultFlow(t *tes
 			BucketName: "empty-bucket-test",
 		}
 		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "empty-bucket-vault-uuid"},
 			Name:             "empty-bucket-vault",
 			BackupVaultType:  activities.CrossRegionBackupType,
 			SourceRegionName: nillable.GetStringPtr("us-central1"),
@@ -7211,6 +7241,7 @@ func TestConvertInternalAPIToDatamodel_ThroughUpdateRemoteBackupVaultFlow(t *tes
 
 		// Assert
 		assert.Error(t, err) // Expected since we can't fully mock the HTTP client
+		mockInvoker.AssertExpectations(t)
 	})
 }
 
@@ -7411,26 +7442,20 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 
 		// Store original and restore after test
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
-		originalGetSignedToken := activities.GetSignedJwtTokenFunc
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
-			activities.GetSignedJwtTokenFunc = originalGetSignedToken
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
 
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockProxyClient
 		}
 
-		// Mock GetSignedJwtTokenFunc to return a dummy token
-		activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-			return "mock-jwt-token", nil
+		// Mock GetRemoteRegionConfig to return base path and JWT token
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
 		}
-
-		// Set up environment
-		_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1": "https://us-west1.example.com"}`)
-		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-		}()
 
 		// Mock successful response
 		expectedResponse := &googleproxyclient.BackupVaultInternalV1beta{
@@ -7478,24 +7503,19 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 		}
 
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
-		originalGetSignedToken := activities.GetSignedJwtTokenFunc
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
-			activities.GetSignedJwtTokenFunc = originalGetSignedToken
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
 
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockProxyClient
 		}
 
-		activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-			return "mock-jwt-token", nil
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
 		}
-
-		_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1": "https://us-west1.example.com"}`)
-		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-		}()
 
 		// Mock error response
 		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("network error"))
@@ -7517,24 +7537,19 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 		}
 
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
-		originalGetSignedToken := activities.GetSignedJwtTokenFunc
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
-			activities.GetSignedJwtTokenFunc = originalGetSignedToken
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
 
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockProxyClient
 		}
 
-		activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-			return "mock-jwt-token", nil
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
 		}
-
-		_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1": "https://us-west1.example.com"}`)
-		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-		}()
 
 		// Mock returns wrong type
 		invalidResponse := &googleproxyclient.V1betaInternalDescribeBackupVaultBadRequest{
@@ -7554,10 +7569,13 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 
 	t.Run("Error_GetRemoteRegionConfig_VCP_PAIRED_REGIONS_NotSet", func(t *testing.T) {
 		// Arrange
-		_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
+		}
 
 		// Act
 		result, err := activities.FetchRemoteBackupVaultFromVCP(ctx, "test-vault-uuid", "123456789", "us-west1")
@@ -7570,10 +7588,13 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 
 	t.Run("Error_GetRemoteRegionConfig_RegionNotFound", func(t *testing.T) {
 		// Arrange
-		_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-central1": "https://us-central1.example.com"}`)
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "", "", fmt.Errorf("no base path configured for region: us-west1 in VCP_PAIRED_REGIONS")
+		}
 
 		// Act - request region us-west1 which is not in the config
 		result, err := activities.FetchRemoteBackupVaultFromVCP(ctx, "test-vault-uuid", "123456789", "us-west1")
@@ -7592,24 +7613,19 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 		}
 
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
-		originalGetSignedToken := activities.GetSignedJwtTokenFunc
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
-			activities.GetSignedJwtTokenFunc = originalGetSignedToken
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
 
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockProxyClient
 		}
 
-		activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-			return "mock-jwt-token", nil
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
 		}
-
-		_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1": "https://us-west1.example.com"}`)
-		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-		}()
 
 		// Mock response with minimal data
 		expectedResponse := &googleproxyclient.BackupVaultInternalV1beta{
@@ -7642,24 +7658,19 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 		}
 
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
-		originalGetSignedToken := activities.GetSignedJwtTokenFunc
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
-			activities.GetSignedJwtTokenFunc = originalGetSignedToken
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 		}()
 
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mockProxyClient
 		}
 
-		activities.GetSignedJwtTokenFunc = func(projectNumber string) (string, error) {
-			return "mock-jwt-token", nil
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
 		}
-
-		_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1": "https://us-west1.example.com"}`)
-		defer func() {
-			_ = os.Unsetenv("VCP_PAIRED_REGIONS")
-		}()
 
 		// Mock response with empty bucket name (should be filtered out)
 		expectedResponse := &googleproxyclient.BackupVaultInternalV1beta{
@@ -8225,7 +8236,7 @@ func TestFetchRemoteBackupVaultFromCVP(t *testing.T) {
 		name        string
 		volume      *datamodel.Volume
 		backupVault *datamodel.BackupVault
-		setupMocks  func() func()
+		setupMocks  func(*testing.T) func()
 		expectError bool
 		// Note: Error messages will vary based on which function fails first
 	}{
@@ -8240,13 +8251,16 @@ func TestFetchRemoteBackupVaultFromCVP(t *testing.T) {
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("us-west1"),
 			},
-			setupMocks: func() func() {
+			setupMocks: func(t *testing.T) func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				// Unset VCP_PAIRED_REGIONS to trigger getRemoteRegionConfig error
-				_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
+				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError: true,
@@ -8262,14 +8276,16 @@ func TestFetchRemoteBackupVaultFromCVP(t *testing.T) {
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("us-west1"),
 			},
-			setupMocks: func() func() {
+			setupMocks: func(t *testing.T) func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				// Set VCP_PAIRED_REGIONS but JWT token will fail
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1": "https://us-west1.example.com"}`)
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "", "", fmt.Errorf("failed to get JWT token for project %s", projectNumber)
+				}
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
 				}
 			},
 			expectError: true,
@@ -8285,13 +8301,33 @@ func TestFetchRemoteBackupVaultFromCVP(t *testing.T) {
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("unknown-region"),
 			},
-			setupMocks: func() func() {
+			setupMocks: func(t *testing.T) func() {
 				originalEnabled := utils.IsCrossRegionBackupEnabled()
 				utils.SetCrossRegionBackupEnabledForTest(true)
-				_ = os.Setenv("VCP_PAIRED_REGIONS", `{"us-west1": "https://us-west1.example.com"}`)
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://us-west1.example.com", "mock-jwt-token", nil
+				}
+
+				// Mock GetGProxyClient to prevent using mocks from other tests
+				mockInvoker := googleproxyclient.NewMockInvoker(t)
+				mockProxyClient := &googleproxyclient.ProxyClient{
+					Invoker: mockInvoker,
+				}
+				originalGetGProxyClient := googleproxyclient.GetGProxyClient
+				googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+					return mockProxyClient
+				}
+
+				// Mock V1betaInternalDescribeBackupVault to return an error (region not found scenario)
+				mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(
+					nil, fmt.Errorf("region not found"),
+				).Once()
+
 				return func() {
 					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					_ = os.Unsetenv("VCP_PAIRED_REGIONS")
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+					googleproxyclient.GetGProxyClient = originalGetGProxyClient
 				}
 			},
 			expectError: true,
@@ -8300,7 +8336,7 @@ func TestFetchRemoteBackupVaultFromCVP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cleanup := tt.setupMocks()
+			cleanup := tt.setupMocks(t)
 			defer cleanup()
 
 			// Act - call the function indirectly through UpdateRemoteBackupVaultDetailsInVCP

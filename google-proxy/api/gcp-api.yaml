@@ -3005,6 +3005,165 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}:
+    get:
+      operationId: v1beta_internalDescribeBackup
+      summary: Describe a backup under backup vault
+      description: Describe a backup present under a backup vault
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/backupIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - in: query
+          name: volumeId
+          schema:
+            type: string
+          required: false
+          description: 'Describe a backup under a backup vault'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      backups:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InternalBackup_v1beta'
+              example:
+                backups:
+                  - backupId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    name: manual-backup1
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    region: us-east4
+                    created: '2017-02-02T00:00:00.000Z'
+                    lifeCycleState: READY
+                    lifeCycleStateDetails: Available for use
+                    volumeUsageBytes: 387860629999
+                  - backupId: 9760acf5-4638-11e7-9bdb-020073ca3334
+                    name: manual-backup2
+                    volumeId: 9760acf5-4638-11e7-9bdb-020073ca0001
+                    region: us-east4
+                    created: '2017-02-02T00:00:00.000Z'
+                    lifeCycleState: READY
+                    lifeCycleStateDetails: Available for use
+                    volumeUsageBytes: 387860629999
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1beta_internalDeleteBackupUnderBackupVault
+      summary: Delete a backup under backup vault
+      description: Delete a backup under backup vault
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/backupIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: Deleted backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalBackup_v1beta'
+        '202':
+          description: Deleting backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}:
+    get:
+      operationId: v1beta_internalDescribeBackupVault
+      summary: Fetch a remote BackupVault from the VCP database
+      description: >-
+        Fetches the remote BackupVault from the VCP database in region2.
+        This endpoint is used for cross-region operations to retrieve BackupVault details
+        stored in the remote region's VCP database.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: BackupVault details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupVaultInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory:
     get:
       operationId: v1beta_listActiveDirectories
@@ -6082,46 +6241,6 @@ paths:
         '500':
           $ref: '#/components/responses/StandardError-500'
       x-codegen-request-body-name: body
-  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}:
-    get:
-      operationId: v1beta_internalDescribeBackupVault
-      summary: Fetch a remote BackupVault from the VCP database
-      description: >-
-        Fetches the remote BackupVault from the VCP database in region2.
-        This endpoint is used for cross-region operations to retrieve BackupVault details
-        stored in the remote region's VCP database.
-      tags:
-        - v1Beta_internal
-      parameters:
-        - $ref: '#/components/parameters/projectNumberPathParameter'
-        - $ref: '#/components/parameters/locationIdPathParameter'
-        - $ref: '#/components/parameters/backupVaultIdPathParameter'
-        - $ref: '#/components/parameters/xCorrelationIdHeader'
-      responses:
-        '200':
-          description: BackupVault details retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BackupVaultInternal_v1beta'
-        '400':
-          $ref: '#/components/responses/StandardError-400'
-        '401':
-          $ref: '#/components/responses/StandardError-401'
-        '403':
-          $ref: '#/components/responses/StandardError-403'
-        '404':
-          $ref: '#/components/responses/StandardError-404'
-        '422':
-          $ref: '#/components/responses/StandardError-422'
-        '500':
-          $ref: '#/components/responses/StandardError-500'
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Health:
@@ -8093,6 +8212,154 @@ components:
           readOnly: true
           nullable: true
           example: svm-name
+    InternalBackup_v1beta:
+      type: object
+      title: Backup
+      properties:
+        resourceId:
+          title: resourceId
+          type: string
+          description: A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
+          pattern: >-
+            ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: my-resource
+        volumeId:
+          title: volumeId
+          type: string
+          readOnly: true
+          description: Uuid v4 of the volume
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+        state:
+          title: state
+          type: string
+          readOnly: true
+          description: The current lifecycle state of the resource
+          enum:
+            - CREATING
+            - READY
+            - UPLOADING
+            - RESTORING
+            - DISABLED
+            - DELETING
+            - DELETED
+            - ERROR
+            - UPDATING
+          example: READY
+        created:
+          title: created
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-30T20:32:50.459Z'
+        enforcedRetentionEndTime:
+          title: enforcedRetentionEndTime
+          type: string
+          format: date-time
+          readOnly: true
+          x-nullable: true
+          description: Backup enforced-retention end time
+          example: '2024-12-06T20:32:50.459Z'
+        backupId:
+          title: backupId
+          type: string
+          readOnly: true
+          description: Uuid v4 used to identify the backup
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 53fb64d6-ae8d-4166-b054-9f601a62e9fb
+        volumeUsageBytes:
+          title: volumeUsageBytes
+          type: number
+          format: int64
+          readOnly: true
+          description: Current size for the backup in bytes
+          minimum: 0.00
+          default: 0.00
+          example: 101010.00
+          x-nullable: true
+        sourceVolume:
+          title: sourceVolume
+          type: string
+          readOnly: true
+          description: Display name of the volume
+        backupVaultId:
+          description: Uuid v4 used to identify the backup vault Id
+          type: string
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 40a79608-dcf8-4b67-8df6-c4ab40a5b246
+          x-nullable: true
+        description:
+          title: description
+          type: string
+          description: Description of the backup
+          maxLength: 2048
+          example: My Resource description
+          x-nullable: true
+        sourceSnapshot:
+          title: source snapshot
+          type: string
+          description: Name of the source snapshot
+          example: 'test_snapshot'
+          x-nullable: true
+          readOnly: true
+        backupType:
+          title: backupType
+          type: string
+          readOnly: true
+          description: Type of backup, manually created or created by a backup policy
+          enum:
+            - MANUAL
+            - SCHEDULED
+        backupChainBytes:
+          title: backupChainBytes
+          type: integer
+          format: int64
+          readOnly: true
+          description: Size in bytes of the backup of the volume
+          x-nullable: true
+        satisfiesPzs:
+          type: boolean
+          description: Flag describing whether backup supports zone separation.
+          example: true
+          default: false
+          readOnly: true
+        satisfiesPzi:
+          type: boolean
+          description: Flag describing whether backup supports zone isolation.
+          example: true
+          default: false
+          readOnly: true
+        volumeRegion:
+          title: volumeRegion
+          type: string
+          description: Name of the volume region
+          example: us-east4
+          x-nullable: true
+        backupRegion:
+          title: backupRegion
+          type: string
+          description: Name of the backup region
+          example: us-central1
+          x-nullable: true
+        isRestoring:
+          title: isRestoring
+          type: boolean
+          description: Flag indicating if the backup is being used to restore a volume
+          readOnly: true
+          example: false
+        assetLocationMetadata:
+          $ref: '#/components/schemas/AssetLocationMetadata_v2'
     VolumeIdList_v1beta:
       title: VolumeIdList
       required:

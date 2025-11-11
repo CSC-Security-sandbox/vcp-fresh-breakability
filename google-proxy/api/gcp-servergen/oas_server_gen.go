@@ -331,6 +331,12 @@ type Handler interface {
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication
 	V1betaInternalCreateVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalCreateVolumeReplicationParams) (V1betaInternalCreateVolumeReplicationRes, error)
+	// V1betaInternalDeleteBackupUnderBackupVault implements v1beta_internalDeleteBackupUnderBackupVault operation.
+	//
+	// Delete a backup under backup vault.
+	//
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+	V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context, params V1betaInternalDeleteBackupUnderBackupVaultParams) (V1betaInternalDeleteBackupUnderBackupVaultRes, error)
 	// V1betaInternalDeleteVolumeReplication implements v1beta_internalDeleteVolumeReplication operation.
 	//
 	// Warning! This operation will permanently delete the volume replication.
@@ -343,6 +349,12 @@ type Handler interface {
 	//
 	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots
 	V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, error)
+	// V1betaInternalDescribeBackup implements v1beta_internalDescribeBackup operation.
+	//
+	// Describe a backup present under a backup vault.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+	V1betaInternalDescribeBackup(ctx context.Context, params V1betaInternalDescribeBackupParams) (V1betaInternalDescribeBackupRes, error)
 	// V1betaInternalDescribeBackupVault implements v1beta_internalDescribeBackupVault operation.
 	//
 	// Fetches the remote BackupVault from the VCP database in region2. This endpoint is used for

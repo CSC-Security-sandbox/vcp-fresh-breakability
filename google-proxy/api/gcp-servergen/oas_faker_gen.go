@@ -1870,6 +1870,115 @@ func (s *HybridReplicationUserCommandsV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *InternalBackupV1beta) SetFake() {
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.EnforcedRetentionEndTime.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupId.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeUsageBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.SourceVolume.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupVaultId.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.SourceSnapshot.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupType.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupChainBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzs.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzi.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeRegion.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupRegion.SetFake()
+		}
+	}
+	{
+		{
+			s.IsRestoring.SetFake()
+		}
+	}
+	{
+		{
+			s.AssetLocationMetadata.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *InternalBackupV1betaBackupType) SetFake() {
+	*s = InternalBackupV1betaBackupTypeMANUAL
+}
+
+// SetFake set fake values.
+func (s *InternalBackupV1betaState) SetFake() {
+	*s = InternalBackupV1betaStateCREATING
+}
+
+// SetFake set fake values.
 func (s *InternalJobV1beta) SetFake() {
 	{
 		{
@@ -2781,6 +2890,24 @@ func (s *OptInt64) SetFake() {
 	var elem int64
 	{
 		elem = int64(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInternalBackupV1betaBackupType) SetFake() {
+	var elem InternalBackupV1betaBackupType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInternalBackupV1betaState) SetFake() {
+	var elem InternalBackupV1betaState
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -8339,6 +8466,87 @@ func (s *V1betaInternalCreateVolumeReplicationUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaInternalDeleteBackupUnderBackupVaultBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteBackupUnderBackupVaultBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteBackupUnderBackupVaultConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteBackupUnderBackupVaultConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteBackupUnderBackupVaultForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteBackupUnderBackupVaultForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteBackupUnderBackupVaultInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteBackupUnderBackupVaultInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteBackupUnderBackupVaultNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteBackupUnderBackupVaultNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteBackupUnderBackupVaultNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteBackupUnderBackupVaultNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteBackupUnderBackupVaultTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteBackupUnderBackupVaultTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteBackupUnderBackupVaultUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteBackupUnderBackupVaultUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteBackupUnderBackupVaultUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteBackupUnderBackupVaultUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaInternalDeleteVolumeReplicationBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -8480,6 +8688,85 @@ func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity) SetFak
 		unwrapped.SetFake()
 	}
 	*s = V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeBackupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeBackupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeBackupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeBackupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeBackupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeBackupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeBackupNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeBackupNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeBackupNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeBackupNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeBackupOK) SetFake() {
+	{
+		{
+			s.Backups = nil
+			for i := 0; i < 0; i++ {
+				var elem InternalBackupV1beta
+				{
+					elem.SetFake()
+				}
+				s.Backups = append(s.Backups, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeBackupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeBackupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeBackupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeBackupUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

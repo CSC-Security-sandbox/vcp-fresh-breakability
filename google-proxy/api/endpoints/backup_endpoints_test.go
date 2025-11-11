@@ -2383,6 +2383,237 @@ func TestV1betaDescribeBackup(t *testing.T) {
 	})
 }
 
+func TestV1betaInternalDescribeBackup(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenBackupIsFoundAndNotInUseForRestoration", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		sourceRegionName := "us-east4"
+		handler := Handler{Orchestrator: mockOrchestrator}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "vault-uuid",
+			},
+			Name:             "test-backup-vault",
+			SourceRegionName: &sourceRegionName,
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", SatisfiesPzi: true, SatisfiesPzs: true}},
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			State:         coremodels.LifeCycleStateAvailable,
+			Name:          "backup-123",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				UseExistingSnapshot: false,
+				RestoreVolumeCount:  0,
+			},
+			SizeInBytes:             int64(1000),
+			LatestLogicalBackupSize: int64(500),
+			Description:             "test backup",
+			Type:                    "MANUAL",
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(backup, nil)
+
+		params := gcpgenserver.V1betaInternalDescribeBackupParams{
+			BackupVaultId:  "vault-123",
+			BackupId:       "backup-123",
+			ProjectNumber:  "project-123",
+			LocationId:     "us-east4",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		resp, err := handler.V1betaInternalDescribeBackup(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.IsType(t, &gcpgenserver.V1betaInternalDescribeBackupOK{}, resp)
+		okResp := resp.(*gcpgenserver.V1betaInternalDescribeBackupOK)
+		assert.Equal(t, 1, len(okResp.Backups))
+		assert.Equal(t, "backup-123", okResp.Backups[0].ResourceId.Value)
+		assert.Equal(t, false, okResp.Backups[0].IsRestoring.Value)
+	})
+
+	t.Run("WhenBackupIsFoundAndInUseForRestoration", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		sourceRegionName := "us-east4"
+		handler := Handler{Orchestrator: mockOrchestrator}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "vault-uuid",
+			},
+			Name:             "test-backup-vault",
+			SourceRegionName: &sourceRegionName,
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", SatisfiesPzi: true, SatisfiesPzs: true}},
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			State:         coremodels.LifeCycleStateAvailable,
+			Name:          "backup-123",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				UseExistingSnapshot: false,
+				RestoreVolumeCount:  1,
+			},
+			SizeInBytes:             int64(1000),
+			LatestLogicalBackupSize: int64(500),
+			Description:             "test backup",
+			Type:                    "MANUAL",
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(backup, nil)
+
+		params := gcpgenserver.V1betaInternalDescribeBackupParams{
+			BackupVaultId:  "vault-123",
+			BackupId:       "backup-123",
+			ProjectNumber:  "project-123",
+			LocationId:     "us-east4",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		resp, err := handler.V1betaInternalDescribeBackup(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.IsType(t, &gcpgenserver.V1betaInternalDescribeBackupOK{}, resp)
+		okResp := resp.(*gcpgenserver.V1betaInternalDescribeBackupOK)
+		assert.Equal(t, 1, len(okResp.Backups))
+		assert.Equal(t, "backup-123", okResp.Backups[0].ResourceId.Value)
+		assert.Equal(t, true, okResp.Backups[0].IsRestoring.Value)
+	})
+
+	t.Run("WhenParsingRegionAndZoneFails", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalDescribeBackupParams{
+			LocationId: "invalid-location",
+		}
+
+		result, err := handler.V1betaInternalDescribeBackup(ctx, params)
+		assert.Nil(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaInternalDescribeBackupInternalServerError{}, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaInternalDescribeBackupInternalServerError).Code)
+	})
+
+	t.Run("WhenGetBackupReturnsError", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(nil, errors.New("database error"))
+
+		params := gcpgenserver.V1betaInternalDescribeBackupParams{
+			BackupVaultId:  "vault-123",
+			BackupId:       "backup-123",
+			ProjectNumber:  "project-123",
+			LocationId:     "us-east4",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		resp, err := handler.V1betaInternalDescribeBackup(ctx, params)
+
+		assert.Error(t, err)
+		assert.NotNil(t, resp)
+		assert.IsType(t, &gcpgenserver.V1betaInternalDescribeBackupInternalServerError{}, resp)
+		internalErr := resp.(*gcpgenserver.V1betaInternalDescribeBackupInternalServerError)
+		assert.Equal(t, float64(500), internalErr.Code)
+		assert.Equal(t, "database error", internalErr.Message)
+	})
+
+	t.Run("WhenBackupHasImmutableAttributesAndEnforcedRetention", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		sourceRegionName := "us-east4"
+		retentionDays := int64(30)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "vault-uuid",
+			},
+			Name:             "test-backup-vault",
+			SourceRegionName: &sourceRegionName,
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", SatisfiesPzi: true, SatisfiesPzs: true}},
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &retentionDays,
+				IsAdhocBackupImmutable:                 true, // Manual backups are adhoc
+			},
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now().AddDate(0, 0, -10), // Created 10 days ago
+			},
+			State:         coremodels.LifeCycleStateAvailable,
+			Name:          "backup-123",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				UseExistingSnapshot: false,
+			},
+			SizeInBytes:             int64(1000),
+			LatestLogicalBackupSize: int64(500),
+			Description:             "test backup",
+			Type:                    "MANUAL",
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(backup, nil)
+
+		params := gcpgenserver.V1betaInternalDescribeBackupParams{
+			BackupVaultId:  "vault-123",
+			BackupId:       "backup-123",
+			ProjectNumber:  "project-123",
+			LocationId:     "us-east4",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		resp, err := handler.V1betaInternalDescribeBackup(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.IsType(t, &gcpgenserver.V1betaInternalDescribeBackupOK{}, resp)
+		okResp := resp.(*gcpgenserver.V1betaInternalDescribeBackupOK)
+		assert.Equal(t, 1, len(okResp.Backups))
+		assert.True(t, okResp.Backups[0].EnforcedRetentionEndTime.Set)
+	})
+}
+
 // Mock for listBackupsToCVP
 var mockListBackupsToCVP = func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
 	return nil, nil
@@ -4563,4 +4794,815 @@ func TestConvertBackupDataModelToBackupsV1beta_EnforcedRetentionEndTime(t *testi
 			assert.Equal(t, tt.backup.UUID, result.BackupId.Value)
 		})
 	}
+}
+
+func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
+	t.Run("BasicConversionWithAllFields", func(t *testing.T) {
+		sourceRegionName := "us-central1"
+		createdAt := time.Now().AddDate(0, 0, -5)
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-123",
+				CreatedAt: createdAt,
+			},
+			Name:                    "test-backup",
+			VolumeUUID:              "volume-uuid-456",
+			State:                   coremodels.LifeCycleStateAvailable,
+			SizeInBytes:             1024,
+			Description:             "Test backup description",
+			Type:                    "MANUAL",
+			LatestLogicalBackupSize: 2048,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier:   "123456789",
+				BucketName:          "test-bucket",
+				VolumeName:          "test-volume",
+				SnapshotName:        "test-snapshot",
+				UseExistingSnapshot: true,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid-789",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{
+						BucketName:   "test-bucket",
+						SatisfiesPzi: true,
+						SatisfiesPzs: false,
+					},
+				},
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.True(t, result.ResourceId.Set)
+		assert.Equal(t, "volume-uuid-456", result.VolumeId.Value)
+		assert.True(t, result.VolumeId.Set)
+		assert.Equal(t, gcpgenserver.InternalBackupV1betaStateREADY, result.State.Value)
+		assert.True(t, result.State.Set)
+		assert.Equal(t, createdAt, result.Created.Value)
+		assert.True(t, result.Created.Set)
+		assert.Equal(t, "backup-uuid-123", result.BackupId.Value)
+		assert.True(t, result.BackupId.Set)
+		assert.Equal(t, int64(1024), result.VolumeUsageBytes.Value)
+		assert.True(t, result.VolumeUsageBytes.Set)
+		assert.Equal(t, "vault-uuid-789", result.BackupVaultId.Value)
+		assert.True(t, result.BackupVaultId.Set)
+		assert.Equal(t, "Test backup description", result.Description.Value)
+		assert.True(t, result.Description.Set)
+		assert.Equal(t, gcpgenserver.InternalBackupV1betaBackupTypeMANUAL, result.BackupType.Value)
+		assert.True(t, result.BackupType.Set)
+		assert.True(t, result.SourceSnapshot.Set)
+		assert.Contains(t, result.SourceSnapshot.Value, "test-snapshot")
+		assert.True(t, result.SourceVolume.Set)
+		assert.Contains(t, result.SourceVolume.Value, "test-volume")
+		assert.Equal(t, "us-central1", result.BackupRegion.Value)
+		assert.True(t, result.BackupRegion.Set)
+		assert.Equal(t, "us-central1", result.VolumeRegion.Value)
+		assert.True(t, result.VolumeRegion.Set)
+		assert.True(t, result.SatisfiesPzi.Value)
+		assert.True(t, result.SatisfiesPzi.Set)
+		assert.False(t, result.SatisfiesPzs.Value)
+		assert.True(t, result.SatisfiesPzs.Set)
+		assert.Equal(t, int64(2048), result.BackupChainBytes.Value)
+		assert.True(t, result.BackupChainBytes.Set)
+		assert.False(t, result.IsRestoring.Value)
+		assert.True(t, result.IsRestoring.Set)
+		assert.False(t, result.AssetLocationMetadata.Set)
+	})
+
+	t.Run("StateConversion_READY", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.Equal(t, gcpgenserver.InternalBackupV1betaStateREADY, result.State.Value)
+	})
+
+	t.Run("StateConversion_UPDATING", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateUpdating,
+			Type:       "MANUAL",
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.Equal(t, gcpgenserver.InternalBackupV1betaStateUPDATING, result.State.Value)
+	})
+
+	t.Run("StateConversion_DefaultState", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      "IN_PROGRESS",
+			Type:       "MANUAL",
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.Equal(t, gcpgenserver.InternalBackupV1betaState("IN_PROGRESS"), result.State.Value)
+	})
+
+	t.Run("IsRestoring_True", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, true)
+
+		assert.True(t, result.IsRestoring.Value)
+		assert.True(t, result.IsRestoring.Set)
+	})
+
+	t.Run("IsRestoring_False", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.False(t, result.IsRestoring.Value)
+		assert.True(t, result.IsRestoring.Set)
+	})
+
+	t.Run("WithSnapshot_UseExistingSnapshotTrue", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier:   "123456789",
+				BucketName:          "test-bucket",
+				VolumeName:          "test-volume",
+				SnapshotName:        "snapshot-123",
+				UseExistingSnapshot: true,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.True(t, result.SourceSnapshot.Set)
+		assert.Contains(t, result.SourceSnapshot.Value, "snapshot-123")
+	})
+
+	t.Run("WithoutSnapshot_UseExistingSnapshotFalse", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				VolumeName:          "test-volume",
+				SnapshotName:        "snapshot-123",
+				UseExistingSnapshot: false,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.False(t, result.SourceSnapshot.Set)
+	})
+
+	t.Run("WithoutSnapshot_EmptySnapshotName", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				VolumeName:          "test-volume",
+				SnapshotName:        "",
+				UseExistingSnapshot: true,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.False(t, result.SourceSnapshot.Set)
+	})
+
+	t.Run("PZIAndPZSFlags_FromBucketDetails", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "matching-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{
+						BucketName:   "other-bucket",
+						SatisfiesPzi: false,
+						SatisfiesPzs: false,
+					},
+					{
+						BucketName:   "matching-bucket",
+						SatisfiesPzi: true,
+						SatisfiesPzs: true,
+					},
+				},
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.True(t, result.SatisfiesPzi.Value)
+		assert.True(t, result.SatisfiesPzs.Value)
+	})
+
+	t.Run("BackupChainBytes_SetWhenNonZero", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:                    "test-backup",
+			VolumeUUID:              "volume-uuid",
+			State:                   coremodels.LifeCycleStateAvailable,
+			Type:                    "MANUAL",
+			LatestLogicalBackupSize: 5000,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.True(t, result.BackupChainBytes.Set)
+		assert.Equal(t, int64(5000), result.BackupChainBytes.Value)
+	})
+
+	t.Run("BackupChainBytes_UnsetWhenZero", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:                    "test-backup",
+			VolumeUUID:              "volume-uuid",
+			State:                   coremodels.LifeCycleStateAvailable,
+			Type:                    "MANUAL",
+			LatestLogicalBackupSize: 0,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.False(t, result.BackupChainBytes.Set)
+	})
+
+	t.Run("ImmutableBackup_RetentionNotExpired_ShouldSetEnforcedRetentionEndTime", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		retentionDays := int64(30)
+		createdAt := time.Now().AddDate(0, 0, -10) // Created 10 days ago
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: createdAt,
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       utils.BackupTypeMANUAL,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &retentionDays,
+					IsAdhocBackupImmutable:                 true,
+				},
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.True(t, result.EnforcedRetentionEndTime.Set)
+		expectedExpiration := createdAt.AddDate(0, 0, 30)
+		assert.Equal(t, expectedExpiration.Year(), result.EnforcedRetentionEndTime.Value.Year())
+		assert.Equal(t, expectedExpiration.Month(), result.EnforcedRetentionEndTime.Value.Month())
+		assert.Equal(t, expectedExpiration.Day(), result.EnforcedRetentionEndTime.Value.Day())
+	})
+
+	t.Run("ImmutableBackup_RetentionExpired_ShouldNotSetEnforcedRetentionEndTime", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		retentionDays := int64(30)
+		createdAt := time.Now().AddDate(0, 0, -40) // Created 40 days ago (expired)
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: createdAt,
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       utils.BackupTypeMANUAL,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &retentionDays,
+					IsAdhocBackupImmutable:                 true,
+				},
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.False(t, result.EnforcedRetentionEndTime.Set)
+	})
+
+	t.Run("ImmutableBackup_NotImmutable_ShouldNotSetEnforcedRetentionEndTime", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		retentionDays := int64(30)
+		createdAt := time.Now().AddDate(0, 0, -10)
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: createdAt,
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       utils.BackupTypeMANUAL,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &retentionDays,
+					IsAdhocBackupImmutable:                 false, // Not immutable
+				},
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.False(t, result.EnforcedRetentionEndTime.Set)
+	})
+
+	t.Run("ImmutableBackup_NilImmutableAttributes_ShouldNotSetEnforcedRetentionEndTime", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       utils.BackupTypeMANUAL,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName:    &sourceRegionName,
+				ImmutableAttributes: nil,
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.False(t, result.EnforcedRetentionEndTime.Set)
+	})
+
+	t.Run("ImmutableBackup_ZeroRetentionDuration_ShouldNotSetEnforcedRetentionEndTime", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		retentionDays := int64(0)
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "volume-uuid",
+			State:      coremodels.LifeCycleStateAvailable,
+			Type:       utils.BackupTypeMANUAL,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "vault-uuid",
+				},
+				SourceRegionName: &sourceRegionName,
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: &retentionDays,
+					IsAdhocBackupImmutable:                 true,
+				},
+				BucketDetails: datamodel.BucketDetailsArray{
+					{BucketName: "test-bucket"},
+				},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.False(t, result.EnforcedRetentionEndTime.Set)
+	})
+}
+
+func TestV1betaInternalDeleteBackupUnderBackupVault(t *testing.T) {
+	t.Run("WhenParsingRegionAndZoneFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
+			LocationId: "invalid-location",
+		}
+
+		result, err := handler.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
+		assert.Nil(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultBadRequest{}, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultBadRequest).Code)
+	})
+
+	t.Run("WhenBackupNotFoundInVSA", func(tt *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
+			BackupVaultId: "vault-id",
+			BackupId:      "backup-id",
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("backup", nil))
+
+		result, err := handler.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
+		assert.Nil(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultNotFound{}, result)
+		notFound := result.(*gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultNotFound)
+		assert.Equal(tt, float64(404), notFound.Code)
+		assert.Contains(tt, notFound.Message, "backup-id")
+		assert.Contains(tt, notFound.Message, "vault-id")
+	})
+
+	t.Run("WhenGetBackupReturnsNonNotFoundError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
+			BackupVaultId: "vault-id",
+			BackupId:      "backup-id",
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(nil, errors.New("database error"))
+
+		result, err := handler.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
+		assert.NotNil(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultInternalServerError{}, result)
+		internalErr := result.(*gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultInternalServerError)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Equal(tt, "database error", internalErr.Message)
+	})
+
+	t.Run("WhenDeleteBackupInternalReturnsUserInputValidationError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
+			BackupVaultId: "vault-id",
+			BackupId:      "backup-id",
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(&datamodel.Backup{}, nil)
+		mockOrchestrator.EXPECT().DeleteBackupInternal(ctx, mock.Anything).Return("", errors.NewUserInputValidationErr("Cannot delete backup as restore is in progress"))
+
+		result, err := handler.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
+		assert.Nil(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultBadRequest{}, result)
+		badRequest := result.(*gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultBadRequest)
+		assert.Equal(tt, float64(400), badRequest.Code)
+		assert.Equal(tt, "Cannot delete backup as restore is in progress", badRequest.Message)
+	})
+
+	t.Run("WhenDeleteBackupInternalReturnsOtherError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
+			BackupVaultId: "vault-id",
+			BackupId:      "backup-id",
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(&datamodel.Backup{}, nil)
+		mockOrchestrator.EXPECT().DeleteBackupInternal(ctx, mock.Anything).Return("", errors.New("failed to delete backup"))
+
+		result, err := handler.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
+		assert.NotNil(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultInternalServerError{}, result)
+		internalErr := result.(*gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultInternalServerError)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Equal(tt, "failed to delete backup", internalErr.Message)
+	})
+
+	t.Run("WhenDeleteBackupInternalSuccessWithEmptyJobId", func(tt *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
+			BackupVaultId: "vault-id",
+			BackupId:      "backup-id",
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(&datamodel.Backup{}, nil)
+		mockOrchestrator.EXPECT().DeleteBackupInternal(ctx, mock.Anything).Return("", nil)
+
+		result, err := handler.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
+		assert.Nil(tt, err)
+		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
+		operation := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, operation.Done.Value)
+		assert.True(tt, operation.Name.IsSet())
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/project-number/locations/us-east4/operations/")
+	})
+
+	t.Run("WhenDeleteBackupInternalSuccessWithNonEmptyJobId", func(tt *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
+			BackupVaultId: "vault-id",
+			BackupId:      "backup-id",
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(&datamodel.Backup{}, nil)
+		mockOrchestrator.EXPECT().DeleteBackupInternal(ctx, mock.Anything).Return("job-id-123", nil)
+
+		result, err := handler.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
+		assert.Nil(tt, err)
+		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
+		operation := result.(*gcpgenserver.OperationV1beta)
+		assert.False(tt, operation.Done.Value)
+		assert.True(tt, operation.Name.IsSet())
+		expectedOperationID := "/v1beta/projects/project-number/locations/us-east4/operations/job-id-123"
+		assert.Equal(tt, expectedOperationID, operation.Name.Value)
+	})
 }

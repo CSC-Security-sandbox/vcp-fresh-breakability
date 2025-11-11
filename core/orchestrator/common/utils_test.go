@@ -1,11 +1,13 @@
 package common
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
@@ -920,5 +922,184 @@ func TestConvertStringSliceToPointerSlice(t *testing.T) {
 		out := ConvertStringSliceToPointerSlice(in)
 		assert.Len(t, out, 1)
 		assert.Equal(t, "solo", *out[0])
+	})
+}
+
+func TestGetRemoteRegionConfig(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
+		originalRegionsGroupJSON := SetRegionsGroupJSONForTest(`{"us-west1":"https://vcp-west.example.com"}`)
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			SetRegionsGroupJSONForTest(originalRegionsGroupJSON)
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+
+		expectedToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return expectedToken, nil
+		}
+
+		// Act
+		basePath, jwtToken, err := GetRemoteRegionConfig("us-west1", "123456789")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "https://vcp-west.example.com", basePath)
+		assert.Equal(t, expectedToken, jwtToken)
+	})
+
+	t.Run("EmptyRegionsGroupJSON", func(t *testing.T) {
+		// Arrange
+		originalRegionsGroupJSON := SetRegionsGroupJSONForTest("")
+		defer func() {
+			SetRegionsGroupJSONForTest(originalRegionsGroupJSON)
+		}()
+
+		// Act
+		basePath, jwtToken, err := GetRemoteRegionConfig("us-west1", "123456789")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Empty(t, basePath)
+		assert.Empty(t, jwtToken)
+		assert.Contains(t, err.Error(), "VCP_PAIRED_REGIONS environment variable not set")
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		// Arrange
+		originalRegionsGroupJSON := SetRegionsGroupJSONForTest("{invalid-json")
+		defer func() {
+			SetRegionsGroupJSONForTest(originalRegionsGroupJSON)
+		}()
+
+		// Act
+		basePath, jwtToken, err := GetRemoteRegionConfig("us-west1", "123456789")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Empty(t, basePath)
+		assert.Empty(t, jwtToken)
+		assert.Contains(t, err.Error(), "failed to parse VCP_PAIRED_REGIONS JSON")
+	})
+
+	t.Run("RegionNotFound", func(t *testing.T) {
+		// Arrange
+		originalRegionsGroupJSON := SetRegionsGroupJSONForTest(`{"us-east1":"https://vcp-east.example.com"}`)
+		defer func() {
+			SetRegionsGroupJSONForTest(originalRegionsGroupJSON)
+		}()
+
+		// Act
+		basePath, jwtToken, err := GetRemoteRegionConfig("us-west1", "123456789")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Empty(t, basePath)
+		assert.Empty(t, jwtToken)
+		assert.Contains(t, err.Error(), "no base path configured for region: us-west1 in VCP_PAIRED_REGIONS")
+	})
+
+	t.Run("GetJWTTokenError", func(t *testing.T) {
+		// Arrange
+		originalRegionsGroupJSON := SetRegionsGroupJSONForTest(`{"us-west1":"https://vcp-west.example.com"}`)
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			SetRegionsGroupJSONForTest(originalRegionsGroupJSON)
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+
+		expectedError := errors.New("failed to get JWT token")
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", expectedError
+		}
+
+		// Act
+		basePath, jwtToken, err := GetRemoteRegionConfig("us-west1", "123456789")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Empty(t, basePath)
+		assert.Empty(t, jwtToken)
+		assert.Contains(t, err.Error(), "failed to get JWT token for project 123456789")
+		assert.Contains(t, err.Error(), "failed to get JWT token")
+	})
+
+	t.Run("MultipleRegions", func(t *testing.T) {
+		// Arrange
+		originalRegionsGroupJSON := SetRegionsGroupJSONForTest(`{"us-west1":"https://vcp-west.example.com","us-east1":"https://vcp-east.example.com","us-central1":"https://vcp-central.example.com"}`)
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			SetRegionsGroupJSONForTest(originalRegionsGroupJSON)
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+
+		expectedToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return expectedToken, nil
+		}
+
+		// Act - Test us-east1
+		basePath, jwtToken, err := GetRemoteRegionConfig("us-east1", "123456789")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "https://vcp-east.example.com", basePath)
+		assert.Equal(t, expectedToken, jwtToken)
+
+		// Act - Test us-central1
+		basePath2, jwtToken2, err2 := GetRemoteRegionConfig("us-central1", "987654321")
+
+		// Assert
+		assert.NoError(t, err2)
+		assert.Equal(t, "https://vcp-central.example.com", basePath2)
+		assert.Equal(t, expectedToken, jwtToken2)
+	})
+
+	t.Run("EmptyBasePath", func(t *testing.T) {
+		// Arrange
+		originalRegionsGroupJSON := SetRegionsGroupJSONForTest(`{"us-west1":""}`)
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			SetRegionsGroupJSONForTest(originalRegionsGroupJSON)
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+
+		expectedToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return expectedToken, nil
+		}
+
+		// Act
+		basePath, jwtToken, err := GetRemoteRegionConfig("us-west1", "123456789")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "", basePath)
+		assert.Equal(t, expectedToken, jwtToken)
+	})
+
+	t.Run("EmptyProjectNumber", func(t *testing.T) {
+		// Arrange
+		originalRegionsGroupJSON := SetRegionsGroupJSONForTest(`{"us-west1":"https://vcp-west.example.com"}`)
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			SetRegionsGroupJSONForTest(originalRegionsGroupJSON)
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+
+		expectedToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			assert.Equal(t, "", projectNumber)
+			return expectedToken, nil
+		}
+
+		// Act
+		basePath, jwtToken, err := GetRemoteRegionConfig("us-west1", "")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "https://vcp-west.example.com", basePath)
+		assert.Equal(t, expectedToken, jwtToken)
 	})
 }

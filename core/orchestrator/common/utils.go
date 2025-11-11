@@ -1,12 +1,14 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -24,9 +26,11 @@ var (
 	SnapmirrorSnapshotPrefix             = regexp.MustCompile("^snapmirror.*$")
 	ImmutablePeriodInDaysMax             = env.GetInt("IMMUTABLE_PERIOD_IN_DAYS_MAX", 5475)
 	ImmutablePeriodInDaysMaxDailyEnabled = env.GetInt("IMMUTABLE_PERIOD_IN_DAYS_MAX_DAILY_ENABLED", 1000)
+	regionsGroupJSON                     = env.GetString("VCP_PAIRED_REGIONS", "")
 	SleepFn                              = time.Sleep
 	MaxRetries                           = 3
 	RetryDelay                           = 5 * time.Second
+	GetRemoteRegionConfig                = _getRemoteRegionConfig
 )
 
 func CreateJunctionPath(token string) string {
@@ -117,4 +121,40 @@ func CheckIfBackupIsImmutable(backup *datamodel.Backup) bool {
 		}
 	}
 	return false
+}
+
+// _getRemoteRegionConfig gets the base path and JWT token for a remote region
+func _getRemoteRegionConfig(region, projectNumber string) (string, string, error) {
+	if regionsGroupJSON == "" {
+		return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
+	}
+
+	var regionsGroup map[string]string
+	if err := json.Unmarshal([]byte(regionsGroupJSON), &regionsGroup); err != nil {
+		return "", "", fmt.Errorf("failed to parse VCP_PAIRED_REGIONS JSON: %w", err)
+	}
+
+	basePath, exists := regionsGroup[region]
+	if !exists {
+		return "", "", fmt.Errorf("no base path configured for region: %s in VCP_PAIRED_REGIONS", region)
+	}
+
+	jwtToken, err := auth.GetSignedJwtToken(projectNumber)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get JWT token for project %s: %w", projectNumber, err)
+	}
+
+	return basePath, jwtToken, nil
+}
+
+// SetRegionsGroupJSONForTest sets the regionsGroupJSON variable for testing purposes
+func SetRegionsGroupJSONForTest(value string) string {
+	original := regionsGroupJSON
+	regionsGroupJSON = value
+	return original
+}
+
+// GetRegionsGroupJSONForTest returns the current value of regionsGroupJSON for testing purposes
+func GetRegionsGroupJSONForTest() string {
+	return regionsGroupJSON
 }

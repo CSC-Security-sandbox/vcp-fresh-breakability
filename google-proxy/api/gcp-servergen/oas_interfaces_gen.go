@@ -209,12 +209,20 @@ type V1betaInternalCreateVolumeReplicationRes interface {
 	v1betaInternalCreateVolumeReplicationRes()
 }
 
+type V1betaInternalDeleteBackupUnderBackupVaultRes interface {
+	v1betaInternalDeleteBackupUnderBackupVaultRes()
+}
+
 type V1betaInternalDeleteVolumeReplicationRes interface {
 	v1betaInternalDeleteVolumeReplicationRes()
 }
 
 type V1betaInternalDeleteVolumeSnapmirrorSnapshotRes interface {
 	v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()
+}
+
+type V1betaInternalDescribeBackupRes interface {
+	v1betaInternalDescribeBackupRes()
 }
 
 type V1betaInternalDescribeBackupVaultRes interface {

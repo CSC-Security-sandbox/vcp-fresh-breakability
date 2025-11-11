@@ -159,6 +159,22 @@ func (s *HourlyScheduleV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *InternalBackupV1beta) setDefaults() {
+	{
+		val := int64(0)
+		s.VolumeUsageBytes.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.SatisfiesPzs.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.SatisfiesPzi.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *InternalOperationV1beta) setDefaults() {
 	{
 		val := bool(false)

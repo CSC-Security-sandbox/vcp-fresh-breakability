@@ -3,10 +3,13 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -27,6 +30,8 @@ var (
 	updateBackup               = _updateBackup
 	validateBackupDeleteParams = _validateBackupDeleteParams
 	validateSnapshotForBackup  = _validateSnapshotForBackup
+	fetchRemoteBackupFromVCP   = _fetchRemoteBackupFromVCP
+	getRemoteRegionConfig      = common.GetRemoteRegionConfig
 )
 
 // CreateBackup creates the specified backup and adds it to the list of backup belonging to the specified BackupVault
@@ -367,6 +372,32 @@ func (o *Orchestrator) DeleteBackup(ctx context.Context, params *common.DeleteBa
 	return deleteBackup(ctx, o.storage, o.temporal, params)
 }
 
+func (o *Orchestrator) DeleteBackupInternal(ctx context.Context, params *common.DeleteBackupParams) (string, error) {
+	se := o.storage
+	logger := util.GetLogger(ctx)
+
+	backup, err := se.GetBackup(ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger.Infof("Backup %s not found, nothing to delete", params.BackupUUID)
+			return "", nil
+		}
+		return "", err
+	}
+
+	if backup.Attributes.RestoreVolumeCount > 0 {
+		logger.Errorf("Could not delete the backup as it is being used to restore volume(s): %d", backup.Attributes.RestoreVolumeCount)
+		return "", customerrors.NewUserInputValidationErr("Cannot delete the backup as it is being used to restore a volume")
+	}
+
+	_, err = se.DeleteBackup(ctx, backup.UUID)
+	if err != nil {
+		logger.Error("Failed to delete backup in database", "error", err)
+		return "", err
+	}
+	return "", nil
+}
+
 func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Client, params *common.DeleteBackupParams) (*models.BaseModel, string, error) {
 	logger := util.GetLogger(ctx)
 
@@ -416,6 +447,19 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 	if len(volumes) > 0 {
 		return nil, "", customerrors.NewUserInputValidationErr("Cannot delete backup as restore is in progress for this backup")
+	}
+
+	if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
+		remoteBackup, err := fetchRemoteBackupFromVCP(ctx, backup.ExternalUUID, *backup.BackupVault.ExternalUUID, params.AccountName, *backup.BackupVault.BackupRegionName)
+		if err != nil {
+			logger.Errorf("Failed to fetch remote backup from VCP: %v", err)
+			return nil, "", err
+		}
+
+		if remoteBackup.IsRestoring.Value {
+			logger.Errorf("Cannot delete backup %s as restore is in progress for this backup in remote region", backup.UUID)
+			return nil, "", customerrors.NewUserInputValidationErr("Cannot delete backup as restore is in progress for this backup in remote region")
+		}
 	}
 
 	originalState := backup.State
@@ -605,4 +649,47 @@ func _validateSnapshotForBackup(ctx context.Context, se database.Storage, params
 		}
 	}
 	return nil
+}
+
+// fetchRemoteBackupFromVCP fetches the Backup from the remote region using Google Proxy Client
+func _fetchRemoteBackupFromVCP(ctx context.Context, backupUUID, backupVaultUUID, projectNumber, region string) (googleproxyclient.InternalBackupV1beta, error) {
+	logger := util.GetLogger(ctx)
+	basePath, jwtToken, err := getRemoteRegionConfig(region, projectNumber)
+	if err != nil {
+		logger.Error("Failed to get remote region configuration", "region", region, "error", err)
+		return googleproxyclient.InternalBackupV1beta{}, err
+	}
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	params := googleproxyclient.V1betaInternalDescribeBackupParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     region,
+		BackupVaultId:  backupVaultUUID,
+		BackupId:       backupUUID,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalDescribeBackup(ctx, params)
+	if err != nil {
+		logger.Errorf("Failed to fetch remote Backup: %v, region=%s, backupVaultID=%s, backupID=%s", err, region, backupVaultUUID, backupUUID)
+		return googleproxyclient.InternalBackupV1beta{}, customerrors.NewNotFoundErr("remote backup", &backupUUID)
+	}
+
+	backupResponse, ok := res.(*googleproxyclient.V1betaInternalDescribeBackupOK)
+	if !ok {
+		logger.Error("Unexpected response type from remote Backup fetch", "type", fmt.Sprintf("%T", res))
+		return googleproxyclient.InternalBackupV1beta{}, customerrors.NewNotFoundErr("remote backup", &backupUUID)
+	}
+
+	if len(backupResponse.Backups) == 0 {
+		logger.Errorf("No backups found in remote response, backupID=%s", backupUUID)
+		return googleproxyclient.InternalBackupV1beta{}, customerrors.NewNotFoundErr("remote backup", &backupUUID)
+	}
+
+	// Take the first backup from the array
+	backup := backupResponse.Backups[0]
+	logger.Infof("Successfully fetched remote Backup, backupID=%s, region=%s", backup.ResourceId.Value, region)
+	return backup, nil
 }

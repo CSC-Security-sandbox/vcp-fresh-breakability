@@ -3117,6 +3117,65 @@ func (_c *MockHandler_V1betaInternalCreateVolumeReplication_Call) RunAndReturn(r
 	return _c
 }
 
+// V1betaInternalDeleteBackupUnderBackupVault provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context, params V1betaInternalDeleteBackupUnderBackupVaultParams) (V1betaInternalDeleteBackupUnderBackupVaultRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalDeleteBackupUnderBackupVault")
+	}
+
+	var r0 V1betaInternalDeleteBackupUnderBackupVaultRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDeleteBackupUnderBackupVaultParams) (V1betaInternalDeleteBackupUnderBackupVaultRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDeleteBackupUnderBackupVaultParams) V1betaInternalDeleteBackupUnderBackupVaultRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalDeleteBackupUnderBackupVaultRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalDeleteBackupUnderBackupVaultParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalDeleteBackupUnderBackupVault'
+type MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalDeleteBackupUnderBackupVault is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalDeleteBackupUnderBackupVaultParams
+func (_e *MockHandler_Expecter) V1betaInternalDeleteBackupUnderBackupVault(ctx interface{}, params interface{}) *MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call {
+	return &MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call{Call: _e.mock.On("V1betaInternalDeleteBackupUnderBackupVault", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call) Run(run func(ctx context.Context, params V1betaInternalDeleteBackupUnderBackupVaultParams)) *MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalDeleteBackupUnderBackupVaultParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call) Return(_a0 V1betaInternalDeleteBackupUnderBackupVaultRes, _a1 error) *MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call) RunAndReturn(run func(context.Context, V1betaInternalDeleteBackupUnderBackupVaultParams) (V1betaInternalDeleteBackupUnderBackupVaultRes, error)) *MockHandler_V1betaInternalDeleteBackupUnderBackupVault_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaInternalDeleteVolumeReplication provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaInternalDeleteVolumeReplication(ctx context.Context, params V1betaInternalDeleteVolumeReplicationParams) (V1betaInternalDeleteVolumeReplicationRes, error) {
 	ret := _m.Called(ctx, params)
@@ -3231,6 +3290,65 @@ func (_c *MockHandler_V1betaInternalDeleteVolumeSnapmirrorSnapshot_Call) Return(
 }
 
 func (_c *MockHandler_V1betaInternalDeleteVolumeSnapmirrorSnapshot_Call) RunAndReturn(run func(context.Context, V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, error)) *MockHandler_V1betaInternalDeleteVolumeSnapmirrorSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalDescribeBackup provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaInternalDescribeBackup(ctx context.Context, params V1betaInternalDescribeBackupParams) (V1betaInternalDescribeBackupRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalDescribeBackup")
+	}
+
+	var r0 V1betaInternalDescribeBackupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDescribeBackupParams) (V1betaInternalDescribeBackupRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalDescribeBackupParams) V1betaInternalDescribeBackupRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalDescribeBackupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalDescribeBackupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalDescribeBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalDescribeBackup'
+type MockHandler_V1betaInternalDescribeBackup_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalDescribeBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalDescribeBackupParams
+func (_e *MockHandler_Expecter) V1betaInternalDescribeBackup(ctx interface{}, params interface{}) *MockHandler_V1betaInternalDescribeBackup_Call {
+	return &MockHandler_V1betaInternalDescribeBackup_Call{Call: _e.mock.On("V1betaInternalDescribeBackup", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaInternalDescribeBackup_Call) Run(run func(ctx context.Context, params V1betaInternalDescribeBackupParams)) *MockHandler_V1betaInternalDescribeBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalDescribeBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDescribeBackup_Call) Return(_a0 V1betaInternalDescribeBackupRes, _a1 error) *MockHandler_V1betaInternalDescribeBackup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalDescribeBackup_Call) RunAndReturn(run func(context.Context, V1betaInternalDescribeBackupParams) (V1betaInternalDescribeBackupRes, error)) *MockHandler_V1betaInternalDescribeBackup_Call {
 	_c.Call.Return(run)
 	return _c
 }

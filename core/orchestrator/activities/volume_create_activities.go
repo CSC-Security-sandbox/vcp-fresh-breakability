@@ -836,7 +836,7 @@ func UpdateRemoteBackupVaultDetailsInVCP(ctx context.Context, volume *datamodel.
 // FetchRemoteBackupVaultFromVCP calls the internal GET endpoint to fetch BackupVault from a remote region
 func FetchRemoteBackupVaultFromVCP(ctx context.Context, backupVaultUUID, projectNumber, region string) (*datamodel.BackupVault, error) {
 	logger := util.GetLogger(ctx)
-	basePath, jwtToken, err := getRemoteRegionConfig(region, projectNumber)
+	basePath, jwtToken, err := common.GetRemoteRegionConfig(region, projectNumber)
 	if err != nil {
 		logger.Error("Failed to get remote region configuration", "region", region, "error", err)
 		return nil, err
@@ -934,7 +934,7 @@ func FetchRemoteBackupVaultFromCVP(ctx context.Context, backupVaultName, project
 func createRemoteBackupVaultWithBucketDetailsInVCP(ctx context.Context, volume *datamodel.Volume, backupVault *datamodel.BackupVault, region string) (*datamodel.BackupVault, error) {
 	logger := util.GetLogger(ctx)
 
-	basePath, jwtToken, err := getRemoteRegionConfig(region, volume.Account.Name)
+	basePath, jwtToken, err := common.GetRemoteRegionConfig(region, volume.Account.Name)
 	if err != nil {
 		logger.Error("Failed to get remote region configuration", "region", region, "error", err.Error())
 		return nil, err
@@ -1428,31 +1428,6 @@ func (a VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, 
 		return nil, err
 	}
 	return asyncResp, nil
-}
-
-// getRemoteRegionConfig gets the base path and JWT token for a remote region
-func getRemoteRegionConfig(region, projectNumber string) (string, string, error) {
-	regionsGroupJSON := env.GetString("VCP_PAIRED_REGIONS", "")
-	if regionsGroupJSON == "" {
-		return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
-	}
-
-	var regionsGroup map[string]string
-	if err := json.Unmarshal([]byte(regionsGroupJSON), &regionsGroup); err != nil {
-		return "", "", fmt.Errorf("failed to parse VCP_PAIRED_REGIONS JSON: %w", err)
-	}
-
-	basePath, exists := regionsGroup[region]
-	if !exists {
-		return "", "", fmt.Errorf("no base path configured for region: %s in VCP_PAIRED_REGIONS", region)
-	}
-
-	jwtToken, err := GetSignedJwtTokenFunc(projectNumber)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get JWT token for project %s: %w", projectNumber, err)
-	}
-
-	return basePath, jwtToken, nil
 }
 
 // convertCommonToDatamodel converts common.BucketDetails to datamodel.BucketDetails

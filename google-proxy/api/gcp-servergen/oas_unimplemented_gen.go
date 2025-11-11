@@ -492,6 +492,15 @@ func (UnimplementedHandler) V1betaInternalCreateVolumeReplication(ctx context.Co
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalDeleteBackupUnderBackupVault implements v1beta_internalDeleteBackupUnderBackupVault operation.
+//
+// Delete a backup under backup vault.
+//
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+func (UnimplementedHandler) V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context, params V1betaInternalDeleteBackupUnderBackupVaultParams) (r V1betaInternalDeleteBackupUnderBackupVaultRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalDeleteVolumeReplication implements v1beta_internalDeleteVolumeReplication operation.
 //
 // Warning! This operation will permanently delete the volume replication.
@@ -507,6 +516,15 @@ func (UnimplementedHandler) V1betaInternalDeleteVolumeReplication(ctx context.Co
 //
 // DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots
 func (UnimplementedHandler) V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (r V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalDescribeBackup implements v1beta_internalDescribeBackup operation.
+//
+// Describe a backup present under a backup vault.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+func (UnimplementedHandler) V1betaInternalDescribeBackup(ctx context.Context, params V1betaInternalDescribeBackupParams) (r V1betaInternalDescribeBackupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

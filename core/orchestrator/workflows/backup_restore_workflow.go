@@ -154,6 +154,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	volumeActivity := &activities.VolumeCreateActivity{}
 	var volumeUpdateActivity *activities.VolumeUpdateActivity
 	volumeUpdateActivity = &activities.VolumeUpdateActivity{}
+	backupActivity := &activities.BackupActivity{}
 	var err error
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -171,6 +172,13 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
+		// Decrement backup restore count after the workflow is complete
+		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
+			backupActivitiesContext.BackupWorkflowInit.BackupVault.UUID,
+			backupActivitiesContext.BackupWorkflowInit.Backup.UUID,
+			backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name, activities.BackupRestoreCountDecrement).Get(ctx, nil)
+		log.Errorf("Failed to revert backup restore count: %v", err)
+
 		// just a placeholder for rollback manager cleanup
 		if err != nil && workflow.IsContinueAsNewError(err) {
 			// Don't execute rollback for ContinueAsNew - let the new execution handle it
@@ -190,6 +198,16 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			"snapshotName", backupActivitiesContext.SnapshotName,
 			"transferStatus", backupActivitiesContext.TransferStatus)
 	} else {
+		// Increment restore count to indicate that a volume restoration is in-progress for the backup
+		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
+			backupActivitiesContext.BackupWorkflowInit.BackupVault.UUID,
+			backupActivitiesContext.BackupWorkflowInit.Backup.UUID,
+			backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name, activities.BackupRestoreCountIncrement).Get(ctx, nil)
+		if err != nil {
+			log.Errorf("Failed to update backup restore count: %v", err)
+			return nil, ConvertToVSAError(err)
+		}
+
 		// Execute VPC pool restoration activity to handle cross-project permissions
 		err = workflow.ExecuteActivity(ctx, volumeActivity.CrossPoolOrVPCRestorationActivity, backupActivitiesContext.BackupWorkflowInit.Volume.Pool, backupActivitiesContext.BackupWorkflowInit.Backup).Get(ctx, nil)
 		if err != nil {
@@ -207,7 +225,6 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		backupActivitiesContext.Node = node
 
 		objStore := &common.CloudTarget{}
-		backupActivity := &activities.BackupActivity{}
 		var smDestinationPath string
 		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, backupActivitiesContext.BackupWorkflowInit.Volume).Get(ctx, &smDestinationPath)
 		if err != nil {

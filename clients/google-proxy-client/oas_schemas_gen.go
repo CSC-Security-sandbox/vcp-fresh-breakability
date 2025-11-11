@@ -3450,8 +3450,10 @@ func (*ErrorStatusCode) v1betaGetVolumeCountRes()                            {}
 func (*ErrorStatusCode) v1betaInternalAcceptClusterPeerRes()                 {}
 func (*ErrorStatusCode) v1betaInternalAuthorizeVolumeReplicationRes()        {}
 func (*ErrorStatusCode) v1betaInternalCreateVolumeReplicationRes()           {}
+func (*ErrorStatusCode) v1betaInternalDeleteBackupUnderBackupVaultRes()      {}
 func (*ErrorStatusCode) v1betaInternalDeleteVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
+func (*ErrorStatusCode) v1betaInternalDescribeBackupRes()                    {}
 func (*ErrorStatusCode) v1betaInternalDescribeBackupVaultRes()               {}
 func (*ErrorStatusCode) v1betaInternalDescribeOperationRes()                 {}
 func (*ErrorStatusCode) v1betaInternalDescribePoolRes()                      {}
@@ -4789,6 +4791,373 @@ func (s *HybridReplicationUserCommandsV1beta) GetCommands() []string {
 // SetCommands sets the value of Commands.
 func (s *HybridReplicationUserCommandsV1beta) SetCommands(val []string) {
 	s.Commands = val
+}
+
+// Ref: #/components/schemas/InternalBackup_v1beta
+type InternalBackupV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId OptString `json:"resourceId"`
+	// Uuid v4 of the volume.
+	VolumeId OptString `json:"volumeId"`
+	// The current lifecycle state of the resource.
+	State OptInternalBackupV1betaState `json:"state"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+	// Backup enforced-retention end time.
+	EnforcedRetentionEndTime OptDateTime `json:"enforcedRetentionEndTime"`
+	// Uuid v4 used to identify the backup.
+	BackupId OptString `json:"backupId"`
+	// Current size for the backup in bytes.
+	VolumeUsageBytes OptInt64 `json:"volumeUsageBytes"`
+	// Display name of the volume.
+	SourceVolume OptString `json:"sourceVolume"`
+	// Uuid v4 used to identify the backup vault Id.
+	BackupVaultId OptString `json:"backupVaultId"`
+	// Description of the backup.
+	Description OptString `json:"description"`
+	// Name of the source snapshot.
+	SourceSnapshot OptString `json:"sourceSnapshot"`
+	// Type of backup, manually created or created by a backup policy.
+	BackupType OptInternalBackupV1betaBackupType `json:"backupType"`
+	// Size in bytes of the backup of the volume.
+	BackupChainBytes OptInt64 `json:"backupChainBytes"`
+	// Flag describing whether backup supports zone separation.
+	SatisfiesPzs OptBool `json:"satisfiesPzs"`
+	// Flag describing whether backup supports zone isolation.
+	SatisfiesPzi OptBool `json:"satisfiesPzi"`
+	// Name of the volume region.
+	VolumeRegion OptString `json:"volumeRegion"`
+	// Name of the backup region.
+	BackupRegion OptString `json:"backupRegion"`
+	// Flag indicating if the backup is being used to restore a volume.
+	IsRestoring           OptBool                    `json:"isRestoring"`
+	AssetLocationMetadata OptAssetLocationMetadataV2 `json:"assetLocationMetadata"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *InternalBackupV1beta) GetResourceId() OptString {
+	return s.ResourceId
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *InternalBackupV1beta) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// GetState returns the value of State.
+func (s *InternalBackupV1beta) GetState() OptInternalBackupV1betaState {
+	return s.State
+}
+
+// GetCreated returns the value of Created.
+func (s *InternalBackupV1beta) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetEnforcedRetentionEndTime returns the value of EnforcedRetentionEndTime.
+func (s *InternalBackupV1beta) GetEnforcedRetentionEndTime() OptDateTime {
+	return s.EnforcedRetentionEndTime
+}
+
+// GetBackupId returns the value of BackupId.
+func (s *InternalBackupV1beta) GetBackupId() OptString {
+	return s.BackupId
+}
+
+// GetVolumeUsageBytes returns the value of VolumeUsageBytes.
+func (s *InternalBackupV1beta) GetVolumeUsageBytes() OptInt64 {
+	return s.VolumeUsageBytes
+}
+
+// GetSourceVolume returns the value of SourceVolume.
+func (s *InternalBackupV1beta) GetSourceVolume() OptString {
+	return s.SourceVolume
+}
+
+// GetBackupVaultId returns the value of BackupVaultId.
+func (s *InternalBackupV1beta) GetBackupVaultId() OptString {
+	return s.BackupVaultId
+}
+
+// GetDescription returns the value of Description.
+func (s *InternalBackupV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetSourceSnapshot returns the value of SourceSnapshot.
+func (s *InternalBackupV1beta) GetSourceSnapshot() OptString {
+	return s.SourceSnapshot
+}
+
+// GetBackupType returns the value of BackupType.
+func (s *InternalBackupV1beta) GetBackupType() OptInternalBackupV1betaBackupType {
+	return s.BackupType
+}
+
+// GetBackupChainBytes returns the value of BackupChainBytes.
+func (s *InternalBackupV1beta) GetBackupChainBytes() OptInt64 {
+	return s.BackupChainBytes
+}
+
+// GetSatisfiesPzs returns the value of SatisfiesPzs.
+func (s *InternalBackupV1beta) GetSatisfiesPzs() OptBool {
+	return s.SatisfiesPzs
+}
+
+// GetSatisfiesPzi returns the value of SatisfiesPzi.
+func (s *InternalBackupV1beta) GetSatisfiesPzi() OptBool {
+	return s.SatisfiesPzi
+}
+
+// GetVolumeRegion returns the value of VolumeRegion.
+func (s *InternalBackupV1beta) GetVolumeRegion() OptString {
+	return s.VolumeRegion
+}
+
+// GetBackupRegion returns the value of BackupRegion.
+func (s *InternalBackupV1beta) GetBackupRegion() OptString {
+	return s.BackupRegion
+}
+
+// GetIsRestoring returns the value of IsRestoring.
+func (s *InternalBackupV1beta) GetIsRestoring() OptBool {
+	return s.IsRestoring
+}
+
+// GetAssetLocationMetadata returns the value of AssetLocationMetadata.
+func (s *InternalBackupV1beta) GetAssetLocationMetadata() OptAssetLocationMetadataV2 {
+	return s.AssetLocationMetadata
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *InternalBackupV1beta) SetResourceId(val OptString) {
+	s.ResourceId = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *InternalBackupV1beta) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// SetState sets the value of State.
+func (s *InternalBackupV1beta) SetState(val OptInternalBackupV1betaState) {
+	s.State = val
+}
+
+// SetCreated sets the value of Created.
+func (s *InternalBackupV1beta) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetEnforcedRetentionEndTime sets the value of EnforcedRetentionEndTime.
+func (s *InternalBackupV1beta) SetEnforcedRetentionEndTime(val OptDateTime) {
+	s.EnforcedRetentionEndTime = val
+}
+
+// SetBackupId sets the value of BackupId.
+func (s *InternalBackupV1beta) SetBackupId(val OptString) {
+	s.BackupId = val
+}
+
+// SetVolumeUsageBytes sets the value of VolumeUsageBytes.
+func (s *InternalBackupV1beta) SetVolumeUsageBytes(val OptInt64) {
+	s.VolumeUsageBytes = val
+}
+
+// SetSourceVolume sets the value of SourceVolume.
+func (s *InternalBackupV1beta) SetSourceVolume(val OptString) {
+	s.SourceVolume = val
+}
+
+// SetBackupVaultId sets the value of BackupVaultId.
+func (s *InternalBackupV1beta) SetBackupVaultId(val OptString) {
+	s.BackupVaultId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *InternalBackupV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetSourceSnapshot sets the value of SourceSnapshot.
+func (s *InternalBackupV1beta) SetSourceSnapshot(val OptString) {
+	s.SourceSnapshot = val
+}
+
+// SetBackupType sets the value of BackupType.
+func (s *InternalBackupV1beta) SetBackupType(val OptInternalBackupV1betaBackupType) {
+	s.BackupType = val
+}
+
+// SetBackupChainBytes sets the value of BackupChainBytes.
+func (s *InternalBackupV1beta) SetBackupChainBytes(val OptInt64) {
+	s.BackupChainBytes = val
+}
+
+// SetSatisfiesPzs sets the value of SatisfiesPzs.
+func (s *InternalBackupV1beta) SetSatisfiesPzs(val OptBool) {
+	s.SatisfiesPzs = val
+}
+
+// SetSatisfiesPzi sets the value of SatisfiesPzi.
+func (s *InternalBackupV1beta) SetSatisfiesPzi(val OptBool) {
+	s.SatisfiesPzi = val
+}
+
+// SetVolumeRegion sets the value of VolumeRegion.
+func (s *InternalBackupV1beta) SetVolumeRegion(val OptString) {
+	s.VolumeRegion = val
+}
+
+// SetBackupRegion sets the value of BackupRegion.
+func (s *InternalBackupV1beta) SetBackupRegion(val OptString) {
+	s.BackupRegion = val
+}
+
+// SetIsRestoring sets the value of IsRestoring.
+func (s *InternalBackupV1beta) SetIsRestoring(val OptBool) {
+	s.IsRestoring = val
+}
+
+// SetAssetLocationMetadata sets the value of AssetLocationMetadata.
+func (s *InternalBackupV1beta) SetAssetLocationMetadata(val OptAssetLocationMetadataV2) {
+	s.AssetLocationMetadata = val
+}
+
+func (*InternalBackupV1beta) v1betaInternalDeleteBackupUnderBackupVaultRes() {}
+
+// Type of backup, manually created or created by a backup policy.
+type InternalBackupV1betaBackupType string
+
+const (
+	InternalBackupV1betaBackupTypeMANUAL    InternalBackupV1betaBackupType = "MANUAL"
+	InternalBackupV1betaBackupTypeSCHEDULED InternalBackupV1betaBackupType = "SCHEDULED"
+)
+
+// AllValues returns all InternalBackupV1betaBackupType values.
+func (InternalBackupV1betaBackupType) AllValues() []InternalBackupV1betaBackupType {
+	return []InternalBackupV1betaBackupType{
+		InternalBackupV1betaBackupTypeMANUAL,
+		InternalBackupV1betaBackupTypeSCHEDULED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InternalBackupV1betaBackupType) MarshalText() ([]byte, error) {
+	switch s {
+	case InternalBackupV1betaBackupTypeMANUAL:
+		return []byte(s), nil
+	case InternalBackupV1betaBackupTypeSCHEDULED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InternalBackupV1betaBackupType) UnmarshalText(data []byte) error {
+	switch InternalBackupV1betaBackupType(data) {
+	case InternalBackupV1betaBackupTypeMANUAL:
+		*s = InternalBackupV1betaBackupTypeMANUAL
+		return nil
+	case InternalBackupV1betaBackupTypeSCHEDULED:
+		*s = InternalBackupV1betaBackupTypeSCHEDULED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current lifecycle state of the resource.
+type InternalBackupV1betaState string
+
+const (
+	InternalBackupV1betaStateCREATING  InternalBackupV1betaState = "CREATING"
+	InternalBackupV1betaStateREADY     InternalBackupV1betaState = "READY"
+	InternalBackupV1betaStateUPLOADING InternalBackupV1betaState = "UPLOADING"
+	InternalBackupV1betaStateRESTORING InternalBackupV1betaState = "RESTORING"
+	InternalBackupV1betaStateDISABLED  InternalBackupV1betaState = "DISABLED"
+	InternalBackupV1betaStateDELETING  InternalBackupV1betaState = "DELETING"
+	InternalBackupV1betaStateDELETED   InternalBackupV1betaState = "DELETED"
+	InternalBackupV1betaStateERROR     InternalBackupV1betaState = "ERROR"
+	InternalBackupV1betaStateUPDATING  InternalBackupV1betaState = "UPDATING"
+)
+
+// AllValues returns all InternalBackupV1betaState values.
+func (InternalBackupV1betaState) AllValues() []InternalBackupV1betaState {
+	return []InternalBackupV1betaState{
+		InternalBackupV1betaStateCREATING,
+		InternalBackupV1betaStateREADY,
+		InternalBackupV1betaStateUPLOADING,
+		InternalBackupV1betaStateRESTORING,
+		InternalBackupV1betaStateDISABLED,
+		InternalBackupV1betaStateDELETING,
+		InternalBackupV1betaStateDELETED,
+		InternalBackupV1betaStateERROR,
+		InternalBackupV1betaStateUPDATING,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InternalBackupV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case InternalBackupV1betaStateCREATING:
+		return []byte(s), nil
+	case InternalBackupV1betaStateREADY:
+		return []byte(s), nil
+	case InternalBackupV1betaStateUPLOADING:
+		return []byte(s), nil
+	case InternalBackupV1betaStateRESTORING:
+		return []byte(s), nil
+	case InternalBackupV1betaStateDISABLED:
+		return []byte(s), nil
+	case InternalBackupV1betaStateDELETING:
+		return []byte(s), nil
+	case InternalBackupV1betaStateDELETED:
+		return []byte(s), nil
+	case InternalBackupV1betaStateERROR:
+		return []byte(s), nil
+	case InternalBackupV1betaStateUPDATING:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InternalBackupV1betaState) UnmarshalText(data []byte) error {
+	switch InternalBackupV1betaState(data) {
+	case InternalBackupV1betaStateCREATING:
+		*s = InternalBackupV1betaStateCREATING
+		return nil
+	case InternalBackupV1betaStateREADY:
+		*s = InternalBackupV1betaStateREADY
+		return nil
+	case InternalBackupV1betaStateUPLOADING:
+		*s = InternalBackupV1betaStateUPLOADING
+		return nil
+	case InternalBackupV1betaStateRESTORING:
+		*s = InternalBackupV1betaStateRESTORING
+		return nil
+	case InternalBackupV1betaStateDISABLED:
+		*s = InternalBackupV1betaStateDISABLED
+		return nil
+	case InternalBackupV1betaStateDELETING:
+		*s = InternalBackupV1betaStateDELETING
+		return nil
+	case InternalBackupV1betaStateDELETED:
+		*s = InternalBackupV1betaStateDELETED
+		return nil
+	case InternalBackupV1betaStateERROR:
+		*s = InternalBackupV1betaStateERROR
+		return nil
+	case InternalBackupV1betaStateUPDATING:
+		*s = InternalBackupV1betaStateUPDATING
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/InternalJob_v1beta
@@ -6533,6 +6902,7 @@ func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
 func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
 func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
 func (*OperationV1beta) v1betaEstablishVolumePeeringRes()                    {}
+func (*OperationV1beta) v1betaInternalDeleteBackupUnderBackupVaultRes()      {}
 func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
 func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()          {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
@@ -8341,6 +8711,98 @@ func (o OptInt64) Get() (v int64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInternalBackupV1betaBackupType returns new OptInternalBackupV1betaBackupType with value set to v.
+func NewOptInternalBackupV1betaBackupType(v InternalBackupV1betaBackupType) OptInternalBackupV1betaBackupType {
+	return OptInternalBackupV1betaBackupType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInternalBackupV1betaBackupType is optional InternalBackupV1betaBackupType.
+type OptInternalBackupV1betaBackupType struct {
+	Value InternalBackupV1betaBackupType
+	Set   bool
+}
+
+// IsSet returns true if OptInternalBackupV1betaBackupType was set.
+func (o OptInternalBackupV1betaBackupType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInternalBackupV1betaBackupType) Reset() {
+	var v InternalBackupV1betaBackupType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInternalBackupV1betaBackupType) SetTo(v InternalBackupV1betaBackupType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInternalBackupV1betaBackupType) Get() (v InternalBackupV1betaBackupType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInternalBackupV1betaBackupType) Or(d InternalBackupV1betaBackupType) InternalBackupV1betaBackupType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInternalBackupV1betaState returns new OptInternalBackupV1betaState with value set to v.
+func NewOptInternalBackupV1betaState(v InternalBackupV1betaState) OptInternalBackupV1betaState {
+	return OptInternalBackupV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInternalBackupV1betaState is optional InternalBackupV1betaState.
+type OptInternalBackupV1betaState struct {
+	Value InternalBackupV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptInternalBackupV1betaState was set.
+func (o OptInternalBackupV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInternalBackupV1betaState) Reset() {
+	var v InternalBackupV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInternalBackupV1betaState) SetTo(v InternalBackupV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInternalBackupV1betaState) Get() (v InternalBackupV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInternalBackupV1betaState) Or(d InternalBackupV1betaState) InternalBackupV1betaState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -18168,6 +18630,51 @@ type V1betaInternalCreateVolumeReplicationUnprocessableEntity Error
 func (*V1betaInternalCreateVolumeReplicationUnprocessableEntity) v1betaInternalCreateVolumeReplicationRes() {
 }
 
+type V1betaInternalDeleteBackupUnderBackupVaultBadRequest Error
+
+func (*V1betaInternalDeleteBackupUnderBackupVaultBadRequest) v1betaInternalDeleteBackupUnderBackupVaultRes() {
+}
+
+type V1betaInternalDeleteBackupUnderBackupVaultConflict Error
+
+func (*V1betaInternalDeleteBackupUnderBackupVaultConflict) v1betaInternalDeleteBackupUnderBackupVaultRes() {
+}
+
+type V1betaInternalDeleteBackupUnderBackupVaultForbidden Error
+
+func (*V1betaInternalDeleteBackupUnderBackupVaultForbidden) v1betaInternalDeleteBackupUnderBackupVaultRes() {
+}
+
+type V1betaInternalDeleteBackupUnderBackupVaultInternalServerError Error
+
+func (*V1betaInternalDeleteBackupUnderBackupVaultInternalServerError) v1betaInternalDeleteBackupUnderBackupVaultRes() {
+}
+
+type V1betaInternalDeleteBackupUnderBackupVaultNotFound Error
+
+func (*V1betaInternalDeleteBackupUnderBackupVaultNotFound) v1betaInternalDeleteBackupUnderBackupVaultRes() {
+}
+
+type V1betaInternalDeleteBackupUnderBackupVaultNotImplemented Error
+
+func (*V1betaInternalDeleteBackupUnderBackupVaultNotImplemented) v1betaInternalDeleteBackupUnderBackupVaultRes() {
+}
+
+type V1betaInternalDeleteBackupUnderBackupVaultTooManyRequests Error
+
+func (*V1betaInternalDeleteBackupUnderBackupVaultTooManyRequests) v1betaInternalDeleteBackupUnderBackupVaultRes() {
+}
+
+type V1betaInternalDeleteBackupUnderBackupVaultUnauthorized Error
+
+func (*V1betaInternalDeleteBackupUnderBackupVaultUnauthorized) v1betaInternalDeleteBackupUnderBackupVaultRes() {
+}
+
+type V1betaInternalDeleteBackupUnderBackupVaultUnprocessableEntity Error
+
+func (*V1betaInternalDeleteBackupUnderBackupVaultUnprocessableEntity) v1betaInternalDeleteBackupUnderBackupVaultRes() {
+}
+
 type V1betaInternalDeleteVolumeReplicationBadRequest Error
 
 func (*V1betaInternalDeleteVolumeReplicationBadRequest) v1betaInternalDeleteVolumeReplicationRes() {}
@@ -18248,6 +18755,50 @@ type V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity Error
 
 func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
 }
+
+type V1betaInternalDescribeBackupBadRequest Error
+
+func (*V1betaInternalDescribeBackupBadRequest) v1betaInternalDescribeBackupRes() {}
+
+type V1betaInternalDescribeBackupForbidden Error
+
+func (*V1betaInternalDescribeBackupForbidden) v1betaInternalDescribeBackupRes() {}
+
+type V1betaInternalDescribeBackupInternalServerError Error
+
+func (*V1betaInternalDescribeBackupInternalServerError) v1betaInternalDescribeBackupRes() {}
+
+type V1betaInternalDescribeBackupNotFound Error
+
+func (*V1betaInternalDescribeBackupNotFound) v1betaInternalDescribeBackupRes() {}
+
+type V1betaInternalDescribeBackupNotImplemented Error
+
+func (*V1betaInternalDescribeBackupNotImplemented) v1betaInternalDescribeBackupRes() {}
+
+type V1betaInternalDescribeBackupOK struct {
+	Backups []InternalBackupV1beta `json:"backups"`
+}
+
+// GetBackups returns the value of Backups.
+func (s *V1betaInternalDescribeBackupOK) GetBackups() []InternalBackupV1beta {
+	return s.Backups
+}
+
+// SetBackups sets the value of Backups.
+func (s *V1betaInternalDescribeBackupOK) SetBackups(val []InternalBackupV1beta) {
+	s.Backups = val
+}
+
+func (*V1betaInternalDescribeBackupOK) v1betaInternalDescribeBackupRes() {}
+
+type V1betaInternalDescribeBackupTooManyRequests Error
+
+func (*V1betaInternalDescribeBackupTooManyRequests) v1betaInternalDescribeBackupRes() {}
+
+type V1betaInternalDescribeBackupUnauthorized Error
+
+func (*V1betaInternalDescribeBackupUnauthorized) v1betaInternalDescribeBackupRes() {}
 
 type V1betaInternalDescribeBackupVaultBadRequest Error
 

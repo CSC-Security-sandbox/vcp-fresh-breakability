@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -22,10 +23,12 @@ import (
 )
 
 const (
-	BackupComment        = "VCP-Backup"
-	SmStatusTransferring = "transferring"
-	SmStatusSuccess      = "success"
-	SmStatusFailed       = "failed"
+	BackupComment               = "VCP-Backup"
+	SmStatusTransferring        = "transferring"
+	SmStatusSuccess             = "success"
+	SmStatusFailed              = "failed"
+	BackupRestoreCountIncrement = "increment"
+	BackupRestoreCountDecrement = "decrement"
 )
 
 var (
@@ -1288,5 +1291,62 @@ func (b *BackupActivity) UpdateBackupMetadataIfExistsActivity(ctx context.Contex
 	}
 
 	logger.Infof("Successfully updated BackupMetadata labels for volume %s", volume.UUID)
+	return nil
+}
+
+// DeleteRemoteBackupFromVCPActivity deletes the Backup from the remote region using Google Proxy Client
+func (a *BackupActivity) DeleteRemoteBackupFromVCPActivity(ctx context.Context, backupUUID, backupVaultUUID, projectNumber, region string) error {
+	logger := util.GetLogger(ctx)
+	basePath, jwtToken, err := commonparams.GetRemoteRegionConfig(region, projectNumber)
+	if err != nil {
+		logger.Error("Failed to get remote region configuration", "region", region, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	params := googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     region,
+		BackupVaultId:  backupVaultUUID,
+		BackupId:       backupUUID,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	_, err = googleProxyClient.Invoker.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
+	if err != nil {
+		logger.Errorf("Failed to delete remote Backup: %v, region=%s, backupVaultID=%s, backupID=%s", err, region, backupVaultUUID, backupUUID)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully deleted remote Backup, backupID=%s, region=%s", backupUUID, region)
+	return nil
+}
+
+func (a *BackupActivity) UpdateBackupRestoreCount(ctx context.Context, backupVaultUUID, backupUUID, accountName, operation string) error {
+	se := a.SE
+	logger := util.GetLogger(ctx)
+
+	// Fetching latest backup so we have the most recent restore count
+	backup, err := se.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
+	if err != nil {
+		logger.Errorf("Failed to get backup %s: %v", backupUUID, err)
+	}
+
+	if operation == BackupRestoreCountIncrement {
+		backup.Attributes.RestoreVolumeCount++
+	} else {
+		backup.Attributes.RestoreVolumeCount--
+	}
+	updates := map[string]interface{}{
+		"attributes": backup.Attributes,
+	}
+	err = se.UpdateBackupFields(ctx, backupUUID, updates)
+	if err != nil {
+		logger.Errorf("Failed to update backup %s: %v", backupUUID, err)
+		return err
+	}
+	logger.Infof("Successfully updated backup restore count to %d for backup %s", backup.Attributes.RestoreVolumeCount, backupUUID)
 	return nil
 }

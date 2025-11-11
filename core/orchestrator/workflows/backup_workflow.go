@@ -610,9 +610,22 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Delete remote backup from VCP if this is a cross-region backup
+	if dbBackupVault.BackupVaultType == activities.CrossRegionBackupType && dbBackup.ExternalUUID != "" && dbBackupVault.ExternalUUID != nil && dbBackupVault.BackupRegionName != nil {
+		remoteBackupErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteRemoteBackupFromVCPActivity,
+			dbBackup.ExternalUUID,
+			*dbBackupVault.ExternalUUID,
+			deleteBackupParams.AccountName,
+			*dbBackupVault.BackupRegionName).Get(ctx, nil)
+		if remoteBackupErr != nil {
+			wf.Logger.Errorf("Failed to delete remote backup from VCP for backup %s: %v", dbBackup.UUID, remoteBackupErr)
+			return nil, ConvertToVSAError(fmt.Errorf("failed to delete remote backup from VCP for backup %s: %w", dbBackup.UUID, remoteBackupErr))
+		}
+	}
+
 	// Hydrate snapshot deletion to CCFE
 	// Only proceed if all required fields are not nil
-	if dbBackup.Attributes != nil && volume != nil && account != nil && dbBackupVault != nil {
+	if dbBackup.Attributes != nil && volume != nil && account != nil {
 		snapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{
 				UUID:      dbBackup.Attributes.SnapshotID,
@@ -653,7 +666,6 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		// Log the error but don't fail the entire backup deletion workflow
 		wf.Logger.Errorf("Failed to delete BackupMetadata for volume %s: %v", dbBackup.VolumeUUID, metadataErr)
 	}
-
 	return nil, ConvertToVSAError(err)
 }
 

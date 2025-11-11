@@ -4497,3 +4497,194 @@ func TestDeleteBackupWorkflow_DeleteBackupMetadataIfLastBackupActivityFailure(t 
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
+
+func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(setupMockBackupActivity(t))
+	env.RegisterWorkflow(DeleteBackupWorkflow)
+
+	// Set up test data for cross-region backup
+	params := &commonparams.DeleteBackupParams{
+		BackupVaultUUID: "vault-uuid",
+		BackupUUID:      "backup-uuid",
+		AccountName:     "test-account",
+	}
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}}
+	externalVaultUUID := "external-vault-uuid"
+	backupRegionName := "us-west1"
+	backupVault := &datamodel.BackupVault{
+		Name:             "test-backup-vault",
+		BackupVaultType:  "CROSS_REGION",
+		ExternalUUID:     &externalVaultUUID,
+		BackupRegionName: &backupRegionName,
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"},
+		},
+		Account: account,
+	}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-vol"},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Svm: &datamodel.Svm{
+			Name: "svm_test",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "subnet-12345",
+		},
+		Account: account,
+	}
+	externalBackupUUID := "external-backup-uuid"
+	backup := &datamodel.Backup{
+		Name:          "test-backup",
+		VolumeUUID:    "test-vol",
+		BackupVault:   backupVault,
+		BackupVaultID: 1,
+		Attributes:    &datamodel.BackupAttributes{BucketName: "test-bucket"},
+		ExternalUUID:  externalBackupUUID,
+	}
+
+	// Mock all the successful activities
+	env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(backupVault, nil)
+	env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+	env.OnActivity("IsVolumeDeleted", mock.Anything, backup.VolumeUUID).Return(false, nil)
+	env.OnActivity("GetVolume", mock.Anything, backup.VolumeUUID).Return(volume, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
+	env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
+	env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil)
+	env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
+	env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
+	env.OnActivity("DeleteSnapmirror", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
+	env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
+	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(backup, nil)
+	// Mock DeleteRemoteBackupFromVCPActivity to succeed
+	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, externalBackupUUID, externalVaultUUID, params.AccountName, backupRegionName).Return(nil)
+	env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	env.ExecuteWorkflow(DeleteBackupWorkflow, params)
+
+	// Assert that the workflow completed successfully
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(setupMockBackupActivity(t))
+	env.RegisterWorkflow(DeleteBackupWorkflow)
+
+	// Set up test data for cross-region backup
+	params := &commonparams.DeleteBackupParams{
+		BackupVaultUUID: "vault-uuid",
+		BackupUUID:      "backup-uuid",
+		AccountName:     "test-account",
+	}
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}}
+	externalVaultUUID := "external-vault-uuid"
+	backupRegionName := "us-west1"
+	backupVault := &datamodel.BackupVault{
+		Name:             "test-backup-vault",
+		BackupVaultType:  "CROSS_REGION",
+		ExternalUUID:     &externalVaultUUID,
+		BackupRegionName: &backupRegionName,
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"},
+		},
+		Account: account,
+	}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-vol"},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Svm: &datamodel.Svm{
+			Name: "svm_test",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "subnet-12345",
+		},
+		Account: account,
+	}
+	externalBackupUUID := "external-backup-uuid"
+	backup := &datamodel.Backup{
+		Name:          "test-backup",
+		VolumeUUID:    "test-vol",
+		BackupVault:   backupVault,
+		BackupVaultID: 1,
+		Attributes:    &datamodel.BackupAttributes{BucketName: "test-bucket"},
+		ExternalUUID:  externalBackupUUID,
+	}
+
+	// Mock all the successful activities
+	env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(backupVault, nil)
+	env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+	env.OnActivity("IsVolumeDeleted", mock.Anything, backup.VolumeUUID).Return(false, nil)
+	env.OnActivity("GetVolume", mock.Anything, backup.VolumeUUID).Return(volume, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
+	env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
+	env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil)
+	env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
+	env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
+	env.OnActivity("DeleteSnapmirror", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
+	env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
+	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(backup, nil)
+	// Mock DeleteRemoteBackupFromVCPActivity to fail
+	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, externalBackupUUID, externalVaultUUID, params.AccountName, backupRegionName).Return(errors.New("failed to delete remote backup from VCP"))
+	// When deleteInitiated is true, HandleError calls UpdateBackupError (not MarkBackupAvailable)
+	env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	env.ExecuteWorkflow(DeleteBackupWorkflow, params)
+
+	// Assert that the workflow failed due to DeleteRemoteBackupFromVCPActivity failure
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.ErrorContains(t, env.GetWorkflowError(), "failed to delete remote backup from VCP")
+	env.AssertExpectations(t)
+}
