@@ -526,7 +526,23 @@ func (h Handler) V1betaInternalUpdateVolume(ctx context.Context, req *gcpgenserv
 		VolumeId:       params.VolumeId,
 		XCorrelationID: params.XCorrelationID,
 	}
-	param, err := prepareUpdateVolumeParams(req, volumeUpdateParams, region)
+
+	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId, false)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalUpdateVolumeNotFound{
+				Code:    404,
+				Message: "Volume not found",
+			}, nil
+		}
+		logger.Error("Failed to get volume before update", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateVolumeInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
+	}
+
+	param, err := prepareUpdateVolumeParams(req, volumeUpdateParams, region, volume)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaInternalUpdateVolumeBadRequest{

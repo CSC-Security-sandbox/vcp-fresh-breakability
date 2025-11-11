@@ -1740,7 +1740,12 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
 
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*commonparams.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-123"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*commonparams.UpdateVolumeParams, error) {
 			return nil, errors.NewUserInputValidationErr("Invalid volume parameters")
 		}
 		defer func() {
@@ -1777,7 +1782,12 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
 
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*commonparams.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-123"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*commonparams.UpdateVolumeParams, error) {
 			return nil, errors.NewNotFoundErr("Volume", nil)
 		}
 		defer func() {
@@ -1814,7 +1824,12 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
 
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*commonparams.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-123"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*commonparams.UpdateVolumeParams, error) {
 			return nil, errors.New("Database connection failed")
 		}
 		defer func() {
@@ -1852,7 +1867,12 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
 
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*commonparams.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-123"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*commonparams.UpdateVolumeParams, error) {
 			return &commonparams.UpdateVolumeParams{}, nil
 		}
 		defer func() {
@@ -1892,7 +1912,12 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
 
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*commonparams.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-123"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*commonparams.UpdateVolumeParams, error) {
 			return &commonparams.UpdateVolumeParams{}, nil
 		}
 		defer func() {
@@ -1932,7 +1957,12 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
 
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*commonparams.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-123"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*commonparams.UpdateVolumeParams, error) {
 			return &commonparams.UpdateVolumeParams{}, nil
 		}
 		defer func() {
@@ -1973,7 +2003,12 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
 
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*commonparams.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-123"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*commonparams.UpdateVolumeParams, error) {
 			return &commonparams.UpdateVolumeParams{}, nil
 		}
 		defer func() {
@@ -1981,11 +2016,11 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 		}()
 
 		jobUUID := "job-uuid"
-		volume := &models.Volume{
+		updatedVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "UPDATING",
 		}
-		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(updatedVolume, jobUUID, nil)
 
 		result, err := handler.V1betaInternalUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -2015,7 +2050,12 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
 
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*commonparams.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-123"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*commonparams.UpdateVolumeParams, error) {
 			return &commonparams.UpdateVolumeParams{}, nil
 		}
 		defer func() {
@@ -2023,11 +2063,11 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 		}()
 
 		jobUUID := "job-uuid"
-		volume := &models.Volume{
+		updatedVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "STATE",
 		}
-		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(updatedVolume, jobUUID, nil)
 
 		result, err := handler.V1betaInternalUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -2035,6 +2075,72 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Equal(tt, "/v1beta/projects/test-project/locations/us-central1/operations/job-uuid", op.Name.Value)
 		assert.True(tt, op.Done.Value)
+	})
+
+	t.Run("WhenGetVolumeReturnsNotFoundError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.VolumeUpdateV1beta{}
+		params := gcpgenserver.V1betaInternalUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-123",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1-a", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock GetVolume to return NotFoundErr
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(nil, errors.NewNotFoundErr("Volume", nil))
+
+		expectedResponse := &gcpgenserver.V1betaInternalUpdateVolumeNotFound{
+			Code:    404,
+			Message: "Volume not found",
+		}
+
+		resp, err := handler.V1betaInternalUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, resp)
+	})
+
+	t.Run("WhenGetVolumeReturnsInternalError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.VolumeUpdateV1beta{}
+		params := gcpgenserver.V1betaInternalUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-123",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1-a", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock GetVolume to return a generic error
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", false).Return(nil, errors.New("database connection error"))
+
+		expectedResponse := &gcpgenserver.V1betaInternalUpdateVolumeInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}
+
+		resp, err := handler.V1betaInternalUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, resp)
 	})
 }
 

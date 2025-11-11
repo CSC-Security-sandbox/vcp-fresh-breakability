@@ -1211,8 +1211,15 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 			VolumeId:      "test-volume-id",
 		}
 		region := "test-region"
+		dbVolume := &models.Volume{
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       false,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "none",
+			},
+		}
 
-		result, err := prepareUpdateVolumeParams(req, params, region)
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
@@ -1244,14 +1251,21 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 			VolumeId:      "test-volume-id",
 		}
 		region := "test-region"
+		dbVolume := &models.Volume{
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+				TieringPolicy:            "all",
+			},
+		}
 
-		result, err := prepareUpdateVolumeParams(req, params, region)
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
 		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
 		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
-		// When HotTierBypassModeEnabled is false, TieringPolicy should remain "auto"
+		// When HotTierBypassModeEnabled transitions from true to false, TieringPolicy should be "auto"
 		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
 		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
@@ -1277,8 +1291,15 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 			VolumeId:      "test-volume-id",
 		}
 		region := "test-region"
+		dbVolume := &models.Volume{
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "auto",
+			},
+		}
 
-		result, err := prepareUpdateVolumeParams(req, params, region)
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
@@ -1289,7 +1310,7 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 
-	t.Run("HotTierBypassModeEnabled_WithPausedTieringPolicy_ShouldOverrideToAll", func(tt *testing.T) {
+	t.Run("HotTierBypassModeEnabled_WithPausedTieringPolicy_ShouldReturnError", func(tt *testing.T) {
 		// Save and restore the original value
 		currentATState := autoTieringEnabled
 		defer func() { autoTieringEnabled = currentATState }()
@@ -1309,15 +1330,19 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 			VolumeId:      "test-volume-id",
 		}
 		region := "test-region"
+		dbVolume := &models.Volume{
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "auto",
+			},
+		}
 
-		result, err := prepareUpdateVolumeParams(req, params, region)
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
 
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result.AutoTieringPolicy)
-		assert.False(tt, result.AutoTieringPolicy.AutoTieringEnabled) // PAUSED means disabled
-		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
-		// Even with PAUSED tier action, HotTierBypassModeEnabled should override to "all"
-		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "hotTierBypassMode can not be enabled along with pausing tiering on volume")
 	})
 
 	t.Run("NoTieringPolicy_ShouldReturnNil", func(tt *testing.T) {
@@ -1331,8 +1356,15 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 			VolumeId:      "test-volume-id",
 		}
 		region := "test-region"
+		dbVolume := &models.Volume{
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "auto",
+			},
+		}
 
-		result, err := prepareUpdateVolumeParams(req, params, region)
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
 
 		assert.NoError(tt, err)
 		assert.Nil(tt, result.AutoTieringPolicy) // Should be nil when no tiering policy is provided
@@ -1359,12 +1391,161 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 			VolumeId:      "test-volume-id",
 		}
 		region := "test-region"
+		dbVolume := &models.Volume{
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       false,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "none",
+			},
+		}
 
-		result, err := prepareUpdateVolumeParams(req, params, region)
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "Auto-Tiering feature is currently not enabled")
+	})
+
+	t.Run("PauseTieringWithHotTierBypassEnabled_ShouldReturnError", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("PAUSED"),
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+				TieringPolicy:            "all",
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "existing volume has hotTierBypassMode enabled, cannot pause tiering")
+	})
+
+	t.Run("UpdateTieringPolicyWithoutTierAction_FirstTime_ShouldReturnError", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// No TierAction set
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 30, Set: true},
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			// No existing tiering policy
+			AutoTieringPolicy: nil,
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Tiering action is required when enabling auto-tiering on volume for the first time")
+	})
+
+	t.Run("UpdateTieringPolicyWithoutTierAction_ExistingAutoPolicy_Success", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// No TierAction set
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 40, Set: true},
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "auto",
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, "default", result.AutoTieringPolicy.RetrievalPolicy)
+		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
+		assert.Equal(tt, int32(40), result.AutoTieringPolicy.CoolingThresholdDays)
+	})
+
+	t.Run("DisableHotTierBypassWithoutTierAction_PreservesExistingAutoPolicy_Success", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// No TierAction set
+					HotTierBypassModeEnabled: gcpgenserver.NewOptNilBool(false),
+					CoolingThresholdDays:     gcpgenserver.OptNilInt32{Value: 35, Set: true},
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+				TieringPolicy:            "auto",
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, "default", result.AutoTieringPolicy.RetrievalPolicy)
+		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, int32(35), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 }
 
@@ -2996,6 +3177,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			QuotaInBytes:   107374182499,
 		}
 		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -3014,7 +3196,11 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			VolumeId:      "vol-1",
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{}
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
 			return nil, errors.NewUserInputValidationErr("invalid input")
 		}
 		defer func() { prepareUpdateVolumeParams = _prepareUpdateVolumeParams }()
@@ -3036,7 +3222,11 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			VolumeId:      "vol-1",
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{}
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
 			return nil, fmt.Errorf("unexpected error")
 		}
 		defer func() { prepareUpdateVolumeParams = _prepareUpdateVolumeParams }()
@@ -3061,7 +3251,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			VolumeId:      "vol-1",
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{}
-		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
 			return nil, fmt.Errorf("unexpected error")
 		}
 		defer func() { prepareUpdateVolumeParams = _prepareUpdateVolumeParams }()
@@ -3087,7 +3277,10 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182499),
 		}
-
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -3111,7 +3304,10 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182499),
 		}
-
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -3135,7 +3331,10 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182499),
 		}
-
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume update conflict"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -3164,6 +3363,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			LifeCycleState: "UPDATING",
 		}
 		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -3202,6 +3402,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			QuotaInBytes:   107374182400,
 		}
 		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -3236,8 +3437,14 @@ func TestV1betaUpdateVolume(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
 			QuotaInBytes:   107374182400,
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "auto",
+			},
 		}
 		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
@@ -3268,6 +3475,10 @@ func TestV1betaUpdateVolume(t *testing.T) {
 				},
 			),
 		}
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
 		badReq, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
@@ -3299,7 +3510,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 				},
 			),
 		}
-		param, err := _prepareUpdateVolumeParams(req, params, region)
+		param, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, param.AutoTieringPolicy)
 		assert.True(t, param.AutoTieringPolicy.AutoTieringEnabled)
@@ -3330,7 +3541,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 				},
 			),
 		}
-		param, err := _prepareUpdateVolumeParams(req, params, region)
+		param, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, param.AutoTieringPolicy)
 		assert.True(t, param.AutoTieringPolicy.AutoTieringEnabled)
@@ -3361,12 +3572,62 @@ func TestV1betaUpdateVolume(t *testing.T) {
 				},
 			),
 		}
-		param, err := _prepareUpdateVolumeParams(req, params, region)
+		param, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, param.AutoTieringPolicy)
 		assert.True(t, param.AutoTieringPolicy.AutoTieringEnabled)
 		assert.False(t, param.AutoTieringPolicy.HotTierBypassModeEnabled) // Should default to false
 		assert.Equal(t, int32(30), param.AutoTieringPolicy.CoolingThresholdDays)
+	})
+
+	t.Run("WhenGetVolumeReturnsNotFoundError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
+		}
+
+		// Mock GetVolume to return NotFoundErr
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(nil, errors.NewNotFoundErr("Volume", nil))
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		notFound, ok := result.(*gcpgenserver.V1betaUpdateVolumeNotFound)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), notFound.Code)
+		assert.Equal(tt, "Volume not found", notFound.Message)
+	})
+
+	t.Run("WhenGetVolumeReturnsInternalError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
+		}
+
+		// Mock GetVolume to return a generic error
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(nil, errors.New("database connection error"))
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdateVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Equal(tt, "Internal server error", internalErr.Message)
 	})
 }
 
@@ -3400,7 +3661,7 @@ func TestPrepareUpdateVolumeParamsWithNilBackupChainBytes(t *testing.T) {
 			}),
 	}
 
-	out, err := _prepareUpdateVolumeParams(req, params, region)
+	out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, out)
 
@@ -3449,7 +3710,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				}),
 			Labels: gcpgenserver.NewOptVolumeUpdateV1betaLabels(labels),
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, "pool", out.PoolID)
 		assert.Equal(t, int64(107374182400), out.QuotaInBytes)
@@ -3462,7 +3723,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 
 	t.Run("WhenOptionalFieldsNotSet_ThenDefaultsAreUsed", func(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, "", out.PoolID)
 		assert.Equal(t, int64(0), out.QuotaInBytes)
@@ -3476,7 +3737,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			Protocols: []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err, "only ISCSI protocol is supported")
 		assert.Nil(t, out)
 	})
@@ -3485,7 +3746,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(gcpgenserver.BlockPropertiesV1beta{}),
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, out.BlockProperties)
 	})
@@ -3494,7 +3755,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			Labels: gcpgenserver.NewOptVolumeUpdateV1betaLabels(map[string]string{"": "v", "k": "v2"}),
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.EqualError(t, err, "key is required in label")
 		assert.Nil(t, out)
 	})
@@ -3504,7 +3765,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			Protocols: []gcpgenserver.ProtocolsV1beta{badProtocol},
 		}
-		_, err := _prepareUpdateVolumeParams(req, params, region)
+		_, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 	})
 
@@ -3518,7 +3779,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, out.BlockDevices)
 		assert.Len(t, out.BlockDevices, 1)
@@ -3538,7 +3799,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "Only one BlockDevice can be specified for update")
 		assert.Nil(t, out)
@@ -3552,7 +3813,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "BlockDevice name is required")
 		assert.Nil(t, out)
@@ -3567,7 +3828,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, out.BlockDevices)
 		assert.Len(t, out.BlockDevices, 1)
@@ -3590,7 +3851,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				},
 			),
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, out.SnapshotPolicy)
 		assert.True(t, out.SnapshotPolicy.IsEnabled)
@@ -3617,7 +3878,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				},
 			),
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 		assert.Nil(t, out)
 	})
@@ -3636,7 +3897,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				},
 			),
 		}
-		param, err := _prepareUpdateVolumeParams(req, params, region)
+		param, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, param.AutoTieringPolicy.TieringPolicy)
 		assert.True(t, param.AutoTieringPolicy.AutoTieringEnabled)
@@ -3657,7 +3918,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				},
 			),
 		}
-		param, err := _prepareUpdateVolumeParams(req, params, region)
+		param, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, param.AutoTieringPolicy.TieringPolicy)
 		assert.False(t, param.AutoTieringPolicy.AutoTieringEnabled)
@@ -3677,7 +3938,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 				},
 			),
 		}
-		_, err := _prepareUpdateVolumeParams(req, params, region)
+		_, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
 	})
@@ -3687,7 +3948,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 			PoolId:       gcpgenserver.NewOptNilString("pool"),
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 		}
-		param, err := _prepareUpdateVolumeParams(req, params, region)
+		param, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.Nil(t, param.AutoTieringPolicy)
 	})
@@ -3704,7 +3965,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 			}),
 		}
 
-		param, err := _prepareUpdateVolumeParams(req, params, "region")
+		param, err := _prepareUpdateVolumeParams(req, params, "region", nil)
 		assert.NoError(t, err)
 		assert.Equal(t, "backup-vault-id", *param.DataProtection.BackupVaultID)
 		assert.Equal(t, "backup-policy-id", *param.DataProtection.BackupPolicyId)
@@ -3718,7 +3979,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024), // 50GB
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, uint64(50*1024*1024*1024), out.IncrementalSpaceInBytes)
 	})
@@ -3728,7 +3989,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 			// IncrementalSpaceInBytes is not set
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, uint64(0), out.IncrementalSpaceInBytes)
 		assert.Equal(t, int64(107374182400), out.QuotaInBytes)
@@ -3742,7 +4003,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024 * 1024), // 100 TiB
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, uint64(100*1024*1024*1024*1024), out.IncrementalSpaceInBytes)
 	})
@@ -3756,7 +4017,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 			QuotaInBytes:            gcpgenserver.NewOptNilFloat64(107374182400),            // 100GB
 			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024), // 50GB
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, int64(107374182400), out.QuotaInBytes)
 		assert.Equal(t, uint64(50*1024*1024*1024), out.IncrementalSpaceInBytes)
@@ -3769,7 +4030,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(0), // 0 bytes
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, uint64(0), out.IncrementalSpaceInBytes)
 	})
@@ -5418,7 +5679,7 @@ func TestPrepareUpdateVolumeParams_IncrementalSpaceInBytesNotSupported(t *testin
 		IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024), // 100GB
 	}
 
-	out, err := _prepareUpdateVolumeParams(req, params, "region")
+	out, err := _prepareUpdateVolumeParams(req, params, "region", nil)
 	assert.Nil(t, out)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "IncrementalSpaceInBytes cannot be updated as Thin Clone support isn't available yet.")
@@ -5432,7 +5693,7 @@ func TestV1betaUpdateVolume_BackupNotSupported(t *testing.T) {
 		prepareUpdateVolumeParams = origPrepare
 		utils.ParseAndValidateRegionAndZone = origParseAndValidateRegionAndZone
 	}()
-	prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+	prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
 		return nil, errors.NewUserInputValidationErr("Backup feature is currently not enabled.")
 	}
 	utils.ParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
@@ -5446,6 +5707,10 @@ func TestV1betaUpdateVolume_BackupNotSupported(t *testing.T) {
 		VolumeId:      "vol-1",
 	}
 	req := &gcpgenserver.VolumeUpdateV1beta{}
+	volume := &models.Volume{
+		BaseModel: models.BaseModel{UUID: "vol-1"},
+	}
+	mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 
 	result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
 	assert.NoError(t, err)
@@ -5470,7 +5735,7 @@ func TestPrepareUpdateVolumeParams_BackupDisabled(t *testing.T) {
 		BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{}),
 	}
 
-	out, err := _prepareUpdateVolumeParams(req, params, "region")
+	out, err := _prepareUpdateVolumeParams(req, params, "region", nil)
 	assert.Nil(t, out)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
@@ -5510,6 +5775,44 @@ func TestPrepareCreateVolumeParams_WithAutoTieringFeatureDisabled(t *testing.T) 
 	_, err := _prepareCreateVolumeParams(req, params, region, zone)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
+}
+
+func TestPrepareCreateVolumeParams_TieringPolicyWithoutTierAction(t *testing.T) {
+	currentATState := autoTieringEnabled
+	defer func() { autoTieringEnabled = currentATState }()
+	autoTieringEnabled = true
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testvolume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// TierAction not set
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{
+						Value: 30,
+						Set:   true,
+					},
+				},
+			),
+			BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(gcpgenserver.BlockPropertiesV1beta{
+				OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+			}),
+		},
+		VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("PRIMARY"),
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+	_, err := _prepareCreateVolumeParams(req, params, region, zone)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Tiering action is required when enabling auto-tiering on volume")
 }
 
 func TestPrepareCreateVolumeParams_SnapReserveMustBePositiveNumber(t *testing.T) {
@@ -5697,7 +6000,7 @@ func TestPrepareUpdateVolumeParams_SnapReserveCannotBeGreaterThan100(t *testing.
 	req := &gcpgenserver.VolumeUpdateV1beta{
 		SnapReserve: gcpgenserver.NewOptNilFloat64(101),
 	}
-	result, err := _prepareUpdateVolumeParams(req, params, region)
+	result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "SnapReserve should be less than 100")
@@ -5714,7 +6017,7 @@ func TestPrepareUpdateVolumeParams_HG(t *testing.T) {
 	req := &gcpgenserver.VolumeUpdateV1beta{
 		SnapReserve: gcpgenserver.NewOptNilFloat64(101),
 	}
-	result, err := _prepareUpdateVolumeParams(req, params, region)
+	result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "SnapReserve should be less than 100")
@@ -5742,7 +6045,7 @@ func TestPrepareUpdateVolumeParams_QuotaValidation(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(float64(99 * 1024 * 1024 * 1024)), // 99 GiB
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.Contains(t, err.Error(), "Invalid volume capacity 99. Must be between 100 GiB and 102400 GiB.")
@@ -5752,7 +6055,7 @@ func TestPrepareUpdateVolumeParams_QuotaValidation(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(float64(102401 * 1024 * 1024 * 1024)), // 102,401 GiB
 		}
-		out, err := _prepareUpdateVolumeParams(req, params, region)
+		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.Contains(t, err.Error(), "Invalid volume capacity 102401. Must be between 100 GiB and 102400 GiB.")
@@ -7174,7 +7477,7 @@ func TestPrepareUpdateVolumeParamsCreationToken(t *testing.T) {
 			CreationToken: gcpgenserver.NewOptNilString("my-junction-path"),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7187,7 +7490,7 @@ func TestPrepareUpdateVolumeParamsCreationToken(t *testing.T) {
 			CreationToken: gcpgenserver.NewOptNilString(""),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7200,7 +7503,7 @@ func TestPrepareUpdateVolumeParamsCreationToken(t *testing.T) {
 			CreationToken: gcpgenserver.NewOptNilString("path-with_special.chars123"),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7213,7 +7516,7 @@ func TestPrepareUpdateVolumeParamsCreationToken(t *testing.T) {
 			// CreationToken not set
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.Nil(tt, result.FileProperties)
@@ -7233,7 +7536,7 @@ func TestPrepareUpdateVolumeParamsCreationToken(t *testing.T) {
 			}),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7264,7 +7567,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 			}),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7293,7 +7596,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 			}),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7330,7 +7633,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 			}),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7366,7 +7669,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 			}),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7395,7 +7698,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 			}),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7409,7 +7712,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 			// ExportPolicy not set
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.Nil(tt, result.FileProperties)
@@ -7429,7 +7732,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 			}),
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.FileProperties)
@@ -7588,7 +7891,7 @@ func TestPrepareUpdateVolumeParams_SnapshotDirectory(t *testing.T) {
 			SnapshotDirectory: gcpgenserver.NewOptNilBool(true), // Set to true
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.SnapshotDirectoryAccess)
 		assert.True(tt, *result.SnapshotDirectoryAccess)
@@ -7599,7 +7902,7 @@ func TestPrepareUpdateVolumeParams_SnapshotDirectory(t *testing.T) {
 			SnapshotDirectory: gcpgenserver.NewOptNilBool(false), // Set to false
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.SnapshotDirectoryAccess)
 		assert.False(tt, *result.SnapshotDirectoryAccess)
@@ -7610,7 +7913,7 @@ func TestPrepareUpdateVolumeParams_SnapshotDirectory(t *testing.T) {
 			// SnapshotDirectory not set - should not set SnapshotDirectoryAccess
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(tt, err)
 		assert.Nil(tt, result.SnapshotDirectoryAccess)
 	})
@@ -7620,7 +7923,7 @@ func TestPrepareUpdateVolumeParams_SnapshotDirectory(t *testing.T) {
 			SnapshotDirectory: gcpgenserver.OptNilBool{}, // Empty OptNilBool (not set)
 		}
 
-		result, err := _prepareUpdateVolumeParams(req, params, region)
+		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(tt, err)
 		assert.Nil(tt, result.SnapshotDirectoryAccess)
 	})
@@ -8121,7 +8424,7 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 				Set: true,
 			},
 		}
-		result, err := _prepareUpdateVolumeParams(req, param, region)
+		result, err := _prepareUpdateVolumeParams(req, param, region, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, result.CacheParameters.CacheConfig)
 		assert.Equal(t, int16(5), *result.CacheParameters.CacheConfig.AtimeScrubDays)
@@ -8164,7 +8467,7 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 				Set: true,
 			},
 		}
-		result, err := _prepareUpdateVolumeParams(req, param, region)
+		result, err := _prepareUpdateVolumeParams(req, param, region, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, result.CacheParameters.CacheConfig)
 		assert.True(t, *result.CacheParameters.CacheConfig.CifsChangeNotifyEnabled)

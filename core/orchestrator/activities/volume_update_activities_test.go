@@ -1049,7 +1049,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 					AutoTieringEnabled:   false,
 					TieringPolicy:        "none",
 					CoolingThresholdDays: 0,
-					RetrievalPolicy:      "default",
+					RetrievalPolicy:      "",
 				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, _ database.Storage) {

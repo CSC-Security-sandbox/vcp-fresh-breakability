@@ -351,7 +351,17 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if !autoTieringEnabled {
 			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 		}
+
+		if !req.Volume.TieringPolicy.Value.TierAction.IsSet() {
+			return nil, errors.NewUserInputValidationErr("Tiering action is required when enabling auto-tiering on volume")
+		}
+
 		param.AutoTieringPolicy = &common.AutoTieringPolicy{}
+
+		param.AutoTieringPolicy.CoolingThresholdDays = 0
+		if req.Volume.TieringPolicy.Value.CoolingThresholdDays.IsSet() {
+			param.AutoTieringPolicy.CoolingThresholdDays = req.Volume.TieringPolicy.Value.CoolingThresholdDays.Value
+		}
 
 		switch req.Volume.TieringPolicy.Value.TierAction.Value {
 		case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
@@ -556,7 +566,22 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 		}, nil
 	}
 
-	param, err := prepareUpdateVolumeParams(req, params, region)
+	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId, false)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateVolumeNotFound{
+				Code:    404,
+				Message: "Volume not found",
+			}, nil
+		}
+		logger.Error("Failed to get volume before update", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
+	}
+
+	param, err := prepareUpdateVolumeParams(req, params, region, volume)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaUpdateVolumeBadRequest{
@@ -607,7 +632,7 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 	}, nil
 }
 
-func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
 	var backupSchedule string
 	if qaEnabled && params.XNetappBackupSchedule.IsSet() {
 		backupSchedule = params.XNetappBackupSchedule.Value
@@ -701,15 +726,40 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 		}
 		param.AutoTieringPolicy = &common.AutoTieringPolicy{}
-		switch req.TieringPolicy.Value.TierAction.Value {
-		case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
-			param.AutoTieringPolicy.AutoTieringEnabled = true
-			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
-			param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
+
+		// Set the default cooling threshold from DB if available
+		if dbVolume != nil && dbVolume.AutoTieringPolicy != nil {
+			param.AutoTieringPolicy.CoolingThresholdDays = dbVolume.AutoTieringPolicy.CoolingThresholdDays
+		}
+		if req.TieringPolicy.Value.CoolingThresholdDays.IsSet() {
 			param.AutoTieringPolicy.CoolingThresholdDays = req.TieringPolicy.Value.CoolingThresholdDays.Value
-		case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
-			param.AutoTieringPolicy.AutoTieringEnabled = false
-			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
+		}
+
+		if req.TieringPolicy.Value.TierAction.IsSet() {
+			switch req.TieringPolicy.Value.TierAction.Value {
+			case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
+				param.AutoTieringPolicy.AutoTieringEnabled = true
+				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
+				param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
+			case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
+				if req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() && req.TieringPolicy.Value.HotTierBypassModeEnabled.Value {
+					return nil, errors.NewUserInputValidationErr("hotTierBypassMode can not be enabled along with pausing tiering on volume")
+				} else if !req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() && dbVolume != nil && dbVolume.AutoTieringPolicy != nil && dbVolume.AutoTieringPolicy.HotTierBypassModeEnabled {
+					return nil, errors.NewUserInputValidationErr("existing volume has hotTierBypassMode enabled, cannot pause tiering. To pause, hotTierBypassMode needs to be disabled.")
+				}
+				param.AutoTieringPolicy.AutoTieringEnabled = false
+				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
+			}
+		} else {
+			// If tiering action is not present in request, check existing in db & fill.
+			if dbVolume == nil || dbVolume.AutoTieringPolicy == nil || dbVolume.AutoTieringPolicy.TieringPolicy == "" {
+				return nil, errors.NewUserInputValidationErr("Tiering action is required when enabling auto-tiering on volume for the first time")
+			}
+			param.AutoTieringPolicy.TieringPolicy = dbVolume.AutoTieringPolicy.TieringPolicy
+			param.AutoTieringPolicy.AutoTieringEnabled = dbVolume.AutoTieringPolicy.AutoTieringEnabled
+			if param.AutoTieringPolicy.TieringPolicy == ontapmodels.VolumeInlineTieringPolicyAuto {
+				param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
+			}
 		}
 
 		// Process HotTierBypassModeEnabled if provided
@@ -717,6 +767,13 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			param.AutoTieringPolicy.HotTierBypassModeEnabled = req.TieringPolicy.Value.HotTierBypassModeEnabled.Value
 			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
 				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAll
+				// Only disable HotTierBypassModeEnabled, if it was previously enabled and no tiering policy has come as part of the request body.
+			} else if dbVolume != nil && dbVolume.AutoTieringPolicy != nil && dbVolume.AutoTieringPolicy.HotTierBypassModeEnabled && !req.TieringPolicy.Value.TierAction.IsSet() {
+				param.AutoTieringPolicy.TieringPolicy = dbVolume.AutoTieringPolicy.TieringPolicy
+				param.AutoTieringPolicy.AutoTieringEnabled = dbVolume.AutoTieringPolicy.AutoTieringEnabled
+				if param.AutoTieringPolicy.TieringPolicy == ontapmodels.VolumeInlineTieringPolicyAuto {
+					param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
+				}
 			}
 		}
 	}

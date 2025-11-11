@@ -555,7 +555,8 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 
 	if params.AutoTieringPolicy != nil {
 		if params.AutoTieringPolicy.AutoTieringEnabled != existingVolume.AutoTieringEnabled ||
-			(params.AutoTieringPolicy.AutoTieringEnabled && existingVolume.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolingThresholdDays != existingVolume.AutoTieringPolicy.CoolingThresholdDays) {
+			(params.AutoTieringPolicy.AutoTieringEnabled && existingVolume.AutoTieringPolicy != nil && (params.AutoTieringPolicy.CoolingThresholdDays != existingVolume.AutoTieringPolicy.CoolingThresholdDays ||
+				params.AutoTieringPolicy.TieringPolicy != existingVolume.AutoTieringPolicy.TieringPolicy)) {
 			return true
 		}
 	}
