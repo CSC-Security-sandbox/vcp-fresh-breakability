@@ -2959,7 +2959,7 @@ func TestAbortVolumeReplication(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 		mockSnapmirrorClient.AssertExpectations(tt)
 	})
-	
+
 	t.Run("WhenEmptyRelationshipID", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
@@ -3035,5 +3035,292 @@ func TestAbortVolumeReplication(t *testing.T) {
 		assert.Equal(tt, volRepEmptyTransferID, result)
 		mockClient.AssertExpectations(tt)
 		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+}
+
+func Test_unmountVolume(t *testing.T) {
+	originalGetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+
+	t.Run("Success_UnmountsVolumeWithJobCompletion", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		volumeUUID := "test-volume-uuid-123"
+		securityStyle := "unix"
+		volume := ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: nillable.GetStringPtr("test-volume"),
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.GetStringPtr("/test/junction/path"),
+					SecurityStyle: &securityStyle,
+				},
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+		}
+
+		// Setup mocks for the VolumeUnmount call inside _unmountVolume
+		jobAccepted := &ontaprest.JobAccepted{JobUUID: "unmount-job-123"}
+
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("VolumeUnmount", mock.Anything).Return(jobAccepted, nil)
+
+		// Execute test
+		err := _unmountVolume(provider, &volume, volRep)
+
+		// Verify results
+		assert.NoError(tt, err)
+		mockClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success_UnmountsVolumeWithoutJob", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		volumeUUID := "test-volume-uuid-456"
+		securityStyle := "unix"
+		volume := ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: nillable.GetStringPtr("test-volume-2"),
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.GetStringPtr("/another/junction/path"),
+					SecurityStyle: &securityStyle,
+				},
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm-2",
+			DestinationSVMName: "dest-svm-2",
+		}
+
+		// Setup mocks for VolumeUnmount call - returns success without job
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("VolumeUnmount", mock.Anything).Return((*ontaprest.JobAccepted)(nil), nil)
+
+		// Execute test
+		err := _unmountVolume(provider, &volume, volRep)
+
+		// Verify results
+		assert.NoError(tt, err)
+		mockClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenVolumeIsNil", func(tt *testing.T) {
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+		}
+
+		// Execute test with nil volume - should panic or return error
+		defer func() {
+			if r := recover(); r != nil {
+				// Expected panic due to nil pointer dereference
+				assert.Contains(tt, fmt.Sprintf("%v", r), "nil pointer dereference")
+			}
+		}()
+
+		err := _unmountVolume(provider, nil, volRep)
+
+		// If it doesn't panic, it should return an error
+		assert.Error(tt, err)
+	})
+
+	t.Run("Error_WhenVolumeNasIsNil", func(tt *testing.T) {
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+		}
+
+		volumeUUID := "test-volume-uuid-789"
+		volumeName := "test-volume-name"
+		volume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: &volumeName,
+				Nas:  nil, // Nas is nil
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+		}
+
+		// Execute test with volume that has nil Nas - should panic
+		defer func() {
+			if r := recover(); r != nil {
+				// Expected panic due to nil pointer dereference
+				assert.Contains(tt, fmt.Sprintf("%v", r), "nil pointer dereference")
+			}
+		}()
+
+		err := _unmountVolume(provider, volume, volRep)
+
+		// If it doesn't panic, it should return an error
+		assert.Error(tt, err)
+	})
+
+	t.Run("Error_WhenGetOntapClientFails", func(tt *testing.T) {
+		expectedError := errors.New("failed to create ONTAP client")
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, expectedError
+		}
+
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		volumeUUID := "test-volume-uuid-error"
+		securityStyle := "unix"
+		volume := ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: nillable.GetStringPtr("test-volume-error"),
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.GetStringPtr("/error/junction/path"),
+					SecurityStyle: &securityStyle,
+				},
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+		}
+
+		// Execute test
+		err := _unmountVolume(provider, &volume, volRep)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("Error_WhenVolumeModifyFails", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		volumeUUID := "test-volume-uuid-modify-error"
+		securityStyle := "unix"
+		volume := ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: nillable.GetStringPtr("test-volume-modify-error"),
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.GetStringPtr("/modify/error/path"),
+					SecurityStyle: &securityStyle,
+				},
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+		}
+
+		modifyError := errors.New("volume unmount operation failed")
+
+		// Setup mocks
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("VolumeUnmount", mock.Anything).Return((*ontaprest.JobAccepted)(nil), modifyError)
+
+		// Execute test
+		err := _unmountVolume(provider, &volume, volRep)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Equal(tt, modifyError, err)
+		mockClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WhenJobIsReturned", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		volumeUUID := "test-volume-uuid-poll-error"
+		securityStyle := "unix"
+		volume := ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: nillable.GetStringPtr("test-volume-poll-error"),
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.GetStringPtr("/poll/error/path"),
+					SecurityStyle: &securityStyle,
+				},
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+		}
+
+		jobUUID := "test-job-uuid"
+		jobResponse := &ontaprest.JobAccepted{
+			JobUUID: jobUUID,
+		}
+
+		// Setup mocks - function doesn't poll for jobs
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("VolumeUnmount", mock.Anything).Return(jobResponse, nil)
+
+		// Execute test
+		err := _unmountVolume(provider, &volume, volRep)
+
+		// Verify results - should succeed even when job is returned (no polling)
+		assert.NoError(tt, err)
+		mockClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
 	})
 }

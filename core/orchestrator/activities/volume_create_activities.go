@@ -298,7 +298,7 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 	}
 	err = provider.CreateExportPolicy(vsaExportPolicy)
 	if err != nil {
-		if errors.IsConflictErr(err) {
+		if errors.IsConflictErr(err) || strings.Contains(err.Error(), "duplicate entry") {
 			// If export policy already exists, we can skip creation
 			logger.Debug("Export policy already exists, skipping creation", "name", vsaExportPolicy.ExportPolicyName)
 			return nil

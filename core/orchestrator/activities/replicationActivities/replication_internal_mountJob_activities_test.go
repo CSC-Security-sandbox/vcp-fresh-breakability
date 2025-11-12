@@ -455,7 +455,7 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 			},
 		}
 		mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update volume"))
-		err := activity.UpdateVolumeLunDetailsInDB(ctx, replication, lunDetails)
+		err := activity.UpdateVolumeDetailsInDB(ctx, replication, lunDetails)
 		assert.Error(tt, err)
 	})
 	t.Run("WhenSuccess_UpdatesBlockDevicesAndMountStatus", func(tt *testing.T) {
@@ -500,7 +500,7 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 			return true
 		})).Return(nil)
 
-		err := activity.UpdateVolumeLunDetailsInDB(ctx, replication, lunDetails)
+		err := activity.UpdateVolumeDetailsInDB(ctx, replication, lunDetails)
 		assert.NoError(tt, err)
 
 		// Verify the updates
@@ -516,5 +516,205 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 		assert.Equal(tt, int64(1073741824), blockDevices[0].Size)
 		assert.Equal(tt, "lun-uuid", blockDevices[0].LunUUID)
 		assert.Equal(tt, "123412214", blockDevices[0].Identifier)
+	})
+}
+
+func TestMountVolume(t *testing.T) {
+	// Setup context for tests
+	ctx := context.Background()
+
+	t.Run("Success_MountsVolumeWithCorrectJunctionPath", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		// Setup mock provider
+		mockProvider := new(vsa.MockProvider)
+		expectedMountParams := vsa.MountVolumeParams{
+			UUID:         "external-volume-uuid",
+			JunctionPath: "/test-creation-token",
+		}
+		mockProvider.On("MountVolume", expectedMountParams).Return(&vsa.OntapAsyncResponse{}, nil)
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Create test data
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				Name: "test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID:  "external-volume-uuid",
+					CreationToken: "test-creation-token",
+				},
+			},
+		}
+		node := &models.Node{
+			EndpointAddress: "127.0.0.1",
+		}
+
+		// Execute test
+		activity := &MountJobActivity{}
+		err := activity.MountVolume(ctx, replication, node)
+
+		// Verify results
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenGetProviderByNodeFails", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		expectedError := errors.New("failed to get provider")
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, expectedError
+		}
+
+		// Create test data
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				Name: "test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID:  "external-volume-uuid",
+					CreationToken: "test-creation-token",
+				},
+			},
+		}
+		node := &models.Node{
+			EndpointAddress: "127.0.0.1",
+		}
+
+		// Execute test
+		activity := &MountJobActivity{}
+		err := activity.MountVolume(ctx, replication, node)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get provider")
+	})
+
+	t.Run("Error_WhenProviderMountVolumeFails", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		// Setup mock provider
+		mockProvider := new(vsa.MockProvider)
+		expectedMountParams := vsa.MountVolumeParams{
+			UUID:         "external-volume-uuid",
+			JunctionPath: "/test-creation-token",
+		}
+		providerError := errors.New("failed to mount volume in ONTAP")
+		mockProvider.On("MountVolume", expectedMountParams).Return(nil, providerError)
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Create test data
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				Name: "test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID:  "external-volume-uuid",
+					CreationToken: "test-creation-token",
+				},
+			},
+		}
+		node := &models.Node{
+			EndpointAddress: "127.0.0.1",
+		}
+
+		// Execute test
+		activity := &MountJobActivity{}
+		err := activity.MountVolume(ctx, replication, node)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to mount volume in ONTAP")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithEmptyCreationToken", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		// Setup mock provider
+		mockProvider := new(vsa.MockProvider)
+		expectedMountParams := vsa.MountVolumeParams{
+			UUID:         "external-volume-uuid",
+			JunctionPath: "/", // Empty creation token results in "/" junction path
+		}
+		mockProvider.On("MountVolume", expectedMountParams).Return(&vsa.OntapAsyncResponse{}, nil)
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Create test data with empty creation token
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				Name: "test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID:  "external-volume-uuid",
+					CreationToken: "", // Empty creation token
+				},
+			},
+		}
+		node := &models.Node{
+			EndpointAddress: "127.0.0.1",
+		}
+
+		// Execute test
+		activity := &MountJobActivity{}
+		err := activity.MountVolume(ctx, replication, node)
+
+		// Verify results
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithComplexCreationToken", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		// Setup mock provider
+		mockProvider := new(vsa.MockProvider)
+		expectedMountParams := vsa.MountVolumeParams{
+			UUID:         "external-volume-uuid-complex",
+			JunctionPath: "/my-complex-volume-name-123",
+		}
+		mockProvider.On("MountVolume", expectedMountParams).Return(&vsa.OntapAsyncResponse{}, nil)
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Create test data with complex creation token
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				Name: "complex-test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID:  "external-volume-uuid-complex",
+					CreationToken: "my-complex-volume-name-123",
+				},
+			},
+		}
+		node := &models.Node{
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Execute test
+		activity := &MountJobActivity{}
+		err := activity.MountVolume(ctx, replication, node)
+
+		// Verify results
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
 	})
 }

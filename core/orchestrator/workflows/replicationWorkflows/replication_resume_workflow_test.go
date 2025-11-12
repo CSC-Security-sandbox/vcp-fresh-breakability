@@ -42,6 +42,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(resumeReplicationActivity.ResizeVolumeIfNeeded)
 		env.RegisterActivity(resumeReplicationActivity.ResumeReplicationOnDestination)
 		env.RegisterActivity(resumeReplicationActivity.DescribeRemoteJobResume)
+		env.RegisterActivity(resumeReplicationActivity.MountReplicationAfterResume)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		params := &commonparams.ResumeReplicationParams{}
@@ -61,6 +62,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("ResizeVolumeIfNeeded", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ResumeReplicationOnDestination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("DescribeRemoteJobResume", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("MountReplicationAfterResume", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(ResumeReplicationWorkflow, params, event)
 

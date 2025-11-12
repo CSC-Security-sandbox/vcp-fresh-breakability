@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -118,7 +119,28 @@ func (j *MountJobActivity) GetLunDetailsFromOntap(ctx context.Context, replicati
 	return lunDetails, nil
 }
 
-func (j *MountJobActivity) UpdateVolumeLunDetailsInDB(ctx context.Context, replication *datamodel.VolumeReplication, lunDetails *vsa.LunResponse) error {
+func (j *MountJobActivity) MountVolume(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	provider, err := activitiesGetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	junctionPath := common.CreateJunctionPath(replication.Volume.VolumeAttributes.CreationToken)
+	mountParams := vsa.MountVolumeParams{
+		UUID:         replication.Volume.VolumeAttributes.ExternalUUID,
+		JunctionPath: junctionPath,
+	}
+	_, err = provider.MountVolume(mountParams)
+	if err != nil {
+		logger.Errorf("Failed to mount volume %s to junction path %s: %v", replication.Volume.Name, junctionPath, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Debugf("Junction path updated successfully for volume %s in ONTAP", replication.Volume.Name)
+	return nil
+}
+
+func (j *MountJobActivity) UpdateVolumeDetailsInDB(ctx context.Context, replication *datamodel.VolumeReplication, lunDetails *vsa.LunResponse) error {
 	se := j.SE
 	updates := make(map[string]interface{})
 	if replication.Volume.VolumeAttributes != nil && replication.Volume.VolumeAttributes.BlockDevices != nil {

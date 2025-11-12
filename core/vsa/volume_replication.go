@@ -7,6 +7,7 @@ import (
 
 	"github.com/sosodev/duration"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -21,7 +22,7 @@ var (
 	doValidateResyncVolumeReplication         = validateResyncVolumeReplication
 	listSnapmirrorDestinations                = _listSnapmirrorDestinations
 	doCreateVolumeReplicationScheduleIfNeeded = createVolumeReplicationSchedule
-	doUnmountVolume                           = unmountVolume
+	doUnmountVolume                           = _unmountVolume
 	doCleanupSvmPeering                       = cleanupSvmPeering
 	getSvmPeer                                = _getSvmPeer
 	deleteSvmPeer                             = _deleteSvmPeer
@@ -809,8 +810,20 @@ func validateResyncVolumeReplication(provider *OntapRestProvider, snapmirror *on
 }
 
 // unmountVolume unmounts volume after snapmirror resync
-func unmountVolume(provider *OntapRestProvider, volume *ontaprest.Volume, volRep *VolumeReplication) error {
-	// TODO: Implement unmount logic if needed
+func _unmountVolume(provider *OntapRestProvider, volume *ontaprest.Volume, volRep *VolumeReplication) error {
+	if *volume.Nas.SecurityStyle == string(models.SecurityStyleNtfs) || *volume.Nas.SecurityStyle == string(models.SecurityStyleMixed) {
+		// TODO: Add support for cifs share once SMB protocol is supported
+		provider.Logger.Errorf("SMB protocol type not supported")
+	}
+
+	// If volume is currently mounted (has existing junction path), unmount it first
+	provider.Logger.Debugf("Unmounting volume %s from junction path %s", volume.Name)
+	_, err := provider.UnmountVolume(*volume.UUID)
+	if err != nil {
+		provider.Logger.Errorf("Failed to unmount volume %s: %v", volume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	provider.Logger.Debugf("Volume %s unmounted successfully", volume.Name)
 	return nil
 }
 

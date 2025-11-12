@@ -136,5 +136,14 @@ func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface
 	}
 
 	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobResume, &replicationResult).Get(ctx, nil)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, replicationActivity.MountReplicationAfterResume, &replicationResult).Get(ctx, &replicationResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	return nil, workflows.ConvertToVSAError(err)
 }

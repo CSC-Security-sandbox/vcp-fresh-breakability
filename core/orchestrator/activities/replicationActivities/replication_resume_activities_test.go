@@ -1348,3 +1348,540 @@ func TestResizeVolumeIfNeeded(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 	})
 }
+
+func TestMountReplicationAfterResume(t *testing.T) {
+	t.Run("Success_ReturnsJobIdFromInternalJobResponse", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		// Setup test data
+		dstBasePath := "https://test-dst-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		dstProjectNumber := "123456789"
+		correlationID := "test-correlation-id"
+		jobUUID := "test-job-uuid-12345"
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: &correlationID,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "dest-replication-uuid-123",
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+		}
+
+		// Setup expected parameters
+		expectedParams := googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProjectNumber,
+			LocationId:          "us-central1",
+			VolumeReplicationId: "dest-replication-uuid-123",
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+
+		// Setup mock response
+		mockResponse := &googleproxyclient.InternalJobV1beta{
+			JobUuid: googleproxyclient.OptString{
+				Value: jobUUID,
+				Set:   true,
+			},
+		}
+
+		// Setup mock client
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			assert.Equal(tt, dstBasePath, basePath)
+			assert.Equal(tt, dstJwtToken, jwt)
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, expectedParams).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, &jobUUID, updatedResult.JobId)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenV1betaInternalMountVolumeReplicationFails", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		// Setup test data
+		dstBasePath := "https://test-dst-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		dstProjectNumber := "123456789"
+		correlationID := "test-correlation-id"
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: &correlationID,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "dest-replication-uuid-123",
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+		}
+
+		// Setup expected parameters
+		expectedParams := googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProjectNumber,
+			LocationId:          "us-central1",
+			VolumeReplicationId: "dest-replication-uuid-123",
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+
+		apiError := errors.New("network timeout")
+
+		// Setup mock client
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, expectedParams).Return(nil, apiError)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Equal(tt, "Failed to mount volume replication", err.Error())
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_BadRequest", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-correlation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "dest-replication-uuid-123",
+						},
+					},
+				},
+			},
+			DstBasePath:      nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:      nillable.GetStringPtr("test-jwt-token"),
+			DstProjectNumber: nillable.GetStringPtr("123456789"),
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationBadRequest{
+			Message: "Invalid request parameters",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Equal(tt, "Failed to mount volume replication", err.Error())
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Unauthorized", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-correlation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "dest-replication-uuid-123",
+						},
+					},
+				},
+			},
+			DstBasePath:      nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:      nillable.GetStringPtr("invalid-jwt-token"),
+			DstProjectNumber: nillable.GetStringPtr("123456789"),
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationUnauthorized{
+			Message: "Authentication failed",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Equal(tt, "Failed to mount volume replication", err.Error())
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Forbidden", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-correlation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "dest-replication-uuid-123",
+						},
+					},
+				},
+			},
+			DstBasePath:      nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:      nillable.GetStringPtr("test-jwt-token"),
+			DstProjectNumber: nillable.GetStringPtr("123456789"),
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationForbidden{
+			Message: "Access denied to resource",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Equal(tt, "Failed to mount volume replication", err.Error())
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_NotFound", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-correlation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "nonexistent-replication-uuid",
+						},
+					},
+				},
+			},
+			DstBasePath:      nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:      nillable.GetStringPtr("test-jwt-token"),
+			DstProjectNumber: nillable.GetStringPtr("123456789"),
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationNotFound{
+			Message: "Volume replication not found",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Equal(tt, "Failed to mount volume replication", err.Error())
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Conflict", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-correlation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "dest-replication-uuid-123",
+						},
+					},
+				},
+			},
+			DstBasePath:      nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:      nillable.GetStringPtr("test-jwt-token"),
+			DstProjectNumber: nillable.GetStringPtr("123456789"),
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationConflict{
+			Message: "Volume already mounted",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Equal(tt, "Failed to mount volume replication", err.Error())
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_MethodNotAllowed", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-correlation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "dest-replication-uuid-123",
+						},
+					},
+				},
+			},
+			DstBasePath:      nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:      nillable.GetStringPtr("test-jwt-token"),
+			DstProjectNumber: nillable.GetStringPtr("123456789"),
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationMethodNotAllowed{
+			Message: "Method not allowed for this operation",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Equal(tt, "Failed to mount volume replication", err.Error())
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_UnprocessableEntity", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-correlation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "dest-replication-uuid-123",
+						},
+					},
+				},
+			},
+			DstBasePath:      nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:      nillable.GetStringPtr("test-jwt-token"),
+			DstProjectNumber: nillable.GetStringPtr("123456789"),
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationUnprocessableEntity{
+			Message: "Invalid entity format",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Equal(tt, "Failed to mount volume replication", err.Error())
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_InternalServerError", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-correlation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "us-central1",
+							DestinationReplicationUUID: "dest-replication-uuid-123",
+						},
+					},
+				},
+			},
+			DstBasePath:      nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:      nillable.GetStringPtr("test-jwt-token"),
+			DstProjectNumber: nillable.GetStringPtr("123456789"),
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationInternalServerError{
+			Message: "Internal server error occurred",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &ResumeVolumeReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterResume(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Equal(tt, "Failed to mount volume replication", err.Error())
+		mockClient.AssertExpectations(tt)
+	})
+}

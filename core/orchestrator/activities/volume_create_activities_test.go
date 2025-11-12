@@ -3256,6 +3256,57 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("Success_ExportPolicyDuplicateEntry", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock provider setup
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Test data
+		volume := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "existing-export-policy",
+						ExportRules: []*datamodel.ExportRule{
+							{
+								AllowedClients: "192.168.1.0/24",
+								AccessType:     "ReadOnly",
+							},
+						},
+					},
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Mock expectations - simulate conflict error
+		conflictError := utilErrors.New("duplicate entry")
+		mockProvider.EXPECT().CreateExportPolicy(mock.Anything).Return(conflictError)
+
+		// Execute test
+		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+
+		// Assertions - should return nil on conflict (graceful handling)
+		assert.NoError(t, err)
+	})
+
 	t.Run("Error_ProviderError", func(t *testing.T) {
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)

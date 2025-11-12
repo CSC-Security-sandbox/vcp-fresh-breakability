@@ -124,12 +124,18 @@ func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	var lunDetails *vsa.LunResponse
-	err = workflow.ExecuteActivity(ctx, mountJobActivity.GetLunDetailsFromOntap, replication, node).Get(ctx, &lunDetails)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	if replication.Volume.VolumeAttributes.FileProperties != nil {
+		err = workflow.ExecuteActivity(ctx, mountJobActivity.MountVolume, replication, node).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	} else {
+		err = workflow.ExecuteActivity(ctx, mountJobActivity.GetLunDetailsFromOntap, replication, node).Get(ctx, &lunDetails)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
-
-	err = workflow.ExecuteActivity(ctx, mountJobActivity.UpdateVolumeLunDetailsInDB, replication, lunDetails).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, mountJobActivity.UpdateVolumeDetailsInDB, replication, lunDetails).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
