@@ -2411,6 +2411,53 @@ func (_c *MockStorage_DeleteAccount_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
+// DeleteActiveDirectory provides a mock function with given fields: ctx, uuid
+func (_m *MockStorage) DeleteActiveDirectory(ctx context.Context, uuid string) error {
+	ret := _m.Called(ctx, uuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteActiveDirectory")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, uuid)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_DeleteActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteActiveDirectory'
+type MockStorage_DeleteActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// DeleteActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - uuid string
+func (_e *MockStorage_Expecter) DeleteActiveDirectory(ctx interface{}, uuid interface{}) *MockStorage_DeleteActiveDirectory_Call {
+	return &MockStorage_DeleteActiveDirectory_Call{Call: _e.mock.On("DeleteActiveDirectory", ctx, uuid)}
+}
+
+func (_c *MockStorage_DeleteActiveDirectory_Call) Run(run func(ctx context.Context, uuid string)) *MockStorage_DeleteActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteActiveDirectory_Call) Return(_a0 error) *MockStorage_DeleteActiveDirectory_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_DeleteActiveDirectory_Call) RunAndReturn(run func(context.Context, string) error) *MockStorage_DeleteActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteBackup provides a mock function with given fields: ctx, backupUUID
 func (_m *MockStorage) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backupUUID)
@@ -4326,65 +4373,6 @@ func (_c *MockStorage_GetActiveDirectoryByNameAndAccountID_Call) Return(_a0 *dat
 }
 
 func (_c *MockStorage_GetActiveDirectoryByNameAndAccountID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.ActiveDirectory, error)) *MockStorage_GetActiveDirectoryByNameAndAccountID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetActiveDirectoryByUUID provides a mock function with given fields: ctx, uuid
-func (_m *MockStorage) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
-	ret := _m.Called(ctx, uuid)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetActiveDirectoryByUUID")
-	}
-
-	var r0 *datamodel.ActiveDirectory
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.ActiveDirectory, error)); ok {
-		return rf(ctx, uuid)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.ActiveDirectory); ok {
-		r0 = rf(ctx, uuid)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.ActiveDirectory)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, uuid)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockStorage_GetActiveDirectoryByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveDirectoryByUUID'
-type MockStorage_GetActiveDirectoryByUUID_Call struct {
-	*mock.Call
-}
-
-// GetActiveDirectoryByUUID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - uuid string
-func (_e *MockStorage_Expecter) GetActiveDirectoryByUUID(ctx interface{}, uuid interface{}) *MockStorage_GetActiveDirectoryByUUID_Call {
-	return &MockStorage_GetActiveDirectoryByUUID_Call{Call: _e.mock.On("GetActiveDirectoryByUUID", ctx, uuid)}
-}
-
-func (_c *MockStorage_GetActiveDirectoryByUUID_Call) Run(run func(ctx context.Context, uuid string)) *MockStorage_GetActiveDirectoryByUUID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *MockStorage_GetActiveDirectoryByUUID_Call) Return(_a0 *datamodel.ActiveDirectory, _a1 error) *MockStorage_GetActiveDirectoryByUUID_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockStorage_GetActiveDirectoryByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ActiveDirectory, error)) *MockStorage_GetActiveDirectoryByUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -8057,6 +8045,65 @@ func (_c *MockStorage_GetResourcesCount_Call) Return(_a0 int64, _a1 error) *Mock
 }
 
 func (_c *MockStorage_GetResourcesCount_Call) RunAndReturn(run func(context.Context) (int64, error)) *MockStorage_GetResourcesCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSVMsUsingActiveDirectory provides a mock function with given fields: ctx, adId
+func (_m *MockStorage) GetSVMsUsingActiveDirectory(ctx context.Context, adId int64) ([]*datamodel.Svm, error) {
+	ret := _m.Called(ctx, adId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSVMsUsingActiveDirectory")
+	}
+
+	var r0 []*datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.Svm, error)); ok {
+		return rf(ctx, adId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.Svm); ok {
+		r0 = rf(ctx, adId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, adId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetSVMsUsingActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSVMsUsingActiveDirectory'
+type MockStorage_GetSVMsUsingActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// GetSVMsUsingActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - adId int64
+func (_e *MockStorage_Expecter) GetSVMsUsingActiveDirectory(ctx interface{}, adId interface{}) *MockStorage_GetSVMsUsingActiveDirectory_Call {
+	return &MockStorage_GetSVMsUsingActiveDirectory_Call{Call: _e.mock.On("GetSVMsUsingActiveDirectory", ctx, adId)}
+}
+
+func (_c *MockStorage_GetSVMsUsingActiveDirectory_Call) Run(run func(ctx context.Context, adId int64)) *MockStorage_GetSVMsUsingActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetSVMsUsingActiveDirectory_Call) Return(_a0 []*datamodel.Svm, _a1 error) *MockStorage_GetSVMsUsingActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetSVMsUsingActiveDirectory_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.Svm, error)) *MockStorage_GetSVMsUsingActiveDirectory_Call {
 	_c.Call.Return(run)
 	return _c
 }

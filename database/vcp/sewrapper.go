@@ -3979,22 +3979,6 @@ func (re *retryEngine) ListClusterPeeringRowsByAccountID(ctx context.Context, ac
 	return var0, err
 }
 
-func (re *retryEngine) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
-	var var0 *datamodel.ActiveDirectory
-	err := retry.Do(func(attempt int) (bool, error) {
-		var err error
-		var0, err = re.dataStore.GetActiveDirectoryByUUID(ctx, uuid)
-		if err != nil {
-			re.logError("GetActiveDirectoryByUUID", err)
-			if !dbutils.IsTransientErr(err) {
-				return false, err
-			}
-		}
-		return true, err
-	})
-	return var0, err
-}
-
 func (re *retryEngine) ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error) {
 	var var0 []*datamodel.ActiveDirectory
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4040,4 +4024,35 @@ func (re *retryEngine) DeleteClusterPeeringRow(ctx context.Context, clusterPeeri
 		return true, err
 	})
 	return err
+}
+
+func (re *retryEngine) DeleteActiveDirectory(ctx context.Context, uuid string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteActiveDirectory(ctx, uuid)
+		if err != nil {
+			re.logError("DeleteActiveDirectory", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
+func (re *retryEngine) GetSVMsUsingActiveDirectory(ctx context.Context, adId int64) ([]*datamodel.Svm, error) {
+	var var0 []*datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSVMsUsingActiveDirectory(ctx, adId)
+		if err != nil {
+			re.logError("GetSVMsUsingActiveDirectory", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
 }

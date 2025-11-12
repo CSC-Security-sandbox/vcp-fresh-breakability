@@ -1,6 +1,8 @@
 package workflows
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
@@ -19,7 +21,6 @@ import (
 	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
-	"testing"
 )
 
 const cvpHost = "sde.example.com"
@@ -1169,6 +1170,724 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 			}
 			return nil
 		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.NotNil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+}
+
+// TestDeleteActiveDirectoryWorkflow tests the DeleteActiveDirectoryWorkflow
+func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
+	t.Run("Success_VcpOnly_ADExists", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(123)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-123",
+		ProjectNumber:       "test-project-123",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+			ADExists:        true,
+			DeletionAllowed: true,
+		}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Success_SDE_ADExistsAtBothPlaces", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(456)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-456",
+		ProjectNumber:       "test-project-456",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+			ADExists:        true,
+			DeletionAllowed: true,
+		}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
+	env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Success_SDE_ADNotFoundAtVCP", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(789)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-789",
+		ProjectNumber:       "test-project-789",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+		// When AD doesn't exist at VCP, DeletionAllowed is true (no SVMs using it)
+		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+			ADExists:        false,
+			DeletionAllowed: true,
+		}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_CheckDeletionNotAllowed", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(999)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-in-use",
+		ProjectNumber:       "test-project-999",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+		checkResult := active_directory_activities.CheckDeletionAllowedResult{
+			ADExists:        true,
+			DeletionAllowed: false,
+		}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_CheckDeletionError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(888)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-check-error",
+		ProjectNumber:       "test-project-888",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(nil, errors.New("database error"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_DeleteVcpError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(777)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-vcp-error",
+		ProjectNumber:       "test-project-777",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+			ADExists:        true,
+			DeletionAllowed: true,
+		}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(errors.New("VCP deletion failed"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_DeleteSdeError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(666)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-sde-error",
+		ProjectNumber:       "test-project-666",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+	checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+		ADExists:        true,
+		DeletionAllowed: true,
+	}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+})
+
+t.Run("Failure_UpdateJobStatusError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(555)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-job-error",
+		ProjectNumber:       "test-project-555",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.NewUserInputValidationErr("job status update failed"))
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_DeleteVcpWhenSDEEnabled", func(t *testing.T) {
+		// Test to cover lines 285-286: DeleteVcpActiveDirectory fails when SDE is enabled
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(222)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-vcp-fail-sde",
+		ProjectNumber:       "test-project-222",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost // Enable SDE
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+			ADExists:        true,
+			DeletionAllowed: true,
+		}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
+	env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(errors.New("VCP deletion failed in SDE mode"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "VCP deletion failed in SDE mode")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_DeleteSdeWhenADNotFoundAtVCP", func(t *testing.T) {
+		// Test to cover lines 255-256: DeleteSdeActiveDirectory fails when AD not found at VCP
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	accountID := int64(111)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-sde-fail-notfound",
+		ProjectNumber:       "test-project-111",
+	}
+
+	originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost // Enable SDE
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+	checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+		ADExists:        false, // AD not found at VCP
+		DeletionAllowed: true,
+	}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "SDE deletion failed")
+	env.AssertExpectations(t)
+})
+}
+
+// TestActiveDirectoryDeleteWorkflow_Setup tests the Setup method
+func TestActiveDirectoryDeleteWorkflow_Setup(t *testing.T) {
+	t.Run("SuccessfulSetup", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+	env.SetHeader(mockHeader)
+
+	accountID := int64(123)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-123",
+		ProjectNumber:       "test-project-123",
+	}
+
+	var setupErr error
+		var wf *ActiveDirectoryDeleteWorkflow
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			wf = &ActiveDirectoryDeleteWorkflow{}
+			setupErr = wf.Setup(ctx, params)
+			return setupErr
+		})
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		wf = &ActiveDirectoryDeleteWorkflow{}
+		setupErr = wf.Setup(ctx, params)
+		return setupErr
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, setupErr)
+	assert.NoError(t, env.GetWorkflowError())
+	assert.Equal(t, WorkflowStatusCreated, wf.Status)
+	assert.Equal(t, "test-project-123", wf.CustomerID)
+	assert.Equal(t, "default-test-workflow-id", wf.ID)
+})
+
+	t.Run("QueryHandlerTest", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+	env.SetHeader(mockHeader)
+
+	accountID := int64(456)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-query",
+		ProjectNumber:       "test-project-456",
+	}
+
+	env.RegisterWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryDeleteWorkflow{}
+			err := wf.Setup(ctx, params)
+			if err != nil {
+				return err
+			}
+			wf.Status = WorkflowStatusRunning
+			return nil
+		})
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryDeleteWorkflow{}
+			err := wf.Setup(ctx, params)
+			if err != nil {
+				return err
+			}
+			wf.Status = WorkflowStatusRunning
+			return nil
+		})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	queryResult, err := env.QueryWorkflow("status")
+	assert.NoError(t, err)
+	assert.NotNil(t, queryResult)
+
+	var status WorkflowStatus
+	err = queryResult.Get(&status)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-project-456", status.CustomerID)
+	assert.Equal(t, "default-test-workflow-id", status.ID)
+})
+}
+
+// TestActiveDirectoryDeleteWorkflow_Run tests the Run method
+func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
+	t.Run("SuccessfulVcpOnlyRun", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	originalHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalHost }()
+
+	accountID := int64(123)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-run",
+		ProjectNumber:       "test-project-123",
+	}
+
+	checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+		ADExists:        true,
+		DeletionAllowed: true,
+	}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
+
+	var runResult interface{}
+	var runErr *vsaerrors.CustomError
+	env.RegisterWorkflow(func(ctx workflow.Context) error {
+		wf := &ActiveDirectoryDeleteWorkflow{}
+		runResult, runErr = wf.Run(ctx, params)
+		if runErr != nil {
+			return runErr
+		}
+		return nil
+	})
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		wf := &ActiveDirectoryDeleteWorkflow{}
+		runResult, runErr = wf.Run(ctx, params)
+		if runErr != nil {
+			return runErr
+		}
+		return nil
+	})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		assert.Nil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SuccessfulSdeRun", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	originalHost := cvp.CVP_HOST
+	cvp.CVP_HOST = cvpHost
+	defer func() { cvp.CVP_HOST = originalHost }()
+
+	accountID := int64(456)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-sde-run",
+		ProjectNumber:       "test-project-456",
+	}
+
+	checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+		ADExists:        true,
+		DeletionAllowed: true,
+	}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+	env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
+	env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
+
+	var runResult interface{}
+	var runErr *vsaerrors.CustomError
+	env.RegisterWorkflow(func(ctx workflow.Context) error {
+		wf := &ActiveDirectoryDeleteWorkflow{}
+		runResult, runErr = wf.Run(ctx, params)
+		if runErr != nil {
+			return runErr
+		}
+		return nil
+	})
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		wf := &ActiveDirectoryDeleteWorkflow{}
+		runResult, runErr = wf.Run(ctx, params)
+		if runErr != nil {
+			return runErr
+		}
+		return nil
+	})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		assert.Nil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_ActivityError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+	originalHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalHost }()
+
+	accountID := int64(789)
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           accountID,
+		ActiveDirectoryUUID: "ad-uuid-run-error",
+		ProjectNumber:       "test-project-789",
+	}
+
+	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(nil, errors.New("check deletion failed"))
+
+	var runResult interface{}
+	var runErr *vsaerrors.CustomError
+	env.RegisterWorkflow(func(ctx workflow.Context) error {
+		wf := &ActiveDirectoryDeleteWorkflow{}
+		runResult, runErr = wf.Run(ctx, params)
+		if runErr != nil {
+			return runErr
+		}
+		return nil
+	})
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		wf := &ActiveDirectoryDeleteWorkflow{}
+		runResult, runErr = wf.Run(ctx, params)
+		if runErr != nil {
+			return runErr
+		}
+		return nil
+	})
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())

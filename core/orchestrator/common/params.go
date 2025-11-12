@@ -724,3 +724,9 @@ type AdSdeUpdateResult struct {
 	Done *bool   `json:"done,omitempty"`
 	Name *string `json:"name,omitempty"`
 }
+
+type DeleteActiveDirectoryParams struct {
+	ProjectNumber       string
+	AccountId           int64
+	ActiveDirectoryUUID string
+}

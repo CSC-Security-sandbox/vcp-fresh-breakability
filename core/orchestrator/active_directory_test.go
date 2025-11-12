@@ -926,7 +926,7 @@ func Test_getActiveDirectory_Success(t *testing.T) {
 		},
 	}
 
-	mockSe.On("GetActiveDirectoryByUUID", mock.Anything, adUUID).Return(adFromDB, nil)
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, adUUID, int64(0)).Return(adFromDB, nil)
 
 	ad, err := _getActiveDirectory(ctx, mockSe, adUUID)
 
@@ -950,7 +950,7 @@ func Test_getActiveDirectory_NotFound(t *testing.T) {
 	mockSe := new(database.MockStorage)
 	adUUID := "non-existent-uuid"
 
-	mockSe.On("GetActiveDirectoryByUUID", mock.Anything, adUUID).Return(nil, nil)
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, adUUID, int64(0)).Return(nil, nil)
 
 	ad, err := _getActiveDirectory(ctx, mockSe, adUUID)
 
@@ -965,7 +965,7 @@ func Test_getActiveDirectory_DatabaseError(t *testing.T) {
 	mockSe := new(database.MockStorage)
 	adUUID := "test-ad-uuid"
 
-	mockSe.On("GetActiveDirectoryByUUID", mock.Anything, adUUID).Return(nil, errors.New("database error"))
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, adUUID, int64(0)).Return(nil, errors.New("database error"))
 
 	ad, err := _getActiveDirectory(ctx, mockSe, adUUID)
 
@@ -1715,7 +1715,6 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 		State:     models.LifeCycleStateREADY,
 	}
 
-	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
 	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(adRecord, nil)
 	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
 
@@ -1840,8 +1839,6 @@ func TestUpdateActiveDirectory_ADNotFound(t *testing.T) {
 	}
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
 
-	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "non-existent-ad").Return(nil, errors.New("not found"))
-
 	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
 	assert.Error(t, err)
@@ -1895,13 +1892,6 @@ func TestUpdateActiveDirectory_JobCreationFailed(t *testing.T) {
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
 
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
-
-	adRecord := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
-		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
-	}
-	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
 
 	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -1972,13 +1962,6 @@ func TestUpdateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 		return errors.New("workflow start error")
 	}
 	defer func() { workflowsExecuteWorkflowSequentially = originalWorkflowExecute }()
-
-	adRecord := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
-		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
-	}
-	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
 
 	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -2053,13 +2036,6 @@ func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	defer func() {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 	}()
-
-	adRecord := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
-		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
-	}
-	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
 
 	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -2138,14 +2114,6 @@ func TestUpdateActiveDirectory_ADRecordNotFoundInDB(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 	}()
 
-	adRecord := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
-		AdName:    "test-ad",
-		State:     models.LifeCycleStateREADY,
-	}
-
-	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid-123").Return(adRecord, nil)
-
 	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
 	assert.Error(t, err)
@@ -2222,4 +2190,343 @@ func TestOrchestratorUpdateActiveDirectory_Error(t *testing.T) {
 	assert.Nil(t, ad)
 	assert.Empty(t, jobUUID)
 	assert.Contains(t, err.Error(), "update failed")
+}
+
+// Delete Active Directory Tests
+
+func Test_deleteActiveDirectory_GetAccountError(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	params := &common.DeleteActiveDirectoryParams{
+		ProjectNumber:       "test-account",
+		ActiveDirectoryUUID: "ad-uuid",
+	}
+
+	// Patch getOrCreateAccount to return error
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return nil, errors.New("account error")
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "account error")
+	assert.Empty(t, jobUUID)
+}
+
+func Test_deleteActiveDirectory_GetADError(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	params := &common.DeleteActiveDirectoryParams{
+		ProjectNumber:       "test-account",
+		ActiveDirectoryUUID: "ad-uuid",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+
+	// Patch getOrCreateAccount
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(nil, errors.New("get AD error"))
+
+	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "get AD error")
+	assert.Empty(t, jobUUID)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_deleteActiveDirectory_AlreadyDeleted(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	params := &common.DeleteActiveDirectoryParams{
+		ProjectNumber:       "test-account",
+		ActiveDirectoryUUID: "ad-uuid",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+	ad := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateDeleted,
+		AccountId: 42,
+	}
+
+	// Patch getOrCreateAccount
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
+
+	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
+
+	// Should return empty job UUID and no error (lines 546-547)
+	assert.NoError(t, err)
+	assert.Empty(t, jobUUID)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_deleteActiveDirectory_AlreadyDeletingWithExistingJob(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	params := &common.DeleteActiveDirectoryParams{
+		ProjectNumber:       "test-account",
+		ActiveDirectoryUUID: "ad-uuid",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+	ad := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateDeleting,
+		AccountId: 42,
+	}
+	existingJob := &datamodel.Job{
+		BaseModel:    datamodel.BaseModel{UUID: "existing-job-uuid"},
+		WorkflowID:   "existing-workflow-id",
+		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
+		ResourceName: "test-ad",
+	}
+
+	// Patch getOrCreateAccount
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
+	// GetJobByResourceUUID returns existing job (lines 556-557)
+	mockSe.On("GetJobByResourceUUID", mock.Anything, "ad-uuid", string(models.JobTypeDeleteActiveDirectory)).Return(existingJob, nil)
+
+	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
+
+	// Should return existing job UUID (lines 556-557)
+	assert.NoError(t, err)
+	assert.Equal(t, "existing-job-uuid", jobUUID)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_deleteActiveDirectory_AlreadyDeletingNoJob(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	params := &common.DeleteActiveDirectoryParams{
+		ProjectNumber:       "test-account",
+		ActiveDirectoryUUID: "ad-uuid",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+	ad := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateDeleting,
+		AccountId: 42,
+	}
+	job := &datamodel.Job{
+		BaseModel:    datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID:   "workflow-id",
+		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
+		ResourceName: "test-ad",
+	}
+
+	// Patch getOrCreateAccount
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	// Mock ExecuteWorkflowSequentially
+	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return nil
+	}
+	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
+	// GetJobByResourceUUID returns error (no job found)
+	mockSe.On("GetJobByResourceUUID", mock.Anything, "ad-uuid", string(models.JobTypeDeleteActiveDirectory)).Return(nil, errors.New("job not found"))
+	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+
+	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
+
+	// Should succeed and create new job (line 207 warning logged)
+	assert.NoError(t, err)
+	assert.Equal(t, "job-uuid", jobUUID)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_deleteActiveDirectory_CreateJobError(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	params := &common.DeleteActiveDirectoryParams{
+		ProjectNumber:       "test-account",
+		ActiveDirectoryUUID: "ad-uuid",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+	ad := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+		AccountId: 42,
+	}
+
+	// Patch getOrCreateAccount
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
+	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(nil, errors.New("create job error"))
+
+	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "create job error")
+	assert.Empty(t, jobUUID)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_deleteActiveDirectory_WorkflowErrorWithUpdateJobError(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	params := &common.DeleteActiveDirectoryParams{
+		ProjectNumber:       "test-account",
+		ActiveDirectoryUUID: "ad-uuid",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+	ad := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+		AccountId: 42,
+	}
+	job := &datamodel.Job{
+		BaseModel:    datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID:   "workflow-id",
+		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
+		ResourceName: "test-ad",
+	}
+
+	// Patch getOrCreateAccount
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	// Mock ExecuteWorkflowSequentially to return error
+	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return errors.New("workflow execution error")
+	}
+	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
+	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	// Mock UpdateJob to also fail (lines 255-256)
+	mockSe.On("UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(errors.New("update job error"))
+
+	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "workflow execution error")
+	assert.Empty(t, jobUUID)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_deleteActiveDirectory_WorkflowError(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	params := &common.DeleteActiveDirectoryParams{
+		ProjectNumber:       "test-account",
+		ActiveDirectoryUUID: "ad-uuid",
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+	ad := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateREADY,
+		AccountId: 42,
+	}
+	job := &datamodel.Job{
+		BaseModel:    datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID:   "workflow-id",
+		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
+		ResourceName: "test-ad",
+	}
+
+	// Patch getOrCreateAccount
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	// Mock ExecuteWorkflowSequentially to return error
+	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return errors.New("workflow execution error")
+	}
+	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
+	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	// Mock UpdateJob to succeed
+	mockSe.On("UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "workflow execution error")
+	assert.Empty(t, jobUUID)
+	mockSe.AssertExpectations(t)
+}
+
+func TestOrchestrator_DeleteActiveDirectory_Error(t *testing.T) {
+	ctx := context.Background()
+	params := &common.DeleteActiveDirectoryParams{
+		ProjectNumber:       "test-account",
+		ActiveDirectoryUUID: "ad-uuid",
+	}
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	o := &Orchestrator{
+		storage:  mockSe,
+		temporal: mockTemporal,
+	}
+
+	origDeleteActiveDirectory := deleteActiveDirectory
+	deleteActiveDirectory = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.DeleteActiveDirectoryParams) (string, error) {
+		return "", errors.New("delete error")
+	}
+	defer func() { deleteActiveDirectory = origDeleteActiveDirectory }()
+
+	jobUUID, err := o.DeleteActiveDirectory(ctx, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "delete error")
+	assert.Empty(t, jobUUID)
 }

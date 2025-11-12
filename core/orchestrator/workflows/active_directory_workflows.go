@@ -1,6 +1,8 @@
 package workflows
 
 import (
+	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -9,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -132,6 +135,180 @@ func (wf *ActiveDirectoryCreateWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, ConvertToVSAError(err)
 	}
 
+	return nil, nil
+}
+
+type ActiveDirectoryDeleteWorkflow struct {
+	BaseWorkflow
+}
+
+func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteActiveDirectoryParams) (interface{}, error) {
+	log := util.GetLogger(ctx)
+	activeDirectoryWf := new(ActiveDirectoryDeleteWorkflow)
+
+	err := activeDirectoryWf.Setup(ctx, params)
+	if err != nil {
+		log.Errorf("Failed to setup ActiveDirectoryDeleteWorkflow: %v", err)
+		return nil, err
+	}
+
+	activeDirectoryWf.Status = WorkflowStatusRunning
+	err = activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		log.Errorf("Failed to update job status to Processing for ActiveDirectoryDeleteWorkflow: %v", err)
+		return nil, err
+	}
+
+	_, customErr := activeDirectoryWf.Run(ctx, params)
+	if customErr != nil {
+		log.Errorf("ActiveDirectoryDeleteWorkflow completed with error: %v", customErr)
+		activeDirectoryWf.Status = WorkflowStatusFailed
+		err2 := activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		if err2 != nil {
+			log.Errorf("Failed to update job status to Done with error for ActiveDirectoryDeleteWorkflow: %v", err2)
+			return nil, err2
+		}
+		return nil, customErr
+	}
+
+	activeDirectoryWf.Status = WorkflowStatusCompleted
+	err = activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err != nil {
+		log.Errorf("Failed to update job status to Done for ActiveDirectoryDeleteWorkflow: %v", err)
+	}
+	return nil, err
+}
+
+func (wf *ActiveDirectoryDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	deleteAdParams := input.(*common.DeleteActiveDirectoryParams)
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = deleteAdParams.ProjectNumber
+	wf.Status = WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{
+		"workflowID": wf.ID,
+		"customerID": wf.CustomerID,
+	})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
+			ID:         wf.ID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
+		}, nil
+	})
+}
+
+func (wf *ActiveDirectoryDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+	logger := util.GetLogger(ctx)
+	activeDirectoryActivity := &active_directory_activities.ActiveDirectoryDeleteActivity{}
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	params := args[0].(*common.DeleteActiveDirectoryParams)
+
+	logger.Info("Starting Active Directory delete workflow", "active_directory_uuid", params.ActiveDirectoryUUID)
+
+	var checkResult active_directory_activities.CheckDeletionAllowedResult
+	err = workflow.ExecuteActivity(
+		ctx,
+		activeDirectoryActivity.CheckDeletionAllowed,
+		params,
+	).Get(ctx, &checkResult)
+
+	// Handle the check result
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to check if deletion is allowed: %v", err))
+		return nil, ConvertToVSAError(err)
+	}
+
+	if !checkResult.DeletionAllowed {
+		// AD found at VCP but deletion not allowed (SVMs using it)
+		err1 := customerrors.Errorf("active directory deletion is not allowed - ad is in use")
+		logger.Error(err1.Error())
+		return nil, ConvertToVSAError(err1)
+	}
+
+	// Step 1: Check if SDE is enabled (CVP_HOST is set)
+	if cvp.CVP_HOST != "" {
+		logger.Debug("SDE is enabled")
+
+		// Step 2: Check if AD can be deleted at VCP (check existence and SVM associations)
+		if !checkResult.ADExists {
+			// AD not found at VCP - trigger delete at SDE
+			logger.Info("AD not found at VCP, attempting deletion at SDE")
+			err = workflow.ExecuteActivity(
+				ctx,
+				activeDirectoryActivity.DeleteSdeActiveDirectory,
+				params,
+			).Get(ctx, nil)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Failed to delete Active Directory from SDE: %v", err))
+				return nil, ConvertToVSAError(err)
+			}
+			logger.Info("Successfully completed Active Directory delete workflow (not found at VCP, deleted from SDE if present)")
+			return nil, nil
+		}
+
+		// AD found at VCP and deletion is allowed
+		logger.Info("AD found at VCP and deletion is allowed, deleting from both SDE and VCP")
+
+		// Delete from SDE first
+		err = workflow.ExecuteActivity(
+			ctx,
+			activeDirectoryActivity.DeleteSdeActiveDirectory,
+			params,
+		).Get(ctx, nil)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to delete Active Directory from SDE: %v", err))
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Then delete from VCP
+		err = workflow.ExecuteActivity(
+			ctx,
+			activeDirectoryActivity.DeleteVcpActiveDirectory,
+			params,
+		).Get(ctx, nil)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to delete Active Directory from VCP: %v", err))
+			return nil, ConvertToVSAError(err)
+		}
+
+		logger.Info("Successfully completed Active Directory delete workflow (deleted from both SDE and VCP)")
+		return nil, nil
+	}
+
+	// SDE is disabled - only delete from VCP
+	logger.Info("Deleting AD from VCP only")
+
+	// Delete from VCP
+	err = workflow.ExecuteActivity(
+		ctx,
+		activeDirectoryActivity.DeleteVcpActiveDirectory,
+		params,
+	).Get(ctx, nil)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to delete Active Directory from VCP: %v", err))
+		return nil, ConvertToVSAError(err)
+	}
+
+	logger.Info("Successfully completed Active Directory delete workflow (deleted from VCP)")
 	return nil, nil
 }
 

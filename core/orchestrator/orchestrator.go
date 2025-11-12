@@ -124,6 +124,7 @@ type OrchestratorFactory interface {
 	GetMultipleActiveDirectories(ctx context.Context, uuids []string) ([]*models.ActiveDirectory, error)
 	GetADConfig(ctx context.Context, params *commonparams.GetADParams) (*models.ActiveDirectory, error)
 	GetSDEActiveDirectory(ctx context.Context, getADParams *commonparams.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error)
+	DeleteActiveDirectory(ctx context.Context, params *commonparams.DeleteActiveDirectoryParams) (string, error)
 }
 
 type Orchestrator struct {

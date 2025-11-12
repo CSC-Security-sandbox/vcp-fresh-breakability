@@ -9,6 +9,7 @@ import (
 
 	// Third-party and local imports
 	"github.com/go-faster/jx"
+	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -212,72 +213,53 @@ func encodeActiveDirectoryV1(
 }
 
 func (h Handler) V1betaDeleteActiveDirectory(ctx context.Context, params gcpgenserver.V1betaDeleteActiveDirectoryParams) (r gcpgenserver.V1betaDeleteActiveDirectoryRes, _ error) {
-	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	pathParams := &active_directories.V1betaDeleteActiveDirectoryParams{
-		LocationID:        params.LocationId,
-		ProjectNumber:     params.ProjectNumber,
-		XCorrelationID:    &params.XCorrelationID.Value,
-		ActiveDirectoryID: params.ActiveDirectoryId,
+
+	deleteParams := common.DeleteActiveDirectoryParams{
+		ProjectNumber:       params.ProjectNumber,
+		ActiveDirectoryUUID: params.ActiveDirectoryId,
 	}
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-	deleted, err := cvpClient.ActiveDirectories.V1betaDeleteActiveDirectory(pathParams)
+
+	jobUUID, err := h.Orchestrator.DeleteActiveDirectory(ctx, &deleteParams)
 	if err != nil {
-		switch e := err.(type) {
-		case *active_directories.V1betaDeleteActiveDirectoryUnprocessableEntity:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteActiveDirectoryUnprocessableEntity{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaDeleteActiveDirectoryConflict:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+		if errors.IsConflictErr(err) {
 			return &gcpgenserver.V1betaDeleteActiveDirectoryConflict{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaDeleteActiveDirectoryBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteActiveDirectoryBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaDeleteActiveDirectoryUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteActiveDirectoryUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
-
-		case *active_directories.V1betaDeleteActiveDirectoryForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteActiveDirectoryForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
-
-		case *active_directories.V1betaDeleteActiveDirectoryTooManyRequests:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteActiveDirectoryTooManyRequests{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *active_directories.V1betaDeleteActiveDirectoryDefault:
-			return &gcpgenserver.V1betaDeleteActiveDirectoryInternalServerError{
-				Code:    500,
+				Code:    http.StatusConflict,
 				Message: err.Error(),
 			}, nil
 		}
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaDeleteActiveDirectoryBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		return &gcpgenserver.V1betaDeleteActiveDirectoryInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}, nil
 	}
-	response := convertOperationToOperationV1Beta(deleted.Payload)
-	return response, nil
+
+	// If jobUUID is empty, it means the Active Directory is already deleted
+	// Return a done operation with a dummy operation ID
+	if jobUUID == "" {
+		dummyOperationID := "/v1beta/projects/" + params.ProjectNumber +
+			"/locations/" + params.LocationId +
+			"/operations/" + uuid.UUID{}.String()
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(dummyOperationID),
+			Done: gcpgenserver.NewOptBool(true),
+		}, nil
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber +
+		"/locations/" + params.LocationId +
+		"/operations/" + jobUUID
+
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(false),
+	}, nil
 }
 
 func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpgenserver.V1betaDescribeActiveDirectoryParams) (r gcpgenserver.V1betaDescribeActiveDirectoryRes, err error) {

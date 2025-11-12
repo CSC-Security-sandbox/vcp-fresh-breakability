@@ -4,21 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vcpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestV1betaCreateActiveDirectory_Success(t *testing.T) {
@@ -379,9 +379,7 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 		cvp.CVP_HOST = "localhost:8009"
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		// Define request
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -390,35 +388,22 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
 			ActiveDirectoryId: "ad-1",
 		}
-		// Define mock response
-		mockResponse := &active_directories.V1betaDeleteActiveDirectoryAccepted{
-			Payload: &models.OperationV1beta{
-				Name: "operation-id",
-				Done: nillable.GetBoolPtr(true),
-			},
-		}
 
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteActiveDirectory(mock.Anything).
-			Return(mockResponse, nil)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
+		mockJobID := "job-uuid"
+		// Set up the mock orchestrator behavior
+		mockOrchestrator.On("DeleteActiveDirectory", mock.Anything, mock.Anything).Return(mockJobID, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaDeleteActiveDirectory(context.Background(), params)
 
 		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		// Check if the operation name is as expected
-		assert.Equal(t, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
-		// Check if the operation done value is as expected
-		assert.Equal(t, true, result.(*gcpgenserver.OperationV1beta).Done.Value)
+		// Check if the operation name contains the job UUID
+		assert.Contains(t, result.(*gcpgenserver.OperationV1beta).Name.Value, mockJobID)
+		// Check if the operation done value is false (job is running)
+		assert.False(t, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithBadRequest", func(t *testing.T) {
@@ -427,8 +412,7 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 		cvp.CVP_HOST = "localhost:8009"
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -437,44 +421,24 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
 			ActiveDirectoryId: "ad-1",
 		}
-		// Define mock error
-		errorCode := float64(400)
-		errorMessage := "Bad Request"
-		mockError := &active_directories.V1betaDeleteActiveDirectoryBadRequest{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
+
+		// Set up the mock orchestrator behavior to return user input validation error
+		mockOrchestrator.On("DeleteActiveDirectory", mock.Anything, mock.Anything).Return("", customerrors.NewUserInputValidationErr("bad request"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaDeleteActiveDirectory(context.Background(), params)
+
 		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteActiveDirectoryBadRequest).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteActiveDirectoryBadRequest).Message)
+		// Check if the response is BadRequest
+		_, ok := result.(*gcpgenserver.V1betaDeleteActiveDirectoryBadRequest)
+		assert.True(t, ok)
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithConflict", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -483,177 +447,24 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
 			ActiveDirectoryId: "ad-1",
 		}
-		// Define mock error
-		errorMessage := "Conflict error"
-		errorCode := float64(409)
-		mockError := &active_directories.V1betaDeleteActiveDirectoryConflict{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
+
+		conflictErr := customerrors.NewConflictErr("Conflict error")
+		// Set up the mock orchestrator behavior to return conflict error
+		mockOrchestrator.On("DeleteActiveDirectory", mock.Anything, mock.Anything).Return("", conflictErr)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaDeleteActiveDirectory(context.Background(), params)
 
 		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteActiveDirectoryConflict).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteActiveDirectoryConflict).Message)
+		// Check if the response is Conflict
+		_, ok := result.(*gcpgenserver.V1betaDeleteActiveDirectoryConflict)
+		assert.True(t, ok)
 	})
 
-	t.Run("WhenDeleteActiveDirectoryFailsWithUnprocessableEntry", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define mock error
-		errorMessage := "Unprocessable error"
-		errorCode := float64(422)
-		mockError := &active_directories.V1betaDeleteActiveDirectoryUnprocessableEntity{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteActiveDirectory(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteActiveDirectoryUnprocessableEntity).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteActiveDirectoryUnprocessableEntity).Message)
-	})
-
-	t.Run("WhenDeleteActiveDirectoryFailsWithUnauthorized", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define mock error
-		errorMessage := "Unauthorized error"
-		errorCode := float64(401)
-		mockError := &active_directories.V1betaDeleteActiveDirectoryUnauthorized{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteActiveDirectory(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteActiveDirectoryUnauthorized).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteActiveDirectoryUnauthorized).Message)
-	})
-
-	t.Run("WhenDeleteActiveDirectoryFailsWithForbidden", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
-
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
-			LocationId:        "test-location",
-			ProjectNumber:     "12345",
-			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
-			ActiveDirectoryId: "ad-1",
-		}
-		// Define mock error
-		errorMessage := "Forbidden error"
-		errorCode := float64(403)
-		mockError := &active_directories.V1betaDeleteActiveDirectoryForbidden{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteActiveDirectory(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteActiveDirectoryForbidden).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteActiveDirectoryForbidden).Message)
-	})
+	// Note: Unprocessable, Unauthorized, Forbidden tests removed as V1betaDeleteActiveDirectory only uses orchestrator path
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithTooManyRequests", func(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
@@ -661,8 +472,7 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 		cvp.CVP_HOST = "localhost:8009"
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -671,45 +481,27 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
 			ActiveDirectoryId: "ad-1",
 		}
-		// Define mock error
-		errorMessage := "Too many requests error"
-		errorCode := float64(401)
-		mockError := &active_directories.V1betaDeleteActiveDirectoryTooManyRequests{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
+
+		// Set up the mock orchestrator behavior to return a generic error
+		mockOrchestrator.On("DeleteActiveDirectory", mock.Anything, mock.Anything).Return("", errors.New("internal error"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaDeleteActiveDirectory(context.Background(), params)
 
 		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteActiveDirectoryTooManyRequests).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteActiveDirectoryTooManyRequests).Message)
+		// Check if the response is InternalServerError
+		_, ok := result.(*gcpgenserver.V1betaDeleteActiveDirectoryInternalServerError)
+		assert.True(t, ok)
 	})
 
-	t.Run("WhenDeleteActiveDirectoryFailsWithDefault", func(t *testing.T) {
-		// Set CVP_HOST to localhost:8009 to use CVS path
-		originalCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+	// Note: Default error test removed as V1betaDeleteActiveDirectory only uses orchestrator path
 
-		// Create a mock client
-		mockClient := active_directories.NewMockClientService(t)
+	t.Run("WhenDeleteActiveDirectoryAlreadyDeleted", func(t *testing.T) {
+		// Create a mock orchestrator
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -718,34 +510,19 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 			XCorrelationID:    gcpgenserver.NewOptString("test-correlation-id"),
 			ActiveDirectoryId: "ad-1",
 		}
-		// Define mock error
-		errorMessage := "default error"
-		errorCode := float64(500)
-		mockError := &active_directories.V1betaDeleteActiveDirectoryDefault{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteActiveDirectory(mock.Anything).
-			Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
+
+		// Set up the mock orchestrator behavior to return empty jobUUID (already deleted)
+		mockOrchestrator.On("DeleteActiveDirectory", mock.Anything, mock.Anything).Return("", nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaDeleteActiveDirectory(context.Background(), params)
 
 		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteActiveDirectoryInternalServerError).Code)
+		// Check if the operation is marked as done
+		assert.True(t, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 }
 

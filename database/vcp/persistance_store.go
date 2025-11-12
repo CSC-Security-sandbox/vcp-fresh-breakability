@@ -1357,10 +1357,6 @@ func (s *PersistenceStore) ListNodeNodeGroupMap(ctx context.Context, includeDele
 	return s.dataStore.ListNodeNodeGroupMap(ctx, includeDeleted, pagination)
 }
 
-func (s *PersistenceStore) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
-	return s.dataStore.GetActiveDirectoryByUUID(ctx, uuid)
-}
-
 func (s *PersistenceStore) ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error) {
 	return s.dataStore.ListActiveDirectories(ctx, accountID)
 }
@@ -1371,4 +1367,12 @@ func (s *PersistenceStore) GetMultipleActiveDirectoriesByUUIDs(ctx context.Conte
 
 func (s *PersistenceStore) DeleteClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error {
 	return s.dataStore.DeleteClusterPeeringRow(ctx, clusterPeeringRow)
+}
+
+func (s *PersistenceStore) DeleteActiveDirectory(ctx context.Context, uuid string) error {
+	return s.dataStore.DeleteActiveDirectory(ctx, uuid)
+}
+
+func (s *PersistenceStore) GetSVMsUsingActiveDirectory(ctx context.Context, adId int64) ([]*datamodel.Svm, error) {
+	return s.dataStore.GetSVMsUsingActiveDirectory(ctx, adId)
 }

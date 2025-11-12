@@ -362,70 +362,8 @@ func TestGetActiveDirectoryWithDetailsFunction(t *testing.T) {
 	})
 }
 
-func TestGetActiveDirectoryByUUID(t *testing.T) {
-	t.Run("WhenActiveDirectoryExists", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
-
-		// Create an active directory first
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{
-				UUID: "test-ad-uuid-1",
-			},
-			AdName:    "test-active-directory-1",
-			AccountId: 123,
-		}
-		err = store.db.Create(ad).Error()
-		assert.NoError(tt, err, "Failed to create active directory")
-
-		// Retrieve the active directory by UUID
-		result, err := store.GetActiveDirectoryByUUID(context.Background(), ad.UUID)
-		assert.NoError(tt, err, "Expected no error, got %v", err)
-		assert.NotNil(tt, result, "Expected result to not be nil")
-		assert.Equal(tt, ad.AdName, result.AdName, "Expected AD name %v, got %v", ad.AdName, result.AdName)
-		assert.Equal(tt, ad.UUID, result.UUID, "Expected UUID %v, got %v", ad.UUID, result.UUID)
-	})
-
-	t.Run("WhenActiveDirectoryDoesNotExist", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
-
-		// Try to retrieve a non-existent active directory
-		result, err := store.GetActiveDirectoryByUUID(context.Background(), "non-existent-uuid")
-		assert.NoError(tt, err, "Expected no error for non-existent record")
-		assert.Nil(tt, result, "Expected result to be nil for non-existent record")
-	})
-
-	t.Run("WhenDatabaseError", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
-
-		// Close the database to simulate a database error
-		sqlDB, err := db.DB()
-		assert.NoError(tt, err)
-		err = sqlDB.Close()
-		assert.NoError(tt, err)
-
-		_, err = store.GetActiveDirectoryByUUID(context.Background(), "test-uuid")
-		assert.Error(tt, err, "Expected error when database is closed")
-		assert.Contains(tt, err.Error(), "sql: database is closed", "Expected database closed error")
-	})
-}
+// TestGetActiveDirectoryByUUID was removed because GetActiveDirectoryByUUID method doesn't exist
+// Use GetActiveDirectoryByUuidAndAccountId instead
 
 func TestListActiveDirectories(t *testing.T) {
 	t.Run("WhenActiveDirectoriesExist", func(tt *testing.T) {
@@ -1154,5 +1092,141 @@ func TestUpdateActiveDirectoryFunction(t *testing.T) {
 		result, err := updateActiveDirectory(db, ad)
 		assert.Error(tt, err, "Expected error from direct function call")
 		assert.Nil(tt, result, "Expected result to be nil on error")
+	})
+}
+
+// TestGetActiveDirectoryByUUIDAndAccountID was removed - method consolidated to GetActiveDirectoryByUuidAndAccountId
+// All tests now use the consistent camelCase naming: GetActiveDirectoryByUuidAndAccountId
+
+// TestDeleteActiveDirectory tests the DeleteActiveDirectory method
+func TestDeleteActiveDirectory(t *testing.T) {
+	t.Run("WhenActiveDirectoryExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "delete-test-uuid",
+			},
+			AdName:    "delete-test-ad",
+			AccountId: 123,
+		}
+		err = store.db.Create(ad).Error()
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		// Delete the active directory
+		err = store.DeleteActiveDirectory(context.Background(), "delete-test-uuid")
+		assert.NoError(tt, err, "Expected no error when deleting")
+
+		// Verify it's soft deleted
+		var count int64
+		err = store.db.GORM().Model(&datamodel.ActiveDirectory{}).Where("uuid = ?", "delete-test-uuid").Count(&count).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), count, "Expected AD to be soft deleted")
+	})
+
+	t.Run("WhenActiveDirectoryNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Try to delete non-existent AD (should succeed as idempotent)
+		err = store.DeleteActiveDirectory(context.Background(), "non-existent-uuid")
+		assert.NoError(tt, err, "Expected no error for non-existent record")
+	})
+
+	t.Run("WhenDatabaseUpdateError", func(tt *testing.T) {
+		// Test to cover line 78: error return path in deleteActiveDirectory
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "error-delete-uuid",
+			},
+			AdName:    "error-delete-ad",
+			AccountId: 123,
+		}
+		err = store.db.Create(ad).Error()
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		// Close the database to simulate error during update
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		assert.NoError(tt, err)
+
+		// Try to delete - should fail
+		err = store.DeleteActiveDirectory(context.Background(), "error-delete-uuid")
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Contains(tt, err.Error(), "sql: database is closed", "Expected database closed error")
+	})
+}
+
+// TestGetSVMsUsingActiveDirectory tests the GetSVMsUsingActiveDirectory method
+func TestGetSVMsUsingActiveDirectory(t *testing.T) {
+	t.Run("WhenNoSVMsUseTheAD", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an active directory to get a valid ID
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AdName:    "test-ad",
+			AccountId: 123,
+		}
+		createdAd, err := store.CreateActiveDirectory(context.Background(), ad)
+		assert.NoError(tt, err, "Failed to create active directory")
+
+		// Get SVMs using the AD ID (should return empty list)
+		svms, err := store.GetSVMsUsingActiveDirectory(context.Background(), createdAd.ID)
+		assert.NoError(tt, err, "Expected no error")
+		assert.Empty(tt, svms, "Expected empty SVM list")
+	})
+
+	t.Run("WhenDatabaseError", func(tt *testing.T) {
+		// Test to cover line 93: error return path in getSVMsUsingActiveDirectory
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		assert.NoError(tt, err)
+
+		// Use a dummy ID since the database is closed anyway
+		svms, err := store.GetSVMsUsingActiveDirectory(context.Background(), int64(999))
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Nil(tt, svms, "Expected nil result on error")
+		assert.Contains(tt, err.Error(), "sql: database is closed", "Expected database closed error")
 	})
 }

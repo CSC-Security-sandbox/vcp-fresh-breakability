@@ -1093,6 +1093,63 @@ func (_c *MockOrchestratorFactory_CreateVolumeReplicationInternal_Call) RunAndRe
 	return _c
 }
 
+// DeleteActiveDirectory provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) DeleteActiveDirectory(ctx context.Context, params *common.DeleteActiveDirectoryParams) (string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteActiveDirectory")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteActiveDirectoryParams) (string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteActiveDirectoryParams) string); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteActiveDirectoryParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_DeleteActiveDirectory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteActiveDirectory'
+type MockOrchestratorFactory_DeleteActiveDirectory_Call struct {
+	*mock.Call
+}
+
+// DeleteActiveDirectory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.DeleteActiveDirectoryParams
+func (_e *MockOrchestratorFactory_Expecter) DeleteActiveDirectory(ctx interface{}, params interface{}) *MockOrchestratorFactory_DeleteActiveDirectory_Call {
+	return &MockOrchestratorFactory_DeleteActiveDirectory_Call{Call: _e.mock.On("DeleteActiveDirectory", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteActiveDirectory_Call) Run(run func(ctx context.Context, params *common.DeleteActiveDirectoryParams)) *MockOrchestratorFactory_DeleteActiveDirectory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.DeleteActiveDirectoryParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteActiveDirectory_Call) Return(_a0 string, _a1 error) *MockOrchestratorFactory_DeleteActiveDirectory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteActiveDirectory_Call) RunAndReturn(run func(context.Context, *common.DeleteActiveDirectoryParams) (string, error)) *MockOrchestratorFactory_DeleteActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteBackup provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) DeleteBackup(ctx context.Context, params *common.DeleteBackupParams) (*models.BaseModel, string, error) {
 	ret := _m.Called(ctx, params)
