@@ -30,6 +30,8 @@ var (
 	maxLvHotTierCapacity  = utils.MaxLvHotTierCapacity
 	minLvThroughput       = utils.MinLvThroughput
 	maxLvThroughput       = utils.MaxLvThroughput
+	minLvCustomIops       = utils.MinLvCustomIops
+	maxLvCustomIops       = utils.MaxLvCustomIops
 	AutoTieringEnabled    = utils.AutoTieringEnabled
 )
 

@@ -53,7 +53,7 @@ func (v *LargeCapacityPoolValidator) ValidateThroughput(perf *CustomPerformance)
 
 func (v *LargeCapacityPoolValidator) ValidateIops(perf *CustomPerformance) error {
 	// Use shared IOPS validation logic with large capacity pool parameters
-	return validateIopsCommon(perf, minCustomIops, maxCustomIops, utils.IopsPerMiBps, " for Large Capacity pools")
+	return validateIopsCommon(perf, minLvCustomIops, maxLvCustomIops, utils.IopsPerMiBps, " for Large Capacity pools")
 }
 
 func (v *LargeCapacityPoolValidator) ValidateAutoTierParams(perf *CustomPerformance) error {

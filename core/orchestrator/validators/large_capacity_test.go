@@ -636,7 +636,7 @@ func TestLargeCapacityPoolValidator_ValidateIopsWithCustomPerformance(t *testing
 			name: "Valid IOPS at minimum boundary",
 			perf: &CustomPerformance{
 				ThroughputMibps: int64(minLvThroughput),
-				Iops:            nillable.ToPointer(int64(minCustomIops)),
+				Iops:            nillable.ToPointer(int64(minLvCustomIops)),
 				LargeCapacity:   true,
 			},
 			expectedError: false,
@@ -675,7 +675,7 @@ func TestLargeCapacityPoolValidator_ValidateIopsWithCustomPerformance(t *testing
 			name: "IOPS below minimum",
 			perf: &CustomPerformance{
 				ThroughputMibps: 1000,
-				Iops:            nillable.ToPointer(int64(minCustomIops - 1)),
+				Iops:            nillable.ToPointer(int64(minLvCustomIops - 1)),
 				LargeCapacity:   true,
 			},
 			expectedError:  true,
@@ -685,7 +685,7 @@ func TestLargeCapacityPoolValidator_ValidateIopsWithCustomPerformance(t *testing
 			name: "IOPS above maximum",
 			perf: &CustomPerformance{
 				ThroughputMibps: 1000,
-				Iops:            nillable.ToPointer(int64(maxCustomIops + 1)),
+				Iops:            nillable.ToPointer(int64(maxLvCustomIops + 1)),
 				LargeCapacity:   true,
 			},
 			expectedError:  true,

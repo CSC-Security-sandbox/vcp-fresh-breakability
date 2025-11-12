@@ -55,7 +55,9 @@ var (
 	MaxLvPoolCapacity               = env.GetUint64("MAX_LV_POOL_CAPACITY", 20*PiBInBytes)            // 20PiB
 	MaxLvHotTierCapacity            = env.GetUint64("MAX_LV_HOT_TIER_POOL_CAPACITY", 5*PiBInBytes)    // 5PiB
 	MinLvThroughput                 = env.GetUint64("MIN_LV_THROUGHPUT", 64)
-	MaxLvThroughput                 = env.GetUint64("MAX_LV_THROUGHPUT", 60*1000)       // convert to megabit per second
+	MaxLvThroughput                 = env.GetUint64("MAX_LV_THROUGHPUT", 60*1000) // convert to megabit per second
+	MinLvCustomIops                 = env.GetUint64("MIN_LV_CUSTOM_IOPS", IopsPerMiBps*MinLvThroughput)
+	MaxLvCustomIops                 = env.GetUint64("MAX_LV_CUSTOM_IOPS", IopsPerMiBps*MaxLvThroughput)
 	MinHotTierSize                  = env.GetUint64("MIN_HOT_TIER_SIZE", 1099511627776) // 1 TiB
 	MinHotTierSizeLargeVolumes      = env.GetUint64("MIN_HOT_TIER_SIZE_LARGE_VOLUMES", 12*TiBInBytes)
 	ParseRegionAndZone              = _parseRegionAndZone
