@@ -32,7 +32,7 @@ func TestCredentialMiddleware(t *testing.T) {
 
 		fetchCredentialsFunc = mockFetchCredentials
 
-		req := httptest.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes", nil)
+		req := httptest.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", nil)
 		w := httptest.NewRecorder()
 
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +125,7 @@ func TestFetchAndCacheCredentials(t *testing.T) {
 
 func TestExtractPoolDetailsFromRequest(t *testing.T) {
 	t.Run("WhenValidURI_ShouldExtractDetails", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes", nil)
+		req := httptest.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", nil)
 
 		poolDetails, err := extractPoolDetailsFromRequest(req)
 
@@ -149,7 +149,7 @@ func TestExtractPoolDetailsFromRequest(t *testing.T) {
 
 func TestValidatePoolUri(t *testing.T) {
 	t.Run("WhenValidURI_ShouldReturnNil", func(t *testing.T) {
-		uri := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes"
+		uri := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes"
 		err := validatePoolUri(uri)
 		assert.NoError(t, err)
 	})

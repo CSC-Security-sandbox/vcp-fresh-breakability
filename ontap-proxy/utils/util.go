@@ -6,7 +6,7 @@ import (
 
 const (
 	// OntapAPISegment is the path segment that identifies the start of ONTAP API paths
-	OntapAPISegment = "ontap-api"
+	OntapAPISegment = "ontap"
 )
 
 func ExtractOntapPath(fullPath string) string {

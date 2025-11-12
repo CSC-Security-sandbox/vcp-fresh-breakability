@@ -26,7 +26,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/qtrees", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -89,7 +89,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/non-existent", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/non-existent", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -110,7 +110,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("POST", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/qtrees", nil)
+		req, err := http.NewRequest("POST", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -135,7 +135,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 				middleware := RuleEngineMiddleware()
 				handler := middleware(nextHandler)
 
-				req, err := http.NewRequest(method, "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/qtrees", nil)
+				req, err := http.NewRequest(method, "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
 				assert.NoError(t, err, "Failed to create request for method %s", method)
 
 				rr := httptest.NewRecorder()
@@ -162,7 +162,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 				middleware := RuleEngineMiddleware()
 				handler := middleware(nextHandler)
 
-				req, err := http.NewRequest(method, "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/qtrees", nil)
+				req, err := http.NewRequest(method, "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
 				assert.NoError(t, err, "Failed to create request for method %s", method)
 
 				rr := httptest.NewRecorder()
@@ -185,7 +185,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -206,7 +206,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/aggregates", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/aggregates", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -227,7 +227,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes/{uuid}", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes/{uuid}", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -252,7 +252,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -272,7 +272,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("POST", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes", strings.NewReader(`{"name": "test"}`))
+		req, err := http.NewRequest("POST", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", strings.NewReader(`{"name": "test"}`))
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -292,7 +292,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("PATCH", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes/028baa66-41bd-11e9-81d5-00a0986138f7", strings.NewReader(`{"name": "test"}`))
+		req, err := http.NewRequest("PATCH", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes/028baa66-41bd-11e9-81d5-00a0986138f7", strings.NewReader(`{"name": "test"}`))
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -313,7 +313,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/qtrees", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -334,7 +334,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("DELETE", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes/028baa66-41bd-11e9-81d5-00a0986138f7", nil)
+		req, err := http.NewRequest("DELETE", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes/028baa66-41bd-11e9-81d5-00a0986138f7", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -355,7 +355,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/nonexistent", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/nonexistent", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -375,7 +375,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("PUT", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes", nil)
+		req, err := http.NewRequest("PUT", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -397,7 +397,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/qtrees", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -417,7 +417,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/private/cli/snapmirror/break", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/private/cli/snapmirror/break", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		rr := httptest.NewRecorder()
@@ -432,7 +432,7 @@ func TestRuleEngineMiddleware(t *testing.T) {
 
 func TestExtractOntapPath(t *testing.T) {
 	t.Run("WhenValidOntapAPIPath_ShouldExtractCorrectly", func(t *testing.T) {
-		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/qtrees"
+		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees"
 		expected := "/api/storage/qtrees"
 
 		result := extractOntapPath(fullPath)
@@ -440,7 +440,7 @@ func TestExtractOntapPath(t *testing.T) {
 	})
 
 	t.Run("WhenPathWithQueryParameters_ShouldExtractWithQuery", func(t *testing.T) {
-		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes?fields=name,size"
+		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes?fields=name,size"
 		expected := "/api/storage/volumes?fields=name,size"
 
 		result := extractOntapPath(fullPath)
@@ -451,7 +451,7 @@ func TestExtractOntapPath(t *testing.T) {
 		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/api/storage/qtrees"
 
 		result := extractOntapPath(fullPath)
-		assert.Equal(t, "", result, "Should return empty string for path without ontap-api")
+		assert.Equal(t, "", result, "Should return empty string for path without ontap")
 	})
 
 	t.Run("WhenRootPath_ShouldReturnEmpty", func(t *testing.T) {
@@ -469,7 +469,7 @@ func TestExtractOntapPath(t *testing.T) {
 	})
 
 	t.Run("WhenOntapAPIAtRootLevel_ShouldHandleCorrectly", func(t *testing.T) {
-		fullPath := "/ontap-api/api/storage/qtrees"
+		fullPath := "/ontap/api/storage/qtrees"
 		expected := "/api/storage/qtrees"
 
 		result := extractOntapPath(fullPath)
@@ -477,7 +477,7 @@ func TestExtractOntapPath(t *testing.T) {
 	})
 
 	t.Run("WhenComplexPathStructure_ShouldHandleCorrectly", func(t *testing.T) {
-		fullPath := "/v1beta/projects/my-project/locations/us-west1/pools/my-pool/ontap-api/api/storage/volumes/12345/snapshots"
+		fullPath := "/v1beta/projects/my-project/locations/us-west1/pools/my-pool/ontap/api/storage/volumes/12345/snapshots"
 		expected := "/api/storage/volumes/12345/snapshots"
 
 		result := extractOntapPath(fullPath)
@@ -485,19 +485,19 @@ func TestExtractOntapPath(t *testing.T) {
 	})
 
 	t.Run("WhenSingleOntapAPIOccurrence_ShouldExtractCorrectly", func(t *testing.T) {
-		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/qtrees"
+		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees"
 		expected := "/api/storage/qtrees"
 
 		result := extractOntapPath(fullPath)
-		assert.Equal(t, expected, result, "Should extract ONTAP API path from single ontap-api occurrence")
+		assert.Equal(t, expected, result, "Should extract ONTAP API path from single ontap occurrence")
 	})
 
 	t.Run("WhenPathEndingWithOntapAPI_ShouldHandleCorrectly", func(t *testing.T) {
-		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api"
+		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap"
 		expected := "/"
 
 		result := extractOntapPath(fullPath)
-		assert.Equal(t, expected, result, "Should handle path ending with ontap-api")
+		assert.Equal(t, expected, result, "Should handle path ending with ontap")
 	})
 }
 

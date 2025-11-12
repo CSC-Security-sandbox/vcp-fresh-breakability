@@ -85,13 +85,13 @@ func TestBuildTargetURL(t *testing.T) {
 
 func TestExtractOntapPath(t *testing.T) {
 	t.Run("WhenValidOntapAPIPath_ShouldExtractCorrectly", func(t *testing.T) {
-		result := extractOntapPath("/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/qtrees")
+		result := extractOntapPath("/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees")
 		expected := "/api/storage/qtrees"
 		assert.Equal(t, expected, result, "Should extract ONTAP API path correctly")
 	})
 
 	t.Run("WhenOntapAPIPathWithQueryParams_ShouldExtractWithQuery", func(t *testing.T) {
-		result := extractOntapPath("/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap-api/api/storage/volumes?fields=name,size")
+		result := extractOntapPath("/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes?fields=name,size")
 		expected := "/api/storage/volumes?fields=name,size"
 		assert.Equal(t, expected, result, "Should extract ONTAP API path with query parameters")
 	})
@@ -99,7 +99,7 @@ func TestExtractOntapPath(t *testing.T) {
 	t.Run("WhenPathWithoutOntapAPI_ShouldReturnEmpty", func(t *testing.T) {
 		result := extractOntapPath("/v1beta/projects/1234/locations/us-central1/pools/my-pool/invalid-path")
 		expected := ""
-		assert.Equal(t, expected, result, "Should return empty string for path without ontap-api")
+		assert.Equal(t, expected, result, "Should return empty string for path without ontap")
 	})
 
 	t.Run("WhenEmptyPath_ShouldHandleCorrectly", func(t *testing.T) {
@@ -109,27 +109,27 @@ func TestExtractOntapPath(t *testing.T) {
 	})
 
 	t.Run("WhenOntapAPIAtRoot_ShouldHandleCorrectly", func(t *testing.T) {
-		result := extractOntapPath("/ontap-api/api/storage/qtrees")
+		result := extractOntapPath("/ontap/api/storage/qtrees")
 		expected := "/api/storage/qtrees"
 		assert.Equal(t, expected, result, "Should handle ONTAP API at root level")
 	})
 
 	t.Run("WhenOntapAPIAtEnd_ShouldHandleCorrectly", func(t *testing.T) {
-		result := extractOntapPath("/v1beta/projects/123/locations/us-central1/pools/pool1/ontap-api")
+		result := extractOntapPath("/v1beta/projects/123/locations/us-central1/pools/pool1/ontap")
 		expected := "/"
 		assert.Equal(t, expected, result, "Should handle ONTAP API at end of path")
 	})
 
 	t.Run("WhenMultipleOntapAPI_ShouldHandleFirstOccurrence", func(t *testing.T) {
-		result := extractOntapPath("/v1beta/projects/123/ontap-api/api1/ontap-api/api2")
-		expected := "/api1/ontap-api/api2"
-		assert.Equal(t, expected, result, "Should handle first occurrence of ontap-api")
+		result := extractOntapPath("/v1beta/projects/123/ontap/api1/ontap/api2")
+		expected := "/api1/ontap/api2"
+		assert.Equal(t, expected, result, "Should handle first occurrence of ontap")
 	})
 
 	t.Run("WhenPathStartsWithOntapAPI_ShouldHandleCorrectly", func(t *testing.T) {
-		result := extractOntapPath("ontap-api/api/storage/qtrees")
+		result := extractOntapPath("ontap/api/storage/qtrees")
 		expected := "/api/storage/qtrees"
-		assert.Equal(t, expected, result, "Should handle path starting with ontap-api")
+		assert.Equal(t, expected, result, "Should handle path starting with ontap")
 	})
 }
 
@@ -213,7 +213,7 @@ func TestBuildOntapRESTProxy(t *testing.T) {
 
 	t.Run("WhenDirectorCalledWithValidPath_ShouldProcessRequest", func(t *testing.T) {
 		proxy := BuildOntapRESTProxy()
-		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap-api/api/storage/qtrees", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap/api/storage/qtrees", nil)
 		assert.NoError(t, err, "Failed to create request")
 		req.RemoteAddr = "192.168.1.1:12345"
 
@@ -244,7 +244,7 @@ func TestBuildOntapRESTProxy(t *testing.T) {
 
 	t.Run("WhenDirectorCalledWithNoOntapAddress_ShouldReturnEarly", func(t *testing.T) {
 		proxy := BuildOntapRESTProxy()
-		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap-api/api/storage/qtrees", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap/api/storage/qtrees", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		authData := &models.AuthData{
@@ -266,7 +266,7 @@ func TestBuildOntapRESTProxy(t *testing.T) {
 
 	t.Run("WhenDirectorCalledWithNoUsername_ShouldStillProcessRequest", func(t *testing.T) {
 		proxy := BuildOntapRESTProxy()
-		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap-api/api/storage/qtrees", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap/api/storage/qtrees", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		authData := &models.AuthData{
@@ -292,7 +292,7 @@ func TestBuildOntapRESTProxy(t *testing.T) {
 
 	t.Run("WhenDirectorCalledWithNoPassword_ShouldStillProcessRequest", func(t *testing.T) {
 		proxy := BuildOntapRESTProxy()
-		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap-api/api/storage/qtrees", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap/api/storage/qtrees", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		authData := &models.AuthData{
@@ -318,7 +318,7 @@ func TestBuildOntapRESTProxy(t *testing.T) {
 
 	t.Run("WhenDirectorCalledWithInvalidURL_ShouldStillProcessRequest", func(t *testing.T) {
 		proxy := BuildOntapRESTProxy()
-		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap-api/api/storage/qtrees", nil)
+		req, err := http.NewRequest("GET", "/v1beta/projects/123/locations/us-central1/pools/pool1/ontap/api/storage/qtrees", nil)
 		assert.NoError(t, err, "Failed to create request")
 
 		authData := &models.AuthData{

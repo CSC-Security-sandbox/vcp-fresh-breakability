@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/endpoints"
+	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -36,16 +39,17 @@ func main() {
 		}
 	}()
 
-	handler := setupHTTPServer()
-	port := getPort()
-	httpServer := &http.Server{
-		Addr:              ":" + port,
-		Handler:           handler,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      60 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		ReadHeaderTimeout: 2 * time.Second,
+	// Create OpenAPI server with health endpoint handler
+	handler := endpoints.Handler{}
+	openAPIServer, err := oasgenserver.NewServer(handler)
+	if err != nil {
+		logger.Error("Failed to create OpenAPI server", "error", err.Error())
+		os.Exit(1)
 	}
+
+	httpServer := setupHTTPServer(openAPIServer)
+	port := getPort()
+	httpServer.Addr = ":" + port
 
 	// Start HTTP server in a goroutine for graceful shutdown
 	go func() {
@@ -70,7 +74,7 @@ func main() {
 	logger.Info("Server stopped gracefully")
 }
 
-func setupHTTPServer() http.Handler {
+func setupHTTPServer(handler http.Handler) *http.Server {
 	mux := chi.NewRouter()
 
 	mux.Use(httphelpers.LoggingHttpHandler)
@@ -80,14 +84,24 @@ func setupHTTPServer() http.Handler {
 
 	ontapProxy := BuildOntapRESTProxy()
 
-	mux.Route("/v1beta/projects/{projectId}/locations/{locationId}/pools/{poolId}/ontap-api", func(r chi.Router) {
+	// Mount ONTAP API route first (more specific route)
+	mux.Route("/v1beta/projects/{projectId}/locations/{locationId}/pools/{poolId}/ontap", func(r chi.Router) {
 		r.Use(middleware.CredentialMiddleware())
 		r.Use(middleware.RuleEngineMiddleware())
 		r.Use(middleware.CertificateMiddleware())
 		r.Handle("/*", ontapProxy)
 	})
 
-	return mux
+	// Mount OpenAPI server for /health endpoint (less specific, handles remaining routes)
+	mux.Mount("/", handler)
+
+	return &http.Server{
+		Handler:           mux,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+	}
 }
 
 func getPort() string {

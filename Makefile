@@ -89,6 +89,10 @@ generate-google-proxy:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package gcpserver --config google-proxy/api/.ogenserver.yml --target google-proxy/api/gcp-servergen google-proxy/api/gcp-api.yaml
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package googleproxyclient --config clients/google-proxy-client/.ogenserver.yml --target clients/google-proxy-client google-proxy/api/gcp-api.yaml
 
+.PHONY: generate-ontap-proxy
+generate-ontap-proxy:
+	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package ontapserver --config ontap-proxy/api/.ogenserver.yml --target ontap-proxy/api/ontap-proxy-servergen ontap-proxy/api/api.yaml
+
 .PHONY: generate-core-api
 generate-core-api:
 	go run github.com/ogen-go/ogen/cmd/ogen@v1.10.1 --clean --package coreapiserver --config core/core-api/.ogenserver.yml --target core/core-api/core-servergen core/core-api/api.yaml

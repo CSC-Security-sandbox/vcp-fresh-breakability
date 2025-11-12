@@ -96,6 +96,7 @@ run:
     - core/core-api/core-servergen
     - google-proxy/api/gcp-servergen
     - telemetry/api/telemetry-servergen
+    - ontap-proxy/api/ontap-proxy-servergen
     - cicd/cmd/lint
   skip-files:
     - workflow_engine/workflow_engine_mock.go

@@ -1,0 +1,15 @@
+generator:
+  ignore_not_implemented: ["complex defaults"]
+  # sets generator features.
+  features:
+    enable:
+      # Enables paths server generation
+      - 'paths/server'
+      # Enables OpenTelemetry integration
+      - 'ogen/otel'
+      # Enables stub Handler generation
+      - 'ogen/unimplemented'
+      # Enables example tests generation
+      - 'debug/example_tests'
+    disable_all: true
+
