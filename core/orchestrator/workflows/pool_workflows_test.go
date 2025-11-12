@@ -204,6 +204,181 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
+	// Set enableSyncPoolZIZS to true for this test
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	mockForwardingRuleIP := "127.0.0.1"
+	mockAddressURI := "test-address-uri"
+	ginLoggingFeatureFlag = true
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+		Mode:                    ONTAPMode,
+	}
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
+		APIAccessMode:  ONTAPMode,
+		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{
+					SecretID:      "",
+					AuthType:      envs.USER_CERTIFICATE,
+					CertificateID: "test-certificate-id",
+					Username:      "gcnvadmin",
+					Password:      "",
+				},
+			},
+		},
+	}
+	svmName := "svmName"
+
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
+	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
+	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&[]datamodel.SubnetToIPs{
+		{SubnetName: "test-subnet", IPsReserved: 6},
+	}, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
+	env.OnActivity("CreateExpertModeCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).Return(nil)
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	oldEnableMetrics := enableMetrics
+	enableMetrics = true
+	defer func() { enableMetrics = oldEnableMetrics }()
+	// Mock child workflow execution
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+		return input.PoolID == 0 &&
+			input.CustomerProjectID == "test-account" &&
+			input.MaxNodesPerGroup == 200 &&
+			input.TenantProjectID == "test-project"
+	})).Return(nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
 // If On-Boarding to harvest fails pool create shouldn't be rolled back
 func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	// Set enableSyncPoolZIZS to true for this test
@@ -2020,8 +2195,9 @@ func TestDeletePoolWorkflow(t *testing.T) {
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
-		KmsConfig:   &datamodel.KmsConfig{},
-		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
+		KmsConfig:     &datamodel.KmsConfig{},
+		KmsConfigID:   sql.NullInt64{Int64: 1, Valid: true},
+		APIAccessMode: ONTAPMode,
 	}
 
 	// Mock activity responses
@@ -2036,6 +2212,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteExpertModeCredentials", mock.Anything, mock.Anything).Return(nil)
 
 	// Mock child workflow
 	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
@@ -8823,4 +9000,27 @@ func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceLogicalAND(t *testing
 			assert.NoError(t, env.GetWorkflowError(), tc.description)
 		})
 	}
+}
+func TestPrepareCreateVSAExpertModeReq(t *testing.T) {
+	vlmConfig := vlm.VLMConfig{Deployment: vlm.DeploymentConfig{}}
+	ontapCreds := vlm.OntapCredentials{}
+	expertCreds := vlm.OntapCredentials{}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{AuthType: envs.USER_CERTIFICATE},
+	}
+
+	req := &vlm.OntapExpertModeUserConfig{}
+	prepareCreateVSAExpertModeReq(req, vlmConfig, ontapCreds, expertCreds, pool)
+
+	assert.Equal(t, vlmConfig, req.VLMConfig)
+	assert.Equal(t, ontapCreds, req.OntapCredentials)
+	assert.Equal(t, expertCreds, req.ExpertModeUserCredentials)
+	assert.Equal(t, "certificate", req.AuthenticationType)
+	assert.Equal(t, envs.ExpertModeUser, req.Username)
+
+	// Test non-certificate auth type
+	pool.PoolCredentials.AuthType = envs.USERNAME_PWD
+	req = &vlm.OntapExpertModeUserConfig{}
+	prepareCreateVSAExpertModeReq(req, vlmConfig, ontapCreds, expertCreds, pool)
+	assert.Equal(t, "", req.AuthenticationType)
 }

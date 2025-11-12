@@ -5848,6 +5848,24 @@ func (s *PoolInternalV1beta) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Mode.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "mode",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -5889,6 +5907,17 @@ func (s PoolInternalV1betaEncryptionType) Validate() error {
 	case "SERVICE_MANAGED":
 		return nil
 	case "CLOUD_KMS":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s PoolInternalV1betaMode) Validate() error {
+	switch s {
+	case "GCNV":
+		return nil
+	case "ONTAP":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -6473,6 +6502,24 @@ func (s *PoolV1beta) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Mode.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "mode",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -6514,6 +6561,17 @@ func (s PoolV1betaEncryptionType) Validate() error {
 	case "SERVICE_MANAGED":
 		return nil
 	case "CLOUD_KMS":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s PoolV1betaMode) Validate() error {
+	switch s {
+	case "GCNV":
+		return nil
+	case "ONTAP":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

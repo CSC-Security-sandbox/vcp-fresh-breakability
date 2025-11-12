@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -148,7 +149,6 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	if req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value {
 		hotTierSizeInBytes = uint64(req.HotTierSizeInBytes.Value)
 	}
-
 	createPoolParams := &commonparams.CreatePoolParams{
 		AccountName:             params.ProjectNumber,
 		Region:                  region,
@@ -167,6 +167,12 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		EnableHotTierAutoResize: req.EnableHotTierAutoResize.Value,
 		CustomPerformanceParams: &commonparams.CustomPerformanceParams{ThroughputMibps: totalThroughput, Enabled: req.CustomPerformanceEnabled.Value, Iops: totalIops},
 		LargeCapacity:           req.LargeCapacity.Value,
+	}
+
+	if string(req.Mode.Value) == string(gcpgenserver.PoolInternalV1betaModeGCNV) {
+		createPoolParams.Mode = workflows.GCNVMode
+	} else {
+		createPoolParams.Mode = workflows.ONTAPMode
 	}
 
 	// Set AD related params
@@ -740,6 +746,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		LargeCapacity:    gcpgenserver.NewOptBool(pool.LargeCapacity),
 		SatisfiesPzs:     gcpgenserver.NewOptNilBool(pool.SatisfiesPzs),
 		SatisfiesPzi:     gcpgenserver.NewOptNilBool(pool.SatisfiesPzi),
+		Mode:             gcpgenserver.NewOptPoolV1betaMode(gcpgenserver.PoolV1betaMode(pool.APIAccessMode)),
 	}
 
 	if pool.ActiveDirectoryConfigId != "" {
@@ -933,6 +940,13 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 		return &gcpgenserver.Error{
 			Code:    http.StatusBadRequest,
 			Message: "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)",
+		}
+	}
+
+	if req.Mode.Value == gcpgenserver.PoolV1betaModeONTAP && req.ActiveDirectoryResourceId.Value != "" {
+		return &gcpgenserver.Error{
+			Code:    http.StatusBadRequest,
+			Message: "Active directory cannot be assigned to ONTAP Mode Pool",
 		}
 	}
 

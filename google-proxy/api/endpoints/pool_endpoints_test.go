@@ -1512,6 +1512,61 @@ func TestV1betaCreatePool(t *testing.T) {
 			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
 			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
 			Labels:                   gcpgenserver.NewOptPoolV1betaLabels(labels),
+			Mode:                     gcpgenserver.NewOptPoolV1betaMode("GCNV"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			getAndSyncKmsConfigForPool = _getAndSyncKmsConfigForPool
+		}()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+			return nil, nil
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{Labels: labels}}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "operation-id")
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
+	t.Run("WhenPoolCreationSucceedsWithExpertMode", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		labels := make(map[string]string)
+		labels["test"] = "label"
+
+		req := &gcpgenserver.PoolV1beta{
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			Zone:                     gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone:            gcpgenserver.NewOptString("us-east4-b"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
+			Labels:                   gcpgenserver.NewOptPoolV1betaLabels(labels),
+			Mode:                     gcpgenserver.NewOptPoolV1betaMode("ONTAP"),
 		}
 
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone

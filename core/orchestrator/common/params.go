@@ -47,6 +47,7 @@ type CreatePoolParams struct {
 	LargeCapacity           bool
 	ActiveDirectoryId       string
 	ActiveDirectory         *models.ActiveDirectory
+	Mode                    string
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool

@@ -133,7 +133,7 @@ func TestExtractPoolDetailsFromRequest(t *testing.T) {
 		assert.Equal(t, "1234", poolDetails.ProjectNumber)
 		assert.Equal(t, "my-pool", poolDetails.PoolID)
 		assert.Equal(t, "1234", poolDetails.AccountName)
-		assert.Equal(t, "vcp_admin", poolDetails.UserName)
+		assert.Equal(t, "gcnvadmin", poolDetails.UserName)
 	})
 
 	t.Run("WhenInvalidURI_ShouldReturnError", func(t *testing.T) {

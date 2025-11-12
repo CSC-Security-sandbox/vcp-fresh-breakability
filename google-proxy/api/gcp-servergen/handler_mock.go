@@ -79,6 +79,55 @@ func (_c *MockHandler_GetHealth_Call) RunAndReturn(run func(context.Context) (Ge
 	return _c
 }
 
+// NewError provides a mock function with given fields: ctx, err
+func (_m *MockHandler) NewError(ctx context.Context, err error) *ErrorStatusCode {
+	ret := _m.Called(ctx, err)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewError")
+	}
+
+	var r0 *ErrorStatusCode
+	if rf, ok := ret.Get(0).(func(context.Context, error) *ErrorStatusCode); ok {
+		r0 = rf(ctx, err)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ErrorStatusCode)
+		}
+	}
+
+	return r0
+}
+
+// MockHandler_NewError_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewError'
+type MockHandler_NewError_Call struct {
+	*mock.Call
+}
+
+// NewError is a helper method to define mock.On call
+//   - ctx context.Context
+//   - err error
+func (_e *MockHandler_Expecter) NewError(ctx interface{}, err interface{}) *MockHandler_NewError_Call {
+	return &MockHandler_NewError_Call{Call: _e.mock.On("NewError", ctx, err)}
+}
+
+func (_c *MockHandler_NewError_Call) Run(run func(ctx context.Context, err error)) *MockHandler_NewError_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(error))
+	})
+	return _c
+}
+
+func (_c *MockHandler_NewError_Call) Return(_a0 *ErrorStatusCode) *MockHandler_NewError_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockHandler_NewError_Call) RunAndReturn(run func(context.Context, error) *ErrorStatusCode) *MockHandler_NewError_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaCheckKmsConfig provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaCheckKmsConfig(ctx context.Context, params V1betaCheckKmsConfigParams) (V1betaCheckKmsConfigRes, error) {
 	ret := _m.Called(ctx, params)

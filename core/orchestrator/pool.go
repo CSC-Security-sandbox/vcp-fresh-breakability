@@ -163,6 +163,7 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			Labels:          params.Labels,
 			IsRegionalHA:    params.IsRegionalHA,
 		},
+		APIAccessMode: params.Mode,
 	}
 
 	if params.KmsConfig != nil {
@@ -205,12 +206,60 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 		}
 	}
 
+	if params.Mode == workflows.ONTAPMode {
+		poolObj.ExpertModeCredentials = createExpertModeUser(poolObj, env.ExpertModeUser)
+	}
 	dbPool, err := se.CreatingPool(ctx, poolObj)
 	if err != nil {
 		logger.Error("Failed to create pool in database", "error", err)
 		return nil, err
 	}
 	return dbPool, nil
+}
+
+func createExpertModeUser(poolObj *datamodel.Pool, userName string) *datamodel.ExpertModeCredentials {
+	switch env.AuthType {
+	case env.USER_CERTIFICATE:
+		return &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				// first user id expert user
+				{
+					SecretID:      "",
+					CertificateID: fmt.Sprintf("%s-cert-%s", poolObj.DeploymentName, userName),
+					Password:      "",
+					AuthType:      env.USER_CERTIFICATE,
+					Username:      userName,
+				},
+			},
+		}
+	case env.USERNAME_PWD_SEC_MGR:
+		return &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				// first user id expert user
+				{
+					SecretID:      fmt.Sprintf("%s-secret-%s", poolObj.DeploymentName, userName),
+					CertificateID: "",
+					Password:      "",
+					AuthType:      env.USERNAME_PWD_SEC_MGR,
+					Username:      userName,
+				},
+			},
+		}
+	default:
+		return &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				// first user id expert user
+				{
+					SecretID:      "",
+					CertificateID: "",
+					// TODO change this to  expert mode password
+					Password: env.NodePassword,
+					AuthType: env.USERNAME_PWD,
+					Username: userName,
+				},
+			},
+		}
+	}
 }
 
 // UpdatePool updates the specified pool
@@ -728,8 +777,9 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			Throughput: float64(pool.PoolAttributes.ThroughputMibps),
 			Iops:       pool.PoolAttributes.Iops,
 		},
-		SatisfiesPzi: pool.SatisfyZI,
-		SatisfiesPzs: pool.SatisfyZS,
+		SatisfiesPzi:  pool.SatisfyZI,
+		SatisfiesPzs:  pool.SatisfyZS,
+		APIAccessMode: pool.APIAccessMode,
 	}
 
 	if pool.ActiveDirectory != nil {
@@ -812,23 +862,25 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID stri
 		return nil, err
 	}
 
-	// TODO: Return expert mode credentials when VLM changes are available
-	if pool.PoolCredentials == nil {
+	if pool.ExpertModeCredentials == nil || pool.ExpertModeCredentials.ExpertModeCredential == nil || len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 {
 		return nil, nil
 	}
 
-	useHostDNS := pool.PoolCredentials.AuthType == env.USER_CERTIFICATE
-	endpointMappings := buildOntapEndpoints(nodes, useHostDNS)
-
-	result := &models.UserCredentials{
-		SecretID:       pool.PoolCredentials.SecretID,
-		CertificateID:  pool.PoolCredentials.CertificateID,
-		Password:       pool.PoolCredentials.Password,
-		AuthType:       pool.PoolCredentials.AuthType,
-		OntapEndpoints: endpointMappings,
+	for _, expertModeCredential := range pool.ExpertModeCredentials.ExpertModeCredential {
+		if expertModeCredential.Username == userName {
+			useHostDNS := expertModeCredential.AuthType == env.USER_CERTIFICATE
+			endpointMappings := buildOntapEndpoints(nodes, useHostDNS)
+			return &models.UserCredentials{
+				SecretID:       expertModeCredential.SecretID,
+				CertificateID:  expertModeCredential.CertificateID,
+				Password:       expertModeCredential.Password,
+				AuthType:       expertModeCredential.AuthType,
+				OntapEndpoints: endpointMappings,
+			}, nil
+		}
 	}
 
-	return result, nil
+	return nil, errors.New("expert mode user not found")
 }
 
 func buildOntapEndpoints(nodes []*datamodel.Node, useHostDNS bool) []models.OntapEndpoint {

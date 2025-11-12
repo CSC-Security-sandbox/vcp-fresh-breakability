@@ -666,6 +666,37 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	return credentials, nil
 }
 
+func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *datamodel.Pool, clusterName, username string) (*vlm.OntapCredentials, error) {
+	credentials := &vlm.OntapCredentials{}
+	gcpService, getGcpServiceErr := hyperscaler2.GetGCPService(ctx)
+	if getGcpServiceErr != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, getGcpServiceErr))
+	}
+
+	if pool.ExpertModeCredentials == nil || pool.ExpertModeCredentials.ExpertModeCredential == nil || len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("expert mode credentials are not provided")))
+	}
+	switch pool.ExpertModeCredentials.ExpertModeCredential[0].AuthType {
+	case env.USER_CERTIFICATE:
+		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
+		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID, clusterName, username)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		credentials = setPoolCredentials(certificate)
+		credentials.AdminPassword = "" // Setting empty password as certificate is used for authentication
+	case env.USERNAME_PWD_SEC_MGR:
+		secret, err := hyperscaler2.GeneratePasswordForVSACluster(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		credentials.AdminPassword = secret.SecretVersion.Value
+	default:
+		credentials.AdminPassword = pool.ExpertModeCredentials.ExpertModeCredential[0].Password
+	}
+	return credentials, nil
+}
+
 func setPoolCredentials(certificate *hyperscaler_models.CustomCertificateResponse) *vlm.OntapCredentials {
 	credentials := &vlm.OntapCredentials{}
 	credentials.Certificate.CommonName = certificate.Certificate.SubjectCommonName
@@ -699,8 +730,42 @@ func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamod
 	return nil
 }
 
+func (j *PoolActivity) DeleteExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) error {
+	gcpService, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
+	}
+	if pool.ExpertModeCredentials == nil || pool.ExpertModeCredentials.ExpertModeCredential == nil || len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("expert mode credentials are not provided")))
+	}
+	switch pool.ExpertModeCredentials.ExpertModeCredential[0].AuthType {
+	case env.USER_CERTIFICATE:
+		// Revoke the certificates and delete the private key from secret manager and cache then fallthrough to delete the password from secret manager and cache
+		err = hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	case env.USERNAME_PWD_SEC_MGR:
+		err = hyperscaler2.DeletePasswordFromCacheAndSecretManager(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	default:
+		return nil
+	}
+	return nil
+}
+
 func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
 	credentials, err := fetchOnTapCredentials(ctx, pool)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return credentials, nil
+}
+
+func (j *PoolActivity) GetExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
+	credentials, err := fetchExpertModeCredentials(ctx, pool)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -2290,6 +2355,33 @@ func fetchOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.Onta
 		credentials.AdminPassword = secret
 	default:
 		credentials.AdminPassword = pool.PoolCredentials.Password
+	}
+	return credentials, nil
+}
+
+func fetchExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
+	credentials := &vlm.OntapCredentials{}
+	if pool.ExpertModeCredentials == nil || pool.ExpertModeCredentials.ExpertModeCredential == nil || len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("expert mode credentials are not provided")))
+	}
+	switch pool.ExpertModeCredentials.ExpertModeCredential[0].AuthType {
+	case env.USER_CERTIFICATE:
+		certificate, err := hyperscaler2.GetCertificateFromCacheOrSecretManager(ctx, pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID)
+		if err != nil {
+			return nil, err
+		}
+		credentials.Certificate.CommonName = certificate.CommonName
+		credentials.Certificate.Certificate = certificate.SignedCertificate
+		credentials.Certificate.PrivateKey = certificate.PrivateKey
+		credentials.Certificate.InterMediateCertificate = certificate.InterMediateCertificates
+	case env.USERNAME_PWD_SEC_MGR:
+		secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
+		if err != nil {
+			return nil, err
+		}
+		credentials.AdminPassword = secret
+	default:
+		credentials.AdminPassword = pool.ExpertModeCredentials.ExpertModeCredential[0].Password
 	}
 	return credentials, nil
 }

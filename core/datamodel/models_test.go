@@ -784,6 +784,67 @@ func timePtr(t time.Time) *time.Time {
 	return &t
 }
 
+func TestExpertModeCredentials_ValueAndScan(t *testing.T) {
+	emc := ExpertModeCredentials{
+		ExpertModeCredential: []*ExpertModeCredential{
+			{
+				SecretID:      "secret1",
+				CertificateID: "cert1",
+				Password:      "pass",
+				Username:      "user",
+				AuthType:      1,
+			},
+		},
+	}
+	val, err := emc.Value()
+	assert.NoError(t, err)
+	assert.NotNil(t, val)
+
+	var emc2 ExpertModeCredentials
+	err = emc2.Scan(val)
+	assert.NoError(t, err)
+	assert.Equal(t, emc, emc2)
+
+	// Scan nil
+	var emc3 ExpertModeCredentials
+	err = emc3.Scan(nil)
+	assert.NoError(t, err)
+	assert.Equal(t, ExpertModeCredentials{}, emc3)
+
+	// Scan wrong type
+	err = emc3.Scan("not bytes")
+	assert.Error(t, err)
+}
+
+// Unit tests for ExpertModeCredential's Value and Scan methods
+func TestExpertModeCredential_ValueAndScan(t *testing.T) {
+	cred := ExpertModeCredential{
+		SecretID:      "secret1",
+		CertificateID: "cert1",
+		Password:      "pass",
+		Username:      "user",
+		AuthType:      1,
+	}
+	val, err := cred.Value()
+	assert.NoError(t, err)
+	assert.NotNil(t, val)
+
+	var cred2 ExpertModeCredential
+	err = cred2.Scan(val)
+	assert.NoError(t, err)
+	assert.Equal(t, cred, cred2)
+
+	// Scan nil
+	var cred3 ExpertModeCredential
+	err = cred3.Scan(nil)
+	assert.NoError(t, err)
+	assert.Equal(t, ExpertModeCredential{}, cred3)
+
+	// Scan wrong type
+	err = cred3.Scan("not bytes")
+	assert.Error(t, err)
+}
+
 func TestAccountMetadata_Scan(t *testing.T) {
 	t.Run("WhenValueIsNil", func(tt *testing.T) {
 		var am AccountMetadata

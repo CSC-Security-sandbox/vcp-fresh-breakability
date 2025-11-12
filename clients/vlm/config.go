@@ -64,6 +64,7 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	GetClusterZiZsDetailsWorkflowName:       time.Duration(env.GetInt("VLM_GET_CLUSTER_ZIZS_DETAILS_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
 	UpdateVSAMediatorWorkflowName:           time.Duration(env.GetInt("VLM_UPDATE_VSA_MEDIATOR_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
 	UpdateLicenseWorkflowName:               10 * time.Minute,
+	CreateVSAExpertModeUserWorkflowName:     time.Duration(env.GetInt("VLM_CREATE_VSA_EXPERT_MODE_USER_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
 }
 
 type VLMConfig struct {

@@ -7556,6 +7556,15 @@ components:
           example: 4000000000000
           nullable: true
           x-omitempty: true
+        mode:
+          title: mode
+          type: string
+          enum:
+            - GCNV
+            - ONTAP
+          description: Flag indicating if the pool supports expert mode
+          default: GCNV
+          example: GCNV
     Volume_v1beta:
       title: Volume v1beta model definition
       required:

@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -45,6 +46,58 @@ type Pool struct {
 	ActiveDirectoryID       sql.NullInt64    `gorm:"column:active_directory_id"`
 	ActiveDirectory         *ActiveDirectory `gorm:"ForeignKey:ActiveDirectoryID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	ActiveDirectoryChangeId string           `gorm:"column:active_directory_change_id;type:text"`
+	APIAccessMode         string                 `gorm:"column:api_access_mode;type:text"`
+	ExpertModeCredentials *ExpertModeCredentials `gorm:"column:expert_mode_credentials;type:jsonb"`
+}
+
+type ExpertModeCredentials struct {
+	ExpertModeCredential []*ExpertModeCredential `json:"expert_mode_credential"`
+}
+
+// Value implements the driver.Valuer interface for GORM
+func (emc ExpertModeCredentials) Value() (driver.Value, error) {
+	return json.Marshal(emc)
+}
+
+// Scan implements the sql.Scanner interface for GORM
+func (emc *ExpertModeCredentials) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+
+	return json.Unmarshal(bytes, emc)
+}
+
+type ExpertModeCredential struct {
+	SecretID      string `json:"secret_id"`
+	CertificateID string `json:"certificate_id"`
+	Password      string `json:"password"`
+	Username      string `json:"username"`
+	AuthType      int    `json:"auth_type"`
+}
+
+// Value implements the driver.Valuer interface for GORM
+func (emc ExpertModeCredential) Value() (driver.Value, error) {
+	return json.Marshal(emc)
+}
+
+// Scan implements the sql.Scanner interface for GORM
+func (emc *ExpertModeCredential) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("cannot scan %T into ExpertModeCredential", value)
+	}
+
+	return json.Unmarshal(bytes, emc)
 }
 
 type PoolCredentials struct {

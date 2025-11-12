@@ -69,6 +69,8 @@ const (
 	SaIdPrefix        = "vsa-sa-"
 	statusDone        = "DONE"
 	operationProgress = int64(100)
+	ONTAPMode         = "ONTAP"
+	GCNVMode          = "GCNV"
 )
 
 type createPoolWorkflow struct {
@@ -462,6 +464,28 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateQoSPolicyAndApplyToSVM, dbPool, svm, node).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
+	}
+
+	expertCredConfig := &vlm.OntapCredentials{}
+	if params.Mode == ONTAPMode {
+		if len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 || pool.ExpertModeCredentials.ExpertModeCredential[0].Username == "" {
+			return nil, ConvertToVSAError(vsaerrors.New("expert mode username not found in request"))
+		}
+		err = workflow.ExecuteActivity(ctx, poolActivity.CreateExpertModeCredentials, pool, pool.DeploymentName, pool.ExpertModeCredentials.ExpertModeCredential[0].Username).Get(ctx, &expertCredConfig)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		if !disableVsaCleanupOnVLMFailure {
+			rollbackManager.AddActivity(poolActivity.DeleteExpertModeCredentials, pool)
+		}
+
+		createVSAExpertModeReq := &vlm.OntapExpertModeUserConfig{}
+		prepareCreateVSAExpertModeReq(createVSAExpertModeReq, createVSAClusterDeploymentResponse.VLMConfig, *credConfig, *expertCredConfig, dbPool)
+		err = vsaClientWorkflowManager.CreateVSAExpertModeUser(ctx, createVSAExpertModeReq)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	// Enable KMS for SVM if KMS config is provided
@@ -1015,12 +1039,13 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if !disableVsaCleanupOnVLMFailure {
-		err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
+	if !disableVsaCleanupOnVLMFailure || dbPool.State != models.LifeCycleStateError {
+		if dbPool.APIAccessMode == ONTAPMode {
+			err = workflow.ExecuteActivity(ctx, poolActivity.DeleteExpertModeCredentials, dbPool).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
 		}
-	} else if dbPool.State != models.LifeCycleStateError {
 		err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
@@ -1408,6 +1433,16 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 			SecretUri: []string{secretUri},
 		}
 	}
+}
+
+func prepareCreateVSAExpertModeReq(createVSAExpertModeRequest *vlm.OntapExpertModeUserConfig, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials, expertModeCredentials vlm.OntapCredentials, pool *datamodel.Pool) {
+	createVSAExpertModeRequest.VLMConfig = vlmConfig
+	createVSAExpertModeRequest.OntapCredentials = ontapCredentials
+	createVSAExpertModeRequest.ExpertModeUserCredentials = expertModeCredentials
+	if pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {
+		createVSAExpertModeRequest.AuthenticationType = "certificate"
+	}
+	createVSAExpertModeRequest.Username = env.ExpertModeUser
 }
 
 func prepareCreateSVMRequest(createSVMRequest *vlm.CreateSVMRequest, svmName string, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials) {

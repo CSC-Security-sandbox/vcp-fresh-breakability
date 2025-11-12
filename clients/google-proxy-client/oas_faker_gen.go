@@ -3111,6 +3111,15 @@ func (s *OptPoolInternalV1betaLabels) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptPoolInternalV1betaMode) SetFake() {
+	var elem PoolInternalV1betaMode
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptPoolInternalV1betaStoragePoolState) SetFake() {
 	var elem PoolInternalV1betaStoragePoolState
 	{
@@ -3149,6 +3158,15 @@ func (s *OptPoolV1betaEncryptionType) SetFake() {
 // SetFake set fake values.
 func (s *OptPoolV1betaLabels) SetFake() {
 	var elem PoolV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptPoolV1betaMode) SetFake() {
+	var elem PoolV1betaMode
 	{
 		elem.SetFake()
 	}
@@ -3786,6 +3804,11 @@ func (s *PoolInternalV1beta) SetFake() {
 	}
 	{
 		{
+			s.Mode.SetFake()
+		}
+	}
+	{
+		{
 			s.ClusterName.SetFake()
 		}
 	}
@@ -3826,6 +3849,11 @@ func (s *PoolInternalV1betaLabels) SetFake() {
 	for i := 0; i < 0; i++ {
 		m[fmt.Sprintf("fake%d", i)] = elem
 	}
+}
+
+// SetFake set fake values.
+func (s *PoolInternalV1betaMode) SetFake() {
+	*s = PoolInternalV1betaModeGCNV
 }
 
 // SetFake set fake values.
@@ -4140,6 +4168,11 @@ func (s *PoolV1beta) SetFake() {
 			s.ColdTierConsumption.SetFake()
 		}
 	}
+	{
+		{
+			s.Mode.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -4165,6 +4198,11 @@ func (s *PoolV1betaLabels) SetFake() {
 	for i := 0; i < 0; i++ {
 		m[fmt.Sprintf("fake%d", i)] = elem
 	}
+}
+
+// SetFake set fake values.
+func (s *PoolV1betaMode) SetFake() {
+	*s = PoolV1betaModeGCNV
 }
 
 // SetFake set fake values.

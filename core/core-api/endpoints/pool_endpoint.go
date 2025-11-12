@@ -3,10 +3,10 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 )
 
 func (h Handler) V1GetOntapCredentials(ctx context.Context, params oasgenserver.V1GetOntapCredentialsParams) (oasgenserver.V1GetOntapCredentialsRes, error) {
@@ -18,7 +18,7 @@ func (h Handler) V1GetOntapCredentials(ctx context.Context, params oasgenserver.
 		}, nil
 	}
 	accountName := params.AccountName.Value
-	poolCredentials, err := h.Orchestrator.GetExpertModePoolCreds(ctx, params.PoolId, accountName, params.UserName.Value)
+	expertModeCredential, err := h.Orchestrator.GetExpertModePoolCreds(ctx, params.PoolId, accountName, params.UserName.Value)
 	if err != nil {
 		// Check if the error is ErrPoolNotFound and return 404
 		var customErr *errors.CustomError
@@ -34,30 +34,30 @@ func (h Handler) V1GetOntapCredentials(ctx context.Context, params oasgenserver.
 		}, nil
 	}
 
-	if poolCredentials == nil {
+	if expertModeCredential == nil {
 		return &oasgenserver.V1GetOntapCredentialsNotFound{
 			Message: "Pool credentials not found",
 			Code:    404,
 		}, nil
 	}
 
-	ontapCreds := convertUserCredentialsToOntapCredentialsV1(poolCredentials)
+	ontapCreds := convertUserCredentialsToOntapCredentialsV1(expertModeCredential)
 	return ontapCreds, nil
 }
 
-func convertUserCredentialsToOntapCredentialsV1(poolCredentials *models.UserCredentials) *oasgenserver.OntapCredentialsV1 {
-	if poolCredentials == nil {
+func convertUserCredentialsToOntapCredentialsV1(expertModeCredentials *models.UserCredentials) *oasgenserver.OntapCredentialsV1 {
+	if expertModeCredentials == nil {
 		return nil
 	}
 
-	secretID := oasgenserver.NewOptString(poolCredentials.SecretID)
-	certificateID := oasgenserver.NewOptString(poolCredentials.CertificateID)
-	password := oasgenserver.NewOptString(poolCredentials.Password)
-	authType := oasgenserver.NewOptInt(poolCredentials.AuthType)
+	secretID := oasgenserver.NewOptString(expertModeCredentials.SecretID)
+	certificateID := oasgenserver.NewOptString(expertModeCredentials.CertificateID)
+	password := oasgenserver.NewOptString(expertModeCredentials.Password)
+	authType := oasgenserver.NewOptInt(expertModeCredentials.AuthType)
 
 	var endpointMappings []oasgenserver.OntapEndpoint
-	if poolCredentials.OntapEndpoints != nil {
-		for _, mapping := range poolCredentials.OntapEndpoints {
+	if expertModeCredentials.OntapEndpoints != nil {
+		for _, mapping := range expertModeCredentials.OntapEndpoints {
 			endpointMappings = append(endpointMappings, oasgenserver.OntapEndpoint{
 				IP:  mapping.IP,
 				DNS: mapping.DNS,

@@ -10306,6 +10306,52 @@ func (o OptPoolInternalV1betaLabels) Or(d PoolInternalV1betaLabels) PoolInternal
 	return d
 }
 
+// NewOptPoolInternalV1betaMode returns new OptPoolInternalV1betaMode with value set to v.
+func NewOptPoolInternalV1betaMode(v PoolInternalV1betaMode) OptPoolInternalV1betaMode {
+	return OptPoolInternalV1betaMode{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPoolInternalV1betaMode is optional PoolInternalV1betaMode.
+type OptPoolInternalV1betaMode struct {
+	Value PoolInternalV1betaMode
+	Set   bool
+}
+
+// IsSet returns true if OptPoolInternalV1betaMode was set.
+func (o OptPoolInternalV1betaMode) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPoolInternalV1betaMode) Reset() {
+	var v PoolInternalV1betaMode
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPoolInternalV1betaMode) SetTo(v PoolInternalV1betaMode) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPoolInternalV1betaMode) Get() (v PoolInternalV1betaMode, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPoolInternalV1betaMode) Or(d PoolInternalV1betaMode) PoolInternalV1betaMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptPoolInternalV1betaStoragePoolState returns new OptPoolInternalV1betaStoragePoolState with value set to v.
 func NewOptPoolInternalV1betaStoragePoolState(v PoolInternalV1betaStoragePoolState) OptPoolInternalV1betaStoragePoolState {
 	return OptPoolInternalV1betaStoragePoolState{
@@ -10530,6 +10576,52 @@ func (o OptPoolV1betaLabels) Get() (v PoolV1betaLabels, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptPoolV1betaLabels) Or(d PoolV1betaLabels) PoolV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPoolV1betaMode returns new OptPoolV1betaMode with value set to v.
+func NewOptPoolV1betaMode(v PoolV1betaMode) OptPoolV1betaMode {
+	return OptPoolV1betaMode{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPoolV1betaMode is optional PoolV1betaMode.
+type OptPoolV1betaMode struct {
+	Value PoolV1betaMode
+	Set   bool
+}
+
+// IsSet returns true if OptPoolV1betaMode was set.
+func (o OptPoolV1betaMode) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPoolV1betaMode) Reset() {
+	var v PoolV1betaMode
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPoolV1betaMode) SetTo(v PoolV1betaMode) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPoolV1betaMode) Get() (v PoolV1betaMode, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPoolV1betaMode) Or(d PoolV1betaMode) PoolV1betaMode {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -12714,6 +12806,8 @@ type PoolInternalV1beta struct {
 	HotTierConsumption OptNilInt64 `json:"hotTierConsumption"`
 	// Total StoragePool Coldtier usages.
 	ColdTierConsumption OptNilInt64 `json:"coldTierConsumption"`
+	// Flag indicating if the pool supports expert mode.
+	Mode OptPoolInternalV1betaMode `json:"mode"`
 	// The name of the cluster.
 	ClusterName OptString `json:"clusterName"`
 	// Intercluster Lifs.
@@ -12933,6 +13027,11 @@ func (s *PoolInternalV1beta) GetHotTierConsumption() OptNilInt64 {
 // GetColdTierConsumption returns the value of ColdTierConsumption.
 func (s *PoolInternalV1beta) GetColdTierConsumption() OptNilInt64 {
 	return s.ColdTierConsumption
+}
+
+// GetMode returns the value of Mode.
+func (s *PoolInternalV1beta) GetMode() OptPoolInternalV1betaMode {
+	return s.Mode
 }
 
 // GetClusterName returns the value of ClusterName.
@@ -13160,6 +13259,11 @@ func (s *PoolInternalV1beta) SetColdTierConsumption(val OptNilInt64) {
 	s.ColdTierConsumption = val
 }
 
+// SetMode sets the value of Mode.
+func (s *PoolInternalV1beta) SetMode(val OptPoolInternalV1betaMode) {
+	s.Mode = val
+}
+
 // SetClusterName sets the value of ClusterName.
 func (s *PoolInternalV1beta) SetClusterName(val OptString) {
 	s.ClusterName = val
@@ -13238,6 +13342,48 @@ func (s *PoolInternalV1betaLabels) init() PoolInternalV1betaLabels {
 		*s = m
 	}
 	return m
+}
+
+// Flag indicating if the pool supports expert mode.
+type PoolInternalV1betaMode string
+
+const (
+	PoolInternalV1betaModeGCNV  PoolInternalV1betaMode = "GCNV"
+	PoolInternalV1betaModeONTAP PoolInternalV1betaMode = "ONTAP"
+)
+
+// AllValues returns all PoolInternalV1betaMode values.
+func (PoolInternalV1betaMode) AllValues() []PoolInternalV1betaMode {
+	return []PoolInternalV1betaMode{
+		PoolInternalV1betaModeGCNV,
+		PoolInternalV1betaModeONTAP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PoolInternalV1betaMode) MarshalText() ([]byte, error) {
+	switch s {
+	case PoolInternalV1betaModeGCNV:
+		return []byte(s), nil
+	case PoolInternalV1betaModeONTAP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PoolInternalV1betaMode) UnmarshalText(data []byte) error {
+	switch PoolInternalV1betaMode(data) {
+	case PoolInternalV1betaModeGCNV:
+		*s = PoolInternalV1betaModeGCNV
+		return nil
+	case PoolInternalV1betaModeONTAP:
+		*s = PoolInternalV1betaModeONTAP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // The service level of the storage pool can either be premium, standard, flex or extreme.
@@ -13718,6 +13864,8 @@ type PoolV1beta struct {
 	HotTierConsumption OptNilInt64 `json:"hotTierConsumption"`
 	// Total StoragePool Coldtier usages.
 	ColdTierConsumption OptNilInt64 `json:"coldTierConsumption"`
+	// Flag indicating if the pool supports expert mode.
+	Mode OptPoolV1betaMode `json:"mode"`
 }
 
 // GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
@@ -13935,6 +14083,11 @@ func (s *PoolV1beta) GetColdTierConsumption() OptNilInt64 {
 	return s.ColdTierConsumption
 }
 
+// GetMode returns the value of Mode.
+func (s *PoolV1beta) GetMode() OptPoolV1betaMode {
+	return s.Mode
+}
+
 // SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
 func (s *PoolV1beta) SetActiveDirectoryConfigId(val OptNilString) {
 	s.ActiveDirectoryConfigId = val
@@ -14150,6 +14303,11 @@ func (s *PoolV1beta) SetColdTierConsumption(val OptNilInt64) {
 	s.ColdTierConsumption = val
 }
 
+// SetMode sets the value of Mode.
+func (s *PoolV1beta) SetMode(val OptPoolV1betaMode) {
+	s.Mode = val
+}
+
 func (*PoolV1beta) v1betaDescribePoolRes() {}
 
 type PoolV1betaAssetLocationMetadata struct {
@@ -14218,6 +14376,48 @@ func (s *PoolV1betaLabels) init() PoolV1betaLabels {
 		*s = m
 	}
 	return m
+}
+
+// Flag indicating if the pool supports expert mode.
+type PoolV1betaMode string
+
+const (
+	PoolV1betaModeGCNV  PoolV1betaMode = "GCNV"
+	PoolV1betaModeONTAP PoolV1betaMode = "ONTAP"
+)
+
+// AllValues returns all PoolV1betaMode values.
+func (PoolV1betaMode) AllValues() []PoolV1betaMode {
+	return []PoolV1betaMode{
+		PoolV1betaModeGCNV,
+		PoolV1betaModeONTAP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PoolV1betaMode) MarshalText() ([]byte, error) {
+	switch s {
+	case PoolV1betaModeGCNV:
+		return []byte(s), nil
+	case PoolV1betaModeONTAP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PoolV1betaMode) UnmarshalText(data []byte) error {
+	switch PoolV1betaMode(data) {
+	case PoolV1betaModeGCNV:
+		*s = PoolV1betaModeGCNV
+		return nil
+	case PoolV1betaModeONTAP:
+		*s = PoolV1betaModeONTAP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // The service level of the storage pool can either be premium, standard, flex or extreme.

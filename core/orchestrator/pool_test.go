@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/validators"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -645,6 +646,7 @@ func TestCreatePool(t *testing.T) {
 				}
 			}(),
 			Labels: &labels,
+			Mode:   workflows.ONTAPMode,
 		}
 
 		dbAccount := &datamodel.Account{
@@ -713,6 +715,7 @@ func TestCreatePool(t *testing.T) {
 					Iops:            &iopsValue,
 				}
 			}(),
+			Mode: workflows.ONTAPMode,
 		}
 
 		dbAccount := &datamodel.Account{
@@ -776,6 +779,7 @@ func TestCreatePool(t *testing.T) {
 					Iops:            &iopsValue,
 				}
 			}(),
+			Mode: workflows.ONTAPMode,
 		}
 
 		dbAccount := &datamodel.Account{
@@ -4135,11 +4139,16 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test-pool-uuid",
 			AccountID: account.ID,
-			PoolCredentials: &datamodel.PoolCredentials{
-				SecretID:      "test-secret-id",
-				CertificateID: "test-cert-id",
-				Password:      "test-password",
-				AuthType:      2, // USER_CERTIFICATE
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						SecretID:      "test-secret-id",
+						CertificateID: "test-cert-id",
+						Password:      "test-password",
+						AuthType:      2, // USER_CERTIFICATE
+						Username:      "test-user",
+					},
+				},
 			},
 		}
 		err = store.DB().Create(pool).Error
@@ -4179,6 +4188,62 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.Equal(t, "host1.example.com", credentials.OntapEndpoints[0].DNS)
 		assert.Equal(t, "10.0.0.2", credentials.OntapEndpoints[1].IP)
 		assert.Equal(t, "host2.example.com", credentials.OntapEndpoints[1].DNS)
+	})
+	t.Run("WhenUserNotFound", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool-uuid",
+			AccountID: account.ID,
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						SecretID:      "test-secret-id",
+						CertificateID: "test-cert-id",
+						Password:      "test-password",
+						AuthType:      2, // USER_CERTIFICATE
+						Username:      "different-user",
+					},
+				},
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "test-node-1-uuid"},
+			Name:            "test-node-1",
+			PoolID:          pool.ID,
+			EndpointAddress: "10.0.0.1",
+			HostDNSName:     "host1.example.com",
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(t, err)
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 2, UUID: "test-node-2-uuid"},
+			Name:            "test-node-2",
+			PoolID:          pool.ID,
+			EndpointAddress: "10.0.0.2",
+			HostDNSName:     "host2.example.com",
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(t, err)
+
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+
+		assert.Error(t, err)
+		assert.Nil(t, credentials)
+		assert.Contains(t, err.Error(), "expert mode user not found")
 	})
 	t.Run("WhenAccountNotFound", func(t *testing.T) {
 		ctx, _, orch, _ := setup(t)
@@ -4234,10 +4299,10 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		pool := &datamodel.Pool{
-			BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:            "test-pool-uuid",
-			AccountID:       account.ID,
-			PoolCredentials: nil, // No credentials
+			BaseModel:             datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:                  "test-pool-uuid",
+			AccountID:             account.ID,
+			ExpertModeCredentials: nil, // No credentials
 		}
 		err = store.DB().Create(pool).Error
 		assert.NoError(t, err)
@@ -4264,11 +4329,16 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test-pool-uuid",
 			AccountID: account.ID,
-			PoolCredentials: &datamodel.PoolCredentials{
-				SecretID:      "",
-				CertificateID: "",
-				Password:      "",
-				AuthType:      0,
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						SecretID:      "",
+						CertificateID: "",
+						Password:      "",
+						AuthType:      0,
+						Username:      "test-user",
+					},
+				},
 			},
 		}
 		err = store.DB().Create(pool).Error
@@ -4317,11 +4387,15 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test-pool-uuid",
 			AccountID: account.ID,
-			PoolCredentials: &datamodel.PoolCredentials{
-				SecretID:      "test-secret-id",
-				CertificateID: "test-cert-id",
-				Password:      "test-password",
-				AuthType:      1,
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						SecretID:      "test-secret-id",
+						CertificateID: "test-cert-id",
+						Password:      "test-password",
+						AuthType:      1,
+					},
+				},
 			},
 		}
 		err = store.DB().Create(pool).Error
@@ -4362,10 +4436,10 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		pool := &datamodel.Pool{
-			BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:            "test-pool-uuid",
-			AccountID:       account.ID,
-			PoolCredentials: nil, // Explicitly nil
+			BaseModel:             datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:                  "test-pool-uuid",
+			AccountID:             account.ID,
+			ExpertModeCredentials: nil, // Explicitly nil
 		}
 		err = store.DB().Create(pool).Error
 		assert.NoError(t, err)
@@ -5226,5 +5300,60 @@ func TestMergeUpdateParamsIntoPoolModel(t *testing.T) {
 		// SizeInBytes should remain from poolModel when params.SizeInBytes is 0
 		assert.Equal(tt, basePoolModel.SizeInBytes, merged.SizeInBytes)
 		assert.Equal(tt, uint64(2*utils.TiBInBytes), merged.SizeInBytes)
+	})
+}
+
+func TestCreateExpertModeUser(t *testing.T) {
+	poolObj := &datamodel.Pool{
+		DeploymentName: "test-deployment",
+	}
+	userName := "expertuser"
+
+	// Save and restore env.AuthType and env.NodePassword for isolation
+	origAuthType := env.AuthType
+	origNodePassword := env.NodePassword
+	defer func() {
+		env.AuthType = origAuthType
+		env.NodePassword = origNodePassword
+	}()
+
+	t.Run("USER_CERTIFICATE", func(tt *testing.T) {
+		env.AuthType = env.USER_CERTIFICATE
+		creds := createExpertModeUser(poolObj, userName)
+		assert.NotNil(tt, creds)
+		assert.Len(tt, creds.ExpertModeCredential, 1)
+		c := creds.ExpertModeCredential[0]
+		assert.Equal(tt, env.USER_CERTIFICATE, c.AuthType)
+		assert.Equal(tt, userName, c.Username)
+		assert.Contains(tt, c.CertificateID, "test-deployment-cert-expertuser")
+		assert.Empty(tt, c.SecretID)
+		assert.Empty(tt, c.Password)
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR", func(tt *testing.T) {
+		env.AuthType = env.USERNAME_PWD_SEC_MGR
+		creds := createExpertModeUser(poolObj, userName)
+		assert.NotNil(tt, creds)
+		assert.Len(tt, creds.ExpertModeCredential, 1)
+		c := creds.ExpertModeCredential[0]
+		assert.Equal(tt, env.USERNAME_PWD_SEC_MGR, c.AuthType)
+		assert.Equal(tt, userName, c.Username)
+		assert.Contains(tt, c.SecretID, "test-deployment-secret-expertuser")
+		assert.Empty(tt, c.CertificateID)
+		assert.Empty(tt, c.Password)
+	})
+
+	t.Run("Default USERNAME_PWD", func(tt *testing.T) {
+		env.AuthType = env.USERNAME_PWD
+		env.NodePassword = "nodepwd"
+		creds := createExpertModeUser(poolObj, userName)
+		assert.NotNil(tt, creds)
+		assert.Len(tt, creds.ExpertModeCredential, 1)
+		c := creds.ExpertModeCredential[0]
+		assert.Equal(tt, env.USERNAME_PWD, c.AuthType)
+		assert.Equal(tt, userName, c.Username)
+		assert.Empty(tt, c.SecretID)
+		assert.Empty(tt, c.CertificateID)
+		assert.Equal(tt, "nodepwd", c.Password)
 	})
 }

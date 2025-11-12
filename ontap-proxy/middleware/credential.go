@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/coreapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -155,7 +156,7 @@ func extractPoolDetailsFromRequest(req *http.Request) (*models.PoolDetails, erro
 	poolID := uriSlice[7]
 
 	accountName := projectNumber
-	userName := "vcp_admin"
+	userName := env.ExpertModeUser
 
 	return &models.PoolDetails{
 		ProjectNumber: projectNumber,

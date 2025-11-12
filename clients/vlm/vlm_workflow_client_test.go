@@ -1435,6 +1435,87 @@ func TestGetClusterZiZsDetails_TimeoutConfiguration(t *testing.T) {
 	assert.Equal(t, 15*time.Minute, expectedTimeout)
 }
 
+func TestCreateVSAExpertModeUser_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	req := &OntapExpertModeUserConfig{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "deployment-123",
+				Labels:       map[string]string{"account_id": "acc-1"},
+			},
+		},
+	}
+
+	// Register child workflow to succeed
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *OntapExpertModeUserConfig) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: CreateVSAExpertModeUserWorkflowName},
+	)
+
+	vlmManager := &VSAClientWorkflowManager{}
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.CreateVSAExpertModeUser(ctx, req)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestCreateVSAExpertModeUser_ChildWorkflowError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	// Register child workflow to fail
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *OntapExpertModeUserConfig) error {
+			return errors.New("child workflow error")
+		},
+		workflow.RegisterOptions{Name: CreateVSAExpertModeUserWorkflowName},
+	)
+
+	req := &OntapExpertModeUserConfig{
+		VLMConfig: VLMConfig{
+			Deployment: DeploymentConfig{
+				DeploymentID: "deployment-123",
+				Labels:       map[string]string{"account_id": "acc-1"},
+			},
+		},
+	}
+
+	vlmManager := &VSAClientWorkflowManager{}
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.CreateVSAExpertModeUser(ctx, req)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+}
+
 // TestUpdateLicenseWorkflow tests the UpdateLicenseWorkflow method
 func TestUpdateLicenseWorkflow(t *testing.T) {
 	t.Run("TestUpdateLicenseWorkflow_Success", func(t *testing.T) {

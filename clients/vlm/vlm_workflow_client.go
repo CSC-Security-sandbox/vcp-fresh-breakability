@@ -39,6 +39,7 @@ var (
 
 const VLMCloudProvider = "gcp"
 const AccountName = "AccountName"
+const expertMode = "exp-mode"
 
 // getRetryErrorPatterns returns the list of error patterns that trigger delete and retry operations
 func getRetryErrorPatterns() []string {
@@ -77,6 +78,7 @@ type VlmWorkflowClient interface {
 	UpgradeVSAMediatorWorkflow(ctx workflow.Context, req *UpdateMediatorRequest) (*UpdateMediatorResponse, error)
 	UpdateLicenseWorkflow(ctx workflow.Context, req *UpdateLicenseRequest) error
 	GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error)
+	CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) error
 }
 
 type VSAClientWorkflowManager struct {
@@ -97,6 +99,54 @@ func getVLMWorkerQueue(logger log.Logger, account string) string {
 		logger.Info("using 9.18.1 as ontap version for file protocol support", "account", account)
 	}
 	return fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ontapVersion)
+}
+func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) error {
+	logger := util.GetLogger(ctx)
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return err
+	}
+	accountId := createVSAExpertModeUserRequest.VLMConfig.Deployment.Labels["account_id"]
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSAExpertModeUserWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		WorkflowID:            createVSAExpertModeUserRequest.VLMConfig.Deployment.DeploymentID + expertMode, // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
+		TaskQueue:             getVLMWorkerQueue(logger, accountId),                                          // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+		WaitForCancellation:   true,                                                                          // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,                    // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, createVSAExpertModeUserRequest.VLMConfig.Deployment.DeploymentID)
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, CreateVSAExpertModeUserWorkflowName, createVSAExpertModeUserRequest).Get(childWorkflowContxt, nil)
+
+	if err != nil {
+		logger.Error("Failed to create expertModeUser", "error", err)
+		vlmErrorHandler := NewVLMErrorHandlerWithLogger(logger)
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	return nil
 }
 
 func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {

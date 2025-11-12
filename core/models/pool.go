@@ -34,6 +34,7 @@ type Pool struct {
 	ActiveDirectoryConfigId   string
 	ActiveDirectoryResourceId string
 	ActiveDirectoryChangeId   string
+	APIAccessMode             string
 }
 
 type AssetMetadata struct {

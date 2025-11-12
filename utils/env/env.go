@@ -320,6 +320,8 @@ var (
 	CurrentOntapVersionDetails = GetString("ONTAP_VERSION_DETAILS", "9.17.1P1")
 	// ONTAP Image Version Match Configuration
 	SkipOntapImageVersionMatch = GetBool("SKIP_ONTAP_IMAGE_VERSION_MATCH", false)
+
+	ExpertModeUser = GetString("EXPERT_MODE_USER", "gcnvadmin")
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges

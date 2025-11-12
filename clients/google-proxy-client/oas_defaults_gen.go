@@ -260,6 +260,10 @@ func (s *PoolInternalV1beta) setDefaults() {
 		val := bool(false)
 		s.LargeCapacity.SetTo(val)
 	}
+	{
+		val := PoolInternalV1betaMode("GCNV")
+		s.Mode.SetTo(val)
+	}
 }
 
 // setDefaults set default value of fields.
@@ -291,6 +295,10 @@ func (s *PoolV1beta) setDefaults() {
 	{
 		val := bool(false)
 		s.LargeCapacity.SetTo(val)
+	}
+	{
+		val := PoolV1betaMode("GCNV")
+		s.Mode.SetTo(val)
 	}
 }
 

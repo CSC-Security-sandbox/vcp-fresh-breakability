@@ -126,6 +126,53 @@ func (_c *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call) RunAndReturn(ru
 	return _c
 }
 
+// CreateVSAExpertModeUser provides a mock function with given fields: ctx, createVSAExpertModeUserRequest
+func (_m *MockVlmWorkflowClient) CreateVSAExpertModeUser(ctx internal.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) error {
+	ret := _m.Called(ctx, createVSAExpertModeUserRequest)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateVSAExpertModeUser")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *OntapExpertModeUserConfig) error); ok {
+		r0 = rf(ctx, createVSAExpertModeUserRequest)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockVlmWorkflowClient_CreateVSAExpertModeUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVSAExpertModeUser'
+type MockVlmWorkflowClient_CreateVSAExpertModeUser_Call struct {
+	*mock.Call
+}
+
+// CreateVSAExpertModeUser is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - createVSAExpertModeUserRequest *OntapExpertModeUserConfig
+func (_e *MockVlmWorkflowClient_Expecter) CreateVSAExpertModeUser(ctx interface{}, createVSAExpertModeUserRequest interface{}) *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call {
+	return &MockVlmWorkflowClient_CreateVSAExpertModeUser_Call{Call: _e.mock.On("CreateVSAExpertModeUser", ctx, createVSAExpertModeUserRequest)}
+}
+
+func (_c *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call) Run(run func(ctx internal.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig)) *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*OntapExpertModeUserConfig))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call) Return(_a0 error) *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call) RunAndReturn(run func(internal.Context, *OntapExpertModeUserConfig) error) *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateVSASVM provides a mock function with given fields: ctx, createSVMRequest
 func (_m *MockVlmWorkflowClient) CreateVSASVM(ctx internal.Context, createSVMRequest *CreateSVMRequest) (*CreateSVMResponse, error) {
 	ret := _m.Called(ctx, createSVMRequest)

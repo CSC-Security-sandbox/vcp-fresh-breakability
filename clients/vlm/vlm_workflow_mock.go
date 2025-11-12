@@ -119,3 +119,9 @@ func (vlmManager *VSAClientWorkflowManagerMock) UpdateLicenseWorkflow(ctx workfl
 	logger.Info("Mock UpdateLicenseWorkflow", "vsaManagementIP", req.VSAManagementIP)
 	return nil
 }
+
+func (vlmManager *VSAClientWorkflowManagerMock) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock GetVSAClusterDeployment")
+	return nil
+}

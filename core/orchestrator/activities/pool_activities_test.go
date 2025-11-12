@@ -10492,3 +10492,459 @@ func TestGetBucketCompliance_AllScenarios(t *testing.T) {
 		})
 	}
 }
+
+func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
+	activity := &activities.PoolActivity{}
+	ctx := context.Background()
+	clusterName := "test-cluster"
+	username := "admin"
+
+	origGetGCPService := hyperscaler2.GetGCPService
+	origGenerateAndCreateCertificateForVSACluster := hyperscaler2.GenerateAndCreateCertificateForVSACluster
+	defer func() {
+		hyperscaler2.GetGCPService = origGetGCPService
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = origGenerateAndCreateCertificateForVSACluster
+	}()
+
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return &google.GcpServices{}, nil
+	}
+
+	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "cert-id",
+						SecretID:      "",
+						Password:      "",
+						AuthType:      env.USER_CERTIFICATE,
+					},
+				},
+			},
+		}
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificateResponse, error) {
+			return &hyperscaler3.CustomCertificateResponse{
+				Certificate: &hyperscaler3.CustomCertificate{
+					SubjectCommonName:   "CN",
+					PemCertificate:      "cert",
+					PemCertificateChain: []string{"chain"},
+				},
+				Secret: &hyperscaler3.CustomSecret{
+					SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "key"},
+				},
+			}, nil
+		}
+		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		assert.NoError(t, err)
+		assert.Equal(t, "CN", creds.Certificate.CommonName)
+		assert.Equal(t, "cert", creds.Certificate.Certificate)
+		assert.Equal(t, "key", creds.Certificate.PrivateKey)
+		assert.Equal(t, []string{"chain"}, creds.Certificate.InterMediateCertificate)
+		assert.Equal(t, "", creds.AdminPassword)
+	})
+
+	t.Run("USER_CERTIFICATE ExpertModeCredentials empty error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: nil,
+			},
+		}
+		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		assert.Error(t, err)
+		assert.Nil(t, creds)
+	})
+
+	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "cert-id",
+						SecretID:      "",
+						Password:      "",
+						AuthType:      env.USER_CERTIFICATE,
+					},
+				},
+			},
+		}
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificateResponse, error) {
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
+		}
+		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		assert.Error(t, err)
+		assert.Nil(t, creds)
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "",
+						SecretID:      "secret-id",
+						Password:      "",
+						AuthType:      env.USERNAME_PWD_SEC_MGR,
+					},
+				},
+			},
+			PoolCredentials: &datamodel.PoolCredentials{},
+		}
+		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
+			return &hyperscaler3.CustomSecret{
+				SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "pwd"},
+			}, nil
+		}
+		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		assert.NoError(t, err)
+		assert.Equal(t, "pwd", creds.AdminPassword)
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "",
+						SecretID:      "secret-id",
+						Password:      "",
+						AuthType:      env.USERNAME_PWD_SEC_MGR,
+					},
+				},
+			},
+		}
+		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
+		}
+		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		assert.Error(t, err)
+		assert.Nil(t, creds)
+	})
+
+	t.Run("default password", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "",
+						SecretID:      "",
+						Password:      "password",
+						AuthType:      env.USERNAME_PWD,
+					},
+				},
+			},
+		}
+		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		assert.NoError(t, err)
+		assert.Equal(t, "password", creds.AdminPassword)
+	})
+
+	t.Run("GetGCPService error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "",
+				SecretID:      "",
+				Password:      "password",
+				AuthType:      env.USERNAME_PWD,
+			},
+		}
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("gcp error"))
+		}
+		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		assert.Error(t, err)
+		assert.Nil(t, creds)
+	})
+}
+
+func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
+	activity := &activities.PoolActivity{}
+	ctx := context.Background()
+
+	origGetGCPService := hyperscaler2.GetGCPService
+	origRevokeCert := hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager
+	origDeletePwd := hyperscaler2.DeletePasswordFromCacheAndSecretManager
+	defer func() {
+		hyperscaler2.GetGCPService = origGetGCPService
+		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = origRevokeCert
+		hyperscaler2.DeletePasswordFromCacheAndSecretManager = origDeletePwd
+	}()
+
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return &google.GcpServices{}, nil
+	}
+
+	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "cert-id",
+						SecretID:      "",
+						Password:      "",
+						AuthType:      env.USER_CERTIFICATE,
+					},
+				},
+			},
+		}
+		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, certID string) error {
+			assert.Equal(t, "cert-id", certID)
+			return nil
+		}
+		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		assert.NoError(t, err)
+	})
+
+	t.Run("USER_CERTIFICATE ExpertModeCredentials empty error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: nil,
+			},
+		}
+		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		assert.Error(t, err)
+	})
+	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "cert-id",
+						SecretID:      "",
+						Password:      "",
+						AuthType:      env.USER_CERTIFICATE,
+					},
+				},
+			},
+		}
+		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, certID string) error {
+			return errors.New("revoke error")
+		}
+		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "revoke error")
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "",
+						SecretID:      "secret-id",
+						Password:      "",
+						AuthType:      env.USERNAME_PWD_SEC_MGR,
+					},
+				},
+			},
+		}
+		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
+			assert.Equal(t, "secret-id", secretID)
+			return nil
+		}
+		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		assert.NoError(t, err)
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "",
+						SecretID:      "secret-id",
+						Password:      "",
+						AuthType:      env.USERNAME_PWD_SEC_MGR,
+					},
+				},
+			},
+		}
+		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
+			return errors.New("delete error")
+		}
+		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete error")
+	})
+
+	t.Run("default password - no cert no secret-manager", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "",
+						SecretID:      "",
+						Password:      "password",
+						AuthType:      env.USERNAME_PWD,
+					},
+				},
+			},
+		}
+		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetGCPService error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						CertificateID: "",
+						SecretID:      "",
+						Password:      "password",
+						AuthType:      env.USERNAME_PWD,
+					},
+				},
+			},
+		}
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("gcp error")
+		}
+		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		assert.Error(t, err)
+		assertTemporalApplicationError(t, err, "gcp error", "CustomError", false)
+	})
+}
+
+func TestFetchExpertModeCredentials_WithUserCertificate_Success(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	pool := &datamodel.Pool{
+		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{
+					CertificateID: "cert-id",
+					SecretID:      "",
+					Password:      "",
+					AuthType:      env.USER_CERTIFICATE,
+				},
+			},
+		},
+	}
+	originalGetCertificate := hyperscaler2.GetCertificateFromCacheOrSecretManager
+	defer func() {
+		hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate
+	}()
+	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+		return &coremodel.Certificate{
+			CommonName:               "CN",
+			SignedCertificate:        "cert",
+			PrivateKey:               "key",
+			InterMediateCertificates: []string{"intermediate"},
+		}, nil
+	}
+
+	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	assert.NoError(t, err)
+	assert.Equal(t, "CN", creds.Certificate.CommonName)
+	assert.Equal(t, "cert", creds.Certificate.Certificate)
+	assert.Equal(t, "key", creds.Certificate.PrivateKey)
+	assert.Equal(t, []string{"intermediate"}, creds.Certificate.InterMediateCertificate)
+}
+
+func TestFetchExpertModeCredentials_WithUserCertificate_CertificateError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{
+					CertificateID: "cert-id",
+					SecretID:      "",
+					Password:      "",
+					AuthType:      env.USER_CERTIFICATE,
+				},
+			},
+		},
+	}
+	originalGetCertificate := hyperscaler2.GetCertificateFromCacheOrSecretManager
+	defer func() { hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate }()
+	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+		return nil, errors.New("certificate error")
+	}
+
+	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	assert.Error(t, err)
+	assert.Nil(t, creds)
+	assert.Contains(t, err.Error(), "certificate error")
+}
+
+func TestFetchExpertModeCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{
+					CertificateID: "",
+					SecretID:      "secret-id",
+					Password:      "",
+					AuthType:      env.USERNAME_PWD_SEC_MGR,
+				},
+			},
+		},
+	}
+	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+	defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "admin-password", nil
+	}
+
+	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	assert.NoError(t, err)
+	assert.NotNil(t, creds)
+	assert.Equal(t, "admin-password", creds.AdminPassword)
+}
+
+func TestFetchExpertModeCredentials_WithUsernamePwdSecMgr_SecretError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{
+					CertificateID: "",
+					SecretID:      "secret-id",
+					Password:      "",
+					AuthType:      env.USERNAME_PWD_SEC_MGR,
+				},
+			},
+		},
+	}
+	originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+	defer func() { hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+	hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "", errors.New("Invalid resource field value")
+	}
+
+	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	assert.Error(t, err)
+	assert.Nil(t, creds)
+	assert.Contains(t, err.Error(), "Invalid resource field value")
+}
+
+func TestFetchExpertModeCredentials_WithDefaultAuthType_ReturnsPassword(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{
+					CertificateID: "",
+					SecretID:      "",
+					Password:      "plain-password",
+					AuthType:      env.USERNAME_PWD,
+				},
+			},
+		},
+	}
+
+	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	assert.NoError(t, err)
+	assert.Equal(t, "plain-password", creds.AdminPassword)
+}
