@@ -124,6 +124,6 @@ The system is designed to be simple and maintainable:
 ## Notes
 
 - All links point to actual files in the repository
-- GitHub links use the `document-visualiser` branch
+- GitHub links use the `main` branch
 - Local file links use relative paths from the web-ui directory
 - The system is designed to work both locally and when deployed to GitHub Pages
