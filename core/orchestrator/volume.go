@@ -1398,6 +1398,9 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 				JunctionPath: attributes.FileProperties.JunctionPath,
 			}
 		}
+		if attributes.FileProperties.Fqdn != "" {
+			res.FileProperties.Fqdn = attributes.FileProperties.Fqdn
+		}
 	}
 
 	// Return AutoTieringPolicy if pool has auto tiering enabled.

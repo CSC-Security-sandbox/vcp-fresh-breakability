@@ -2,6 +2,8 @@ package ontap_rest
 
 import (
 	nas "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/n_a_s"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -17,12 +19,20 @@ type NASClient interface { // generate:mock
 	NfsServiceCreate(params *NfsServiceCreateParams) error
 	NfsServiceModify(params *NfsServiceModifyParams) error
 	CifsServiceGet(params *CifsServiceGetParams) (*CifsService, error)
-	CifsServiceCreate(params *CifsServiceCreateParams) error
+	CifsServiceList(params *CifsServiceGetParams) ([]*CifsService, error)
+	CifsServiceCreate(params *CifsServiceCreateParams) (bool, *JobAccepted, error)
 	CifsServiceModify(params *CifsServiceModifyParams) error
+	CifsDomainModify(params *CifsDomainModifyParams) error
+	CifsShareACLDelete(params *CifsShareACLDeleteParams) error
+	CifsServiceAddMembers(params *CifsServiceModifyGroupMembersParams) error
+	CifsServiceDelete(params *CifsServiceDeleteParams) error
+	CifsServiceAddSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error
+	CifsShareCreate(params *CifsShareCreateParams) error
 }
 
 var (
 	paginateExportPolicyCollectionGet = _paginate[[]*ExportPolicy]
+	cifsUserSeSecurityPrivilege       = nillable.ToPointer(utils.ActiveDirectorySeSecurityPrivilege)
 )
 
 type nasClient struct {
@@ -137,7 +147,6 @@ func (t *nasClient) NfsServiceModify(params *NfsServiceModifyParams) error {
 
 // CifsServiceGet invokes clients/ontap-rest/client/n_a_s/Client.CifsServiceCollectionGet to get CIFS service configuration
 func (t *nasClient) CifsServiceGet(params *CifsServiceGetParams) (*CifsService, error) {
-	// MD: FIXME: add pagination support in case the service is slow
 	response, err := t.api.CifsServiceCollectionGet(cifsServiceGetParamsToONTAP(params), nil)
 	if err != nil {
 		return nil, err
@@ -147,21 +156,92 @@ func (t *nasClient) CifsServiceGet(params *CifsServiceGetParams) (*CifsService, 
 		return nil, errors.NewNotFoundErr("cifs service", nil)
 	}
 
-	if len(response.Payload.CifsServiceResponseInlineRecords) > 1 {
-		return nil, errors.New("unexpected response when querying for cifs service")
-	}
-
 	return &CifsService{CifsService: *response.Payload.CifsServiceResponseInlineRecords[0]}, nil
 }
 
-// CifsServiceCreate invokes clients/ontap-rest/client/n_a_s/Client.CifsServiceCreate to create CIFS service
-func (t *nasClient) CifsServiceCreate(params *CifsServiceCreateParams) error {
-	_, _, err := t.api.CifsServiceCreate(cifsServiceCreateParamsToONTAP(params), nil)
-	return err
+// CifsServiceList invokes clients/ontap-rest/client/n_a_s/Client.CifsServiceCollectionGet to get CIFS service configuration
+func (t *nasClient) CifsServiceList(params *CifsServiceGetParams) ([]*CifsService, error) {
+	response, err := t.api.CifsServiceCollectionGet(cifsServiceGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]*CifsService, nillable.FromPointer(response.Payload.NumRecords))
+	for i, c := range response.Payload.CifsServiceResponseInlineRecords {
+		resp[i] = &CifsService{*c}
+	}
+	return resp, nil
+}
+
+// CifsServiceCreate creates the cifs service for the specified svm
+func (tnc *nasClient) CifsServiceCreate(params *CifsServiceCreateParams) (bool, *JobAccepted, error) {
+	done, response, err := tnc.api.CifsServiceCreate(cifsServiceCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return false, nil, err
+	}
+
+	if done != nil {
+		return true, nil, nil
+	}
+
+	return false, &JobAccepted{JobUUID: string(nillable.FromPointer(response.Payload.Job.UUID))}, nil
 }
 
 // CifsServiceModify invokes clients/ontap-rest/client/n_a_s/Client.CifsServiceModify to modify CIFS service
-func (t *nasClient) CifsServiceModify(params *CifsServiceModifyParams) error {
-	_, _, err := t.api.CifsServiceModify(cifsServiceModifyParamsToONTAP(params), nil)
+func (tnc *nasClient) CifsServiceModify(params *CifsServiceModifyParams) error {
+	_, _, err := tnc.api.CifsServiceModify(cifsServiceModifyParamsToONTAP(params), nil)
 	return err
+}
+
+// CifsShareACLDelete deletes the specified ONTAP API CIFS share
+func (tnc *nasClient) CifsShareACLDelete(params *CifsShareACLDeleteParams) error {
+	_, err := tnc.api.CifsShareACLDelete(cifsShareACLDeleteParamsToONTAP(params), nil)
+	return err
+}
+
+// CifsServiceAddMembers adds new CIFS users to groups
+func (tnc *nasClient) CifsServiceAddMembers(params *CifsServiceModifyGroupMembersParams) error {
+	lcgp := make([]*models.LocalCifsGroupMembersInlineRecordsInlineArrayItem, len(params.Members))
+	for i, member := range params.Members {
+		lcgp[i] = &models.LocalCifsGroupMembersInlineRecordsInlineArrayItem{Name: nillable.ToPointer(member)}
+	}
+
+	_, err := tnc.api.LocalCifsGroupMembersCreate(nas.NewLocalCifsGroupMembersCreateParams().WithSvmUUID(params.SvmUUID).WithLocalCifsGroupSid(params.Sid).WithInfo(
+		&models.LocalCifsGroupMembers{
+			LocalCifsGroupMembersInlineRecords: lcgp,
+		}), nil)
+	return err
+}
+
+// CifsServiceDelete deletes the cifs service for the specified svm
+func (tnc *nasClient) CifsServiceDelete(params *CifsServiceDeleteParams) error {
+	_, _, err := tnc.api.CifsServiceDelete(cifsServiceDeleteParamsToONTAP(params), nil)
+	return err
+}
+
+// CifsServiceAddSecurityPrivilege adds a security privilege to a CIFS user
+func (tnc *nasClient) CifsServiceAddSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error {
+	_, err := tnc.api.UserGroupPrivilegesCreate(nas.NewUserGroupPrivilegesCreateParams().WithInfo(&models.UserGroupPrivileges{
+		Name:       &params.Member,
+		Privileges: []*string{cifsUserSeSecurityPrivilege},
+		Svm: &models.UserGroupPrivilegesInlineSvm{
+			UUID: &params.SvmUUID,
+		},
+	}), nil)
+	return err
+}
+
+// CifsDomainModify invokes pkg/ontap-rest/client/nas/Client.CifsDomainModify
+func (tnc *nasClient) CifsDomainModify(params *CifsDomainModifyParams) error {
+	_, err := tnc.api.CifsDomainModify(cifsDomainModifyParamsToONTAP(params), nil)
+	return err
+}
+
+// CifsShareCreate creates a CIFS share for the ONTAP API SVM
+func (tnc *nasClient) CifsShareCreate(params *CifsShareCreateParams) error {
+	_, err := tnc.api.CifsShareCreate(cifsShareCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }

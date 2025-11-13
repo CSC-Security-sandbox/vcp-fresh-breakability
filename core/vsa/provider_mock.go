@@ -538,6 +538,65 @@ func (_c *MockProvider_CloudTargetGet_Call) RunAndReturn(run func(*string) (*ont
 	return _c
 }
 
+// CreateAndSetupCIFSServer provides a mock function with given fields: client, ad, externalSVMUUID, svmName
+func (_m *MockProvider) CreateAndSetupCIFSServer(client ontap_rest.RESTClient, ad *ActiveDirectory, externalSVMUUID string, svmName string) (string, error) {
+	ret := _m.Called(client, ad, externalSVMUUID, svmName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAndSetupCIFSServer")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(ontap_rest.RESTClient, *ActiveDirectory, string, string) (string, error)); ok {
+		return rf(client, ad, externalSVMUUID, svmName)
+	}
+	if rf, ok := ret.Get(0).(func(ontap_rest.RESTClient, *ActiveDirectory, string, string) string); ok {
+		r0 = rf(client, ad, externalSVMUUID, svmName)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(ontap_rest.RESTClient, *ActiveDirectory, string, string) error); ok {
+		r1 = rf(client, ad, externalSVMUUID, svmName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CreateAndSetupCIFSServer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAndSetupCIFSServer'
+type MockProvider_CreateAndSetupCIFSServer_Call struct {
+	*mock.Call
+}
+
+// CreateAndSetupCIFSServer is a helper method to define mock.On call
+//   - client ontap_rest.RESTClient
+//   - ad *ActiveDirectory
+//   - externalSVMUUID string
+//   - svmName string
+func (_e *MockProvider_Expecter) CreateAndSetupCIFSServer(client interface{}, ad interface{}, externalSVMUUID interface{}, svmName interface{}) *MockProvider_CreateAndSetupCIFSServer_Call {
+	return &MockProvider_CreateAndSetupCIFSServer_Call{Call: _e.mock.On("CreateAndSetupCIFSServer", client, ad, externalSVMUUID, svmName)}
+}
+
+func (_c *MockProvider_CreateAndSetupCIFSServer_Call) Run(run func(client ontap_rest.RESTClient, ad *ActiveDirectory, externalSVMUUID string, svmName string)) *MockProvider_CreateAndSetupCIFSServer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(ontap_rest.RESTClient), args[1].(*ActiveDirectory), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateAndSetupCIFSServer_Call) Return(_a0 string, _a1 error) *MockProvider_CreateAndSetupCIFSServer_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CreateAndSetupCIFSServer_Call) RunAndReturn(run func(ontap_rest.RESTClient, *ActiveDirectory, string, string) (string, error)) *MockProvider_CreateAndSetupCIFSServer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateClusterPeer provides a mock function with given fields: params
 func (_m *MockProvider) CreateClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error) {
 	ret := _m.Called(params)
@@ -2005,6 +2064,110 @@ func (_c *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call) Return(_a0 error)
 }
 
 func (_c *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call) RunAndReturn(run func() error) *MockProvider_EnableAutoVolOfflineCronForGCPKMS_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnsureCIFSShare provides a mock function with given fields: params
+func (_m *MockProvider) EnsureCIFSShare(params ConfigActiveDirectoryParams) (string, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureCIFSShare")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(ConfigActiveDirectoryParams) (string, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(ConfigActiveDirectoryParams) string); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(ConfigActiveDirectoryParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_EnsureCIFSShare_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnsureCIFSShare'
+type MockProvider_EnsureCIFSShare_Call struct {
+	*mock.Call
+}
+
+// EnsureCIFSShare is a helper method to define mock.On call
+//   - params ConfigActiveDirectoryParams
+func (_e *MockProvider_Expecter) EnsureCIFSShare(params interface{}) *MockProvider_EnsureCIFSShare_Call {
+	return &MockProvider_EnsureCIFSShare_Call{Call: _e.mock.On("EnsureCIFSShare", params)}
+}
+
+func (_c *MockProvider_EnsureCIFSShare_Call) Run(run func(params ConfigActiveDirectoryParams)) *MockProvider_EnsureCIFSShare_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(ConfigActiveDirectoryParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_EnsureCIFSShare_Call) Return(_a0 string, _a1 error) *MockProvider_EnsureCIFSShare_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_EnsureCIFSShare_Call) RunAndReturn(run func(ConfigActiveDirectoryParams) (string, error)) *MockProvider_EnsureCIFSShare_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnsureCifsServerNamePostFix provides a mock function with given fields: client, ad, svmName
+func (_m *MockProvider) EnsureCifsServerNamePostFix(client ontap_rest.RESTClient, ad *ActiveDirectory, svmName string) error {
+	ret := _m.Called(client, ad, svmName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureCifsServerNamePostFix")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(ontap_rest.RESTClient, *ActiveDirectory, string) error); ok {
+		r0 = rf(client, ad, svmName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_EnsureCifsServerNamePostFix_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnsureCifsServerNamePostFix'
+type MockProvider_EnsureCifsServerNamePostFix_Call struct {
+	*mock.Call
+}
+
+// EnsureCifsServerNamePostFix is a helper method to define mock.On call
+//   - client ontap_rest.RESTClient
+//   - ad *ActiveDirectory
+//   - svmName string
+func (_e *MockProvider_Expecter) EnsureCifsServerNamePostFix(client interface{}, ad interface{}, svmName interface{}) *MockProvider_EnsureCifsServerNamePostFix_Call {
+	return &MockProvider_EnsureCifsServerNamePostFix_Call{Call: _e.mock.On("EnsureCifsServerNamePostFix", client, ad, svmName)}
+}
+
+func (_c *MockProvider_EnsureCifsServerNamePostFix_Call) Run(run func(client ontap_rest.RESTClient, ad *ActiveDirectory, svmName string)) *MockProvider_EnsureCifsServerNamePostFix_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(ontap_rest.RESTClient), args[1].(*ActiveDirectory), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_EnsureCifsServerNamePostFix_Call) Return(_a0 error) *MockProvider_EnsureCifsServerNamePostFix_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_EnsureCifsServerNamePostFix_Call) RunAndReturn(run func(ontap_rest.RESTClient, *ActiveDirectory, string) error) *MockProvider_EnsureCifsServerNamePostFix_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3757,6 +3920,53 @@ func (_c *MockProvider_IsAggregateOnline_Call) Return(_a0 bool, _a1 error) *Mock
 }
 
 func (_c *MockProvider_IsAggregateOnline_Call) RunAndReturn(run func(string) (bool, error)) *MockProvider_IsAggregateOnline_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsDDNSEnabled provides a mock function with given fields: client, svmUUID
+func (_m *MockProvider) IsDDNSEnabled(client ontap_rest.RESTClient, svmUUID string) bool {
+	ret := _m.Called(client, svmUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsDDNSEnabled")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(ontap_rest.RESTClient, string) bool); ok {
+		r0 = rf(client, svmUUID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// MockProvider_IsDDNSEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsDDNSEnabled'
+type MockProvider_IsDDNSEnabled_Call struct {
+	*mock.Call
+}
+
+// IsDDNSEnabled is a helper method to define mock.On call
+//   - client ontap_rest.RESTClient
+//   - svmUUID string
+func (_e *MockProvider_Expecter) IsDDNSEnabled(client interface{}, svmUUID interface{}) *MockProvider_IsDDNSEnabled_Call {
+	return &MockProvider_IsDDNSEnabled_Call{Call: _e.mock.On("IsDDNSEnabled", client, svmUUID)}
+}
+
+func (_c *MockProvider_IsDDNSEnabled_Call) Run(run func(client ontap_rest.RESTClient, svmUUID string)) *MockProvider_IsDDNSEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(ontap_rest.RESTClient), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_IsDDNSEnabled_Call) Return(_a0 bool) *MockProvider_IsDDNSEnabled_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_IsDDNSEnabled_Call) RunAndReturn(run func(ontap_rest.RESTClient, string) bool) *MockProvider_IsDDNSEnabled_Call {
 	_c.Call.Return(run)
 	return _c
 }

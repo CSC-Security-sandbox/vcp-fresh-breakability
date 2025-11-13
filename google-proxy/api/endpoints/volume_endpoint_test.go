@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -5287,8 +5288,8 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Len(t, out.MountPoints, 2)
 		assert.Equal(t, "10.72.177.17", out.MountPoints[0].IpAddress.Value)
 		assert.Equal(t, "10.72.177.18", out.MountPoints[1].IpAddress.Value)
-		assert.Equal(t, getFilesMountInstructions("10.72.177.17", vol.FileProperties.JunctionPath, "/"+vol.DisplayName, "NFSV3"), out.MountPoints[0].Instructions)
-		assert.Equal(t, getFilesMountInstructions("10.72.177.18", vol.FileProperties.JunctionPath, "/"+vol.DisplayName, "NFSV3"), out.MountPoints[1].Instructions)
+		assert.Equal(t, getFilesMountInstructions("10.72.177.17", vol.FileProperties.JunctionPath, "/"+vol.DisplayName, "NFSV3", ""), out.MountPoints[0].Instructions)
+		assert.Equal(t, getFilesMountInstructions("10.72.177.18", vol.FileProperties.JunctionPath, "/"+vol.DisplayName, "NFSV3", ""), out.MountPoints[1].Instructions)
 	})
 
 	t.Run("WithLargeCapacityTrue_NoConstituentCount", func(t *testing.T) {
@@ -7937,7 +7938,7 @@ func TestGetFilesMountInstructions(t *testing.T) {
 		fileDir := "/testvolume"
 		protocol := "NFSV3"
 
-		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol)
+		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol, "")
 
 		assert.True(tt, result.IsSet())
 		instructions := result.Value
@@ -7956,7 +7957,7 @@ func TestGetFilesMountInstructions(t *testing.T) {
 		fileDir := "/myvolume"
 		protocol := "NFSV4"
 
-		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol)
+		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol, "")
 
 		assert.True(tt, result.IsSet())
 		instructions := result.Value
@@ -7969,13 +7970,30 @@ func TestGetFilesMountInstructions(t *testing.T) {
 		assert.Contains(tt, instructions, fmt.Sprintf("sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=4.1,tcp %s:%s %s", ipAddress, junctionPath, fileDir))
 	})
 
+	t.Run("SMB_Protocol_ShouldReturnSMBInstructions", func(tt *testing.T) {
+		ipAddress := "netbios.domain.com"
+		junctionPath := "/test-share"
+		fileDir := "/myvolume"
+		protocol := "SMB"
+
+		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol, "netbios.domain.com")
+
+		assert.True(tt, result.IsSet())
+		instructions := result.Value
+		assert.Contains(tt, instructions, "Mapping your network drive")
+		assert.Contains(tt, instructions, "Click the Start button")
+		assert.Contains(tt, instructions, "Map Network Drive")
+		// Verify UNC path format
+		assert.Contains(tt, instructions, fmt.Sprintf(`\\%s\%s`, ipAddress, strings.TrimPrefix(junctionPath, "/")))
+	})
+
 	t.Run("UnknownProtocol_ShouldReturnEmptyInstructions", func(tt *testing.T) {
-		ipAddress := "192.168.1.100"
+		ipAddress := "10.0.0.50"
 		junctionPath := "/testvolume"
 		fileDir := "/testvolume"
-		protocol := "SMB" // Unsupported protocol
+		protocol := "PROTOCOL_UNSPECIFIED" // Unsupported protocol
 
-		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol)
+		result := getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol, "")
 
 		assert.True(tt, result.IsSet())
 		instructions := result.Value
@@ -7983,7 +8001,7 @@ func TestGetFilesMountInstructions(t *testing.T) {
 	})
 
 	t.Run("EmptyParameters_ShouldHandleGracefully", func(tt *testing.T) {
-		result := getFilesMountInstructions("", "", "", "NFSV3")
+		result := getFilesMountInstructions("", "", "", "NFSV3", "")
 
 		assert.True(tt, result.IsSet())
 		instructions := result.Value
@@ -8215,6 +8233,42 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		assert.True(tt, protocols[gcpgenserver.ProtocolsV1betaNFSV3])
 		assert.True(tt, protocols[gcpgenserver.ProtocolsV1betaNFSV4])
 		assert.True(tt, protocols[gcpgenserver.ProtocolsV1betaSMB])
+	})
+
+	t.Run("SMB_SingleProtocol_ShouldCreateMountPoints", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "smbvolume",
+			CreationToken:  "smb-token",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
+			IPAddresses:    []string{"192.168.1.200"},
+			ProtocolTypes:  []string{"SMB"},
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/smb-share",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "smb-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							CIFS:           true,
+							Index:          1,
+						},
+					},
+				},
+				Fqdn: "netbios.domain.com",
+			},
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.NotNil(tt, result.MountPoints)
+		assert.Len(tt, result.MountPoints, 1)
+		assert.Equal(tt, "192.168.1.200", result.MountPoints[0].IpAddress.Value)
+		assert.Equal(tt, gcpgenserver.ProtocolsV1betaSMB, result.MountPoints[0].Protocol.Value)
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mapping your network drive")
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Click the Start button")
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "\\\\netbios.domain.com\\smb-share")
 	})
 
 	t.Run("VolumeNotReady_ShouldNotCreateMountPoints", func(tt *testing.T) {

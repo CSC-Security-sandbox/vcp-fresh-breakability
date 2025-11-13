@@ -185,6 +185,27 @@ func (d *DataStoreRepository) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm
 	return svm, nil
 }
 
+func (d *DataStoreRepository) UpdateSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm, activeDirectoryID int64) (*datamodel.Svm, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	svm.ActiveDirectoryID = sql.NullInt64{Int64: activeDirectoryID, Valid: true}
+	svm.UpdatedAt = time.Now()
+
+	err = tx.Save(svm).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	return svm, nil
+}
+
 func (d *DataStoreRepository) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
 	return listSvmsWithAccountId(d.db.GORM().WithContext(ctx), accountId)
 }

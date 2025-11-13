@@ -9,6 +9,8 @@ import (
 // NameServicesClient describes a name_services client
 type NameServicesClient interface { // generate:mock
 	DnsCreate(params *DNSCreateParams) (*models.DNSResponse, error)
+	DNSGet(params *DNSGetParams) (*DNS, error)
+	DNSModify(params *DNSModifyParams) error
 }
 
 type nameServicesClient struct {
@@ -27,4 +29,20 @@ func (nsc *nameServicesClient) DnsCreate(params *DNSCreateParams) (*models.DNSRe
 	}
 
 	return response.Payload, err
+}
+
+// DNSGet invokes pkg/ontap-rest/client/name_services/Client.DNSGet
+func (nsc *nameServicesClient) DNSGet(params *DNSGetParams) (*DNS, error) {
+	response, err := (*nsc.api).DNSGet(dnsGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DNS{DNS: *response.Payload}, nil
+}
+
+// DNSModify modifies the DNS
+func (nsc *nameServicesClient) DNSModify(params *DNSModifyParams) error {
+	_, err := (*nsc.api).DNSModify(dnsModifyParamsToONTAP(params), nil)
+	return err
 }

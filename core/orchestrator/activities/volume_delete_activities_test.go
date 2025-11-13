@@ -3,7 +3,9 @@ package activities
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
@@ -16,11 +18,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/temporal"
+	"gorm.io/gorm"
 )
 
 func assertTemporalApplicationError(t *testing.T, err error, expectedMsg, expectedType string, expectedNonRetryable bool) {
@@ -35,6 +39,30 @@ func assertTemporalApplicationError(t *testing.T, err error, expectedMsg, expect
 	assert.Contains(t, originalMsg, expectedMsg)
 	assert.Equal(t, expectedType, appErr.Type())
 	assert.Equal(t, expectedNonRetryable, appErr.NonRetryable())
+}
+
+type fakeCifsProvider struct {
+	*vsa.MockProvider
+	restClient ontap_rest.RESTClient
+	deleteHook func(externalSVMUUID, adUsername, adPassword string) error
+	createErr  error
+}
+
+func (f *fakeCifsProvider) DeleteCIFSServer(externalSVMUUID, adUsername, adPassword string) error {
+	if f.deleteHook != nil {
+		return f.deleteHook(externalSVMUUID, adUsername, adPassword)
+	}
+	return nil
+}
+
+func (f *fakeCifsProvider) CreateRESTClient() (ontap_rest.RESTClient, error) {
+	if f.createErr != nil {
+		return nil, f.createErr
+	}
+	if f.restClient == nil {
+		return nil, fmt.Errorf("rest client not configured")
+	}
+	return f.restClient, nil
 }
 
 func TestDeleteVolume_Success(t *testing.T) {
@@ -216,6 +244,434 @@ func TestDeleteVolumeInONTAP_ClusterDown(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unable to reach node")
 	mockProvider.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"},
+			Name:       "svm-1",
+		},
+	}
+	node := &models.Node{}
+
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+
+	ad := &datamodel.ActiveDirectory{
+		BaseModel:      datamodel.BaseModel{UUID: "ad-1"},
+		CredentialPath: "secret/path",
+		Username:       "ad-user",
+	}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSGet(mock.Anything).Return(&ontap_rest.DNS{DNS: oModels.DNS{DynamicDNS: &oModels.DNSInlineDynamicDNS{Fqdn: nillable.ToPointer("fqdn.example.com")}}}, nil)
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, node)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, teardown)
+	assert.True(t, teardown.ShouldDelete)
+	assert.Equal(t, ad, teardown.ActiveDirectory)
+	assert.Equal(t, "svm-uuid", teardown.SvmExternalUUID)
+	assert.Equal(t, "fqdn.example.com", teardown.FQDN)
+}
+
+func TestDetermineSmbTeardownContext_SkipsWhenOtherSmbVolumeExists(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+
+	otherVolume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-2"},
+		PoolID:           42,
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolSMB}},
+		State:            models.LifeCycleStateREADY,
+	}
+
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+
+	assert.NoError(t, err)
+	assert.False(t, teardown.ShouldDelete)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_MissingActiveDirectory(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:           42,
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolSMB}},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"},
+		},
+	}
+
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return((*datamodel.ActiveDirectory)(nil), nil)
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+
+	assert.NoError(t, err)
+	assert.False(t, teardown.ShouldDelete)
+}
+
+func TestDetermineSmbTeardownContext_RestClientCreationFailure(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"},
+		},
+	}
+
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), createErr: fmt.Errorf("failed")}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+
+	assert.Nil(t, teardown)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed")
+}
+
+func TestDetermineSmbTeardownContext_DnsNotFound(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:           42,
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolSMB}},
+		Svm:              &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"}},
+	}
+
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSGet(mock.Anything).Return(nil, utilErrors.NewNotFoundErr("dns", nil))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+
+	assert.NoError(t, err)
+	assert.True(t, teardown.ShouldDelete)
+	assert.Equal(t, "", teardown.FQDN)
+}
+
+func TestDetermineSmbTeardownContext_DnsFetchFailure(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:           42,
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolSMB}},
+		Svm:              &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"}},
+	}
+
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSGet(mock.Anything).Return(nil, fmt.Errorf("dns failure"))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+
+	assert.Nil(t, teardown)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "dns failure")
+}
+
+func TestDeleteCifsServerIfUnused_Success(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		ActiveDirectory: &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"},
+		SvmExternalUUID: "svm-uuid",
+		VolumeUUID:      "vol",
+	}
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	var deleteCalled bool
+	fakeProvider.deleteHook = func(externalSVMUUID, adUsername, adPassword string) error {
+		deleteCalled = true
+		assert.Equal(t, "svm-uuid", externalSVMUUID)
+		assert.Equal(t, "user", adUsername)
+		assert.Equal(t, "password", adPassword)
+		return nil
+	}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	origGetPwd := hyperscaler.GetPasswordFromCacheOrSecretManager
+	hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		assert.Equal(t, "secret", secretID)
+		return "password", nil
+	}
+	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
+
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+
+	assert.NoError(t, err)
+	assert.True(t, deleteCalled)
+}
+
+func TestDeleteCifsServerIfUnused_PasswordFetchFailure(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		ActiveDirectory: &datamodel.ActiveDirectory{CredentialPath: "secret"},
+		SvmExternalUUID: "svm-uuid",
+	}
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t)}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	origGetPwd := hyperscaler.GetPasswordFromCacheOrSecretManager
+	hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "", fmt.Errorf("secret failure")
+	}
+	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
+
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "secret failure")
+}
+
+func TestDeleteCifsServerIfUnused_DeleteReturnsNotFound(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		ActiveDirectory: &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"},
+		SvmExternalUUID: "svm-uuid",
+	}
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t)}
+	fakeProvider.deleteHook = func(externalSVMUUID, adUsername, adPassword string) error {
+		return utilErrors.NewNotFoundErr("cifs", nil)
+	}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	origGetPwd := hyperscaler.GetPasswordFromCacheOrSecretManager
+	hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "pwd", nil
+	}
+	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
+
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsServerIfUnused_DeleteFailure(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		ActiveDirectory: &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"},
+		SvmExternalUUID: "svm-uuid",
+	}
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t)}
+	fakeProvider.deleteHook = func(externalSVMUUID, adUsername, adPassword string) error {
+		return fmt.Errorf("delete failure")
+	}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	origGetPwd := hyperscaler.GetPasswordFromCacheOrSecretManager
+	hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "pwd", nil
+	}
+	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
+
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "delete failure")
+}
+
+func TestDeleteDnsRecordIfUnused_Success(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		SvmExternalUUID: "svm-uuid",
+		FQDN:            "fqdn.example.com",
+		VolumeUUID:      "vol",
+	}
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSModify(mock.MatchedBy(func(params *ontap_rest.DNSModifyParams) bool {
+		return params.SvmUUID == "svm-uuid" &&
+			params.DDNSModifyParams.Fqdn != nil && *params.DDNSModifyParams.Fqdn == "fqdn.example.com" &&
+			params.DDNSModifyParams.Enabled != nil && !*params.DDNSModifyParams.Enabled
+	})).Return(nil)
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+
+	assert.NoError(t, err)
+}
+
+func TestDeleteDnsRecordIfUnused_NotFound(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{ShouldDelete: true, SvmExternalUUID: "svm-uuid"}
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSModify(mock.Anything).Return(utilErrors.NewNotFoundErr("dns", nil))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+
+	assert.NoError(t, err)
+}
+
+func TestDeleteDnsRecordIfUnused_ModifyFailure(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{ShouldDelete: true, SvmExternalUUID: "svm-uuid"}
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSModify(mock.Anything).Return(fmt.Errorf("dns modify failed"))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "dns modify failed")
 }
 
 func TestDeleteSnapshotPolicyInONTAP_Success(t *testing.T) {
@@ -2415,4 +2871,743 @@ func TestDeleteExportPolicy_NilExportPolicy(t *testing.T) {
 	assert.Panics(t, func() {
 		_ = activity.DeleteExportPolicy(ctx, volume, node)
 	})
+}
+
+func TestDetermineSmbTeardownContext_NilVolume(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, nil, &models.Node{})
+	assert.NoError(t, err)
+	assert.NotNil(t, teardown)
+	assert.False(t, teardown.ShouldDelete)
+}
+
+func TestDetermineSmbTeardownContext_NilNode(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-1"}}
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, teardown)
+	assert.False(t, teardown.ShouldDelete)
+}
+
+func TestDetermineSmbTeardownContext_NilVolumeAttributes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: nil,
+	}
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.NoError(t, err)
+	assert.NotNil(t, teardown)
+	assert.False(t, teardown.ShouldDelete)
+}
+
+func TestDetermineSmbTeardownContext_NonSMBProtocol(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"NFS"},
+		},
+	}
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.NoError(t, err)
+	assert.NotNil(t, teardown)
+	assert.False(t, teardown.ShouldDelete)
+}
+
+func TestDetermineSmbTeardownContext_GetVolumesError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return(nil, errors.New("db error"))
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.Error(t, err)
+	assert.Nil(t, teardown)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_OtherVolumeNil(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, nil}, nil)
+
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	dbSvm := &datamodel.Svm{
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSGet(mock.Anything).Return(nil, utilErrors.NewNotFoundErr("dns", nil))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.NoError(t, err)
+	assert.True(t, teardown.ShouldDelete)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_OtherVolumeDeletedAt(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	otherVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-2"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	deletedAt := gorm.DeletedAt{Time: time.Now(), Valid: true}
+	otherVolume.DeletedAt = &deletedAt
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	dbSvm := &datamodel.Svm{
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSGet(mock.Anything).Return(nil, utilErrors.NewNotFoundErr("dns", nil))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.NoError(t, err)
+	assert.True(t, teardown.ShouldDelete)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_OtherVolumeStateDeleted(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	otherVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-2"},
+		State:     models.LifeCycleStateDeleted,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	dbSvm := &datamodel.Svm{
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSGet(mock.Anything).Return(nil, utilErrors.NewNotFoundErr("dns", nil))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.NoError(t, err)
+	assert.True(t, teardown.ShouldDelete)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_OtherVolumeNilAttributes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	otherVolume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-2"},
+		VolumeAttributes: nil,
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	dbSvm := &datamodel.Svm{
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSGet(mock.Anything).Return(nil, utilErrors.NewNotFoundErr("dns", nil))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.NoError(t, err)
+	assert.True(t, teardown.ShouldDelete)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_GetADError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(nil, errors.New("ad error"))
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.Error(t, err)
+	assert.Nil(t, teardown)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_EmptyCredentialPath(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.Error(t, err)
+	assert.Nil(t, teardown)
+	assert.Contains(t, err.Error(), "active directory credential path is empty")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_GetSvmForPoolIDError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(nil, errors.New("svm error"))
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.Error(t, err)
+	assert.Nil(t, teardown)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_GetSvmForPoolIDWithDetails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	dbSvm := &datamodel.Svm{
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSGet(mock.Anything).Return(nil, utilErrors.NewNotFoundErr("dns", nil))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.NoError(t, err)
+	assert.True(t, teardown.ShouldDelete)
+	assert.Equal(t, "svm-external-uuid", teardown.SvmExternalUUID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_EmptySvmExternalUUID(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(&datamodel.Svm{}, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.NoError(t, err)
+	assert.False(t, teardown.ShouldDelete)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_GetCifsServerProviderError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("provider error")
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.Error(t, err)
+	assert.Nil(t, teardown)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_CreateRESTClientError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), createErr: fmt.Errorf("rest client error")}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.Error(t, err)
+	assert.Nil(t, teardown)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_DNSGetError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+
+	restClient := ontap_rest.NewMockRESTClient(t)
+	nameClient := ontap_rest.NewMockNameServicesClient(t)
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
+
+	restClient.EXPECT().NameServices().Return(nameClient)
+	nameClient.EXPECT().DNSGet(mock.Anything).Return(nil, fmt.Errorf("dns error"))
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.Error(t, err)
+	assert.Nil(t, teardown)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteCifsServerIfUnused_NilTeardownCtx(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	err := activity.DeleteCifsServerIfUnused(ctx, nil, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsServerIfUnused_NilNode(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{ShouldDelete: true}
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, nil)
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsServerIfUnused_ShouldDeleteFalse(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{ShouldDelete: false}
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsServerIfUnused_NilActiveDirectory(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		ActiveDirectory: nil,
+		SvmExternalUUID: "svm-uuid",
+	}
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "active directory not provided")
+}
+
+func TestDeleteCifsServerIfUnused_EmptyCredentialPath(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		ActiveDirectory: &datamodel.ActiveDirectory{CredentialPath: "", Username: "user"},
+		SvmExternalUUID: "svm-uuid",
+	}
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "active directory credential path is empty")
+}
+
+func TestDeleteCifsServerIfUnused_GetPasswordError(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		ActiveDirectory: &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"},
+		SvmExternalUUID: "svm-uuid",
+	}
+
+	origGetPwd := hyperscaler.GetPasswordFromCacheOrSecretManager
+	hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "", errors.New("password error")
+	}
+	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
+
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password error")
+}
+
+func TestDeleteCifsServerIfUnused_GetCifsServerProviderError(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		ActiveDirectory: &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"},
+		SvmExternalUUID: "svm-uuid",
+	}
+
+	origGetPwd := hyperscaler.GetPasswordFromCacheOrSecretManager
+	hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "password", nil
+	}
+	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("provider error")
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	assert.Error(t, err)
+}
+
+func TestDeleteCifsServerIfUnused_EmptySvmExternalUUID(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		ActiveDirectory: &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"},
+		SvmExternalUUID: "",
+	}
+
+	origGetPwd := hyperscaler.GetPasswordFromCacheOrSecretManager
+	hyperscaler.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "password", nil
+	}
+	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t)}, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteDnsRecordIfUnused_NilTeardownCtx(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	err := activity.DeleteDnsRecordIfUnused(ctx, nil, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteDnsRecordIfUnused_NilNode(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{ShouldDelete: true}
+	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, nil)
+	assert.NoError(t, err)
+}
+
+func TestDeleteDnsRecordIfUnused_ShouldDeleteFalse(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{ShouldDelete: false}
+	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteDnsRecordIfUnused_EmptySvmExternalUUID(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		SvmExternalUUID: "",
+	}
+	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteDnsRecordIfUnused_GetCifsServerProviderError(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		SvmExternalUUID: "svm-uuid",
+	}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("provider error")
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	assert.Error(t, err)
+}
+
+func TestDeleteDnsRecordIfUnused_CreateRESTClientError(t *testing.T) {
+	activity := VolumeDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	teardown := &SmbTeardownContext{
+		ShouldDelete:    true,
+		SvmExternalUUID: "svm-uuid",
+	}
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), createErr: fmt.Errorf("rest client error")}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "rest client error")
+}
+
+func TestGetCifsServerProvider_GetProviderByNodeError(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("provider error")
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	provider, err := getCifsServerProvider(ctx, &models.Node{})
+	assert.Error(t, err)
+	assert.Nil(t, provider)
+}
+
+func TestGetCifsServerProvider_ProviderTypeMismatch(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return &vsa.MockProvider{}, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
+
+	provider, err := getCifsServerProvider(ctx, &models.Node{})
+	assert.Error(t, err)
+	assert.Nil(t, provider)
+	assert.Contains(t, err.Error(), "provider does not support CIFS operations")
 }

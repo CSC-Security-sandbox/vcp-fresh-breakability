@@ -21,6 +21,9 @@ type SecurityClient interface { // generate:mock
 	RoleGet(params *RoleGetParams) (*Role, error)
 	RolePrivilegeModify(params *RolePrivilegeModifyParams) error
 	RoleCollectionGet(params *RoleCollectionGetParams) (*RoleCollectionGetResponse, error)
+	ServerRootCACertificateGet(params *ServerRootCAGetParams) (*ServerRootCACertificate, error)
+	ServerRootCACertificateInstall(params *ServerRootCAInstallParams) (*ServerRootCACertificate, error)
+	ServerRootCACertificateDelete(params *ServerRootCADeleteParams) error
 }
 
 type securityClient struct {
@@ -197,4 +200,54 @@ func (sc *securityClient) RoleCollectionGet(params *RoleCollectionGetParams) (*R
 
 	resp := &RoleCollectionGetResponse{RoleCollectionGetOK: response}
 	return resp, nil
+}
+
+// ServerRootCACertificateGet invokes pkg/ontap-rest/client/security/Client.SecurityCertificateCollectionGet
+func (sc *securityClient) ServerRootCACertificateGet(params *ServerRootCAGetParams) (*ServerRootCACertificate, error) {
+	certs, err := sc.securityCertificateCollectionGet(serverRootCAGetParamsToONTAPCollectionGet(params))
+	if err != nil {
+		return nil, err
+	}
+	if len(certs) == 0 {
+		return nil, errors.NewNotFoundErr("ServerRootCACertificate", nil)
+	}
+	return certs[0], nil
+}
+
+func (sc *securityClient) securityCertificateCollectionGet(otParams *security.SecurityCertificateCollectionGetParams) ([]*ServerRootCACertificate, error) {
+	response, err := (*sc.api).SecurityCertificateCollectionGet(otParams, nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp []*ServerRootCACertificate
+	if response != nil && response.Payload != nil && len(response.Payload.SecurityCertificateResponseInlineRecords) > 0 {
+		resp = make([]*ServerRootCACertificate, len(response.Payload.SecurityCertificateResponseInlineRecords))
+		for i, cert := range response.Payload.SecurityCertificateResponseInlineRecords {
+			resp[i] = &ServerRootCACertificate{SecurityCertificate: *cert}
+		}
+	}
+	return resp, err
+}
+
+// ServerRootCACertificateInstall invokes pkg/ontap-rest/client/security/Client.ServerRootCACertificateInstall
+func (sc *securityClient) ServerRootCACertificateInstall(params *ServerRootCAInstallParams) (*ServerRootCACertificate, error) {
+	return sc.securityCertificateCreate(serverRootCAInstallParamsToONTAP(params))
+}
+
+func (sc *securityClient) securityCertificateCreate(otParams *security.SecurityCertificateCreateParams) (*ServerRootCACertificate, error) {
+	response, err := (*sc.api).SecurityCertificateCreate(otParams, nil)
+	if err != nil {
+		return nil, err
+	}
+	var cert *ServerRootCACertificate
+	if response != nil && response.Payload != nil && len(response.Payload.SecurityCertificateResponseInlineRecords) > 0 {
+		cert = &ServerRootCACertificate{SecurityCertificate: *response.Payload.SecurityCertificateResponseInlineRecords[0]}
+	}
+	return cert, nil
+}
+
+// ServerRootCACertificateDelete invokes pkg/ontap-rest/client/security/Client.ServerRootCACertificateDelete
+func (sc *securityClient) ServerRootCACertificateDelete(params *ServerRootCADeleteParams) error {
+	_, err := (*sc.api).SecurityCertificateDeleteCollection(serverRootCADeleteParamsToONTAPCollectionDelete(params), nil)
+	return err
 }

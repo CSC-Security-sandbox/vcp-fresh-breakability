@@ -191,6 +191,25 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	var smbTeardownCtx *activities.SmbTeardownContext
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DetermineSmbTeardownContext, &volume, &node).Get(ctx, &smbTeardownCtx)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	if smbTeardownCtx == nil {
+		smbTeardownCtx = &activities.SmbTeardownContext{}
+	}
+
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteCifsServerIfUnused, smbTeardownCtx, &node).Get(ctx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteDnsRecordIfUnused, smbTeardownCtx, &node).Get(ctx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolume, &volume).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)

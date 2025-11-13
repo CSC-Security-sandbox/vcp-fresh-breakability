@@ -22,6 +22,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/sdk/converter"
@@ -3425,4 +3426,14 @@ func TestSetCrossRegionBackupEnabledForTest(t *testing.T) {
 		SetCrossRegionBackupEnabledForTest(false)
 		assert.False(t, IsCrossRegionBackupEnabled())
 	})
+}
+
+func TestComparePointerStringSlices(t *testing.T) {
+	s1 := []*string{nillable.ToPointer("a"), nillable.ToPointer("b")}
+	s2 := []string{"a", "b"}
+	s3 := []string{"a", "c"}
+
+	assert.True(t, ComparePointerStringSlices(s1, s2))
+	assert.False(t, ComparePointerStringSlices(s1, s3))
+	assert.False(t, ComparePointerStringSlices(s1[:1], s2))
 }

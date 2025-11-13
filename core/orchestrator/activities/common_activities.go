@@ -34,6 +34,51 @@ type CommonActivities struct {
 	SE database.Storage
 }
 
+type UpdateSvmActiveDirectoryParams struct {
+	Svm                 *datamodel.Svm
+	ActiveDirectoryUUID string
+}
+
+type CreateFirewallRuleParams struct {
+	Project          string
+	Network          string
+	FirewallRuleName string
+}
+
+type EnsureSmbFirewallParams struct {
+	Project string
+	Network string
+}
+
+const (
+	SmbFirewallName            = "smb-ingress"
+	ILBHealthCheckFirewallName = "ilb-health-check"
+)
+
+var (
+	smbFirewallSourceRanges                = splitAndTrim(DataFirewallSourceRanges)
+	smbFirewallAllowedPortRules            = splitAndTrim(SmbFirewallAllowedPortRulesConfig)
+	ilbHealthCheckFirewallSourceRanges     = splitAndTrim(IlbHealthCheckFirewallSourceRangesConfig)
+	ilbHealthCheckFirewallAllowedPortRules = splitAndTrim(IlbHealthCheckFirewallAllowedPortRulesConfig)
+)
+
+func splitAndTrim(csv string) []string {
+	if csv == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(csv, ",")
+	trimmed := make([]string, 0, len(parts))
+	for _, part := range parts {
+		value := strings.TrimSpace(part)
+		if value == "" {
+			continue
+		}
+		trimmed = append(trimmed, value)
+	}
+	return trimmed
+}
+
 var (
 	MakeSubnetName         = _makeSubnetName
 	isSubnetReusable       = _isSubnetReusable
@@ -105,6 +150,179 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 		}
 	}
 	return vsaerrors.NewVCPError(vsaerrors.ErrJobNotFinished, errors.New("job not finished"))
+}
+
+// GetSVM retrieves the SVM associated with the given pool ID.
+func (ca CommonActivities) GetSVM(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
+	se := ca.SE
+
+	svm, err := se.GetSvmForPoolID(ctx, poolID)
+	if err != nil || svm == nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return svm, nil
+}
+
+func (ca CommonActivities) UpdateSvmActiveDirectory(ctx context.Context, params UpdateSvmActiveDirectoryParams) (*datamodel.Svm, error) {
+	logger := util.GetLogger(ctx)
+	if params.Svm == nil {
+		logger.Error("SVM not provided for UpdateSvmActiveDirectory activity")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("svm is nil"))
+	}
+
+	if params.Svm.ActiveDirectoryID.Valid {
+		logger.Debugf("SVM %s already associated with Active Directory, skipping update", params.Svm.UUID)
+		return params.Svm, nil
+	}
+
+	if params.ActiveDirectoryUUID == "" {
+		logger.Error("Active Directory UUID is empty for SVM update", "svmUUID", params.Svm.UUID)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("active directory uuid is empty"))
+	}
+
+	ad, err := ca.SE.GetActiveDirectoryByUUID(ctx, params.ActiveDirectoryUUID)
+	if err != nil {
+		logger.Error("Failed to fetch Active Directory while updating SVM", "svmUUID", params.Svm.UUID, "adUUID", params.ActiveDirectoryUUID, "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if ad == nil {
+		err := fmt.Errorf("active directory %s not found", params.ActiveDirectoryUUID)
+		logger.Error("Active Directory not found while updating SVM", "svmUUID", params.Svm.UUID, "adUUID", params.ActiveDirectoryUUID)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	updatedSvm, err := ca.SE.UpdateSvmActiveDirectoryID(ctx, params.Svm, ad.ID)
+	if err != nil {
+		logger.Error("Failed to update SVM with Active Directory", "svmUUID", params.Svm.UUID, "adUUID", params.ActiveDirectoryUUID, "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	updatedSvm.ActiveDirectory = ad
+
+	return updatedSvm, nil
+}
+
+func (ca CommonActivities) CreateFirewallRule(ctx context.Context, params CreateFirewallRuleParams) error {
+	logger := util.GetLogger(ctx)
+
+	if params.FirewallRuleName == "" {
+		err := fmt.Errorf("firewall rule name is empty")
+		logger.Error("Firewall rule name has not provided", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if params.Project == "" {
+		err := fmt.Errorf("%s firewall project is empty", params.FirewallRuleName)
+		logger.Error("project name has not provided", "error", err, "firewall-rule-name", params.FirewallRuleName)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if params.Network == "" {
+		err := fmt.Errorf("%s firewall network is empty", params.FirewallRuleName)
+		logger.Error("firewall network not provided", "project", params.Project, "error", err, "firewall-rule-name", params.FirewallRuleName)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	gcpService, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		logger.Error("Failed to initialise GCP services for firewall", "project", params.Project, "network", params.Network, "firewall-rule-name", params.FirewallRuleName, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	firewallSourceRanges := make([]string, 0)
+	firewallAllowedPort := make([]string, 0)
+	switch params.FirewallRuleName {
+	case SmbFirewallName:
+		firewallSourceRanges = smbFirewallSourceRanges
+		firewallAllowedPort = smbFirewallAllowedPortRules
+	case ILBHealthCheckFirewallName:
+		firewallSourceRanges = ilbHealthCheckFirewallSourceRanges
+		firewallAllowedPort = ilbHealthCheckFirewallAllowedPortRules
+	}
+
+	op, err := InsertFirewall(gcpService, params.Project, params.FirewallRuleName, params.Network, FirewallPriority, IngressTrafficDirection, firewallSourceRanges, firewallAllowedPort)
+	if err != nil {
+		logger.Error("Failed to create firewall", "project", params.Project, "network", params.Network, "firewall-rule-name", params.FirewallRuleName, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if op != "" {
+		logger.Info("Triggered firewall create operation", "project", params.Project, "network", params.Network, "operation", op, "firewall-rule-name", params.FirewallRuleName)
+	} else {
+		logger.Debug("Firewall already present", "project", params.Project, "network", params.Network, "firewall-rule-name", params.FirewallRuleName)
+	}
+
+	return nil
+}
+
+func (ca CommonActivities) EnsureSmbIngressFirewall(ctx context.Context, params EnsureSmbFirewallParams) error {
+	logger := util.GetLogger(ctx)
+
+	if params.Project == "" {
+		err := fmt.Errorf("smb firewall project is empty")
+		logger.Error("SMB firewall project not provided", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if params.Network == "" {
+		err := fmt.Errorf("smb firewall network is empty")
+		logger.Error("SMB firewall network not provided", "project", params.Project, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	gcpService, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		logger.Error("Failed to initialise GCP services for SMB firewall", "project", params.Project, "network", params.Network, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	op, err := InsertFirewall(gcpService, params.Project, SmbFirewallName, params.Network, FirewallPriority, IngressTrafficDirection, smbFirewallSourceRanges, smbFirewallAllowedPortRules)
+	if err != nil {
+		logger.Error("Failed to create SMB firewall", "project", params.Project, "network", params.Network, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if op != "" {
+		logger.Infof("Triggered SMB firewall create operation", "project", params.Project, "network", params.Network, "operation", op)
+	} else {
+		logger.Debugf("SMB firewall already present", "project", params.Project, "network", params.Network, "firewall", SmbFirewallName)
+	}
+
+	return nil
+}
+
+func (ca CommonActivities) ILBHealthCheckFirewall(ctx context.Context, params EnsureSmbFirewallParams) error {
+	logger := util.GetLogger(ctx)
+
+	if params.Project == "" {
+		err := fmt.Errorf("ILBHealthCheck firewall project is empty")
+		logger.Error("ILBHealthCheck project not provided", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if params.Network == "" {
+		err := fmt.Errorf("ILBHealthCheck firewall network is empty")
+		logger.Error("ILBHealthCheck firewall network not provided", "project", params.Project, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	gcpService, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		logger.Error("Failed to initialise GCP services for ILBHealthCheck firewall", "project", params.Project, "network", params.Network, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	op, err := InsertFirewall(gcpService, params.Project, ILBHealthCheckFirewallName, params.Network, FirewallPriority, IngressTrafficDirection, ilbHealthCheckFirewallSourceRanges, ilbHealthCheckFirewallAllowedPortRules)
+	if err != nil {
+		logger.Error("Failed to create ILBHealthCheck firewall", "project", params.Project, "network", params.Network, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if op != "" {
+		logger.Infof("Triggered ILBHealthCheck firewall create operation", "project", params.Project, "network", params.Network, "operation", op)
+	} else {
+		logger.Debugf("ILBHealthCheck firewall already present", "project", params.Project, "network", params.Network, "firewall", ILBHealthCheckFirewallName)
+	}
+
+	return nil
 }
 
 // GetNode retrieves the node associated with the given pool ID.

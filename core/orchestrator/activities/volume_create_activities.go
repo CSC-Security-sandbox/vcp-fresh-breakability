@@ -175,7 +175,9 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	}
 
 	if utils.IsFileProtocolSupported(volume.Account.Name) && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
-		params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
+		if !utils.IsSMBProtocols(volume.VolumeAttributes.Protocols) {
+			params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
+		}
 		if params.VolumeType != VolumeTypeDP {
 			params.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
 		}
@@ -191,6 +193,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	res, err := provider.CreateVolume(params)
 
 	if err != nil {
+		logger.Error("Error in provider.CreateVolume", "err", err)
 		if errors.IsConflictErr(err) {
 			return HandleVolumeCreateConflict(volume, provider)
 		}

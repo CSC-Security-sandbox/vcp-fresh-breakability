@@ -122,6 +122,24 @@ func IsNasProtocols(protocols []string) bool {
 	return true
 }
 
+func IsSMBProtocols(protocols []string) bool {
+	isSMB := false
+	if len(protocols) == 0 {
+		return false
+	}
+	for _, protocol := range protocols {
+		if IsSMBProtocol(protocol) {
+			isSMB = true
+			break
+		}
+	}
+	return isSMB
+}
+
+func IsSMBProtocol(protocol string) bool {
+	return protocol == ProtocolSMB
+}
+
 // IsSanProtocols checks if the provided protocols are all SAN protocols
 func IsSanProtocols(protocols []string) bool {
 	if len(protocols) == 0 {

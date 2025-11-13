@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -26,16 +27,32 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+const (
+	hybridUser                            = "hybrid_user"
+	authMethodCertificate                 = "certificate"
+	CIFSSharePropertyBrowsable            = "browsable"
+	CIFSSharePropertyChangenotify         = "changenotify"
+	CIFSSharePropertyEncryptData          = "encrypt_data"
+	CIFSSharePropertyOplocks              = "oplocks"
+	CIFSSharePropertyShowsnapshot         = "showsnapshot"
+	CIFSSharePropertyShowPreviousVersions = "show_previous_versions"
+	CIFSSharePropertyCA                   = "continuously_available"
+	CIFSAccessBasedEnumeration            = "access_based_enumeration"
+	CIFSSharePropertyNonBrowsable         = "non_browsable"
+)
+
 var (
 	returnTimeout = strconv.FormatInt(int64(utils.GetConstraintInteger(env.GetUint("ONTAP_REST_SYNC_RETURN_TIMEOUT_SECONDS", 15), 0, 15, 15)), 10)
 	// MD: returnTimeoutNoJob signals that we are not interested in getting a job and the entire operation should instead time out
 	// this is useful for resources that in most cases take very little time to delete but may sometimes take longer.
-	returnTimeoutNoJob         = nillable.ToPointer(strconv.Itoa(utils.GetConstraintInteger(int(cr.DefaultTimeout), 15, 120, 30)))
-	objStoreProviderType       = env.GetString("OBJECT_STORE_PROVIDER", "googlecloud")
-	objStoreServer             = env.GetString("OBJECT_STORES_SERVER", "storage.googleapis.com")
-	objStoreAuthenticationType = env.GetString("OBJECT_STORE_AUTH_TYPE", "GCP_SA")
-	objStoreSnapmirrorUse      = "data"
-	objStoreOwner              = "snapmirror"
+	returnTimeoutNoJob           = nillable.ToPointer(strconv.Itoa(utils.GetConstraintInteger(int(cr.DefaultTimeout), 15, 120, 30)))
+	objStoreProviderType         = env.GetString("OBJECT_STORE_PROVIDER", "googlecloud")
+	objStoreServer               = env.GetString("OBJECT_STORES_SERVER", "storage.googleapis.com")
+	objStoreAuthenticationType   = env.GetString("OBJECT_STORE_AUTH_TYPE", "GCP_SA")
+	objStoreSnapmirrorUse        = "data"
+	objStoreOwner                = "snapmirror"
+	defaultCIFSCAShareProperties = []string{CIFSSharePropertyOplocks, CIFSSharePropertyShowsnapshot}
+	defaultCIFSShareProperties   = []string{CIFSSharePropertyOplocks, CIFSSharePropertyChangenotify, CIFSSharePropertyShowsnapshot, CIFSSharePropertyShowPreviousVersions}
 )
 
 // BaseParams contains all the common parameters that ONTAP REST supports
@@ -210,10 +227,31 @@ type CifsServiceModifyGroupMembersParams struct {
 	SvmUUID string
 }
 
+// CifsServiceDeleteParams is the input params struct for nas.CifsServiceDelete
+type CifsServiceDeleteParams struct {
+	BaseParams
+	SvmUUID            string
+	AdminPassword      string
+	AdminUsername      string
+	ClientID           string
+	TenantID           string
+	EntraIDCertificate strfmt.Password
+	Force              bool
+}
+
 // CifsServiceModifySecurityPrivilegeParams is the input param struct to modify CIFS user privileges
 type CifsServiceModifySecurityPrivilegeParams struct {
 	Member  string
 	SvmUUID string
+}
+
+// CifsShareCreateParams is the input param struct for nas.CifsShareCreate
+type CifsShareCreateParams struct {
+	BaseParams
+	ShareProperties []string
+	SvmName         *string
+	Path            string
+	Name            string
 }
 
 // HostRecordGetParams is the input param struct for nameServicesClient.HostRecordGet
@@ -883,6 +921,50 @@ func getGCPKeyManagerConfigModifyParamsToOntap() *security.KeyManagerConfigModif
 			},
 		},
 	)
+	return otParams
+}
+
+func serverRootCAGetParamsToONTAPCollectionGet(params *ServerRootCAGetParams) *security.SecurityCertificateCollectionGetParams {
+	otParams := security.NewSecurityCertificateCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetSvmName(params.SvmName)
+	otParams.SetName(params.Name)
+	otParams.SetType(params.CertificateType)
+	otParams.SetFields(params.Fields)
+	return otParams
+}
+
+func serverRootCAInstallParamsToONTAP(params *ServerRootCAInstallParams) *security.SecurityCertificateCreateParams {
+	otParams := security.NewSecurityCertificateCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetInfo(&models.SecurityCertificate{
+		PrivateKey:        params.PrivateKey,
+		PublicCertificate: params.Certificate,
+		Svm:               &models.SecurityCertificateInlineSvm{Name: params.SvmName},
+		Type:              params.CertificateType,
+		CommonName:        params.CommonName,
+		Name:              params.Name,
+	})
+	return otParams
+}
+
+func serverRootCADeleteParamsToONTAPCollectionDelete(params *ServerRootCADeleteParams) *security.SecurityCertificateDeleteCollectionParams {
+	otParams := security.NewSecurityCertificateDeleteCollectionParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	otParams.SetSvmName(params.SvmName)
+	otParams.SetSerialNumber(params.SerialNumber)
+	otParams.SetCommonName(params.CommonName)
+	otParams.SetCa(params.CertificateAuthority)
 	return otParams
 }
 
@@ -3455,6 +3537,46 @@ func snapmirrorCloudSnapshotDeleteParamsToONTAP(params *SnapmirrorCloudSnapshotD
 	return otParams
 }
 
+func dnsGetParamsToONTAP(params *DNSGetParams) *name_services.DNSGetParams {
+	otParams := name_services.NewDNSGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.Fields = params.Fields
+	otParams.UUID = params.SvmUUID
+	return otParams
+}
+
+func dnsModifyParamsToONTAP(params *DNSModifyParams) *name_services.DNSModifyParams {
+	otParams := name_services.NewDNSModifyParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.WithUUID(params.SvmUUID)
+
+	info := &models.DNS{}
+
+	for i := range params.Domains {
+		info.Domains = append(info.Domains, &params.Domains[i])
+	}
+
+	for i := range params.NameServers {
+		info.Servers = append(info.Servers, &params.NameServers[i])
+	}
+
+	if params.DDNSModifyParams.UseSecure != nil || params.DDNSModifyParams.Fqdn != nil {
+		info.DynamicDNS = &models.DNSInlineDynamicDNS{
+			Fqdn:      params.DDNSModifyParams.Fqdn,
+			UseSecure: params.DDNSModifyParams.UseSecure,
+			Enabled:   params.DDNSModifyParams.Enabled,
+		}
+	}
+
+	otParams.SetInfo(info)
+	return otParams
+}
+
 func dnsCreateParamsToONTAP(params *DNSCreateParams) *name_services.DNSCreateParams {
 	otParams := name_services.NewDNSCreateParams()
 	if params == nil {
@@ -3473,11 +3595,21 @@ func dnsCreateParamsToONTAP(params *DNSCreateParams) *name_services.DNSCreatePar
 	for i, server := range params.DNSServers {
 		dnsServers[i] = nillable.ToPointer(server)
 	}
-	otParams.SetInfo(
-		&models.DNS{
-			Domains: dnsDomains,
-			Servers: dnsServers,
-		})
+	if params.SvmUUID != "" {
+		otParams.SetInfo(
+			&models.DNS{
+				Svm:     &models.DNSInlineSvm{UUID: &params.SvmUUID},
+				Domains: dnsDomains,
+				Servers: dnsServers,
+			})
+	} else {
+		otParams.SetInfo(
+			&models.DNS{
+				Domains: dnsDomains,
+				Servers: dnsServers,
+			})
+	}
+
 	return otParams
 }
 
@@ -3657,18 +3789,60 @@ type CifsServiceGetParams struct {
 
 // CifsServiceCreateParams is the input param struct for nasClient.CifsServiceCreate
 type CifsServiceCreateParams struct {
-	BaseParams
-	SvmUUID  string
-	Name     string
-	Enabled  *bool
-	AdDomain *string
+	SvmName                 *string
+	Name                    *string
+	Domain                  *string
+	OrganizationalUnit      *string
+	Username                *string
+	Password                *string
+	Force                   *bool
+	Site                    *string
+	ServerRootCaCertificate *string
+	TLSEnabled              *bool
+	TenantID                *string
+	ClientID                *string
+	EntraIDCertificate      *log.Secret
+	AuthUserType            *string
 }
 
 // CifsServiceModifyParams is the input param struct for nasClient.CifsServiceModify
 type CifsServiceModifyParams struct {
-	BaseParams
-	SvmUUID string
-	Enabled *bool
+	Enabled                  *bool
+	AesEncryptionEnabled     *bool
+	TLSEnabled               *bool
+	DacEnabled               *bool
+	EncryptDCConnections     *bool
+	SessionSecurityForAdLdap *string
+	Name                     *string
+	Username                 *string
+	Password                 *string
+	SmbEncryption            *bool
+	Site                     *string
+	CompatibilityLevel       *string
+	CopyOffload              *bool
+	Multichannel             *bool
+	RestrictAnonymous        *string
+	SvmUUID                  *string
+}
+
+// CifsDomainModifyParams is the input params struct for nas.CifsServiceModify
+type CifsDomainModifyParams struct {
+	SvmUUID               string
+	DiscoveryMode         *string
+	ScheduleEnabled       *bool
+	CifsPasswordOperation *string
+	AdUserName            *string
+	AdPassword            *string
+	ClientID              *string
+	TenantID              *string
+	ClientCertificate     *strfmt.Password
+}
+
+// CifsShareACLDeleteParams is the input params for nas.CifsShareACLDelete
+type CifsShareACLDeleteParams struct {
+	ShareName string
+	User      string
+	SvmUUID   string
 }
 
 // =============================================================================
@@ -3897,23 +4071,46 @@ func cifsServiceCreateParamsToONTAP(params *CifsServiceCreateParams) *nas.CifsSe
 		return otParams
 	}
 
-	cifsInfo := &models.CifsService{
-		Name: &params.Name,
-		Svm:  &models.CifsServiceInlineSvm{UUID: &params.SvmUUID},
-	}
-
-	if params.Enabled != nil {
-		cifsInfo.Enabled = params.Enabled
-	}
-
-	if params.AdDomain != nil {
-		cifsInfo.AdDomain = &models.AdDomain{
-			Fqdn: params.AdDomain,
+	var adDomain *models.AdDomain
+	otParams.SetForce(nillable.ToStringPtr(params.Force))
+	if params.AuthUserType != nil && *params.AuthUserType == hybridUser {
+		authMethod := authMethodCertificate
+		adDomain = &models.AdDomain{
+			Fqdn: params.Domain,
 		}
+		cifsInfo := &models.CifsService{
+			Name:                 params.Name,
+			Svm:                  &models.CifsServiceInlineSvm{Name: params.SvmName},
+			Security:             &models.CifsServiceSecurity{UseStartTLS: params.TLSEnabled},
+			ClientID:             params.ClientID,
+			TenantID:             params.TenantID,
+			AuthUserType:         params.AuthUserType,
+			AuthenticationMethod: &authMethod,
+			AdDomain:             adDomain,
+		}
+		if params.EntraIDCertificate != nil {
+			cifsInfo.ClientCertificate = nillable.ToPointer(strfmt.Password(*params.EntraIDCertificate))
+		}
+		otParams.SetInfo(cifsInfo)
+	} else {
+		if params.Site != nil || params.OrganizationalUnit != nil || params.Username != nil || params.Password != nil {
+			adDomain = &models.AdDomain{
+				DefaultSite:        params.Site,
+				OrganizationalUnit: params.OrganizationalUnit,
+				User:               params.Username,
+				Password:           params.Password,
+				Fqdn:               params.Domain,
+			}
+		}
+		otParams.SetInfo(&models.CifsService{
+			Name:     params.Name,
+			Security: &models.CifsServiceSecurity{UseStartTLS: params.TLSEnabled},
+			Svm:      &models.CifsServiceInlineSvm{Name: params.SvmName},
+			AdDomain: adDomain,
+		})
 	}
 
-	otParams.SetInfo(cifsInfo)
-	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	otParams.SetReturnTimeout(&returnTimeout)
 	return otParams
 }
 
@@ -3929,9 +4126,152 @@ func cifsServiceModifyParamsToONTAP(params *CifsServiceModifyParams) *nas.CifsSe
 	if params.Enabled != nil {
 		cifsInfo.Enabled = params.Enabled
 	}
+	if params.SvmUUID != nil {
+		otParams.SetSvmUUID(*params.SvmUUID)
+	}
+	otParams.SetInfo(cifsInfo)
+	return otParams
+}
+
+func cifsDomainModifyParamsToONTAP(params *CifsDomainModifyParams) *nas.CifsDomainModifyParams {
+	otParams := nas.NewCifsDomainModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	info := &models.CifsDomain{
+		ServerDiscoveryMode: params.DiscoveryMode,
+	}
+	if params.ScheduleEnabled != nil {
+		info.PasswordSchedule = &models.CifsDomainInlinePasswordSchedule{ScheduleEnabled: params.ScheduleEnabled}
+	}
+	if params.CifsPasswordOperation != nil {
+		otParams.SetCifsPasswordOperation(params.CifsPasswordOperation)
+	}
+
+	if params.AdUserName != nil && params.AdPassword != nil {
+		info.AdDomain = &models.CifsDomainInlineAdDomain{
+			User:     params.AdUserName,
+			Password: params.AdPassword,
+		}
+	}
+
+	if params.ClientID != nil && params.TenantID != nil && params.ClientCertificate != nil {
+		info.ClientID = params.ClientID
+		info.TenantID = params.TenantID
+		info.ClientCertificate = params.ClientCertificate
+	}
 
 	otParams.SetSvmUUID(params.SvmUUID)
-	otParams.SetInfo(cifsInfo)
+	otParams.SetInfo(info)
+	return otParams
+}
+
+func cifsShareCreateParamsToONTAP(params *CifsShareCreateParams) *nas.CifsShareCreateParams {
+	otParams := nas.NewCifsShareCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	cifsShareParams := calculateShareProperties(params.ShareProperties)
+	cifsShareParams.Name = &params.Name
+	cifsShareParams.Path = &params.Path
+	cifsShareParams.Svm = &models.CifsShareInlineSvm{Name: params.SvmName}
+
+	otParams.SetInfo(cifsShareParams)
+	return otParams
+}
+
+func calculateShareProperties(shareProperties []string) *models.CifsShare {
+	cifsShareParams := &models.CifsShare{
+		ShowPreviousVersions:   nillable.ToPointer(false),
+		Browsable:              nillable.ToPointer(false),
+		ChangeNotify:           nillable.ToPointer(false),
+		Oplocks:                nillable.ToPointer(false),
+		ShowSnapshot:           nillable.ToPointer(false),
+		ContinuouslyAvailable:  nillable.ToPointer(false),
+		Encryption:             nillable.ToPointer(false),
+		AccessBasedEnumeration: nillable.ToPointer(false),
+	}
+	shareProperties = ExtendSharePropertiesWithDefaults(shareProperties)
+	for _, sp := range shareProperties {
+		switch sp {
+		case CIFSSharePropertyShowPreviousVersions:
+			cifsShareParams.ShowPreviousVersions = nillable.ToPointer(true)
+		case CIFSSharePropertyBrowsable:
+			cifsShareParams.Browsable = nillable.ToPointer(true)
+		case CIFSSharePropertyChangenotify:
+			cifsShareParams.ChangeNotify = nillable.ToPointer(true)
+		case CIFSSharePropertyOplocks:
+			cifsShareParams.Oplocks = nillable.ToPointer(true)
+		case CIFSSharePropertyShowsnapshot:
+			cifsShareParams.ShowSnapshot = nillable.ToPointer(true)
+		case CIFSSharePropertyCA:
+			cifsShareParams.ContinuouslyAvailable = nillable.ToPointer(true)
+		case CIFSSharePropertyEncryptData:
+			cifsShareParams.Encryption = nillable.ToPointer(true)
+		case CIFSAccessBasedEnumeration:
+			cifsShareParams.AccessBasedEnumeration = nillable.ToPointer(true)
+		}
+	}
+	return cifsShareParams
+}
+
+// ExtendSharePropertiesWithDefaults extends the share properties with default values
+func ExtendSharePropertiesWithDefaults(shareProperties []string) []string {
+	var extendedShareProperties []string
+	if slices.Contains(shareProperties, CIFSSharePropertyCA) {
+		extendedShareProperties = defaultCIFSCAShareProperties
+	} else {
+		extendedShareProperties = defaultCIFSShareProperties
+	}
+
+	if !slices.Contains(shareProperties, CIFSSharePropertyNonBrowsable) && !slices.Contains(shareProperties, CIFSSharePropertyBrowsable) {
+		shareProperties = append(shareProperties, CIFSSharePropertyBrowsable)
+	}
+
+	for _, shareProperty := range shareProperties {
+		if !slices.Contains(extendedShareProperties, shareProperty) && strings.ToLower(shareProperty) != CIFSSharePropertyNonBrowsable {
+			extendedShareProperties = append(extendedShareProperties, shareProperty)
+		}
+	}
+	return extendedShareProperties
+}
+
+func cifsShareACLDeleteParamsToONTAP(params *CifsShareACLDeleteParams) *nas.CifsShareACLDeleteParams {
+	otParams := nas.NewCifsShareACLDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetShare(params.ShareName)
+	otParams.SetUserOrGroup(params.User)
+	otParams.SetSvmUUID(params.SvmUUID)
+	return otParams
+}
+
+func cifsServiceDeleteParamsToONTAP(params *CifsServiceDeleteParams) *nas.CifsServiceDeleteParams {
+	otParams := nas.NewCifsServiceDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.WithForce(nillable.ToStringPtr(&params.Force))
+	otParams.WithSvmUUID(params.SvmUUID)
+	if params.ClientID != "" || params.TenantID != "" || params.EntraIDCertificate != "" {
+		otParams.WithInfo(&models.CifsServiceDelete{
+			ClientID:          &params.ClientID,
+			TenantID:          &params.TenantID,
+			ClientCertificate: &params.EntraIDCertificate,
+		})
+	} else {
+		otParams.SetInfo(&models.CifsServiceDelete{
+			AdDomain: &models.AdDomainDelete{
+				User:     &params.AdminUsername,
+				Password: &params.AdminPassword,
+			},
+		})
+	}
 	return otParams
 }
 

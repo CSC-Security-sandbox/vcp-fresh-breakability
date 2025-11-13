@@ -1480,6 +1480,22 @@ func (re *retryEngine) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datam
 	return var0, err
 }
 
+func (re *retryEngine) UpdateSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm, activeDirectoryID int64) (*datamodel.Svm, error) {
+	var var0 *datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateSvmActiveDirectoryID(ctx, svm, activeDirectoryID)
+		if err != nil {
+			re.logError("UpdateSvmActiveDirectoryID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
 	var var0 []*datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -3979,6 +3995,22 @@ func (re *retryEngine) ListClusterPeeringRowsByAccountID(ctx context.Context, ac
 	return var0, err
 }
 
+func (re *retryEngine) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
+	var var0 *datamodel.ActiveDirectory
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetActiveDirectoryByUUID(ctx, uuid)
+		if err != nil {
+			re.logError("GetActiveDirectoryByUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error) {
 	var var0 []*datamodel.ActiveDirectory
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4048,6 +4080,22 @@ func (re *retryEngine) GetSVMsUsingActiveDirectory(ctx context.Context, adId int
 		var0, err = re.dataStore.GetSVMsUsingActiveDirectory(ctx, adId)
 		if err != nil {
 			re.logError("GetSVMsUsingActiveDirectory", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetActiveDirectoryForPoolByPoolID(ctx context.Context, poolID int64) (*datamodel.ActiveDirectory, error) {
+	var var0 *datamodel.ActiveDirectory
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetActiveDirectoryForPoolByPoolID(ctx, poolID)
+		if err != nil {
+			re.logError("GetActiveDirectoryForPoolByPoolID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"database/sql"
 	err1 "errors"
 	"fmt"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -52,6 +54,8 @@ func (s *UnitTestSuite) SetupTest() {
 	s.env.RegisterWorkflow(PostBlockVolumeWorkflow)
 	s.env.RegisterWorkflow(PreFileVolumeWorkflow)
 	s.env.RegisterWorkflow(PostFileVolumeWorkflow)
+	s.env.RegisterWorkflow(EnsureCIFSShareWorkflow)
+	s.env.RegisterWorkflow(PostFileVolumeWorkflowForSMB)
 
 	// Register all activities that might be used across tests
 	mockStorage := database.NewMockStorage(s.T())
@@ -59,10 +63,19 @@ func (s *UnitTestSuite) SetupTest() {
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	backupActivity := activities.BackupActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
 
 	// Register common activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(commonActivity.GetSVM)
+	s.env.RegisterActivity(adActivity.GetActiveDirectoryForPool)
+	s.env.RegisterActivity(commonActivity.CreateFirewallRule)
+	s.env.RegisterActivity(adActivity.CreateOrModifyADDNS)
+	s.env.RegisterActivity(adActivity.GetOrCreateCifsService)
+	s.env.RegisterActivity(adActivity.DdnsModify)
+	s.env.RegisterActivity(adActivity.CreateJunctionPathForCifsShare)
+	s.env.RegisterActivity(commonActivity.UpdateSvmActiveDirectory)
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 	// Register volume create activities
@@ -1658,6 +1671,81 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 }
 
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_AssignsActiveDirectory() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name:   "vol-smb",
+		PoolID: int64(42),
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			ClusterDetails: datamodel.ClusterDetails{
+				SnHostProject: "sn-host-project",
+				Network:       "data-network",
+			},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{
+			JunctionPath: "/vol/vol-smb",
+		}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:      "svm-name",
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: "svm-external-uuid",
+		},
+	}
+	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
+	updatedSvm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:      "svm-name",
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: "svm-external-uuid",
+		},
+		ActiveDirectoryID: sql.NullInt64{Int64: 11, Valid: true},
+	}
+
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
+	calledFirewallRules := make(map[string]int)
+	s.env.OnActivity(commonActivity.CreateFirewallRule, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			params, ok := args.Get(1).(activities.CreateFirewallRuleParams)
+			assert.True(s.T(), ok)
+			assert.Equal(s.T(), "sn-host-project", params.Project)
+			assert.Equal(s.T(), "data-network", params.Network)
+			calledFirewallRules[params.FirewallRuleName]++
+		}).
+		Return(nil).
+		Twice()
+	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.MatchedBy(func(params activities.UpdateSvmActiveDirectoryParams) bool {
+		assert.Equal(s.T(), svm, params.Svm)
+		assert.Equal(s.T(), activeDirectory.UUID, params.ActiveDirectoryUUID)
+		return true
+	})).Return(updatedSvm, nil).Once()
+
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&active_directory_activities.GetOrCreateCifsServiceResult{FQDN: "fqdn.example.com"}, nil).Once()
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	assert.Equal(s.T(), 1, calledFirewallRules[activities.SmbFirewallName])
+	assert.Equal(s.T(), 1, calledFirewallRules[activities.ILBHealthCheckFirewallName])
+
+	var workflowResult *datamodel.Volume
+	resultErr := s.env.GetWorkflowResult(&workflowResult)
+	assert.NoError(s.T(), resultErr)
+	if assert.NotNil(s.T(), workflowResult) && workflowResult.VolumeAttributes != nil && workflowResult.VolumeAttributes.FileProperties != nil {
+		assert.Equal(s.T(), "fqdn.example.com", workflowResult.VolumeAttributes.FileProperties.Fqdn)
+	}
+}
+
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_ISCSI() {
 	// Test selectVolumeChildWorkflow with ISCSI protocol
 	protocols := []string{utils.ProtocolISCSI}
@@ -1761,7 +1849,7 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_SMB() {
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), postWorkflow)
 	// Verify it returns a function that can be called
-	assert.IsType(s.T(), PostFileVolumeWorkflow, postWorkflow)
+	assert.IsType(s.T(), PostFileVolumeWorkflowForSMB, postWorkflow)
 }
 
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_FileProtocolsDisabled() {
@@ -4413,4 +4501,329 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_NotTriggered_No
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// TestEnsureCIFSShareWorkflow tests the EnsureCIFSShareWorkflow
+func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Success_AllSteps() {
+	mockStorage := database.NewMockStorage(s.T())
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/junction",
+			},
+		},
+	}
+
+	node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+	expectedFQDN := "NETBIOS-1234.example.com"
+
+	// Mock all activities
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:      expectedFQDN,
+			NeedsDDNS: false,
+		}, nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Get result
+	var resultFQDN string
+	err := s.env.GetWorkflowResult(&resultFQDN)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), expectedFQDN, resultFQDN)
+}
+
+func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Success_WithDDNS() {
+	mockStorage := database.NewMockStorage(s.T())
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/junction",
+			},
+		},
+	}
+
+	node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+	expectedFQDN := "NETBIOS-1234.example.com"
+
+	// Mock activities - service exists and needs DDNS
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:            "",
+			NeedsDDNS:       true,
+			CifsServiceName: "NETBIOS-1234",
+			AdDomain:        "example.com",
+		}, nil)
+	s.env.OnActivity(adActivity.DdnsModify, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Get result
+	var resultFQDN string
+	err := s.env.GetWorkflowResult(&resultFQDN)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), expectedFQDN, resultFQDN)
+}
+
+func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Success_NoDDNSNeeded() {
+	mockStorage := database.NewMockStorage(s.T())
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/junction",
+			},
+		},
+	}
+
+	node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+	expectedFQDN := "NETBIOS-1234.example.com"
+
+	// Mock activities - service exists and DDNS already enabled
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:            "",
+			NeedsDDNS:       false,
+			CifsServiceName: "NETBIOS-1234",
+			AdDomain:        "example.com",
+		}, nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Get result
+	var resultFQDN string
+	err := s.env.GetWorkflowResult(&resultFQDN)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), expectedFQDN, resultFQDN)
+}
+
+func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_SkipsNonFileVolume() {
+	volume := &datamodel.Volume{
+		Name:             "block-volume",
+		Svm:              &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{}, // No FileProperties
+	}
+
+	node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+
+	// Execute workflow - should skip without calling activities
+	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Get result - should be empty
+	var resultFQDN string
+	err := s.env.GetWorkflowResult(&resultFQDN)
+	assert.NoError(s.T(), err)
+	assert.Empty(s.T(), resultFQDN)
+}
+
+func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Error_CreateDNSFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/junction",
+			},
+		},
+	}
+
+	node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+
+	// Mock activity to fail
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		errors.New("DNS creation failed"))
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Error_GetCifsServiceFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/junction",
+			},
+		},
+	}
+
+	node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+
+	// Mock activities
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		nil, errors.New("CIFS service creation failed"))
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Error_DDNSFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/junction",
+			},
+		},
+	}
+
+	node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+
+	// Mock activities - service exists and needs DDNS
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:            "",
+			NeedsDDNS:       true,
+			CifsServiceName: "NETBIOS-1234",
+			AdDomain:        "example.com",
+		}, nil)
+	s.env.OnActivity(adActivity.DdnsModify, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		errors.New("DDNS enable failed"))
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Error_CreateJunctionPathFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/junction",
+			},
+		},
+	}
+
+	node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+	expectedFQDN := "NETBIOS-1234.example.com"
+
+	// Mock activities
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:      expectedFQDN,
+			NeedsDDNS: false,
+		}, nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		errors.New("junction path creation failed"))
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }

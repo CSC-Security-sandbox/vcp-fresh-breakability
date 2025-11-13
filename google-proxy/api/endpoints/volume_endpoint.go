@@ -1125,7 +1125,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 						res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
 							IpAddress:    gcpgenserver.NewOptString(ipAddress),
 							Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1beta(protocol)),
-							Instructions: getFilesMountInstructions(ipAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName, protocol),
+							Instructions: getFilesMountInstructions(ipAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName, protocol, volume.FileProperties.Fqdn),
 						})
 					}
 				}
@@ -1274,7 +1274,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	return res
 }
 
-func getFilesMountInstructions(ipAddress string, junctionPath string, fileDir string, protocol string) gcpgenserver.OptString {
+func getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol, fqdn string) gcpgenserver.OptString {
 	var instructions string
 	switch protocol {
 	case string(gcpgenserver.ProtocolsV1betaNFSV3):
@@ -1309,8 +1309,14 @@ $sudo mkdir %s
 $sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=4.1,tcp %s:%s %s
 3. Repeat the above two steps for future mount targets.
 Note. Please use mount options appropriate for your specific workloads when known.`, fileDir, fileDir, ipAddress, junctionPath, fileDir)
-		// Future: Add SMB and other protocols here
-		// case string(gcpgenserver.ProtocolsV1betaSMB):
+	case string(gcpgenserver.ProtocolsV1betaSMB):
+		exportFull := fmt.Sprintf(`\\%s\%s`, fqdn, strings.TrimPrefix(junctionPath, "/"))
+		instructions = fmt.Sprintf(`Mapping your network drive
+Click the Start button and then click on Computer.
+Click Map Network Drive.
+In the Drive list, click any available drive letter.
+In the Folder box, type %s. To connect every time you log on to your computer, select the Reconnect at logon check box.
+Click Finish.`, exportFull)
 	}
 	return gcpgenserver.NewOptString(instructions)
 }

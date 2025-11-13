@@ -17,22 +17,179 @@ func (_m *MockNASClient) EXPECT() *MockNASClient_Expecter {
 	return &MockNASClient_Expecter{mock: &_m.Mock}
 }
 
-// CifsServiceCreate provides a mock function with given fields: params
-func (_m *MockNASClient) CifsServiceCreate(params *CifsServiceCreateParams) error {
+// CifsDomainModify provides a mock function with given fields: params
+func (_m *MockNASClient) CifsDomainModify(params *CifsDomainModifyParams) error {
 	ret := _m.Called(params)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CifsServiceCreate")
+		panic("no return value specified for CifsDomainModify")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*CifsServiceCreateParams) error); ok {
+	if rf, ok := ret.Get(0).(func(*CifsDomainModifyParams) error); ok {
 		r0 = rf(params)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
+}
+
+// MockNASClient_CifsDomainModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsDomainModify'
+type MockNASClient_CifsDomainModify_Call struct {
+	*mock.Call
+}
+
+// CifsDomainModify is a helper method to define mock.On call
+//   - params *CifsDomainModifyParams
+func (_e *MockNASClient_Expecter) CifsDomainModify(params interface{}) *MockNASClient_CifsDomainModify_Call {
+	return &MockNASClient_CifsDomainModify_Call{Call: _e.mock.On("CifsDomainModify", params)}
+}
+
+func (_c *MockNASClient_CifsDomainModify_Call) Run(run func(params *CifsDomainModifyParams)) *MockNASClient_CifsDomainModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsDomainModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsDomainModify_Call) Return(_a0 error) *MockNASClient_CifsDomainModify_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNASClient_CifsDomainModify_Call) RunAndReturn(run func(*CifsDomainModifyParams) error) *MockNASClient_CifsDomainModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CifsServiceAddMembers provides a mock function with given fields: params
+func (_m *MockNASClient) CifsServiceAddMembers(params *CifsServiceModifyGroupMembersParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsServiceAddMembers")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*CifsServiceModifyGroupMembersParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNASClient_CifsServiceAddMembers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsServiceAddMembers'
+type MockNASClient_CifsServiceAddMembers_Call struct {
+	*mock.Call
+}
+
+// CifsServiceAddMembers is a helper method to define mock.On call
+//   - params *CifsServiceModifyGroupMembersParams
+func (_e *MockNASClient_Expecter) CifsServiceAddMembers(params interface{}) *MockNASClient_CifsServiceAddMembers_Call {
+	return &MockNASClient_CifsServiceAddMembers_Call{Call: _e.mock.On("CifsServiceAddMembers", params)}
+}
+
+func (_c *MockNASClient_CifsServiceAddMembers_Call) Run(run func(params *CifsServiceModifyGroupMembersParams)) *MockNASClient_CifsServiceAddMembers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsServiceModifyGroupMembersParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsServiceAddMembers_Call) Return(_a0 error) *MockNASClient_CifsServiceAddMembers_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNASClient_CifsServiceAddMembers_Call) RunAndReturn(run func(*CifsServiceModifyGroupMembersParams) error) *MockNASClient_CifsServiceAddMembers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CifsServiceAddSecurityPrivilege provides a mock function with given fields: params
+func (_m *MockNASClient) CifsServiceAddSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsServiceAddSecurityPrivilege")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*CifsServiceModifySecurityPrivilegeParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNASClient_CifsServiceAddSecurityPrivilege_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsServiceAddSecurityPrivilege'
+type MockNASClient_CifsServiceAddSecurityPrivilege_Call struct {
+	*mock.Call
+}
+
+// CifsServiceAddSecurityPrivilege is a helper method to define mock.On call
+//   - params *CifsServiceModifySecurityPrivilegeParams
+func (_e *MockNASClient_Expecter) CifsServiceAddSecurityPrivilege(params interface{}) *MockNASClient_CifsServiceAddSecurityPrivilege_Call {
+	return &MockNASClient_CifsServiceAddSecurityPrivilege_Call{Call: _e.mock.On("CifsServiceAddSecurityPrivilege", params)}
+}
+
+func (_c *MockNASClient_CifsServiceAddSecurityPrivilege_Call) Run(run func(params *CifsServiceModifySecurityPrivilegeParams)) *MockNASClient_CifsServiceAddSecurityPrivilege_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsServiceModifySecurityPrivilegeParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsServiceAddSecurityPrivilege_Call) Return(_a0 error) *MockNASClient_CifsServiceAddSecurityPrivilege_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNASClient_CifsServiceAddSecurityPrivilege_Call) RunAndReturn(run func(*CifsServiceModifySecurityPrivilegeParams) error) *MockNASClient_CifsServiceAddSecurityPrivilege_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CifsServiceCreate provides a mock function with given fields: params
+func (_m *MockNASClient) CifsServiceCreate(params *CifsServiceCreateParams) (bool, *JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsServiceCreate")
+	}
+
+	var r0 bool
+	var r1 *JobAccepted
+	var r2 error
+	if rf, ok := ret.Get(0).(func(*CifsServiceCreateParams) (bool, *JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*CifsServiceCreateParams) bool); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(*CifsServiceCreateParams) *JobAccepted); ok {
+		r1 = rf(params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(*CifsServiceCreateParams) error); ok {
+		r2 = rf(params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // MockNASClient_CifsServiceCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsServiceCreate'
@@ -53,12 +210,58 @@ func (_c *MockNASClient_CifsServiceCreate_Call) Run(run func(params *CifsService
 	return _c
 }
 
-func (_c *MockNASClient_CifsServiceCreate_Call) Return(_a0 error) *MockNASClient_CifsServiceCreate_Call {
+func (_c *MockNASClient_CifsServiceCreate_Call) Return(_a0 bool, _a1 *JobAccepted, _a2 error) *MockNASClient_CifsServiceCreate_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockNASClient_CifsServiceCreate_Call) RunAndReturn(run func(*CifsServiceCreateParams) (bool, *JobAccepted, error)) *MockNASClient_CifsServiceCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CifsServiceDelete provides a mock function with given fields: params
+func (_m *MockNASClient) CifsServiceDelete(params *CifsServiceDeleteParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsServiceDelete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*CifsServiceDeleteParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNASClient_CifsServiceDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsServiceDelete'
+type MockNASClient_CifsServiceDelete_Call struct {
+	*mock.Call
+}
+
+// CifsServiceDelete is a helper method to define mock.On call
+//   - params *CifsServiceDeleteParams
+func (_e *MockNASClient_Expecter) CifsServiceDelete(params interface{}) *MockNASClient_CifsServiceDelete_Call {
+	return &MockNASClient_CifsServiceDelete_Call{Call: _e.mock.On("CifsServiceDelete", params)}
+}
+
+func (_c *MockNASClient_CifsServiceDelete_Call) Run(run func(params *CifsServiceDeleteParams)) *MockNASClient_CifsServiceDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsServiceDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsServiceDelete_Call) Return(_a0 error) *MockNASClient_CifsServiceDelete_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockNASClient_CifsServiceCreate_Call) RunAndReturn(run func(*CifsServiceCreateParams) error) *MockNASClient_CifsServiceCreate_Call {
+func (_c *MockNASClient_CifsServiceDelete_Call) RunAndReturn(run func(*CifsServiceDeleteParams) error) *MockNASClient_CifsServiceDelete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -121,6 +324,64 @@ func (_c *MockNASClient_CifsServiceGet_Call) RunAndReturn(run func(*CifsServiceG
 	return _c
 }
 
+// CifsServiceList provides a mock function with given fields: params
+func (_m *MockNASClient) CifsServiceList(params *CifsServiceGetParams) ([]*CifsService, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsServiceList")
+	}
+
+	var r0 []*CifsService
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*CifsServiceGetParams) ([]*CifsService, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*CifsServiceGetParams) []*CifsService); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*CifsService)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*CifsServiceGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNASClient_CifsServiceList_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsServiceList'
+type MockNASClient_CifsServiceList_Call struct {
+	*mock.Call
+}
+
+// CifsServiceList is a helper method to define mock.On call
+//   - params *CifsServiceGetParams
+func (_e *MockNASClient_Expecter) CifsServiceList(params interface{}) *MockNASClient_CifsServiceList_Call {
+	return &MockNASClient_CifsServiceList_Call{Call: _e.mock.On("CifsServiceList", params)}
+}
+
+func (_c *MockNASClient_CifsServiceList_Call) Run(run func(params *CifsServiceGetParams)) *MockNASClient_CifsServiceList_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsServiceGetParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsServiceList_Call) Return(_a0 []*CifsService, _a1 error) *MockNASClient_CifsServiceList_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNASClient_CifsServiceList_Call) RunAndReturn(run func(*CifsServiceGetParams) ([]*CifsService, error)) *MockNASClient_CifsServiceList_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CifsServiceModify provides a mock function with given fields: params
 func (_m *MockNASClient) CifsServiceModify(params *CifsServiceModifyParams) error {
 	ret := _m.Called(params)
@@ -163,6 +424,98 @@ func (_c *MockNASClient_CifsServiceModify_Call) Return(_a0 error) *MockNASClient
 }
 
 func (_c *MockNASClient_CifsServiceModify_Call) RunAndReturn(run func(*CifsServiceModifyParams) error) *MockNASClient_CifsServiceModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CifsShareACLDelete provides a mock function with given fields: params
+func (_m *MockNASClient) CifsShareACLDelete(params *CifsShareACLDeleteParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsShareACLDelete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*CifsShareACLDeleteParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNASClient_CifsShareACLDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsShareACLDelete'
+type MockNASClient_CifsShareACLDelete_Call struct {
+	*mock.Call
+}
+
+// CifsShareACLDelete is a helper method to define mock.On call
+//   - params *CifsShareACLDeleteParams
+func (_e *MockNASClient_Expecter) CifsShareACLDelete(params interface{}) *MockNASClient_CifsShareACLDelete_Call {
+	return &MockNASClient_CifsShareACLDelete_Call{Call: _e.mock.On("CifsShareACLDelete", params)}
+}
+
+func (_c *MockNASClient_CifsShareACLDelete_Call) Run(run func(params *CifsShareACLDeleteParams)) *MockNASClient_CifsShareACLDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsShareACLDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareACLDelete_Call) Return(_a0 error) *MockNASClient_CifsShareACLDelete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareACLDelete_Call) RunAndReturn(run func(*CifsShareACLDeleteParams) error) *MockNASClient_CifsShareACLDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CifsShareCreate provides a mock function with given fields: params
+func (_m *MockNASClient) CifsShareCreate(params *CifsShareCreateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsShareCreate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*CifsShareCreateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNASClient_CifsShareCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsShareCreate'
+type MockNASClient_CifsShareCreate_Call struct {
+	*mock.Call
+}
+
+// CifsShareCreate is a helper method to define mock.On call
+//   - params *CifsShareCreateParams
+func (_e *MockNASClient_Expecter) CifsShareCreate(params interface{}) *MockNASClient_CifsShareCreate_Call {
+	return &MockNASClient_CifsShareCreate_Call{Call: _e.mock.On("CifsShareCreate", params)}
+}
+
+func (_c *MockNASClient_CifsShareCreate_Call) Run(run func(params *CifsShareCreateParams)) *MockNASClient_CifsShareCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsShareCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareCreate_Call) Return(_a0 error) *MockNASClient_CifsShareCreate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareCreate_Call) RunAndReturn(run func(*CifsShareCreateParams) error) *MockNASClient_CifsShareCreate_Call {
 	_c.Call.Return(run)
 	return _c
 }

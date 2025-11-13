@@ -180,6 +180,9 @@ data:
   ISCSI_FIREWALL_PORT_RULES: {{$.Values.workerConfig.iscsiFirewallPortRules | quote }}
   NFS_FIREWALL_PORT_RULES: {{$.Values.workerConfig.nfsFirewallPortRules | quote }}
   INTERCLUSTER_FIREWALL_PORT_RULES: {{$.Values.workerConfig.interclusterFirewallPortRules | quote }}
+  SMB_FIREWALL_ALLOWED_PORT_RULES: {{$.Values.workerConfig.smbFirewallAllowedPortRules | quote }}
+  ILB_HEALTH_CHECK_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.ilbHealthCheckFirewallSourceRanges | quote }}
+  ILB_HEALTH_CHECK_FIREWALL_ALLOWED_PORT_RULES: {{$.Values.workerConfig.ilbHealthCheckFirewallAllowedPortRules | quote }}
   WAIT_TIME_FOR_GCP_OPERATION_IN_SEC: {{$.Values.workerConfig.waitTimeForGcpOperationInSec | quote }}
   VSA_IMAGE_PROJECT: {{$.Values.workerConfig.vsaImageProject | quote }}
   VSA_MEDIATOR_IMAGE_PROJECT: {{$.Values.workerConfig.vsaMediatorImageProject | quote }}

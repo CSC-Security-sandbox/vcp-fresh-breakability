@@ -2,11 +2,13 @@ package workflows
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -81,6 +83,9 @@ func selectVolumeChildWorkflow(protocols []string, phase, accountName string) (i
 		case PhasePre:
 			return PreFileVolumeWorkflow, nil
 		case PhasePost:
+			if utils.IsSMBProtocols(protocols) {
+				return PostFileVolumeWorkflowForSMB, nil
+			}
 			return PostFileVolumeWorkflow, nil
 		default:
 			return nil, ConvertToVSAError(fmt.Errorf("invalid phase: %s", phase))
@@ -190,6 +195,196 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 	log := util.GetLogger(ctx)
 	log.Info("File pre-provisioning: create export policy, etc. (placeholder)")
 	return dbVolume, nil
+}
+
+// PostFileVolumeWorkflowForSMB is a Cadence workflow that handles SMB-specific post-provisioning tasks for a volume.
+// It configures activity options, retrieves SVM and Active Directory information, and ensures CIFS share creation.
+// The workflow also updates firewall rules and Active Directory association if necessary. Returns the updated volume.
+func PostFileVolumeWorkflowForSMB(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) (*datamodel.Volume, error) {
+	// Configure activity options
+	log := util.GetLogger(ctx)
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		log.Error("Failed to populate retry policy params during PostFileVolumeWorkflowForSMB with error: ", err)
+		return nil, err
+	}
+
+	ao := getActivityOptionsForEnsureCIFSShareVolumeActivity(retryPolicy)
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	var dbSvm *datamodel.Svm
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetSVM, &dbVolume.PoolID).Get(ctx, &dbSvm)
+	if err != nil {
+		log.Error("Failed to get SVM info during PostFileVolumeWorkflowForSMB with error: ", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	var activeDirectory *vsa.ActiveDirectory
+	err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.GetActiveDirectoryForPool, &dbVolume.PoolID).Get(ctx, &activeDirectory)
+	if err != nil {
+		log.Error("Failed to get active directory during PostFileVolumeWorkflowForSMB with error: ", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	if dbVolume.Pool == nil {
+		err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
+		log.Error("Pool details missing during PostFileVolumeWorkflowForSMB with error: ", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	poolClusterDetails := dbVolume.Pool.ClusterDetails
+	if poolClusterDetails.SnHostProject == "" || poolClusterDetails.Network == "" {
+		err = fmt.Errorf("pool %s missing SN host project or network details", dbVolume.Pool.UUID)
+		log.Error("Pool network metadata missing during PostFileVolumeWorkflowForSMB with error: ", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	firewallParams := activities.CreateFirewallRuleParams{
+		Project:          poolClusterDetails.SnHostProject,
+		Network:          poolClusterDetails.Network,
+		FirewallRuleName: activities.SmbFirewallName,
+	}
+
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.CreateFirewallRule, firewallParams).Get(ctx, nil)
+	if err != nil {
+		log.Error("Failed to create SMB firewall during PostFileVolumeWorkflowForSMB with error: ", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	firewallParams.FirewallRuleName = activities.ILBHealthCheckFirewallName
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.CreateFirewallRule, firewallParams).Get(ctx, nil)
+	if err != nil {
+		log.Error("Failed to create ILB firewall during PostFileVolumeWorkflowForSMB with error: ", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	var fqdn string
+	// Use the new workflow instead of the single activity
+	fqdn, err = EnsureCIFSShareWorkflow(ctx, dbVolume, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID)
+	if err != nil {
+		log.Error("Failed to create cifs share during PostFileVolumeWorkflowForSMB with error: ", err)
+		return nil, ConvertToVSAError(err)
+	}
+	if fqdn != "" && dbVolume.VolumeAttributes != nil && dbVolume.VolumeAttributes.FileProperties != nil {
+		log.Infof("Setting the fqdn: [%s] for volume:[%s]", fqdn, dbVolume.Name)
+		dbVolume.VolumeAttributes.FileProperties.Fqdn = fqdn
+	}
+
+	if !dbSvm.ActiveDirectoryID.Valid {
+		var updatedSvm *datamodel.Svm
+		params := activities.UpdateSvmActiveDirectoryParams{Svm: dbSvm, ActiveDirectoryUUID: activeDirectory.UUID}
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.UpdateSvmActiveDirectory, params).Get(ctx, &updatedSvm)
+		if err != nil {
+			log.Error("Failed to update SVM Active Directory association during PostFileVolumeWorkflowForSMB with error: ", err)
+			return nil, ConvertToVSAError(err)
+		}
+		dbSvm = updatedSvm
+	}
+
+	log.Info("SMB post-provisioning: created CIFS share for volume:", dbVolume.Name)
+	return dbVolume, nil
+}
+
+// EnsureCIFSShareWorkflow orchestrates the creation of CIFS share through individual activities
+func EnsureCIFSShareWorkflow(ctx workflow.Context, volume *datamodel.Volume, node *models.Node, activeDirectory *vsa.ActiveDirectory, svmName, externalSVMUUID string) (string, error) {
+	log := util.GetLogger(ctx)
+
+	// Validate inputs
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.FileProperties == nil {
+		log.Warnf("Skipping CIFS share creation for non-file volume %s", volume.Name)
+		return "", nil
+	}
+
+	activeDirectoryActivity := newActiveDirectoryActivity()
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return "", err
+	}
+
+	// Set activity options
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	// Step 1: Create or modify AD DNS
+	log.Info("Step 1: Creating or modifying AD DNS")
+	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CreateOrModifyADDNS, &node, &activeDirectory, svmName, externalSVMUUID).Get(ctx, nil)
+	if err != nil {
+		log.Error("Failed to create or modify AD DNS", "error", err)
+		return "", ConvertToVSAError(err)
+	}
+
+	// Step 2: Get or create CIFS service
+	log.Info("Step 2: Getting or creating CIFS service")
+	var cifsServiceResult *active_directory_activities.GetOrCreateCifsServiceResult
+	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GetOrCreateCifsService, &node, &activeDirectory, svmName, externalSVMUUID).Get(ctx, &cifsServiceResult)
+	if err != nil {
+		log.Error("Failed to get or create CIFS service", "error", err)
+		return "", ConvertToVSAError(err)
+	}
+
+	var fqdn string
+	if cifsServiceResult.FQDN != "" {
+		// Service was created, FQDN is already set
+		fqdn = cifsServiceResult.FQDN
+		log.Info("CIFS service created with FQDN", "fqdn", fqdn)
+	} else {
+		// Service already existed, check if DDNS needs to be enabled
+		if cifsServiceResult.NeedsDDNS {
+			// Step 3: Enable DDNS
+			log.Info("Step 3: Enabling DDNS for existing CIFS service")
+			fqdn = cifsServiceResult.CifsServiceName + "." + cifsServiceResult.AdDomain
+			err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.DdnsModify, &node, externalSVMUUID, fqdn).Get(ctx, nil)
+			if err != nil {
+				log.Error("Failed to enable DDNS", "error", err, "fqdn", fqdn)
+				return "", ConvertToVSAError(err)
+			}
+			log.Info("DDNS enabled", "fqdn", fqdn)
+		} else {
+			// DDNS already enabled or not needed, build FQDN if we have the info
+			if cifsServiceResult.CifsServiceName != "" && cifsServiceResult.AdDomain != "" {
+				fqdn = cifsServiceResult.CifsServiceName + "." + cifsServiceResult.AdDomain
+			}
+			log.Info("DDNS already enabled or not needed", "fqdn", fqdn)
+		}
+	}
+
+	// Step 4: Create junction path for CIFS share
+	log.Info("Step 4: Creating junction path for CIFS share", "junctionPath", volume.VolumeAttributes.FileProperties.JunctionPath)
+	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CreateJunctionPathForCifsShare, &node, svmName, volume.VolumeAttributes.FileProperties.JunctionPath).Get(ctx, nil)
+	if err != nil {
+		log.Error("Failed to create junction path for CIFS share", "error", err)
+		return "", ConvertToVSAError(err)
+	}
+
+	log.Info("CIFS share creation completed successfully", "fqdn", fqdn)
+	return fqdn, nil
+}
+
+var (
+	getActivityOptionsForEnsureCIFSShareVolumeActivity = _getActivityOptionsForEnsureCIFSShareVolumeActivity
+	newActiveDirectoryActivity                         = func() *active_directory_activities.ActiveDirectoryActivity {
+		return &active_directory_activities.ActiveDirectoryActivity{}
+	}
+)
+
+func _getActivityOptionsForEnsureCIFSShareVolumeActivity(retryPolicy *WorkflowRetryPolicy) workflow.ActivityOptions {
+	return workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			MaximumInterval:        60 * time.Second,
+			MaximumAttempts:        int32(10),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
 }
 
 // PostFileVolumeWorkflow handles post-provisioning for file volumes

@@ -191,9 +191,12 @@ var (
 	IcFirewallPortRules           = env.GetString("IC_FIREWALL_PORT_RULES", "tcp,udp")
 	InterclusterFirewallPortRules = env.GetString("INTERCLUSTER_FIREWALL_PORT_RULES", "tcp,10566,11104,11105")
 
-	IscsiFirewallPortRules = env.GetString("ISCSI_FIREWALL_PORT_RULES", "tcp,3260")
-	NFSFirewallPortRules   = env.GetString("NFS_FIREWALL_PORT_RULES", "tcp,111,635,2049,4045,udp,111,4046")
-	RegionNumber           = getRegionNumber()
+	IscsiFirewallPortRules                       = env.GetString("ISCSI_FIREWALL_PORT_RULES", "tcp,3260")
+	NFSFirewallPortRules                         = env.GetString("NFS_FIREWALL_PORT_RULES", "tcp,111,635,2049,4045,udp,111,4046")
+	SmbFirewallAllowedPortRulesConfig            = env.GetString("SMB_FIREWALL_ALLOWED_PORT_RULES", "tcp,88,135,139,389,445,464,636,udp,53,88,389,464")
+	IlbHealthCheckFirewallSourceRangesConfig     = env.GetString("ILB_HEALTH_CHECK_FIREWALL_SOURCE_RANGES", "130.211.0.0/22,35.191.0.0/16")
+	IlbHealthCheckFirewallAllowedPortRulesConfig = env.GetString("ILB_HEALTH_CHECK_FIREWALL_ALLOWED_PORT_RULES", "tcp")
+	RegionNumber                                 = getRegionNumber()
 )
 
 var InternalVSANetworks = map[string]InternalVSANetwork{

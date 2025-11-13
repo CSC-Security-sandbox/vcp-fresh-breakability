@@ -1419,7 +1419,7 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 		vlmConfig.Deployment.Labels["account_id"] = pool.Account.Name
 		if utils.IsFileProtocolSupported(pool.Account.Name) {
 			// Set the NFS V3 support flag based on the file protocol support
-			vlmConfig.Deployment.DevFlags.EnableNfsV3Support = true
+			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
 			vlmConfig.Deployment.Images.VSAImageName = vsaFilesImageName
 		}
 	}

@@ -1700,18 +1700,87 @@ func TestCifsServiceCreateParamsToONTAP(t *testing.T) {
 	})
 	t.Run("WhenParamsSet", func(tt *testing.T) {
 		params := &CifsServiceCreateParams{
-			BaseParams: BaseParams{},
-			SvmUUID:    "test-svm-uuid",
-			Name:       "test-cifs",
-			Enabled:    nillable.ToPointer(true),
-			AdDomain:   nillable.ToPointer("test.domain.com"),
+			SvmName: nillable.ToPointer("test-svm"),
+			Name:    nillable.ToPointer("test-cifs"),
+			Domain:  nillable.ToPointer("test.domain.com"),
 		}
 
 		otParams := cifsServiceCreateParamsToONTAP(params)
-		assert.Equal(tt, "test-svm-uuid", *otParams.Info.Svm.UUID)
+		assert.Equal(tt, "test-svm", *otParams.Info.Svm.Name)
 		assert.Equal(tt, "test-cifs", *otParams.Info.Name)
-		assert.True(tt, *otParams.Info.Enabled)
-		assert.Equal(tt, "test.domain.com", *otParams.Info.AdDomain.Fqdn)
+	})
+
+	t.Run("WhenAuthUserTypeIsHybridUser", func(tt *testing.T) {
+		hybridUserType := hybridUser
+		cert := "cert-data"
+		params := &CifsServiceCreateParams{
+			SvmName:            nillable.ToPointer("svm1"),
+			Name:               nillable.ToPointer("cifs1"),
+			Domain:             nillable.ToPointer("domain.com"),
+			ClientID:           nillable.ToPointer("client-id"),
+			TenantID:           nillable.ToPointer("tenant-id"),
+			EntraIDCertificate: nillable.ToPointer(log.Secret(cert)),
+			AuthUserType:       &hybridUserType,
+			TLSEnabled:         nillable.ToPointer(true),
+		}
+		otParams := cifsServiceCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "cifs1", *otParams.Info.Name)
+		assert.Equal(tt, "svm1", *otParams.Info.Svm.Name)
+		assert.Equal(tt, "client-id", *otParams.Info.ClientID)
+		assert.Equal(tt, "tenant-id", *otParams.Info.TenantID)
+		assert.Equal(tt, &hybridUserType, otParams.Info.AuthUserType)
+		assert.NotNil(tt, otParams.Info.AuthenticationMethod)
+		assert.Equal(tt, authMethodCertificate, *otParams.Info.AuthenticationMethod)
+		assert.NotNil(tt, otParams.Info.AdDomain)
+		assert.Equal(tt, "domain.com", *otParams.Info.AdDomain.Fqdn)
+		assert.NotNil(tt, otParams.Info.ClientCertificate)
+		assert.Equal(tt, strfmt.Password(cert), *otParams.Info.ClientCertificate)
+	})
+
+	t.Run("WhenAuthUserTypeIsNotHybridUser", func(tt *testing.T) {
+		otherUserType := "other"
+		site := "site1"
+		ou := "ou1"
+		username := "user1"
+		password := "pass1"
+		params := &CifsServiceCreateParams{
+			SvmName:            nillable.ToPointer("svm1"),
+			Name:               nillable.ToPointer("cifs1"),
+			Domain:             nillable.ToPointer("domain.com"),
+			Site:               &site,
+			OrganizationalUnit: &ou,
+			Username:           &username,
+			Password:           &password,
+			AuthUserType:       &otherUserType,
+			TLSEnabled:         nillable.ToPointer(false),
+		}
+		otParams := cifsServiceCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "cifs1", *otParams.Info.Name)
+		assert.NotNil(tt, otParams.Info.AdDomain)
+		assert.Equal(tt, &site, otParams.Info.AdDomain.DefaultSite)
+		assert.Equal(tt, &ou, otParams.Info.AdDomain.OrganizationalUnit)
+		assert.Equal(tt, &username, otParams.Info.AdDomain.User)
+		assert.Equal(tt, &password, otParams.Info.AdDomain.Password)
+		assert.Equal(tt, "domain.com", *otParams.Info.AdDomain.Fqdn)
+	})
+
+	t.Run("WhenAuthUserTypeIsNotHybridUserAndNoAdDomainFields", func(tt *testing.T) {
+		otherUserType := "other"
+		params := &CifsServiceCreateParams{
+			SvmName:      nillable.ToPointer("svm1"),
+			Name:         nillable.ToPointer("cifs1"),
+			Domain:       nillable.ToPointer("domain.com"),
+			AuthUserType: &otherUserType,
+			TLSEnabled:   nillable.ToPointer(false),
+		}
+		otParams := cifsServiceCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Nil(tt, otParams.Info.AdDomain)
 	})
 }
 
@@ -1722,9 +1791,8 @@ func TestCifsServiceModifyParamsToONTAP(t *testing.T) {
 	})
 	t.Run("WhenParamsSet", func(tt *testing.T) {
 		params := &CifsServiceModifyParams{
-			BaseParams: BaseParams{},
-			SvmUUID:    "test-svm-uuid",
-			Enabled:    nillable.ToPointer(false),
+			SvmUUID: nillable.ToPointer("test-svm-uuid"),
+			Enabled: nillable.ToPointer(false),
 		}
 
 		otParams := cifsServiceModifyParamsToONTAP(params)
@@ -2892,5 +2960,403 @@ func TestRolePrivilegeModifyParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, otParams.Info)
 		assert.Equal(tt, models.RolePrivilegeLevelReadCreate, *otParams.Info.Access)
 		assert.Equal(tt, "-vserver vs1 -volume vol1 -destination-aggregate aggr1", *otParams.Info.Query)
+	})
+}
+
+func TestServerRootCAGetParamsToONTAPCollectionGet(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := serverRootCAGetParamsToONTAPCollectionGet(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &ServerRootCAGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"name", "type"},
+			},
+			SvmName:         nillable.ToPointer("svm1"),
+			Name:            nillable.ToPointer("cert1"),
+			CertificateType: nillable.ToPointer("server"),
+		}
+		otParams := serverRootCAGetParamsToONTAPCollectionGet(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "svm1", *otParams.SvmName)
+		assert.Equal(tt, "cert1", *otParams.Name)
+		assert.Equal(tt, "server", *otParams.Type)
+		assert.Equal(tt, []string{"name", "type"}, otParams.Fields)
+	})
+}
+
+func TestServerRootCAInstallParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := serverRootCAInstallParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &ServerRootCAInstallParams{
+			PrivateKey:      nillable.ToPointer("private-key"),
+			Certificate:     nillable.ToPointer("certificate"),
+			SvmName:         nillable.ToPointer("svm1"),
+			CertificateType: nillable.ToPointer("server"),
+			CommonName:      nillable.ToPointer("cn1"),
+			Name:            nillable.ToPointer("cert1"),
+		}
+		otParams := serverRootCAInstallParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "private-key", *otParams.Info.PrivateKey)
+		assert.Equal(tt, "certificate", *otParams.Info.PublicCertificate)
+		assert.Equal(tt, "svm1", *otParams.Info.Svm.Name)
+		assert.Equal(tt, "server", *otParams.Info.Type)
+		assert.Equal(tt, "cn1", *otParams.Info.CommonName)
+		assert.Equal(tt, "cert1", *otParams.Info.Name)
+	})
+}
+
+func TestServerRootCADeleteParamsToONTAPCollectionDelete(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := serverRootCADeleteParamsToONTAPCollectionDelete(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &ServerRootCADeleteParams{
+			UUID:                 nillable.ToPointer("uuid1"),
+			SvmName:              nillable.ToPointer("svm1"),
+			SerialNumber:         nillable.ToPointer("serial1"),
+			CommonName:           nillable.ToPointer("cn1"),
+			CertificateAuthority: nillable.ToPointer("ca1"),
+		}
+		otParams := serverRootCADeleteParamsToONTAPCollectionDelete(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "uuid1", *otParams.UUID)
+		assert.Equal(tt, "svm1", *otParams.SvmName)
+		assert.Equal(tt, "serial1", *otParams.SerialNumber)
+		assert.Equal(tt, "cn1", *otParams.CommonName)
+		assert.Equal(tt, "ca1", *otParams.Ca)
+	})
+}
+
+func TestDNSGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := dnsGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &DNSGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"domains", "servers"},
+			},
+			SvmUUID: "svm-uuid-1",
+		}
+		otParams := dnsGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, []string{"domains", "servers"}, otParams.Fields)
+		assert.Equal(tt, "svm-uuid-1", otParams.UUID)
+	})
+}
+
+func TestDNSModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := dnsModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithDomainsAndServers", func(tt *testing.T) {
+		params := &DNSModifyParams{
+			SvmUUID:     "svm-uuid-1",
+			Domains:     []string{"example.com", "test.com"},
+			NameServers: []string{"8.8.8.8", "8.8.4.4"},
+		}
+		otParams := dnsModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "svm-uuid-1", otParams.UUID)
+		assert.NotNil(tt, otParams.Info)
+		assert.Len(tt, otParams.Info.Domains, 2)
+		assert.Equal(tt, "example.com", *otParams.Info.Domains[0])
+		assert.Equal(tt, "test.com", *otParams.Info.Domains[1])
+		assert.Len(tt, otParams.Info.Servers, 2)
+		assert.Equal(tt, "8.8.8.8", *otParams.Info.Servers[0])
+		assert.Equal(tt, "8.8.4.4", *otParams.Info.Servers[1])
+	})
+
+	t.Run("WhenParamsSetWithDynamicDNS", func(tt *testing.T) {
+		useSecure := true
+		fqdn := "test.example.com"
+		enabled := true
+		params := &DNSModifyParams{
+			SvmUUID: "svm-uuid-1",
+			DDNSModifyParams: DDNSModifyParams{
+				UseSecure: &useSecure,
+				Fqdn:      &fqdn,
+				Enabled:   &enabled,
+			},
+		}
+		otParams := dnsModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.DynamicDNS)
+		assert.Equal(tt, &fqdn, otParams.Info.DynamicDNS.Fqdn)
+		assert.Equal(tt, &useSecure, otParams.Info.DynamicDNS.UseSecure)
+		assert.Equal(tt, &enabled, otParams.Info.DynamicDNS.Enabled)
+	})
+
+	t.Run("WhenParamsSetWithAllFields", func(tt *testing.T) {
+		useSecure := false
+		fqdn := "ddns.example.com"
+		enabled := true
+		params := &DNSModifyParams{
+			SvmUUID:     "svm-uuid-1",
+			Domains:     []string{"example.com"},
+			NameServers: []string{"1.1.1.1"},
+			DDNSModifyParams: DDNSModifyParams{
+				UseSecure: &useSecure,
+				Fqdn:      &fqdn,
+				Enabled:   &enabled,
+			},
+		}
+		otParams := dnsModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Len(tt, otParams.Info.Domains, 1)
+		assert.Len(tt, otParams.Info.Servers, 1)
+		assert.NotNil(tt, otParams.Info.DynamicDNS)
+	})
+}
+
+func TestDNSCreateParamsToONTAPWithSvmUUID(t *testing.T) {
+	t.Run("WhenSvmUUIDSet", func(tt *testing.T) {
+		params := &DNSCreateParams{
+			SvmUUID:    "svm-uuid-1",
+			Domains:    []string{"example.com"},
+			DNSServers: []string{"8.8.8.8"},
+		}
+		otParams := dnsCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.Svm)
+		assert.Equal(tt, "svm-uuid-1", *otParams.Info.Svm.UUID)
+	})
+}
+
+func TestCifsDomainModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cifsDomainModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithScheduleEnabled", func(tt *testing.T) {
+		scheduleEnabled := true
+		params := &CifsDomainModifyParams{
+			SvmUUID:         "svm-uuid-1",
+			ScheduleEnabled: &scheduleEnabled,
+		}
+		otParams := cifsDomainModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.PasswordSchedule)
+		assert.Equal(tt, &scheduleEnabled, otParams.Info.PasswordSchedule.ScheduleEnabled)
+	})
+
+	t.Run("WhenParamsSetWithCifsPasswordOperation", func(tt *testing.T) {
+		passwordOp := "change"
+		params := &CifsDomainModifyParams{
+			SvmUUID:               "svm-uuid-1",
+			CifsPasswordOperation: &passwordOp,
+		}
+		otParams := cifsDomainModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, &passwordOp, otParams.CifsPasswordOperation)
+	})
+
+	t.Run("WhenParamsSetWithAdUserNameAndPassword", func(tt *testing.T) {
+		adUser := "aduser"
+		adPass := "adpass"
+		params := &CifsDomainModifyParams{
+			SvmUUID:    "svm-uuid-1",
+			AdUserName: &adUser,
+			AdPassword: &adPass,
+		}
+		otParams := cifsDomainModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.AdDomain)
+		assert.Equal(tt, &adUser, otParams.Info.AdDomain.User)
+		assert.Equal(tt, &adPass, otParams.Info.AdDomain.Password)
+	})
+
+	t.Run("WhenParamsSetWithClientIDTenantIDAndCertificate", func(tt *testing.T) {
+		clientID := "client-id-1"
+		tenantID := "tenant-id-1"
+		cert := strfmt.Password("cert-data")
+		params := &CifsDomainModifyParams{
+			SvmUUID:           "svm-uuid-1",
+			ClientID:          &clientID,
+			TenantID:          &tenantID,
+			ClientCertificate: &cert,
+		}
+		otParams := cifsDomainModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, &clientID, otParams.Info.ClientID)
+		assert.Equal(tt, &tenantID, otParams.Info.TenantID)
+		assert.Equal(tt, &cert, otParams.Info.ClientCertificate)
+	})
+
+	t.Run("WhenParamsSetWithAllFields", func(tt *testing.T) {
+		scheduleEnabled := true
+		passwordOp := "change"
+		adUser := "aduser"
+		adPass := "adpass"
+		clientID := "client-id-1"
+		tenantID := "tenant-id-1"
+		cert := strfmt.Password("cert-data")
+		params := &CifsDomainModifyParams{
+			SvmUUID:               "svm-uuid-1",
+			ScheduleEnabled:       &scheduleEnabled,
+			CifsPasswordOperation: &passwordOp,
+			AdUserName:            &adUser,
+			AdPassword:            &adPass,
+			ClientID:              &clientID,
+			TenantID:              &tenantID,
+			ClientCertificate:     &cert,
+		}
+		otParams := cifsDomainModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.PasswordSchedule)
+		assert.NotNil(tt, otParams.Info.AdDomain)
+		assert.Equal(tt, &clientID, otParams.Info.ClientID)
+		assert.Equal(tt, &tenantID, otParams.Info.TenantID)
+		assert.Equal(tt, &cert, otParams.Info.ClientCertificate)
+	})
+}
+
+func TestCifsShareCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cifsShareCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		svmName := "svm1"
+		params := &CifsShareCreateParams{
+			SvmName:         &svmName,
+			Name:            "share1",
+			Path:            "/path/to/share",
+			ShareProperties: []string{"browsable", "oplocks"},
+		}
+		otParams := cifsShareCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "share1", *otParams.Info.Name)
+		assert.Equal(tt, "/path/to/share", *otParams.Info.Path)
+		assert.Equal(tt, "svm1", *otParams.Info.Svm.Name)
+	})
+}
+
+func TestCalculateShareProperties(t *testing.T) {
+	t.Run("WhenSharePropertyCA", func(tt *testing.T) {
+		shareProperties := []string{CIFSSharePropertyCA}
+		result := calculateShareProperties(shareProperties)
+		assert.NotNil(tt, result)
+		assert.True(tt, *result.ContinuouslyAvailable)
+	})
+
+	t.Run("WhenSharePropertyEncryptData", func(tt *testing.T) {
+		shareProperties := []string{CIFSSharePropertyEncryptData}
+		result := calculateShareProperties(shareProperties)
+		assert.NotNil(tt, result)
+		assert.True(tt, *result.Encryption)
+	})
+
+	t.Run("WhenSharePropertyAccessBasedEnumeration", func(tt *testing.T) {
+		shareProperties := []string{CIFSAccessBasedEnumeration}
+		result := calculateShareProperties(shareProperties)
+		assert.NotNil(tt, result)
+		assert.True(tt, *result.AccessBasedEnumeration)
+	})
+
+	t.Run("WhenSharePropertyCAInExtendShareProperties", func(tt *testing.T) {
+		shareProperties := []string{CIFSSharePropertyCA}
+		extended := ExtendSharePropertiesWithDefaults(shareProperties)
+		assert.NotNil(tt, extended)
+		assert.Contains(tt, extended, CIFSSharePropertyCA)
+	})
+
+	t.Run("WhenMultipleShareProperties", func(tt *testing.T) {
+		shareProperties := []string{
+			CIFSSharePropertyCA,
+			CIFSSharePropertyEncryptData,
+			CIFSAccessBasedEnumeration,
+			CIFSSharePropertyBrowsable,
+		}
+		result := calculateShareProperties(shareProperties)
+		assert.NotNil(tt, result)
+		assert.True(tt, *result.ContinuouslyAvailable)
+		assert.True(tt, *result.Encryption)
+		assert.True(tt, *result.AccessBasedEnumeration)
+		assert.True(tt, *result.Browsable)
+	})
+}
+
+func TestCifsShareACLDeleteParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cifsShareACLDeleteParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &CifsShareACLDeleteParams{
+			ShareName: "share1",
+			User:      "user1",
+			SvmUUID:   "svm-uuid-1",
+		}
+		otParams := cifsShareACLDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "share1", otParams.Share)
+		assert.Equal(tt, "user1", otParams.UserOrGroup)
+		assert.Equal(tt, "svm-uuid-1", otParams.SvmUUID)
+	})
+}
+
+func TestCifsServiceDeleteParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cifsServiceDeleteParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithClientIDTenantIDAndCertificate", func(tt *testing.T) {
+		params := &CifsServiceDeleteParams{
+			SvmUUID:            "svm-uuid-1",
+			Force:              true,
+			ClientID:           "client-id-1",
+			TenantID:           "tenant-id-1",
+			EntraIDCertificate: "cert-data",
+		}
+		otParams := cifsServiceDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "svm-uuid-1", otParams.SvmUUID)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.ClientID)
+		assert.Equal(tt, "client-id-1", *otParams.Info.ClientID)
+		assert.NotNil(tt, otParams.Info.TenantID)
+		assert.Equal(tt, "tenant-id-1", *otParams.Info.TenantID)
+		assert.NotNil(tt, otParams.Info.ClientCertificate)
+		assert.Equal(tt, strfmt.Password("cert-data"), *otParams.Info.ClientCertificate)
+	})
+
+	t.Run("WhenParamsSetWithoutClientIDTenantIDAndCertificate", func(tt *testing.T) {
+		params := &CifsServiceDeleteParams{
+			SvmUUID: "svm-uuid-1",
+			Force:   true,
+		}
+		otParams := cifsServiceDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "svm-uuid-1", otParams.SvmUUID)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.AdDomain)
 	})
 }

@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -53,14 +54,21 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_Success() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -69,7 +77,11 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_Success() {
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -99,14 +111,22 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_SuccessWithBP() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DeleteIgroupsFromBlockProperties)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -116,7 +136,11 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_SuccessWithBP() {
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -154,22 +178,47 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobFailsAfterWor
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	var jobStatusUpdates []string
 
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed updating job"))
+	mockStorage.EXPECT().UpdateJob(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, _ string, status string, _ int, _ string) error {
+			jobStatusUpdates = append(jobStatusUpdates, status)
+			if status == string(models.JobsStateERROR) {
+				return errors.New("failed updating job")
+			}
+			return nil
+		})
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
-	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to update volume details"))
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		PoolID:    1,
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password:      "password",
@@ -179,6 +228,10 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobFailsAfterWor
 		},
 		Account: &datamodel.Account{
 			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
 		},
 	}
 	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
@@ -190,7 +243,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobFailsAfterWor
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
-	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+	assert.Contains(s.T(), jobStatusUpdates, string(models.JobsStateERROR))
 }
 
 func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_FirstUpdateJobFails() {
@@ -203,11 +256,24 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_FirstUpdateJobFails() 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
 
 	// Mock activities
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
-	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to update volume details"))
 
 	// Execute workflow
@@ -238,7 +304,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteVolumeError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
-	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "ERROR", mock.Anything, mock.Anything).Return(nil)
@@ -246,14 +312,27 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteVolumeError() {
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
-	s.env.RegisterActivity(createActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to delete volume"))
-	s.env.OnActivity(createActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -283,7 +362,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteVolumeInONTAPErr
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
-	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "ERROR", mock.Anything, mock.Anything).Return(nil)
@@ -291,12 +370,24 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteVolumeInONTAPErr
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to delete volume in ONTAP"))
-	s.env.OnActivity(createActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -326,19 +417,31 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBE
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
-	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to delete volume in ONTAP"))
-	s.env.OnActivity(createActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to update volume state in DB"))
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to update volume state in DB"))
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -369,24 +472,46 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteSnapshotPolicyIn
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	var jobStatusUpdates []string
 
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed updating job"))
+	mockStorage.EXPECT().UpdateJob(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, _ string, status string, _ int, _ string) error {
+			jobStatusUpdates = append(jobStatusUpdates, status)
+			if status == string(models.JobsStateERROR) {
+				return errors.New("failed updating job")
+			}
+			return nil
+		})
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to delete snapshot policy"))
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		PoolID:    1,
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password:      "password",
@@ -395,6 +520,10 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteSnapshotPolicyIn
 			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
 		},
 		SnapshotPolicy: &datamodel.SnapshotPolicy{
 			Name:      "policy1",
@@ -420,7 +549,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteSnapshotPolicyIn
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
-	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+	assert.Contains(s.T(), jobStatusUpdates, string(models.JobsStateERROR))
 }
 
 func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_WithExportPolicy() {
@@ -437,6 +566,9 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_WithExportPolicy() {
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteExportPolicy)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -446,6 +578,9 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_WithExportPolicy() {
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow with a volume that has export policy rules
@@ -494,6 +629,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_ExportPolicyError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -504,14 +640,22 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_ExportPolicyError() {
 	s.env.RegisterActivity(deleteActivity.DeleteExportPolicy)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
 	s.env.RegisterActivity(activities.CommonActivities.GetOntapJob)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	deletionError := errors.New("export policy deletion error")
 	s.env.OnActivity(deleteActivity.DeleteExportPolicy, mock.Anything, mock.Anything, mock.Anything).Return(vsaerrors.WrapAsTemporalApplicationError(deletionError))
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow with a volume that has export policy rules
 	volume := &datamodel.Volume{
@@ -564,16 +708,19 @@ func (s *VolumeDeleteTestSuite) Test_DeleteSnapmirrorInONTAPFails() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to delete snapmirror"))
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
@@ -599,6 +746,7 @@ func (s *VolumeDeleteTestSuite) Test_WaitForONTAPJobFails() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -606,6 +754,7 @@ func (s *VolumeDeleteTestSuite) Test_WaitForONTAPJobFails() {
 
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -614,6 +763,7 @@ func (s *VolumeDeleteTestSuite) Test_WaitForONTAPJobFails() {
 	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{
 		State: "failure",
 	}, errors.New("ONTAP job failed"))
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
@@ -648,6 +798,9 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobStatusDoneErr
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock UpdateJobStatus to succeed for PROCESSING state
@@ -701,6 +854,8 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobStatusErrorDe
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(deleteVolError)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Mock UpdateJobStatus to succeed for PROCESSING state
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -754,6 +909,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBE
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -762,15 +918,21 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBE
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
-	s.env.RegisterActivity(activities.VolumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("delete volume error"))
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	// Mock UpdateVolumeStateInDB to fail (line 160-162)
-	s.env.OnActivity(activities.VolumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update volume state error"))
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update volume state error"))
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -800,6 +962,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBE
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -808,15 +971,17 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBE
 	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteVolume)
-	s.env.RegisterActivity(activities.VolumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(utilerrors.NewNotFoundErr("volume not found", nil))
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	// Mock UpdateVolumeStateInDB to fail (line 167)
-	s.env.OnActivity(activities.VolumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update volume state error"))
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update volume state error"))
 
 	// Execute workflow
 	volume := &datamodel.Volume{

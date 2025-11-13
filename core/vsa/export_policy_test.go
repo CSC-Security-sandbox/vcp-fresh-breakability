@@ -73,12 +73,54 @@ func (m *MockNASClient) CifsServiceGet(params *ontapRest.CifsServiceGetParams) (
 	return args.Get(0).(*ontapRest.CifsService), args.Error(1)
 }
 
-func (m *MockNASClient) CifsServiceCreate(params *ontapRest.CifsServiceCreateParams) error {
+func (m *MockNASClient) CifsServiceList(params *ontapRest.CifsServiceGetParams) ([]*ontapRest.CifsService, error) {
+	args := m.Called(params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*ontapRest.CifsService), args.Error(1)
+}
+
+func (m *MockNASClient) CifsServiceCreate(params *ontapRest.CifsServiceCreateParams) (bool, *ontapRest.JobAccepted, error) {
+	args := m.Called(params)
+	var job *ontapRest.JobAccepted
+	if val := args.Get(1); val != nil {
+		job = val.(*ontapRest.JobAccepted)
+	}
+	return args.Bool(0), job, args.Error(2)
+}
+
+func (m *MockNASClient) CifsServiceModify(params *ontapRest.CifsServiceModifyParams) error {
 	args := m.Called(params)
 	return args.Error(0)
 }
 
-func (m *MockNASClient) CifsServiceModify(params *ontapRest.CifsServiceModifyParams) error {
+func (m *MockNASClient) CifsDomainModify(params *ontapRest.CifsDomainModifyParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsShareACLDelete(params *ontapRest.CifsShareACLDeleteParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsServiceAddMembers(params *ontapRest.CifsServiceModifyGroupMembersParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsServiceDelete(params *ontapRest.CifsServiceDeleteParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsServiceAddSecurityPrivilege(params *ontapRest.CifsServiceModifySecurityPrivilegeParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsShareCreate(params *ontapRest.CifsShareCreateParams) error {
 	args := m.Called(params)
 	return args.Error(0)
 }

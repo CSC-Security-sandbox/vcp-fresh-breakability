@@ -351,6 +351,55 @@ type ExportPolicy struct {
 	ExportRules      []*ExportRule `json:"export_rules"`
 }
 
+type ConfigActiveDirectoryParams struct {
+	ActiveDirectory *ActiveDirectory
+	ExternalSVMUUID string
+	SVMName         string
+	JunctionPath    string
+}
+
+type ActiveDirectory struct {
+	UUID                          string
+	PrimaryAD                     *bool
+	ManagedAD                     *bool
+	Label                         string
+	Username                      string
+	Password                      log.Secret
+	Domain                        string
+	DNS                           string
+	NetBIOS                       string
+	Region                        string
+	OrganizationalUnit            string
+	Site                          *string
+	Status                        string
+	CIFSServers                   []*CIFSServer
+	CreatedAt                     time.Time
+	UpdatedAt                     time.Time
+	DeletedAt                     *time.Time
+	Users                         map[string][]string
+	AdName                        string
+	KdcIP                         string
+	UserDN                        *string
+	GroupDN                       *string
+	GroupMembershipFilter         *string
+	AesEncryption                 *bool
+	EncryptDCConnections          *bool
+	ServerRootCaCertificate       *string
+	LdapSigning                   *bool
+	AllowLocalNFSUsersWithLdap    *bool
+	LdapOverTLS                   *bool
+	PreferredServersForLdapClient *string
+	Description                   *string
+	Name                          *string
+}
+
+type CIFSServer struct {
+	SVMUUID           string
+	SVMName           string
+	ServerNamePostfix string
+	HasLdapConfig     bool
+}
+
 type ExportRule struct {
 	AllowedClients      string
 	AnonymousUser       string

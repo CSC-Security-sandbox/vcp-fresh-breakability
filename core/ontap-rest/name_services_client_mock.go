@@ -20,6 +20,110 @@ func (_m *MockNameServicesClient) EXPECT() *MockNameServicesClient_Expecter {
 	return &MockNameServicesClient_Expecter{mock: &_m.Mock}
 }
 
+// DNSGet provides a mock function with given fields: params
+func (_m *MockNameServicesClient) DNSGet(params *DNSGetParams) (*DNS, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DNSGet")
+	}
+
+	var r0 *DNS
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*DNSGetParams) (*DNS, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*DNSGetParams) *DNS); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*DNS)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*DNSGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNameServicesClient_DNSGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DNSGet'
+type MockNameServicesClient_DNSGet_Call struct {
+	*mock.Call
+}
+
+// DNSGet is a helper method to define mock.On call
+//   - params *DNSGetParams
+func (_e *MockNameServicesClient_Expecter) DNSGet(params interface{}) *MockNameServicesClient_DNSGet_Call {
+	return &MockNameServicesClient_DNSGet_Call{Call: _e.mock.On("DNSGet", params)}
+}
+
+func (_c *MockNameServicesClient_DNSGet_Call) Run(run func(params *DNSGetParams)) *MockNameServicesClient_DNSGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*DNSGetParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_DNSGet_Call) Return(_a0 *DNS, _a1 error) *MockNameServicesClient_DNSGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNameServicesClient_DNSGet_Call) RunAndReturn(run func(*DNSGetParams) (*DNS, error)) *MockNameServicesClient_DNSGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DNSModify provides a mock function with given fields: params
+func (_m *MockNameServicesClient) DNSModify(params *DNSModifyParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DNSModify")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*DNSModifyParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNameServicesClient_DNSModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DNSModify'
+type MockNameServicesClient_DNSModify_Call struct {
+	*mock.Call
+}
+
+// DNSModify is a helper method to define mock.On call
+//   - params *DNSModifyParams
+func (_e *MockNameServicesClient_Expecter) DNSModify(params interface{}) *MockNameServicesClient_DNSModify_Call {
+	return &MockNameServicesClient_DNSModify_Call{Call: _e.mock.On("DNSModify", params)}
+}
+
+func (_c *MockNameServicesClient_DNSModify_Call) Run(run func(params *DNSModifyParams)) *MockNameServicesClient_DNSModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*DNSModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_DNSModify_Call) Return(_a0 error) *MockNameServicesClient_DNSModify_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNameServicesClient_DNSModify_Call) RunAndReturn(run func(*DNSModifyParams) error) *MockNameServicesClient_DNSModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DnsCreate provides a mock function with given fields: params
 func (_m *MockNameServicesClient) DnsCreate(params *DNSCreateParams) (*models.DNSResponse, error) {
 	ret := _m.Called(params)

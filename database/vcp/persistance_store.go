@@ -683,6 +683,10 @@ func (s *PersistenceStore) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *d
 	return s.dataStore.UpdateSvmWithKmsConfigIDs(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
 }
 
+func (s *PersistenceStore) UpdateSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm, activeDirectoryID int64) (*datamodel.Svm, error) {
+	return s.dataStore.UpdateSvmActiveDirectoryID(ctx, svm, activeDirectoryID)
+}
+
 func (s *PersistenceStore) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
 	return s.dataStore.CreateLif(ctx, lif)
 }
@@ -1357,6 +1361,10 @@ func (s *PersistenceStore) ListNodeNodeGroupMap(ctx context.Context, includeDele
 	return s.dataStore.ListNodeNodeGroupMap(ctx, includeDeleted, pagination)
 }
 
+func (s *PersistenceStore) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
+	return s.dataStore.GetActiveDirectoryByUUID(ctx, uuid)
+}
+
 func (s *PersistenceStore) ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error) {
 	return s.dataStore.ListActiveDirectories(ctx, accountID)
 }
@@ -1375,4 +1383,8 @@ func (s *PersistenceStore) DeleteActiveDirectory(ctx context.Context, uuid strin
 
 func (s *PersistenceStore) GetSVMsUsingActiveDirectory(ctx context.Context, adId int64) ([]*datamodel.Svm, error) {
 	return s.dataStore.GetSVMsUsingActiveDirectory(ctx, adId)
+}
+
+func (s *PersistenceStore) GetActiveDirectoryForPoolByPoolID(ctx context.Context, poolID int64) (*datamodel.ActiveDirectory, error) {
+	return s.dataStore.GetActiveDirectoryForPoolByPoolID(ctx, poolID)
 }

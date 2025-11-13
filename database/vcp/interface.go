@@ -136,6 +136,7 @@ type (
 		GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error)
 		GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error)
 		UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error)
+		UpdateSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm, activeDirectoryID int64) (*datamodel.Svm, error)
 		ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error)
 
 		CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error)
@@ -321,10 +322,13 @@ type (
 		CreateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) (*datamodel.ClusterPeerings, error)
 		UpdateClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error
 		ListClusterPeeringRowsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.ClusterPeerings, error)
+		// Active Directory methods
+		GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error)
 		ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error)
 		GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, uuids []string) ([]*datamodel.ActiveDirectory, error)
 		DeleteClusterPeeringRow(ctx context.Context, clusterPeeringRow *datamodel.ClusterPeerings) error
 		DeleteActiveDirectory(ctx context.Context, uuid string) error
 		GetSVMsUsingActiveDirectory(ctx context.Context, adId int64) ([]*datamodel.Svm, error)
+		GetActiveDirectoryForPoolByPoolID(ctx context.Context, poolID int64) (*datamodel.ActiveDirectory, error)
 	}
 )

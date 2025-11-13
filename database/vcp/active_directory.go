@@ -50,12 +50,32 @@ func (d *DataStoreRepository) GetActiveDirectoryByUuidAndAccountId(ctx context.C
 	return &ad, nil
 }
 
+func (d *DataStoreRepository) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {
+	ad, err := getActiveDirectoryWithDetails(d.db.GORM().Unscoped().WithContext(ctx), &datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{UUID: uuid}})
+	if err != nil {
+		return nil, err
+	}
+	return ad, nil
+}
+
 func (d *DataStoreRepository) ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error) {
 	return listActiveDirectories(d.db.GORM().WithContext(ctx), accountID)
 }
 
 func (d *DataStoreRepository) GetMultipleActiveDirectoriesByUUIDs(ctx context.Context, uuids []string) ([]*datamodel.ActiveDirectory, error) {
 	return getMultipleActiveDirectoriesByUUIDs(d.db.GORM().Unscoped().WithContext(ctx), uuids)
+}
+
+func (d *DataStoreRepository) GetActiveDirectoryForPoolByPoolID(ctx context.Context, poolID int64) (*datamodel.ActiveDirectory, error) {
+	var pool *datamodel.Pool
+	err := d.db.GORM().WithContext(ctx).Where("id=?", poolID).Preload("ActiveDirectory").First(&pool).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("Pool not found")
+		}
+		return nil, err
+	}
+	return pool.ActiveDirectory, nil
 }
 
 func listActiveDirectories(db *gorm.DB, accountID int64) ([]*datamodel.ActiveDirectory, error) {

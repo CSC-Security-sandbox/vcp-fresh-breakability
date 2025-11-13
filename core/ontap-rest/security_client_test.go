@@ -468,3 +468,196 @@ func TestRoleCollectionGet(t *testing.T) {
 		}, response.RoleCollectionGetOK)
 	})
 }
+
+func TestServerRootCACertificateGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateGet(&ServerRootCAGetParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenNoCertificatesFound_ThenReturnNotFoundError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateCollectionGetOK{
+			Payload: &models.SecurityCertificateResponse{
+				NumRecords:                               nillable.ToPointer(int64(0)),
+				SecurityCertificateResponseInlineRecords: []*models.SecurityCertificate{},
+			},
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateGet(&ServerRootCAGetParams{})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenCertificatesFound_ThenReturnFirstCertificate", func(tt *testing.T) {
+		certName := "test-cert"
+		cert := &models.SecurityCertificate{
+			Name: &certName,
+		}
+		transport := &mockTransport{response: &security.SecurityCertificateCollectionGetOK{
+			Payload: &models.SecurityCertificateResponse{
+				NumRecords: nillable.ToPointer(int64(1)),
+				SecurityCertificateResponseInlineRecords: []*models.SecurityCertificate{
+					cert,
+				},
+			},
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateGet(&ServerRootCAGetParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Equal(tt, cert, &response.SecurityCertificate)
+	})
+}
+
+func TestSecurityCertificateCollectionGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.securityCertificateCollectionGet(security.NewSecurityCertificateCollectionGetParams())
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenPayloadIsNil_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateCollectionGetOK{
+			Payload: nil,
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.securityCertificateCollectionGet(security.NewSecurityCertificateCollectionGetParams())
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenRecordsIsEmpty_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateCollectionGetOK{
+			Payload: &models.SecurityCertificateResponse{
+				NumRecords:                               nillable.ToPointer(int64(0)),
+				SecurityCertificateResponseInlineRecords: []*models.SecurityCertificate{},
+			},
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.securityCertificateCollectionGet(security.NewSecurityCertificateCollectionGetParams())
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenRecordsExist_ThenReturnCertificates", func(tt *testing.T) {
+		cert1Name := "cert1"
+		cert2Name := "cert2"
+		cert1 := &models.SecurityCertificate{Name: &cert1Name}
+		cert2 := &models.SecurityCertificate{Name: &cert2Name}
+		transport := &mockTransport{response: &security.SecurityCertificateCollectionGetOK{
+			Payload: &models.SecurityCertificateResponse{
+				NumRecords: nillable.ToPointer(int64(2)),
+				SecurityCertificateResponseInlineRecords: []*models.SecurityCertificate{
+					cert1,
+					cert2,
+				},
+			},
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.securityCertificateCollectionGet(security.NewSecurityCertificateCollectionGetParams())
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Len(tt, response, 2)
+		assert.Equal(tt, cert1, &response[0].SecurityCertificate)
+		assert.Equal(tt, cert2, &response[1].SecurityCertificate)
+	})
+}
+
+func TestServerRootCACertificateInstall(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateInstall(&ServerRootCAInstallParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenResponseIsNil_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateCreateCreated{
+			Payload: nil,
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateInstall(&ServerRootCAInstallParams{})
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenPayloadIsNil_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateCreateCreated{
+			Payload: nil,
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateInstall(&ServerRootCAInstallParams{})
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenRecordsIsEmpty_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateCreateCreated{
+			Payload: &models.SecurityCertificateResponse{
+				NumRecords:                               nillable.ToPointer(int64(0)),
+				SecurityCertificateResponseInlineRecords: []*models.SecurityCertificate{},
+			},
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateInstall(&ServerRootCAInstallParams{})
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenRecordExists_ThenReturnCertificate", func(tt *testing.T) {
+		certName := "test-cert"
+		cert := &models.SecurityCertificate{
+			Name: &certName,
+		}
+		transport := &mockTransport{response: &security.SecurityCertificateCreateCreated{
+			Payload: &models.SecurityCertificateResponse{
+				NumRecords: nillable.ToPointer(int64(1)),
+				SecurityCertificateResponseInlineRecords: []*models.SecurityCertificate{
+					cert,
+				},
+			},
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateInstall(&ServerRootCAInstallParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Equal(tt, cert, &response.SecurityCertificate)
+	})
+}
+
+func TestServerRootCACertificateDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.ServerRootCACertificateDelete(&ServerRootCADeleteParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateDeleteCollectionOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.ServerRootCACertificateDelete(&ServerRootCADeleteParams{})
+		assert.NoError(tt, err)
+	})
+}
