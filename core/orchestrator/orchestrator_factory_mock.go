@@ -581,6 +581,69 @@ func (_c *MockOrchestratorFactory_CreateHostGroup_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// CreateImageVersion provides a mock function with given fields: ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive
+func (_m *MockOrchestratorFactory) CreateImageVersion(ctx context.Context, ontapVersion string, vsaImagePath string, vsaName string, mediatorName string, isActive bool) (*datamodel.ImageVersion, error) {
+	ret := _m.Called(ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateImageVersion")
+	}
+
+	var r0 *datamodel.ImageVersion
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool) (*datamodel.ImageVersion, error)); ok {
+		return rf(ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool) *datamodel.ImageVersion); ok {
+		r0 = rf(ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ImageVersion)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string, bool) error); ok {
+		r1 = rf(ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CreateImageVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateImageVersion'
+type MockOrchestratorFactory_CreateImageVersion_Call struct {
+	*mock.Call
+}
+
+// CreateImageVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ontapVersion string
+//   - vsaImagePath string
+//   - vsaName string
+//   - mediatorName string
+//   - isActive bool
+func (_e *MockOrchestratorFactory_Expecter) CreateImageVersion(ctx interface{}, ontapVersion interface{}, vsaImagePath interface{}, vsaName interface{}, mediatorName interface{}, isActive interface{}) *MockOrchestratorFactory_CreateImageVersion_Call {
+	return &MockOrchestratorFactory_CreateImageVersion_Call{Call: _e.mock.On("CreateImageVersion", ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive)}
+}
+
+func (_c *MockOrchestratorFactory_CreateImageVersion_Call) Run(run func(ctx context.Context, ontapVersion string, vsaImagePath string, vsaName string, mediatorName string, isActive bool)) *MockOrchestratorFactory_CreateImageVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string), args[5].(bool))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateImageVersion_Call) Return(_a0 *datamodel.ImageVersion, _a1 error) *MockOrchestratorFactory_CreateImageVersion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateImageVersion_Call) RunAndReturn(run func(context.Context, string, string, string, string, bool) (*datamodel.ImageVersion, error)) *MockOrchestratorFactory_CreateImageVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateKmsConfig provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error) {
 	ret := _m.Called(ctx, params)
@@ -1461,6 +1524,53 @@ func (_c *MockOrchestratorFactory_DeleteHostGroup_Call) Return(_a0 *models.HostG
 }
 
 func (_c *MockOrchestratorFactory_DeleteHostGroup_Call) RunAndReturn(run func(context.Context, string, string) (*models.HostGroup, error)) *MockOrchestratorFactory_DeleteHostGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteImageVersion provides a mock function with given fields: ctx, ontapVersion
+func (_m *MockOrchestratorFactory) DeleteImageVersion(ctx context.Context, ontapVersion string) error {
+	ret := _m.Called(ctx, ontapVersion)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteImageVersion")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, ontapVersion)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_DeleteImageVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteImageVersion'
+type MockOrchestratorFactory_DeleteImageVersion_Call struct {
+	*mock.Call
+}
+
+// DeleteImageVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ontapVersion string
+func (_e *MockOrchestratorFactory_Expecter) DeleteImageVersion(ctx interface{}, ontapVersion interface{}) *MockOrchestratorFactory_DeleteImageVersion_Call {
+	return &MockOrchestratorFactory_DeleteImageVersion_Call{Call: _e.mock.On("DeleteImageVersion", ctx, ontapVersion)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteImageVersion_Call) Run(run func(ctx context.Context, ontapVersion string)) *MockOrchestratorFactory_DeleteImageVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteImageVersion_Call) Return(_a0 error) *MockOrchestratorFactory_DeleteImageVersion_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteImageVersion_Call) RunAndReturn(run func(context.Context, string) error) *MockOrchestratorFactory_DeleteImageVersion_Call {
 	_c.Call.Return(run)
 	return _c
 }

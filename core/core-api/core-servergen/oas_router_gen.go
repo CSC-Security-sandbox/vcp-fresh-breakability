@@ -150,27 +150,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					}
 
 					elem = origElem
-				case 'v': // Prefix: "versions"
-					origElem := elem
-					if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
-						elem = elem[l:]
-					} else {
-						break
-					}
-
-					if len(elem) == 0 {
-						// Leaf node.
-						switch r.Method {
-						case "GET":
-							s.handleV1ListAvailableVersionsRequest([0]string{}, elemIsEscaped, w, r)
-						default:
-							s.notAllowed(w, r, "GET")
-						}
-
-						return
-					}
-
-					elem = origElem
 				}
 				// Param: "clusterId"
 				// Match until "/"
@@ -227,6 +206,60 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					}
 
 					return
+				}
+
+			case 'i': // Prefix: "imageVersions"
+
+				if l := len("imageVersions"); len(elem) >= l && elem[0:l] == "imageVersions" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					switch r.Method {
+					case "GET":
+						s.handleV1ListImageVersionsRequest([0]string{}, elemIsEscaped, w, r)
+					case "POST":
+						s.handleV1CreateImageVersionRequest([0]string{}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, "GET,POST")
+					}
+
+					return
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "ontapVersion"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "DELETE":
+							s.handleV1DeleteImageVersionRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "DELETE")
+						}
+
+						return
+					}
+
 				}
 
 			case 'p': // Prefix: "pools"
@@ -501,31 +534,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					}
 
 					elem = origElem
-				case 'v': // Prefix: "versions"
-					origElem := elem
-					if l := len("versions"); len(elem) >= l && elem[0:l] == "versions" {
-						elem = elem[l:]
-					} else {
-						break
-					}
-
-					if len(elem) == 0 {
-						// Leaf node.
-						switch method {
-						case "GET":
-							r.name = V1ListAvailableVersionsOperation
-							r.summary = "List available ONTAP versions"
-							r.operationID = "v1_listAvailableVersions"
-							r.pathPattern = "/v1/clusters/versions"
-							r.args = args
-							r.count = 0
-							return r, true
-						default:
-							return
-						}
-					}
-
-					elem = origElem
 				}
 				// Param: "clusterId"
 				// Match until "/"
@@ -588,6 +596,72 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					default:
 						return
 					}
+				}
+
+			case 'i': // Prefix: "imageVersions"
+
+				if l := len("imageVersions"); len(elem) >= l && elem[0:l] == "imageVersions" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					switch method {
+					case "GET":
+						r.name = V1ListImageVersionsOperation
+						r.summary = "List available image versions"
+						r.operationID = "v1_listImageVersions"
+						r.pathPattern = "/v1/imageVersions"
+						r.args = args
+						r.count = 0
+						return r, true
+					case "POST":
+						r.name = V1CreateImageVersionOperation
+						r.summary = "Create a new image version entry"
+						r.operationID = "v1_createImageVersion"
+						r.pathPattern = "/v1/imageVersions"
+						r.args = args
+						r.count = 0
+						return r, true
+					default:
+						return
+					}
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "ontapVersion"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "DELETE":
+							r.name = V1DeleteImageVersionOperation
+							r.summary = "Delete an image version entry"
+							r.operationID = "v1_deleteImageVersion"
+							r.pathPattern = "/v1/imageVersions/{ontapVersion}"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
 			case 'p': // Prefix: "pools"

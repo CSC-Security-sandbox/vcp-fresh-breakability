@@ -13,12 +13,31 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// V1CreateImageVersion implements v1_createImageVersion operation.
+//
+// Creates a new image version entry in the database. This is useful when an image version was missed
+// during migration or when adding support for a new ONTAP version.
+//
+// POST /v1/imageVersions
+func (UnimplementedHandler) V1CreateImageVersion(ctx context.Context, req *ImageVersionCreateRequestV1, params V1CreateImageVersionParams) (r V1CreateImageVersionRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1CreatePool implements v1_createPool operation.
 //
 // Create a new pool.
 //
 // POST /v1/pools
 func (UnimplementedHandler) V1CreatePool(ctx context.Context, req *PoolV1, params V1CreatePoolParams) (r V1CreatePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1DeleteImageVersion implements v1_deleteImageVersion operation.
+//
+// Deletes an image version entry from the database by ONTAP version.
+//
+// DELETE /v1/imageVersions/{ontapVersion}
+func (UnimplementedHandler) V1DeleteImageVersion(ctx context.Context, params V1DeleteImageVersionParams) (r V1DeleteImageVersionRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -69,13 +88,13 @@ func (UnimplementedHandler) V1GetPool(ctx context.Context, params V1GetPoolParam
 	return r, ht.ErrNotImplemented
 }
 
-// V1ListAvailableVersions implements v1_listAvailableVersions operation.
+// V1ListImageVersions implements v1_listImageVersions operation.
 //
-// Lists all available ONTAP versions for cluster upgrades, including the current VCP version and
-// supported versions from the database.
+// Lists all available ONTAP image versions for cluster upgrades, including the current VCP version
+// and supported versions from the database.
 //
-// GET /v1/clusters/versions
-func (UnimplementedHandler) V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (r V1ListAvailableVersionsRes, _ error) {
+// GET /v1/imageVersions
+func (UnimplementedHandler) V1ListImageVersions(ctx context.Context, params V1ListImageVersionsParams) (r V1ListImageVersionsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

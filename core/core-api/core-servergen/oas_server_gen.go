@@ -8,12 +8,25 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// V1CreateImageVersion implements v1_createImageVersion operation.
+	//
+	// Creates a new image version entry in the database. This is useful when an image version was missed
+	// during migration or when adding support for a new ONTAP version.
+	//
+	// POST /v1/imageVersions
+	V1CreateImageVersion(ctx context.Context, req *ImageVersionCreateRequestV1, params V1CreateImageVersionParams) (V1CreateImageVersionRes, error)
 	// V1CreatePool implements v1_createPool operation.
 	//
 	// Create a new pool.
 	//
 	// POST /v1/pools
 	V1CreatePool(ctx context.Context, req *PoolV1, params V1CreatePoolParams) (V1CreatePoolRes, error)
+	// V1DeleteImageVersion implements v1_deleteImageVersion operation.
+	//
+	// Deletes an image version entry from the database by ONTAP version.
+	//
+	// DELETE /v1/imageVersions/{ontapVersion}
+	V1DeleteImageVersion(ctx context.Context, params V1DeleteImageVersionParams) (V1DeleteImageVersionRes, error)
 	// V1DeletePool implements v1_deletePool operation.
 	//
 	// Warning! This operation will permanently delete the pool. This operation will never return
@@ -46,13 +59,13 @@ type Handler interface {
 	//
 	// GET /v1/pools/{poolId}
 	V1GetPool(ctx context.Context, params V1GetPoolParams) (V1GetPoolRes, error)
-	// V1ListAvailableVersions implements v1_listAvailableVersions operation.
+	// V1ListImageVersions implements v1_listImageVersions operation.
 	//
-	// Lists all available ONTAP versions for cluster upgrades, including the current VCP version and
-	// supported versions from the database.
+	// Lists all available ONTAP image versions for cluster upgrades, including the current VCP version
+	// and supported versions from the database.
 	//
-	// GET /v1/clusters/versions
-	V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error)
+	// GET /v1/imageVersions
+	V1ListImageVersions(ctx context.Context, params V1ListImageVersionsParams) (V1ListImageVersionsRes, error)
 	// V1ListPools implements v1_listPools operation.
 	//
 	// Returns descriptions of all pools owned by the caller.

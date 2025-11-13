@@ -433,3 +433,67 @@ func listAvailableVersions(ctx context.Context, se database.Storage) (*models.Li
 		Current:  env.CurrentOntapVersionDetails,
 	}, nil
 }
+
+// CreateImageVersion creates a new image version entry in the database
+func (o *Orchestrator) CreateImageVersion(ctx context.Context, ontapVersion, vsaImagePath, vsaName, mediatorName string, isActive bool) (*datamodel.ImageVersion, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Creating new image version", "ontapVersion", ontapVersion)
+
+	// Ensure UUID is populated
+	// And validate uniqueness on (ontapVersion) and (vsaName, mediatorName)
+	if existing, err := o.storage.GetImageVersionByOntapVersion(ctx, ontapVersion); err == nil && existing != nil {
+		return nil, customerrors.NewBadRequestErr("Image version with this ONTAP version already exists")
+	}
+
+	// Create the image version model
+	imageVersion := &datamodel.ImageVersion{
+		BaseModel:    datamodel.BaseModel{UUID: utils.RandomUUID()},
+		OntapVersion: ontapVersion,
+		VSAImagePath: vsaImagePath,
+		VSAName:      vsaName,
+		MediatorName: mediatorName,
+		IsActive:     isActive,
+	}
+
+	// Create in database
+	createdVersion, err := o.storage.CreateImageVersion(ctx, imageVersion)
+	if err != nil {
+		logger.Error("Failed to create image version", "error", err, "ontapVersion", ontapVersion)
+
+		// Check if it's a duplicate error
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, customerrors.NewBadRequestErr("Image version with this ONTAP version already exists")
+		}
+
+		return nil, customerrors.NewUnavailableErr("Failed to create image version")
+	}
+
+	logger.Info("Successfully created image version", "ontapVersion", createdVersion.OntapVersion)
+	return createdVersion, nil
+}
+
+// DeleteImageVersion deletes an image version entry from the database
+func (o *Orchestrator) DeleteImageVersion(ctx context.Context, ontapVersion string) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Deleting image version", "ontapVersion", ontapVersion)
+
+	// First, check if the image version exists
+	_, err := o.storage.GetImageVersionByOntapVersion(ctx, ontapVersion)
+	if err != nil {
+		logger.Error("Image version not found", "error", err, "ontapVersion", ontapVersion)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return customerrors.NewNotFoundErr("ImageVersion", &ontapVersion)
+		}
+		return customerrors.NewUnavailableErr("Failed to retrieve image version")
+	}
+
+	// Delete from database
+	err = o.storage.DeleteImageVersion(ctx, ontapVersion)
+	if err != nil {
+		logger.Error("Failed to delete image version", "error", err, "ontapVersion", ontapVersion)
+		return customerrors.NewUnavailableErr("Failed to delete image version")
+	}
+
+	logger.Info("Successfully deleted image version", "ontapVersion", ontapVersion)
+	return nil
+}

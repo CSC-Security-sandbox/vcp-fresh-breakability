@@ -15,6 +15,69 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+// V1CreateImageVersionParams is parameters of v1_createImageVersion operation.
+type V1CreateImageVersionParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1CreateImageVersionParams(packed middleware.Parameters) (params V1CreateImageVersionParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1CreateImageVersionParams(args [0]string, argsEscaped bool, r *http.Request) (params V1CreateImageVersionParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1CreatePoolParams is parameters of v1_createPool operation.
 type V1CreatePoolParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -72,6 +135,123 @@ func decodeV1CreatePoolParams(args [0]string, argsEscaped bool, r *http.Request)
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1DeleteImageVersionParams is parameters of v1_deleteImageVersion operation.
+type V1DeleteImageVersionParams struct {
+	// The ONTAP version to delete.
+	OntapVersion string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1DeleteImageVersionParams(packed middleware.Parameters) (params V1DeleteImageVersionParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "ontapVersion",
+			In:   "path",
+		}
+		params.OntapVersion = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1DeleteImageVersionParams(args [1]string, argsEscaped bool, r *http.Request) (params V1DeleteImageVersionParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode path: ontapVersion.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "ontapVersion",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.OntapVersion = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "ontapVersion",
 			In:   "path",
 			Err:  err,
 		}
@@ -900,13 +1080,13 @@ func decodeV1GetPoolParams(args [1]string, argsEscaped bool, r *http.Request) (p
 	return params, nil
 }
 
-// V1ListAvailableVersionsParams is parameters of v1_listAvailableVersions operation.
-type V1ListAvailableVersionsParams struct {
+// V1ListImageVersionsParams is parameters of v1_listImageVersions operation.
+type V1ListImageVersionsParams struct {
 	// Correlation identifier.
 	XCorrelationID OptString
 }
 
-func unpackV1ListAvailableVersionsParams(packed middleware.Parameters) (params V1ListAvailableVersionsParams) {
+func unpackV1ListImageVersionsParams(packed middleware.Parameters) (params V1ListImageVersionsParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "x-correlation-id",
@@ -919,7 +1099,7 @@ func unpackV1ListAvailableVersionsParams(packed middleware.Parameters) (params V
 	return params
 }
 
-func decodeV1ListAvailableVersionsParams(args [0]string, argsEscaped bool, r *http.Request) (params V1ListAvailableVersionsParams, _ error) {
+func decodeV1ListImageVersionsParams(args [0]string, argsEscaped bool, r *http.Request) (params V1ListImageVersionsParams, _ error) {
 	h := uri.NewHeaderDecoder(r.Header)
 	// Decode header: x-correlation-id.
 	if err := func() error {

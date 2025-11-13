@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	orchestratorMocks "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -709,115 +710,6 @@ func TestConvertUpgradeErrorsToAPI(t *testing.T) {
 	})
 }
 
-// Test V1ListAvailableVersions function
-func TestV1ListAvailableVersions_Success(t *testing.T) {
-	// Create mock orchestrator
-	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
-
-	// Create handler
-	handler := Handler{
-		Orchestrator: mockOrchestrator,
-	}
-
-	// Create test parameters
-	params := oasgenserver.V1ListAvailableVersionsParams{}
-
-	// Create mock response
-	mockResponse := &models.ListAvailableVersionsResponse{
-		Versions: []models.AvailableVersion{
-			{
-				OntapVersion: "9.17.1",
-				VSAImagePath: "gcr.io/vsa-image:9.17.1",
-				VSAName:      "vsa-9.17.1",
-				MediatorName: "mediator-9.17.1",
-				IsCurrent:    true,
-				IsActive:     true,
-			},
-			{
-				OntapVersion: "9.16.1",
-				VSAImagePath: "gcr.io/vsa-image:9.16.1",
-				VSAName:      "vsa-9.16.1",
-				MediatorName: "mediator-9.16.1",
-				IsCurrent:    false,
-				IsActive:     true,
-			},
-		},
-		Current: "9.17.1",
-	}
-
-	// Set up mock expectation
-	mockOrchestrator.On("ListAvailableVersions", mock.Anything).Return(mockResponse, nil)
-
-	// Call the handler
-	ctx := context.Background()
-	result, err := handler.V1ListAvailableVersions(ctx, params)
-
-	// Assert success
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-
-	// Cast to success response
-	successResponse, ok := result.(*oasgenserver.ListAvailableVersionsResponseV1)
-	assert.True(t, ok)
-	assert.Len(t, successResponse.Versions, 2)
-	assert.Equal(t, "9.17.1", successResponse.Current)
-
-	// Verify first version
-	version1 := successResponse.Versions[0]
-	assert.Equal(t, "9.17.1", version1.OntapVersion)
-	assert.Equal(t, "gcr.io/vsa-image:9.17.1", version1.VsaImagePath)
-	assert.Equal(t, "vsa-9.17.1", version1.VsaName)
-	assert.Equal(t, "mediator-9.17.1", version1.MediatorName)
-	assert.True(t, version1.IsCurrent)
-	assert.True(t, version1.IsActive)
-
-	// Verify second version
-	version2 := successResponse.Versions[1]
-	assert.Equal(t, "9.16.1", version2.OntapVersion)
-	assert.Equal(t, "gcr.io/vsa-image:9.16.1", version2.VsaImagePath)
-	assert.Equal(t, "vsa-9.16.1", version2.VsaName)
-	assert.Equal(t, "mediator-9.16.1", version2.MediatorName)
-	assert.False(t, version2.IsCurrent)
-	assert.True(t, version2.IsActive)
-
-	// Verify mock was called correctly
-	mockOrchestrator.AssertExpectations(t)
-}
-
-func TestV1ListAvailableVersions_Error(t *testing.T) {
-	// Create mock orchestrator
-	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
-
-	// Create handler
-	handler := Handler{
-		Orchestrator: mockOrchestrator,
-	}
-
-	// Create test parameters
-	params := oasgenserver.V1ListAvailableVersionsParams{}
-
-	// Set up mock to return error
-	mockError := errors.New("database error")
-	mockOrchestrator.On("ListAvailableVersions", mock.Anything).Return(nil, mockError)
-
-	// Call the handler
-	ctx := context.Background()
-	result, err := handler.V1ListAvailableVersions(ctx, params)
-
-	// Assert success with error response
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-
-	// Cast to internal server error response
-	internalServerErrorResponse, ok := result.(*oasgenserver.V1ListAvailableVersionsInternalServerError)
-	assert.True(t, ok)
-	assert.Equal(t, float64(500), internalServerErrorResponse.Code)
-	assert.Equal(t, "Failed to retrieve available versions", internalServerErrorResponse.Message)
-
-	// Verify mock was called correctly
-	mockOrchestrator.AssertExpectations(t)
-}
-
 // Test error handling patterns
 func TestErrorHandlingPattern(t *testing.T) {
 	t.Run("Not Found Error Detection", func(t *testing.T) {
@@ -857,4 +749,659 @@ func TestErrorHandlingPattern(t *testing.T) {
 		// Test the string matching logic used in the handler
 		assert.True(t, strings.Contains(err.Error(), "forbidden"))
 	})
+}
+
+// Test V1ListImageVersions function
+func TestV1ListImageVersions_Success(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1ListImageVersionsParams{}
+
+	// Create mock response
+	mockResponse := &models.ListAvailableVersionsResponse{
+		Current: "9.17.1P1",
+		Versions: []models.AvailableVersion{
+			{
+				OntapVersion: "9.17.1P1",
+				VSAImagePath: "gcr.io/vsa-image:9.17.1",
+				VSAName:      "vsa-9.17.1",
+				MediatorName: "mediator-9.17.1",
+				IsCurrent:    true,
+				IsActive:     true,
+			},
+			{
+				OntapVersion: "9.16.1",
+				VSAImagePath: "gcr.io/vsa-image:9.16.1",
+				VSAName:      "vsa-9.16.1",
+				MediatorName: "mediator-9.16.1",
+				IsCurrent:    false,
+				IsActive:     true,
+			},
+		},
+	}
+
+	// Set up mock expectation
+	mockOrchestrator.On("ListAvailableVersions", mock.Anything).Return(mockResponse, nil)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1ListImageVersions(ctx, params)
+
+	// Assert success
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to success response
+	successResponse, ok := result.(*oasgenserver.ListAvailableVersionsResponseV1)
+	assert.True(t, ok)
+	assert.Equal(t, "9.17.1P1", successResponse.Current)
+	assert.Len(t, successResponse.Versions, 2)
+
+	// Verify first version
+	assert.Equal(t, "9.17.1P1", successResponse.Versions[0].OntapVersion)
+	assert.Equal(t, "gcr.io/vsa-image:9.17.1", successResponse.Versions[0].VsaImagePath)
+	assert.Equal(t, "vsa-9.17.1", successResponse.Versions[0].VsaName)
+	assert.Equal(t, "mediator-9.17.1", successResponse.Versions[0].MediatorName)
+	assert.True(t, successResponse.Versions[0].IsCurrent)
+	assert.True(t, successResponse.Versions[0].IsActive)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1ListImageVersions_InternalServerError(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1ListImageVersionsParams{}
+
+	// Set up mock to return error
+	mockError := errors.New("database error")
+	mockOrchestrator.On("ListAvailableVersions", mock.Anything).Return(nil, mockError)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1ListImageVersions(ctx, params)
+
+	// Assert success with internal server error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to internal server error response
+	internalServerErrorResponse, ok := result.(*oasgenserver.V1ListImageVersionsInternalServerError)
+	assert.True(t, ok)
+	assert.Equal(t, float64(500), internalServerErrorResponse.Code)
+	assert.Equal(t, "Failed to retrieve available versions", internalServerErrorResponse.Message)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+// Test V1CreateImageVersion function
+func TestV1CreateImageVersion_Success(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request
+	req := &oasgenserver.ImageVersionCreateRequestV1{
+		OntapVersion: "9.17.1P1",
+		VsaImagePath: "gcr.io/vsa-image:9.17.1",
+		VsaName:      "vsa-9.17.1",
+		MediatorName: "mediator-9.17.1",
+		IsActive:     true,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1CreateImageVersionParams{}
+
+	// Create mock response
+	mockCreatedVersion := &datamodel.ImageVersion{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-uuid",
+		},
+		OntapVersion: "9.17.1P1",
+		VSAImagePath: "gcr.io/vsa-image:9.17.1",
+		VSAName:      "vsa-9.17.1",
+		MediatorName: "mediator-9.17.1",
+		IsActive:     true,
+	}
+
+	// Set up mock expectation
+	mockOrchestrator.On("CreateImageVersion", mock.Anything, "9.17.1P1", "gcr.io/vsa-image:9.17.1", "vsa-9.17.1", "mediator-9.17.1", true).Return(mockCreatedVersion, nil)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1CreateImageVersion(ctx, req, params)
+
+	// Assert success
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to success response
+	successResponse, ok := result.(*oasgenserver.AvailableVersionV1)
+	assert.True(t, ok)
+	assert.Equal(t, "9.17.1P1", successResponse.OntapVersion)
+	assert.Equal(t, "gcr.io/vsa-image:9.17.1", successResponse.VsaImagePath)
+	assert.Equal(t, "vsa-9.17.1", successResponse.VsaName)
+	assert.Equal(t, "mediator-9.17.1", successResponse.MediatorName)
+	assert.False(t, successResponse.IsCurrent) // Newly created versions are never current
+	assert.True(t, successResponse.IsActive)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1CreateImageVersion_MissingOntapVersion(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request with missing ontapVersion
+	req := &oasgenserver.ImageVersionCreateRequestV1{
+		OntapVersion: "",
+		VsaImagePath: "gcr.io/vsa-image:9.17.1",
+		VsaName:      "vsa-9.17.1",
+		MediatorName: "mediator-9.17.1",
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1CreateImageVersionParams{}
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1CreateImageVersion(ctx, req, params)
+
+	// Assert success with bad request error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to bad request response
+	badRequestResponse, ok := result.(*oasgenserver.V1CreateImageVersionBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequestResponse.Code)
+	assert.Equal(t, "ontapVersion is required", badRequestResponse.Message)
+}
+
+func TestV1CreateImageVersion_MissingVsaImagePath(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request with missing vsaImagePath
+	req := &oasgenserver.ImageVersionCreateRequestV1{
+		OntapVersion: "9.17.1P1",
+		VsaImagePath: "",
+		VsaName:      "vsa-9.17.1",
+		MediatorName: "mediator-9.17.1",
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1CreateImageVersionParams{}
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1CreateImageVersion(ctx, req, params)
+
+	// Assert success with bad request error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to bad request response
+	badRequestResponse, ok := result.(*oasgenserver.V1CreateImageVersionBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequestResponse.Code)
+	assert.Equal(t, "vsaImagePath is required", badRequestResponse.Message)
+}
+
+func TestV1CreateImageVersion_MissingVsaName(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request with missing vsaName
+	req := &oasgenserver.ImageVersionCreateRequestV1{
+		OntapVersion: "9.17.1P1",
+		VsaImagePath: "gcr.io/vsa-image:9.17.1",
+		VsaName:      "",
+		MediatorName: "mediator-9.17.1",
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1CreateImageVersionParams{}
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1CreateImageVersion(ctx, req, params)
+
+	// Assert success with bad request error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to bad request response
+	badRequestResponse, ok := result.(*oasgenserver.V1CreateImageVersionBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequestResponse.Code)
+	assert.Equal(t, "vsaName is required", badRequestResponse.Message)
+}
+
+func TestV1CreateImageVersion_MissingMediatorName(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request with missing mediatorName
+	req := &oasgenserver.ImageVersionCreateRequestV1{
+		OntapVersion: "9.17.1P1",
+		VsaImagePath: "gcr.io/vsa-image:9.17.1",
+		VsaName:      "vsa-9.17.1",
+		MediatorName: "",
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1CreateImageVersionParams{}
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1CreateImageVersion(ctx, req, params)
+
+	// Assert success with bad request error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to bad request response
+	badRequestResponse, ok := result.(*oasgenserver.V1CreateImageVersionBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequestResponse.Code)
+	assert.Equal(t, "mediatorName is required", badRequestResponse.Message)
+}
+
+func TestV1CreateImageVersion_ConflictError(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request
+	req := &oasgenserver.ImageVersionCreateRequestV1{
+		OntapVersion: "9.17.1P1",
+		VsaImagePath: "gcr.io/vsa-image:9.17.1",
+		VsaName:      "vsa-9.17.1",
+		MediatorName: "mediator-9.17.1",
+		IsActive:     true,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1CreateImageVersionParams{}
+
+	// Set up mock to return conflict error
+	mockError := errors.New("already exists")
+	mockOrchestrator.On("CreateImageVersion", mock.Anything, "9.17.1P1", "gcr.io/vsa-image:9.17.1", "vsa-9.17.1", "mediator-9.17.1", true).Return(nil, mockError)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1CreateImageVersion(ctx, req, params)
+
+	// Assert success with conflict error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to conflict response
+	conflictResponse, ok := result.(*oasgenserver.V1CreateImageVersionConflict)
+	assert.True(t, ok)
+	assert.Equal(t, float64(409), conflictResponse.Code)
+	assert.Contains(t, conflictResponse.Message, "Image version with ONTAP version '9.17.1P1' already exists")
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1CreateImageVersion_BadRequestError(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request
+	req := &oasgenserver.ImageVersionCreateRequestV1{
+		OntapVersion: "9.17.1P1",
+		VsaImagePath: "gcr.io/vsa-image:9.17.1",
+		VsaName:      "vsa-9.17.1",
+		MediatorName: "mediator-9.17.1",
+		IsActive:     true,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1CreateImageVersionParams{}
+
+	// Set up mock to return bad request error
+	mockError := errors.New("bad request")
+	mockOrchestrator.On("CreateImageVersion", mock.Anything, "9.17.1P1", "gcr.io/vsa-image:9.17.1", "vsa-9.17.1", "mediator-9.17.1", true).Return(nil, mockError)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1CreateImageVersion(ctx, req, params)
+
+	// Assert success with bad request error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to bad request response
+	badRequestResponse, ok := result.(*oasgenserver.V1CreateImageVersionBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequestResponse.Code)
+	assert.Equal(t, "bad request", badRequestResponse.Message)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1CreateImageVersion_InternalServerError(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request
+	req := &oasgenserver.ImageVersionCreateRequestV1{
+		OntapVersion: "9.17.1P1",
+		VsaImagePath: "gcr.io/vsa-image:9.17.1",
+		VsaName:      "vsa-9.17.1",
+		MediatorName: "mediator-9.17.1",
+		IsActive:     true,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1CreateImageVersionParams{}
+
+	// Set up mock to return generic error
+	mockError := errors.New("generic error")
+	mockOrchestrator.On("CreateImageVersion", mock.Anything, "9.17.1P1", "gcr.io/vsa-image:9.17.1", "vsa-9.17.1", "mediator-9.17.1", true).Return(nil, mockError)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1CreateImageVersion(ctx, req, params)
+
+	// Assert success with internal server error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to internal server error response
+	internalServerErrorResponse, ok := result.(*oasgenserver.V1CreateImageVersionInternalServerError)
+	assert.True(t, ok)
+	assert.Equal(t, float64(500), internalServerErrorResponse.Code)
+	assert.Equal(t, "Failed to create image version", internalServerErrorResponse.Message)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1CreateImageVersion_DefaultIsActive(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request without isActive (should default to false)
+	req := &oasgenserver.ImageVersionCreateRequestV1{
+		OntapVersion: "9.17.1P1",
+		VsaImagePath: "gcr.io/vsa-image:9.17.1",
+		VsaName:      "vsa-9.17.1",
+		MediatorName: "mediator-9.17.1",
+		IsActive:     false, // Default value
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1CreateImageVersionParams{}
+
+	// Create mock response
+	mockCreatedVersion := &datamodel.ImageVersion{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-uuid",
+		},
+		OntapVersion: "9.17.1P1",
+		VSAImagePath: "gcr.io/vsa-image:9.17.1",
+		VSAName:      "vsa-9.17.1",
+		MediatorName: "mediator-9.17.1",
+		IsActive:     false, // Default value
+	}
+
+	// Set up mock expectation - isActive should be false (default)
+	mockOrchestrator.On("CreateImageVersion", mock.Anything, "9.17.1P1", "gcr.io/vsa-image:9.17.1", "vsa-9.17.1", "mediator-9.17.1", false).Return(mockCreatedVersion, nil)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1CreateImageVersion(ctx, req, params)
+
+	// Assert success
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+// Test V1DeleteImageVersion function
+func TestV1DeleteImageVersion_Success(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1DeleteImageVersionParams{
+		OntapVersion: "9.17.1P1",
+	}
+
+	// Set up mock expectation
+	mockOrchestrator.On("DeleteImageVersion", mock.Anything, "9.17.1P1").Return(nil)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1DeleteImageVersion(ctx, params)
+
+	// Assert success
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to no content response
+	noContentResponse, ok := result.(*oasgenserver.V1DeleteImageVersionNoContent)
+	assert.True(t, ok)
+	assert.NotNil(t, noContentResponse)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1DeleteImageVersion_NotFoundError(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1DeleteImageVersionParams{
+		OntapVersion: "9.17.1P1",
+	}
+
+	// Set up mock to return not found error
+	ontapVersion := params.OntapVersion
+	mockError := utilsErrors.NewNotFoundErr("ImageVersion", &ontapVersion)
+	mockOrchestrator.On("DeleteImageVersion", mock.Anything, "9.17.1P1").Return(mockError)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1DeleteImageVersion(ctx, params)
+
+	// Assert success with not found error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to not found response
+	notFoundResponse, ok := result.(*oasgenserver.V1DeleteImageVersionNotFound)
+	assert.True(t, ok)
+	assert.Equal(t, float64(404), notFoundResponse.Code)
+	assert.Contains(t, notFoundResponse.Message, "Image version with ONTAP version '9.17.1P1' not found")
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1DeleteImageVersion_NotFoundErrorString(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1DeleteImageVersionParams{
+		OntapVersion: "9.17.1P1",
+	}
+
+	// Set up mock to return not found error (string match)
+	mockError := errors.New("not found")
+	mockOrchestrator.On("DeleteImageVersion", mock.Anything, "9.17.1P1").Return(mockError)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1DeleteImageVersion(ctx, params)
+
+	// Assert success with not found error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to not found response
+	notFoundResponse, ok := result.(*oasgenserver.V1DeleteImageVersionNotFound)
+	assert.True(t, ok)
+	assert.Equal(t, float64(404), notFoundResponse.Code)
+	assert.Contains(t, notFoundResponse.Message, "Image version with ONTAP version '9.17.1P1' not found")
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1DeleteImageVersion_BadRequestError(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1DeleteImageVersionParams{
+		OntapVersion: "9.17.1P1",
+	}
+
+	// Set up mock to return bad request error
+	mockError := errors.New("bad request")
+	mockOrchestrator.On("DeleteImageVersion", mock.Anything, "9.17.1P1").Return(mockError)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1DeleteImageVersion(ctx, params)
+
+	// Assert success with bad request error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to bad request response
+	badRequestResponse, ok := result.(*oasgenserver.V1DeleteImageVersionBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequestResponse.Code)
+	assert.Equal(t, "bad request", badRequestResponse.Message)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1DeleteImageVersion_InternalServerError(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1DeleteImageVersionParams{
+		OntapVersion: "9.17.1P1",
+	}
+
+	// Set up mock to return generic error
+	mockError := errors.New("generic error")
+	mockOrchestrator.On("DeleteImageVersion", mock.Anything, "9.17.1P1").Return(mockError)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1DeleteImageVersion(ctx, params)
+
+	// Assert success with internal server error response
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to internal server error response
+	internalServerErrorResponse, ok := result.(*oasgenserver.V1DeleteImageVersionInternalServerError)
+	assert.True(t, ok)
+	assert.Equal(t, float64(500), internalServerErrorResponse.Code)
+	assert.Equal(t, "Failed to delete image version", internalServerErrorResponse.Message)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
 }

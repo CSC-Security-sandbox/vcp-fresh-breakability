@@ -303,6 +303,35 @@ func (s *GcpKmsKeyRotateV1) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ImageVersionCreateRequestV1) SetFake() {
+	{
+		{
+			s.OntapVersion = "string"
+		}
+	}
+	{
+		{
+			s.VsaImagePath = "string"
+		}
+	}
+	{
+		{
+			s.VsaName = "string"
+		}
+	}
+	{
+		{
+			s.MediatorName = "string"
+		}
+	}
+	{
+		{
+			s.IsActive = true
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *JobV1) SetFake() {
 	{
 		{
@@ -1150,6 +1179,69 @@ func (s *UpgradeProgressV1Status) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1CreateImageVersionBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateImageVersionBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateImageVersionConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateImageVersionConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateImageVersionForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateImageVersionForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateImageVersionInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateImageVersionInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateImageVersionTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateImageVersionTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateImageVersionUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateImageVersionUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateImageVersionUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateImageVersionUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1CreatePoolBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1210,6 +1302,69 @@ func (s *V1CreatePoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1CreatePoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteImageVersionBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteImageVersionBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteImageVersionForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteImageVersionForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteImageVersionInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteImageVersionInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteImageVersionNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteImageVersionNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteImageVersionTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteImageVersionTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteImageVersionUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteImageVersionUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteImageVersionUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteImageVersionUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -1562,66 +1717,66 @@ func (s *V1GetPoolUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *V1ListAvailableVersionsBadRequest) SetFake() {
+func (s *V1ListImageVersionsBadRequest) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1ListAvailableVersionsBadRequest(unwrapped)
+	*s = V1ListImageVersionsBadRequest(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1ListAvailableVersionsForbidden) SetFake() {
+func (s *V1ListImageVersionsForbidden) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1ListAvailableVersionsForbidden(unwrapped)
+	*s = V1ListImageVersionsForbidden(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1ListAvailableVersionsInternalServerError) SetFake() {
+func (s *V1ListImageVersionsInternalServerError) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1ListAvailableVersionsInternalServerError(unwrapped)
+	*s = V1ListImageVersionsInternalServerError(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1ListAvailableVersionsNotFound) SetFake() {
+func (s *V1ListImageVersionsNotFound) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1ListAvailableVersionsNotFound(unwrapped)
+	*s = V1ListImageVersionsNotFound(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1ListAvailableVersionsTooManyRequests) SetFake() {
+func (s *V1ListImageVersionsTooManyRequests) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1ListAvailableVersionsTooManyRequests(unwrapped)
+	*s = V1ListImageVersionsTooManyRequests(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1ListAvailableVersionsUnauthorized) SetFake() {
+func (s *V1ListImageVersionsUnauthorized) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1ListAvailableVersionsUnauthorized(unwrapped)
+	*s = V1ListImageVersionsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1ListAvailableVersionsUnprocessableEntity) SetFake() {
+func (s *V1ListImageVersionsUnprocessableEntity) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1ListAvailableVersionsUnprocessableEntity(unwrapped)
+	*s = V1ListImageVersionsUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

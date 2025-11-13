@@ -165,10 +165,10 @@ func convertUpgradeErrorsToAPI(errors []models.UpgradeError) []oasgenserver.Upgr
 	return apiErrors
 }
 
-// V1ListAvailableVersions handles the GET /v1/clusters/versions endpoint
-func (h *Handler) V1ListAvailableVersions(ctx context.Context, params oasgenserver.V1ListAvailableVersionsParams) (oasgenserver.V1ListAvailableVersionsRes, error) {
+// V1ListImageVersions handles the GET /v1/imageVersions endpoint
+func (h *Handler) V1ListImageVersions(ctx context.Context, params oasgenserver.V1ListImageVersionsParams) (oasgenserver.V1ListImageVersionsRes, error) {
 	logger := util.GetLogger(ctx)
-	logger.Info("Listing available ONTAP versions")
+	logger.Info("Listing image versions")
 
 	// Call orchestrator to get available versions
 	response, err := h.Orchestrator.ListAvailableVersions(ctx)
@@ -176,7 +176,7 @@ func (h *Handler) V1ListAvailableVersions(ctx context.Context, params oasgenserv
 		logger.Error("Failed to list available versions", "error", err)
 
 		// Convert error to appropriate API error response
-		return &oasgenserver.V1ListAvailableVersionsInternalServerError{
+		return &oasgenserver.V1ListImageVersionsInternalServerError{
 			Code:    500,
 			Message: "Failed to retrieve available versions",
 		}, nil
@@ -200,6 +200,117 @@ func (h *Handler) V1ListAvailableVersions(ctx context.Context, params oasgenserv
 		Current:  response.Current,
 	}
 
-	logger.Info("Successfully listed available versions", "count", len(versions), "current", response.Current)
+	logger.Info("Successfully listed image versions", "count", len(versions), "current", response.Current)
 	return apiResponse, nil
+}
+
+// V1CreateImageVersion handles the POST /v1/imageVersions endpoint
+func (h *Handler) V1CreateImageVersion(ctx context.Context, req *oasgenserver.ImageVersionCreateRequestV1, params oasgenserver.V1CreateImageVersionParams) (oasgenserver.V1CreateImageVersionRes, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Creating new image version", "ontapVersion", req.GetOntapVersion())
+
+	// Validate request
+	if req.GetOntapVersion() == "" {
+		return &oasgenserver.V1CreateImageVersionBadRequest{
+			Code:    400,
+			Message: "ontapVersion is required",
+		}, nil
+	}
+	if req.GetVsaImagePath() == "" {
+		return &oasgenserver.V1CreateImageVersionBadRequest{
+			Code:    400,
+			Message: "vsaImagePath is required",
+		}, nil
+	}
+	if req.GetVsaName() == "" {
+		return &oasgenserver.V1CreateImageVersionBadRequest{
+			Code:    400,
+			Message: "vsaName is required",
+		}, nil
+	}
+	if req.GetMediatorName() == "" {
+		return &oasgenserver.V1CreateImageVersionBadRequest{
+			Code:    400,
+			Message: "mediatorName is required",
+		}, nil
+	}
+
+	// Set default value for isActive if not provided
+	isActive := req.GetIsActive()
+
+	// Call orchestrator to create image version
+	createdVersion, err := h.Orchestrator.CreateImageVersion(ctx, req.GetOntapVersion(), req.GetVsaImagePath(), req.GetVsaName(), req.GetMediatorName(), isActive)
+	if err != nil {
+		logger.Error("Failed to create image version", "error", err, "ontapVersion", req.GetOntapVersion())
+
+		// Handle different error types
+		if strings.Contains(err.Error(), "already exists") {
+			return &oasgenserver.V1CreateImageVersionConflict{
+				Code:    409,
+				Message: fmt.Sprintf("Image version with ONTAP version '%s' already exists", req.GetOntapVersion()),
+			}, nil
+		}
+		if strings.Contains(err.Error(), "bad request") {
+			return &oasgenserver.V1CreateImageVersionBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		// Default to internal server error
+		return &oasgenserver.V1CreateImageVersionInternalServerError{
+			Code:    500,
+			Message: "Failed to create image version",
+		}, nil
+	}
+
+	// Convert response to API format
+	// Note: isCurrent is always false for newly created versions
+	apiResponse := &oasgenserver.AvailableVersionV1{
+		OntapVersion: createdVersion.OntapVersion,
+		VsaImagePath: createdVersion.VSAImagePath,
+		VsaName:      createdVersion.VSAName,
+		MediatorName: createdVersion.MediatorName,
+		IsCurrent:    false, // Newly created versions are never current
+		IsActive:     createdVersion.IsActive,
+	}
+
+	logger.Info("Successfully created image version", "ontapVersion", createdVersion.OntapVersion)
+	return apiResponse, nil
+}
+
+// V1DeleteImageVersion handles the DELETE /v1/imageVersions/{ontapVersion} endpoint
+func (h *Handler) V1DeleteImageVersion(ctx context.Context, params oasgenserver.V1DeleteImageVersionParams) (oasgenserver.V1DeleteImageVersionRes, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Deleting image version", "ontapVersion", params.OntapVersion)
+
+	// Call orchestrator to delete image version
+	err := h.Orchestrator.DeleteImageVersion(ctx, params.OntapVersion)
+	if err != nil {
+		logger.Error("Failed to delete image version", "error", err, "ontapVersion", params.OntapVersion)
+
+		// Handle different error types
+		if strings.Contains(err.Error(), "not found") || errors.IsNotFoundErr(err) {
+			return &oasgenserver.V1DeleteImageVersionNotFound{
+				Code:    404,
+				Message: fmt.Sprintf("Image version with ONTAP version '%s' not found", params.OntapVersion),
+			}, nil
+		}
+		if strings.Contains(err.Error(), "bad request") {
+			return &oasgenserver.V1DeleteImageVersionBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		// Default to internal server error
+		return &oasgenserver.V1DeleteImageVersionInternalServerError{
+			Code:    500,
+			Message: "Failed to delete image version",
+		}, nil
+	}
+
+	logger.Info("Successfully deleted image version", "ontapVersion", params.OntapVersion)
+	// Return 204 No Content
+	return &oasgenserver.V1DeleteImageVersionNoContent{}, nil
 }

@@ -11,6 +11,14 @@ func (s *ClusterUpgradeRequestV1) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *ImageVersionCreateRequestV1) setDefaults() {
+	{
+		val := bool(true)
+		s.IsActive = val
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *OperationV1) setDefaults() {
 	{
 		val := bool(false)

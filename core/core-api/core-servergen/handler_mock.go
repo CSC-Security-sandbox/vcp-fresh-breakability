@@ -70,6 +70,66 @@ func (_c *MockHandler_NewError_Call) RunAndReturn(run func(context.Context, erro
 	return _c
 }
 
+// V1CreateImageVersion provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1CreateImageVersion(ctx context.Context, req *ImageVersionCreateRequestV1, params V1CreateImageVersionParams) (V1CreateImageVersionRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1CreateImageVersion")
+	}
+
+	var r0 V1CreateImageVersionRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ImageVersionCreateRequestV1, V1CreateImageVersionParams) (V1CreateImageVersionRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ImageVersionCreateRequestV1, V1CreateImageVersionParams) V1CreateImageVersionRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1CreateImageVersionRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ImageVersionCreateRequestV1, V1CreateImageVersionParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1CreateImageVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1CreateImageVersion'
+type MockHandler_V1CreateImageVersion_Call struct {
+	*mock.Call
+}
+
+// V1CreateImageVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ImageVersionCreateRequestV1
+//   - params V1CreateImageVersionParams
+func (_e *MockHandler_Expecter) V1CreateImageVersion(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1CreateImageVersion_Call {
+	return &MockHandler_V1CreateImageVersion_Call{Call: _e.mock.On("V1CreateImageVersion", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1CreateImageVersion_Call) Run(run func(ctx context.Context, req *ImageVersionCreateRequestV1, params V1CreateImageVersionParams)) *MockHandler_V1CreateImageVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ImageVersionCreateRequestV1), args[2].(V1CreateImageVersionParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1CreateImageVersion_Call) Return(_a0 V1CreateImageVersionRes, _a1 error) *MockHandler_V1CreateImageVersion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1CreateImageVersion_Call) RunAndReturn(run func(context.Context, *ImageVersionCreateRequestV1, V1CreateImageVersionParams) (V1CreateImageVersionRes, error)) *MockHandler_V1CreateImageVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1CreatePool provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1CreatePool(ctx context.Context, req *PoolV1, params V1CreatePoolParams) (V1CreatePoolRes, error) {
 	ret := _m.Called(ctx, req, params)
@@ -126,6 +186,65 @@ func (_c *MockHandler_V1CreatePool_Call) Return(_a0 V1CreatePoolRes, _a1 error) 
 }
 
 func (_c *MockHandler_V1CreatePool_Call) RunAndReturn(run func(context.Context, *PoolV1, V1CreatePoolParams) (V1CreatePoolRes, error)) *MockHandler_V1CreatePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1DeleteImageVersion provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1DeleteImageVersion(ctx context.Context, params V1DeleteImageVersionParams) (V1DeleteImageVersionRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1DeleteImageVersion")
+	}
+
+	var r0 V1DeleteImageVersionRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1DeleteImageVersionParams) (V1DeleteImageVersionRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1DeleteImageVersionParams) V1DeleteImageVersionRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1DeleteImageVersionRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1DeleteImageVersionParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1DeleteImageVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1DeleteImageVersion'
+type MockHandler_V1DeleteImageVersion_Call struct {
+	*mock.Call
+}
+
+// V1DeleteImageVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1DeleteImageVersionParams
+func (_e *MockHandler_Expecter) V1DeleteImageVersion(ctx interface{}, params interface{}) *MockHandler_V1DeleteImageVersion_Call {
+	return &MockHandler_V1DeleteImageVersion_Call{Call: _e.mock.On("V1DeleteImageVersion", ctx, params)}
+}
+
+func (_c *MockHandler_V1DeleteImageVersion_Call) Run(run func(ctx context.Context, params V1DeleteImageVersionParams)) *MockHandler_V1DeleteImageVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1DeleteImageVersionParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1DeleteImageVersion_Call) Return(_a0 V1DeleteImageVersionRes, _a1 error) *MockHandler_V1DeleteImageVersion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1DeleteImageVersion_Call) RunAndReturn(run func(context.Context, V1DeleteImageVersionParams) (V1DeleteImageVersionRes, error)) *MockHandler_V1DeleteImageVersion_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -425,28 +544,28 @@ func (_c *MockHandler_V1GetPool_Call) RunAndReturn(run func(context.Context, V1G
 	return _c
 }
 
-// V1ListAvailableVersions provides a mock function with given fields: ctx, params
-func (_m *MockHandler) V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error) {
+// V1ListImageVersions provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1ListImageVersions(ctx context.Context, params V1ListImageVersionsParams) (V1ListImageVersionsRes, error) {
 	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
-		panic("no return value specified for V1ListAvailableVersions")
+		panic("no return value specified for V1ListImageVersions")
 	}
 
-	var r0 V1ListAvailableVersionsRes
+	var r0 V1ListImageVersionsRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, V1ListImageVersionsParams) (V1ListImageVersionsRes, error)); ok {
 		return rf(ctx, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, V1ListAvailableVersionsParams) V1ListAvailableVersionsRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, V1ListImageVersionsParams) V1ListImageVersionsRes); ok {
 		r0 = rf(ctx, params)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1ListAvailableVersionsRes)
+			r0 = ret.Get(0).(V1ListImageVersionsRes)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, V1ListAvailableVersionsParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, V1ListImageVersionsParams) error); ok {
 		r1 = rf(ctx, params)
 	} else {
 		r1 = ret.Error(1)
@@ -455,31 +574,31 @@ func (_m *MockHandler) V1ListAvailableVersions(ctx context.Context, params V1Lis
 	return r0, r1
 }
 
-// MockHandler_V1ListAvailableVersions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1ListAvailableVersions'
-type MockHandler_V1ListAvailableVersions_Call struct {
+// MockHandler_V1ListImageVersions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1ListImageVersions'
+type MockHandler_V1ListImageVersions_Call struct {
 	*mock.Call
 }
 
-// V1ListAvailableVersions is a helper method to define mock.On call
+// V1ListImageVersions is a helper method to define mock.On call
 //   - ctx context.Context
-//   - params V1ListAvailableVersionsParams
-func (_e *MockHandler_Expecter) V1ListAvailableVersions(ctx interface{}, params interface{}) *MockHandler_V1ListAvailableVersions_Call {
-	return &MockHandler_V1ListAvailableVersions_Call{Call: _e.mock.On("V1ListAvailableVersions", ctx, params)}
+//   - params V1ListImageVersionsParams
+func (_e *MockHandler_Expecter) V1ListImageVersions(ctx interface{}, params interface{}) *MockHandler_V1ListImageVersions_Call {
+	return &MockHandler_V1ListImageVersions_Call{Call: _e.mock.On("V1ListImageVersions", ctx, params)}
 }
 
-func (_c *MockHandler_V1ListAvailableVersions_Call) Run(run func(ctx context.Context, params V1ListAvailableVersionsParams)) *MockHandler_V1ListAvailableVersions_Call {
+func (_c *MockHandler_V1ListImageVersions_Call) Run(run func(ctx context.Context, params V1ListImageVersionsParams)) *MockHandler_V1ListImageVersions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(V1ListAvailableVersionsParams))
+		run(args[0].(context.Context), args[1].(V1ListImageVersionsParams))
 	})
 	return _c
 }
 
-func (_c *MockHandler_V1ListAvailableVersions_Call) Return(_a0 V1ListAvailableVersionsRes, _a1 error) *MockHandler_V1ListAvailableVersions_Call {
+func (_c *MockHandler_V1ListImageVersions_Call) Return(_a0 V1ListImageVersionsRes, _a1 error) *MockHandler_V1ListImageVersions_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockHandler_V1ListAvailableVersions_Call) RunAndReturn(run func(context.Context, V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error)) *MockHandler_V1ListAvailableVersions_Call {
+func (_c *MockHandler_V1ListImageVersions_Call) RunAndReturn(run func(context.Context, V1ListImageVersionsParams) (V1ListImageVersionsRes, error)) *MockHandler_V1ListImageVersions_Call {
 	_c.Call.Return(run)
 	return _c
 }

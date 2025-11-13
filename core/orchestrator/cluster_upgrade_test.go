@@ -1982,3 +1982,245 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 }
+
+// Test CreateImageVersion function
+func TestCreateImageVersion_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	orchestrator := &Orchestrator{
+		storage: mockStorage,
+	}
+
+	ctx := context.Background()
+	ontapVersion := "9.17.1P1"
+	vsaImagePath := "gcr.io/vsa-image:9.17.1"
+	vsaName := "vsa-9.17.1"
+	mediatorName := "mediator-9.17.1"
+	isActive := true
+
+	// Mock GetImageVersionByOntapVersion to return nil (not found)
+	mockStorage.On("GetImageVersionByOntapVersion", ctx, ontapVersion).Return(nil, gorm.ErrRecordNotFound)
+
+	// Mock CreateImageVersion to succeed
+	createdVersion := &datamodel.ImageVersion{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-uuid",
+		},
+		OntapVersion: ontapVersion,
+		VSAImagePath: vsaImagePath,
+		VSAName:      vsaName,
+		MediatorName: mediatorName,
+		IsActive:     isActive,
+	}
+	mockStorage.On("CreateImageVersion", ctx, mock.MatchedBy(func(version *datamodel.ImageVersion) bool {
+		return version.OntapVersion == ontapVersion &&
+			version.VSAImagePath == vsaImagePath &&
+			version.VSAName == vsaName &&
+			version.MediatorName == mediatorName &&
+			version.IsActive == isActive
+	})).Return(createdVersion, nil)
+
+	// Execute
+	result, err := orchestrator.CreateImageVersion(ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, ontapVersion, result.OntapVersion)
+	assert.Equal(t, vsaImagePath, result.VSAImagePath)
+	assert.Equal(t, vsaName, result.VSAName)
+	assert.Equal(t, mediatorName, result.MediatorName)
+	assert.True(t, result.IsActive)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateImageVersion_AlreadyExists(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	orchestrator := &Orchestrator{
+		storage: mockStorage,
+	}
+
+	ctx := context.Background()
+	ontapVersion := "9.17.1P1"
+	vsaImagePath := "gcr.io/vsa-image:9.17.1"
+	vsaName := "vsa-9.17.1"
+	mediatorName := "mediator-9.17.1"
+	isActive := true
+
+	// Mock GetImageVersionByOntapVersion to return existing version
+	existingVersion := &datamodel.ImageVersion{
+		BaseModel: datamodel.BaseModel{
+			UUID: "existing-uuid",
+		},
+		OntapVersion: ontapVersion,
+	}
+	mockStorage.On("GetImageVersionByOntapVersion", ctx, ontapVersion).Return(existingVersion, nil)
+
+	// Execute
+	result, err := orchestrator.CreateImageVersion(ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Image version with this ONTAP version already exists")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateImageVersion_DuplicateKeyError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	orchestrator := &Orchestrator{
+		storage: mockStorage,
+	}
+
+	ctx := context.Background()
+	ontapVersion := "9.17.1P1"
+	vsaImagePath := "gcr.io/vsa-image:9.17.1"
+	vsaName := "vsa-9.17.1"
+	mediatorName := "mediator-9.17.1"
+	isActive := true
+
+	// Mock GetImageVersionByOntapVersion to return nil (not found initially)
+	mockStorage.On("GetImageVersionByOntapVersion", ctx, ontapVersion).Return(nil, gorm.ErrRecordNotFound)
+
+	// Mock CreateImageVersion to return duplicate key error
+	mockStorage.On("CreateImageVersion", ctx, mock.AnythingOfType("*datamodel.ImageVersion")).Return(nil, gorm.ErrDuplicatedKey)
+
+	// Execute
+	result, err := orchestrator.CreateImageVersion(ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Image version with this ONTAP version already exists")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateImageVersion_CreateError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	orchestrator := &Orchestrator{
+		storage: mockStorage,
+	}
+
+	ctx := context.Background()
+	ontapVersion := "9.17.1P1"
+	vsaImagePath := "gcr.io/vsa-image:9.17.1"
+	vsaName := "vsa-9.17.1"
+	mediatorName := "mediator-9.17.1"
+	isActive := true
+
+	// Mock GetImageVersionByOntapVersion to return nil (not found)
+	mockStorage.On("GetImageVersionByOntapVersion", ctx, ontapVersion).Return(nil, gorm.ErrRecordNotFound)
+
+	// Mock CreateImageVersion to return error (not duplicate key)
+	mockStorage.On("CreateImageVersion", ctx, mock.AnythingOfType("*datamodel.ImageVersion")).Return(nil, errors.New("database error"))
+
+	// Execute
+	result, err := orchestrator.CreateImageVersion(ctx, ontapVersion, vsaImagePath, vsaName, mediatorName, isActive)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Failed to create image version")
+	mockStorage.AssertExpectations(t)
+}
+
+// Test DeleteImageVersion function
+func TestDeleteImageVersion_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	orchestrator := &Orchestrator{
+		storage: mockStorage,
+	}
+
+	ctx := context.Background()
+	ontapVersion := "9.17.1P1"
+
+	// Mock GetImageVersionByOntapVersion to return existing version
+	existingVersion := &datamodel.ImageVersion{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-uuid",
+		},
+		OntapVersion: ontapVersion,
+	}
+	mockStorage.On("GetImageVersionByOntapVersion", ctx, ontapVersion).Return(existingVersion, nil)
+
+	// Mock DeleteImageVersion to succeed
+	mockStorage.On("DeleteImageVersion", ctx, ontapVersion).Return(nil)
+
+	// Execute
+	err := orchestrator.DeleteImageVersion(ctx, ontapVersion)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteImageVersion_NotFound(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	orchestrator := &Orchestrator{
+		storage: mockStorage,
+	}
+
+	ctx := context.Background()
+	ontapVersion := "9.17.1P1"
+
+	// Mock GetImageVersionByOntapVersion to return not found error
+	mockStorage.On("GetImageVersionByOntapVersion", ctx, ontapVersion).Return(nil, gorm.ErrRecordNotFound)
+
+	// Execute
+	err := orchestrator.DeleteImageVersion(ctx, ontapVersion)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ImageVersion")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteImageVersion_GetError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	orchestrator := &Orchestrator{
+		storage: mockStorage,
+	}
+
+	ctx := context.Background()
+	ontapVersion := "9.17.1P1"
+
+	// Mock GetImageVersionByOntapVersion to return error (not record not found)
+	mockStorage.On("GetImageVersionByOntapVersion", ctx, ontapVersion).Return(nil, errors.New("database error"))
+
+	// Execute
+	err := orchestrator.DeleteImageVersion(ctx, ontapVersion)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Failed to retrieve image version")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteImageVersion_DeleteError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	orchestrator := &Orchestrator{
+		storage: mockStorage,
+	}
+
+	ctx := context.Background()
+	ontapVersion := "9.17.1P1"
+
+	// Mock GetImageVersionByOntapVersion to return existing version
+	existingVersion := &datamodel.ImageVersion{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-uuid",
+		},
+		OntapVersion: ontapVersion,
+	}
+	mockStorage.On("GetImageVersionByOntapVersion", ctx, ontapVersion).Return(existingVersion, nil)
+
+	// Mock DeleteImageVersion to return error
+	mockStorage.On("DeleteImageVersion", ctx, ontapVersion).Return(errors.New("delete error"))
+
+	// Execute
+	err := orchestrator.DeleteImageVersion(ctx, ontapVersion)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Failed to delete image version")
+	mockStorage.AssertExpectations(t)
+}

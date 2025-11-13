@@ -21,12 +21,25 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
+	// V1CreateImageVersion invokes v1_createImageVersion operation.
+	//
+	// Creates a new image version entry in the database. This is useful when an image version was missed
+	// during migration or when adding support for a new ONTAP version.
+	//
+	// POST /v1/imageVersions
+	V1CreateImageVersion(ctx context.Context, request *ImageVersionCreateRequestV1, params V1CreateImageVersionParams) (V1CreateImageVersionRes, error)
 	// V1CreatePool invokes v1_createPool operation.
 	//
 	// Create a new pool.
 	//
 	// POST /v1/pools
 	V1CreatePool(ctx context.Context, request *PoolV1, params V1CreatePoolParams) (V1CreatePoolRes, error)
+	// V1DeleteImageVersion invokes v1_deleteImageVersion operation.
+	//
+	// Deletes an image version entry from the database by ONTAP version.
+	//
+	// DELETE /v1/imageVersions/{ontapVersion}
+	V1DeleteImageVersion(ctx context.Context, params V1DeleteImageVersionParams) (V1DeleteImageVersionRes, error)
 	// V1DeletePool invokes v1_deletePool operation.
 	//
 	// Warning! This operation will permanently delete the pool. This operation will never return
@@ -59,13 +72,13 @@ type Invoker interface {
 	//
 	// GET /v1/pools/{poolId}
 	V1GetPool(ctx context.Context, params V1GetPoolParams) (V1GetPoolRes, error)
-	// V1ListAvailableVersions invokes v1_listAvailableVersions operation.
+	// V1ListImageVersions invokes v1_listImageVersions operation.
 	//
-	// Lists all available ONTAP versions for cluster upgrades, including the current VCP version and
-	// supported versions from the database.
+	// Lists all available ONTAP image versions for cluster upgrades, including the current VCP version
+	// and supported versions from the database.
 	//
-	// GET /v1/clusters/versions
-	V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error)
+	// GET /v1/imageVersions
+	V1ListImageVersions(ctx context.Context, params V1ListImageVersionsParams) (V1ListImageVersionsRes, error)
 	// V1ListPools invokes v1_listPools operation.
 	//
 	// Returns descriptions of all pools owned by the caller.
@@ -131,6 +144,62 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 	return u
 }
 
+// V1CreateImageVersion invokes v1_createImageVersion operation.
+//
+// Creates a new image version entry in the database. This is useful when an image version was missed
+// during migration or when adding support for a new ONTAP version.
+//
+// POST /v1/imageVersions
+func (c *Client) V1CreateImageVersion(ctx context.Context, request *ImageVersionCreateRequestV1, params V1CreateImageVersionParams) (V1CreateImageVersionRes, error) {
+	res, err := c.sendV1CreateImageVersion(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1CreateImageVersion(ctx context.Context, request *ImageVersionCreateRequestV1, params V1CreateImageVersionParams) (res V1CreateImageVersionRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v1/imageVersions"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1CreateImageVersionRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1CreateImageVersionResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1CreatePool invokes v1_createPool operation.
 //
 // Create a new pool.
@@ -188,6 +257,76 @@ func (c *Client) sendV1CreatePool(ctx context.Context, request *PoolV1, params V
 	defer resp.Body.Close()
 
 	result, err := decodeV1CreatePoolResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1DeleteImageVersion invokes v1_deleteImageVersion operation.
+//
+// Deletes an image version entry from the database by ONTAP version.
+//
+// DELETE /v1/imageVersions/{ontapVersion}
+func (c *Client) V1DeleteImageVersion(ctx context.Context, params V1DeleteImageVersionParams) (V1DeleteImageVersionRes, error) {
+	res, err := c.sendV1DeleteImageVersion(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1DeleteImageVersion(ctx context.Context, params V1DeleteImageVersionParams) (res V1DeleteImageVersionRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v1/imageVersions/"
+	{
+		// Encode "ontapVersion" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "ontapVersion",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.OntapVersion))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1DeleteImageVersionResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -569,22 +708,22 @@ func (c *Client) sendV1GetPool(ctx context.Context, params V1GetPoolParams) (res
 	return result, nil
 }
 
-// V1ListAvailableVersions invokes v1_listAvailableVersions operation.
+// V1ListImageVersions invokes v1_listImageVersions operation.
 //
-// Lists all available ONTAP versions for cluster upgrades, including the current VCP version and
-// supported versions from the database.
+// Lists all available ONTAP image versions for cluster upgrades, including the current VCP version
+// and supported versions from the database.
 //
-// GET /v1/clusters/versions
-func (c *Client) V1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (V1ListAvailableVersionsRes, error) {
-	res, err := c.sendV1ListAvailableVersions(ctx, params)
+// GET /v1/imageVersions
+func (c *Client) V1ListImageVersions(ctx context.Context, params V1ListImageVersionsParams) (V1ListImageVersionsRes, error) {
+	res, err := c.sendV1ListImageVersions(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendV1ListAvailableVersions(ctx context.Context, params V1ListAvailableVersionsParams) (res V1ListAvailableVersionsRes, err error) {
+func (c *Client) sendV1ListImageVersions(ctx context.Context, params V1ListImageVersionsParams) (res V1ListImageVersionsRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [1]string
-	pathParts[0] = "/v1/clusters/versions"
+	pathParts[0] = "/v1/imageVersions"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	r, err := ht.NewRequest(ctx, "GET", u)
@@ -614,7 +753,7 @@ func (c *Client) sendV1ListAvailableVersions(ctx context.Context, params V1ListA
 	}
 	defer resp.Body.Close()
 
-	result, err := decodeV1ListAvailableVersionsResponse(resp)
+	result, err := decodeV1ListImageVersionsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

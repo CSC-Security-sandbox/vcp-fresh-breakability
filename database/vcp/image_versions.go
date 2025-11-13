@@ -52,7 +52,7 @@ func (r *DataStoreRepository) UpdateImageVersion(ctx context.Context, imageVersi
 	return r.db.GORM().WithContext(ctx).Save(imageVersion).Error
 }
 
-// DeleteImageVersion soft deletes an image version by ONTAP version
+// DeleteImageVersion permanently deletes an image version by ONTAP version
 func (r *DataStoreRepository) DeleteImageVersion(ctx context.Context, ontapVersion string) error {
-	return r.db.GORM().WithContext(ctx).Where("ontap_version = ?", ontapVersion).Delete(&datamodel.ImageVersion{}).Error
+	return r.db.GORM().WithContext(ctx).Unscoped().Where("ontap_version = ?", ontapVersion).Delete(&datamodel.ImageVersion{}).Error
 }

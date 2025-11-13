@@ -2,12 +2,26 @@
 
 package coreapi
 
+// V1CreateImageVersionParams is parameters of v1_createImageVersion operation.
+type V1CreateImageVersionParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1CreatePoolParams is parameters of v1_createPool operation.
 type V1CreatePoolParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1DeleteImageVersionParams is parameters of v1_deleteImageVersion operation.
+type V1DeleteImageVersionParams struct {
+	// The ONTAP version to delete.
+	OntapVersion string
 	// Correlation identifier.
 	XCorrelationID OptString
 }
@@ -63,8 +77,8 @@ type V1GetPoolParams struct {
 	XCorrelationID OptString
 }
 
-// V1ListAvailableVersionsParams is parameters of v1_listAvailableVersions operation.
-type V1ListAvailableVersionsParams struct {
+// V1ListImageVersionsParams is parameters of v1_listImageVersions operation.
+type V1ListImageVersionsParams struct {
 	// Correlation identifier.
 	XCorrelationID OptString
 }

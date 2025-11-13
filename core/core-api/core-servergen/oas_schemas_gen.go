@@ -119,6 +119,8 @@ func (s *AvailableVersionV1) SetIsActive(val bool) {
 	s.IsActive = val
 }
 
+func (*AvailableVersionV1) v1CreateImageVersionRes() {}
+
 // Ref: #/components/schemas/ChildAsset
 type ChildAsset struct {
 	AssetType  OptString `json:"asset_type"`
@@ -868,6 +870,71 @@ func (s *GcpKmsKeyRotateV1) SetOwnerID(val string) {
 	s.OwnerID = val
 }
 
+// Request to create a new image version entry.
+// Ref: #/components/schemas/ImageVersionCreateRequest_v1
+type ImageVersionCreateRequestV1 struct {
+	// ONTAP version string (must be unique).
+	OntapVersion string `json:"ontapVersion"`
+	// Full VSA image path for this ONTAP version.
+	VsaImagePath string `json:"vsaImagePath"`
+	// VSA image name for this ONTAP version.
+	VsaName string `json:"vsaName"`
+	// Mediator image name for this ONTAP version.
+	MediatorName string `json:"mediatorName"`
+	// Whether this version is active and available for upgrades.
+	IsActive bool `json:"isActive"`
+}
+
+// GetOntapVersion returns the value of OntapVersion.
+func (s *ImageVersionCreateRequestV1) GetOntapVersion() string {
+	return s.OntapVersion
+}
+
+// GetVsaImagePath returns the value of VsaImagePath.
+func (s *ImageVersionCreateRequestV1) GetVsaImagePath() string {
+	return s.VsaImagePath
+}
+
+// GetVsaName returns the value of VsaName.
+func (s *ImageVersionCreateRequestV1) GetVsaName() string {
+	return s.VsaName
+}
+
+// GetMediatorName returns the value of MediatorName.
+func (s *ImageVersionCreateRequestV1) GetMediatorName() string {
+	return s.MediatorName
+}
+
+// GetIsActive returns the value of IsActive.
+func (s *ImageVersionCreateRequestV1) GetIsActive() bool {
+	return s.IsActive
+}
+
+// SetOntapVersion sets the value of OntapVersion.
+func (s *ImageVersionCreateRequestV1) SetOntapVersion(val string) {
+	s.OntapVersion = val
+}
+
+// SetVsaImagePath sets the value of VsaImagePath.
+func (s *ImageVersionCreateRequestV1) SetVsaImagePath(val string) {
+	s.VsaImagePath = val
+}
+
+// SetVsaName sets the value of VsaName.
+func (s *ImageVersionCreateRequestV1) SetVsaName(val string) {
+	s.VsaName = val
+}
+
+// SetMediatorName sets the value of MediatorName.
+func (s *ImageVersionCreateRequestV1) SetMediatorName(val string) {
+	s.MediatorName = val
+}
+
+// SetIsActive sets the value of IsActive.
+func (s *ImageVersionCreateRequestV1) SetIsActive(val bool) {
+	s.IsActive = val
+}
+
 // Ref: #/components/schemas/Job_v1
 type JobV1 struct {
 	// UUID v4 used to identify the job.
@@ -1186,7 +1253,7 @@ func (s *ListAvailableVersionsResponseV1) SetCurrent(val string) {
 	s.Current = val
 }
 
-func (*ListAvailableVersionsResponseV1) v1ListAvailableVersionsRes() {}
+func (*ListAvailableVersionsResponseV1) v1ListImageVersionsRes() {}
 
 // Ref: #/components/schemas/OntapCredentials_v1
 type OntapCredentialsV1 struct {
@@ -4105,6 +4172,34 @@ func (s *UpgradeProgressV1Status) UnmarshalText(data []byte) error {
 	}
 }
 
+type V1CreateImageVersionBadRequest Error
+
+func (*V1CreateImageVersionBadRequest) v1CreateImageVersionRes() {}
+
+type V1CreateImageVersionConflict Error
+
+func (*V1CreateImageVersionConflict) v1CreateImageVersionRes() {}
+
+type V1CreateImageVersionForbidden Error
+
+func (*V1CreateImageVersionForbidden) v1CreateImageVersionRes() {}
+
+type V1CreateImageVersionInternalServerError Error
+
+func (*V1CreateImageVersionInternalServerError) v1CreateImageVersionRes() {}
+
+type V1CreateImageVersionTooManyRequests Error
+
+func (*V1CreateImageVersionTooManyRequests) v1CreateImageVersionRes() {}
+
+type V1CreateImageVersionUnauthorized Error
+
+func (*V1CreateImageVersionUnauthorized) v1CreateImageVersionRes() {}
+
+type V1CreateImageVersionUnprocessableEntity Error
+
+func (*V1CreateImageVersionUnprocessableEntity) v1CreateImageVersionRes() {}
+
 type V1CreatePoolBadRequest Error
 
 func (*V1CreatePoolBadRequest) v1CreatePoolRes() {}
@@ -4132,6 +4227,39 @@ func (*V1CreatePoolUnauthorized) v1CreatePoolRes() {}
 type V1CreatePoolUnprocessableEntity Error
 
 func (*V1CreatePoolUnprocessableEntity) v1CreatePoolRes() {}
+
+type V1DeleteImageVersionBadRequest Error
+
+func (*V1DeleteImageVersionBadRequest) v1DeleteImageVersionRes() {}
+
+type V1DeleteImageVersionForbidden Error
+
+func (*V1DeleteImageVersionForbidden) v1DeleteImageVersionRes() {}
+
+type V1DeleteImageVersionInternalServerError Error
+
+func (*V1DeleteImageVersionInternalServerError) v1DeleteImageVersionRes() {}
+
+// V1DeleteImageVersionNoContent is response for V1DeleteImageVersion operation.
+type V1DeleteImageVersionNoContent struct{}
+
+func (*V1DeleteImageVersionNoContent) v1DeleteImageVersionRes() {}
+
+type V1DeleteImageVersionNotFound Error
+
+func (*V1DeleteImageVersionNotFound) v1DeleteImageVersionRes() {}
+
+type V1DeleteImageVersionTooManyRequests Error
+
+func (*V1DeleteImageVersionTooManyRequests) v1DeleteImageVersionRes() {}
+
+type V1DeleteImageVersionUnauthorized Error
+
+func (*V1DeleteImageVersionUnauthorized) v1DeleteImageVersionRes() {}
+
+type V1DeleteImageVersionUnprocessableEntity Error
+
+func (*V1DeleteImageVersionUnprocessableEntity) v1DeleteImageVersionRes() {}
 
 type V1DeletePoolBadRequest Error
 
@@ -4310,33 +4438,33 @@ type V1GetPoolUnprocessableEntity Error
 
 func (*V1GetPoolUnprocessableEntity) v1GetPoolRes() {}
 
-type V1ListAvailableVersionsBadRequest Error
+type V1ListImageVersionsBadRequest Error
 
-func (*V1ListAvailableVersionsBadRequest) v1ListAvailableVersionsRes() {}
+func (*V1ListImageVersionsBadRequest) v1ListImageVersionsRes() {}
 
-type V1ListAvailableVersionsForbidden Error
+type V1ListImageVersionsForbidden Error
 
-func (*V1ListAvailableVersionsForbidden) v1ListAvailableVersionsRes() {}
+func (*V1ListImageVersionsForbidden) v1ListImageVersionsRes() {}
 
-type V1ListAvailableVersionsInternalServerError Error
+type V1ListImageVersionsInternalServerError Error
 
-func (*V1ListAvailableVersionsInternalServerError) v1ListAvailableVersionsRes() {}
+func (*V1ListImageVersionsInternalServerError) v1ListImageVersionsRes() {}
 
-type V1ListAvailableVersionsNotFound Error
+type V1ListImageVersionsNotFound Error
 
-func (*V1ListAvailableVersionsNotFound) v1ListAvailableVersionsRes() {}
+func (*V1ListImageVersionsNotFound) v1ListImageVersionsRes() {}
 
-type V1ListAvailableVersionsTooManyRequests Error
+type V1ListImageVersionsTooManyRequests Error
 
-func (*V1ListAvailableVersionsTooManyRequests) v1ListAvailableVersionsRes() {}
+func (*V1ListImageVersionsTooManyRequests) v1ListImageVersionsRes() {}
 
-type V1ListAvailableVersionsUnauthorized Error
+type V1ListImageVersionsUnauthorized Error
 
-func (*V1ListAvailableVersionsUnauthorized) v1ListAvailableVersionsRes() {}
+func (*V1ListImageVersionsUnauthorized) v1ListImageVersionsRes() {}
 
-type V1ListAvailableVersionsUnprocessableEntity Error
+type V1ListImageVersionsUnprocessableEntity Error
 
-func (*V1ListAvailableVersionsUnprocessableEntity) v1ListAvailableVersionsRes() {}
+func (*V1ListImageVersionsUnprocessableEntity) v1ListImageVersionsRes() {}
 
 type V1ListPoolsBadRequest Error
 

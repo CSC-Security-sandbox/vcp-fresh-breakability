@@ -52,6 +52,35 @@ func TestAvailableVersionV1_EncodeDecode(t *testing.T) {
 	var typ2 AvailableVersionV1
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+
+func TestAvailableVersionV1_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"isActive\":true,\"isCurrent\":false,\"mediatorName\":\"cvo-mediator-x-9-17-1x49\",\"ontapVersion\":\"9.17.1\",\"vsaImagePath\":\"gcr.io/vsa-images/x-9-17-1x49-gcnv\",\"vsaName\":\"x-9-17-1x49-gcnv\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ AvailableVersionV1
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 AvailableVersionV1
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestChildAsset_EncodeDecode(t *testing.T) {
 	var typ ChildAsset
 	typ.SetFake()
@@ -249,10 +278,12 @@ func TestError_Examples(t *testing.T) {
 		{Input: "{\"code\":400,\"message\":\"Bad Request or Input\"}"},
 		{Input: "{\"code\":401,\"message\":\"Unauthorized access attempt\"}"},
 		{Input: "{\"code\":403,\"message\":\"Access to this resource forbidden\"}"},
+		{Input: "{\"code\":404,\"message\":\"Image version not found\"}"},
 		{Input: "{\"code\":404,\"message\":\"The resource was not found\"}"},
 		{Input: "{\"code\":405,\"message\":\"The HTTP method is not allowed for this resource\"}"},
 		{Input: "{\"code\":408,\"message\":\"Request Timeout\"}"},
 		{Input: "{\"code\":409,\"message\":\"Conflict. Resource already exists\"}"},
+		{Input: "{\"code\":409,\"message\":\"Image version with this ONTAP version already exists\"}"},
 		{Input: "{\"code\":422,\"message\":\"protocols in body is required\"}"},
 		{Input: "{\"code\":429,\"message\":\"Rate limit exceeded for this endpoint - try again later\"}"},
 		{Input: "{\"code\":500,\"message\":\"Internal server error\"}"},
@@ -343,6 +374,18 @@ func TestGcpKmsKeyRotateV1_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 GcpKmsKeyRotateV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestImageVersionCreateRequestV1_EncodeDecode(t *testing.T) {
+	var typ ImageVersionCreateRequestV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ImageVersionCreateRequestV1
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestJobV1_EncodeDecode(t *testing.T) {
@@ -1073,6 +1116,90 @@ func TestUpgradeProgressV1Status_Examples(t *testing.T) {
 		})
 	}
 }
+func TestV1CreateImageVersionBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1CreateImageVersionBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateImageVersionBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateImageVersionConflict_EncodeDecode(t *testing.T) {
+	var typ V1CreateImageVersionConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateImageVersionConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateImageVersionForbidden_EncodeDecode(t *testing.T) {
+	var typ V1CreateImageVersionForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateImageVersionForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateImageVersionInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1CreateImageVersionInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateImageVersionInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateImageVersionTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1CreateImageVersionTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateImageVersionTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateImageVersionUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1CreateImageVersionUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateImageVersionUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateImageVersionUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1CreateImageVersionUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateImageVersionUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1CreatePoolBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1CreatePoolBadRequest
 	typ.SetFake()
@@ -1155,6 +1282,90 @@ func TestV1CreatePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1CreatePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteImageVersionBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1DeleteImageVersionBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteImageVersionBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteImageVersionForbidden_EncodeDecode(t *testing.T) {
+	var typ V1DeleteImageVersionForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteImageVersionForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteImageVersionInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1DeleteImageVersionInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteImageVersionInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteImageVersionNotFound_EncodeDecode(t *testing.T) {
+	var typ V1DeleteImageVersionNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteImageVersionNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteImageVersionTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1DeleteImageVersionTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteImageVersionTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteImageVersionUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1DeleteImageVersionUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteImageVersionUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteImageVersionUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1DeleteImageVersionUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteImageVersionUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1DeletePoolBadRequest_EncodeDecode(t *testing.T) {
@@ -1613,8 +1824,8 @@ func TestV1GetPoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1GetPoolUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestV1ListAvailableVersionsBadRequest_EncodeDecode(t *testing.T) {
-	var typ V1ListAvailableVersionsBadRequest
+func TestV1ListImageVersionsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1ListImageVersionsBadRequest
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -1622,11 +1833,11 @@ func TestV1ListAvailableVersionsBadRequest_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 V1ListAvailableVersionsBadRequest
+	var typ2 V1ListImageVersionsBadRequest
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestV1ListAvailableVersionsForbidden_EncodeDecode(t *testing.T) {
-	var typ V1ListAvailableVersionsForbidden
+func TestV1ListImageVersionsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1ListImageVersionsForbidden
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -1634,11 +1845,11 @@ func TestV1ListAvailableVersionsForbidden_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 V1ListAvailableVersionsForbidden
+	var typ2 V1ListImageVersionsForbidden
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestV1ListAvailableVersionsInternalServerError_EncodeDecode(t *testing.T) {
-	var typ V1ListAvailableVersionsInternalServerError
+func TestV1ListImageVersionsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1ListImageVersionsInternalServerError
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -1646,11 +1857,11 @@ func TestV1ListAvailableVersionsInternalServerError_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 V1ListAvailableVersionsInternalServerError
+	var typ2 V1ListImageVersionsInternalServerError
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestV1ListAvailableVersionsNotFound_EncodeDecode(t *testing.T) {
-	var typ V1ListAvailableVersionsNotFound
+func TestV1ListImageVersionsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1ListImageVersionsNotFound
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -1658,11 +1869,11 @@ func TestV1ListAvailableVersionsNotFound_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 V1ListAvailableVersionsNotFound
+	var typ2 V1ListImageVersionsNotFound
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestV1ListAvailableVersionsTooManyRequests_EncodeDecode(t *testing.T) {
-	var typ V1ListAvailableVersionsTooManyRequests
+func TestV1ListImageVersionsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1ListImageVersionsTooManyRequests
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -1670,11 +1881,11 @@ func TestV1ListAvailableVersionsTooManyRequests_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 V1ListAvailableVersionsTooManyRequests
+	var typ2 V1ListImageVersionsTooManyRequests
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestV1ListAvailableVersionsUnauthorized_EncodeDecode(t *testing.T) {
-	var typ V1ListAvailableVersionsUnauthorized
+func TestV1ListImageVersionsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1ListImageVersionsUnauthorized
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -1682,11 +1893,11 @@ func TestV1ListAvailableVersionsUnauthorized_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 V1ListAvailableVersionsUnauthorized
+	var typ2 V1ListImageVersionsUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestV1ListAvailableVersionsUnprocessableEntity_EncodeDecode(t *testing.T) {
-	var typ V1ListAvailableVersionsUnprocessableEntity
+func TestV1ListImageVersionsUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1ListImageVersionsUnprocessableEntity
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -1694,7 +1905,7 @@ func TestV1ListAvailableVersionsUnprocessableEntity_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 V1ListAvailableVersionsUnprocessableEntity
+	var typ2 V1ListImageVersionsUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1ListPoolsBadRequest_EncodeDecode(t *testing.T) {

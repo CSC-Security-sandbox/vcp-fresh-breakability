@@ -118,6 +118,8 @@ type OrchestratorFactory interface {
 	UpgradeCluster(ctx context.Context, params *commonparams.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error)
 	GetClusterUpgradeStatus(ctx context.Context, jobUUID string) (*models.UpgradeProgress, error)
 	ListAvailableVersions(ctx context.Context) (*models.ListAvailableVersionsResponse, error)
+	CreateImageVersion(ctx context.Context, ontapVersion, vsaImagePath, vsaName, mediatorName string, isActive bool) (*datamodel.ImageVersion, error)
+	DeleteImageVersion(ctx context.Context, ontapVersion string) error
 
 	GetActiveDirectory(ctx context.Context, activeDirectoryUUID string) (*models.ActiveDirectory, error)
 	ListActiveDirectories(ctx context.Context, accountName string) ([]*models.ActiveDirectory, error)

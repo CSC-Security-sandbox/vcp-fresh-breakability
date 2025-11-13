@@ -1461,6 +1461,62 @@ func (s UpgradeProgressV1Status) Validate() error {
 	}
 }
 
+func (s *V1CreateImageVersionBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1CreateImageVersionConflict) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1CreateImageVersionForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1CreateImageVersionInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1CreateImageVersionTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1CreateImageVersionUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1CreateImageVersionUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1CreatePoolBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -1510,6 +1566,62 @@ func (s *V1CreatePoolUnauthorized) Validate() error {
 }
 
 func (s *V1CreatePoolUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1DeleteImageVersionBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1DeleteImageVersionForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1DeleteImageVersionInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1DeleteImageVersionNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1DeleteImageVersionTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1DeleteImageVersionUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1DeleteImageVersionUnprocessableEntity) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1850,7 +1962,7 @@ func (s *V1GetPoolUnprocessableEntity) Validate() error {
 	return nil
 }
 
-func (s *V1ListAvailableVersionsBadRequest) Validate() error {
+func (s *V1ListImageVersionsBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1858,7 +1970,7 @@ func (s *V1ListAvailableVersionsBadRequest) Validate() error {
 	return nil
 }
 
-func (s *V1ListAvailableVersionsForbidden) Validate() error {
+func (s *V1ListImageVersionsForbidden) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1866,7 +1978,7 @@ func (s *V1ListAvailableVersionsForbidden) Validate() error {
 	return nil
 }
 
-func (s *V1ListAvailableVersionsInternalServerError) Validate() error {
+func (s *V1ListImageVersionsInternalServerError) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1874,7 +1986,7 @@ func (s *V1ListAvailableVersionsInternalServerError) Validate() error {
 	return nil
 }
 
-func (s *V1ListAvailableVersionsNotFound) Validate() error {
+func (s *V1ListImageVersionsNotFound) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1882,7 +1994,7 @@ func (s *V1ListAvailableVersionsNotFound) Validate() error {
 	return nil
 }
 
-func (s *V1ListAvailableVersionsTooManyRequests) Validate() error {
+func (s *V1ListImageVersionsTooManyRequests) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1890,7 +2002,7 @@ func (s *V1ListAvailableVersionsTooManyRequests) Validate() error {
 	return nil
 }
 
-func (s *V1ListAvailableVersionsUnauthorized) Validate() error {
+func (s *V1ListImageVersionsUnauthorized) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1898,7 +2010,7 @@ func (s *V1ListAvailableVersionsUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *V1ListAvailableVersionsUnprocessableEntity) Validate() error {
+func (s *V1ListImageVersionsUnprocessableEntity) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
