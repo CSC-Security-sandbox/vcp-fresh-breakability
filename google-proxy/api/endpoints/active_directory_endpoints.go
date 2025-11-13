@@ -266,7 +266,7 @@ func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpge
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	var adV1BetaModel *gcpgenserver.ActiveDirectoryV1beta
-	if cvp.CVP_HOST == "" {
+	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		adV1BetaModel, err = getActiveDirectoryFromVCP(ctx, h, params.ActiveDirectoryId)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
@@ -378,7 +378,7 @@ func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gc
 
 	var adResponse gcpgenserver.V1betaGetMultipleActiveDirectoriesOK
 
-	if cvp.CVP_HOST == "" {
+	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		// VCP Path: Use orchestrator to get from VCP database
 		ads, err := h.Orchestrator.GetMultipleActiveDirectories(ctx, req.ActiveDirectoryUuids)
 		if err != nil {
@@ -531,7 +531,7 @@ func (h Handler) V1betaListActiveDirectories(ctx context.Context, params gcpgens
 
 	var adResponse gcpgenserver.V1betaListActiveDirectoriesOK
 
-	if cvp.CVP_HOST == "" {
+	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		ads, err := h.Orchestrator.ListActiveDirectories(ctx, params.ProjectNumber)
 		if err != nil {
 			return &gcpgenserver.V1betaListActiveDirectoriesInternalServerError{

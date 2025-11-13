@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -112,7 +113,12 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		env.OnActivity("CreateSdeActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -451,7 +457,12 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		params := &common.CreateActiveDirectoryParams{
 			AccountId:  "456",
@@ -631,7 +642,12 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		sdeResult := &cvpModels.OperationV1beta{
 			Name: "update-ad-operation",
@@ -1011,7 +1027,12 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		params := &common.UpdateActiveDirectoryParams{
 			AccountId: "456",
@@ -1135,7 +1156,12 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		params := &common.UpdateActiveDirectoryParams{
 			AccountId: "999",
@@ -1253,7 +1279,12 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 
 	originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
 			ADExists:        true,
@@ -1299,7 +1330,12 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 
 	originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		// When AD doesn't exist at VCP, DeletionAllowed is true (no SVMs using it)
 		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
@@ -1473,7 +1509,12 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 
 	originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 	checkResult := &active_directory_activities.CheckDeletionAllowedResult{
 		ADExists:        true,
@@ -1557,7 +1598,12 @@ t.Run("Failure_UpdateJobStatusError", func(t *testing.T) {
 
 	originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost // Enable SDE
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
 			ADExists:        true,
@@ -1605,7 +1651,12 @@ t.Run("Failure_UpdateJobStatusError", func(t *testing.T) {
 
 	originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost // Enable SDE
-		defer func() { cvp.CVP_HOST = originalHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 	checkResult := &active_directory_activities.CheckDeletionAllowedResult{
 		ADExists:        false, // AD not found at VCP
@@ -1798,7 +1849,12 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 
 	originalHost := cvp.CVP_HOST
 	cvp.CVP_HOST = cvpHost
-	defer func() { cvp.CVP_HOST = originalHost }()
+	originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	defer func() {
+		cvp.CVP_HOST = originalHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+	}()
 
 	accountID := int64(456)
 	params := &common.DeleteActiveDirectoryParams{

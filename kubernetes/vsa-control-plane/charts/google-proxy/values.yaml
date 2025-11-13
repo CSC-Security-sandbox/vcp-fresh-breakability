@@ -71,6 +71,7 @@ maxThinClonesPerPool: 100
 enableAutoPoolScaling: true
 hardDeleteResources: true
 scheduleHardDelete: false
+createCommonResourcesInVCP: true
 autoPoolScalingLimits:
   c3-standard-4-lssd:
     min_volume_count: 1

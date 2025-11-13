@@ -61,6 +61,7 @@ data:
   MAX_CONSTITUENTS_PER_AGGREGATE: "{{ index .Values "maxConstituentsPerAggregate" }}"
   MIN_SIZE_GRANULARITY: "{{ index .Values "minSizeGranularity" }}"
   MIN_CUSTOM_THROUGHPUT: "{{ index .Values "minCustomThroughput" }}"
+  CREATE_COMMON_RESOURCES_IN_VCP: "{{ index .Values "createCommonResourcesInVCP" }}"
   MIN_CUSTOM_IOPS: "{{ index .Values "minCustomIops" }}"
   MAX_CUSTOM_THROUGHPUT: "{{ index .Values "maxCustomThroughput" }}"
   MAX_CUSTOM_IOPS: "{{ index .Values "maxCustomIops" }}"

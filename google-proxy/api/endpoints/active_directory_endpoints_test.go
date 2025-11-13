@@ -16,6 +16,7 @@ import (
 	vcpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -307,7 +308,12 @@ func TestV1betaListActiveDirectories(t *testing.T) {
 	// Set CVP_HOST to localhost:8009 to use CVS path
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = "localhost:8009"
-	defer func() { cvp.CVP_HOST = originalCVPHost }()
+	originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+	}()
 
 	// Create a mock client
 	mockClient := active_directories.NewMockClientService(t)
@@ -542,7 +548,12 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		// Define request
 		// Create a mock client
@@ -609,7 +620,12 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
@@ -655,7 +671,12 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
@@ -702,7 +723,12 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
@@ -749,7 +775,12 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
@@ -796,7 +827,12 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
@@ -843,7 +879,12 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
@@ -888,7 +929,12 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 	t.Run("WhenDescribeActiveDirectoryReturnsNilPayload", func(t *testing.T) {
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -921,7 +967,12 @@ func TestV1betaDescribeActiveDirectory(t *testing.T) {
 	t.Run("WhenDescribeActiveDirectoryReturnsCVPDataWhenVCPNotFound", func(t *testing.T) {
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1149,7 +1200,12 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1234,7 +1290,12 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1282,7 +1343,12 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1331,7 +1397,12 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1381,7 +1452,12 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1431,7 +1507,12 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1481,7 +1562,12 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 
@@ -1530,7 +1616,12 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		// Set CVP_HOST to localhost:8009 to use CVS path
 		originalCVPHost := cvp.CVP_HOST
 		cvp.CVP_HOST = "localhost:8009"
-		defer func() { cvp.CVP_HOST = originalCVPHost }()
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
 		// Create a mock client
 		mockClient := active_directories.NewMockClientService(t)
 

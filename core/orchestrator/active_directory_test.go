@@ -197,7 +197,12 @@ func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = "https://cvp.example.com"
-	defer func() { cvp.CVP_HOST = originalCVPHost }()
+	originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+	}()
 
 	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -2024,7 +2029,12 @@ func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	// Set CVP_HOST to simulate SDE environment
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = "http://cvp.example.com"
-	defer func() { cvp.CVP_HOST = originalCVPHost }()
+	originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+	}()
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone

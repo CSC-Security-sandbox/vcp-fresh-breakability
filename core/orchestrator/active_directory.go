@@ -81,7 +81,7 @@ func _createActiveDirectory(
 
 	var adRecord *datamodel.ActiveDirectory
 
-	if cvp.CVP_HOST == "" {
+	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		adRecord, err = createVCPActiveDirectoryDBRecord(ctx, se, params, account.ID)
 		if err != nil {
 			return nil, "", err
@@ -136,7 +136,7 @@ func _createActiveDirectory(
 		return nil, "", err
 	}
 
-	if cvp.CVP_HOST == "" {
+	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		return convertDatastoreActiveDirectoryToModel(adRecord), createdJob.UUID, nil
 	}
 
@@ -562,7 +562,7 @@ func _updateActiveDirectory(
 		return nil, "", err
 	}
 
-	if cvp.CVP_HOST == "" {
+	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		adRecord, _ := se.GetActiveDirectoryByNameAndAccountID(ctx, ad.AdName, account.ID)
 		if adRecord == nil {
 			return nil, "", customerrors.NewNotFoundErr("ActiveDirectory", &params.ActiveDirectoryId)

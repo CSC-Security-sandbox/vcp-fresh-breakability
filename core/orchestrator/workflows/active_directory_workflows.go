@@ -110,13 +110,13 @@ func (wf *ActiveDirectoryCreateWorkflow) Run(ctx workflow.Context, args ...inter
 	rollbackManager.AddActivity(activeDirectoryActivity.RollbackActiveDirectory, adRecord)
 	defer func() {
 		// Trigger the rollback only if there was an error, and we are not in SDE mode
-		if err != nil && cvp.CVP_HOST == "" {
+		if err != nil && (cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP) {
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}
 	}()
 
-	if cvp.CVP_HOST == "" {
+	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		logger.Info("CVP_HOST environment variable is not set, creating AD in VCP")
 		err = workflow.ExecuteActivity(
 			ctx,
@@ -245,7 +245,7 @@ func (wf *ActiveDirectoryDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 	}
 
 	// Step 1: Check if SDE is enabled (CVP_HOST is set)
-	if cvp.CVP_HOST != "" {
+	if cvp.CVP_HOST != "" && !utils.CreateCommonResourcesInVCP {
 		logger.Debug("SDE is enabled")
 
 		// Step 2: Check if AD can be deleted at VCP (check existence and SVM associations)
@@ -404,7 +404,7 @@ func (wf *ActiveDirectoryUpdateWorkflow) Run(ctx workflow.Context, args ...inter
 	params := args[0].(*common.UpdateActiveDirectoryParams)
 	oldAd := args[1].(*models.ActiveDirectory)
 
-	if cvp.CVP_HOST == "" {
+	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		logger.Info("CVP_HOST environment variable is not set, Updating AD in VCP only")
 		err = wf.handleVcpUpdate(ctx, activeDirectoryActivity, params, oldAd)
 		if err != nil {

@@ -193,6 +193,7 @@ workerConfig:
   maxLvThroughput: 60000
   minHotTierSize: "1099511627776"
   minHotTierSizeLV: "13194139533312"
+  createCommonResourcesInVCP: true
   consecutiveUpdatePoolTimeGapAllowedMinutes: 240
   autoTierHotTierAutoResizeThresholdPercent: 90
   autoTierHotTierAutoResizeIncreasePercent: 10
