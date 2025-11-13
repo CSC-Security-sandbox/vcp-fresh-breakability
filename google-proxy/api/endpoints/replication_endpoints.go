@@ -592,8 +592,10 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 	isCleanUp := false
 	var cleanupResourcesJobId string
 	if req.CleanupResourcesJobId.IsSet() {
-		cleanupResourcesJobId = req.CleanupResourcesJobId.Value
-		isCleanUp = true
+		if req.CleanupResourcesJobId.Value != "" {
+			cleanupResourcesJobId = req.CleanupResourcesJobId.Value
+			isCleanUp = true
+		}
 	}
 
 	deleteReplicationParams := &common.DeleteReplicationParams{
