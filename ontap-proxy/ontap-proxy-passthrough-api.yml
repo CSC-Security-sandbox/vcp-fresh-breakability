@@ -1,0 +1,342 @@
+openapi: 3.0.4
+info:
+  title: ONTAP Proxy API
+  description: >
+    Proxy API for forwarding requests to ONTAP REST API endpoints.
+    This API acts as a reverse proxy, forwarding requests to the appropriate
+    ONTAP storage system based on the pool configuration.
+  version: "1.0.0"
+tags:
+  - name: ontap-proxy
+    description: ONTAP API proxy operations
+paths:
+  /v1beta/projects/{projectId}/locations/{locationId}/pools/{poolId}/ontap/{ontapPath}:
+    get:
+      tags:
+        - ontap-proxy
+      summary: Forward GET request to ONTAP API
+      description: >
+        Forwards a GET request to the ONTAP REST API endpoint specified by ontapPath.
+        All query parameters are passed through to the ONTAP API.
+      operationId: v1beta_ontapProxyGet
+      parameters:
+        - $ref: '#/components/parameters/projectIdPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/ontapPathParameter'
+        - $ref: '#/components/parameters/xGoogleIamRoleHeader'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: Successful response from ONTAP
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '202':
+          description: Accepted - operation in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+    post:
+      tags:
+        - ontap-proxy
+      summary: Forward POST request to ONTAP API
+      description: >
+        Forwards a POST request to the ONTAP REST API endpoint specified by ontapPath.
+        All query parameters are passed through to the ONTAP API.
+      operationId: v1beta_ontapProxyPost
+      parameters:
+        - $ref: '#/components/parameters/projectIdPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/ontapPathParameter'
+        - $ref: '#/components/parameters/xGoogleIamRoleHeader'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: Request body to forward to ONTAP API
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              aggregates:
+                - name: "aggr1"
+              svm:
+                name: "gcnv-213ecf19b3c8ce5-svm-01"
+              name: "volexp4"
+              size: 1099511627776
+      responses:
+        '200':
+          description: Successful response from ONTAP
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '202':
+          description: Accepted - operation in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+    patch:
+      tags:
+        - ontap-proxy
+      summary: Forward PATCH request to ONTAP API
+      description: >
+        Forwards a PATCH request to the ONTAP REST API endpoint specified by ontapPath.
+        All query parameters are passed through to the ONTAP API.
+      operationId: v1beta_ontapProxyPatch
+      parameters:
+        - $ref: '#/components/parameters/projectIdPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/ontapPathParameter'
+        - $ref: '#/components/parameters/xGoogleIamRoleHeader'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: Request body to forward to ONTAP API
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Successful response from ONTAP
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '202':
+          description: Accepted - operation in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+    delete:
+      tags:
+        - ontap-proxy
+      summary: Forward DELETE request to ONTAP API
+      description: >
+        Forwards a DELETE request to the ONTAP REST API endpoint specified by ontapPath.
+        All query parameters are passed through to the ONTAP API.
+      operationId: v1beta_ontapProxyDelete
+      parameters:
+        - $ref: '#/components/parameters/projectIdPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/ontapPathParameter'
+        - $ref: '#/components/parameters/xGoogleIamRoleHeader'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: Successful response from ONTAP
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '202':
+          description: Accepted - operation in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '204':
+          description: No content - successful deletion
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+components:
+  parameters:
+    projectIdPathParameter:
+      name: projectId
+      in: path
+      required: true
+      description: Google Cloud Project Number (numeric string)
+      schema:
+        type: string
+        pattern: "^[1-9][0-9]{0,18}$"
+        maxLength: 18
+        example: "123456789"
+    locationIdPathParameter:
+      name: locationId
+      in: path
+      required: true
+      description: GCP Region or Zone identifier
+      schema:
+        type: string
+        maxLength: 255
+        example: "us-east1"
+    poolIdPathParameter:
+      name: poolId
+      in: path
+      required: true
+      description: Storage Pool UUID (v4 format)
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        maxLength: 36
+        minLength: 36
+        example: "550e8400-e29b-41d4-a716-446655440000"
+    ontapPathParameter:
+      name: ontapPath
+      in: path
+      required: true
+      description: >
+        ONTAP API path. This can include multiple path segments separated by slashes.
+        The path should start with the API version (e.g., /api/storage/volumes).
+        All path segments after /ontap/ are captured in this parameter.
+      schema:
+        type: string
+        example: "api/storage/volumes"
+    xGoogleIamRoleHeader:
+      name: x-google-iam-role
+      in: header
+      description: >
+        IAM permission details required for the operation. Can contain one or more
+        comma-separated GCP IAM permission identifiers (e.g., netapp.googleapis.com/ontapModeAdmin).
+      required: false
+      schema:
+        type: string
+        example: "netapp.googleapis.com/ontapModeAdmin"
+    xCorrelationIdHeader:
+      name: x-correlation-id
+      in: header
+      description: Correlation identifier for request tracking
+      required: false
+      schema:
+        type: string
+  responses:
+    StandardError-400:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            message: Bad Request or Input
+    StandardError-401:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 401
+            message: Unauthorized access attempt
+    StandardError-403:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 403
+            message: Access to this resource forbidden
+    StandardError-404:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            message: The resource was not found
+    StandardError-500:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            message: Internal server error
+    StandardError-503:
+      description: Service unavailable
+      headers:
+        Retry-After:
+          description: A non-negative integer indicating the seconds to delay after the response is received
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 503
+            message: Service is currently unavailable
+  schemas:
+    Error:
+      required:
+        - code
+        - message
+      type: object
+      properties:
+        code:
+          type: number
+          format: double
+          nullable: false
+        message:
+          type: string
+          nullable: false
+

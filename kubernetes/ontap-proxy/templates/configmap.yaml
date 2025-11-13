@@ -30,3 +30,16 @@ data:
   CERT_CACHE_EXPIRATION_MINUTES: {{ .Values.gcp.certCache.expirationMinutes | default "120" | quote }}
   CERT_CACHE_SLEEP_RETRY_INTERVAL_SECONDS: {{ .Values.gcp.certCache.sleepRetryIntervalSeconds | default "5" | quote }}
   JWK_TIMEOUT_SECONDS: {{ .Values.gcp.jwkTimeoutSeconds | default "10" | quote }}
+
+  # Connection Pool Configuration
+  ONTAP_MAX_IDLE_CONNS: {{ .Values.connectionPool.maxIdleConns | default "200" | quote }}
+  ONTAP_MAX_IDLE_CONNS_PER_HOST: {{ .Values.connectionPool.maxIdleConnsPerHost | default "50" | quote }}
+  ONTAP_MAX_CONNS_PER_HOST: {{ .Values.connectionPool.maxConnsPerHost | default "100" | quote }}
+  ONTAP_IDLE_CONN_TIMEOUT_SECONDS: {{ .Values.connectionPool.idleConnTimeoutSeconds | default "120" | quote }}
+  ONTAP_TLS_HANDSHAKE_TIMEOUT_SECONDS: {{ .Values.connectionPool.tlsHandshakeTimeoutSeconds | default "15" | quote }}
+  ONTAP_RESPONSE_HEADER_TIMEOUT_SECONDS: {{ .Values.connectionPool.responseHeaderTimeoutSeconds | default "30" | quote }}
+  ONTAP_EXPECT_CONTINUE_TIMEOUT_SECONDS: {{ .Values.connectionPool.expectContinueTimeoutSeconds | default "1" | quote }}
+  ONTAP_CLIENT_TIMEOUT_SECONDS: {{ .Values.connectionPool.clientTimeoutSeconds | default "60" | quote }}
+  ONTAP_CLEANUP_INTERVAL_SECONDS: {{ .Values.connectionPool.cleanupIntervalSeconds | default "60" | quote }}
+  ONTAP_CLEANUP_THRESHOLD_SECONDS: {{ .Values.connectionPool.cleanupThresholdSeconds | default "300" | quote }}
+  ONTAP_MAX_TOTAL_CONNECTIONS: {{ .Values.connectionPool.maxTotalConnections | default "1000" | quote }}

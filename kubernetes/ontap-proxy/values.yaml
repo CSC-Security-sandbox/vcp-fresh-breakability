@@ -77,5 +77,24 @@ gcp:
       expirationMinutes: 120
       sleepRetryIntervalSeconds: 5
 
+# Connection Pool Configuration
+connectionPool:
+  # Connection limits
+  maxIdleConns: 200                    # Maximum idle connections across all ONTAP clusters
+  maxIdleConnsPerHost: 50             # Maximum idle connections per ONTAP cluster
+  maxConnsPerHost: 100                # Maximum concurrent connections per ONTAP cluster
+  maxTotalConnections: 1000           # Maximum total connections across all pools
+  
+  # Timeout settings
+  idleConnTimeoutSeconds: 120         # How long to keep idle connections alive (2 minutes)
+  tlsHandshakeTimeoutSeconds: 15      # TLS handshake timeout
+  responseHeaderTimeoutSeconds: 30    # Response header timeout
+  expectContinueTimeoutSeconds: 1     # Expect continue timeout
+  clientTimeoutSeconds: 60            # Overall client timeout
+  
+  # Cleanup settings
+  cleanupIntervalSeconds: 60          # How often to run cleanup routine
+  cleanupThresholdSeconds: 300         # Remove connections unused for this long (5 minutes)
+
 serviceAccountAnnotations:
   "iam.gke.io/gcp-service-account": "" # FIXME: update with correct service account

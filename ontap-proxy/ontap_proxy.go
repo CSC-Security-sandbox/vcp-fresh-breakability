@@ -8,6 +8,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
@@ -15,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	ontapProxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -24,52 +26,153 @@ var (
 
 type AuthTransport struct{}
 
-func NewAuthTransport() *AuthTransport {
-	return &AuthTransport{}
+// ConnectionPool manages HTTP clients for different ONTAP clusters and auth types
+type ConnectionPool struct {
+	clients          map[string]*http.Client
+	clientTimestamps map[string]time.Time // Track last used time
+	mutex            sync.RWMutex
+
+	// Configuration
+	maxIdleConns        int
+	maxIdleConnsPerHost int
+	idleConnTimeout     time.Duration
+	tlsHandshakeTimeout time.Duration
+	cleanupThreshold    time.Duration
+
+	// Cleanup
+	cleanupTicker *time.Ticker
+	stopCleanup   chan bool
 }
 
-func (at *AuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	cacheKey := cache.GetAuthDataKeyFromContext(req.Context())
-	if cacheKey == "" {
-		return nil, fmt.Errorf("no cache key found in request context")
+// Global connection pool instance
+var globalConnectionPool *ConnectionPool
+
+// Initialize the global connection pool
+func init() {
+	globalConnectionPool = NewConnectionPool()
+}
+
+// NewConnectionPool creates a new connection pool with optimized settings
+func NewConnectionPool() *ConnectionPool {
+	pool := &ConnectionPool{
+		clients:          make(map[string]*http.Client),
+		clientTimestamps: make(map[string]time.Time),
+
+		// Configuration from environment variables with defaults
+		maxIdleConns:        env.GetInt("ONTAP_MAX_IDLE_CONNS", 200),
+		maxIdleConnsPerHost: env.GetInt("ONTAP_MAX_IDLE_CONNS_PER_HOST", 50),
+		idleConnTimeout:     time.Duration(env.GetInt("ONTAP_IDLE_CONN_TIMEOUT_SECONDS", 120)) * time.Second,
+		tlsHandshakeTimeout: time.Duration(env.GetInt("ONTAP_TLS_HANDSHAKE_TIMEOUT_SECONDS", 15)) * time.Second,
+		cleanupThreshold:    time.Duration(env.GetInt("ONTAP_CLEANUP_THRESHOLD_SECONDS", 300)) * time.Second,
+
+		stopCleanup: make(chan bool),
 	}
 
-	authData, exists := cache.GetFromAuthDataCache(cacheKey)
-	if !exists || authData == nil {
-		return nil, fmt.Errorf("no authentication data found in cache for key: %s", cacheKey)
+	// Start cleanup routine
+	pool.startCleanupRoutine()
+
+	return pool
+}
+
+// GetClient returns a pooled HTTP client for the given ONTAP address and auth type
+func (p *ConnectionPool) GetClient(ontapAddress string, authData *models.AuthData) (*http.Client, error) {
+	key := p.generatePoolKey(ontapAddress, authData)
+
+	// Try to get existing client
+	p.mutex.RLock()
+	if client, exists := p.clients[key]; exists {
+		p.mutex.RUnlock()
+		// Update last used timestamp
+		p.mutex.Lock()
+		p.clientTimestamps[key] = time.Now()
+		p.mutex.Unlock()
+		return client, nil
+	}
+	p.mutex.RUnlock()
+
+	// Create new client
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	// Double-check after acquiring write lock
+	if client, exists := p.clients[key]; exists {
+		p.clientTimestamps[key] = time.Now()
+		return client, nil
 	}
 
-	transport, err := buildTransportForAuthType(authData)
+	// Create new client
+	client, err := p.createClient(ontapAddress, authData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client: %w", err)
+	}
+
+	// connectivity test
+
+	p.clients[key] = client
+	p.clientTimestamps[key] = time.Now()
+	return client, nil
+}
+
+// generatePoolKey creates a unique key for the connection pool
+func (p *ConnectionPool) generatePoolKey(ontapAddress string, authData *models.AuthData) string {
+	return fmt.Sprintf("%s:%d:%s", ontapAddress, authData.AuthType, authData.PoolID)
+}
+
+// createClient creates a new HTTP client with optimized transport
+func (p *ConnectionPool) createClient(ontapAddress string, authData *models.AuthData) (*http.Client, error) {
+	transport, err := p.buildOptimizedTransport(authData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build transport: %w", err)
 	}
 
-	return transport.RoundTrip(req)
+	return &http.Client{
+		Transport: transport,
+		Timeout:   time.Duration(env.GetInt("ONTAP_CLIENT_TIMEOUT_SECONDS", 60)) * time.Second,
+	}, nil
 }
 
-func configureRequestAuthentication(req *http.Request, authData *models.AuthData) error {
-	if authData.AuthType == models.USER_CERTIFICATE {
-		return nil
-	}
-	if authData.Username == "" || authData.Password == "" {
-		return fmt.Errorf("missing username or password for basic authentication")
-	}
-	req.SetBasicAuth(authData.Username, authData.Password)
-	return nil
-}
-
-func buildTransportForAuthType(authData *models.AuthData) (*http.Transport, error) {
+// buildOptimizedTransport creates an optimized HTTP transport based on auth type
+func (p *ConnectionPool) buildOptimizedTransport(authData *models.AuthData) (*http.Transport, error) {
+	// Add TLS configuration based on auth type
 	switch authData.AuthType {
 	case models.USER_CERTIFICATE:
-		return buildCertificateTransport(authData)
+		return p.buildCertificateTransport(authData)
 	case models.USERNAME_PWD, models.USERNAME_PWD_SEC_MGR:
-		return buildBasicAuthTransport()
+		return p.buildBasicAuthTransport()
 	default:
-		return buildBasicAuthTransport()
+		return p.buildBasicAuthTransport()
 	}
 }
 
-func buildCertificateTransport(authData *models.AuthData) (*http.Transport, error) {
+// createBaseTransport creates a transport with base settings and the provided TLS config
+func (p *ConnectionPool) createBaseTransport(tlsConfig *tls.Config) *http.Transport {
+	return &http.Transport{
+		// Connection Pooling Settings
+		MaxIdleConns:        p.maxIdleConns,
+		MaxIdleConnsPerHost: p.maxIdleConnsPerHost,
+		MaxConnsPerHost:     env.GetInt("ONTAP_MAX_CONNS_PER_HOST", 100),
+		IdleConnTimeout:     p.idleConnTimeout,
+
+		// Performance Settings
+		DisableKeepAlives:  false, // Enable keep-alive
+		DisableCompression: false, // Enable compression
+		ForceAttemptHTTP2:  true,  // Enable HTTP/2
+
+		// Timeout Settings
+		TLSHandshakeTimeout:   p.tlsHandshakeTimeout,
+		ResponseHeaderTimeout: time.Duration(env.GetInt("ONTAP_RESPONSE_HEADER_TIMEOUT_SECONDS", 30)) * time.Second,
+		ExpectContinueTimeout: time.Duration(env.GetInt("ONTAP_EXPECT_CONTINUE_TIMEOUT_SECONDS", 1)) * time.Second,
+
+		// Proxy and Environment
+		Proxy: http.ProxyFromEnvironment,
+
+		// TLS Configuration
+		TLSClientConfig: tlsConfig,
+	}
+}
+
+// buildCertificateTransport creates transport with certificate authentication
+func (p *ConnectionPool) buildCertificateTransport(authData *models.AuthData) (*http.Transport, error) {
 	if authData.Certificate == nil {
 		return nil, fmt.Errorf("certificate not found for certificate authentication")
 	}
@@ -87,35 +190,199 @@ func buildCertificateTransport(authData *models.AuthData) (*http.Transport, erro
 		return nil, fmt.Errorf("failed to prepare certificate: %w", err)
 	}
 
-	return &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: false,
-			RootCAs:            rootCA,
-			Certificates:       []tls.Certificate{clientCert},
-		},
-	}, nil
+	// Create transport with base settings and certificate TLS config
+	return p.createBaseTransport(&tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: false,
+		RootCAs:            rootCA,
+		Certificates:       []tls.Certificate{clientCert},
+	}), nil
 }
 
-func buildBasicAuthTransport() (*http.Transport, error) {
-	return &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: true,
-		},
-	}, nil
+// buildBasicAuthTransport creates transport with basic authentication
+func (p *ConnectionPool) buildBasicAuthTransport() (*http.Transport, error) {
+	// Create transport with base settings and basic auth TLS config
+	return p.createBaseTransport(&tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true,
+	}), nil
 }
 
+// startCleanupRoutine starts the background cleanup routine
+func (p *ConnectionPool) startCleanupRoutine() {
+	p.cleanupTicker = time.NewTicker(time.Duration(env.GetInt("ONTAP_CLEANUP_INTERVAL_SECONDS", 60)) * time.Second)
+
+	go func() {
+		for {
+			select {
+			case <-p.cleanupTicker.C:
+				p.cleanup()
+			case <-p.stopCleanup:
+				p.cleanupTicker.Stop()
+				return
+			}
+		}
+	}()
+}
+
+// cleanup removes unused connections based on age and count
+func (p *ConnectionPool) cleanup() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	maxConnections := env.GetInt("ONTAP_MAX_TOTAL_CONNECTIONS", 1000)
+	now := time.Now()
+	threshold := now.Add(-p.cleanupThreshold)
+
+	// First, remove connections older than the threshold
+	for key, lastUsed := range p.clientTimestamps {
+		if lastUsed.Before(threshold) {
+			if client, exists := p.clients[key]; exists {
+				if transport, ok := client.Transport.(*http.Transport); ok {
+					transport.CloseIdleConnections()
+				}
+				delete(p.clients, key)
+			}
+			delete(p.clientTimestamps, key)
+		}
+	}
+
+	// If still over limit after time-based cleanup, remove oldest connections
+	if len(p.clients) > maxConnections {
+		// Find the oldest connection
+		oldestKey := ""
+		oldestTime := now
+		for key, lastUsed := range p.clientTimestamps {
+			if lastUsed.Before(oldestTime) {
+				oldestTime = lastUsed
+				oldestKey = key
+			}
+		}
+
+		// Remove the oldest connection
+		if oldestKey != "" {
+			if client, exists := p.clients[oldestKey]; exists {
+				if transport, ok := client.Transport.(*http.Transport); ok {
+					transport.CloseIdleConnections()
+				}
+				delete(p.clients, oldestKey)
+			}
+			delete(p.clientTimestamps, oldestKey)
+		}
+	}
+}
+
+// GetStats returns connection pool statistics
+func (p *ConnectionPool) GetStats() map[string]interface{} {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	return map[string]interface{}{
+		"total_connections": len(p.clients),
+		"max_idle_conns":    p.maxIdleConns,
+		"max_idle_per_host": p.maxIdleConnsPerHost,
+		"idle_timeout":      p.idleConnTimeout.String(),
+	}
+}
+
+// Close closes the connection pool and cleans up resources
+func (p *ConnectionPool) Close() {
+	p.stopCleanup <- true
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	// Close all clients
+	for _, client := range p.clients {
+		if transport, ok := client.Transport.(*http.Transport); ok {
+			transport.CloseIdleConnections()
+		}
+	}
+
+	p.clients = make(map[string]*http.Client)
+	p.clientTimestamps = make(map[string]time.Time)
+}
+
+// Enhanced AuthTransport with connection pooling
+type PooledAuthTransport struct {
+	pool *ConnectionPool
+}
+
+// NewPooledAuthTransport creates a new pooled auth transport
+func NewPooledAuthTransport() *PooledAuthTransport {
+	return &PooledAuthTransport{
+		pool: globalConnectionPool,
+	}
+}
+
+// RoundTrip executes the request using a pooled connection
+func (pat *PooledAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	logger := util.GetLogger(req.Context())
+
+	cacheKey := cache.GetAuthDataKeyFromContext(req.Context())
+	if cacheKey == "" {
+		return nil, fmt.Errorf("no cache key found in request context")
+	}
+
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return nil, fmt.Errorf("no authentication data found in cache for key: %s", cacheKey)
+	}
+
+	// Use ONTAP address from req.URL.Host (already set by Director)
+	// This avoids duplicating the extraction logic
+	ontapAddress := req.URL.Host
+	if ontapAddress == "" {
+		return nil, fmt.Errorf("could not extract ONTAP address from request URL")
+	}
+
+	// Get pooled client
+	client, err := pat.pool.GetClient(ontapAddress, authData)
+	if err != nil {
+		logger.ErrorContext(req.Context(), "Failed to get pooled client", "error", err, "ontapAddress", ontapAddress)
+		return nil, fmt.Errorf("failed to get pooled client: %w", err)
+	}
+
+	// Create a new request from the existing one to avoid RequestURI issues
+	// This is necessary because httputil.ReverseProxy may set RequestURI which
+	// is not allowed for client requests
+	newReq := req.Clone(req.Context())
+
+	// Clear RequestURI if it was set (not allowed for client requests)
+	newReq.RequestURI = ""
+
+	// Configure authentication
+	err = configureRequestAuthentication(newReq, authData)
+	if err != nil {
+		logger.ErrorContext(req.Context(), "Failed to configure authentication", "error", err)
+		return nil, fmt.Errorf("failed to configure authentication: %w", err)
+	}
+
+	// Set common headers
+	setCommonHeaders(newReq)
+
+	logger.DebugContext(req.Context(), "Using pooled connection",
+		"ontapAddress", ontapAddress,
+		"authType", authData.AuthType,
+		"poolID", authData.PoolID)
+
+	// Execute request using pooled connection
+	return client.Do(newReq)
+}
+
+// configureRequestAuthentication configures authentication for the request
+func configureRequestAuthentication(req *http.Request, authData *models.AuthData) error {
+	if authData.AuthType == models.USER_CERTIFICATE {
+		return nil
+	}
+	if authData.Username == "" || authData.Password == "" {
+		return fmt.Errorf("missing username or password for basic authentication")
+	}
+	req.SetBasicAuth(authData.Username, authData.Password)
+	return nil
+}
+
+// setCommonHeaders sets common headers for the request
 func setCommonHeaders(req *http.Request) {
 	req.Header.Set("X-Forwarded-For", req.RemoteAddr)
 	req.Header.Set("X-Proxy-By", "ontap-proxy")
@@ -125,6 +392,7 @@ func setCommonHeaders(req *http.Request) {
 	}
 }
 
+// BuildOntapRESTProxy creates the reverse proxy with connection pooling
 func BuildOntapRESTProxy() *httputil.ReverseProxy {
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
@@ -166,14 +434,6 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 			req.URL = target
 			req.Host = target.Host
 
-			err = configureRequestAuthentication(req, authData)
-			if err != nil {
-				logger.ErrorContext(req.Context(), "Failed to configure request authentication", "error", err, "authType", authData.AuthType)
-				return
-			}
-
-			setCommonHeaders(req)
-
 			logger.InfoContext(req.Context(), "Forwarding request",
 				"targetURL", targetURL,
 				"poolID", authData.PoolID,
@@ -182,7 +442,7 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 				"path", ontapPath)
 			logCurlCommand(req, targetURL)
 		},
-		Transport:      NewAuthTransport(),
+		Transport:      NewPooledAuthTransport(), // Use pooled transport
 		ModifyResponse: actions.ProcessResponseModification,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			logger := util.GetLogger(r.Context())
@@ -219,6 +479,7 @@ func buildTargetURL(ontapAddress, ontapPath, rawQuery string) string {
 	return targetURL
 }
 
+// logCurlCommand logs the equivalent curl command for debugging
 func logCurlCommand(req *http.Request, targetURL string) {
 	logger := util.GetLogger(req.Context())
 
@@ -241,6 +502,7 @@ func logCurlCommand(req *http.Request, targetURL string) {
 	logger.DebugContext(req.Context(), "Equivalent curl command", "command", curlCmd)
 }
 
+// _getAPICallCertificate prepares certificates for API calls
 func _getAPICallCertificate(cert *models.Certificate) (*x509.CertPool, tls.Certificate, error) {
 	if len(cert.InterMediateCertificates) > 0 && cert.SignedCertificate != "" && cert.PrivateKey != "" {
 		rootCA, err := ontapProxyutils.ParsePEMCertificate(cert.InterMediateCertificates, "CERTIFICATE")
