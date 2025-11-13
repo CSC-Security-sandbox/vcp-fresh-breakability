@@ -3,6 +3,7 @@ package vsa
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -814,5 +815,406 @@ func TestGetJobPollingInterval(t *testing.T) {
 
 		// Default should be 3 seconds
 		assert.Equal(t, 3*time.Second, interval)
+	})
+}
+
+// TestEnvironmentVariableConfiguration tests the new configuration through environment variables
+func TestEnvironmentVariableConfiguration(t *testing.T) {
+	t.Run("getJobPollingMaxDuration with valid environment variable", func(t *testing.T) {
+		// Set environment variable
+		originalValue := os.Getenv("JOB_POLLING_MAX_DURATION")
+		defer func() {
+			if originalValue == "" {
+				if err := os.Unsetenv("JOB_POLLING_MAX_DURATION"); err != nil {
+					t.Errorf("Failed to unset JOB_POLLING_MAX_DURATION: %v", err)
+				}
+			} else {
+				if err := os.Setenv("JOB_POLLING_MAX_DURATION", originalValue); err != nil {
+					t.Errorf("Failed to restore JOB_POLLING_MAX_DURATION: %v", err)
+				}
+			}
+		}()
+
+		if err := os.Setenv("JOB_POLLING_MAX_DURATION", "60"); err != nil {
+			t.Fatalf("Failed to set JOB_POLLING_MAX_DURATION: %v", err)
+		}
+
+		duration := getJobPollingMaxDuration()
+		assert.Equal(t, 60*time.Second, duration)
+	})
+
+	t.Run("getJobPollingMaxDuration with invalid environment variable", func(t *testing.T) {
+		// Set invalid environment variable
+		originalValue := os.Getenv("JOB_POLLING_MAX_DURATION")
+		defer func() {
+			if originalValue == "" {
+				if err := os.Unsetenv("JOB_POLLING_MAX_DURATION"); err != nil {
+					t.Errorf("Failed to unset JOB_POLLING_MAX_DURATION: %v", err)
+				}
+			} else {
+				if err := os.Setenv("JOB_POLLING_MAX_DURATION", originalValue); err != nil {
+					t.Errorf("Failed to restore JOB_POLLING_MAX_DURATION: %v", err)
+				}
+			}
+		}()
+
+		if err := os.Setenv("JOB_POLLING_MAX_DURATION", "invalid"); err != nil {
+			t.Fatalf("Failed to set JOB_POLLING_MAX_DURATION: %v", err)
+		}
+
+		duration := getJobPollingMaxDuration()
+		assert.Equal(t, 25*time.Second, duration) // Should return default
+	})
+
+	t.Run("getJobPollingInterval with valid environment variable", func(t *testing.T) {
+		// Set environment variable
+		originalValue := os.Getenv("JOB_POLLING_INTERVAL")
+		defer func() {
+			if originalValue == "" {
+				if err := os.Unsetenv("JOB_POLLING_INTERVAL"); err != nil {
+					t.Errorf("Failed to unset JOB_POLLING_INTERVAL: %v", err)
+				}
+			} else {
+				if err := os.Setenv("JOB_POLLING_INTERVAL", originalValue); err != nil {
+					t.Errorf("Failed to restore JOB_POLLING_INTERVAL: %v", err)
+				}
+			}
+		}()
+
+		if err := os.Setenv("JOB_POLLING_INTERVAL", "5"); err != nil {
+			t.Fatalf("Failed to set JOB_POLLING_INTERVAL: %v", err)
+		}
+
+		interval := getJobPollingInterval()
+		assert.Equal(t, 5*time.Second, interval)
+	})
+
+	t.Run("getJobPollingInterval with zero value falls back to default", func(t *testing.T) {
+		// Set environment variable to zero
+		originalValue := os.Getenv("JOB_POLLING_INTERVAL")
+		defer func() {
+			if originalValue == "" {
+				if err := os.Unsetenv("JOB_POLLING_INTERVAL"); err != nil {
+					t.Errorf("Failed to unset JOB_POLLING_INTERVAL: %v", err)
+				}
+			} else {
+				if err := os.Setenv("JOB_POLLING_INTERVAL", originalValue); err != nil {
+					t.Errorf("Failed to restore JOB_POLLING_INTERVAL: %v", err)
+				}
+			}
+		}()
+
+		if err := os.Setenv("JOB_POLLING_INTERVAL", "0"); err != nil {
+			t.Fatalf("Failed to set JOB_POLLING_INTERVAL: %v", err)
+		}
+
+		interval := getJobPollingInterval()
+		assert.Equal(t, 3*time.Second, interval) // Should return default
+	})
+}
+
+// TestClientReusePattern tests the new client reuse functionality
+func TestClientReusePattern(t *testing.T) {
+	t.Run("GetClusterHealthStatusWithClient reuses provided client", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClusterClient := new(ontaprest.MockClusterClient)
+
+		mockClient.On("Cluster").Return(mockClusterClient)
+
+		// Mock the NodesGet call
+		mockClusterClient.On("NodesGet", mock.AnythingOfType("*ontap_rest.NodesGetParams"), mock.AnythingOfType("ontap_rest.UserCallbackFunc[[]*github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest.Node]")).Return(nil).Run(func(args mock.Arguments) {
+			callback := args.Get(1).(ontaprest.UserCallbackFunc[[]*ontaprest.Node])
+
+			nodes := []*ontaprest.Node{
+				{
+					NodeResponseInlineRecordsInlineArrayItem: models.NodeResponseInlineRecordsInlineArrayItem{
+						UUID: nillable.ToPointer(strfmt.UUID("reuse-test-node")),
+						Name: nillable.ToPointer("reuse-test"),
+					},
+				},
+			}
+
+			_ = callback(nodes) // Ignore callback error in test
+		})
+
+		ontapRestProvider := &OntapRestProvider{}
+		result, err := ontapRestProvider.GetClusterHealthStatusWithClient(mockClient)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 1, result.NumRecords)
+		assert.Equal(t, "reuse-test-node", result.Records[0].UUID)
+
+		mockClient.AssertExpectations(t)
+		mockClusterClient.AssertExpectations(t)
+	})
+
+	t.Run("UpdateJSwapModeWithClient reuses provided client", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClusterClient := new(ontaprest.MockClusterClient)
+
+		targetNodeUUID := "reuse-node-uuid"
+		backingType := JSWAPBackingTypeEphemeralMemory
+		jobUUID := "reuse-job-uuid"
+
+		mockClient.On("Cluster").Return(mockClusterClient)
+
+		// Mock the ModifyNode call
+		mockClusterClient.On("ModifyNode", context.Background(), mock.MatchedBy(func(params *ontaprest.NodeModifyParams) bool {
+			return params.UUID == targetNodeUUID &&
+				params.Body.NVLog.BackingType == string(backingType)
+		})).Return(&cluster.NodeModifyOK{
+			Payload: &models.NodeJobLinkResponse{
+				Job: &models.JobLink{
+					UUID: nillable.ToPointer(strfmt.UUID(jobUUID)),
+				},
+			},
+		}, nil)
+
+		// Mock successful job completion
+		mockClusterClient.On("GetJob", jobUUID).Return(&cluster.JobGetOK{
+			Payload: &models.Job{
+				UUID:    nillable.ToPointer(strfmt.UUID(jobUUID)),
+				State:   nillable.ToPointer(models.JobStateSuccess),
+				Message: nillable.ToPointer("JSWAP completed successfully"),
+			},
+		}, nil)
+
+		ontapRestProvider := &OntapRestProvider{}
+		success, err := ontapRestProvider.UpdateJSwapModeWithClient(targetNodeUUID, backingType, mockClient)
+
+		assert.NoError(t, err)
+		assert.True(t, success)
+
+		mockClient.AssertExpectations(t)
+		mockClusterClient.AssertExpectations(t)
+	})
+
+	t.Run("TriggerTakeoverCheckWithClient reuses provided client", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClusterClient := new(ontaprest.MockClusterClient)
+
+		targetNodeUUID := "reuse-takeover-node-uuid"
+		jobUUID := "reuse-takeover-job-uuid"
+
+		mockClient.On("Cluster").Return(mockClusterClient)
+
+		// Mock the ModifyNode call for takeover check
+		mockClusterClient.On("ModifyNode", context.Background(), mock.MatchedBy(func(params *ontaprest.NodeModifyParams) bool {
+			return params.UUID == targetNodeUUID &&
+				params.Action == NodeActionTakeoverCheck
+		})).Return(&cluster.NodeModifyOK{
+			Payload: &models.NodeJobLinkResponse{
+				Job: &models.JobLink{
+					UUID: nillable.ToPointer(strfmt.UUID(jobUUID)),
+				},
+			},
+		}, nil)
+
+		// Mock successful job completion
+		mockClusterClient.On("GetJob", jobUUID).Return(&cluster.JobGetOK{
+			Payload: &models.Job{
+				UUID:    nillable.ToPointer(strfmt.UUID(jobUUID)),
+				State:   nillable.ToPointer(models.JobStateSuccess),
+				Message: nillable.ToPointer("Takeover check completed successfully"),
+			},
+		}, nil)
+
+		ontapRestProvider := &OntapRestProvider{}
+		success, err := ontapRestProvider.TriggerTakeoverCheckWithClient(targetNodeUUID, mockClient)
+
+		assert.NoError(t, err)
+		assert.True(t, success)
+
+		mockClient.AssertExpectations(t)
+		mockClusterClient.AssertExpectations(t)
+	})
+}
+
+// TestTimeoutAndContextManagement tests timeout handling and context management
+func TestTimeoutAndContextManagement(t *testing.T) {
+	t.Run("job polling respects timeout configuration", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClusterClient := new(ontaprest.MockClusterClient)
+
+		// Set short timeout for testing
+		originalValue := os.Getenv("JOB_POLLING_MAX_DURATION")
+		defer func() {
+			if originalValue == "" {
+				if err := os.Unsetenv("JOB_POLLING_MAX_DURATION"); err != nil {
+					t.Errorf("Failed to unset JOB_POLLING_MAX_DURATION: %v", err)
+				}
+			} else {
+				if err := os.Setenv("JOB_POLLING_MAX_DURATION", originalValue); err != nil {
+					t.Errorf("Failed to restore JOB_POLLING_MAX_DURATION: %v", err)
+				}
+			}
+		}()
+		if err := os.Setenv("JOB_POLLING_MAX_DURATION", "1"); err != nil {
+			t.Fatalf("Failed to set JOB_POLLING_MAX_DURATION: %v", err)
+		}
+
+		jobUUID := "timeout-test-job-uuid"
+		mockClient.On("Cluster").Return(mockClusterClient)
+
+		// Mock job that keeps running (simulating timeout scenario)
+		mockClusterClient.On("GetJob", jobUUID).Return(&cluster.JobGetOK{
+			Payload: &models.Job{
+				UUID:    nillable.ToPointer(strfmt.UUID(jobUUID)),
+				State:   nillable.ToPointer(models.JobStateRunning),
+				Message: nillable.ToPointer("Long running operation"),
+			},
+		}, nil)
+
+		ontapRestProvider := &OntapRestProvider{}
+		success, err := ontapRestProvider.pollJobUntilCompletion(mockClient, jobUUID)
+
+		// Should timeout and return error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "timeout")
+		assert.False(t, success)
+
+		mockClient.AssertExpectations(t)
+		mockClusterClient.AssertExpectations(t)
+	})
+
+	t.Run("job polling uses configured interval", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClusterClient := new(ontaprest.MockClusterClient)
+
+		// Set custom polling interval
+		originalValue := os.Getenv("JOB_POLLING_INTERVAL")
+		defer func() {
+			if originalValue == "" {
+				if err := os.Unsetenv("JOB_POLLING_INTERVAL"); err != nil {
+					t.Errorf("Failed to unset JOB_POLLING_INTERVAL: %v", err)
+				}
+			} else {
+				if err := os.Setenv("JOB_POLLING_INTERVAL", originalValue); err != nil {
+					t.Errorf("Failed to restore JOB_POLLING_INTERVAL: %v", err)
+				}
+			}
+		}()
+		if err := os.Setenv("JOB_POLLING_INTERVAL", "1"); err != nil {
+			t.Fatalf("Failed to set JOB_POLLING_INTERVAL: %v", err)
+		}
+
+		jobUUID := "interval-test-job-uuid"
+		mockClient.On("Cluster").Return(mockClusterClient)
+
+		// First call - running
+		mockClusterClient.On("GetJob", jobUUID).Return(&cluster.JobGetOK{
+			Payload: &models.Job{
+				UUID:    nillable.ToPointer(strfmt.UUID(jobUUID)),
+				State:   nillable.ToPointer(models.JobStateRunning),
+				Message: nillable.ToPointer("Still running"),
+			},
+		}, nil).Once()
+
+		// Second call - success (after interval)
+		mockClusterClient.On("GetJob", jobUUID).Return(&cluster.JobGetOK{
+			Payload: &models.Job{
+				UUID:    nillable.ToPointer(strfmt.UUID(jobUUID)),
+				State:   nillable.ToPointer(models.JobStateSuccess),
+				Message: nillable.ToPointer("Completed"),
+			},
+		}, nil).Once()
+
+		start := time.Now()
+		ontapRestProvider := &OntapRestProvider{}
+		success, err := ontapRestProvider.pollJobUntilCompletion(mockClient, jobUUID)
+		elapsed := time.Since(start)
+
+		assert.NoError(t, err)
+		assert.True(t, success)
+		// Should have waited at least the polling interval
+		assert.True(t, elapsed >= time.Second)
+
+		mockClient.AssertExpectations(t)
+		mockClusterClient.AssertExpectations(t)
+	})
+}
+
+// TestResourceManagement tests resource management and cleanup patterns
+func TestResourceManagement(t *testing.T) {
+	t.Run("multiple client operations with proper resource management", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClusterClient := new(ontaprest.MockClusterClient)
+
+		mockClient.On("Cluster").Return(mockClusterClient)
+
+		// Simulate multiple operations using the same client instance
+		nodeUUID := "resource-test-node"
+		jobUUID := "resource-test-job"
+
+		// Operation 1: Get cluster health
+		mockClusterClient.On("NodesGet", mock.AnythingOfType("*ontap_rest.NodesGetParams"), mock.AnythingOfType("ontap_rest.UserCallbackFunc[[]*github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest.Node]")).Return(nil).Run(func(args mock.Arguments) {
+			callback := args.Get(1).(ontaprest.UserCallbackFunc[[]*ontaprest.Node])
+			nodes := []*ontaprest.Node{
+				{
+					NodeResponseInlineRecordsInlineArrayItem: models.NodeResponseInlineRecordsInlineArrayItem{
+						UUID: nillable.ToPointer(strfmt.UUID(nodeUUID)),
+						Name: nillable.ToPointer("resource-test"),
+					},
+				},
+			}
+			_ = callback(nodes)
+		}).Once()
+
+		// Operation 2: Trigger takeover check
+		mockClusterClient.On("ModifyNode", context.Background(), mock.MatchedBy(func(params *ontaprest.NodeModifyParams) bool {
+			return params.UUID == nodeUUID && params.Action == NodeActionTakeoverCheck
+		})).Return(&cluster.NodeModifyOK{
+			Payload: &models.NodeJobLinkResponse{
+				Job: &models.JobLink{
+					UUID: nillable.ToPointer(strfmt.UUID(jobUUID)),
+				},
+			},
+		}, nil).Once()
+
+		// Operation 3: Job polling for takeover check
+		mockClusterClient.On("GetJob", jobUUID).Return(&cluster.JobGetOK{
+			Payload: &models.Job{
+				UUID:    nillable.ToPointer(strfmt.UUID(jobUUID)),
+				State:   nillable.ToPointer(models.JobStateSuccess),
+				Message: nillable.ToPointer("Takeover check completed"),
+			},
+		}, nil).Once()
+
+		// Operation 4: JSWAP operation
+		mockClusterClient.On("ModifyNode", context.Background(), mock.MatchedBy(func(params *ontaprest.NodeModifyParams) bool {
+			return params.UUID == nodeUUID && params.Body.NVLog.BackingType == string(JSWAPBackingTypeEphemeralDisk)
+		})).Return(&cluster.NodeModifyOK{
+			Payload: &models.NodeJobLinkResponse{
+				Job: &models.JobLink{
+					UUID: nillable.ToPointer(strfmt.UUID(jobUUID + "_jswap")),
+				},
+			},
+		}, nil).Once()
+
+		// Operation 5: Job polling for JSWAP
+		mockClusterClient.On("GetJob", jobUUID+"_jswap").Return(&cluster.JobGetOK{
+			Payload: &models.Job{
+				UUID:    nillable.ToPointer(strfmt.UUID(jobUUID + "_jswap")),
+				State:   nillable.ToPointer(models.JobStateSuccess),
+				Message: nillable.ToPointer("JSWAP completed"),
+			},
+		}, nil).Once()
+
+		ontapRestProvider := &OntapRestProvider{}
+
+		// Execute multiple operations with the same client
+		_, err1 := ontapRestProvider.GetClusterHealthStatusWithClient(mockClient)
+		assert.NoError(t, err1)
+
+		_, err2 := ontapRestProvider.TriggerTakeoverCheckWithClient(nodeUUID, mockClient)
+		assert.NoError(t, err2)
+
+		_, err3 := ontapRestProvider.UpdateJSwapModeWithClient(nodeUUID, JSWAPBackingTypeEphemeralDisk, mockClient)
+		assert.NoError(t, err3)
+
+		// Verify all operations succeeded and client was reused properly
+		mockClient.AssertExpectations(t)
+		mockClusterClient.AssertExpectations(t)
 	})
 }

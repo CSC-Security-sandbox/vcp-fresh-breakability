@@ -132,7 +132,7 @@ func _syncVSAClusterHealthTask(imtpCtx interface{}, inputs ...interface{}) {
 	}
 
 	// Create a background context with correlation ID and logger fields for the unit functions
-	bgCtx := context.WithValue(context.Background(), middleware.CorrelationContextKey, correlationID)
+	bgCtx := context.WithValue(ctx.GetContext(), middleware.CorrelationContextKey, correlationID)
 	bgCtx = context.WithValue(bgCtx, middleware.TemporalSLoggerKey, loggerFields)
 	logger := util.GetLogger(bgCtx)
 
@@ -495,28 +495,49 @@ func _triggerTakeoverCheckUnit(ctx context.Context, inputs ...interface{}) (inte
 		err      error
 	}
 
+	goroutineCtx, cancel := context.WithCancel(contextWithCorrelationID)
+	defer cancel() // Ensure all goroutines are cancelled when function returns
+
 	results := make(chan result, len(nodes))
 
+	// Launch goroutines with proper cancellation context
 	for _, node := range nodes {
 		go func(nodeUUID string) {
+			// Check if context is cancelled before executing
+			select {
+			case <-goroutineCtx.Done():
+				return // Exit goroutine if context cancelled
+			default:
+			}
+
 			logger.Infof("[TriggerTakeoverCheckUnit] CorrelationID: %s - Triggering takeover check for node %s in pool %s", correlationID, nodeUUID, poolUUID)
 			success, err := provider.TriggerTakeoverCheckWithClient(nodeUUID, ontapClient)
-			results <- result{nodeUUID: nodeUUID, success: success, err: err}
+
+			// Send result or exit if context cancelled
+			select {
+			case results <- result{nodeUUID: nodeUUID, success: success, err: err}:
+			case <-goroutineCtx.Done():
+				return // Exit goroutine if context cancelled
+			}
 		}(node.ExternalUUID)
 	}
 
 	completedNodes := 0
 	for completedNodes < len(nodes) {
-		res := <-results
-		completedNodes++
+		select {
+		case res := <-results:
+			completedNodes++
 
-		if res.err != nil {
-			logger.Errorf("[TriggerTakeoverCheckUnit] CorrelationID: %s - Failed to trigger takeover check for node %s: %v", correlationID, res.nodeUUID, res.err)
-		} else if res.success {
-			logger.Infof("[TriggerTakeoverCheckUnit] CorrelationID: %s - Successfully triggered takeover check for node %s - returning immediately", correlationID, res.nodeUUID)
-			return true, nil
-		} else {
-			logger.Warnf("[TriggerTakeoverCheckUnit] CorrelationID: %s - Takeover check for node %s did not complete successfully", correlationID, res.nodeUUID)
+			if res.err != nil {
+				logger.Errorf("[TriggerTakeoverCheckUnit] CorrelationID: %s - Failed to trigger takeover check for node %s: %v", correlationID, res.nodeUUID, res.err)
+			} else if res.success {
+				logger.Infof("[TriggerTakeoverCheckUnit] CorrelationID: %s - Successfully triggered takeover check for node %s - returning immediately", correlationID, res.nodeUUID)
+				return true, nil // defer cancel() will clean up remaining goroutines
+			} else {
+				logger.Warnf("[TriggerTakeoverCheckUnit] CorrelationID: %s - Takeover check for node %s did not complete successfully", correlationID, res.nodeUUID)
+			}
+		case <-goroutineCtx.Done():
+			return false, fmt.Errorf("context cancelled while waiting for takeover check results")
 		}
 	}
 

@@ -46,6 +46,11 @@ type IMTPContext struct {
 	mutex       sync.Mutex
 }
 
+// GetContext returns the task's context so child operations can respect task timeouts
+func (ic *IMTPContext) GetContext() context.Context {
+	return ic.ctx
+}
+
 // RunUnit executes a unit function with configurable options
 func (ic *IMTPContext) RunUnit(unitFunc func(ctx context.Context, inputs ...interface{}) (interface{}, error), options UnitOptions, inputs ...interface{}) UnitResult {
 	options.applyDefaults()
@@ -242,15 +247,30 @@ func (imtp *InMemoTasksProcessor) processTask(task taskWrapper) ([]UnitResult, e
 	})
 
 	go func() {
+		select {
+		case <-ctx.Done():
+			done <- struct {
+				unitResults []UnitResult
+				err         error
+			}{nil, ctx.Err()}
+			return
+		default:
+		}
+
 		task.taskFunc(imtpCtx, task.inputs...)
 		imtpCtx.mutex.Lock()
 		results := make([]UnitResult, len(imtpCtx.unitResults))
 		copy(results, imtpCtx.unitResults)
 		imtpCtx.mutex.Unlock()
-		done <- struct {
+
+		select {
+		case done <- struct {
 			unitResults []UnitResult
 			err         error
-		}{results, nil}
+		}{results, nil}:
+		case <-ctx.Done():
+			return
+		}
 	}()
 
 	select {

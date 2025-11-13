@@ -137,7 +137,13 @@ func (rc *OntapRestProvider) TriggerTakeoverCheckWithClient(targetNodeUUID strin
 		Action: NodeActionTakeoverCheck,
 	}
 
-	response, err := client.Cluster().ModifyNode(context.Background(), updateParams)
+	// Use the provider's context to respect task timeouts and cancellations
+	ctx := rc.ClientParams.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	response, err := client.Cluster().ModifyNode(ctx, updateParams)
 	if err != nil {
 		return false, err
 	}
@@ -145,7 +151,7 @@ func (rc *OntapRestProvider) TriggerTakeoverCheckWithClient(targetNodeUUID strin
 	jobUUID := response.Payload.Job.UUID.String()
 
 	// Poll the job status until completion using the existing polling function
-	return rc.pollJobUntilCompletion(client, jobUUID)
+	return rc.pollJobUntilCompletionWithContext(ctx, client, jobUUID)
 }
 
 // UpdateJSwapMode updates the JSWAP backing type for a specific node and polls until completion
@@ -168,37 +174,70 @@ func (rc *OntapRestProvider) UpdateJSwapModeWithClient(targetNodeUUID string, ba
 		},
 	}
 
-	response, err := client.Cluster().ModifyNode(context.Background(), updateParams)
+	// Use the provider's context to respect task timeouts and cancellations
+	ctx := rc.ClientParams.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	response, err := client.Cluster().ModifyNode(ctx, updateParams)
 	if err != nil {
 		return false, err
 	}
 
 	jobUUID := response.Payload.Job.UUID.String()
 
-	// Poll the job status until completion using the separate polling function
-	return rc.pollJobUntilCompletion(client, jobUUID)
+	// Poll the job status until completion using the context-aware polling function
+	return rc.pollJobUntilCompletionWithContext(ctx, client, jobUUID)
 }
 
 // pollJobUntilCompletion polls a job until it reaches a terminal state (success or failure)
 func (rc *OntapRestProvider) pollJobUntilCompletion(client ontapRest.RESTClient, jobUUID string) (bool, error) {
+	ctx := rc.ClientParams.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return rc.pollJobUntilCompletionWithContext(ctx, client, jobUUID)
+}
+
+// pollJobUntilCompletionWithContext polls a job until it reaches a terminal state, respecting context cancellation
+func (rc *OntapRestProvider) pollJobUntilCompletionWithContext(ctx context.Context, client ontapRest.RESTClient, jobUUID string) (bool, error) {
 	maxPollingDuration := getJobPollingMaxDuration()
 	pollingInterval := getJobPollingInterval()
 	startTime := time.Now()
 
+	ticker := time.NewTicker(pollingInterval)
+	defer ticker.Stop()
+
 	for {
+		select {
+		case <-ctx.Done():
+			return false, fmt.Errorf("job polling cancelled: %w", ctx.Err())
+		default:
+		}
+
 		if time.Since(startTime) > maxPollingDuration {
 			return false, fmt.Errorf("job polling timeout after %v", maxPollingDuration)
 		}
 
 		jobResponse, err := client.Cluster().GetJob(jobUUID)
 		if err != nil {
-			time.Sleep(pollingInterval)
-			continue
+			// Wait for next poll interval or context cancellation
+			select {
+			case <-ticker.C:
+				continue
+			case <-ctx.Done():
+				return false, fmt.Errorf("job polling cancelled: %w", ctx.Err())
+			}
 		}
 
 		if jobResponse.Payload.State == nil {
-			time.Sleep(pollingInterval)
-			continue
+			select {
+			case <-ticker.C:
+				continue
+			case <-ctx.Done():
+				return false, fmt.Errorf("job polling cancelled: %w", ctx.Err())
+			}
 		}
 
 		jobState := *jobResponse.Payload.State
@@ -213,9 +252,19 @@ func (rc *OntapRestProvider) pollJobUntilCompletion(client ontapRest.RESTClient,
 		case ontapRestModels.JobStateFailure:
 			return false, fmt.Errorf("job failed: %s", jobMessage)
 		case ontapRestModels.JobStateQueued, ontapRestModels.JobStateRunning, ontapRestModels.JobStatePaused:
-			time.Sleep(pollingInterval)
+			select {
+			case <-ticker.C:
+				continue
+			case <-ctx.Done():
+				return false, fmt.Errorf("job polling cancelled: %w", ctx.Err())
+			}
 		default:
-			time.Sleep(pollingInterval)
+			select {
+			case <-ticker.C:
+				continue
+			case <-ctx.Done():
+				return false, fmt.Errorf("job polling cancelled: %w", ctx.Err())
+			}
 		}
 	}
 }
