@@ -376,6 +376,10 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}
 
+	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.CreateExportPolicyInOntap, &flexcacheResult.DBVolume, &flexcacheResult.Node).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -387,10 +391,6 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.VerifyVolumeEncryptionActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.CreateExportPolicyInOntap, &flexcacheResult.DBVolume, &flexcacheResult.Node).Get(ctx, nil); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 

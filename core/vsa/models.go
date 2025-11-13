@@ -343,6 +343,7 @@ type CreateFlexCacheVolumeParams struct {
 	AggregateName    string
 	SvmName          string
 	JunctionPath     *string
+	ExportPolicy     *string
 }
 
 type ExportPolicy struct {

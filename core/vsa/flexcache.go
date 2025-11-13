@@ -38,6 +38,17 @@ func (rc *OntapRestProvider) CreateFlexCacheVolume(params CreateFlexCacheVolumeP
 		return nil, errors.New("invalid Volume response from API")
 	}
 
+	// Update the volume's export policy if provided
+	if params.ExportPolicy != nil {
+		updateParams := UpdateVolumeParams{
+			UUID:         *vol.UUID,
+			ExportPolicy: params.ExportPolicy,
+		}
+		if err = rc.UpdateVolume(updateParams); err != nil {
+			return nil, err
+		}
+	}
+
 	// Return the created FlexCache volume
 	return &VolumeResponse{
 		ProviderResponse: ProviderResponse{

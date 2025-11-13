@@ -68,12 +68,18 @@ func (a *FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx
 		AggregateName:    activities.AggregateName,
 		OriginSVMName:    cacheParams.PeerSvmName,
 		OriginVolumeName: cacheParams.PeerVolumeName,
-		JunctionPath:     &volume.VolumeAttributes.FileProperties.JunctionPath,
+	}
+
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
+		params.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
+		if volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
+			params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
+		}
 	}
 
 	res, err := provider.CreateFlexCacheVolume(params)
 	if err != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreatingFlexCacheVolume, err)
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCreatingFlexCacheVolume, err))
 	}
 
 	logger.Debug("flexcache volume created successfully")

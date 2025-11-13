@@ -53,6 +53,53 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})
+
+	t.Run("Success_WithExportPolicy", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(t)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		exportPolicyName := "testPolicy"
+		params := CreateFlexCacheVolumeParams{
+			Name:             volumeName,
+			SvmName:          "testSVM",
+			AggregateName:    "testAggregate",
+			OriginSVMName:    "originSVM",
+			OriginVolumeName: "originVolume",
+			ExportPolicy:     nillable.ToPointer(exportPolicyName),
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Flexcache{
+			Flexcache: models.Flexcache{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+			},
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeCreate(mock.Anything).Return(mockVolume, mockJob, nil)
+		mockClient.EXPECT().Poll(mockJob.JobUUID).Return(nil)
+		mockStorage.EXPECT().VolumeModify(mock.Anything).Return(false, &ontaprest.JobAccepted{JobUUID: "uuid"}, nil)
+		mockClient.EXPECT().Poll("uuid").Return(nil)
+
+		resp, err := rc.CreateFlexCacheVolume(params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, volumeName, resp.Name)
+		assert.Equal(t, "testUUID", resp.ExternalUUID)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
 	t.Run("WhenGetOntapClientFuncError", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		rc := &OntapRestProvider{}
@@ -118,6 +165,49 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Nil(tt, resp)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "invalid Volume response")
+	})
+
+	t.Run("WhenExportPolicyUpdateError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		params := CreateFlexCacheVolumeParams{
+			Name:             volumeName,
+			SvmName:          "testSVM",
+			AggregateName:    "testAggregate",
+			OriginSVMName:    "originSVM",
+			OriginVolumeName: "originVolume",
+			ExportPolicy:     nillable.ToPointer("testPolicy"),
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Flexcache{
+			Flexcache: models.Flexcache{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+			},
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeCreate(mock.Anything).Return(mockVolume, mockJob, nil)
+		mockClient.EXPECT().Poll(mockJob.JobUUID).Return(nil)
+		// Simulate error during export policy update
+		mockStorage.EXPECT().VolumeModify(mock.Anything).Return(false, nil, errors.New("update error"))
+
+		resp, err := rc.CreateFlexCacheVolume(params)
+
+		assert.Nil(tt, resp)
+		assert.Error(tt, err)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
 	})
 }
 

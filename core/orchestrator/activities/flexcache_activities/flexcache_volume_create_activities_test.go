@@ -69,7 +69,11 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 			PeerClusterName: "peer-cluster",
 		},
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			FileProperties: &datamodel.FileProperties{},
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "policyName",
+				},
+			},
 		},
 	}
 
