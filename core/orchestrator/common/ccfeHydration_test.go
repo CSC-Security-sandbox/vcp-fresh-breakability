@@ -12,9 +12,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestHydrateReplicationCreate(t *testing.T) {
@@ -289,7 +291,7 @@ func TestHydrateCreatedScheduledBackups(t *testing.T) {
 		}
 		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
 
-		err := HydrateCreatedScheduledBackups(ctx, mockLogger, resources, backupVaultName, location, projectId, token)
+		err := HydrateCreatedBackups(ctx, mockLogger, resources, backupVaultName, location, projectId, token)
 		assert.NoError(tt, err)
 	})
 
@@ -299,7 +301,7 @@ func TestHydrateCreatedScheduledBackups(t *testing.T) {
 		}
 		mockLogger.On("Errorf", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		err := HydrateCreatedScheduledBackups(ctx, mockLogger, resources, backupVaultName, location, projectId, token)
+		err := HydrateCreatedBackups(ctx, mockLogger, resources, backupVaultName, location, projectId, token)
 		assert.Error(tt, err)
 		assert.Equal(tt, "could not hydrate backups to ccfe", err.Error())
 	})
@@ -322,7 +324,7 @@ func TestHydrateDeletedScheduledBackups(t *testing.T) {
 		}
 		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
 
-		err := HydrateDeletedScheduledBackups(ctx, mockLogger, names, backupVaultName, location, projectId, token)
+		err := HydrateDeletedBackups(ctx, mockLogger, names, backupVaultName, location, projectId, token)
 		assert.NoError(tt, err)
 	})
 
@@ -332,7 +334,7 @@ func TestHydrateDeletedScheduledBackups(t *testing.T) {
 		}
 		mockLogger.On("Errorf", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		err := HydrateDeletedScheduledBackups(ctx, mockLogger, names, backupVaultName, location, projectId, token)
+		err := HydrateDeletedBackups(ctx, mockLogger, names, backupVaultName, location, projectId, token)
 		assert.Error(tt, err)
 		assert.Equal(tt, "could not hydrate backups to ccfe", err.Error())
 	})
@@ -1323,4 +1325,348 @@ func TestHydrateUpdatedPool(t *testing.T) {
 		expectedURL := "https://mock-base-uri.com/v1internal/projects/validation-project/locations/us-west1-a/storagePools/validation-pool?update_mask=state,hot_tier_size_gib"
 		assert.Equal(tt, expectedURL, capturedURL)
 	})
+}
+
+func TestConvertToGCPHydrateBackupCreateRequests(t *testing.T) {
+	backups := []*datamodel.Backup{
+		{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "uuid1",
+			},
+			Name:        "backup1",
+			SizeInBytes: 12345,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:       "bucket1",
+				SourceVolumeZone: "us-central1-a",
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "uuid2",
+			},
+			Name:        "backup2",
+			SizeInBytes: 67890,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "bucket2",
+			},
+			BackupVault: &datamodel.BackupVault{
+				SourceRegionName: nillable.ToPointer("us-central1"),
+			},
+		},
+	}
+	result := ConvertToGCPHydrateBackupCreateRequests(backups)
+	require := assert.New(t)
+	require.Len(result, 2)
+	require.Equal("backup1", result[0].Backup.ResourceId)
+	require.Equal("uuid1", result[0].Backup.BackupId)
+	require.NotNil(result[0].Backup.VolumeUsageBytes)
+	require.Equal(uint64(12345), *result[0].Backup.VolumeUsageBytes)
+
+	// Validate AssetLocationMetadata for backup1
+	require.NotNil(result[0].Backup.AssetLocationMetadata)
+	require.Len(result[0].Backup.AssetLocationMetadata.ChildAssets, 1)
+	require.Equal("storage.googleapis.com/Bucket", result[0].Backup.AssetLocationMetadata.ChildAssets[0].AssetType)
+	require.Len(result[0].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames, 1)
+	require.Equal("//storage.googleapis.com/bucket1", result[0].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames[0])
+
+	require.Equal("backup2", result[1].Backup.ResourceId)
+	require.Equal("uuid2", result[1].Backup.BackupId)
+	require.NotNil(result[1].Backup.VolumeUsageBytes)
+	require.Equal(uint64(67890), *result[1].Backup.VolumeUsageBytes)
+
+	// Validate AssetLocationMetadata for backup2
+	require.NotNil(result[1].Backup.AssetLocationMetadata)
+	require.Len(result[1].Backup.AssetLocationMetadata.ChildAssets, 1)
+	require.Equal("storage.googleapis.com/Bucket", result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetType)
+	require.Len(result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames, 1)
+	require.Equal("//storage.googleapis.com/bucket2", result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames[0])
+
+	result = ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{})
+	require.Empty(result)
+
+	result = ConvertToGCPHydrateBackupCreateRequests(nil)
+	require.Empty(result)
+}
+
+func TestConvertToGCPHydrateBackupDeleteRequests(t *testing.T) {
+	backups := []*datamodel.Backup{
+		{Name: "backup1"},
+		{Name: "backup2"},
+		{Name: "backup3"},
+	}
+	expected := []string{"backups/backup1", "backups/backup2", "backups/backup3"}
+	result := ConvertToGCPHydrateBackupDeleteRequests(backups)
+	assert.Equal(t, expected, result)
+
+	// Test with empty slice
+	result = ConvertToGCPHydrateBackupDeleteRequests([]*datamodel.Backup{})
+	assert.Empty(t, result)
+
+	// Test with nil input
+	result = ConvertToGCPHydrateBackupDeleteRequests(nil)
+	assert.Empty(t, result)
+}
+
+func TestHydrateCreatedBackupVaults(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewMockLogger(t)
+	projectId := "mocked-project"
+	location := "mocked-location"
+	backupVaultName := "mocked-backup-vault"
+	token := "mocked-token"
+
+	resources := []models.Request{
+		{
+			BackupVault: &models.HydrateBackupVault{
+				ResourceId:      "mock-backup-vault",
+				BackupVaultId:   "mock-uuid",
+				BackupVaultType: "STANDARD",
+				BackupRegion:    "us-central1",
+			},
+		},
+	}
+
+	originalHydrateToCcfe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCcfe }()
+
+	t.Run("WhenHydrateToCcfeSucceeds", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateCreatedBackupVaults(ctx, mockLogger, resources, backupVaultName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenHydrateToCcfeErrors", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return errors.New("could not hydrate backup vaults to ccfe")
+		}
+		mockLogger.On("Errorf", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateCreatedBackupVaults(ctx, mockLogger, resources, backupVaultName, location, projectId, token)
+		assert.Error(tt, err)
+		assert.Equal(tt, "could not hydrate backup vaults to ccfe", err.Error())
+	})
+
+	t.Run("WhenEmptyResources", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateCreatedBackupVaults(ctx, mockLogger, []models.Request{}, backupVaultName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenMultipleResources", func(tt *testing.T) {
+		multipleResources := []models.Request{
+			{
+				BackupVault: &models.HydrateBackupVault{
+					ResourceId:      "mock-backup-vault-1",
+					BackupVaultId:   "mock-uuid-1",
+					BackupVaultType: "STANDARD",
+					BackupRegion:    "us-central1",
+				},
+			},
+			{
+				BackupVault: &models.HydrateBackupVault{
+					ResourceId:      "mock-backup-vault-2",
+					BackupVaultId:   "mock-uuid-2",
+					BackupVaultType: "PREMIUM",
+					BackupRegion:    "us-east1",
+				},
+			},
+		}
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateCreatedBackupVaults(ctx, mockLogger, multipleResources, backupVaultName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestHydrateDeletedBackupVaults(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewMockLogger(t)
+	projectId := "mocked-project"
+	location := "mocked-location"
+	backupVaultName := "mocked-backup-vault"
+	token := "mocked-token"
+	names := []string{"backupVaults/mock-backup-vault-1", "backupVaults/mock-backup-vault-2"}
+
+	originalHydrateToCcfe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCcfe }()
+
+	t.Run("WhenHydrateToCcfeSucceeds", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateDeletedBackupVaults(ctx, mockLogger, names, backupVaultName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenHydrateToCcfeErrors", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return errors.New("could not hydrate backup vaults to ccfe")
+		}
+		mockLogger.On("Errorf", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateDeletedBackupVaults(ctx, mockLogger, names, backupVaultName, location, projectId, token)
+		assert.Error(tt, err)
+		assert.Equal(tt, "could not hydrate backup vaults to ccfe", err.Error())
+	})
+
+	t.Run("WhenEmptyNames", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateDeletedBackupVaults(ctx, mockLogger, []string{}, backupVaultName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenSingleName", func(tt *testing.T) {
+		singleName := []string{"backupVaults/mock-backup-vault-1"}
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateDeletedBackupVaults(ctx, mockLogger, singleName, backupVaultName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenMultipleNames", func(tt *testing.T) {
+		multipleNames := []string{
+			"backupVaults/mock-backup-vault-1",
+			"backupVaults/mock-backup-vault-2",
+			"backupVaults/mock-backup-vault-3",
+		}
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateDeletedBackupVaults(ctx, mockLogger, multipleNames, backupVaultName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestConvertToGCPHydrateBackupVaultCreateRequests(t *testing.T) {
+	backupRegion1 := "us-central1"
+	backupRegion2 := "us-east1"
+	backupVaults := []*datamodel.BackupVault{
+		{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "uuid1",
+			},
+			Name:             "backup-vault-1",
+			BackupVaultType:  "STANDARD",
+			BackupRegionName: &backupRegion1,
+		},
+		{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "uuid2",
+			},
+			Name:             "backup-vault-2",
+			BackupVaultType:  "PREMIUM",
+			BackupRegionName: &backupRegion2,
+		},
+	}
+
+	result := ConvertToGCPHydrateBackupVaultCreateRequests(backupVaults)
+	require := assert.New(t)
+	require.Len(result, 2)
+
+	// Validate first backup vault
+	require.NotNil(result[0].BackupVault)
+	require.Equal("backup-vault-1", result[0].BackupVault.ResourceId)
+	require.Equal("uuid1", result[0].BackupVault.BackupVaultId)
+	require.Equal("STANDARD", result[0].BackupVault.BackupVaultType)
+	require.Equal("us-central1", result[0].BackupVault.BackupRegion)
+
+	// Validate second backup vault
+	require.NotNil(result[1].BackupVault)
+	require.Equal("backup-vault-2", result[1].BackupVault.ResourceId)
+	require.Equal("uuid2", result[1].BackupVault.BackupVaultId)
+	require.Equal("PREMIUM", result[1].BackupVault.BackupVaultType)
+	require.Equal("us-east1", result[1].BackupVault.BackupRegion)
+
+	// Test with empty slice
+	result = ConvertToGCPHydrateBackupVaultCreateRequests([]*datamodel.BackupVault{})
+	require.Empty(result)
+
+	// Test with nil input
+	result = ConvertToGCPHydrateBackupVaultCreateRequests(nil)
+	require.Empty(result)
+
+	// Test with single backup vault
+	singleVault := []*datamodel.BackupVault{
+		{
+			BaseModel: datamodel.BaseModel{
+				ID:   3,
+				UUID: "uuid3",
+			},
+			Name:             "backup-vault-3",
+			BackupVaultType:  "STANDARD",
+			BackupRegionName: nillable.ToPointer("us-west1"),
+		},
+	}
+	result = ConvertToGCPHydrateBackupVaultCreateRequests(singleVault)
+	require.Len(result, 1)
+	require.Equal("backup-vault-3", result[0].BackupVault.ResourceId)
+	require.Equal("uuid3", result[0].BackupVault.BackupVaultId)
+	require.Equal("STANDARD", result[0].BackupVault.BackupVaultType)
+	require.Equal("us-west1", result[0].BackupVault.BackupRegion)
+}
+
+func TestConvertToGCPHydrateBackupVaultDeleteRequests(t *testing.T) {
+	backupVaults := []*datamodel.BackupVault{
+		{Name: "backup-vault-1"},
+		{Name: "backup-vault-2"},
+		{Name: "backup-vault-3"},
+	}
+	expected := []string{"backupVaults/backup-vault-1", "backupVaults/backup-vault-2", "backupVaults/backup-vault-3"}
+	result := ConvertToGCPHydrateBackupVaultDeleteRequests(backupVaults)
+	assert.Equal(t, expected, result)
+
+	// Test with empty slice
+	result = ConvertToGCPHydrateBackupVaultDeleteRequests([]*datamodel.BackupVault{})
+	assert.Empty(t, result)
+
+	// Test with nil input
+	result = ConvertToGCPHydrateBackupVaultDeleteRequests(nil)
+	assert.Empty(t, result)
+
+	// Test with single backup vault
+	singleVault := []*datamodel.BackupVault{
+		{Name: "backup-vault-single"},
+	}
+	result = ConvertToGCPHydrateBackupVaultDeleteRequests(singleVault)
+	assert.Equal(t, []string{"backupVaults/backup-vault-single"}, result)
+
+	// Test with backup vaults having special characters in names
+	specialVaults := []*datamodel.BackupVault{
+		{Name: "backup-vault-with-dashes"},
+		{Name: "backup_vault_with_underscores"},
+		{Name: "backup.vault.with.dots"},
+	}
+	result = ConvertToGCPHydrateBackupVaultDeleteRequests(specialVaults)
+	expectedSpecial := []string{
+		"backupVaults/backup-vault-with-dashes",
+		"backupVaults/backup_vault_with_underscores",
+		"backupVaults/backup.vault.with.dots",
+	}
+	assert.Equal(t, expectedSpecial, result)
 }

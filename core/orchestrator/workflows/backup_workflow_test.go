@@ -4678,6 +4678,10 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, externalBackupUUID, externalVaultUUID, params.AccountName, backupRegionName).Return(errors.New("failed to delete remote backup from VCP"))
 	// When deleteInitiated is true, HandleError calls UpdateBackupError (not MarkBackupAvailable)
 	env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock GetBackup for HandleError rollback path
+	env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+	// Mock DeleteRemoteBackupFromVCPActivity for HandleError rollback path (second call)
+	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, externalBackupUUID, externalVaultUUID, params.AccountName, backupRegionName).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(DeleteBackupWorkflow, params)

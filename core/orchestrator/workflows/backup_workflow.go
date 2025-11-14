@@ -8,7 +8,6 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -277,7 +276,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	backupActivitiesContext.BackupWorkflowInit.Backup.AssetMetadata = &datamodel.AssetMetadata{
 		ChildAssets: []datamodel.ChildAsset{
 			{
-				AssetType:  backgroundactivities.BackupAssetType,
+				AssetType:  commonparams.BackupAssetType,
 				AssetNames: []string{fmt.Sprintf("//storage.googleapis.com/%s", backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.BucketName)},
 			},
 		},
@@ -702,6 +701,19 @@ func (wf *BackupDeleteWorkflow) HandleError(ctx workflow.Context, params *common
 		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupError, dbBackup, errString).Get(ctx, nil)
 		if err != nil {
 			return ConvertToVSAError(err)
+		}
+
+		dbBackupVault := dbBackup.BackupVault
+		// Delete remote backup from VCP if this is a cross-region backup
+		if dbBackupVault.BackupVaultType == activities.CrossRegionBackupType && dbBackup.ExternalUUID != "" && dbBackupVault.ExternalUUID != nil && dbBackupVault.BackupRegionName != nil {
+			remoteBackupErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteRemoteBackupFromVCPActivity,
+				dbBackup.ExternalUUID,
+				*dbBackupVault.ExternalUUID,
+				params.AccountName,
+				*dbBackupVault.BackupRegionName).Get(ctx, nil)
+			if remoteBackupErr != nil {
+				wf.Logger.Errorf("Failed to delete remote backup from VCP for errored backup %s: %v", dbBackup.UUID, remoteBackupErr)
+			}
 		}
 	} else {
 		if wf.Logger != nil {

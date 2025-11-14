@@ -5,8 +5,10 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -219,4 +221,126 @@ func _convertToVolumeReplicationsInternalV1Beta(in []*datamodel.VolumeReplicatio
 		out = append(out, convertToVolumeReplicationInternalV1Beta(replication))
 	}
 	return out
+}
+
+func convertBackupDataModelToInternalBackupsV1beta(backup *datamodel.Backup, isRestoring bool) gcpgenserver.InternalBackupV1beta {
+	var state gcpgenserver.InternalBackupV1betaState
+	// Need to convert states as DB models and API models have different states
+	switch backup.State {
+	case models.LifeCycleStateAvailable:
+		state = gcpgenserver.InternalBackupV1betaStateREADY
+	case models.LifeCycleStateUpdating:
+		state = gcpgenserver.InternalBackupV1betaStateUPDATING
+	default:
+		state = gcpgenserver.InternalBackupV1betaState(backup.State)
+	}
+	sourceVolumePath := utils.GetSourceVolumePathFromBackup(backup)
+	sourceSnapshotPath := utils.GetSourceSnapshotPathFromBackup(backup)
+
+	var satisfiesPzi, satisfiesPzs bool
+	for _, bucket := range backup.BackupVault.BucketDetails {
+		if bucket.BucketName == backup.Attributes.BucketName {
+			satisfiesPzi = bucket.SatisfiesPzi
+			satisfiesPzs = bucket.SatisfiesPzs
+			break
+		}
+	}
+
+	internalBackupV1 := gcpgenserver.InternalBackupV1beta{
+		ResourceId: gcpgenserver.OptString{
+			Value: backup.Name,
+			Set:   true,
+		},
+		VolumeId: gcpgenserver.OptString{
+			Value: backup.VolumeUUID,
+			Set:   true,
+		},
+		State: gcpgenserver.OptInternalBackupV1betaState{
+			Value: state,
+			Set:   true,
+		},
+		Created: gcpgenserver.OptDateTime{
+			Value: backup.CreatedAt,
+			Set:   true,
+		},
+		BackupId: gcpgenserver.OptString{
+			Value: backup.UUID,
+			Set:   true,
+		},
+		VolumeUsageBytes: gcpgenserver.OptInt64{
+			Value: backup.SizeInBytes,
+			Set:   true,
+		},
+		BackupVaultId: gcpgenserver.OptString{
+			Value: backup.BackupVault.UUID,
+			Set:   true,
+		},
+		Description: gcpgenserver.OptString{
+			Value: backup.Description,
+			Set:   true,
+		},
+		BackupType: gcpgenserver.OptInternalBackupV1betaBackupType{
+			Value: gcpgenserver.InternalBackupV1betaBackupType(backup.Type),
+			Set:   true,
+		},
+		SourceSnapshot: gcpgenserver.OptString{
+			Value: sourceSnapshotPath,
+			Set:   backup.Attributes.UseExistingSnapshot && backup.Attributes.SnapshotName != "",
+		},
+		SourceVolume: gcpgenserver.OptString{
+			Value: sourceVolumePath,
+			Set:   true,
+		},
+		BackupRegion: gcpgenserver.OptString{
+			Value: *backup.BackupVault.SourceRegionName,
+			Set:   true,
+		},
+		VolumeRegion: gcpgenserver.OptString{
+			Value: *backup.BackupVault.SourceRegionName,
+			Set:   true,
+		},
+		SatisfiesPzi: gcpgenserver.OptBool{
+			Value: satisfiesPzi,
+			Set:   true,
+		},
+		SatisfiesPzs: gcpgenserver.OptBool{
+			Value: satisfiesPzs,
+			Set:   true,
+		},
+		BackupChainBytes: gcpgenserver.OptInt64{
+			Value: backup.LatestLogicalBackupSize,
+			Set:   backup.LatestLogicalBackupSize != 0,
+		},
+		IsRestoring: gcpgenserver.OptBool{
+			Value: isRestoring,
+			Set:   true,
+		},
+	}
+	if backup.BackupVault.ImmutableAttributes != nil && *backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration > 0 && common.CheckIfBackupIsImmutable(backup) {
+		expirationDate := backup.CreatedAt.AddDate(0, 0, int(*backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration))
+		if !time.Now().After(expirationDate) {
+			internalBackupV1.EnforcedRetentionEndTime = gcpgenserver.OptDateTime{
+				Value: expirationDate,
+				Set:   true,
+			}
+		}
+	}
+	if backup.AssetMetadata != nil {
+		internalBackupV1.AssetLocationMetadata = gcpgenserver.OptAssetLocationMetadataV2{
+			Value: gcpgenserver.AssetLocationMetadataV2{
+				ChildAssets: func() []gcpgenserver.ChildAssetV2 {
+					var assets []gcpgenserver.ChildAssetV2
+					for _, asset := range backup.AssetMetadata.ChildAssets {
+						assets = append(assets, gcpgenserver.ChildAssetV2{
+							AssetType:  gcpgenserver.OptString{Value: asset.AssetType, Set: true},
+							AssetNames: asset.AssetNames,
+						})
+					}
+					return assets
+				}(),
+			},
+			Set: true,
+		}
+	}
+	return internalBackupV1
 }

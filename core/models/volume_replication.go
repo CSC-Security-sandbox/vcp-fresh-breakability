@@ -96,6 +96,7 @@ type Request struct {
 	Replication *ReplicationHydrateObject `json:"replication,omitempty"`
 	Snapshot    *HydrateSnapshot          `json:"snapshot,omitempty"`
 	Backup      *HydrateBackup            `json:"backup,omitempty"`
+	BackupVault *HydrateBackupVault       `json:"backup_vault,omitempty"`
 }
 
 type ReplicationHydrateObject struct {

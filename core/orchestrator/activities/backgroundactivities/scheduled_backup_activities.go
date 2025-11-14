@@ -20,7 +20,6 @@ import (
 const (
 	backupTypeSCHEDULED       = "SCHEDULED"
 	scheduledBackupNameFormat = "%s-scheduled-backup-%s-%s"
-	BackupAssetType           = "storage.googleapis.com/Bucket"
 )
 
 // ScheduledBackupActivity represents activities related to scheduled backups.
@@ -79,14 +78,13 @@ func (j *ScheduledBackupActivity) HydrateCreatedBackupsToCCFE(ctx context.Contex
 	if err != nil {
 		return err
 	}
-	// TODO: Consider validating the "GetBackupRegion" function for CRB
 	region, err := utils.GetBackupRegion(volume)
 	if err != nil {
 		return err
 	}
 	projectId := volume.Account.Name
-	requests := convertToGCPHydrateCreateRequests(backups)
-	err = common.HydrateCreatedScheduledBackups(ctx, logger, requests, backupVaultName, region, projectId, token)
+	requests := common.ConvertToGCPHydrateBackupCreateRequests(backups)
+	err = common.HydrateCreatedBackups(ctx, logger, requests, backupVaultName, region, projectId, token)
 	if err != nil {
 		return err
 	}
@@ -112,14 +110,13 @@ func (j *ScheduledBackupActivity) HydrateDeletedBackupsToCCFE(ctx context.Contex
 	if err != nil {
 		return err
 	}
-	// TODO: Consider validating the "GetBackupRegion" function for CRB
 	region, err := utils.GetBackupRegion(volume)
 	if err != nil {
 		return err
 	}
 	projectId := volume.Account.Name
-	names := convertToGCPHydrateDeleteRequests(backups)
-	err = common.HydrateDeletedScheduledBackups(ctx, logger, names, backupVaultName, region, projectId, token)
+	names := common.ConvertToGCPHydrateBackupDeleteRequests(backups)
+	err = common.HydrateDeletedBackups(ctx, logger, names, backupVaultName, region, projectId, token)
 	if err != nil {
 		return err
 	}
@@ -261,54 +258,6 @@ func (j *ScheduledBackupActivity) GetSnapshotByNameAndVolumeID(ctx context.Conte
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return snapshot, nil
-}
-
-// convertToGCPHydrateCreateRequests converts a slice of Backup objects to GCP hydrate create requests.
-// Returns a slice of Request objects.
-func convertToGCPHydrateCreateRequests(backups []*datamodel.Backup) []models.Request {
-	var requests []models.Request
-	for _, backup := range backups {
-		sourceVolume := utils.GetSourceVolumePathFromBackup(backup)
-		volumeUsageInBytes := uint64(backup.SizeInBytes)
-		request := models.Request{Backup: &models.HydrateBackup{
-			ResourceId:       backup.Name,
-			BackupId:         backup.UUID,
-			VolumeUsageBytes: &volumeUsageInBytes,
-			SourceVolume:     sourceVolume,
-		}}
-
-		if backup.Attributes != nil && backup.Attributes.BucketName != "" {
-			assetLocationMetadata := getOrCreateAssetLocationMetadata(request.Backup)
-			assetLocationMetadata.ChildAssets = append(assetLocationMetadata.ChildAssets, &models.ChildAsset{
-				AssetType:  BackupAssetType,
-				AssetNames: []string{fmt.Sprintf("//storage.googleapis.com/%s", backup.Attributes.BucketName)},
-			})
-		}
-
-		requests = append(requests, request)
-	}
-	return requests
-}
-
-// getOrCreateAssetLocationMetadata safely gets or creates AssetLocationMetadata
-// Returns the existing instance if it exists, or creates a new one if it's nil
-func getOrCreateAssetLocationMetadata(backup *models.HydrateBackup) *models.AssetLocationMetadata {
-	if backup.AssetLocationMetadata == nil {
-		backup.AssetLocationMetadata = &models.AssetLocationMetadata{
-			ChildAssets: []*models.ChildAsset{},
-		}
-	}
-	return backup.AssetLocationMetadata
-}
-
-// convertToGCPHydrateDeleteRequests converts a slice of Backup objects to a slice of backup names for deletion.
-// Returns a slice of strings.
-func convertToGCPHydrateDeleteRequests(backups []*datamodel.Backup) []string {
-	var names []string
-	for _, backup := range backups {
-		names = append(names, fmt.Sprintf("backups/%s", backup.Name))
-	}
-	return names
 }
 
 // RandomString generates a human-friendly random string of the specified length.

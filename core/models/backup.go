@@ -65,3 +65,11 @@ type ChildAsset struct {
 	AssetType  string   `json:"asset_type"`
 	AssetNames []string `json:"asset_names"`
 }
+
+type HydrateBackupVault struct {
+	// TODO: Add Backup KMS Configuration to the Hydration Request
+	ResourceId      string `json:"name"`
+	BackupVaultId   string `json:"netapp_uuid"`
+	BackupVaultType string `json:"backup_vault_type"`
+	BackupRegion    string `json:"backup_region"`
+}

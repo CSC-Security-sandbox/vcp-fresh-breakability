@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -628,7 +629,13 @@ func (h Handler) V1betaInternalCreateBackupVault(ctx context.Context, req *gcpge
 			Message: "Failed to convert request to internal model",
 		}, errors.New("failed to convert request to internal model")
 	}
-	createdBackupVault, err := h.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault)
+
+	param := &commonparams.BackupVaultParams{
+		OwnerID:     params.ProjectNumber,
+		Region:      params.LocationId,
+		AccountName: params.ProjectNumber,
+	}
+	createdBackupVault, err := h.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault, param)
 	if err != nil {
 		if errors.IsConflictErr(err) {
 			logger.Info("BackupVault already exists, returning existing", "uuid", req.BackupVaultId)
@@ -1008,5 +1015,91 @@ func (h Handler) V1betaInternalUpdateBackupVault(ctx context.Context, req *gcpge
 	return &gcpgenserver.OperationV1beta{
 		Response: bvJSON,
 		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func (h Handler) V1betaInternalDescribeBackup(ctx context.Context, params gcpgenserver.V1betaInternalDescribeBackupParams) (gcpgenserver.V1betaInternalDescribeBackupRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaInternalDescribeBackupInternalServerError{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+	backup, err := h.Orchestrator.GetBackup(ctx, &commonparams.GetBackupParams{
+		BackupVaultID: params.BackupVaultId,
+		BackupUUID:    params.BackupId,
+		AccountName:   params.ProjectNumber,
+	})
+	if err != nil {
+		logger.Error("Failed to get backup", "error", err.Error())
+		return &gcpgenserver.V1betaInternalDescribeBackupInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	isRestoring := backup.Attributes != nil && backup.Attributes.RestoreVolumeCount > 0
+	resp := convertBackupDataModelToInternalBackupsV1beta(backup, isRestoring)
+
+	return &gcpgenserver.V1betaInternalDescribeBackupOK{
+		Backups: []gcpgenserver.InternalBackupV1beta{resp},
+	}, nil
+}
+
+func (h Handler) V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context, params gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams) (gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+	_, err := h.Orchestrator.GetBackup(ctx, &commonparams.GetBackupParams{
+		BackupVaultID: params.BackupVaultId,
+		BackupUUID:    params.BackupId,
+		AccountName:   params.ProjectNumber,
+	})
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultNotFound{
+				Code:    404,
+				Message: fmt.Sprintf("Backup %s not found in backup vault %s", params.BackupId, params.BackupVaultId),
+			}, nil
+		}
+		logger.Errorf("Failed to get backup: %s", err.Error())
+		return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	// If the request belongs to VSA, we will delete the backup using the orchestrator
+	vsaParams := &commonparams.DeleteBackupParams{
+		AccountName:     params.ProjectNumber,
+		BackupVaultUUID: params.BackupVaultId,
+		BackupUUID:      params.BackupId,
+		Region:          params.LocationId,
+	}
+	jobId, err := h.Orchestrator.DeleteBackupInternal(ctx, vsaParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to delete backup", "error", err.Error())
+		return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	if jobId == "" {
+		jobId = uuid.New().String()
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(operationID),
+			Done: gcpgenserver.NewOptBool(true),
+		}, nil
+	}
+	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(false),
 	}, nil
 }

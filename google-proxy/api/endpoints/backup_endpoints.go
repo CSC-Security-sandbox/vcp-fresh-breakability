@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
@@ -403,63 +402,6 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 	}, nil
 }
 
-func (h Handler) V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context, params gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams) (gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultRes, error) {
-	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
-	if parsingErr != nil {
-		return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultBadRequest{
-			Code:    parsingErr.Code,
-			Message: parsingErr.Message,
-		}, nil
-	}
-	_, err := h.Orchestrator.GetBackup(ctx, &common.GetBackupParams{
-		BackupVaultID: params.BackupVaultId,
-		BackupUUID:    params.BackupId,
-		AccountName:   params.ProjectNumber,
-	})
-	if err != nil {
-		if errors.IsNotFoundErr(err) {
-			return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultNotFound{
-				Code:    404,
-				Message: fmt.Sprintf("Backup %s not found in backup vault %s", params.BackupId, params.BackupVaultId),
-			}, nil
-		}
-		logger.Errorf("Failed to get backup: %s", err.Error())
-		return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultInternalServerError{Code: 500, Message: err.Error()}, err
-	}
-	// If the request belongs to VSA, we will delete the backup using the orchestrator
-	vsaParams := &common.DeleteBackupParams{
-		AccountName:     params.ProjectNumber,
-		BackupVaultUUID: params.BackupVaultId,
-		BackupUUID:      params.BackupId,
-	}
-	jobId, err := h.Orchestrator.DeleteBackupInternal(ctx, vsaParams)
-	if err != nil {
-		if errors.IsUserInputValidationErr(err) {
-			return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultBadRequest{
-				Code:    400,
-				Message: err.Error(),
-			}, nil
-		}
-		logger.Error("Failed to delete backup", "error", err.Error())
-		return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultInternalServerError{Code: 500, Message: err.Error()}, err
-	}
-	if jobId == "" {
-		jobId = uuid.New().String()
-		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
-		return &gcpgenserver.OperationV1beta{
-			Name: gcpgenserver.NewOptString(operationID),
-			Done: gcpgenserver.NewOptBool(true),
-		}, nil
-	}
-	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
-	return &gcpgenserver.OperationV1beta{
-		Name: gcpgenserver.NewOptString(operationID),
-		Done: gcpgenserver.NewOptBool(false),
-	}, nil
-}
-
 func (h Handler) V1betaDescribeBackup(ctx context.Context, params gcpgenserver.V1betaDescribeBackupParams) (gcpgenserver.V1betaDescribeBackupRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
@@ -486,34 +428,6 @@ func (h Handler) V1betaDescribeBackup(ctx context.Context, params gcpgenserver.V
 
 	return &gcpgenserver.V1betaDescribeBackupOK{
 		Backups: []gcpgenserver.BackupV1beta{resp},
-	}, nil
-}
-
-func (h Handler) V1betaInternalDescribeBackup(ctx context.Context, params gcpgenserver.V1betaInternalDescribeBackupParams) (gcpgenserver.V1betaInternalDescribeBackupRes, error) {
-	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
-	if parsingErr != nil {
-		return &gcpgenserver.V1betaInternalDescribeBackupInternalServerError{
-			Code:    parsingErr.Code,
-			Message: parsingErr.Message,
-		}, nil
-	}
-	backup, err := h.Orchestrator.GetBackup(ctx, &common.GetBackupParams{
-		BackupVaultID: params.BackupVaultId,
-		BackupUUID:    params.BackupId,
-		AccountName:   params.ProjectNumber,
-	})
-	if err != nil {
-		logger.Error("Failed to get backup", "error", err.Error())
-		return &gcpgenserver.V1betaInternalDescribeBackupInternalServerError{Code: 500, Message: err.Error()}, err
-	}
-
-	isRestoring := backup.Attributes.RestoreVolumeCount > 0
-	resp := convertBackupDataModelToInternalBackupsV1beta(backup, isRestoring)
-
-	return &gcpgenserver.V1betaInternalDescribeBackupOK{
-		Backups: []gcpgenserver.InternalBackupV1beta{resp},
 	}, nil
 }
 
@@ -916,128 +830,6 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		}
 	}
 	return backupV1
-}
-
-func convertBackupDataModelToInternalBackupsV1beta(backup *datamodel.Backup, isRestoring bool) gcpgenserver.InternalBackupV1beta {
-	var state gcpgenserver.InternalBackupV1betaState
-	// Need to convert states as DB models and API models have different states
-	switch backup.State {
-	case coremodels.LifeCycleStateAvailable:
-		state = gcpgenserver.InternalBackupV1betaStateREADY
-	case coremodels.LifeCycleStateUpdating:
-		state = gcpgenserver.InternalBackupV1betaStateUPDATING
-	default:
-		state = gcpgenserver.InternalBackupV1betaState(backup.State)
-	}
-	sourceVolumePath := utils.GetSourceVolumePathFromBackup(backup)
-	sourceSnapshotPath := utils.GetSourceSnapshotPathFromBackup(backup)
-
-	var satisfiesPzi, satisfiesPzs bool
-	for _, bucket := range backup.BackupVault.BucketDetails {
-		if bucket.BucketName == backup.Attributes.BucketName {
-			satisfiesPzi = bucket.SatisfiesPzi
-			satisfiesPzs = bucket.SatisfiesPzs
-			break
-		}
-	}
-
-	internalBackupV1 := gcpgenserver.InternalBackupV1beta{
-		ResourceId: gcpgenserver.OptString{
-			Value: backup.Name,
-			Set:   true,
-		},
-		VolumeId: gcpgenserver.OptString{
-			Value: backup.VolumeUUID,
-			Set:   true,
-		},
-		State: gcpgenserver.OptInternalBackupV1betaState{
-			Value: state,
-			Set:   true,
-		},
-		Created: gcpgenserver.OptDateTime{
-			Value: backup.CreatedAt,
-			Set:   true,
-		},
-		BackupId: gcpgenserver.OptString{
-			Value: backup.UUID,
-			Set:   true,
-		},
-		VolumeUsageBytes: gcpgenserver.OptInt64{
-			Value: backup.SizeInBytes,
-			Set:   true,
-		},
-		BackupVaultId: gcpgenserver.OptString{
-			Value: backup.BackupVault.UUID,
-			Set:   true,
-		},
-		Description: gcpgenserver.OptString{
-			Value: backup.Description,
-			Set:   true,
-		},
-		BackupType: gcpgenserver.OptInternalBackupV1betaBackupType{
-			Value: gcpgenserver.InternalBackupV1betaBackupType(backup.Type),
-			Set:   true,
-		},
-		SourceSnapshot: gcpgenserver.OptString{
-			Value: sourceSnapshotPath,
-			Set:   backup.Attributes.UseExistingSnapshot && backup.Attributes.SnapshotName != "",
-		},
-		SourceVolume: gcpgenserver.OptString{
-			Value: sourceVolumePath,
-			Set:   true,
-		},
-		BackupRegion: gcpgenserver.OptString{
-			Value: *backup.BackupVault.SourceRegionName,
-			Set:   true,
-		},
-		VolumeRegion: gcpgenserver.OptString{
-			Value: *backup.BackupVault.SourceRegionName,
-			Set:   true,
-		},
-		SatisfiesPzi: gcpgenserver.OptBool{
-			Value: satisfiesPzi,
-			Set:   true,
-		},
-		SatisfiesPzs: gcpgenserver.OptBool{
-			Value: satisfiesPzs,
-			Set:   true,
-		},
-		BackupChainBytes: gcpgenserver.OptInt64{
-			Value: backup.LatestLogicalBackupSize,
-			Set:   backup.LatestLogicalBackupSize != 0,
-		},
-		IsRestoring: gcpgenserver.OptBool{
-			Value: isRestoring,
-			Set:   true,
-		},
-	}
-	if backup.BackupVault.ImmutableAttributes != nil && *backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration > 0 && common.CheckIfBackupIsImmutable(backup) {
-		expirationDate := backup.CreatedAt.AddDate(0, 0, int(*backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration))
-		if !time.Now().After(expirationDate) {
-			internalBackupV1.EnforcedRetentionEndTime = gcpgenserver.OptDateTime{
-				Value: expirationDate,
-				Set:   true,
-			}
-		}
-	}
-	if backup.AssetMetadata != nil {
-		internalBackupV1.AssetLocationMetadata = gcpgenserver.OptAssetLocationMetadataV2{
-			Value: gcpgenserver.AssetLocationMetadataV2{
-				ChildAssets: func() []gcpgenserver.ChildAssetV2 {
-					var assets []gcpgenserver.ChildAssetV2
-					for _, asset := range backup.AssetMetadata.ChildAssets {
-						assets = append(assets, gcpgenserver.ChildAssetV2{
-							AssetType:  gcpgenserver.OptString{Value: asset.AssetType, Set: true},
-							AssetNames: asset.AssetNames,
-						})
-					}
-					return assets
-				}(),
-			},
-			Set: true,
-		}
-	}
-	return internalBackupV1
 }
 
 func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams) *common.CreateBackupParams {

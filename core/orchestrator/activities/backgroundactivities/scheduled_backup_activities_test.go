@@ -149,88 +149,6 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 	})
 }
 
-func TestConvertToGCPHydrateCreateRequests(t *testing.T) {
-	backups := []*datamodel.Backup{
-		{
-			BaseModel: datamodel.BaseModel{
-				ID:   1,
-				UUID: "uuid1",
-			},
-			Name:        "backup1",
-			SizeInBytes: 12345,
-			Attributes: &datamodel.BackupAttributes{
-				BucketName:       "bucket1",
-				SourceVolumeZone: "us-central1-a",
-			},
-		},
-		{
-			BaseModel: datamodel.BaseModel{
-				ID:   2,
-				UUID: "uuid2",
-			},
-			Name:        "backup2",
-			SizeInBytes: 67890,
-			Attributes: &datamodel.BackupAttributes{
-				BucketName: "bucket2",
-			},
-			BackupVault: &datamodel.BackupVault{
-				SourceRegionName: nillable.ToPointer("us-central1"),
-			},
-		},
-	}
-	result := convertToGCPHydrateCreateRequests(backups)
-	require := assert.New(t)
-	require.Len(result, 2)
-	require.Equal("backup1", result[0].Backup.ResourceId)
-	require.Equal("uuid1", result[0].Backup.BackupId)
-	require.NotNil(result[0].Backup.VolumeUsageBytes)
-	require.Equal(uint64(12345), *result[0].Backup.VolumeUsageBytes)
-
-	// Validate AssetLocationMetadata for backup1
-	require.NotNil(result[0].Backup.AssetLocationMetadata)
-	require.Len(result[0].Backup.AssetLocationMetadata.ChildAssets, 1)
-	require.Equal("storage.googleapis.com/Bucket", result[0].Backup.AssetLocationMetadata.ChildAssets[0].AssetType)
-	require.Len(result[0].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames, 1)
-	require.Equal("//storage.googleapis.com/bucket1", result[0].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames[0])
-
-	require.Equal("backup2", result[1].Backup.ResourceId)
-	require.Equal("uuid2", result[1].Backup.BackupId)
-	require.NotNil(result[1].Backup.VolumeUsageBytes)
-	require.Equal(uint64(67890), *result[1].Backup.VolumeUsageBytes)
-
-	// Validate AssetLocationMetadata for backup2
-	require.NotNil(result[1].Backup.AssetLocationMetadata)
-	require.Len(result[1].Backup.AssetLocationMetadata.ChildAssets, 1)
-	require.Equal("storage.googleapis.com/Bucket", result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetType)
-	require.Len(result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames, 1)
-	require.Equal("//storage.googleapis.com/bucket2", result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames[0])
-
-	result = convertToGCPHydrateCreateRequests([]*datamodel.Backup{})
-	require.Empty(result)
-
-	result = convertToGCPHydrateCreateRequests(nil)
-	require.Empty(result)
-}
-
-func TestConvertToGCPHydrateDeleteRequests(t *testing.T) {
-	backups := []*datamodel.Backup{
-		{Name: "backup1"},
-		{Name: "backup2"},
-		{Name: "backup3"},
-	}
-	expected := []string{"backups/backup1", "backups/backup2", "backups/backup3"}
-	result := convertToGCPHydrateDeleteRequests(backups)
-	assert.Equal(t, expected, result)
-
-	// Test with empty slice
-	result = convertToGCPHydrateDeleteRequests([]*datamodel.Backup{})
-	assert.Empty(t, result)
-
-	// Test with nil input
-	result = convertToGCPHydrateDeleteRequests(nil)
-	assert.Empty(t, result)
-}
-
 func TestRandomString(t *testing.T) {
 	t.Run("ReturnsStringOfCorrectLength", func(t *testing.T) {
 		for _, n := range []int{0, 1, 5, 10, 20} {
@@ -296,12 +214,12 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 	activity := ScheduledBackupActivity{SE: mockStorage}
 
 	originalGenerateCallbackToken := auth.GenerateCallbackToken
-	originalHydrateCreatedScheduledBackups := common.HydrateCreatedScheduledBackups
-	originalHydrateDeletedScheduledBackups := common.HydrateDeletedScheduledBackups
+	originalHydrateCreatedScheduledBackups := common.HydrateCreatedBackups
+	originalHydrateDeletedScheduledBackups := common.HydrateDeletedBackups
 	defer func() {
 		auth.GenerateCallbackToken = originalGenerateCallbackToken
-		common.HydrateCreatedScheduledBackups = originalHydrateCreatedScheduledBackups
-		common.HydrateDeletedScheduledBackups = originalHydrateDeletedScheduledBackups
+		common.HydrateCreatedBackups = originalHydrateCreatedScheduledBackups
+		common.HydrateDeletedBackups = originalHydrateDeletedScheduledBackups
 	}()
 
 	volume := &datamodel.Volume{
@@ -319,7 +237,7 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mock-token", nil
 		}
-		common.HydrateCreatedScheduledBackups = func(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
+		common.HydrateCreatedBackups = func(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
 			return nil
 		}
 		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
@@ -359,7 +277,7 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mock-token", nil
 		}
-		common.HydrateCreatedScheduledBackups = func(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
+		common.HydrateCreatedBackups = func(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
 			return errors.New("could not hydrate backups to CCFE")
 		}
 		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
@@ -376,7 +294,7 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mock-token", nil
 		}
-		common.HydrateCreatedScheduledBackups = func(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
+		common.HydrateCreatedBackups = func(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
 			return errors.New("could not hydrate backups to CCFE")
 		}
 		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
@@ -415,13 +333,13 @@ func TestHydrateDeletedBackupsToCCFE(t *testing.T) {
 	activity := ScheduledBackupActivity{SE: mockStorage}
 
 	originalGenerateCallbackToken := auth.GenerateCallbackToken
-	originalHydrateCreatedScheduledBackups := common.HydrateCreatedScheduledBackups
-	originalHydrateDeletedScheduledBackups := common.HydrateDeletedScheduledBackups
+	originalHydrateCreatedScheduledBackups := common.HydrateCreatedBackups
+	originalHydrateDeletedScheduledBackups := common.HydrateDeletedBackups
 	originalGetBackupRegion := utils.GetBackupRegion
 	defer func() {
 		auth.GenerateCallbackToken = originalGenerateCallbackToken
-		common.HydrateCreatedScheduledBackups = originalHydrateCreatedScheduledBackups
-		common.HydrateDeletedScheduledBackups = originalHydrateDeletedScheduledBackups
+		common.HydrateCreatedBackups = originalHydrateCreatedScheduledBackups
+		common.HydrateDeletedBackups = originalHydrateDeletedScheduledBackups
 		utils.GetBackupRegion = originalGetBackupRegion
 	}()
 
@@ -450,7 +368,7 @@ func TestHydrateDeletedBackupsToCCFE(t *testing.T) {
 		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mock-token", nil
 		}
-		common.HydrateDeletedScheduledBackups = func(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
+		common.HydrateDeletedBackups = func(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
 			return nil
 		}
 		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
@@ -491,7 +409,7 @@ func TestHydrateDeletedBackupsToCCFE(t *testing.T) {
 		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mock-token", nil
 		}
-		common.HydrateDeletedScheduledBackups = func(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
+		common.HydrateDeletedBackups = func(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
 			return errors.New("could not hydrate backups to CCFE")
 		}
 		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {

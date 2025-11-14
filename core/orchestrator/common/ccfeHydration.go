@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -24,8 +25,10 @@ var (
 	VolumeDelete                   = _hydrateVolumeDelete
 	BatchHydrateCreatedSnapshots   = _batchHydrateCreatedSnapshots
 	BatchHydrateDeletedSnapshots   = _batchHydrateDeletedSnapshots
-	HydrateCreatedScheduledBackups = _hydrateCreatedScheduledBackups
-	HydrateDeletedScheduledBackups = _hydrateDeletedScheduledBackups
+	HydrateCreatedBackups          = _hydrateCreatedBackups
+	HydrateDeletedBackups          = _hydrateDeletedBackups
+	HydrateCreatedBackupVaults     = _hydrateCreatedBackupVaults
+	HydrateDeletedBackupVaults     = _hydrateDeletedBackupVaults
 	HydrateUpdatedPool             = _hydrateUpdatedPool
 	MapStateToGcpState             = _mapStateToGcpState
 	HydrateFlexCacheState          = _hydrateFlexCacheState
@@ -67,6 +70,7 @@ const (
 	ResourceQuotaTypeEmpty      QuotaType    = ""
 	CorrelationContextKey       ContextKey   = iota
 	CorrelationIDName           string       = log.RequestCorrelationID
+	BackupAssetType                          = "storage.googleapis.com/Bucket"
 
 	// LifeCycle state in Google
 	deletedGcp = "DISABLED"
@@ -195,27 +199,51 @@ func _batchHydrateDeletedSnapshots(ctx context.Context, logger log.Logger, hydra
 	return err
 }
 
-// _hydrateCreatedScheduledBackups hydrates created scheduled backups to CCFE.
-func _hydrateCreatedScheduledBackups(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
+// _hydrateCreatedBackups hydrates created backups to CCFE.
+func _hydrateCreatedBackups(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
 	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/backupVaults/%s/resources:%s", baseUri, projectId, location, backupVaultName, Create)
 	err := hydrateToCffe(ctx, logger, models.GcpHydrateCreate{Requests: resources}, url, http.MethodPost, token)
 	if err != nil {
-		logger.Errorf("Created Scheduled Backup Hydration failed for backupVault %s with error %v", backupVaultName, err)
+		logger.Errorf("Created Backup Hydration failed for backupVault %s with error %v", backupVaultName, err)
 		return err
 	}
 	logger.Infof("Successfully hydrated created backups to CCFE for the backupVault %s", backupVaultName)
 	return nil
 }
 
-// _hydrateDeletedScheduledBackups hydrates deleted scheduled backups to CCFE.
-func _hydrateDeletedScheduledBackups(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
+// _hydrateDeletedBackups hydrates deleted backups to CCFE.
+func _hydrateDeletedBackups(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
 	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/backupVaults/%s/resources:%s", baseUri, projectId, location, backupVaultName, Delete)
 	err := hydrateToCffe(ctx, logger, models.GcpHydrateDelete{Names: names}, url, http.MethodPost, token)
 	if err != nil {
-		logger.Errorf("Deleted Scheduled Backup Hydration failed for backupVault %s with error %v", backupVaultName, err)
+		logger.Errorf("Deleted Backup Hydration failed for backupVault %s with error %v", backupVaultName, err)
 		return err
 	}
 	logger.Infof("Successfully hydrated deleted backups to CCFE for the backupVault %s", backupVaultName)
+	return nil
+}
+
+// _hydrateCreatedBackupVaults hydrates created backup vaults to CCFE.
+func _hydrateCreatedBackupVaults(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
+	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/resources:%s", baseUri, projectId, location, Create)
+	err := hydrateToCffe(ctx, logger, models.GcpHydrateCreate{Requests: resources}, url, http.MethodPost, token)
+	if err != nil {
+		logger.Errorf("Created Backup Vault Hydration failed for backupVault %s with error %v", backupVaultName, err)
+		return err
+	}
+	logger.Infof("Successfully hydrated created backup vaults to CCFE for the backupVault %s", backupVaultName)
+	return nil
+}
+
+// _hydrateDeletedBackupVaults hydrates deleted backup vaults to CCFE.
+func _hydrateDeletedBackupVaults(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
+	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/resources:%s", baseUri, projectId, location, Delete)
+	err := hydrateToCffe(ctx, logger, models.GcpHydrateDelete{Names: names}, url, http.MethodPost, token)
+	if err != nil {
+		logger.Errorf("Deleted Backup Vault Hydration failed for backupVault %s with error %v", backupVaultName, err)
+		return err
+	}
+	logger.Infof("Successfully hydrated deleted backup vaults to CCFE for the backupVault %s", backupVaultName)
 	return nil
 }
 
@@ -475,4 +503,79 @@ func _hydrateUpdatedPool(ctx context.Context, poolHydrateObj models.PoolHydrateO
 		return err
 	}
 	return nil
+}
+
+// ConvertToGCPHydrateBackupCreateRequests converts a slice of Backup objects to GCP hydrate create requests.
+// Returns a slice of Request objects.
+func ConvertToGCPHydrateBackupCreateRequests(backups []*datamodel.Backup) []models.Request {
+	var requests []models.Request
+	for _, backup := range backups {
+		sourceVolume := utils.GetSourceVolumePathFromBackup(backup)
+		volumeUsageInBytes := uint64(backup.SizeInBytes)
+		request := models.Request{Backup: &models.HydrateBackup{
+			ResourceId:       backup.Name,
+			BackupId:         backup.UUID,
+			VolumeUsageBytes: &volumeUsageInBytes,
+			SourceVolume:     sourceVolume,
+		}}
+
+		if backup.Attributes != nil && backup.Attributes.BucketName != "" {
+			assetLocationMetadata := getOrCreateAssetLocationMetadata(request.Backup)
+			assetLocationMetadata.ChildAssets = append(assetLocationMetadata.ChildAssets, &models.ChildAsset{
+				AssetType:  BackupAssetType,
+				AssetNames: []string{fmt.Sprintf("//storage.googleapis.com/%s", backup.Attributes.BucketName)},
+			})
+		}
+
+		requests = append(requests, request)
+	}
+	return requests
+}
+
+// getOrCreateAssetLocationMetadata safely gets or creates AssetLocationMetadata
+// Returns the existing instance if it exists, or creates a new one if it's nil
+func getOrCreateAssetLocationMetadata(backup *models.HydrateBackup) *models.AssetLocationMetadata {
+	if backup.AssetLocationMetadata == nil {
+		backup.AssetLocationMetadata = &models.AssetLocationMetadata{
+			ChildAssets: []*models.ChildAsset{},
+		}
+	}
+	return backup.AssetLocationMetadata
+}
+
+// ConvertToGCPHydrateBackupDeleteRequests converts a slice of Backup objects to a slice of backup names for deletion.
+// Returns a slice of strings.
+func ConvertToGCPHydrateBackupDeleteRequests(backups []*datamodel.Backup) []string {
+	var names []string
+	for _, backup := range backups {
+		names = append(names, fmt.Sprintf("backups/%s", backup.Name))
+	}
+	return names
+}
+
+// ConvertToGCPHydrateBackupVaultCreateRequests converts a slice of BackupVault objects to GCP hydrate create requests.
+// Returns a slice of Request objects, each containing a HydrateBackupVault with ResourceId, BackupVaultId,
+// BackupVaultType, and BackupRegion populated from the corresponding BackupVault.
+func ConvertToGCPHydrateBackupVaultCreateRequests(backupVaults []*datamodel.BackupVault) []models.Request {
+	var requests []models.Request
+	for _, backupVault := range backupVaults {
+		request := models.Request{BackupVault: &models.HydrateBackupVault{
+			ResourceId:      backupVault.Name,
+			BackupVaultId:   backupVault.UUID,
+			BackupVaultType: backupVault.BackupVaultType,
+			BackupRegion:    *backupVault.BackupRegionName},
+		}
+		requests = append(requests, request)
+	}
+	return requests
+}
+
+// ConvertToGCPHydrateBackupVaultDeleteRequests converts a slice of BackupVault objects to a slice of backup vault names for deletion.
+// Returns a slice of strings, each formatted as "backupVaults/{name}" where {name} is the BackupVault's Name field.
+func ConvertToGCPHydrateBackupVaultDeleteRequests(backupVaults []*datamodel.BackupVault) []string {
+	var names []string
+	for _, backup := range backupVaults {
+		names = append(names, fmt.Sprintf("backupVaults/%s", backup.Name))
+	}
+	return names
 }

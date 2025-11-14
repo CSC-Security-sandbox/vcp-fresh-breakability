@@ -462,7 +462,7 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		backup.AssetMetadata = &datamodel.AssetMetadata{
 			ChildAssets: []datamodel.ChildAsset{
 				{
-					AssetType:  backgroundactivities.BackupAssetType,
+					AssetType:  common.BackupAssetType,
 					AssetNames: []string{fmt.Sprintf("//storage.googleapis.com/%s", backup.Attributes.BucketName)},
 				},
 			},

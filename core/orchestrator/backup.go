@@ -8,6 +8,7 @@ import (
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -15,6 +16,8 @@ import (
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -23,15 +26,18 @@ import (
 )
 
 var (
-	createBackup               = _createBackup
-	validateCreateBackupParams = _validateCreateBackupParams
-	getBackups                 = _getBackups
-	deleteBackup               = _deleteBackup
-	updateBackup               = _updateBackup
-	validateBackupDeleteParams = _validateBackupDeleteParams
-	validateSnapshotForBackup  = _validateSnapshotForBackup
-	fetchRemoteBackupFromVCP   = _fetchRemoteBackupFromVCP
-	getRemoteRegionConfig      = common.GetRemoteRegionConfig
+	hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true)
+
+	createBackup                = _createBackup
+	validateCreateBackupParams  = _validateCreateBackupParams
+	getBackups                  = _getBackups
+	deleteBackup                = _deleteBackup
+	updateBackup                = _updateBackup
+	validateBackupDeleteParams  = _validateBackupDeleteParams
+	validateSnapshotForBackup   = _validateSnapshotForBackup
+	fetchRemoteBackupFromVCP    = _fetchRemoteBackupFromVCP
+	getRemoteRegionConfig       = common.GetRemoteRegionConfig
+	hydrateDeletedBackupsToCCFE = _hydrateDeletedBackupsToCCFE
 )
 
 // CreateBackup creates the specified backup and adds it to the list of backup belonging to the specified BackupVault
@@ -389,7 +395,7 @@ func (o *Orchestrator) DeleteBackupInternal(ctx context.Context, params *common.
 		return "", err
 	}
 
-	if backup.Attributes.RestoreVolumeCount > 0 {
+	if backup.Attributes != nil && backup.Attributes.RestoreVolumeCount > 0 {
 		logger.Errorf("Could not delete the backup as it is being used to restore volume(s): %d", backup.Attributes.RestoreVolumeCount)
 		return "", customerrors.NewUserInputValidationErr("Cannot delete the backup as it is being used to restore a volume")
 	}
@@ -399,7 +405,34 @@ func (o *Orchestrator) DeleteBackupInternal(ctx context.Context, params *common.
 		logger.Error("Failed to delete backup in database", "error", err)
 		return "", err
 	}
+
+	if hydrationEnabled {
+		if backup.BackupVault == nil {
+			logger.Errorf("Could not find the backup vault associated with the backup. Could not hydrate deleted cross-region backup")
+			return "", vsaerrors.New("Could not find the backup vault associated with the backup. Could not hydrate deleted cross-region backup")
+		}
+
+		err = hydrateDeletedBackupsToCCFE(ctx, params, backup)
+		if err != nil {
+			logger.Errorf("Failed to hydrate deleted backup to CCFE: %v", err)
+			return "", err
+		}
+	}
 	return "", nil
+}
+
+func _hydrateDeletedBackupsToCCFE(ctx context.Context, params *common.DeleteBackupParams, backup *datamodel.Backup) error {
+	logger := util.GetLogger(ctx)
+	token, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		return err
+	}
+	requests := common.ConvertToGCPHydrateBackupDeleteRequests([]*datamodel.Backup{backup})
+	err = common.HydrateDeletedBackups(ctx, logger, requests, backup.BackupVault.Name, params.Region, params.AccountName, token)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Client, params *common.DeleteBackupParams) (*models.BaseModel, string, error) {

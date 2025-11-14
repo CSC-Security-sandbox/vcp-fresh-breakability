@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -3554,6 +3555,11 @@ func TestDeleteBackupInternal(t *testing.T) {
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		store := database.NewMockStorage(t)
 
+		// Override hydrationEnabled to false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
 		params := &common.DeleteBackupParams{
 			BackupVaultUUID: "test-vault-uuid",
 			BackupUUID:      "test-backup-uuid",
@@ -3588,6 +3594,11 @@ func TestDeleteBackupInternal(t *testing.T) {
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		store := database.NewMockStorage(t)
 
+		// Override hydrationEnabled to false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
 		params := &common.DeleteBackupParams{
 			BackupVaultUUID: "test-vault-uuid",
 			BackupUUID:      "test-backup-uuid",
@@ -3611,6 +3622,11 @@ func TestDeleteBackupInternal(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		store := database.NewMockStorage(t)
+
+		// Override hydrationEnabled to false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
 		params := &common.DeleteBackupParams{
 			BackupVaultUUID: "test-vault-uuid",
@@ -3647,6 +3663,11 @@ func TestDeleteBackupInternal(t *testing.T) {
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		store := database.NewMockStorage(t)
 
+		// Override hydrationEnabled to false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
 		params := &common.DeleteBackupParams{
 			BackupVaultUUID: "test-vault-uuid",
 			BackupUUID:      "test-backup-uuid",
@@ -3669,6 +3690,11 @@ func TestDeleteBackupInternal(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		store := database.NewMockStorage(t)
+
+		// Override hydrationEnabled to false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
 		params := &common.DeleteBackupParams{
 			BackupVaultUUID: "test-vault-uuid",
@@ -3694,6 +3720,178 @@ func TestDeleteBackupInternal(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, vsaerror.IsUserInputValidationErr(err))
 		assert.Contains(t, err.Error(), "Cannot delete the backup as it is being used to restore a volume")
+		assert.Equal(t, "", result)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("WhenHydrationEnabledAndBackupVaultIsNil_ReturnsError", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store := database.NewMockStorage(t)
+
+		params := &common.DeleteBackupParams{
+			BackupVaultUUID: "test-vault-uuid",
+			BackupUUID:      "test-backup-uuid",
+			AccountName:     "test-account",
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name: "test-backup",
+			Attributes: &datamodel.BackupAttributes{
+				RestoreVolumeCount: 0,
+			},
+			BackupVault: nil, // This should trigger the error
+		}
+
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("DeleteBackup", ctx, backup.UUID).Return(&datamodel.Backup{}, nil)
+
+		o := &Orchestrator{storage: store}
+		result, err := o.DeleteBackupInternal(ctx, params)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Could not find the backup vault associated with the backup")
+		assert.Equal(t, "", result)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("WhenHydrationEnabledAndBackupVaultExistsButHydrationFails_ReturnsError", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store := database.NewMockStorage(t)
+
+		// Override hydrateDeletedBackupsToCCFE to return an error
+		originalHydrateDeletedBackupsToCCFE := hydrateDeletedBackupsToCCFE
+		hydrateDeletedBackupsToCCFE = func(ctx context.Context, params *common.DeleteBackupParams, backup *datamodel.Backup) error {
+			return errors.New("failed to hydrate deleted backup to CCFE")
+		}
+		defer func() { hydrateDeletedBackupsToCCFE = originalHydrateDeletedBackupsToCCFE }()
+
+		params := &common.DeleteBackupParams{
+			BackupVaultUUID: "test-vault-uuid",
+			BackupUUID:      "test-backup-uuid",
+			AccountName:     "test-account",
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name: "test-backup",
+			Attributes: &datamodel.BackupAttributes{
+				RestoreVolumeCount: 0,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-vault-uuid",
+				},
+				Name: "test-vault",
+			},
+		}
+
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("DeleteBackup", ctx, backup.UUID).Return(&datamodel.Backup{}, nil)
+
+		o := &Orchestrator{storage: store}
+		result, err := o.DeleteBackupInternal(ctx, params)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to hydrate deleted backup to CCFE")
+		assert.Equal(t, "", result)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("WhenHydrationEnabledAndBackupVaultExistsAndHydrationSucceeds_ReturnsNoError", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store := database.NewMockStorage(t)
+
+		// Override hydrationEnabled to true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Override hydrateDeletedBackupsToCCFE to return success
+		originalHydrateDeletedBackupsToCCFE := hydrateDeletedBackupsToCCFE
+		hydrateDeletedBackupsToCCFE = func(ctx context.Context, params *common.DeleteBackupParams, backup *datamodel.Backup) error {
+			return nil
+		}
+		defer func() { hydrateDeletedBackupsToCCFE = originalHydrateDeletedBackupsToCCFE }()
+
+		params := &common.DeleteBackupParams{
+			BackupVaultUUID: "test-vault-uuid",
+			BackupUUID:      "test-backup-uuid",
+			AccountName:     "test-account",
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name: "test-backup",
+			Attributes: &datamodel.BackupAttributes{
+				RestoreVolumeCount: 0,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-vault-uuid",
+				},
+				Name: "test-vault",
+			},
+		}
+
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("DeleteBackup", ctx, backup.UUID).Return(&datamodel.Backup{}, nil)
+
+		o := &Orchestrator{storage: store}
+		result, err := o.DeleteBackupInternal(ctx, params)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "", result)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("WhenHydrationDisabled_SkipsHydration", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store := database.NewMockStorage(t)
+
+		// Override hydrationEnabled to false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		params := &common.DeleteBackupParams{
+			BackupVaultUUID: "test-vault-uuid",
+			BackupUUID:      "test-backup-uuid",
+			AccountName:     "test-account",
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name: "test-backup",
+			Attributes: &datamodel.BackupAttributes{
+				RestoreVolumeCount: 0,
+			},
+			BackupVault: nil, // Even with nil BackupVault, should not error when hydration is disabled
+		}
+
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("DeleteBackup", ctx, backup.UUID).Return(&datamodel.Backup{}, nil)
+
+		o := &Orchestrator{storage: store}
+		result, err := o.DeleteBackupInternal(ctx, params)
+
+		assert.NoError(t, err)
 		assert.Equal(t, "", result)
 		store.AssertExpectations(t)
 	})
@@ -3977,5 +4175,132 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expectedBackup.ResourceId, result.ResourceId)
 		mockInvoker.AssertExpectations(t)
+	})
+}
+
+func Test_hydrateDeletedBackupsToCCFE(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		// Arrange
+		params := &common.DeleteBackupParams{
+			AccountName:     "test-account",
+			Region:          "us-central1",
+			BackupVaultUUID: "backup-vault-uuid",
+			BackupUUID:      "backup-uuid",
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			Name: "test-backup",
+			BackupVault: &datamodel.BackupVault{
+				Name: "test-backup-vault",
+			},
+		}
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() { auth.GenerateCallbackToken = originalGenerateCallbackToken }()
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "mock-token", nil
+		}
+
+		// Mock common.HydrateDeletedBackups
+		originalHydrateDeletedBackups := common.HydrateDeletedBackups
+		defer func() { common.HydrateDeletedBackups = originalHydrateDeletedBackups }()
+		common.HydrateDeletedBackups = func(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
+			assert.Equal(tt, "test-backup-vault", backupVaultName)
+			assert.Equal(tt, "us-central1", location)
+			assert.Equal(tt, "test-account", projectId)
+			assert.Equal(tt, "mock-token", token)
+			assert.NotEmpty(tt, names)
+			return nil
+		}
+
+		// Act
+		err := _hydrateDeletedBackupsToCCFE(ctx, params, backup)
+
+		// Assert
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenTokenGenerationFails", func(tt *testing.T) {
+		// Arrange
+		params := &common.DeleteBackupParams{
+			AccountName:     "test-account",
+			Region:          "us-central1",
+			BackupVaultUUID: "backup-vault-uuid",
+			BackupUUID:      "backup-uuid",
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			Name: "test-backup",
+			BackupVault: &datamodel.BackupVault{
+				Name: "test-backup-vault",
+			},
+		}
+
+		expectedError := errors.New("token generation failed")
+
+		// Mock auth.GenerateCallbackToken to return error
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() { auth.GenerateCallbackToken = originalGenerateCallbackToken }()
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "", expectedError
+		}
+
+		// Act
+		err := _hydrateDeletedBackupsToCCFE(ctx, params, backup)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("WhenHydrationFails", func(tt *testing.T) {
+		// Arrange
+		params := &common.DeleteBackupParams{
+			AccountName:     "test-account",
+			Region:          "us-central1",
+			BackupVaultUUID: "backup-vault-uuid",
+			BackupUUID:      "backup-uuid",
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			Name: "test-backup",
+			BackupVault: &datamodel.BackupVault{
+				Name: "test-backup-vault",
+			},
+		}
+
+		expectedError := errors.New("hydration failed")
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() { auth.GenerateCallbackToken = originalGenerateCallbackToken }()
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "mock-token", nil
+		}
+
+		// Mock common.HydrateDeletedBackups to return error
+		originalHydrateDeletedBackups := common.HydrateDeletedBackups
+		defer func() { common.HydrateDeletedBackups = originalHydrateDeletedBackups }()
+		common.HydrateDeletedBackups = func(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
+			return expectedError
+		}
+
+		// Act
+		err := _hydrateDeletedBackupsToCCFE(ctx, params, backup)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
 	})
 }
