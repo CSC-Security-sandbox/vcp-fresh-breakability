@@ -17,6 +17,8 @@ type NetworkingClient interface {
 
 	NetworkPing(params *networkpriv.NetworkPingParams) (*networkpriv.NetworkPingOK, *networkpriv.NetworkPingAccepted, error)
 
+	CliExecute(params *networkpriv.CliExecuteParams) (*networkpriv.CliExecuteOK, error)
+
 	NetworkEthernetBroadcastDomainGet(params *NetworkEthernetBroadcastDomainsGetParams) (*BroadcastDomain, error)
 	NetworkEthernetBroadcastDomainCreate(params *NetworkEthernetBroadcastDomainCreateParams) error
 	NetworkEthernetBroadcastDomainDelete(params *NetworkEthernetBroadcastDomainDeleteParams) error
@@ -65,6 +67,12 @@ func (nc *networkingClient) NetworkIPInterfacesGet(params *NetworkIPInterfacesGe
 func (nc *networkingClient) NetworkPing(params *networkpriv.NetworkPingParams) (*networkpriv.NetworkPingOK, *networkpriv.NetworkPingAccepted, error) {
 	responseOK, responseAccepted, err := (*nc.apiPriv).NetworkPing(params)
 	return responseOK, responseAccepted, err
+}
+
+// CliExecute invokes pkg/ontap-rest/priv/client/operations/Client.CliExecute
+func (nc *networkingClient) CliExecute(params *networkpriv.CliExecuteParams) (*networkpriv.CliExecuteOK, error) {
+	response, err := (*nc.apiPriv).CliExecute(params)
+	return response, err
 }
 
 var paginateNetworkEthernetBroadcastDomainGet = _paginate[[]*BroadcastDomain]

@@ -501,6 +501,14 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Set wafl.maxvolclonehier option on the ONTAP cluster
+	if thinCloneGASupport {
+		err = workflow.ExecuteActivity(ctx, poolActivity.SetWaflMaxVolCloneHier, node).Get(ctx, nil)
+		if err != nil {
+			wf.Logger.Warnf("Failed to set wafl.maxvolclonehier (non-critical, continuing): %v", err)
+		}
+	}
+
 	syncPoolZIZSDetailsWorkflow(ctx, dbPool, wf)
 
 	// Enable billing metrics related workflow(NodeToHarvestFarmWorkflow), when enableMetrics is true

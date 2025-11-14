@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/networking"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	networkpriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
+	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -197,6 +198,35 @@ func TestNetworkPing(t *testing.T) {
 		responseOK, _, err := client.NetworkPing(&networkpriv.NetworkPingParams{})
 		assert.NoError(tt, err)
 		assert.NotNil(tt, responseOK)
+	})
+}
+
+func TestCliExecute(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		apiPriv := networkpriv.New(transport, nil)
+		networkAPI := networking.New(transport, nil)
+
+		client := &networkingClient{api: networkAPI, apiPriv: &apiPriv}
+
+		_, err := client.CliExecute(&networkpriv.CliExecuteParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenOKResponse_ThenReturnOK", func(tt *testing.T) {
+		output := "Command executed successfully"
+		transport := &mockTransport{response: &networkpriv.CliExecuteOK{
+			Payload: &privmodels.CliExecuteResponse{
+				Output: output,
+			},
+		}}
+		apiPriv := networkpriv.New(transport, nil)
+		client := &networkingClient{apiPriv: &apiPriv}
+		responseOK, err := client.CliExecute(&networkpriv.CliExecuteParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, responseOK)
+		assert.NotNil(tt, responseOK.Payload)
+		assert.Equal(tt, output, responseOK.Payload.Output)
 	})
 }
 

@@ -141,6 +141,40 @@ func TestCreateSnapshot(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 
+	t.Run("CreateSnapshotConflictError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "testVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		// Return a conflict error
+		conflictErr := errors.NewConflictErr("snapshot already exists")
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(nil, nil, conflictErr)
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's a VCPError with ErrCreateSnapshotConflict
+		var customErr *vsaerrors.CustomError
+		assert.ErrorAs(t, err, &customErr)
+		assert.Equal(t, vsaerrors.ErrCreateSnapshotConflict, customErr.TrackingID)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
 	t.Run("CreateSnapshotInvalidResponse", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)

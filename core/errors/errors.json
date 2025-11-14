@@ -713,6 +713,18 @@
     "retriable": false,
     "http_code": 400
   },
+  "7010": {
+    "description": "SnapshotCreate Failure",
+    "message": "Error creating snapshot - snapshot already exists as part of volume clone",
+    "retriable": false,
+    "http_code": 409
+  },
+  "7011": {
+    "description": "CloneVolumeCreate Failure",
+    "message": "Error creating volume - Maximum limit for nested clone volumes has been reached",
+    "retriable": false,
+    "http_code": 400
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",

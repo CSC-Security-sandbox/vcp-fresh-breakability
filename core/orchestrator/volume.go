@@ -1040,11 +1040,12 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			return err
 		}
 
-		if !thinCloneGASupport || params.IsClone {
+		if !thinCloneGASupport {
 			if pool.ThinCloneVolumeCount+1 > maxThinClonesPerPool {
 				return customerrors.NewUserInputValidationErr("pool has reached maximum clone volume limit")
 			}
-
+			cloneSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
+		} else if params.IsClone {
 			cloneSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
 		}
 

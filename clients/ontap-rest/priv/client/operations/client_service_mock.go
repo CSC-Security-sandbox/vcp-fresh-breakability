@@ -247,6 +247,19 @@ func (mock *MockClientService) AssertCifsCheck(params *CifsCheckParams, opts []C
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
+// CliExecute mocks a call to ClientService.CliExecute
+func (mock *MockClientService) CliExecute(params *CliExecuteParams, opts ...ClientOption) (*CliExecuteOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "CliExecute", params: []interface{}{&params, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**CliExecuteOK), *ret[1].(*error)
+}
+
+// AssertCliExecute verifies that CliExecute has been invoked
+func (mock *MockClientService) AssertCliExecute(params *CliExecuteParams, opts []ClientOption, ret0 *CliExecuteOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "CliExecute", params: []interface{}{&params, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
 // ClusterPeerCreate mocks a call to ClientService.ClusterPeerCreate
 func (mock *MockClientService) ClusterPeerCreate(params *ClusterPeerCreateParams, opts ...ClientOption) (*ClusterPeerCreateCreated, error) {
 	mock.calls <- &mockClientServiceCall{name: "ClusterPeerCreate", params: []interface{}{&params, &opts}}

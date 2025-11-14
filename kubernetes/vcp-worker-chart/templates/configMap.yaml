@@ -101,6 +101,7 @@ data:
   ONTAP_VERSION_DETAILS: {{$.Values.workerConfig.ontapVersionDetails | quote }}
   ENFORCE_MIN_SP_CONFIG: {{$.Values.workerConfig.enforceMinSpConfig | quote }}
   MAX_NODES_PER_GROUP: {{$.Values.workerConfig.maxNodesPerGroup | quote }}
+  MAX_NESTED_CLONE_LIMIT: {{$.Values.workerConfig.maxNestedCloneLimit | quote }}
   SERVICE_CONTROL_URL: {{$.Values.workerConfig.serviceControlUrl | quote }}
   SERVICE_NAME: {{$.Values.workerConfig.serviceName | quote }}
   DATACENTER: {{$.Values.workerConfig.datacenter | quote }}

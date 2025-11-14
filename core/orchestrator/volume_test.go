@@ -1608,107 +1608,6 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		assert.ErrorContains(tt, err, "volume size cannot be greater than pool size")
 	})
 
-	t.Run("CloneVolumeLimit_MaximumThinClonesReached", func(tt *testing.T) {
-		// Override thinCloneGASupport to true for this test
-		originalValue := thinCloneGASupport
-		thinCloneGASupport = true
-		defer func() {
-			thinCloneGASupport = originalValue
-		}()
-
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
-		mockLogger := log.NewLogger()
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:        "test_pool",
-			AccountID:   account.ID,
-			State:       models.LifeCycleStateREADY,
-			Network:     "test-network",
-			SizeInBytes: int64(1000 * 1024 * 1024 * 1024), // 1000GB (large enough to not trigger size limit)
-		}
-
-		err = store.DB().Create(pool).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool: %v", err)
-		}
-
-		// Create a parent volume
-		parentVolume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
-			Name:      "parent_volume",
-			AccountID: account.ID,
-			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
-		}
-		err = store.DB().Create(parentVolume).Error
-		if err != nil {
-			tt.Fatalf("Failed to create parent volume: %v", err)
-		}
-
-		// Create a snapshot
-		snapshot := &datamodel.Snapshot{
-			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
-			Name:      "test_snapshot",
-			AccountID: account.ID,
-			VolumeID:  parentVolume.ID,
-			State:     models.LifeCycleStateREADY,
-			SnapshotAttributes: &datamodel.SnapshotAttributes{
-				SizeInBytes:            20 * 1024 * 1024 * 1024, // 20GB
-				ExternalUUID:           "external-snapshot-uuid",
-				LogicalSizeUsedInBytes: 10 * 1024 * 1024 * 1024, // 10GB shared
-			},
-		}
-		err = store.DB().Create(snapshot).Error
-		if err != nil {
-			tt.Fatalf("Failed to create snapshot: %v", err)
-		}
-
-		params := &common.CreateVolumeParams{
-			AccountName:  "test_account",
-			Name:         "test-volume",
-			PoolID:       pool.UUID,
-			QuotaInBytes: 50 * 1024 * 1024 * 1024, // 50GB
-			Protocols:    []string{utils.ProtocolNFSv3},
-			Network:      "test-network",
-			SnapshotID:   "test-snapshot-uuid", // This makes it a clone volume
-			IsClone:      true,
-		}
-
-		// Set up pool view with maximum clone volume count reached (100 clones already exist)
-		// Logic: ThinCloneVolumeCount+1 > maxThinClonesPerPool triggers the error
-		// If ThinCloneVolumeCount = 100, then 100+1 = 101 > 100 (maxThinClonesPerPool), so error
-		poolView := &datamodel.PoolView{
-			Pool:                 *pool,
-			QuotaInBytes:         100 * 1024 * 1024 * 1024, // 100GB used (plenty of space)
-			ThinCloneVolumeCount: 100,                      // At the maximum limit - adding 1 more will exceed
-		}
-
-		// This should fail because ThinCloneVolumeCount+1 (100+1=101) > maxThinClonesPerPool (100)
-		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.ErrorContains(tt, err, "pool has reached maximum clone volume limit")
-	})
-
 	t.Run("CloneVolumeLimit_WithinThinClonesLimit", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -9782,7 +9681,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			LargeCapacity:           false,
 			IsClone:                 true,                  // MUST be true for cloneSharedBytes to be set
 			CreationToken:           "test-creation-token", // Required for file volumes
-			FileProperties: &models.FileProperties{
+			FileProperties:          &models.FileProperties{
 				// Required for NAS volumes (can be minimal)
 			},
 		}
@@ -11795,9 +11694,9 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		backupRegionName := "us-west1"
 		bv := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
-			BackupVaultType:   activities.CrossRegionBackupType,
+			BackupVaultType:  activities.CrossRegionBackupType,
 			BackupRegionName: nillable.GetStringPtr(backupRegionName),
-			LifeCycleState:    models.LifeCycleStateREADY,
+			LifeCycleState:   models.LifeCycleStateREADY,
 		}
 		se.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(bv, nil)
 

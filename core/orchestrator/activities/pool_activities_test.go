@@ -4,6 +4,7 @@ import (
 	"context"
 	digitalCert "crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -14,10 +15,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	networkpriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
+	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -32,7 +36,6 @@ import (
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -10947,4 +10950,213 @@ func TestFetchExpertModeCredentials_WithDefaultAuthType_ReturnsPassword(t *testi
 	creds, err := activity.GetExpertModeCredentials(ctx, pool)
 	assert.NoError(t, err)
 	assert.Equal(t, "plain-password", creds.AdminPassword)
+}
+
+func TestSetWaflMaxVolCloneHier(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+
+	t.Run("WhenNodeIsNil_ThenReturnNil", func(tt *testing.T) {
+		err := activity.SetWaflMaxVolCloneHier(ctx, nil)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenGetProviderByNodeFails_ThenReturnNil", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			Password:        "test-password",
+		}
+
+		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenCreateRESTClientFails_ThenReturnNil", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(nil, errors.New("REST client creation error"))
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			Password:        "test-password",
+		}
+
+		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRESTClientIsNil_ThenReturnNil", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(nil, nil)
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			Password:        "test-password",
+		}
+
+		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNetworkingClientIsNil_ThenReturnNil", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontap_rest.MockRESTClient)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Networking").Return(nil)
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			Password:        "test-password",
+		}
+
+		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCliExecuteFails_ThenReturnNil", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontap_rest.MockRESTClient)
+		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Networking").Return(mockNetworkingClient)
+		mockNetworkingClient.On("CliExecute", mock.Anything).Return(nil, errors.New("CLI execute error"))
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			Password:        "test-password",
+		}
+
+		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockNetworkingClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenResponseIsNil_ThenReturnNil", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontap_rest.MockRESTClient)
+		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Networking").Return(mockNetworkingClient)
+		mockNetworkingClient.On("CliExecute", mock.Anything).Return(nil, nil)
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			Password:        "test-password",
+		}
+
+		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockNetworkingClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenResponsePayloadIsNil_ThenReturnNil", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontap_rest.MockRESTClient)
+		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Networking").Return(mockNetworkingClient)
+		cliExecuteOK := &networkpriv.CliExecuteOK{Payload: nil}
+		mockNetworkingClient.On("CliExecute", mock.Anything).Return(cliExecuteOK, nil)
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			Password:        "test-password",
+		}
+
+		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockNetworkingClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess_ThenReturnNil", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontap_rest.MockRESTClient)
+		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Networking").Return(mockNetworkingClient)
+		output := "wafl.maxvolclonehier updated successfully"
+		cliExecuteOK := &networkpriv.CliExecuteOK{
+			Payload: &privmodels.CliExecuteResponse{
+				Output: output,
+			},
+		}
+		mockNetworkingClient.On("CliExecute", mock.Anything).Return(cliExecuteOK, nil)
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			Password:        "test-password",
+		}
+
+		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockNetworkingClient.AssertExpectations(tt)
+	})
 }

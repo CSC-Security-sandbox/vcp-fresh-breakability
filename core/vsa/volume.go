@@ -62,6 +62,9 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		if strings.Contains(err.Error(), "Duplicate volume name") {
 			return nil, errors.NewConflictErr(params.VolumeName + " already exists")
 		}
+		if strings.Contains(err.Error(), "Maximum clone hierarchy") {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrNestedCloneLimitExceeded, err))
+		}
 		return nil, err
 	}
 

@@ -18,8 +18,10 @@
 48907539 4269 ./client/operations/azure_update_config_responses.go
 2536987487 5110 ./client/operations/cifs_check_parameters.go
 1183304836 5133 ./client/operations/cifs_check_responses.go
-3358295637 14716 ./client/operations/client_service_mock.go
-1712763592 14309 ./client/operations/client_service_mock_test.go
+381447830 4157 ./client/operations/cli_execute_parameters.go
+4101174272 5152 ./client/operations/cli_execute_responses.go
+1147342466 15431 ./client/operations/client_service_mock.go
+3760089644 14741 ./client/operations/client_service_mock_test.go
 657326810 5577 ./client/operations/cluster_peer_create_parameters.go
 2679113514 7609 ./client/operations/cluster_peer_create_responses.go
 1584693143 5027 ./client/operations/gcp_kms_get_parameters.go
@@ -28,7 +30,7 @@
 2690108046 5640 ./client/operations/get_group_i_ds_list_responses.go
 3182306233 4168 ./client/operations/network_ping_parameters.go
 1273052476 7087 ./client/operations/network_ping_responses.go
-4080077337 27218 ./client/operations/operations_client.go
+1739544505 28725 ./client/operations/operations_client.go
 2711626885 4110 ./client/operations/srv_lookup_parameters.go
 3921520851 5193 ./client/operations/srv_lookup_responses.go
 2590053505 5650 ./client/snapmirror/client_service_mock.go
@@ -43,6 +45,8 @@
 3476735767 50789 ./models/azure_key_vault.go
 611022290 8143 ./models/azure_key_vault_response.go
 699489954 2873 ./models/cifs_check_response.go
+351403879 2037 ./models/cli_execute.go
+1122238201 1443 ./models/cli_execute_response.go
 1936267818 56209 ./models/cluster_peer.go
 1143255489 7991 ./models/cluster_peer_response.go
 3231229164 9757 ./models/cluster_peer_setup_record.go
@@ -74,4 +78,4 @@
 1075420061 2765 ./models/status.go
 1728845828 2345 ./models/svm_peer_permission_applications.go
 84460494 5012 ./models/svm_reference.go
-2089639706 95862 swagger.yaml
+389190931 97603 swagger.yaml

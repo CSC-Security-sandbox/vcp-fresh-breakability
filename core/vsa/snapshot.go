@@ -50,6 +50,9 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 		Comment:    nillable.ToPointer(params.Comment),
 	})
 	if err != nil {
+		if errors.IsConflictErr(err) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreateSnapshotConflict, err)
+		}
 		if !errors.IsNotFoundErr(err) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}

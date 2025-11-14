@@ -9,8 +9,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"dario.cat/mergo"
+	networkpriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
+	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -86,6 +89,7 @@ var (
 	mediatorImageProject    = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
 	VsaInstanceTypeOverride = env.GetBool("VSA_INSTANCE_TYPE_OVERRIDE_LSSD", false)
 	IsIntegrationTest       = env.GetBool("INTEGRATION_TEST", false)
+	maxNestedCloneLimit     = env.GetInt("MAX_NESTED_CLONE_LIMIT", 499)
 )
 
 // ValidateVSAZonesForMachineType validates that primary and secondary zones support the VSA instance type
@@ -269,6 +273,62 @@ func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool, vl
 	}
 
 	return pool, nil
+}
+
+// SetWaflMaxVolCloneHier sets the wafl.maxvolclonehier option on the ONTAP cluster
+func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	if node == nil {
+		logger.Warnf("SetWaflMaxVolCloneHier: node is nil, skipping")
+		return nil
+	}
+
+	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("SetWaflMaxVolCloneHier failed to get provider: %v", err)
+		return nil
+	}
+
+	restClient, err := provider.CreateRESTClient()
+	if err != nil {
+		logger.Errorf("SetWaflMaxVolCloneHier failed to create REST client: %v", err)
+		return nil
+	}
+	if restClient == nil {
+		logger.Warnf("SetWaflMaxVolCloneHier: REST client is nil")
+		return nil
+	}
+
+	networkingClient := restClient.Networking()
+	if networkingClient == nil {
+		logger.Warnf("SetWaflMaxVolCloneHier: networking client is nil")
+		return nil
+	}
+
+	nodeName := "*" // Applying maxvolclonehier to all the available nodes
+	cliInput := fmt.Sprintf("system node run -node %s -command options wafl.maxvolclonehier %d", nodeName, maxNestedCloneLimit)
+	cliPrivilege := "admin"
+	cliExecuteBody := &privmodels.CliExecute{
+		Input:     &cliInput,
+		Privilege: &cliPrivilege,
+	}
+
+	cliParams := networkpriv.NewCliExecuteParamsWithContext(ctx).
+		WithBody(cliExecuteBody).
+		WithTimeout(30 * time.Second)
+
+	response, err := networkingClient.CliExecute(cliParams)
+	if err != nil {
+		logger.Errorf("SetWaflMaxVolCloneHier failed to execute CLI command: %v", err)
+		return nil
+	}
+	if response == nil || response.Payload == nil {
+		logger.Warnf("SetWaflMaxVolCloneHier received empty response")
+		return nil
+	}
+
+	logger.Infof("wafl.maxvolclonehier updated successfully for node %s to %d, response: %s", nodeName, maxNestedCloneLimit, response.Payload.Output)
+	return nil
 }
 
 func (j *PoolActivity) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {

@@ -166,6 +166,8 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock SetWaflMaxVolCloneHier (non-critical operation)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&[]datamodel.SubnetToIPs{
 		{SubnetName: "test-subnet", IPsReserved: 6},
 	}, nil)
@@ -339,6 +341,8 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock SetWaflMaxVolCloneHier (non-critical operation)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&[]datamodel.SubnetToIPs{
 		{SubnetName: "test-subnet", IPsReserved: 6},
 	}, nil)
@@ -502,6 +506,8 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock SetWaflMaxVolCloneHier (non-critical operation)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
@@ -936,6 +942,8 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock SetWaflMaxVolCloneHier (non-critical operation)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
@@ -1092,6 +1100,8 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		// Mock SetWaflMaxVolCloneHier (non-critical operation)
+		env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
@@ -1126,6 +1136,204 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+
+	t.Run("WhenSetWaflMaxVolCloneHierFails_ThenWorkflowContinuesWithWarning", func(t *testing.T) {
+		// Set enableSyncPoolZIZS to true for this test
+		cleanup := setEnableSyncPoolZIZSTrue()
+		defer cleanup()
+
+		// Set thinCloneGASupport to true so that SetWaflMaxVolCloneHier is called
+		originalThinCloneGASupport := thinCloneGASupport
+		thinCloneGASupport = true
+		defer func() {
+			thinCloneGASupport = originalThinCloneGASupport
+		}()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
+		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+		defer func() {
+			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
+		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+				return nil
+			},
+			workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+		)
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PSCActivity{})
+
+		// Mock child workflow activities
+		env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+		env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+		// Set up test data
+		params := &common.CreatePoolParams{
+			Name:                    "test-pool",
+			AccountName:             "test-account",
+			SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+			Region:                  "test-region",
+			PrimaryZone:             "test-zone",
+			SecondaryZone:           "test-secondary-zone",
+			AllowAutoTiering:        true,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+		}
+		pool := &datamodel.Pool{
+			Account: &datamodel.Account{Name: "test-account"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
+		}
+		svmName := "svmName"
+		ginLoggingFeatureFlag = true
+
+		defer func() {
+			configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+		}()
+		configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+			return nil
+		}
+		tenantProject := "test-project"
+		snHostProject := "test-host-project"
+		subnetOperations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: true, Project: tenantProject},
+			{OperationName: "operation-2", IsDone: false, IsRegionalResource: true, Project: tenantProject},
+			{OperationName: "operation-3", IsDone: false, IsRegionalResource: true, Project: tenantProject},
+		}
+		firewallOperations := []common.Operations{{
+			OperationName: "operation-4", IsDone: false, IsRegionalResource: false, Project: tenantProject},
+			{OperationName: "operation-5", IsDone: false, IsRegionalResource: false, Project: tenantProject},
+			{OperationName: "operation-6", IsDone: false, IsRegionalResource: false, Project: tenantProject},
+			{OperationName: "operation-7", IsDone: false, IsRegionalResource: false, Project: snHostProject},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
+			RegionalTenantProject: tenantProject,
+			SnHostProject:         snHostProject,
+			Gateway:               "192.168.1.254",
+		}, nil)
+		subnetFirewallOperations := subnetOperations
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
+		subnetFirewallOperations = append(subnetFirewallOperations, firewallOperations...)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
+		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
+		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
+		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
+		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		// Mock SetWaflMaxVolCloneHier to return an error (non-critical) - this should trigger the warning log
+		env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("failed to set wafl.maxvolclonehier: connection timeout"))
+		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
+		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+			return mockVSAClientWorkflowManager
+		}
+
+		oldEnableMetrics := enableMetrics
+		enableMetrics = true
+		defer func() { enableMetrics = oldEnableMetrics }()
+		// Mock child workflow execution
+		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+			return input.PoolID == 0 &&
+				input.CustomerProjectID == "test-account" &&
+				input.MaxNodesPerGroup == 200 &&
+				input.TenantProjectID == "test-project"
+		})).Return(nil)
+		env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		// Mock rollback activities that may be called during error handling
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		// Mock database methods that may be called during rollback
+		mockStorage.EXPECT().CreatePendingResourceDeletion(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.PendingResourceDeletions{}, nil).Maybe()
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+		mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		// Assert workflow execution - workflow should complete successfully despite SetWaflMaxVolCloneHier failure
+		// This verifies that the warning was logged and the workflow continued
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError(), "Workflow should complete successfully even when SetWaflMaxVolCloneHier fails")
+		env.AssertExpectations(t)
+	})
+
 	t.Run("CreateVPCs_fails", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -3278,6 +3486,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		// Mock SetWaflMaxVolCloneHier (non-critical operation)
+		env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -4357,6 +4567,8 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, "svmName").Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock SetWaflMaxVolCloneHier (non-critical operation)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
@@ -4518,6 +4730,8 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock SetWaflMaxVolCloneHier (non-critical operation)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
@@ -5430,6 +5644,8 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, "test-svm").Return(nil, nil).Maybe()
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	// Mock SetWaflMaxVolCloneHier (non-critical operation)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
@@ -7217,6 +7433,8 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock SetWaflMaxVolCloneHier (non-critical operation)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",

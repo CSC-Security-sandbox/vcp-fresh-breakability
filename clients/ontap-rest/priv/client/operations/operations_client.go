@@ -116,6 +116,8 @@ type ClientService interface {
 
 	CifsCheck(params *CifsCheckParams, opts ...ClientOption) (*CifsCheckOK, error)
 
+	CliExecute(params *CliExecuteParams, opts ...ClientOption) (*CliExecuteOK, error)
+
 	ClusterPeerCreate(params *ClusterPeerCreateParams, opts ...ClientOption) (*ClusterPeerCreateCreated, error)
 
 	GcpKmsGet(params *GcpKmsGetParams, opts ...ClientOption) (*GcpKmsGetOK, error)
@@ -474,6 +476,48 @@ func (a *Client) CifsCheck(params *CifsCheckParams, opts ...ClientOption) (*Cifs
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*CifsCheckDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	CliExecute Generic CLI passthrough endpoint for executing ONTAP CLI commands.
+
+This endpoint allows execution of any ONTAP CLI command by passing it as input.
+### Related ONTAP commands
+* Any ONTAP CLI command can be executed via this endpoint
+Action: POST "/api/private/cli"
+*/
+func (a *Client) CliExecute(params *CliExecuteParams, opts ...ClientOption) (*CliExecuteOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCliExecuteParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "cli_execute",
+		Method:             "POST",
+		PathPattern:        "/private/cli",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &CliExecuteReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*CliExecuteOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*CliExecuteDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

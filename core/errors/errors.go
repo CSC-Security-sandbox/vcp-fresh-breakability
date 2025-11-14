@@ -123,6 +123,8 @@ const (
 	ErrLunUpdate                          = 7007
 	ErrRestoreVolumeValidation            = 7008
 	ErrRevertVolumeWhenSnapshotInUse      = 7009
+	ErrCreateSnapshotConflict             = 7010
+	ErrNestedCloneLimitExceeded           = 7011
 
 	// CMEK Error Codes
 	ErrDescribingSDEJob                            = 6057

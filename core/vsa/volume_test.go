@@ -199,6 +199,44 @@ func TestCreateVolume_DuplicateErrorOnCreate(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestCreateVolume_MaximumCloneHierarchyError(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeName := "testVolume"
+	params := CreateVolumeParams{
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
+	}
+
+	mockStorage.On("VolumeCreate", mock.Anything).Return(nil, nil, errors.New("Maximum clone hierarchy limit exceeded"))
+
+	resp, err := rc.CreateVolume(params)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	// Verify that the error is wrapped as a TemporalApplicationError with ErrNestedCloneLimitExceeded
+	// Extract the CustomError from the TemporalApplicationError
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr, "Expected CustomError to be extracted from TemporalApplicationError")
+	assert.Equal(t, vsaerrors.ErrNestedCloneLimitExceeded, customErr.TrackingID)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestCreateVolume_ErrorOnNilResponse(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)

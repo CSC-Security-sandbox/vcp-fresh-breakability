@@ -1121,6 +1121,31 @@ paths:
           description: Error
           schema:
             $ref: '../swagger.yaml#/definitions/error_response'
+  /private/cli:
+    post:
+      description: |
+        Generic CLI passthrough endpoint for executing ONTAP CLI commands.
+        This endpoint allows execution of any ONTAP CLI command by passing it as input.
+        ### Related ONTAP commands
+        * Any ONTAP CLI command can be executed via this endpoint
+        Action: POST "/api/private/cli"
+      operationId: cli_execute
+      parameters:
+        - name: body
+          in: body
+          description: CLI command execution request
+          schema:
+            $ref: "#/definitions/cliExecute"
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/cliExecuteResponse"
+        default:
+          description: Error
+          schema:
+            $ref: "../swagger.yaml#/definitions/error_response"
 definitions:
   snapmirrorResponse:
     type: object
@@ -1402,6 +1427,29 @@ definitions:
         type: string
         x-nullable: true
     type: object
+  cliExecute:
+    description: 'Generic CLI command execution request'
+    type: object
+    required:
+      - input
+      - privilege
+    properties:
+      input:
+        description: "The ONTAP CLI command to execute"
+        example: "system node run -node * -command options wafl.maxvolclonehier 499"
+        type: string
+      privilege:
+        description: "The privilege level required for the command (e.g., 'admin')"
+        example: "admin"
+        type: string
+  cliExecuteResponse:
+    description: 'Response from CLI command execution'
+    type: object
+    properties:
+      output:
+        description: 'CLI command output'
+        type: string
+        example: "You are changing option wafl.maxvolclonehier, which applies to\nboth members of the HA\nconfiguration in takeover mode.\nThis value must be the same on both HA members to ensure\ncorrect\ntakeover and giveback operation.\n\n"
   gcp_kms:
     properties:
       _links:

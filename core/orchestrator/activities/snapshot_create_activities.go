@@ -10,7 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
@@ -32,7 +31,7 @@ func (a *SnapshotCreateActivity) CreateSnapshotInONTAP(ctx context.Context, snap
 		Name:       snapshot.Name,
 		Comment:    snapshot.Description,
 	})
-	if err != nil && !errors.IsConflictErr(err) {
+	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debug("CreateSnapshotInONTAP: snapshot created successfully")

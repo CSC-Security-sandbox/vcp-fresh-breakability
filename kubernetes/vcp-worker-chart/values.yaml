@@ -123,6 +123,7 @@ workerConfig:
   ontapVersionDetails: "9.17.1P1"
   enforceMinSpConfig: "false"
   maxNodesPerGroup: 200
+  maxNestedCloneLimit: 499
   filesProtocolSupport: "false"
   fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
   vsaImageName: "x-9-17-1p1-gcnv"

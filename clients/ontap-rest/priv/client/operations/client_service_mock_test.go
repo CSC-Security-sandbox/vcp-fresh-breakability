@@ -398,6 +398,21 @@ func TestMockClientServiceCifsCheck(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceCliExecute(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *CliExecuteParams
+	var opts []ClientOption
+	var ret0 *CliExecuteOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.CliExecute(params, opts...)
+	}()
+
+	mockClientService.AssertCliExecute(params, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceClusterPeerCreate(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *ClusterPeerCreateParams

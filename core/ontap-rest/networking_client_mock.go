@@ -20,6 +20,64 @@ func (_m *MockNetworkingClient) EXPECT() *MockNetworkingClient_Expecter {
 	return &MockNetworkingClient_Expecter{mock: &_m.Mock}
 }
 
+// CliExecute provides a mock function with given fields: params
+func (_m *MockNetworkingClient) CliExecute(params *operations.CliExecuteParams) (*operations.CliExecuteOK, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CliExecute")
+	}
+
+	var r0 *operations.CliExecuteOK
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*operations.CliExecuteParams) (*operations.CliExecuteOK, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*operations.CliExecuteParams) *operations.CliExecuteOK); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*operations.CliExecuteOK)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*operations.CliExecuteParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNetworkingClient_CliExecute_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CliExecute'
+type MockNetworkingClient_CliExecute_Call struct {
+	*mock.Call
+}
+
+// CliExecute is a helper method to define mock.On call
+//   - params *operations.CliExecuteParams
+func (_e *MockNetworkingClient_Expecter) CliExecute(params interface{}) *MockNetworkingClient_CliExecute_Call {
+	return &MockNetworkingClient_CliExecute_Call{Call: _e.mock.On("CliExecute", params)}
+}
+
+func (_c *MockNetworkingClient_CliExecute_Call) Run(run func(params *operations.CliExecuteParams)) *MockNetworkingClient_CliExecute_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*operations.CliExecuteParams))
+	})
+	return _c
+}
+
+func (_c *MockNetworkingClient_CliExecute_Call) Return(_a0 *operations.CliExecuteOK, _a1 error) *MockNetworkingClient_CliExecute_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNetworkingClient_CliExecute_Call) RunAndReturn(run func(*operations.CliExecuteParams) (*operations.CliExecuteOK, error)) *MockNetworkingClient_CliExecute_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // InterclusterLifsGet provides a mock function with given fields: params
 func (_m *MockNetworkingClient) InterclusterLifsGet(params *NetworkIPInterfacesGetParams) ([]*IPInterface, error) {
 	ret := _m.Called(params)
