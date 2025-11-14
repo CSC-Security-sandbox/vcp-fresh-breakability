@@ -7421,6 +7421,154 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Error(tt, err)
 	})
+	t.Run("WhenValidateCreateVolumeParamsFailsWhileAttachingCrossRegionBackupVaultInDestinationRegion", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			Network:   "somevpc",
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "a"},
+			Name:         "a",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			SvmID:        svm.ID,
+			Svm:          svm,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		bv := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-id"},
+			Name:                  "test_backup_vault",
+			AccountID:             account.ID,
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			Account:               account,
+			BackupVaultType:       activities.CrossRegionBackupType,
+			BackupRegionName:      nillable.ToPointer("us-central1"),
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create bv")
+
+		volume = &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "b"},
+			Name:         "b",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		params := &common.CreateVolumeParams{
+			Name:           "dummy-name",
+			PoolID:         pool.UUID,
+			QuotaInBytes:   minQuotaInBytesPool + 1,
+			Protocols:      []string{utils.ProtocolISCSI},
+			DataProtection: &models.DataProtection{BackupVaultID: "test-backup-vault-id"},
+			Region:         "us-central1",
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.Error(tt, err)
+	})
 	t.Run("WhenPoolStateNotReady", func(tt *testing.T) {
 		testCases := []struct {
 			name          string
@@ -10187,6 +10335,44 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err)
 	})
+
+	tt.Run("WhenCrossRegionBackupVaultAssignedToVolumeInDestinationRegion", func(tt *testing.T) {
+		// Create a cross-region backup vault with backup region matching the volume's region
+		backupRegionName := "us-west1"
+		bv := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-cross-region-vault"},
+			Name:             "test_cross_region_vault",
+			AccountID:        account.ID,
+			LifeCycleState:   models.LifeCycleStateREADY,
+			BackupVaultType:  activities.CrossRegionBackupType,
+			BackupRegionName: nillable.ToPointer(backupRegionName),
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create cross-region backup vault")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			Region:       backupRegionName, // Same region as backup vault's backup region
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			DataProtection: &models.DataProtection{
+				BackupVaultID: "test-cross-region-vault",
+			},
+			BlockProperties: &common.BlockPropertiesRequest{
+				HostGroupUUIDs: []string{},
+			},
+			Protocols: []string{utils.ProtocolISCSI},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: minQuotaInBytesVolume,
+		}
+
+		// This should fail because cross-region backup vault cannot be assigned to a volume in the destination region
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "cannot assign a cross-region backup vault to a volume in the destination region")
+	})
 }
 
 func TestUpdateVolume(t *testing.T) {
@@ -11599,6 +11785,33 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 
 		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
 		assert.Error(tt, err)
+	})
+
+	t.Run("WhenAttachCrossRegionBackupVaultToVolumeInDestinationRegion", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+
+		// Setup: Cross-region backup vault with backup region matching the volume's region
+		backupRegionName := "us-west1"
+		bv := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+			BackupVaultType:   activities.CrossRegionBackupType,
+			BackupRegionName: nillable.GetStringPtr(backupRegionName),
+			LifeCycleState:    models.LifeCycleStateREADY,
+		}
+		se.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(bv, nil)
+
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: 200 * 1024 * 1024 * 1024} // 200 GiB
+		backupVaultId := "bv-uuid"
+		params := &common.UpdateVolumeParams{
+			Region:         backupRegionName, // Same region as backup vault's backup region
+			DataProtection: &models.UpdateDataProtection{BackupVaultID: &backupVaultId},
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "cannot assign a cross-region backup vault to a volume in the destination region")
+		se.AssertExpectations(tt)
 	})
 
 	t.Run("WhenAttachBackupPolicyFailsWhileUpdating", func(tt *testing.T) {

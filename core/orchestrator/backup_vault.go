@@ -8,6 +8,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -80,6 +81,10 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 
 	if dbBv.LifeCycleState == models.LifeCycleStateUpdating || dbBv.LifeCycleState == models.LifeCycleStateDeleting {
 		return nil, "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
+	}
+
+	if dbBv.BackupVaultType == activities.CrossRegionBackupType && params.Region == *dbBv.BackupRegionName {
+		return nil, "", customerrors.NewUserInputValidationErr("backup vault cannot be deleted from the destination region")
 	}
 
 	backups, err := se.GetBackupCountByBackupVaultID(ctx, dbBv.ID)
@@ -190,6 +195,10 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 
 	if dbBv.LifeCycleState == models.LifeCycleStateUpdating || dbBv.LifeCycleState == models.LifeCycleStateDeleting {
 		return nil, "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
+	}
+
+	if dbBv.BackupVaultType == activities.CrossRegionBackupType && params.Region == *dbBv.BackupRegionName {
+		return nil, "", customerrors.NewUserInputValidationErr("cross-region backup vault cannot be updated from the destination region")
 	}
 
 	job := &datamodel.Job{

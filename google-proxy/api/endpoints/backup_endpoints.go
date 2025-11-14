@@ -375,6 +375,7 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 		AccountName:     params.ProjectNumber,
 		BackupVaultUUID: params.BackupVaultId,
 		BackupUUID:      params.BackupId,
+		Region:          params.LocationId,
 	}
 	_, jobId, err := h.Orchestrator.DeleteBackup(ctx, vsaParams)
 	if err != nil {
@@ -555,6 +556,7 @@ func (h Handler) V1betaUpdateBackup(ctx context.Context, req *gcpgenserver.Backu
 		BackupVaultUUID: params.BackupVaultId,
 		BackupUUID:      params.BackupId,
 		Description:     req.Description,
+		Region:          params.LocationId,
 	}
 	backupResp, jobId, err := h.Orchestrator.UpdateBackup(ctx, vsaParams)
 

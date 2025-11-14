@@ -516,6 +516,7 @@ type DeleteBackupParams struct {
 	AccountName     string
 	BackupVaultUUID string
 	BackupUUID      string
+	Region          string
 }
 
 type UpdateBackupParams struct {
@@ -525,6 +526,7 @@ type UpdateBackupParams struct {
 	Description     string
 	State           *string
 	StateDetails    *string
+	Region          string
 }
 
 type HmacKeyCreateParams struct {

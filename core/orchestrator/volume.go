@@ -1140,6 +1140,9 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			if bv.LifeCycleState == models.LifeCycleStateError {
 				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
 			}
+			if bv.BackupVaultType == activities.CrossRegionBackupType && *bv.BackupRegionName == params.Region {
+				return customerrors.NewUserInputValidationErr("cannot assign a cross-region backup vault to a volume in the destination region")
+			}
 		}
 	}
 
@@ -2018,6 +2021,9 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		if bv != nil {
 			if bv.LifeCycleState == models.LifeCycleStateError {
 				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
+			}
+			if bv.BackupVaultType == activities.CrossRegionBackupType && *bv.BackupRegionName == params.Region {
+				return customerrors.NewUserInputValidationErr("cannot assign a cross-region backup vault to a volume in the destination region")
 			}
 		}
 	}

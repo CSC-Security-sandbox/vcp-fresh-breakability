@@ -10,10 +10,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflow_engine_mock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"gorm.io/gorm"
 )
@@ -567,6 +569,36 @@ func TestUpdateBackupVault(t *testing.T) {
 		assert.Error(t, err, "Expected error when validation fails")
 		assert.Nil(t, bv, "Expected backup vault to be nil")
 	})
+	t.Run("WhenCrossRegionBackupVaultIsUpdatedFromDestinationRegion", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			Name:          "backup-vault-name",
+			Region:        "us-central1",
+			BackupVaultID: "backup-vault-uuid",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).
+			Return(&datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+				Name:             "backup-vault-name",
+				BackupVaultType:  activities.CrossRegionBackupType,
+				BackupRegionName: nillable.ToPointer("us-central1"),
+			}, nil)
+
+		bv, _, err := updateBackupVault(ctx, mockStorage, temporal, params)
+		assert.Error(t, err)
+		assert.Nil(t, bv)
+		assert.Equal(t, "cross-region backup vault cannot be updated from the destination region", err.Error())
+	})
 }
 
 func TestGetMultipleBackupVaultsReturnsVaultsForValidUUIDs(tt *testing.T) {
@@ -758,6 +790,39 @@ func TestReturnsUpdatingErrorWhenBackupVaultHasBackups(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Empty(t, jobID)
 	assert.Equal(t, "backup vault is in transition state", err.Error())
+}
+
+func TestDeleteBackupVaultWhenCrossRegionBackupVaultIsDeletedFromDestinationRegion(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	params := &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		Name:          "backup-vault-name",
+		Region:        "us-central1",
+		BackupVaultID: "backup-vault-uuid",
+	}
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+
+	mockStorage := new(database.MockStorage)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).
+		Return(&datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:             "backup-vault-name",
+			LifeCycleState:   models.LifeCycleStateAvailable,
+			BackupVaultType:  activities.CrossRegionBackupType,
+			BackupRegionName: nillable.ToPointer("us-central1"),
+		}, nil)
+
+	o := &Orchestrator{storage: mockStorage, temporal: temporal}
+	bv, _, err := o.DeleteBackupVault(ctx, params)
+	assert.Error(t, err)
+	assert.Nil(t, bv)
+	assert.Equal(t, "backup vault cannot be deleted from the destination region", err.Error())
 }
 
 func TestDeleteBackupVaultRollbackScenarios(t *testing.T) {

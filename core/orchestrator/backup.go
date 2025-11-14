@@ -208,6 +208,10 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", customerrors.NewUserInputValidationErr("Backup can only be updated when in AVAILABLE state, current state: " + backup.State)
 	}
 
+	if backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType && params.Region == *backup.BackupVault.BackupRegionName {
+		return nil, "", customerrors.NewUserInputValidationErr("Cannot update backup from the destination region")
+	}
+
 	stateUpdated := false
 	workflowStarted := false
 	originalState := backup.State
@@ -543,6 +547,10 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 	}
 	if backupInTransition {
 		return customerrors.NewUserInputValidationErr("A backup operation from the same volume is currently in progress. Please wait for it to complete before starting a new backup")
+	}
+
+	if backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType && params.Region == *backup.BackupVault.BackupRegionName {
+		return customerrors.NewUserInputValidationErr("Cannot delete backup from the destination region")
 	}
 
 	// check if backup is latest

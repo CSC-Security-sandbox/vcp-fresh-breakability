@@ -4480,63 +4480,6 @@ func (_c *MockOrchestratorFactory_GetVolumeCount_Call) RunAndReturn(run func(con
 	return _c
 }
 
-// IsBackupInUseForRestoration provides a mock function with given fields: ctx, backup
-func (_m *MockOrchestratorFactory) IsBackupInUseForRestoration(ctx context.Context, backup *datamodel.Backup) (bool, error) {
-	ret := _m.Called(ctx, backup)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IsBackupInUseForRestoration")
-	}
-
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Backup) (bool, error)); ok {
-		return rf(ctx, backup)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Backup) bool); ok {
-		r0 = rf(ctx, backup)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Backup) error); ok {
-		r1 = rf(ctx, backup)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockOrchestratorFactory_IsBackupInUseForRestoration_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsBackupInUseForRestoration'
-type MockOrchestratorFactory_IsBackupInUseForRestoration_Call struct {
-	*mock.Call
-}
-
-// IsBackupInUseForRestoration is a helper method to define mock.On call
-//   - ctx context.Context
-//   - backup *datamodel.Backup
-func (_e *MockOrchestratorFactory_Expecter) IsBackupInUseForRestoration(ctx interface{}, backup interface{}) *MockOrchestratorFactory_IsBackupInUseForRestoration_Call {
-	return &MockOrchestratorFactory_IsBackupInUseForRestoration_Call{Call: _e.mock.On("IsBackupInUseForRestoration", ctx, backup)}
-}
-
-func (_c *MockOrchestratorFactory_IsBackupInUseForRestoration_Call) Run(run func(ctx context.Context, backup *datamodel.Backup)) *MockOrchestratorFactory_IsBackupInUseForRestoration_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Backup))
-	})
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_IsBackupInUseForRestoration_Call) Return(_a0 bool, _a1 error) *MockOrchestratorFactory_IsBackupInUseForRestoration_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_IsBackupInUseForRestoration_Call) RunAndReturn(run func(context.Context, *datamodel.Backup) (bool, error)) *MockOrchestratorFactory_IsBackupInUseForRestoration_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // IsBackupVaultAttachedToVolume provides a mock function with given fields: ctx, backupVaultUUID
 func (_m *MockOrchestratorFactory) IsBackupVaultAttachedToVolume(ctx context.Context, backupVaultUUID string) (bool, error) {
 	ret := _m.Called(ctx, backupVaultUUID)

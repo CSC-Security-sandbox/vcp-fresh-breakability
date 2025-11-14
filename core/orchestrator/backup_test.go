@@ -12,12 +12,14 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflow_engine_mock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 )
@@ -889,6 +891,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 			VolumeUUID: "volumeUUID1",
+			BackupVault: &datamodel.BackupVault{
+				BackupVaultType: "IN_REGION",
+			},
 		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -913,6 +918,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 			VolumeUUID: "volumeUUID1",
+			BackupVault: &datamodel.BackupVault{
+				BackupVaultType: "IN_REGION",
+			},
 		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -934,6 +942,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 			VolumeUUID: "volumeUUID1",
+			BackupVault: &datamodel.BackupVault{
+				BackupVaultType: "IN_REGION",
+			},
 		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -977,6 +988,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 			VolumeUUID: "volumeUUID1",
+			BackupVault: &datamodel.BackupVault{
+				BackupVaultType: "IN_REGION",
+			},
 		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -995,6 +1009,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 			VolumeUUID: "volumeUUID1",
+			BackupVault: &datamodel.BackupVault{
+				BackupVaultType: "IN_REGION",
+			},
 		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -1043,6 +1060,29 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		assert.EqualError(t, err, "transition state check error")
 	})
 
+	t.Run("OnBackupDeleteFromDestinationRegion", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
+			VolumeUUID: "volumeUUID1",
+			BackupVault: &datamodel.BackupVault{
+				BackupVaultType:  activities.CrossRegionBackupType,
+				BackupRegionName: nillable.ToPointer("us-central1"),
+			},
+		}
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
+		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+			BackupUUID:      "testBackupUUID",
+			BackupVaultUUID: "testVaultID",
+			AccountName:     "testAccount",
+			Region:          "us-central1",
+		})
+		assert.NotNil(t, err)
+		assert.EqualError(t, err, "Cannot delete backup from the destination region")
+	})
+
 	// Immutable backup test cases
 	t.Run("ImmutableBackupTests", func(t *testing.T) {
 		t.Run("OnSuccessWithNonImmutableBackupVault", func(t *testing.T) {
@@ -1056,6 +1096,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			backup := &datamodel.Backup{
 				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 				VolumeUUID: "volumeUUID1",
+				BackupVault: &datamodel.BackupVault{
+					BackupVaultType: "IN_REGION",
+				},
 			}
 			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -1083,6 +1126,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			backup := &datamodel.Backup{
 				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 				VolumeUUID: "volumeUUID1",
+				BackupVault: &datamodel.BackupVault{
+					BackupVaultType: "IN_REGION",
+				},
 			}
 			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -1122,6 +1168,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 				VolumeUUID:  "volumeUUID1",
 				Type:        utils.BackupTypeSCHEDULED,
 				ScheduleTag: &scheduleTag,
+				BackupVault: &datamodel.BackupVault{
+					BackupVaultType: "IN_REGION",
+				},
 			}
 			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -1161,6 +1210,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 				VolumeUUID:  "volumeUUID1",
 				Type:        utils.BackupTypeSCHEDULED,
 				ScheduleTag: &scheduleTag,
+				BackupVault: &datamodel.BackupVault{
+					BackupVaultType: "IN_REGION",
+				},
 			}
 			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -1199,6 +1251,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 				VolumeUUID:  "volumeUUID1",
 				Type:        utils.BackupTypeSCHEDULED,
 				ScheduleTag: &scheduleTag,
+				BackupVault: &datamodel.BackupVault{
+					BackupVaultType: "IN_REGION",
+				},
 			}
 			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -1235,6 +1290,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID", CreatedAt: backupCreatedTime},
 				VolumeUUID: "volumeUUID1",
 				Type:       utils.BackupTypeMANUAL,
+				BackupVault: &datamodel.BackupVault{
+					BackupVaultType: "IN_REGION",
+				},
 			}
 			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -1269,6 +1327,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			backup := &datamodel.Backup{
 				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 				VolumeUUID: "volumeUUID1",
+				BackupVault: &datamodel.BackupVault{
+					BackupVaultType: "IN_REGION",
+				},
 			}
 			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -1295,6 +1356,9 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			backup := &datamodel.Backup{
 				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 				VolumeUUID: "volumeUUID1",
+				BackupVault: &datamodel.BackupVault{
+					BackupVaultType: "IN_REGION",
+				},
 			}
 			store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
 			store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
@@ -1325,6 +1389,9 @@ func TestValidateBackupDeleteParams_ImmutabilityChecks(t *testing.T) {
 			VolumeUUID: "volumeUUID1",
 			Type:       utils.BackupTypeSCHEDULED,
 			Name:       "daily-backup-20230101",
+			BackupVault: &datamodel.BackupVault{
+				BackupVaultType: "IN_REGION",
+			},
 		}
 		backupVault := &datamodel.BackupVault{
 			ImmutableAttributes: nil, // No immutable attributes
@@ -1491,6 +1558,32 @@ func TestUpdateBackup(t *testing.T) {
 
 		_, _, err := updateBackup(ctx, store, temporal, params)
 		assert.EqualError(t, err, "Backup can only be updated when in AVAILABLE state, current state: CREATING")
+	})
+
+	t.Run("onUpdatingBackupFromDestinationRegion", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		params := &common.UpdateBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+			Region:          "us-central1",
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: params.BackupUUID},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}, BackupVaultType: activities.CrossRegionBackupType, BackupRegionName: nillable.ToPointer("us-central1")},
+			State:       models.LifeCycleStateAvailable,
+		}
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
+
+		_, _, err := updateBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "Cannot update backup from the destination region")
 	})
 
 	t.Run("onJobCreationError", func(t *testing.T) {
