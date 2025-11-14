@@ -54,8 +54,9 @@ var (
 	enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
 
 	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "x-9-17-1p1-gcnv")
-	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-251008-0400")
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1p1")
+	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "x-9-18-1rc1")
+	filesMediatorImage           = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1rc1")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 
 	disableVsaCleanupOnVLMFailure     = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
@@ -1421,6 +1422,7 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 			// Set the NFS V3 support flag based on the file protocol support
 			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
 			vlmConfig.Deployment.Images.VSAImageName = vsaFilesImageName
+			vlmConfig.Deployment.Images.MediatorImageName = filesMediatorImage
 		}
 	}
 	createVSAClusterDeploymentRequest.VLMConfig = vlmConfig

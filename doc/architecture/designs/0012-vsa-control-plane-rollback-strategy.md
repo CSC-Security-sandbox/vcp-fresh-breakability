@@ -82,8 +82,8 @@ ontapVersionVlmImageMappings:
     vlmImageDigest: "sha256:a1f1f3a9283a3ad5779069b8656b37e28219c125cb162314b837c80e7c6a1531"
   - ontapVersion: "9.18.1"
     vlmImageName: "vlm-worker"
-    vlmImageTag: "R9.18.1x_7828087"
-    vlmImageDigest: "sha256:16c0ef5b4d490e8610b39341e29cb322ab9d4b9d88ba33e1e463b17628cd3d04"
+    vlmImageTag: "R9.18.1x_7870738"
+    vlmImageDigest: "sha256:d90463ab0f43bc1b78ef7fa66040184c176ccbd7531734d7d5d29a1d435d4ffe"
 ```
 
 ![VLM Worker Configuration](../../images/rollback/rollback_image_5_page2.png)

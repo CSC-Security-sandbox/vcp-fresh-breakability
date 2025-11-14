@@ -9024,3 +9024,180 @@ func TestPrepareCreateVSAExpertModeReq(t *testing.T) {
 	prepareCreateVSAExpertModeReq(req, vlmConfig, ontapCreds, expertCreds, pool)
 	assert.Equal(t, "", req.AuthenticationType)
 }
+
+func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testing.T) {
+	// Test case 1: When file protocol is supported for an account, the function should configure
+	// file-specific images (vsaFilesImageName and filesMediatorImage) and enable ILB support
+	// for NFS V3 compatibility. This is used for accounts that require file protocol support.
+	t.Run("FileProtocolSupported_ConfiguresFileImagesAndIlbSupport", func(t *testing.T) {
+		testAccountID := "test-account-123"
+		// Save original value and restore it after test
+		originalFileProtocolSupported := utils.FileProtocolSupported
+		defer func() {
+			utils.FileProtocolSupported = originalFileProtocolSupported
+		}()
+		// Enable file protocol support for this account
+		utils.FileProtocolSupported = true
+		utils.SetFileProtocolAllowlistedAccountsForTesting(testAccountID)
+
+		// Setup test data
+		vlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				Labels: make(map[string]string),
+				DevFlags: vlm.DevFlags{
+					EnableIlbSupport: false,
+				},
+				Images: vlm.ImageConfig{
+					VSAImageName:      "default-vsa-image",
+					MediatorImageName: "default-mediator-image",
+				},
+			},
+		}
+		ontapCreds := vlm.OntapCredentials{}
+		pool := &datamodel.Pool{
+			Name: "test-pool",
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				Name: testAccountID,
+			},
+		}
+		resolvedLocationInfo := &common.LocationInfo{
+			PrimaryZone:   "zone-1",
+			SecondaryZone: "zone-2",
+			MediatorZone:  "mediator-zone",
+		}
+
+		req := &vlm.CreateVSAClusterDeploymentRequest{}
+		prepareCreateVSAClusterDeploymentRequest(req, vlmConfig, ontapCreds, pool, resolvedLocationInfo)
+
+		// Verify file protocol configuration is applied: ILB support enabled and file-specific images used
+		assert.True(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should be true to support NFS V3 when file protocol is enabled")
+		assert.Equal(t, "x-9-18-1rc1", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should be set to file-specific image (vsaFilesImageName)")
+		assert.Equal(t, "cvo-mediator-x-9-18-1rc1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should be set to file-specific mediator image (filesMediatorImage)")
+
+		// Verify other fields are set correctly
+		assert.Equal(t, "test-pool", req.VLMConfig.Deployment.Labels["pool_name"])
+		assert.Equal(t, "test-pool-uuid", req.VLMConfig.Deployment.Labels["pool_uuid"])
+		assert.Equal(t, testAccountID, req.VLMConfig.Deployment.Labels["account_id"])
+		assert.Equal(t, "zone-1", req.VLMConfig.Deployment.Zone.Zone1)
+		assert.Equal(t, "zone-2", req.VLMConfig.Deployment.Zone.Zone2)
+		assert.Equal(t, "mediator-zone", req.VLMConfig.Deployment.Zone.MediatorZone)
+	})
+
+	// Test case 2: When file protocol is not supported, the function should use default images
+	// (vsaImageName and mediatorImage) and keep ILB support disabled. This is the standard
+	// configuration for accounts that don't require file protocol support.
+	t.Run("FileProtocolNotSupported_UsesDefaultImages", func(t *testing.T) {
+		testAccountID := "test-account-456"
+		// Save original value and restore it after test
+		originalFileProtocolSupported := utils.FileProtocolSupported
+		defer func() {
+			utils.FileProtocolSupported = originalFileProtocolSupported
+		}()
+		// Disable file protocol support
+		utils.FileProtocolSupported = false
+
+		// Setup test data
+		vlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				Labels: make(map[string]string),
+				DevFlags: vlm.DevFlags{
+					EnableIlbSupport: false,
+				},
+				Images: vlm.ImageConfig{
+					VSAImageName:      "default-vsa-image",
+					MediatorImageName: "default-mediator-image",
+				},
+			},
+		}
+		ontapCreds := vlm.OntapCredentials{}
+		pool := &datamodel.Pool{
+			Name: "test-pool-2",
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid-2",
+			},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				Name: testAccountID,
+			},
+		}
+		resolvedLocationInfo := &common.LocationInfo{
+			PrimaryZone:   "zone-1",
+			SecondaryZone: "zone-2",
+			MediatorZone:  "mediator-zone",
+		}
+
+		req := &vlm.CreateVSAClusterDeploymentRequest{}
+		prepareCreateVSAClusterDeploymentRequest(req, vlmConfig, ontapCreds, pool, resolvedLocationInfo)
+
+		// Verify default configuration is used: ILB support disabled and default images used
+		assert.False(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should remain false when file protocol is not supported")
+		assert.Equal(t, "x-9-17-1p1-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should use default image (vsaImageName) when file protocol is not supported")
+		assert.Equal(t, "cvo-mediator-x-9-17-1p1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image (mediatorImage) when file protocol is not supported")
+
+		// Verify other fields are still set correctly
+		assert.Equal(t, "test-pool-2", req.VLMConfig.Deployment.Labels["pool_name"])
+		assert.Equal(t, "test-pool-uuid-2", req.VLMConfig.Deployment.Labels["pool_uuid"])
+		assert.Equal(t, testAccountID, req.VLMConfig.Deployment.Labels["account_id"])
+	})
+
+	// Test case 3: When account is nil, the function should skip file protocol configuration
+	// entirely. The account_id label should not be set, and default images should be used
+	// regardless of file protocol support settings.
+	t.Run("AccountIsNil_SkipsFileProtocolConfiguration", func(t *testing.T) {
+		// Save original value and restore it after test
+		originalFileProtocolSupported := utils.FileProtocolSupported
+		defer func() {
+			utils.FileProtocolSupported = originalFileProtocolSupported
+		}()
+		// Even with file protocol enabled, it should be ignored when account is nil
+		utils.FileProtocolSupported = true
+		utils.SetFileProtocolAllowlistedAccountsForTesting("test-account-789")
+
+		// Setup test data with nil account
+		vlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				Labels: make(map[string]string),
+				DevFlags: vlm.DevFlags{
+					EnableIlbSupport: false,
+				},
+				Images: vlm.ImageConfig{
+					VSAImageName:      "default-vsa-image",
+					MediatorImageName: "default-mediator-image",
+				},
+			},
+		}
+		ontapCreds := vlm.OntapCredentials{}
+		pool := &datamodel.Pool{
+			Name: "test-pool-3",
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid-3",
+			},
+			Account: nil,
+		}
+		resolvedLocationInfo := &common.LocationInfo{
+			PrimaryZone:   "zone-1",
+			SecondaryZone: "zone-2",
+			MediatorZone:  "mediator-zone",
+		}
+
+		req := &vlm.CreateVSAClusterDeploymentRequest{}
+		prepareCreateVSAClusterDeploymentRequest(req, vlmConfig, ontapCreds, pool, resolvedLocationInfo)
+
+		// Verify default configuration is used when account is nil (file protocol config is skipped)
+		assert.False(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should remain false when account is nil")
+		assert.Equal(t, "x-9-17-1p1-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should use default image when account is nil")
+		assert.Equal(t, "cvo-mediator-x-9-17-1p1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image when account is nil")
+
+		// Verify account_id label is not set when account is nil
+		_, exists := req.VLMConfig.Deployment.Labels["account_id"]
+		assert.False(t, exists, "account_id label should not be set when account is nil")
+	})
+}

@@ -81,8 +81,9 @@ type CloudConfig struct {
 }
 
 type DeploymentConfigFlags struct {
-	EnableAASupportSvm bool `json:"enable_aa_support_svm"` // Enable AA support for svm
-	EnableIlbSupport   bool `json:"enable_ilb_support"`    // Enable ILB support
+	EnableAASupportSvm         bool   `json:"enable_aa_support_svm"`          // Enable AA support for svm
+	EnableIlbSupport           bool   `json:"enable_ilb_support"`             // Enable ILB support
+	EnableNfsV364BitIdentifier string `json:"enable_nfs_v3_64bit_identifier"` // Enable NFS v3 64-bit identifier support
 }
 
 type DeploymentConfig struct {
@@ -354,6 +355,7 @@ type UpdateVSAClusterDeploymentRequest struct {
 	OntapCredentials OntapCredentials   `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
 	NewInstanceType  string             `json:"new_instance_type"` // Instance type for the storage pool
 	OntapUpgrade     OntapUpgradeConfig `json:"ontap_upgrade"`     // ONTAP upgrade configuration
+	HAPairIndices    []int              `json:"ha_pair_indices"`   // Selected HA pair indices for targeted operations
 	ITCRecovery      bool               `json:"itc_recovery"`      // Flag to indicate if this is a recovery operation (ITC)
 }
 

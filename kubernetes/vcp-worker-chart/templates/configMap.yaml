@@ -128,6 +128,7 @@ data:
   SKIP_ONTAP_IMAGE_VERSION_MATCH : {{$.Values.workerConfig.skipOntapImageVersionMatch | quote }}
   VSA_MEDIATOR_DISK_TYPE: {{$.Values.workerConfig.vsaMediatorDiskType | quote }}
   VSA_MEDIATOR_IMAGE_NAME: {{$.Values.workerConfig.vsaMediatorImageName | quote }}
+  VSA_FILES_MEDIATOR_IMAGE_NAME: {{$.Values.workerConfig.vsaFilesMediatorImageName | quote }}
   METRICS_PORT: {{$.Values.workerConfig.metricsPort | quote }}
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: {{$.Values.workerConfig.enableUniqueSerialNumberGeneration | quote }}
   CLUSTER_SERIAL_NUMBER_PREFIX: {{$.Values.workerConfig.clusterSerialNumberPrefix | quote }}
