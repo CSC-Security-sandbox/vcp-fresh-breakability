@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -792,7 +793,7 @@ func (rc *OntapRestProvider) ReverseVolumeReplication(volRep *VolumeReplication)
 // validateResyncVolumeReplication validates if snapmirror is eligible for resync
 func validateResyncVolumeReplication(provider *OntapRestProvider, snapmirror *ontaprest.SnapmirrorRelationship, volRep *VolumeReplication) (*ontaprest.Volume, error) {
 	// Check to see if a resync operation can be performed. Can be performed if the mirror state is broken, if the force flag is set to true or if the replication was stopped during initial transfer.
-	if volRep.MirrorState != SnapmirrorStateBroken && !nillable.GetBool(volRep.Force, false) && (*snapmirror.Transfer.State == "aborted" || *snapmirror.State != models.SnapmirrorRelationshipStateUninitialized) {
+	if volRep.MirrorState != SnapmirrorStateBroken && !nillable.GetBool(volRep.Force, false) && *snapmirror.State != models.SnapmirrorRelationshipStateUninitialized {
 		return nil, errors.NewConflictErr("Cannot perform a resync operation in this mirror state")
 	}
 
@@ -811,7 +812,10 @@ func validateResyncVolumeReplication(provider *OntapRestProvider, snapmirror *on
 
 // unmountVolume unmounts volume after snapmirror resync
 func _unmountVolume(provider *OntapRestProvider, volume *ontaprest.Volume, volRep *VolumeReplication) error {
-	if *volume.Nas.SecurityStyle == string(models.SecurityStyleNtfs) || *volume.Nas.SecurityStyle == string(models.SecurityStyleMixed) {
+	if volRep.Volume.HasProtocolType(string(utils.ProtocolISCSI)) {
+		return nil
+	}
+	if volRep.Volume.HasProtocolType(string(utils.ProtocolSMB)) {
 		// TODO: Add support for cifs share once SMB protocol is supported
 		provider.Logger.Errorf("SMB protocol type not supported")
 	}
@@ -825,6 +829,16 @@ func _unmountVolume(provider *OntapRestProvider, volume *ontaprest.Volume, volRe
 	}
 	provider.Logger.Debugf("Volume %s unmounted successfully", volume.Name)
 	return nil
+}
+
+// HasProtocolType checks whether the volume has the specified protocol type
+func (v *Volume) HasProtocolType(protocolType string) bool {
+	for _, typ := range v.ProtocolTypes {
+		if typ == protocolType {
+			return true
+		}
+	}
+	return false
 }
 
 func cleanupSvmPeering(provider *OntapRestProvider, params *DeleteVolumeReplicationParams) error {

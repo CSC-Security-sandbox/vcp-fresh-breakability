@@ -3277,7 +3277,7 @@ func TestVerifyDstReplicationDelete(t *testing.T) {
 		defer func() {
 			getReplication = _getReplication
 		}()
-		mirrorState := "UNINITIALIZED"
+		mirrorState := "PREPARING"
 		relationshipStatus := "transferring"
 		dstReplication := &coreModels.VolumeReplication{
 			MirrorState:        &mirrorState,

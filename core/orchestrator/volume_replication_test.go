@@ -486,6 +486,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
+		mockStorage.On("DeleteVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 
 		// Mock the UpdateJob call that should happen in the defer block
 		mockStorage.On("UpdateJob", ctx, "job-uuid-456", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
@@ -544,6 +545,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
+		mockStorage.On("DeleteVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 
 		// Mock the UpdateJob call to fail (this tests the error handling in the defer block)
 		mockStorage.On("UpdateJob", ctx, "job-uuid-456", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))

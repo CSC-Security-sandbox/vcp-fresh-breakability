@@ -103,6 +103,7 @@ func TestResumeVolumeReplication(t *testing.T) {
 			Volume: &datamodel.Volume{
 				VolumeAttributes: &datamodel.VolumeAttributes{
 					ExternalUUID: "volume-external-uuid",
+					Protocols:    []string{"iscsi"},
 				},
 			},
 		}

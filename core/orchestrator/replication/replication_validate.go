@@ -962,14 +962,14 @@ func _verifyDstReplication(ctx context.Context, event *DeleteReplicationEvent) (
 	}
 
 	// Check if replication is in valid state
-	if *dstReplication.MirrorState != models.ReplicationV1betaMirrorStateSTOPPED && *dstReplication.MirrorState != models.ReplicationV1betaMirrorStateUNINITIALIZED {
-		logger.Error("Replication should be in PREPARING or STOPPED state before deleting", "error", err)
+	if *dstReplication.MirrorState != models.ReplicationV1betaMirrorStateSTOPPED && *dstReplication.MirrorState != models.ReplicationV1betaMirrorStatePREPARING {
+		logger.Error("Replication should be in PREPARING or STOPPED state before deleting")
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Expected mirror state: %v or %v", models.ReplicationV1betaMirrorStatePREPARING, models.ReplicationV1betaMirrorStateSTOPPED))
 	}
 
 	// Edge Case where mirrorState is uninitialized but data is being transferred and state is PENDING_SVM_PEERING.
-	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED && *dstReplication.RelationshipStatus == coreModels.SnapmirrorRelationshipTransferring {
-		logger.Error("Replication needs to be in stopped state", "error", err)
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStatePREPARING && *dstReplication.RelationshipStatus == coreModels.SnapmirrorRelationshipTransferring {
+		logger.Error("Replication needs to be in stopped state")
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
 	}
 

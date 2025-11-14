@@ -593,6 +593,10 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
+			_, deleteError := se.DeleteVolumeReplication(ctx, dbRepl)
+			if deleteError != nil {
+				logger.Error("Failed to delete volume replication after creation job failed", "volume_repl_id", dbRepl.UUID, "error", deleteError)
+			}
 		}
 	}()
 

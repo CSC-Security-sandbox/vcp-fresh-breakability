@@ -229,6 +229,35 @@ func TestBreakVolumeReplication(t *testing.T) {
 		assert.Equal(tt, models.OntapBrokenOff, snapmirror.MirrorState)
 		mockProvider.AssertExpectations(tt)
 	})
+	t.Run("BreakVolumeReplicationSkipsWhenUninitialized", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalStopVolumeReplicationActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}) // Ensure logger is added to context
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+		testReplication := &vsa.VolumeReplication{
+			ExternalUUID:       "external-uuid",
+			MirrorState:        models.OntapUninitialized,
+			RelationshipStatus: models.SnapmirrorRelationshipIdle,
+		}
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
+
+		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, snapmirror)
+		assert.Equal(tt, models.OntapUninitialized, snapmirror.MirrorState)
+		mockProvider.AssertExpectations(tt)
+	})
 	t.Run("BreakVolumeReplicationFailsToGetDetails", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockStorage := database.NewMockStorage(tt)

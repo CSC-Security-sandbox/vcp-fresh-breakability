@@ -3071,6 +3071,9 @@ func Test_unmountVolume(t *testing.T) {
 		volRep := &VolumeReplication{
 			SourceSVMName:      "source-svm",
 			DestinationSVMName: "dest-svm",
+			Volume: &Volume{
+				ProtocolTypes: []string{"NFS"},
+			},
 		}
 
 		// Setup mocks for the VolumeUnmount call inside _unmountVolume
@@ -3078,6 +3081,48 @@ func Test_unmountVolume(t *testing.T) {
 
 		mockClient.On("Storage").Return(mockStorageClient)
 		mockStorageClient.On("VolumeUnmount", mock.Anything).Return(jobAccepted, nil)
+
+		// Execute test
+		err := _unmountVolume(provider, &volume, volRep)
+
+		// Verify results
+		assert.NoError(tt, err)
+		mockClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+	t.Run("UnmountsVolumeForIscsi", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		volumeUUID := "test-volume-uuid-123"
+		securityStyle := "unix"
+		volume := ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: nillable.GetStringPtr("test-volume"),
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.GetStringPtr("/test/junction/path"),
+					SecurityStyle: &securityStyle,
+				},
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+			Volume: &Volume{
+				ProtocolTypes: []string{"ISCSI"},
+			},
+		}
 
 		// Execute test
 		err := _unmountVolume(provider, &volume, volRep)
@@ -3117,6 +3162,9 @@ func Test_unmountVolume(t *testing.T) {
 		volRep := &VolumeReplication{
 			SourceSVMName:      "source-svm-2",
 			DestinationSVMName: "dest-svm-2",
+			Volume: &Volume{
+				ProtocolTypes: []string{"NFS"},
+			},
 		}
 
 		// Setup mocks for VolumeUnmount call - returns success without job
@@ -3174,6 +3222,9 @@ func Test_unmountVolume(t *testing.T) {
 		volRep := &VolumeReplication{
 			SourceSVMName:      "source-svm",
 			DestinationSVMName: "dest-svm",
+			Volume: &Volume{
+				ProtocolTypes: []string{"NFS"},
+			},
 		}
 
 		// Execute test with volume that has nil Nas - should panic
@@ -3218,6 +3269,9 @@ func Test_unmountVolume(t *testing.T) {
 		volRep := &VolumeReplication{
 			SourceSVMName:      "source-svm",
 			DestinationSVMName: "dest-svm",
+			Volume: &Volume{
+				ProtocolTypes: []string{"NFS"},
+			},
 		}
 
 		// Execute test
@@ -3257,6 +3311,9 @@ func Test_unmountVolume(t *testing.T) {
 		volRep := &VolumeReplication{
 			SourceSVMName:      "source-svm",
 			DestinationSVMName: "dest-svm",
+			Volume: &Volume{
+				ProtocolTypes: []string{"SMB"},
+			},
 		}
 
 		modifyError := errors.New("volume unmount operation failed")
@@ -3304,6 +3361,9 @@ func Test_unmountVolume(t *testing.T) {
 		volRep := &VolumeReplication{
 			SourceSVMName:      "source-svm",
 			DestinationSVMName: "dest-svm",
+			Volume: &Volume{
+				ProtocolTypes: []string{"NFS"},
+			},
 		}
 
 		jobUUID := "test-job-uuid"
@@ -3323,4 +3383,14 @@ func Test_unmountVolume(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 		mockStorageClient.AssertExpectations(tt)
 	})
+}
+
+func TestVolume_HasProtocolType(t *testing.T) {
+	vol := &Volume{
+		ProtocolTypes: []string{"NFS", "ISCSI", "SMB"},
+	}
+
+	assert.True(t, vol.HasProtocolType("ISCSI"), "Should match protocol with exact case")
+	assert.False(t, vol.HasProtocolType("http"), "Should not match non-existent protocol")
+	assert.False(t, vol.HasProtocolType(""), "Should not match empty protocol")
 }

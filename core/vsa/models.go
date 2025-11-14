@@ -618,6 +618,7 @@ type Volume struct {
 	ontaprestmodel.Volume
 	ExternalUUID      string
 	IsOnPremMigration bool
+	ProtocolTypes     []string
 }
 
 // SourcePath returns the source path of an ONTAP snapmirror relationship in a <svm_name>:<volume_name> format

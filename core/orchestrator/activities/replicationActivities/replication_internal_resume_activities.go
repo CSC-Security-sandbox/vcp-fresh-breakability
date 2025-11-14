@@ -29,7 +29,8 @@ func (a *InternalVolumeReplicationResumeActivity) ResumeVolumeReplication(ctx co
 		RelationshipID: replication.ReplicationAttributes.ExternalUUID,
 		Force:          &forceResume,
 		Volume: &vsa.Volume{
-			ExternalUUID: replication.Volume.VolumeAttributes.ExternalUUID,
+			ExternalUUID:  replication.Volume.VolumeAttributes.ExternalUUID,
+			ProtocolTypes: replication.Volume.VolumeAttributes.Protocols,
 		},
 	}
 	resp, err := provider.ResyncVolumeReplication(vsaResumeParams)
