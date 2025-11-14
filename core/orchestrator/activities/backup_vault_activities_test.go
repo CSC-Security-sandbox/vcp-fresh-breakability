@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -1737,5 +1738,1085 @@ func TestDeleteGCPBucketsForVault(t *testing.T) {
 		assert.Error(tt, err)
 		// The error should be related to the panic
 		assert.Contains(tt, err.Error(), "panic occurred")
+	})
+}
+
+func TestDeleteRemoteBackupVaultInVCP(t *testing.T) {
+	backupRegion := "us-west1"
+
+	t.Run("Success_OperationV1beta", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return OperationV1beta with Done=true
+		done := true
+		opName := "operations/delete-vault-123"
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.OperationV1beta{
+				Done: googleproxyclient.OptBool{Value: done, Set: true},
+				Name: googleproxyclient.OptString{Value: opName, Set: true},
+			}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Success_OperationV1beta_NotDone", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return OperationV1beta with Done=false
+		done := false
+		opName := "operations/delete-vault-123"
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.OperationV1beta{
+				Done: googleproxyclient.OptBool{Value: done, Set: true},
+				Name: googleproxyclient.OptString{Value: opName, Set: true},
+			}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Success_NoContent", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return NoContent
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalDeleteBackupVaultNoContent{}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_BackupRegionMissing", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  nil,
+		}
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "BackupRegion not provided in params")
+	})
+
+	t.Run("Error_BackupRegionEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		emptyRegion := ""
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &emptyRegion,
+		}
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "BackupRegion not provided in params")
+	})
+
+	t.Run("Error_RemoteRegionConfigFails", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig to return error
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "", "", fmt.Errorf("failed to get remote region config")
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Failed to get remote region configuration")
+	})
+
+	t.Run("Error_InvokerCallFails", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return error
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			nil, fmt.Errorf("network error"))
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Failed to delete remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_BadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return BadRequest
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalDeleteBackupVaultBadRequest{
+				Message: "Invalid vault ID",
+			}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Bad request deleting remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Unauthorized", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return Unauthorized
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalDeleteBackupVaultUnauthorized{
+				Message: "Invalid credentials",
+			}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Unauthorized to delete remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Forbidden", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return Forbidden
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalDeleteBackupVaultForbidden{
+				Message: "Access denied",
+			}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Forbidden to delete remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_NotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return NotFound
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalDeleteBackupVaultNotFound{
+				Message: "Vault not found",
+			}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Remote backup vault not found")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Conflict", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return Conflict
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalDeleteBackupVaultConflict{
+				Message: "Vault has active backups",
+			}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Conflict deleting remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_InternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return InternalServerError
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalDeleteBackupVaultInternalServerError{
+				Message: "Internal error occurred",
+			}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Internal server error deleting remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_UnexpectedResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the delete operation to return unexpected type (MethodNotAllowed is not handled in switch)
+		mockInvoker.On("V1betaInternalDeleteBackupVault", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalDeleteBackupVaultMethodNotAllowed{}, nil)
+
+		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Unexpected response type")
+		mockInvoker.AssertExpectations(tt)
+	})
+}
+
+func TestUpdateRemoteBackupVaultInVCP(t *testing.T) {
+	backupRegion := "us-west1"
+
+	t.Run("Success_OperationV1beta", func(tt *testing.T) {
+		ctx := context.Background()
+		description := "Updated description"
+		dailyImmutable := true
+		minRetentionDays := int64(30)
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+			Description:   &description,
+			BackupRetentionPolicy: common.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &minRetentionDays,
+				IsDailyBackupImmutable:                 &dailyImmutable,
+			},
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return OperationV1beta with Done=true
+		done := true
+		opName := "operations/update-vault-123"
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.OperationV1beta{
+				Done: googleproxyclient.OptBool{Value: done, Set: true},
+				Name: googleproxyclient.OptString{Value: opName, Set: true},
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "vault-uuid-123", result.UUID)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Success_OperationV1beta_NotDone", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return OperationV1beta with Done=false
+		done := false
+		opName := "operations/update-vault-123"
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.OperationV1beta{
+				Done: googleproxyclient.OptBool{Value: done, Set: true},
+				Name: googleproxyclient.OptString{Value: opName, Set: true},
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "vault-uuid-123", result.UUID)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithAllRetentionPolicies", func(tt *testing.T) {
+		ctx := context.Background()
+		description := "Updated description"
+		dailyImmutable := true
+		weeklyImmutable := false
+		monthlyImmutable := true
+		adhocImmutable := false
+		minRetentionDays := int64(30)
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+			Description:   &description,
+			BackupRetentionPolicy: common.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &minRetentionDays,
+				IsDailyBackupImmutable:                 &dailyImmutable,
+				IsWeeklyBackupImmutable:                &weeklyImmutable,
+				IsMonthlyBackupImmutable:               &monthlyImmutable,
+				IsAdhocBackupImmutable:                 &adhocImmutable,
+			},
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return OperationV1beta
+		done := true
+		opName := "operations/update-vault-123"
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.OperationV1beta{
+				Done: googleproxyclient.OptBool{Value: done, Set: true},
+				Name: googleproxyclient.OptString{Value: opName, Set: true},
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "vault-uuid-123", result.UUID)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_BackupRegionMissing", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  nil,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "BackupRegion not provided in params")
+	})
+
+	t.Run("Error_BackupRegionEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		emptyRegion := ""
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &emptyRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "BackupRegion not provided in params")
+	})
+
+	t.Run("Error_RemoteRegionConfigFails", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig to return error
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "", "", fmt.Errorf("failed to get remote region config")
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Failed to get remote region configuration")
+	})
+
+	t.Run("Error_InvokerCallFails", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return error
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			nil, fmt.Errorf("network error"))
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Failed to update remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_BadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return BadRequest
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalUpdateBackupVaultBadRequest{
+				Message: "Invalid update parameters",
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Bad request updating remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Unauthorized", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return Unauthorized
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalUpdateBackupVaultUnauthorized{
+				Message: "Invalid credentials",
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Unauthorized to update remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Forbidden", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return Forbidden
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalUpdateBackupVaultForbidden{
+				Message: "Access denied",
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Forbidden to update remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_NotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return NotFound
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalUpdateBackupVaultNotFound{
+				Message: "Vault not found",
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Remote backup vault not found")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Conflict", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return Conflict
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalUpdateBackupVaultConflict{
+				Message: "Update conflict",
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Conflict updating remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_UnprocessableEntity", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return UnprocessableEntity
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalUpdateBackupVaultUnprocessableEntity{
+				Message: "Invalid entity",
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Unprocessable entity updating remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_InternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return InternalServerError
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalUpdateBackupVaultInternalServerError{
+				Message: "Internal error occurred",
+			}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Internal server error updating remote backup vault")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Error_UnexpectedResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &common.BackupVaultParams{
+			OwnerID:       "123456789",
+			BackupVaultID: "vault-uuid-123",
+			BackupRegion:  &backupRegion,
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		}
+
+		// Mock utilsGetRemoteRegionConfig
+		originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+		utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "proxy.example.com", "mock-jwt-token", nil
+		}
+		defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+		// Mock googleProxyClientGet
+		mockInvoker := new(googleproxyclient.MockInvoker)
+		originalGoogleProxyClientGet := googleProxyClientGet
+		googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+		}
+		defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+		// Mock the update operation to return unexpected type (MethodNotAllowed is not handled in switch)
+		mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalUpdateBackupVaultMethodNotAllowed{}, nil)
+
+		result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Unexpected response type")
+		mockInvoker.AssertExpectations(tt)
 	})
 }

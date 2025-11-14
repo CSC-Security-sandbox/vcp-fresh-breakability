@@ -3124,46 +3124,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}:
-    get:
-      operationId: v1beta_internalDescribeBackupVault
-      summary: Fetch a remote BackupVault from the VCP database
-      description: >-
-        Fetches the remote BackupVault from the VCP database in region2.
-        This endpoint is used for cross-region operations to retrieve BackupVault details
-        stored in the remote region's VCP database.
-      tags:
-        - v1Beta_internal
-      parameters:
-        - $ref: '#/components/parameters/projectNumberPathParameter'
-        - $ref: '#/components/parameters/locationIdPathParameter'
-        - $ref: '#/components/parameters/backupVaultIdPathParameter'
-        - $ref: '#/components/parameters/xCorrelationIdHeader'
-      responses:
-        '200':
-          description: BackupVault details retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BackupVaultInternal_v1beta'
-        '400':
-          $ref: '#/components/responses/StandardError-400'
-        '401':
-          $ref: '#/components/responses/StandardError-401'
-        '403':
-          $ref: '#/components/responses/StandardError-403'
-        '404':
-          $ref: '#/components/responses/StandardError-404'
-        '422':
-          $ref: '#/components/responses/StandardError-422'
-        '500':
-          $ref: '#/components/responses/StandardError-500'
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory:
     get:
       operationId: v1beta_listActiveDirectories
@@ -5564,6 +5524,139 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}:
+    get:
+      operationId: v1beta_internalDescribeBackupVault
+      summary: Fetch a remote BackupVault from the VCP database
+      description: >-
+        Fetches the remote BackupVault from the VCP database in region2.
+        This endpoint is used for cross-region operations to retrieve BackupVault details
+        stored in the remote region's VCP database.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: BackupVault details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupVaultInternal_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: v1beta_internalUpdateBackupVault
+      summary: Update a backup vault (Internal)
+      description: >-
+        Internal endpoint to update a cross-region backup vault in the destination region.
+        This operation allows updating backup vault properties in the remote region's VCP database.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters that can be updated for the backup vault.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupVaultUpdate_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Accepted. Updating backup vault
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1beta_internalDeleteBackupVault
+      summary: Delete a backup vault (Internal)
+      description: >-
+        Internal endpoint to delete a cross-region backup vault from the destination region.
+        This operation will permanently delete the backup vault.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Accepted. Deleting backup vault
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleSnapshots:
     post:
       operationId: v1beta_getMultipleSnapshots

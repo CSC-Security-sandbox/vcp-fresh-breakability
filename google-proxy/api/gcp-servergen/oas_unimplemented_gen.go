@@ -501,6 +501,16 @@ func (UnimplementedHandler) V1betaInternalDeleteBackupUnderBackupVault(ctx conte
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalDeleteBackupVault implements v1beta_internalDeleteBackupVault operation.
+//
+// Internal endpoint to delete a cross-region backup vault from the destination region. This
+// operation will permanently delete the backup vault.
+//
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (UnimplementedHandler) V1betaInternalDeleteBackupVault(ctx context.Context, params V1betaInternalDeleteBackupVaultParams) (r V1betaInternalDeleteBackupVaultRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalDeleteVolumeReplication implements v1beta_internalDeleteVolumeReplication operation.
 //
 // Warning! This operation will permanently delete the volume replication.
@@ -632,6 +642,16 @@ func (UnimplementedHandler) V1betaInternalReverseVolumeReplication(ctx context.C
 //
 // POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop
 func (UnimplementedHandler) V1betaInternalStopVolumeReplication(ctx context.Context, req *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (r V1betaInternalStopVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalUpdateBackupVault implements v1beta_internalUpdateBackupVault operation.
+//
+// Internal endpoint to update a cross-region backup vault in the destination region. This operation
+// allows updating backup vault properties in the remote region's VCP database.
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (UnimplementedHandler) V1betaInternalUpdateBackupVault(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (r V1betaInternalUpdateBackupVaultRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

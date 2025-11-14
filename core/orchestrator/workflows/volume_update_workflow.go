@@ -357,10 +357,17 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
-
 			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateRemoteBackupVaultDetailsInVCPForUpdate, &volume, &bucketDetails, backupVault).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
+			}
+
+			if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
+				volumeCreateActivity := &activities.VolumeCreateActivity{}
+				err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, backupVault, &volume.Pool, &bucketDetails).Get(ctx, nil)
+				if err != nil {
+					return nil, ConvertToVSAError(err)
+				}
 			}
 		}
 	}

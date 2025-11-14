@@ -1847,6 +1847,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateBucketDetailsOfB
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1891,6 +1892,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateBucketDetailsOfB
 		SatisfiesPzs:        false,
 	}, nil)
 	s.env.OnActivity(updateActivity.UpdateBucketDetailsOfBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update bucket details of backup vault"))
+	// Mock SetupCrossRegionBackupPermissionsActivity - not called for non-cross-region backup vault
+	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	volume := &datamodel.Volume{
@@ -1982,6 +1985,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SyncBucketDetailsError
 	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(nil, errors.New("failed to sync bucket details"))
 	s.env.OnActivity(updateActivity.UpdateBucketDetailsOfBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(updateActivity.UpdateRemoteBackupVaultDetailsInVCPForUpdate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock SetupCrossRegionBackupPermissionsActivity - not called for non-cross-region backup vault
+	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupMetadataIfExistsActivity, mock.Anything, mock.Anything).Return(nil)

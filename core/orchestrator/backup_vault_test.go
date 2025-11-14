@@ -1784,3 +1784,727 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestUpdateBackupVaultInternal(t *testing.T) {
+	// Create a logger for context
+	mockLogger := log.NewLogger()
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+
+	// Store original function to restore after tests
+	originalGetOrCreateAccount := getOrCreateAccount
+	originalConvertDatastoreBackupVaultToModel := convertDatastoreBackupVaultToModel
+	defer func() {
+		getOrCreateAccount = originalGetOrCreateAccount
+		convertDatastoreBackupVaultToModel = originalConvertDatastoreBackupVaultToModel
+	}()
+
+	t.Run("WhenSuccessfulUpdateWithDescription", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		newDescription := "Updated description"
+
+		existingBV := &datamodel.BackupVault{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:            "test-backup-vault",
+			AccountID:       account.ID,
+			Account:         account,
+			ExternalUUID:    &externalUUID,
+			LifeCycleState:  models.LifeCycleStateAvailable,
+			RegionName:      "us-central1",
+			AccountVendorID: "vendor-id",
+			BackupVaultType: "STANDARD",
+		}
+
+		updatedBV := &datamodel.BackupVault{
+			BaseModel:       existingBV.BaseModel,
+			Name:            existingBV.Name,
+			AccountID:       existingBV.AccountID,
+			Account:         existingBV.Account,
+			Description:     &newDescription,
+			LifeCycleState:  existingBV.LifeCycleState,
+			RegionName:      existingBV.RegionName,
+			AccountVendorID: existingBV.AccountVendorID,
+			BackupVaultType: existingBV.BackupVaultType,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID:         externalUUID,
+			OwnerID:               "owner-uuid",
+			Description:           &newDescription,
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		convertDatastoreBackupVaultToModel = func(bv *datamodel.BackupVault) *models.BackupVaultV1beta {
+			return &models.BackupVaultV1beta{
+				BackupVaultID: bv.UUID,
+				Name:          bv.Name,
+				Description:   bv.Description,
+			}
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(existingBV, nil)
+		mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			return bv.Description != nil && *bv.Description == newDescription
+		}), existingBV).Return(updatedBV, nil)
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, existingBV.UUID, result.BackupVaultID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithBackupRetentionPolicy", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		newRetentionDuration := int64(30)
+		dailyImmutable := true
+		weeklyImmutable := true
+		monthlyImmutable := false
+		adhocImmutable := false
+
+		existingBV := &datamodel.BackupVault{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:            "test-backup-vault",
+			AccountID:       account.ID,
+			Account:         account,
+			ExternalUUID:    &externalUUID,
+			LifeCycleState:  models.LifeCycleStateAvailable,
+			RegionName:      "us-central1",
+			AccountVendorID: "vendor-id",
+			BackupVaultType: "STANDARD",
+		}
+
+		updatedBV := &datamodel.BackupVault{
+			BaseModel:   existingBV.BaseModel,
+			Name:        existingBV.Name,
+			AccountID:   existingBV.AccountID,
+			Account:     existingBV.Account,
+			Description: existingBV.Description,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &newRetentionDuration,
+				IsDailyBackupImmutable:                 dailyImmutable,
+				IsWeeklyBackupImmutable:                weeklyImmutable,
+				IsMonthlyBackupImmutable:               monthlyImmutable,
+				IsAdhocBackupImmutable:                 adhocImmutable,
+			},
+			LifeCycleState:  existingBV.LifeCycleState,
+			RegionName:      existingBV.RegionName,
+			AccountVendorID: existingBV.AccountVendorID,
+			BackupVaultType: existingBV.BackupVaultType,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       "owner-uuid",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &newRetentionDuration,
+				IsDailyBackupImmutable:                 &dailyImmutable,
+				IsWeeklyBackupImmutable:                &weeklyImmutable,
+				IsMonthlyBackupImmutable:               &monthlyImmutable,
+				IsAdhocBackupImmutable:                 &adhocImmutable,
+			},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		convertDatastoreBackupVaultToModel = func(bv *datamodel.BackupVault) *models.BackupVaultV1beta {
+			return &models.BackupVaultV1beta{
+				BackupVaultID: bv.UUID,
+				Name:          bv.Name,
+			}
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(existingBV, nil)
+		mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			return bv.ImmutableAttributes != nil &&
+				bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration != nil &&
+				*bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration == newRetentionDuration &&
+				bv.ImmutableAttributes.IsDailyBackupImmutable == dailyImmutable
+		}), existingBV).Return(updatedBV, nil)
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", operationID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithPartialRetentionPolicy", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		existingRetentionDuration := int64(15)
+		dailyImmutable := true
+
+		existingBV := &datamodel.BackupVault{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:            "test-backup-vault",
+			AccountID:       account.ID,
+			Account:         account,
+			ExternalUUID:    &externalUUID,
+			LifeCycleState:  models.LifeCycleStateAvailable,
+			RegionName:      "us-central1",
+			AccountVendorID: "vendor-id",
+			BackupVaultType: "STANDARD",
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &existingRetentionDuration,
+				IsDailyBackupImmutable:                 false,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+
+		updatedBV := &datamodel.BackupVault{
+			BaseModel:   existingBV.BaseModel,
+			Name:        existingBV.Name,
+			AccountID:   existingBV.AccountID,
+			Account:     existingBV.Account,
+			Description: existingBV.Description,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &existingRetentionDuration,
+				IsDailyBackupImmutable:                 dailyImmutable,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+			LifeCycleState:  existingBV.LifeCycleState,
+			RegionName:      existingBV.RegionName,
+			AccountVendorID: existingBV.AccountVendorID,
+			BackupVaultType: existingBV.BackupVaultType,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       "owner-uuid",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
+				IsDailyBackupImmutable: &dailyImmutable,
+			},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		convertDatastoreBackupVaultToModel = func(bv *datamodel.BackupVault) *models.BackupVaultV1beta {
+			return &models.BackupVaultV1beta{
+				BackupVaultID: bv.UUID,
+				Name:          bv.Name,
+			}
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(existingBV, nil)
+		mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			return bv.ImmutableAttributes != nil &&
+				bv.ImmutableAttributes.IsDailyBackupImmutable == dailyImmutable &&
+				bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration != nil &&
+				*bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration == existingRetentionDuration
+		}), existingBV).Return(updatedBV, nil)
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", operationID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithDescriptionAndRetentionPolicy", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		newDescription := "Complete update"
+		newRetentionDuration := int64(45)
+		dailyImmutable := true
+		weeklyImmutable := true
+		monthlyImmutable := true
+		adhocImmutable := true
+
+		existingBV := &datamodel.BackupVault{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:            "test-backup-vault",
+			AccountID:       account.ID,
+			Account:         account,
+			ExternalUUID:    &externalUUID,
+			LifeCycleState:  models.LifeCycleStateAvailable,
+			RegionName:      "us-central1",
+			AccountVendorID: "vendor-id",
+			BackupVaultType: "STANDARD",
+		}
+
+		updatedBV := &datamodel.BackupVault{
+			BaseModel:   existingBV.BaseModel,
+			Name:        existingBV.Name,
+			AccountID:   existingBV.AccountID,
+			Account:     existingBV.Account,
+			Description: &newDescription,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &newRetentionDuration,
+				IsDailyBackupImmutable:                 dailyImmutable,
+				IsWeeklyBackupImmutable:                weeklyImmutable,
+				IsMonthlyBackupImmutable:               monthlyImmutable,
+				IsAdhocBackupImmutable:                 adhocImmutable,
+			},
+			LifeCycleState:  existingBV.LifeCycleState,
+			RegionName:      existingBV.RegionName,
+			AccountVendorID: existingBV.AccountVendorID,
+			BackupVaultType: existingBV.BackupVaultType,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       "owner-uuid",
+			Description:   &newDescription,
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &newRetentionDuration,
+				IsDailyBackupImmutable:                 &dailyImmutable,
+				IsWeeklyBackupImmutable:                &weeklyImmutable,
+				IsMonthlyBackupImmutable:               &monthlyImmutable,
+				IsAdhocBackupImmutable:                 &adhocImmutable,
+			},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		convertDatastoreBackupVaultToModel = func(bv *datamodel.BackupVault) *models.BackupVaultV1beta {
+			return &models.BackupVaultV1beta{
+				BackupVaultID: bv.UUID,
+				Name:          bv.Name,
+				Description:   bv.Description,
+			}
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(existingBV, nil)
+		mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			return bv.Description != nil &&
+				*bv.Description == newDescription &&
+				bv.ImmutableAttributes != nil &&
+				*bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration == newRetentionDuration &&
+				bv.ImmutableAttributes.IsDailyBackupImmutable == dailyImmutable
+		}), existingBV).Return(updatedBV, nil)
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, &newDescription, result.Description)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAccountCreationFails_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		expectedError := errors.New("account creation failed")
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID:         externalUUID,
+			OwnerID:               "invalid-owner",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, expectedError
+		}
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupVaultNotFound_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "non-existent-external-uuid"
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID:         externalUUID,
+			OwnerID:               "owner-uuid",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(nil, gorm.ErrRecordNotFound)
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, gorm.ErrRecordNotFound, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateBackupVaultInVCPFails_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		newDescription := "Updated description"
+		expectedError := errors.New("database update error")
+
+		existingBV := &datamodel.BackupVault{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:            "test-backup-vault",
+			AccountID:       account.ID,
+			Account:         account,
+			ExternalUUID:    &externalUUID,
+			LifeCycleState:  models.LifeCycleStateAvailable,
+			RegionName:      "us-central1",
+			AccountVendorID: "vendor-id",
+			BackupVaultType: "STANDARD",
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID:         externalUUID,
+			OwnerID:               "owner-uuid",
+			Description:           &newDescription,
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(existingBV, nil)
+		mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.Anything, existingBV).Return(nil, expectedError)
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNoUpdatesProvided_PreservesExistingValues", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		existingDescription := "Existing description"
+		existingRetentionDuration := int64(15)
+
+		existingBV := &datamodel.BackupVault{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:            "test-backup-vault",
+			AccountID:       account.ID,
+			Account:         account,
+			ExternalUUID:    &externalUUID,
+			Description:     &existingDescription,
+			LifeCycleState:  models.LifeCycleStateAvailable,
+			RegionName:      "us-central1",
+			AccountVendorID: "vendor-id",
+			BackupVaultType: "STANDARD",
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &existingRetentionDuration,
+				IsDailyBackupImmutable:                 true,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID:         externalUUID,
+			OwnerID:               "owner-uuid",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		convertDatastoreBackupVaultToModel = func(bv *datamodel.BackupVault) *models.BackupVaultV1beta {
+			return &models.BackupVaultV1beta{
+				BackupVaultID: bv.UUID,
+				Name:          bv.Name,
+				Description:   bv.Description,
+			}
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(existingBV, nil)
+		mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			return bv.Description != nil &&
+				*bv.Description == existingDescription &&
+				bv.ImmutableAttributes != nil &&
+				*bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration == existingRetentionDuration
+		}), existingBV).Return(existingBV, nil)
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, &existingDescription, result.Description)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenExistingBackupVaultHasNoImmutableAttributes_CreatesNewAttributes", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		newRetentionDuration := int64(30)
+		dailyImmutable := true
+
+		existingBV := &datamodel.BackupVault{
+			BaseModel:           datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:                "test-backup-vault",
+			AccountID:           account.ID,
+			Account:             account,
+			ExternalUUID:        &externalUUID,
+			LifeCycleState:      models.LifeCycleStateAvailable,
+			RegionName:          "us-central1",
+			AccountVendorID:     "vendor-id",
+			BackupVaultType:     "STANDARD",
+			ImmutableAttributes: nil, // No existing attributes
+		}
+
+		updatedBV := &datamodel.BackupVault{
+			BaseModel:       existingBV.BaseModel,
+			Name:            existingBV.Name,
+			AccountID:       existingBV.AccountID,
+			Account:         existingBV.Account,
+			Description:     existingBV.Description,
+			LifeCycleState:  existingBV.LifeCycleState,
+			RegionName:      existingBV.RegionName,
+			AccountVendorID: existingBV.AccountVendorID,
+			BackupVaultType: existingBV.BackupVaultType,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &newRetentionDuration,
+				IsDailyBackupImmutable:                 dailyImmutable,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       "owner-uuid",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &newRetentionDuration,
+				IsDailyBackupImmutable:                 &dailyImmutable,
+			},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		convertDatastoreBackupVaultToModel = func(bv *datamodel.BackupVault) *models.BackupVaultV1beta {
+			return &models.BackupVaultV1beta{
+				BackupVaultID: bv.UUID,
+				Name:          bv.Name,
+			}
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(existingBV, nil)
+		mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			return bv.ImmutableAttributes != nil &&
+				bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration != nil &&
+				*bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration == newRetentionDuration
+		}), existingBV).Return(updatedBV, nil)
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", operationID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLifeCycleStatePreserved_KeepsOriginalState", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		orchestrator := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+			Name:      "test-account",
+		}
+
+		externalUUID := "external-backup-vault-uuid"
+		newDescription := "Updated description"
+		originalLifeCycleState := models.LifeCycleStateAvailable
+		originalLifeCycleStateDetails := models.LifeCycleStateAvailableDetails
+
+		existingBV := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			Name:                  "test-backup-vault",
+			AccountID:             account.ID,
+			Account:               account,
+			ExternalUUID:          &externalUUID,
+			LifeCycleState:        originalLifeCycleState,
+			LifeCycleStateDetails: originalLifeCycleStateDetails,
+			RegionName:            "us-central1",
+			AccountVendorID:       "vendor-id",
+			BackupVaultType:       "STANDARD",
+		}
+
+		updatedBV := &datamodel.BackupVault{
+			BaseModel:             existingBV.BaseModel,
+			Name:                  existingBV.Name,
+			AccountID:             existingBV.AccountID,
+			Account:               existingBV.Account,
+			Description:           &newDescription,
+			LifeCycleState:        originalLifeCycleState,
+			LifeCycleStateDetails: originalLifeCycleStateDetails,
+			RegionName:            existingBV.RegionName,
+			AccountVendorID:       existingBV.AccountVendorID,
+			BackupVaultType:       existingBV.BackupVaultType,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID:         externalUUID,
+			OwnerID:               "owner-uuid",
+			Description:           &newDescription,
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		convertDatastoreBackupVaultToModel = func(bv *datamodel.BackupVault) *models.BackupVaultV1beta {
+			return &models.BackupVaultV1beta{
+				BackupVaultID:  bv.UUID,
+				Name:           bv.Name,
+				LifeCycleState: bv.LifeCycleState,
+			}
+		}
+
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(existingBV, nil)
+		mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			return bv.LifeCycleState == originalLifeCycleState &&
+				bv.LifeCycleStateDetails == originalLifeCycleStateDetails
+		}), existingBV).Return(updatedBV, nil)
+
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, originalLifeCycleState, result.LifeCycleState)
+		mockStorage.AssertExpectations(tt)
+	})
+}

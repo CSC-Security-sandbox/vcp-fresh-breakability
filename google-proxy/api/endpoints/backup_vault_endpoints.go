@@ -483,6 +483,7 @@ func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserve
 	_, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
+			// SDE delete will handle both in-region/cross-region BV cases as handled through pubsub
 			sdeBvResponse, err := deleteBackupVaultInSDE(ctx, params, logger)
 			if err != nil {
 				return nil, err

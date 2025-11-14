@@ -836,3 +836,177 @@ func convertDataModelToBackupVaultInternal(bv *datamodel.BackupVault) gcpgenserv
 
 	return result
 }
+
+func (h Handler) V1betaInternalDeleteBackupVault(ctx context.Context, params gcpgenserver.V1betaInternalDeleteBackupVaultParams) (gcpgenserver.V1betaInternalDeleteBackupVaultRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaInternalDeleteBackupVaultBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	param := &commonparams.BackupVaultParams{
+		BackupVaultID: params.BackupVaultId,
+		AccountName:   params.ProjectNumber,
+		OwnerID:       params.ProjectNumber,
+		Region:        params.LocationId,
+	}
+
+	_, operationID, err := h.Orchestrator.DeleteBackupVaultInternal(ctx, param)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			logger.Error("Failed to delete backup vault - validation error", "error", err.Error())
+			return &gcpgenserver.V1betaInternalDeleteBackupVaultBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to delete backup vault", "error", err.Error())
+		return &gcpgenserver.V1betaInternalDeleteBackupVaultInternalServerError{
+			Code:    500,
+			Message: "Internal server error while deleting backup vault",
+		}, nil
+	}
+
+	if operationID != "" {
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+			Done: gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+
+	return &gcpgenserver.OperationV1beta{}, nil
+}
+
+func (h Handler) V1betaInternalUpdateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaInternalUpdateBackupVaultParams) (gcpgenserver.V1betaInternalUpdateBackupVaultRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	if req == nil {
+		return &gcpgenserver.V1betaInternalUpdateBackupVaultBadRequest{
+			Code:    400,
+			Message: "Request body is required",
+		}, errors.New("request body is required")
+	}
+
+	if params.BackupVaultId == "" {
+		return &gcpgenserver.V1betaInternalUpdateBackupVaultBadRequest{
+			Code:    400,
+			Message: "BackupVaultId is required",
+		}, errors.New("backupVaultId is required")
+	}
+
+	if params.ProjectNumber == "" {
+		return &gcpgenserver.V1betaInternalUpdateBackupVaultBadRequest{
+			Code:    400,
+			Message: "ProjectNumber is required",
+		}, errors.New("projectNumber is required")
+	}
+
+	logger.Info("Processing internal BackupVault update request",
+		"backupVaultId", params.BackupVaultId,
+		"projectNumber", params.ProjectNumber)
+
+	var description string
+	if req.Description.IsSet() {
+		description = req.Description.Value
+	}
+
+	var backupMinimumEnforcedRetentionDuration *int64
+	var dailyBackupImmutable, weeklyBackupImmutable, monthlyBackupImmutable, adhocBackupImmutable *bool
+
+	if req.BackupRetentionPolicy.IsSet() {
+		brp := req.BackupRetentionPolicy.Value
+		if brp.BackupMinimumEnforcedRetentionDays.IsSet() {
+			val := int64(brp.BackupMinimumEnforcedRetentionDays.Value)
+			backupMinimumEnforcedRetentionDuration = &val
+		}
+		if brp.DailyBackupImmutable.IsSet() {
+			dailyBackupImmutable = &brp.DailyBackupImmutable.Value
+		}
+		if brp.WeeklyBackupImmutable.IsSet() {
+			weeklyBackupImmutable = &brp.WeeklyBackupImmutable.Value
+		}
+		if brp.MonthlyBackupImmutable.IsSet() {
+			monthlyBackupImmutable = &brp.MonthlyBackupImmutable.Value
+		}
+		if brp.ManualBackupImmutable.IsSet() {
+			adhocBackupImmutable = &brp.ManualBackupImmutable.Value
+		}
+	}
+
+	updateParams := &commonparams.BackupVaultParams{
+		BackupVaultID: params.BackupVaultId,
+		AccountName:   params.ProjectNumber,
+		OwnerID:       params.ProjectNumber,
+		Region:        params.LocationId,
+		Description:   &description,
+		BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
+			BackupMinimumEnforcedRetentionDuration: backupMinimumEnforcedRetentionDuration,
+			IsDailyBackupImmutable:                 dailyBackupImmutable,
+			IsWeeklyBackupImmutable:                weeklyBackupImmutable,
+			IsMonthlyBackupImmutable:               monthlyBackupImmutable,
+			IsAdhocBackupImmutable:                 adhocBackupImmutable,
+		},
+	}
+
+	updated, operationID, err := h.Orchestrator.UpdateBackupVaultInternal(ctx, updateParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			logger.Error("Failed to update backup vault - validation error", "error", err.Error())
+			return &gcpgenserver.V1betaInternalUpdateBackupVaultBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		if errors.IsNotFoundErr(err) {
+			logger.Error("BackupVault not found", "error", err.Error())
+			return &gcpgenserver.V1betaInternalUpdateBackupVaultNotFound{
+				Code:    404,
+				Message: "BackupVault not found",
+			}, nil
+		}
+		if errors.IsConflictErr(err) {
+			logger.Error("Conflict updating backup vault", "error", err.Error())
+			return &gcpgenserver.V1betaInternalUpdateBackupVaultConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to update BackupVault in VCP database", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateBackupVaultInternalServerError{
+			Code:    500,
+			Message: "Failed to update BackupVault in VCP database",
+		}, err
+	}
+
+	resp := convertCoreModelsToBackupVaultV1beta(updated)
+	bvJSON, err := encodeBackupVaultConfigV1(resp)
+	if err != nil {
+		logger.Error("Failed to marshal backup vault", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateBackupVaultInternalServerError{
+			Code:    500,
+			Message: "Failed to marshal Backup vault",
+		}, nil
+	}
+
+	logger.Info("Successfully updated BackupVault",
+		"backupVaultId", params.BackupVaultId,
+		"operationId", operationID)
+
+	if operationID != "" {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+			Response: bvJSON,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+
+	return &gcpgenserver.OperationV1beta{
+		Response: bvJSON,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}

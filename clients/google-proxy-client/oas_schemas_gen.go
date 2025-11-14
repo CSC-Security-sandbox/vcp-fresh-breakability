@@ -3451,6 +3451,7 @@ func (*ErrorStatusCode) v1betaInternalAcceptClusterPeerRes()                 {}
 func (*ErrorStatusCode) v1betaInternalAuthorizeVolumeReplicationRes()        {}
 func (*ErrorStatusCode) v1betaInternalCreateVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalDeleteBackupUnderBackupVaultRes()      {}
+func (*ErrorStatusCode) v1betaInternalDeleteBackupVaultRes()                 {}
 func (*ErrorStatusCode) v1betaInternalDeleteVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
 func (*ErrorStatusCode) v1betaInternalDescribeBackupRes()                    {}
@@ -3465,6 +3466,7 @@ func (*ErrorStatusCode) v1betaInternalReleaseVolumeReplicationRes()          {}
 func (*ErrorStatusCode) v1betaInternalResumeVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalReverseVolumeReplicationRes()          {}
 func (*ErrorStatusCode) v1betaInternalStopVolumeReplicationRes()             {}
+func (*ErrorStatusCode) v1betaInternalUpdateBackupVaultRes()                 {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeRes()                      {}
@@ -6903,8 +6905,10 @@ func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
 func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
 func (*OperationV1beta) v1betaEstablishVolumePeeringRes()                    {}
 func (*OperationV1beta) v1betaInternalDeleteBackupUnderBackupVaultRes()      {}
+func (*OperationV1beta) v1betaInternalDeleteBackupVaultRes()                 {}
 func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
 func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()          {}
+func (*OperationV1beta) v1betaInternalUpdateBackupVaultRes()                 {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeRes()                      {}
 func (*OperationV1beta) v1betaResumeReplicationRes()                         {}
@@ -18875,6 +18879,43 @@ type V1betaInternalDeleteBackupUnderBackupVaultUnprocessableEntity Error
 func (*V1betaInternalDeleteBackupUnderBackupVaultUnprocessableEntity) v1betaInternalDeleteBackupUnderBackupVaultRes() {
 }
 
+type V1betaInternalDeleteBackupVaultBadRequest Error
+
+func (*V1betaInternalDeleteBackupVaultBadRequest) v1betaInternalDeleteBackupVaultRes() {}
+
+type V1betaInternalDeleteBackupVaultConflict Error
+
+func (*V1betaInternalDeleteBackupVaultConflict) v1betaInternalDeleteBackupVaultRes() {}
+
+type V1betaInternalDeleteBackupVaultForbidden Error
+
+func (*V1betaInternalDeleteBackupVaultForbidden) v1betaInternalDeleteBackupVaultRes() {}
+
+type V1betaInternalDeleteBackupVaultInternalServerError Error
+
+func (*V1betaInternalDeleteBackupVaultInternalServerError) v1betaInternalDeleteBackupVaultRes() {}
+
+type V1betaInternalDeleteBackupVaultMethodNotAllowed Error
+
+func (*V1betaInternalDeleteBackupVaultMethodNotAllowed) v1betaInternalDeleteBackupVaultRes() {}
+
+// V1betaInternalDeleteBackupVaultNoContent is response for V1betaInternalDeleteBackupVault operation.
+type V1betaInternalDeleteBackupVaultNoContent struct{}
+
+func (*V1betaInternalDeleteBackupVaultNoContent) v1betaInternalDeleteBackupVaultRes() {}
+
+type V1betaInternalDeleteBackupVaultNotFound Error
+
+func (*V1betaInternalDeleteBackupVaultNotFound) v1betaInternalDeleteBackupVaultRes() {}
+
+type V1betaInternalDeleteBackupVaultUnauthorized Error
+
+func (*V1betaInternalDeleteBackupVaultUnauthorized) v1betaInternalDeleteBackupVaultRes() {}
+
+type V1betaInternalDeleteBackupVaultUnprocessableEntity Error
+
+func (*V1betaInternalDeleteBackupVaultUnprocessableEntity) v1betaInternalDeleteBackupVaultRes() {}
+
 type V1betaInternalDeleteVolumeReplicationBadRequest Error
 
 func (*V1betaInternalDeleteVolumeReplicationBadRequest) v1betaInternalDeleteVolumeReplicationRes() {}
@@ -19400,6 +19441,38 @@ type V1betaInternalStopVolumeReplicationUnprocessableEntity Error
 
 func (*V1betaInternalStopVolumeReplicationUnprocessableEntity) v1betaInternalStopVolumeReplicationRes() {
 }
+
+type V1betaInternalUpdateBackupVaultBadRequest Error
+
+func (*V1betaInternalUpdateBackupVaultBadRequest) v1betaInternalUpdateBackupVaultRes() {}
+
+type V1betaInternalUpdateBackupVaultConflict Error
+
+func (*V1betaInternalUpdateBackupVaultConflict) v1betaInternalUpdateBackupVaultRes() {}
+
+type V1betaInternalUpdateBackupVaultForbidden Error
+
+func (*V1betaInternalUpdateBackupVaultForbidden) v1betaInternalUpdateBackupVaultRes() {}
+
+type V1betaInternalUpdateBackupVaultInternalServerError Error
+
+func (*V1betaInternalUpdateBackupVaultInternalServerError) v1betaInternalUpdateBackupVaultRes() {}
+
+type V1betaInternalUpdateBackupVaultMethodNotAllowed Error
+
+func (*V1betaInternalUpdateBackupVaultMethodNotAllowed) v1betaInternalUpdateBackupVaultRes() {}
+
+type V1betaInternalUpdateBackupVaultNotFound Error
+
+func (*V1betaInternalUpdateBackupVaultNotFound) v1betaInternalUpdateBackupVaultRes() {}
+
+type V1betaInternalUpdateBackupVaultUnauthorized Error
+
+func (*V1betaInternalUpdateBackupVaultUnauthorized) v1betaInternalUpdateBackupVaultRes() {}
+
+type V1betaInternalUpdateBackupVaultUnprocessableEntity Error
+
+func (*V1betaInternalUpdateBackupVaultUnprocessableEntity) v1betaInternalUpdateBackupVaultRes() {}
 
 type V1betaInternalUpdateVolumeBadRequest Error
 

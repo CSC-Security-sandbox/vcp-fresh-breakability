@@ -32,6 +32,7 @@ import (
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
 )
 
 const (
@@ -668,6 +669,69 @@ func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, v
 
 func (a VolumeCreateActivity) UpdateRemoteBackupVaultDetailsInVCP(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails, backupVault *datamodel.BackupVault) error {
 	return UpdateRemoteBackupVaultDetailsInVCP(ctx, volume, bucketDetails, backupVault)
+}
+
+// SetupCrossRegionBackupPermissionsActivity sets up IAM permissions for cross-region backup vaults
+// This activity grants the necessary permissions for the backup vault in region2 to access resources in region1
+func (a *VolumeCreateActivity) SetupCrossRegionBackupPermissionsActivity(ctx context.Context, backupVault *datamodel.BackupVault, pool *datamodel.Pool, bucketDetails *common.BucketDetails) error {
+	logger := util.GetLogger(ctx)
+	volumeRegion := pool.ClusterDetails.RegionalTenantProject
+	backupRegion := *backupVault.BackupRegionName
+	if volumeRegion == backupRegion {
+		logger.Infof("Volume and backup are in same region, skipping cross-region permission setup")
+		return nil
+	}
+
+	poolServiceAccount, err := getBackupVaultPoolServiceAccount(pool, pool.ClusterDetails.RegionalTenantProject)
+	if err != nil {
+		logger.Errorf("Failed to get pool service account name: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Grant storage.objectAdmin role to the pool service account in the backup tenant project
+	backupTenantProject := bucketDetails.TenantProjectNumber
+	if backupTenantProject == "" {
+		logger.Errorf("Backup vault %s missing TenantProjectNumber in bucket details", backupVault.UUID)
+		return temporal.NewNonRetryableApplicationError(
+			"TenantProjectNumber is required for cross-region permission setup",
+			"MissingTenantProjectNumber",
+			nil,
+		)
+	}
+
+	logger.Infof("Backup tenant project: %s", backupTenantProject)
+	err = grantBackupVaultStorageObjectAdminRole(ctx, poolServiceAccount, backupTenantProject)
+	if err != nil {
+		logger.Errorf("Failed to grant storage.objectAdmin role for cross-region backup: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully granted storage.objectAdmin role to service account %s in backup project %s for cross-region access", poolServiceAccount, backupTenantProject)
+
+	return nil
+}
+
+// getBackupVaultPoolServiceAccount extracts the service account from the pool for backup vault operations
+func getBackupVaultPoolServiceAccount(pool *datamodel.Pool, projectID string) (string, error) {
+	saEmail := utils.ConstructServiceAccountEmail(pool.ServiceAccountId, projectID)
+	return saEmail, nil
+}
+
+// grantBackupVaultStorageObjectAdminRole grants the storage.objectAdmin role to a service account for backup vault operations
+func grantBackupVaultStorageObjectAdminRole(ctx context.Context, serviceAccountEmail, projectID string) error {
+	gcpService, err := GetCloudService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Grant the specific role needed for backup access
+	roles := []string{"roles/storage.objectAdmin"}
+	err = gcpService.AttachOrUpdateRolesForServiceAccounts(roles, serviceAccountEmail, projectID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
 }
 
 func (a VolumeCreateActivity) CheckForBucketResourceName(ctx context.Context, volume *datamodel.Volume) (*common.BucketDetails, error) {

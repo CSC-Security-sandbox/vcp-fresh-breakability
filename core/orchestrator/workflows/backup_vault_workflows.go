@@ -135,6 +135,21 @@ func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, ConvertToVSAError(err)
 	}
 
+	if dbBackupVault.BackupVaultType == activities.CrossRegionBackupType && *dbBackupVault.BackupRegionName != "" {
+		remoteParams := *bvCommonParams
+		remoteParams.BackupRegion = dbBackupVault.BackupRegionName
+
+		dbRemoteBackupVault := &datamodel.BackupVault{}
+		err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateRemoteBackupVaultInVCP, &remoteParams, dbBackupVault).Get(ctx, &dbRemoteBackupVault)
+		if err != nil {
+			wf.Logger.Error("Failed to update remote backup vault in VCP", log.Fields{
+				"error":  err,
+				"params": dbBackupVault,
+			})
+			return nil, ConvertToVSAError(fmt.Errorf("UpdateRemoteBackupVaultInVCP failed: %w", err))
+		}
+	}
+
 	return dbBackupVault, nil
 }
 
@@ -254,6 +269,21 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 			"params": backupVault,
 		})
 		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInSDE failed: %w", err))
+	}
+
+	if dbBackupVault.BackupVaultType == activities.CrossRegionBackupType && *dbBackupVault.BackupRegionName != "" {
+		remoteParams := *bvCommonParams
+		remoteParams.BackupRegion = dbBackupVault.BackupRegionName
+
+		dbRemoteBackupVault := &datamodel.BackupVault{}
+		err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteRemoteBackupVaultInVCP, &remoteParams).Get(ctx, &dbRemoteBackupVault)
+		if err != nil {
+			wf.Logger.Error("Failed to delete remote backup vault in VCP", log.Fields{
+				"error":  err,
+				"params": backupVault,
+			})
+			return nil, ConvertToVSAError(fmt.Errorf("DeleteRemoteBackupVaultInVCP failed: %w", err))
+		}
 	}
 
 	return dbBackupVault, nil

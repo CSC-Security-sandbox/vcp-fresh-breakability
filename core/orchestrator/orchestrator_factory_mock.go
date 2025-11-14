@@ -1468,6 +1468,72 @@ func (_c *MockOrchestratorFactory_DeleteBackupVault_Call) RunAndReturn(run func(
 	return _c
 }
 
+// DeleteBackupVaultInternal provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) DeleteBackupVaultInternal(ctx context.Context, params *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteBackupVaultInternal")
+	}
+
+	var r0 *models.BackupVaultV1beta
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams) *models.BackupVaultV1beta); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BackupVaultV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.BackupVaultParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.BackupVaultParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_DeleteBackupVaultInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBackupVaultInternal'
+type MockOrchestratorFactory_DeleteBackupVaultInternal_Call struct {
+	*mock.Call
+}
+
+// DeleteBackupVaultInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.BackupVaultParams
+func (_e *MockOrchestratorFactory_Expecter) DeleteBackupVaultInternal(ctx interface{}, params interface{}) *MockOrchestratorFactory_DeleteBackupVaultInternal_Call {
+	return &MockOrchestratorFactory_DeleteBackupVaultInternal_Call{Call: _e.mock.On("DeleteBackupVaultInternal", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteBackupVaultInternal_Call) Run(run func(ctx context.Context, params *common.BackupVaultParams)) *MockOrchestratorFactory_DeleteBackupVaultInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.BackupVaultParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteBackupVaultInternal_Call) Return(_a0 *models.BackupVaultV1beta, _a1 string, _a2 error) *MockOrchestratorFactory_DeleteBackupVaultInternal_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteBackupVaultInternal_Call) RunAndReturn(run func(context.Context, *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error)) *MockOrchestratorFactory_DeleteBackupVaultInternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID
 func (_m *MockOrchestratorFactory) DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroupUUID, accountID)
@@ -6133,6 +6199,72 @@ func (_c *MockOrchestratorFactory_UpdateBackupVault_Call) Return(_a0 *models.Bac
 }
 
 func (_c *MockOrchestratorFactory_UpdateBackupVault_Call) RunAndReturn(run func(context.Context, *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error)) *MockOrchestratorFactory_UpdateBackupVault_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupVaultInternal provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateBackupVaultInternal(ctx context.Context, params *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupVaultInternal")
+	}
+
+	var r0 *models.BackupVaultV1beta
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams) *models.BackupVaultV1beta); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BackupVaultV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.BackupVaultParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.BackupVaultParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_UpdateBackupVaultInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupVaultInternal'
+type MockOrchestratorFactory_UpdateBackupVaultInternal_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupVaultInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.BackupVaultParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateBackupVaultInternal(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateBackupVaultInternal_Call {
+	return &MockOrchestratorFactory_UpdateBackupVaultInternal_Call{Call: _e.mock.On("UpdateBackupVaultInternal", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateBackupVaultInternal_Call) Run(run func(ctx context.Context, params *common.BackupVaultParams)) *MockOrchestratorFactory_UpdateBackupVaultInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.BackupVaultParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateBackupVaultInternal_Call) Return(_a0 *models.BackupVaultV1beta, _a1 string, _a2 error) *MockOrchestratorFactory_UpdateBackupVaultInternal_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateBackupVaultInternal_Call) RunAndReturn(run func(context.Context, *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error)) *MockOrchestratorFactory_UpdateBackupVaultInternal_Call {
 	_c.Call.Return(run)
 	return _c
 }

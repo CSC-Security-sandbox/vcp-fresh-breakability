@@ -337,6 +337,13 @@ type Handler interface {
 	//
 	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
 	V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context, params V1betaInternalDeleteBackupUnderBackupVaultParams) (V1betaInternalDeleteBackupUnderBackupVaultRes, error)
+	// V1betaInternalDeleteBackupVault implements v1beta_internalDeleteBackupVault operation.
+	//
+	// Internal endpoint to delete a cross-region backup vault from the destination region. This
+	// operation will permanently delete the backup vault.
+	//
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+	V1betaInternalDeleteBackupVault(ctx context.Context, params V1betaInternalDeleteBackupVaultParams) (V1betaInternalDeleteBackupVaultRes, error)
 	// V1betaInternalDeleteVolumeReplication implements v1beta_internalDeleteVolumeReplication operation.
 	//
 	// Warning! This operation will permanently delete the volume replication.
@@ -429,6 +436,13 @@ type Handler interface {
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop
 	V1betaInternalStopVolumeReplication(ctx context.Context, req *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (V1betaInternalStopVolumeReplicationRes, error)
+	// V1betaInternalUpdateBackupVault implements v1beta_internalUpdateBackupVault operation.
+	//
+	// Internal endpoint to update a cross-region backup vault in the destination region. This operation
+	// allows updating backup vault properties in the remote region's VCP database.
+	//
+	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+	V1betaInternalUpdateBackupVault(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)
 	// V1betaInternalUpdateVolume implements v1beta_internalUpdateVolume operation.
 	//
 	// Update the volume (Internal endpoint).

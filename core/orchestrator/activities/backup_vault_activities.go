@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -25,6 +26,8 @@ var (
 	cvpCreateClient               = cvp.CreateClient
 	updateBackupVaultInSDE        = _updateBackupVaultInSDE
 	deleteBackupVaultInSDE        = _deleteBackupVaultInSDE
+	utilsGetRemoteRegionConfig    = common.GetRemoteRegionConfig
+	googleProxyClientGet          = googleproxyclient.GetGProxyClient
 )
 
 type BackupVaultActivity struct {
@@ -291,6 +294,274 @@ func (j *BackupVaultActivity) DeleteBackupVaultInVCP(ctx context.Context, backup
 		return nil, err
 	}
 	return BackupVault, nil
+}
+
+func (j *BackupVaultActivity) DeleteRemoteBackupVaultInVCP(ctx context.Context, params *common.BackupVaultParams) (*datamodel.BackupVault, error) {
+	return DeleteRemoteBackupVaultInVCP(ctx, params)
+}
+
+func DeleteRemoteBackupVaultInVCP(ctx context.Context, params *common.BackupVaultParams) (*datamodel.BackupVault, error) {
+	logger := util.GetLogger(ctx)
+
+	if params.BackupRegion == nil || *params.BackupRegion == "" {
+		return nil, temporal.NewNonRetryableApplicationError(
+			"BackupRegion not provided in params",
+			"BackupRegionMissing",
+			fmt.Errorf("backup region is required for cross-region backupVault deletion"),
+		)
+	}
+
+	basePath, jwtToken, err := utilsGetRemoteRegionConfig(*params.BackupRegion, params.OwnerID)
+	if err != nil {
+		logger.Errorf("Failed to get remote region configuration for region %s: %v", *params.BackupRegion, err)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to get remote region configuration: %v", err),
+			"InvalidRemoteRegionConfig",
+			err,
+		)
+	}
+
+	googleProxyClient := googleProxyClientGet(basePath, jwtToken, logger)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	deleteParams := &googleproxyclient.V1betaInternalDeleteBackupVaultParams{
+		ProjectNumber:  params.OwnerID,
+		LocationId:     *params.BackupRegion,
+		BackupVaultId:  params.BackupVaultID,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalDeleteBackupVault(ctx, *deleteParams)
+	if err != nil {
+		logger.Errorf("Failed to call V1betaInternalDeleteBackupVault: %v", err)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to delete remote backup vault: %v", err),
+			"InternalDeleteBackupVaultFailed",
+			err,
+		)
+	}
+
+	switch r := res.(type) {
+	case *googleproxyclient.OperationV1beta:
+		isDone := r.Done.Value
+		logger.Infof("Delete operation returned for remote backup vault %s in region %s. Operation: %s, Done: %v",
+			params.BackupVaultID, *params.BackupRegion, r.GetName(), isDone)
+
+		if !isDone {
+			logger.Warnf("Delete operation for remote backup vault %s not marked as done, but treating as synchronous", params.BackupVaultID)
+		}
+
+		logger.Infof("Successfully deleted remote backup vault %s (external UUID) in region %s",
+			params.BackupVaultID, *params.BackupRegion)
+		return nil, nil
+
+	case *googleproxyclient.V1betaInternalDeleteBackupVaultNoContent:
+		logger.Infof("Successfully deleted remote backup vault %s (external UUID) in region %s - NoContent response",
+			params.BackupVaultID, *params.BackupRegion)
+		return nil, nil
+
+	case *googleproxyclient.V1betaInternalDeleteBackupVaultBadRequest:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Bad request deleting remote backup vault: %s", r.Message),
+			"V1betaInternalDeleteBackupVaultBadRequest",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupVaultUnauthorized:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unauthorized to delete remote backup vault: %s", r.Message),
+			"V1betaInternalDeleteBackupVaultUnauthorized",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupVaultForbidden:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Forbidden to delete remote backup vault: %s", r.Message),
+			"V1betaInternalDeleteBackupVaultForbidden",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupVaultNotFound:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Remote backup vault not found: %s", r.Message),
+			"V1betaInternalDeleteBackupVaultNotFound",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupVaultConflict:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Conflict deleting remote backup vault: %s", r.Message),
+			"V1betaInternalDeleteBackupVaultConflict",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupVaultInternalServerError:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Internal server error deleting remote backup vault: %s", r.Message),
+			"V1betaInternalDeleteBackupVaultInternalServerError",
+			errors.New(r.Message),
+		)
+
+	default:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unexpected response type from internal delete backup vault endpoint: %T", r),
+			"UnexpectedDeleteResponseType",
+			fmt.Errorf("unexpected response type: %T", r),
+		)
+	}
+}
+
+func (j *BackupVaultActivity) UpdateRemoteBackupVaultInVCP(ctx context.Context, params *common.BackupVaultParams, backupVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	return UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+}
+
+func UpdateRemoteBackupVaultInVCP(ctx context.Context, params *common.BackupVaultParams, backupVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	logger := util.GetLogger(ctx)
+
+	if params.BackupRegion == nil || *params.BackupRegion == "" {
+		return nil, temporal.NewNonRetryableApplicationError(
+			"BackupRegion not provided in params",
+			"BackupRegionMissing",
+			fmt.Errorf("backup region is required for cross-region backupVault update"),
+		)
+	}
+
+	basePath, jwtToken, err := utilsGetRemoteRegionConfig(*params.BackupRegion, params.OwnerID)
+	if err != nil {
+		logger.Errorf("Failed to get remote region configuration for region %s: %v", *params.BackupRegion, err)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to get remote region configuration: %v", err),
+			"InvalidRemoteRegionConfig",
+			err,
+		)
+	}
+
+	googleProxyClient := googleProxyClientGet(basePath, jwtToken, logger)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	updateBody := googleproxyclient.BackupVaultUpdateV1beta{}
+
+	if params.Description != nil {
+		updateBody.Description = googleproxyclient.NewOptString(*params.Description)
+	}
+
+	if params.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil ||
+		params.BackupRetentionPolicy.IsDailyBackupImmutable != nil ||
+		params.BackupRetentionPolicy.IsWeeklyBackupImmutable != nil ||
+		params.BackupRetentionPolicy.IsMonthlyBackupImmutable != nil ||
+		params.BackupRetentionPolicy.IsAdhocBackupImmutable != nil {
+		brp := googleproxyclient.BackupRetentionPolicyUpdateV1beta{}
+
+		if params.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil {
+			brp.BackupMinimumEnforcedRetentionDays = googleproxyclient.NewOptInt(int(*params.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration))
+		}
+		if params.BackupRetentionPolicy.IsDailyBackupImmutable != nil {
+			brp.DailyBackupImmutable = googleproxyclient.NewOptBool(*params.BackupRetentionPolicy.IsDailyBackupImmutable)
+		}
+		if params.BackupRetentionPolicy.IsWeeklyBackupImmutable != nil {
+			brp.WeeklyBackupImmutable = googleproxyclient.NewOptBool(*params.BackupRetentionPolicy.IsWeeklyBackupImmutable)
+		}
+		if params.BackupRetentionPolicy.IsMonthlyBackupImmutable != nil {
+			brp.MonthlyBackupImmutable = googleproxyclient.NewOptBool(*params.BackupRetentionPolicy.IsMonthlyBackupImmutable)
+		}
+		if params.BackupRetentionPolicy.IsAdhocBackupImmutable != nil {
+			brp.ManualBackupImmutable = googleproxyclient.NewOptBool(*params.BackupRetentionPolicy.IsAdhocBackupImmutable)
+		}
+
+		updateBody.BackupRetentionPolicy = googleproxyclient.NewOptBackupRetentionPolicyUpdateV1beta(brp)
+	}
+
+	updateParams := googleproxyclient.V1betaInternalUpdateBackupVaultParams{
+		ProjectNumber:  params.OwnerID,
+		LocationId:     *params.BackupRegion,
+		BackupVaultId:  params.BackupVaultID,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalUpdateBackupVault(ctx, &updateBody, updateParams)
+	if err != nil {
+		logger.Errorf("Failed to call V1betaInternalUpdateBackupVault: %v", err)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to update remote backup vault: %v", err),
+			"InternalUpdateBackupVaultFailed",
+			err,
+		)
+	}
+
+	switch r := res.(type) {
+	case *googleproxyclient.OperationV1beta:
+		isDone := r.Done.Value
+		logger.Infof("Update operation returned for remote backup vault %s (external UUID: %s) in region %s. Operation: %s, Done: %v",
+			params.BackupVaultID, params.BackupVaultID, *params.BackupRegion, r.GetName(), isDone)
+
+		if !isDone {
+			logger.Warnf("Update operation for remote backup vault %s not marked as done, but treating as synchronous", params.BackupVaultID)
+		}
+
+		logger.Infof("Successfully updated remote backup vault %s (external UUID: %s) in region %s",
+			params.BackupVaultID, params.BackupVaultID, *params.BackupRegion)
+		return &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.BackupVaultID,
+			},
+		}, nil
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultBadRequest:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Bad request updating remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultBadRequest",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultUnauthorized:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unauthorized to update remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultUnauthorized",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultForbidden:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Forbidden to update remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultForbidden",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultNotFound:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Remote backup vault not found: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultNotFound",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultConflict:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Conflict updating remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultConflict",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultUnprocessableEntity:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unprocessable entity updating remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultUnprocessableEntity",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultInternalServerError:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Internal server error updating remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultInternalServerError",
+			errors.New(r.Message),
+		)
+
+	default:
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unexpected response type from internal update backup vault endpoint: %T", r),
+			"UnexpectedUpdateResponseType",
+			fmt.Errorf("unexpected response type: %T", r),
+		)
+	}
 }
 
 func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {

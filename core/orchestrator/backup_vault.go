@@ -67,6 +67,20 @@ func (o *Orchestrator) DeleteBackupVault(ctx context.Context, params *commonpara
 	return deleteBackupVault(ctx, o.storage, o.temporal, params)
 }
 
+func (o *Orchestrator) DeleteBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+	se := o.storage
+	account, err := se.GetAccount(ctx, params.OwnerID)
+	if err != nil {
+		return nil, "", err
+	}
+	RemoteBV, err := se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, params.BackupVaultID, account.ID)
+	if err != nil {
+		return nil, "", err
+	}
+	params.BackupVaultID = RemoteBV.UUID
+	return deleteBackupVault(ctx, o.storage, o.temporal, params)
+}
+
 func _deleteBackupVault(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
 	logger := util.GetLogger(ctx)
 	account, err := getOrCreateAccount(ctx, se, params.OwnerID)
@@ -425,4 +439,83 @@ func (o *Orchestrator) GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Contex
 		return nil, err
 	}
 	return se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, account.ID)
+}
+
+// UpdateBackupVaultInternal handles internal updates to a BackupVault in the VCP database
+// This is used for cross-region operations where the remote region's VCP database needs to be updated
+func (o *Orchestrator) UpdateBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+	logger := util.GetLogger(ctx)
+	se := o.storage
+	account, err := getOrCreateAccount(ctx, se, params.OwnerID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	existingBV, err := se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, params.BackupVaultID, account.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	updatedBV := &datamodel.BackupVault{
+		BaseModel: existingBV.BaseModel,
+		AccountID: existingBV.AccountID,
+	}
+
+	if params.Description != nil {
+		updatedBV.Description = params.Description
+	} else {
+		updatedBV.Description = existingBV.Description
+	}
+
+	brp := params.BackupRetentionPolicy
+	if brp.BackupMinimumEnforcedRetentionDuration != nil ||
+		brp.IsDailyBackupImmutable != nil ||
+		brp.IsWeeklyBackupImmutable != nil ||
+		brp.IsMonthlyBackupImmutable != nil ||
+		brp.IsAdhocBackupImmutable != nil {
+		if existingBV.ImmutableAttributes != nil {
+			updatedBV.ImmutableAttributes = &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: existingBV.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration,
+				IsDailyBackupImmutable:                 existingBV.ImmutableAttributes.IsDailyBackupImmutable,
+				IsWeeklyBackupImmutable:                existingBV.ImmutableAttributes.IsWeeklyBackupImmutable,
+				IsMonthlyBackupImmutable:               existingBV.ImmutableAttributes.IsMonthlyBackupImmutable,
+				IsAdhocBackupImmutable:                 existingBV.ImmutableAttributes.IsAdhocBackupImmutable,
+			}
+		} else {
+			updatedBV.ImmutableAttributes = &datamodel.ImmutableAttributes{}
+		}
+
+		if brp.BackupMinimumEnforcedRetentionDuration != nil {
+			updatedBV.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration = brp.BackupMinimumEnforcedRetentionDuration
+		}
+		if brp.IsDailyBackupImmutable != nil {
+			updatedBV.ImmutableAttributes.IsDailyBackupImmutable = *brp.IsDailyBackupImmutable
+		}
+		if brp.IsWeeklyBackupImmutable != nil {
+			updatedBV.ImmutableAttributes.IsWeeklyBackupImmutable = *brp.IsWeeklyBackupImmutable
+		}
+		if brp.IsMonthlyBackupImmutable != nil {
+			updatedBV.ImmutableAttributes.IsMonthlyBackupImmutable = *brp.IsMonthlyBackupImmutable
+		}
+		if brp.IsAdhocBackupImmutable != nil {
+			updatedBV.ImmutableAttributes.IsAdhocBackupImmutable = *brp.IsAdhocBackupImmutable
+		}
+	} else {
+		updatedBV.ImmutableAttributes = existingBV.ImmutableAttributes
+	}
+
+	updatedBV.LifeCycleState = existingBV.LifeCycleState
+	updatedBV.LifeCycleStateDetails = existingBV.LifeCycleStateDetails
+
+	resultBV, err := se.UpdateBackupVaultInVCP(ctx, updatedBV, existingBV)
+	if err != nil {
+		logger.Error("Failed to update backup vault in VCP database", "error", err, "backupVaultId", params.BackupVaultID)
+		return nil, "", err
+	}
+
+	logger.Info("Successfully updated backup vault in VCP database",
+		"backupVaultId", params.BackupVaultID,
+		"ownerID", params.OwnerID)
+
+	return convertDatastoreBackupVaultToModel(resultBV), "", nil
 }

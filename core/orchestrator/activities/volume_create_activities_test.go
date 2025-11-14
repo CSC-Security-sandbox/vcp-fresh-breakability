@@ -4476,6 +4476,198 @@ func TestGetPoolServiceAccount(t *testing.T) {
 	})
 }
 
+func TestSetupCrossTenantProjectPermissions(t *testing.T) {
+	t.Run("WhenSuccessful_ThenGrantRoleAndReturnNoError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backupTenantProject := "backup-project"
+
+		// Mock GetCloudService and AttachOrUpdateRolesForServiceAccounts
+		originalGetCloudService := activities.GetCloudService
+		defer func() { activities.GetCloudService = originalGetCloudService }()
+
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+		serviceAccountEmail := "test-service-account-id@target-project.iam.gserviceaccount.com"
+		roles := []string{"roles/storage.objectAdmin"}
+		mockGCPService.On("AttachOrUpdateRolesForServiceAccounts", roles, serviceAccountEmail, backupTenantProject).Return(nil)
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return mockGCPService, nil
+		}
+
+		// Act
+		err := activity.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+
+		// Assert
+		assert.NoError(t, err)
+		mockGCPService.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetPoolServiceAccountNameFails_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: ""}, // Empty project will cause error
+			ServiceAccountId: "test-service-account-id",
+		}
+		backupTenantProject := "backup-project"
+
+		// Mock GetPoolServiceAccountName to return error
+		originalGetPoolServiceAccountName := activities.GetPoolServiceAccountName
+		defer func() { activities.GetPoolServiceAccountName = originalGetPoolServiceAccountName }()
+
+		activities.GetPoolServiceAccountName = func(pool *datamodel.Pool, projectID string) (string, error) {
+			return "", errors.New("failed to get pool service account")
+		}
+
+		// Act
+		err := activity.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get pool service account")
+	})
+
+	t.Run("WhenGrantStorageObjectAdminRoleFails_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backupTenantProject := "backup-project"
+
+		// Mock GetCloudService to return error
+		originalGetCloudService := activities.GetCloudService
+		defer func() { activities.GetCloudService = originalGetCloudService }()
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return nil, errors.New("failed to get cloud service")
+		}
+
+		// Act
+		err := activity.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get cloud service")
+	})
+
+	t.Run("WhenAttachOrUpdateRolesFails_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backupTenantProject := "backup-project"
+
+		// Mock GetCloudService and AttachOrUpdateRolesForServiceAccounts to return error
+		originalGetCloudService := activities.GetCloudService
+		defer func() { activities.GetCloudService = originalGetCloudService }()
+
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+		serviceAccountEmail := "test-service-account-id@target-project.iam.gserviceaccount.com"
+		roles := []string{"roles/storage.objectAdmin"}
+		mockGCPService.On("AttachOrUpdateRolesForServiceAccounts", roles, serviceAccountEmail, backupTenantProject).Return(errors.New("failed to attach role"))
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return mockGCPService, nil
+		}
+
+		// Act
+		err := activity.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to attach role")
+		mockGCPService.AssertExpectations(t)
+	})
+
+	t.Run("WhenEmptyServiceAccountId_ThenStillGrantRole", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+			ServiceAccountId: "", // Empty service account ID
+		}
+		backupTenantProject := "backup-project"
+
+		// Mock GetCloudService and AttachOrUpdateRolesForServiceAccounts
+		originalGetCloudService := activities.GetCloudService
+		defer func() { activities.GetCloudService = originalGetCloudService }()
+
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+		serviceAccountEmail := "@target-project.iam.gserviceaccount.com" // Empty service account ID results in this
+		roles := []string{"roles/storage.objectAdmin"}
+		mockGCPService.On("AttachOrUpdateRolesForServiceAccounts", roles, serviceAccountEmail, backupTenantProject).Return(nil)
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return mockGCPService, nil
+		}
+
+		// Act
+		err := activity.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+
+		// Assert
+		assert.NoError(t, err)
+		mockGCPService.AssertExpectations(t)
+	})
+
+	t.Run("WhenEmptyBackupTenantProject_ThenStillAttemptToGrantRole", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+			ServiceAccountId: "test-service-account-id",
+		}
+		backupTenantProject := "" // Empty backup tenant project
+
+		// Mock GetCloudService and AttachOrUpdateRolesForServiceAccounts
+		originalGetCloudService := activities.GetCloudService
+		defer func() { activities.GetCloudService = originalGetCloudService }()
+
+		mockGCPService := new(hyperscaler2.MockGoogleServices)
+		serviceAccountEmail := "test-service-account-id@target-project.iam.gserviceaccount.com"
+		roles := []string{"roles/storage.objectAdmin"}
+		mockGCPService.On("AttachOrUpdateRolesForServiceAccounts", roles, serviceAccountEmail, backupTenantProject).Return(nil)
+
+		activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+			return mockGCPService, nil
+		}
+
+		// Act
+		err := activity.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+
+		// Assert
+		assert.NoError(t, err)
+		mockGCPService.AssertExpectations(t)
+	})
+
+	t.Run("WhenNilTargetPool_ThenPanicOrError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		backupTenantProject := "backup-project"
+
+		// Act & Assert
+		// This should panic or return an error when trying to access nil pool's ClusterDetails
+		assert.Panics(t, func() {
+			_ = activity.SetupCrossTenantProjectPermissions(ctx, nil, backupTenantProject)
+		})
+	})
+}
+
 func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 	t.Run("WhenSameTenantProject_ThenReturnNil", func(t *testing.T) {
 		// Arrange
@@ -8404,4 +8596,438 @@ func TestFetchRemoteBackupVaultFromCVP(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSetupCrossRegionBackupPermissionsActivity_Success(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "us-central1",
+		},
+	}
+
+	backupRegion := "us-west1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-backup-vault-uuid",
+		},
+		Name:             "test-backup-vault",
+		BackupRegionName: &backupRegion,
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "backup-project-123",
+	}
+
+	// Mock GetCloudService
+	mockGCPService := hyperscaler2.NewMockGoogleServices(t)
+	originalGetCloudService := activities.GetCloudService
+	defer func() { activities.GetCloudService = originalGetCloudService }()
+
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockGCPService, nil
+	}
+
+	expectedServiceAccount := "test-service-account@us-central1.iam.gserviceaccount.com"
+	mockGCPService.On("AttachOrUpdateRolesForServiceAccounts",
+		[]string{"roles/storage.objectAdmin"},
+		expectedServiceAccount,
+		"backup-project-123",
+	).Return(nil).Once()
+
+	activity := &activities.VolumeCreateActivity{}
+
+	// Act
+	err := activity.SetupCrossRegionBackupPermissionsActivity(ctx, backupVault, pool, bucketDetails)
+
+	// Assert
+	assert.NoError(t, err)
+	mockGCPService.AssertExpectations(t)
+}
+
+func TestSetupCrossRegionBackupPermissionsActivity_SameRegion_SkipsSetup(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	sameRegion := "us-central1"
+	pool := &datamodel.Pool{
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: sameRegion,
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-backup-vault-uuid",
+		},
+		Name:             "test-backup-vault",
+		BackupRegionName: &sameRegion,
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "backup-project-123",
+	}
+
+	activity := &activities.VolumeCreateActivity{}
+
+	// Act
+	err := activity.SetupCrossRegionBackupPermissionsActivity(ctx, backupVault, pool, bucketDetails)
+
+	// Assert
+	assert.NoError(t, err)
+	// No GCP service calls should be made when regions are the same
+}
+
+func TestSetupCrossRegionBackupPermissionsActivity_MissingTenantProjectNumber_Error(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "us-central1",
+		},
+	}
+
+	backupRegion := "us-west1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-backup-vault-uuid",
+		},
+		Name:             "test-backup-vault",
+		BackupRegionName: &backupRegion,
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "", // Empty tenant project number
+	}
+
+	activity := &activities.VolumeCreateActivity{}
+
+	// Act
+	err := activity.SetupCrossRegionBackupPermissionsActivity(ctx, backupVault, pool, bucketDetails)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "TenantProjectNumber is required")
+}
+
+func TestSetupCrossRegionBackupPermissionsActivity_GetGCPServiceError(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "us-central1",
+		},
+	}
+
+	backupRegion := "us-west1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-backup-vault-uuid",
+		},
+		Name:             "test-backup-vault",
+		BackupRegionName: &backupRegion,
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "backup-project-123",
+	}
+
+	// Mock GetCloudService to return an error
+	originalGetCloudService := activities.GetCloudService
+	defer func() { activities.GetCloudService = originalGetCloudService }()
+
+	expectedError := fmt.Errorf("failed to get GCP service")
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return nil, expectedError
+	}
+
+	activity := &activities.VolumeCreateActivity{}
+
+	// Act
+	err := activity.SetupCrossRegionBackupPermissionsActivity(ctx, backupVault, pool, bucketDetails)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get GCP service")
+}
+
+func TestSetupCrossRegionBackupPermissionsActivity_AttachRolesError(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "us-central1",
+		},
+	}
+
+	backupRegion := "us-west1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-backup-vault-uuid",
+		},
+		Name:             "test-backup-vault",
+		BackupRegionName: &backupRegion,
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "backup-project-123",
+	}
+
+	// Mock GetCloudService
+	mockGCPService := hyperscaler2.NewMockGoogleServices(t)
+	originalGetCloudService := activities.GetCloudService
+	defer func() { activities.GetCloudService = originalGetCloudService }()
+
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockGCPService, nil
+	}
+
+	expectedServiceAccount := "test-service-account@us-central1.iam.gserviceaccount.com"
+	expectedError := fmt.Errorf("failed to attach roles")
+	mockGCPService.On("AttachOrUpdateRolesForServiceAccounts",
+		[]string{"roles/storage.objectAdmin"},
+		expectedServiceAccount,
+		"backup-project-123",
+	).Return(expectedError).Once()
+
+	activity := &activities.VolumeCreateActivity{}
+
+	// Act
+	err := activity.SetupCrossRegionBackupPermissionsActivity(ctx, backupVault, pool, bucketDetails)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to attach roles")
+	mockGCPService.AssertExpectations(t)
+}
+
+func TestSetupCrossTenantProjectPermissions_Success(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	targetPool := &datamodel.Pool{
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-tenant-project",
+		},
+	}
+	backupTenantProject := "backup-tenant-project"
+
+	// Mock GetPoolServiceAccountName
+	originalGetPoolServiceAccount := activities.GetPoolServiceAccountName
+	defer func() { activities.GetPoolServiceAccountName = originalGetPoolServiceAccount }()
+
+	activities.GetPoolServiceAccountName = func(pool *datamodel.Pool, projectID string) (string, error) {
+		assert.Equal(t, targetPool, pool)
+		assert.Equal(t, "test-tenant-project", projectID)
+		return "test-service-account@test-tenant-project.iam.gserviceaccount.com", nil
+	}
+
+	// Mock GrantStorageObjectAdminRole
+	originalGrantStorageObjectAdminRole := activities.GrantStorageObjectAdminRole
+	defer func() { activities.GrantStorageObjectAdminRole = originalGrantStorageObjectAdminRole }()
+
+	grantRoleCalled := false
+	activities.GrantStorageObjectAdminRole = func(ctx context.Context, serviceAccountEmail, projectID string) error {
+		grantRoleCalled = true
+		assert.Equal(t, "test-service-account@test-tenant-project.iam.gserviceaccount.com", serviceAccountEmail)
+		assert.Equal(t, "backup-tenant-project", projectID)
+		return nil
+	}
+
+	activity := &activities.VolumeCreateActivity{}
+
+	// Act
+	err := activity.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.True(t, grantRoleCalled)
+}
+
+func TestSetupCrossTenantProjectPermissions_GetPoolServiceAccountError(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	targetPool := &datamodel.Pool{
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-tenant-project",
+		},
+	}
+	backupTenantProject := "backup-tenant-project"
+
+	// Mock GetPoolServiceAccountName to return an error
+	originalGetPoolServiceAccount := activities.GetPoolServiceAccountName
+	defer func() { activities.GetPoolServiceAccountName = originalGetPoolServiceAccount }()
+
+	expectedError := fmt.Errorf("failed to get pool service account")
+	activities.GetPoolServiceAccountName = func(pool *datamodel.Pool, projectID string) (string, error) {
+		return "", expectedError
+	}
+
+	activity := &activities.VolumeCreateActivity{}
+
+	// Act
+	err := activity.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get pool service account")
+}
+
+func TestSetupCrossTenantProjectPermissions_GrantStorageObjectAdminRoleError(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	targetPool := &datamodel.Pool{
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-tenant-project",
+		},
+	}
+	backupTenantProject := "backup-tenant-project"
+
+	// Mock GetPoolServiceAccountName
+	originalGetPoolServiceAccount := activities.GetPoolServiceAccountName
+	defer func() { activities.GetPoolServiceAccountName = originalGetPoolServiceAccount }()
+
+	activities.GetPoolServiceAccountName = func(pool *datamodel.Pool, projectID string) (string, error) {
+		return "test-service-account@test-tenant-project.iam.gserviceaccount.com", nil
+	}
+
+	// Mock GrantStorageObjectAdminRole to return an error
+	originalGrantStorageObjectAdminRole := activities.GrantStorageObjectAdminRole
+	defer func() { activities.GrantStorageObjectAdminRole = originalGrantStorageObjectAdminRole }()
+
+	expectedError := fmt.Errorf("failed to grant storage.objectAdmin role")
+	activities.GrantStorageObjectAdminRole = func(ctx context.Context, serviceAccountEmail, projectID string) error {
+		return expectedError
+	}
+
+	activity := &activities.VolumeCreateActivity{}
+
+	// Act
+	err := activity.SetupCrossTenantProjectPermissions(ctx, targetPool, backupTenantProject)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to grant storage.objectAdmin role")
+}
+
+func TestGetPoolServiceAccount_Success(t *testing.T) {
+	// Arrange
+	pool := &datamodel.Pool{
+		ServiceAccountId: "test-service-account",
+	}
+	projectID := "test-project-123"
+
+	expectedEmail := "test-service-account@test-project-123.iam.gserviceaccount.com"
+
+	// Act
+	email, err := activities.GetPoolServiceAccountName(pool, projectID)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expectedEmail, email)
+}
+
+func TestGrantStorageObjectAdminRole_Success(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	serviceAccountEmail := "test-sa@test-project.iam.gserviceaccount.com"
+	projectID := "test-project-123"
+
+	// Mock GetCloudService
+	mockGCPService := hyperscaler2.NewMockGoogleServices(t)
+	originalGetCloudService := activities.GetCloudService
+	defer func() { activities.GetCloudService = originalGetCloudService }()
+
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockGCPService, nil
+	}
+
+	// Mock AttachOrUpdateRolesForServiceAccounts
+	mockGCPService.On("AttachOrUpdateRolesForServiceAccounts",
+		[]string{"roles/storage.objectAdmin"},
+		serviceAccountEmail,
+		projectID,
+	).Return(nil).Once()
+
+	// Act
+	err := activities.GrantStorageObjectAdminRole(ctx, serviceAccountEmail, projectID)
+
+	// Assert
+	assert.NoError(t, err)
+	mockGCPService.AssertExpectations(t)
+}
+
+func TestGrantStorageObjectAdminRole_GetCloudServiceError(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	serviceAccountEmail := "test-sa@test-project.iam.gserviceaccount.com"
+	projectID := "test-project-123"
+
+	// Mock GetCloudService to return an error
+	originalGetCloudService := activities.GetCloudService
+	defer func() { activities.GetCloudService = originalGetCloudService }()
+
+	expectedError := fmt.Errorf("failed to get cloud service")
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return nil, expectedError
+	}
+
+	// Act
+	err := activities.GrantStorageObjectAdminRole(ctx, serviceAccountEmail, projectID)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get cloud service")
+}
+
+func TestGrantStorageObjectAdminRole_AttachRolesError(t *testing.T) {
+	// Arrange
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	serviceAccountEmail := "test-sa@test-project.iam.gserviceaccount.com"
+	projectID := "test-project-123"
+
+	// Mock GetCloudService
+	mockGCPService := hyperscaler2.NewMockGoogleServices(t)
+	originalGetCloudService := activities.GetCloudService
+	defer func() { activities.GetCloudService = originalGetCloudService }()
+
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockGCPService, nil
+	}
+
+	// Mock AttachOrUpdateRolesForServiceAccounts to return an error
+	expectedError := fmt.Errorf("failed to attach roles")
+	mockGCPService.On("AttachOrUpdateRolesForServiceAccounts",
+		[]string{"roles/storage.objectAdmin"},
+		serviceAccountEmail,
+		projectID,
+	).Return(expectedError).Once()
+
+	// Act
+	err := activities.GrantStorageObjectAdminRole(ctx, serviceAccountEmail, projectID)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to attach roles")
+	mockGCPService.AssertExpectations(t)
 }

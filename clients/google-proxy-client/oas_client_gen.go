@@ -350,6 +350,13 @@ type Invoker interface {
 	//
 	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
 	V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context, params V1betaInternalDeleteBackupUnderBackupVaultParams) (V1betaInternalDeleteBackupUnderBackupVaultRes, error)
+	// V1betaInternalDeleteBackupVault invokes v1beta_internalDeleteBackupVault operation.
+	//
+	// Internal endpoint to delete a cross-region backup vault from the destination region. This
+	// operation will permanently delete the backup vault.
+	//
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+	V1betaInternalDeleteBackupVault(ctx context.Context, params V1betaInternalDeleteBackupVaultParams) (V1betaInternalDeleteBackupVaultRes, error)
 	// V1betaInternalDeleteVolumeReplication invokes v1beta_internalDeleteVolumeReplication operation.
 	//
 	// Warning! This operation will permanently delete the volume replication.
@@ -442,6 +449,13 @@ type Invoker interface {
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop
 	V1betaInternalStopVolumeReplication(ctx context.Context, request *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (V1betaInternalStopVolumeReplicationRes, error)
+	// V1betaInternalUpdateBackupVault invokes v1beta_internalUpdateBackupVault operation.
+	//
+	// Internal endpoint to update a cross-region backup vault in the destination region. This operation
+	// allows updating backup vault properties in the remote region's VCP database.
+	//
+	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+	V1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)
 	// V1betaInternalUpdateVolume invokes v1beta_internalUpdateVolume operation.
 	//
 	// Update the volume (Internal endpoint).
@@ -6573,6 +6587,115 @@ func (c *Client) sendV1betaInternalDeleteBackupUnderBackupVault(ctx context.Cont
 	return result, nil
 }
 
+// V1betaInternalDeleteBackupVault invokes v1beta_internalDeleteBackupVault operation.
+//
+// Internal endpoint to delete a cross-region backup vault from the destination region. This
+// operation will permanently delete the backup vault.
+//
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (c *Client) V1betaInternalDeleteBackupVault(ctx context.Context, params V1betaInternalDeleteBackupVaultParams) (V1betaInternalDeleteBackupVaultRes, error) {
+	res, err := c.sendV1betaInternalDeleteBackupVault(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaInternalDeleteBackupVault(ctx context.Context, params V1betaInternalDeleteBackupVaultParams) (res V1betaInternalDeleteBackupVaultRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [6]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/backupVaults/"
+	{
+		// Encode "backupVaultId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupVaultId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupVaultId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaInternalDeleteBackupVaultResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaInternalDeleteVolumeReplication invokes v1beta_internalDeleteVolumeReplication operation.
 //
 // Warning! This operation will permanently delete the volume replication.
@@ -8227,6 +8350,127 @@ func (c *Client) sendV1betaInternalStopVolumeReplication(ctx context.Context, re
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaInternalStopVolumeReplicationResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaInternalUpdateBackupVault invokes v1beta_internalUpdateBackupVault operation.
+//
+// Internal endpoint to update a cross-region backup vault in the destination region. This operation
+// allows updating backup vault properties in the remote region's VCP database.
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
+func (c *Client) V1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error) {
+	res, err := c.sendV1betaInternalUpdateBackupVault(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (res V1betaInternalUpdateBackupVaultRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [6]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/backupVaults/"
+	{
+		// Encode "backupVaultId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupVaultId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupVaultId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaInternalUpdateBackupVaultRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaInternalUpdateBackupVaultResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

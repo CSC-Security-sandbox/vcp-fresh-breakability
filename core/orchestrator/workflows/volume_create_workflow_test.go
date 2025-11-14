@@ -96,6 +96,8 @@ func (s *UnitTestSuite) SetupTest() {
 	s.env.RegisterActivity(volumeCreateActivity.GenerateResourceNames)
 	s.env.RegisterActivity(volumeCreateActivity.CreateBucket)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity)
 	s.env.RegisterActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP)
 	s.env.RegisterActivity(volumeCreateActivity.CreateBackupPolicyFetchedFromSDE)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateLunName)
@@ -2651,6 +2653,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreat
 		SatisfiesPzs:        true,
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock SetupCrossRegionBackupPermissionsActivity - not called for LOCAL backup vault type
+	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -4008,6 +4012,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_BackupVaultWithEmptyBucketDeta
 	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
 	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(nil, errors.New("cloud service error - bucket sync failed"))
 	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock SetupCrossRegionBackupPermissionsActivity - not called for non-cross-region backup vault
+	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute the workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume, nil, nil)
@@ -4095,6 +4101,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WithSplitVolumeAndChildWorkflo
 
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock SetupCrossRegionBackupPermissionsActivity - not called for non-cross-region backup vault
+	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute the workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume, nil, nil)
@@ -4357,6 +4365,10 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Success() {
 	// This is the activity we're specifically testing
 	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP,
 		mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock SetupCrossRegionBackupPermissionsActivity for cross-region backup vault
+	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity,
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow with cross-region backup vault
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow,

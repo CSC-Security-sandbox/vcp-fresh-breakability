@@ -211,14 +211,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									if len(elem) == 0 {
 										switch r.Method {
+										case "DELETE":
+											s.handleV1betaInternalDeleteBackupVaultRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
 										case "GET":
 											s.handleV1betaInternalDescribeBackupVaultRequest([3]string{
 												args[0],
 												args[1],
 												args[2],
 											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleV1betaInternalUpdateBackupVaultRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
 										default:
-											s.notAllowed(w, r, "GET")
+											s.notAllowed(w, r, "DELETE,GET,PUT")
 										}
 
 										return
@@ -2612,10 +2624,26 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 									if len(elem) == 0 {
 										switch method {
+										case "DELETE":
+											r.name = V1betaInternalDeleteBackupVaultOperation
+											r.summary = "Delete a backup vault (Internal)"
+											r.operationID = "v1beta_internalDeleteBackupVault"
+											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"
+											r.args = args
+											r.count = 3
+											return r, true
 										case "GET":
 											r.name = V1betaInternalDescribeBackupVaultOperation
 											r.summary = "Fetch a remote BackupVault from the VCP database"
 											r.operationID = "v1beta_internalDescribeBackupVault"
+											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										case "PUT":
+											r.name = V1betaInternalUpdateBackupVaultOperation
+											r.summary = "Update a backup vault (Internal)"
+											r.operationID = "v1beta_internalUpdateBackupVault"
 											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}"
 											r.args = args
 											r.count = 3
