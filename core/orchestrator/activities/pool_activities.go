@@ -958,58 +958,44 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 		nodeMap[node.Name] = node.ID
 	}
 
-	lifs := svm.SVMLIFs[vlm.LIFTypeSan]
+	createLifs := func(lifType vlm.VSALIFType, protocolType string) error {
+		for _, lif := range svm.SVMLIFs[lifType] {
+			ip := strings.Split(lif.IP, "/")[0]
 
-	for _, lif := range lifs {
-		dataLif := lif.IP
-		ip := strings.Split(dataLif, "/")[0]
+			nodeID, exists := nodeMap[lif.HomeNode]
+			if !exists {
+				return vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, fmt.Errorf("LIF %s references non-existent home node %s", lif.Name, lif.HomeNode))
+			}
 
-		// Validate that the HomeNode exists in the nodeMap
-		nodeID, exists := nodeMap[lif.HomeNode]
-		if !exists {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, fmt.Errorf("LIF %s references non-existent home node %s", lif.Name, lif.HomeNode))
-		}
+			lifRec := &datamodel.Lif{
+				Name:      lif.Name,
+				AccountID: pool.AccountID,
+				NodeID:    nodeID,
+				LifDetails: &datamodel.LifDetails{
+					ExternalUUID: lif.Uuid,
+					ProtocolType: protocolType,
+				},
+				IPAddress:  ip,
+				SubnetMask: vsa.DefaultNetmask,
+			}
 
-		lifRec := &datamodel.Lif{
-			Name:      lif.Name,
-			AccountID: pool.AccountID,
-			NodeID:    nodeID,
-			LifDetails: &datamodel.LifDetails{
-				ExternalUUID: lif.Uuid,
-				ProtocolType: string(vlm.LIFTypeSan),
-			},
-			IPAddress:  ip,
-			SubnetMask: vsa.DefaultNetmask,
+			if _, err := se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
 		}
-		if _, err = se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-		}
+		return nil
 	}
 
-	lifs = svm.SVMLIFs[vlm.LIFTypeNas]
-	for _, lif := range lifs {
-		dataLif := lif.IP
-		ip := strings.Split(dataLif, "/")[0]
+	if err := createLifs(vlm.LIFTypeSan, string(vlm.LIFTypeSan)); err != nil {
+		return nil, err
+	}
 
-		// Validate that the HomeNode exists in the nodeMap
-		nodeID, exists := nodeMap[lif.HomeNode]
-		if !exists {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, fmt.Errorf("LIF %s references non-existent home node %s", lif.Name, lif.HomeNode))
-		}
+	if err := createLifs(vlm.LIFTypeNas, string(vlm.LIFTypeNas)); err != nil {
+		return nil, err
+	}
 
-		lifRec := &datamodel.Lif{
-			Name:      lif.Name,
-			AccountID: pool.AccountID,
-			NodeID:    nodeID,
-			LifDetails: &datamodel.LifDetails{
-				ExternalUUID: lif.Uuid,
-				ProtocolType: string(vlm.LIFTypeNas),
-			},
-			IPAddress:  ip,
-			SubnetMask: vsa.DefaultNetmask}
-		if _, err = se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-		}
+	if err := createLifs(vlm.LIFTypeIlbNas, string(vlm.LIFTypeNas)); err != nil {
+		return nil, err
 	}
 
 	return createdSvm, nil

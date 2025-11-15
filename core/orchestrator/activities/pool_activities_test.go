@@ -844,6 +844,85 @@ func Test_SaveSVMAndLifData_Success(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func Test_SaveSVMAndLifData_CreatesIlbNasLifs(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 42}, AccountID: 77}
+	vlmConfig := &vlm.VLMConfig{
+		Svm: map[string]vlm.SvmConfig{
+			"svm-name": {
+				Svmname: "svm-name",
+				Svmuuid: "svm-uuid",
+				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
+					vlm.LIFTypeSan: {
+						{IP: "10.0.0.1/24", Name: "san-lif", HomeNode: "node-san", Uuid: "san-uuid"},
+					},
+					vlm.LIFTypeNas: {
+						{IP: "10.0.0.2/24", Name: "nas-lif", HomeNode: "node-nas", Uuid: "nas-uuid"},
+					},
+					vlm.LIFTypeIlbNas: {
+						{IP: "10.0.0.3/24", Name: "ilb-lif", HomeNode: "node-ilb", Uuid: "ilb-uuid"},
+					},
+				},
+			},
+		},
+	}
+
+	mockStorage.On("CreateSVM", ctx, mock.Anything).Return(&datamodel.Svm{}, nil)
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-san"},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node-nas"},
+		{BaseModel: datamodel.BaseModel{ID: 3}, Name: "node-ilb"},
+	}, nil)
+
+	var capturedLifs []*datamodel.Lif
+	mockStorage.On("CreateLif", mock.Anything, mock.MatchedBy(func(lif *datamodel.Lif) bool {
+		copied := *lif
+		if lif.LifDetails != nil {
+			detailsCopy := *lif.LifDetails
+			copied.LifDetails = &detailsCopy
+		}
+		capturedLifs = append(capturedLifs, &copied)
+		return true
+	})).Return(&datamodel.Lif{}, nil).Times(3)
+
+	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig, "svm-name")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, svm)
+	require.Len(t, capturedLifs, 3)
+
+	for _, lif := range capturedLifs {
+		assert.NotContains(t, lif.IPAddress, "/")
+		assert.Equal(t, pool.AccountID, lif.AccountID)
+		assert.Equal(t, vsa.DefaultNetmask, lif.SubnetMask)
+		require.NotNil(t, lif.LifDetails)
+		require.NotEmpty(t, lif.LifDetails.ExternalUUID)
+	}
+
+	lifByName := map[string]*datamodel.Lif{}
+	for _, lif := range capturedLifs {
+		lifByName[lif.Name] = lif
+	}
+
+	require.Contains(t, lifByName, "ilb-lif")
+	ilbLif := lifByName["ilb-lif"]
+	assert.Equal(t, string(vlm.LIFTypeNas), ilbLif.LifDetails.ProtocolType)
+	assert.Equal(t, int64(3), ilbLif.NodeID)
+	assert.Equal(t, "10.0.0.3", ilbLif.IPAddress)
+	assert.Equal(t, "ilb-uuid", ilbLif.LifDetails.ExternalUUID)
+
+	require.Contains(t, lifByName, "san-lif")
+	assert.Equal(t, string(vlm.LIFTypeSan), lifByName["san-lif"].LifDetails.ProtocolType)
+
+	require.Contains(t, lifByName, "nas-lif")
+	assert.Equal(t, string(vlm.LIFTypeNas), lifByName["nas-lif"].LifDetails.ProtocolType)
+
+	mockStorage.AssertExpectations(t)
+}
+
 func Test_SaveSVMAndLifDataDBCreationError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
