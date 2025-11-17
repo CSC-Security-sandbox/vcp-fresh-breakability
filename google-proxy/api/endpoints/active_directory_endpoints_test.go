@@ -245,6 +245,37 @@ func TestV1betaCreateActiveDirectory_InternalServerError(t *testing.T) {
 	assert.True(t, ok)
 }
 
+func TestV1betaCreateActiveDirectory_Conflict(t *testing.T) {
+	// Set CVP_HOST to localhost:8009 to use CVS path
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+	mockOrchestrator.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", customerrors.NewConflictErr("Active Directory with the given name already exists"))
+	handler.Orchestrator = mockOrchestrator
+
+	req := &gcpgenserver.ActiveDirectoryV1beta{
+		Username:   "user",
+		ResourceId: "existing-ad-name",
+		Password:   "pass",
+		Domain:     "domain",
+		DNS:        "192.168.1.1",
+		NetBIOS:    "netbios",
+	}
+	params := gcpgenserver.V1betaCreateActiveDirectoryParams{
+		ProjectNumber: "pn",
+		LocationId:    "loc",
+	}
+	res, err := handler.V1betaCreateActiveDirectory(context.Background(), req, params)
+	assert.NoError(t, err)
+	conflictRes, ok := res.(*gcpgenserver.V1betaCreateActiveDirectoryConflict)
+	assert.True(t, ok)
+	assert.Equal(t, float64(409), conflictRes.Code)
+	assert.Contains(t, conflictRes.Message, "Active Directory with the given name already exists")
+}
+
 func TestConvertToActiveDirectoryV1Beta(t *testing.T) {
 	ad := &vcpModels.ActiveDirectory{
 		BaseModel: vcpModels.BaseModel{

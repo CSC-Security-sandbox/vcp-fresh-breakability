@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"net"
+	"regexp"
+	"strings"
+
 	ber "github.com/go-asn1-ber/asn1-ber"
 	"github.com/go-openapi/validate"
 	"github.com/go-playground/validator/v10"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"net"
-	"regexp"
-	"strings"
 )
 
 type ActiveDirectoryValidator struct {
@@ -22,14 +23,16 @@ type ActiveDirectoryValidator struct {
 }
 
 const (
-	netBIOSPattern        = `(^[^\.\\/:*?"<>|\s@()=+\[\];,#]$)|(^[^\.\\/:*?"<>|\s@()=+\[\];,#][^\\/:*?"<>|\s@()=+\[\];,#]{0,8}[^\.\\/:*?"<>|\s@()=+\[\];,#]$)`
-	sitePattern           = `(^[A-Za-z0-9]+[A-Za-z0-9\.\-]*[A-Za-z0-9]$)`
-	netBIOSValidationErr  = `netBIOS in body must not contain any of the following characters: \/;*?"<>|@#()=+[]:, nor start or end with a dot.`
-	siteValidationErr     = `Site names have to be at least 2 characters long (an empty string clears site assignment), can contain only alphabetical characters (A-Z), numeric characters (0-9), the minus sign (-), and the period (.). Period characters are allowed only when they are used to delimit the components of domain style names.`
-	adUserValidationErr   = `Active Directory users must be unique and should not have the domain prefixed.`
-	dnsValidationErr      = `Active Directory DNS cannot be a loopback ip, broadcast ip or multicast ip.`
-	adNameValidationErr   = `Active Directory AD server name cannot be an ip address, provide AD server hostname`
-	usernameValidationErr = `Active directory username should not contain any of the following characters: /\[]:;|=,+*?"<>`
+	netBIOSPattern           = `(^[^\.\\/:*?"<>|\s@()=+\[\];,#]$)|(^[^\.\\/:*?"<>|\s@()=+\[\];,#][^\\/:*?"<>|\s@()=+\[\];,#]{0,8}[^\.\\/:*?"<>|\s@()=+\[\];,#]$)`
+	sitePattern              = `(^[A-Za-z0-9]+[A-Za-z0-9\.\-]*[A-Za-z0-9]$)`
+	netBIOSValidationErr     = `netBIOS in body must not contain any of the following characters: \/;*?"<>|@#()=+[]:, nor start or end with a dot.`
+	siteValidationErr        = `Site names have to be at least 2 characters long (an empty string clears site assignment), can contain only alphabetical characters (A-Z), numeric characters (0-9), the minus sign (-), and the period (.). Period characters are allowed only when they are used to delimit the components of domain style names.`
+	adUserValidationErr      = `Active Directory users must be unique and should not have the domain prefixed.`
+	dnsValidationErr         = `Active Directory DNS cannot be a loopback ip, broadcast ip or multicast ip.`
+	adNameValidationErr      = `Active Directory AD server name cannot be an ip address, provide AD server hostname`
+	usernameValidationErr    = `Active directory username should not contain any of the following characters: /\[]:;|=,+*?"<>`
+	kdcIpValidationErr       = "KdcIP must be at least 7 characters long to be valid"
+	kdcHostNameValidationErr = "KdcHostName must be at least 1 character long to be valid"
 )
 
 var (
@@ -109,7 +112,19 @@ func (adValidator *ActiveDirectoryValidator) RegisterValidators() error {
 		return err
 	}
 	adValidator.AddTranslation("LocationId")
-	
+
+	err = adValidator.validate.RegisterValidation("KdcIP", adValidator.kdcIpValidator)
+	if err != nil {
+		return err
+	}
+	adValidator.AddTranslation("KdcIP")
+
+	err = adValidator.validate.RegisterValidation("KdcHostname", adValidator.kdcHostNameValidator)
+	if err != nil {
+		return err
+	}
+	adValidator.AddTranslation("KdcHostname")
+
 	return nil
 }
 
@@ -203,6 +218,24 @@ func (adValidator *ActiveDirectoryValidator) adNameValidator(fl validator.FieldL
 	adValidator.dnErrorStore.Store(fl.StructFieldName(), adNameValidationErr)
 	ip := net.ParseIP(fl.Field().String())
 	if ip != nil {
+		return false
+	}
+	return true
+}
+
+func (adValidator *ActiveDirectoryValidator) kdcIpValidator(fl validator.FieldLevel) bool {
+	adValidator.dnErrorStore.Store(fl.StructFieldName(), kdcIpValidationErr)
+	kdcIP := fl.Field().String()
+	if kdcIP != "" && len(kdcIP) < 7 {
+		return false
+	}
+	return true
+}
+
+func (adValidator *ActiveDirectoryValidator) kdcHostNameValidator(fl validator.FieldLevel) bool {
+	adValidator.dnErrorStore.Store(fl.StructFieldName(), kdcHostNameValidationErr)
+	kdcHostName := fl.Field().String()
+	if kdcHostName != "" && len(kdcHostName) < 1 {
 		return false
 	}
 	return true

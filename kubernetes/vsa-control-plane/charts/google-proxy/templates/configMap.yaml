@@ -89,6 +89,7 @@ data:
   THIN_CLONE_GA_SUPPORT: "{{ index .Values "thinCloneGASupport" }}"
   MAX_THIN_CLONES_PER_POOL: "{{ index .Values "maxThinClonesPerPool" }}"
   ENABLE_AUTO_POOL_SCALING: "{{ index .Values "enableAutoPoolScaling" }}"
+  SECRET_MANAGER_PROJECT_ID: "{{ index .Values "secretManagerProjectId" }}"
   AUTO_POOL_SCALING_LIMITS:  {{ index .Values "autoPoolScalingLimits" | toJson | quote }}
 
   config.yaml: |

@@ -272,6 +272,43 @@ func TestCreateActiveDirectoryFunction(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Active Directory with the given name already exists", "Expected duplicate AD error message")
 	})
 
+	t.Run("WhenDuplicateActiveDirectoryExistsViaRepositoryMethod", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create first active directory
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "duplicate-test-uuid-3",
+			},
+			AdName:    "duplicate-repo-test-ad",
+			AccountId: 789,
+		}
+
+		result, err := store.CreateActiveDirectory(context.Background(), ad)
+		assert.NoError(tt, err, "Expected no error creating first AD")
+		assert.NotNil(tt, result, "Expected first result to not be nil")
+
+		// Try to create duplicate active directory
+		duplicateAd := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "duplicate-test-uuid-4",
+			},
+			AdName:    "duplicate-repo-test-ad",
+			AccountId: 789,
+		}
+
+		result, err = store.CreateActiveDirectory(context.Background(), duplicateAd)
+		assert.Error(tt, err, "Expected error when creating duplicate AD")
+		assert.Nil(tt, result, "Expected result to be nil on duplicate")
+		assert.Contains(tt, err.Error(), "Active Directory with the given name already exists", "Expected duplicate AD error message")
+	})
+
 	t.Run("WhenDirectFunctionCallFails", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err, "Failed to set up test database")

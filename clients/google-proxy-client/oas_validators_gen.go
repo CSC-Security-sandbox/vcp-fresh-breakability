@@ -258,8 +258,8 @@ func (s *ActiveDirectoryUpdateV1beta) Validate() error {
 		if value, ok := s.KdcIP.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    7,
-					MinLengthSet: true,
+					MinLength:    0,
+					MinLengthSet: false,
 					MaxLength:    15,
 					MaxLengthSet: true,
 					Email:        false,
@@ -284,8 +284,8 @@ func (s *ActiveDirectoryUpdateV1beta) Validate() error {
 		if value, ok := s.KdcHostname.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    1,
-					MinLengthSet: true,
+					MinLength:    0,
+					MinLengthSet: false,
 					MaxLength:    64,
 					MaxLengthSet: true,
 					Email:        false,
@@ -639,8 +639,8 @@ func (s *ActiveDirectoryV1beta) Validate() error {
 		if value, ok := s.KdcIP.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    7,
-					MinLengthSet: true,
+					MinLength:    0,
+					MinLengthSet: false,
 					MaxLength:    15,
 					MaxLengthSet: true,
 					Email:        false,
@@ -665,8 +665,8 @@ func (s *ActiveDirectoryV1beta) Validate() error {
 		if value, ok := s.KdcHostname.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    1,
-					MinLengthSet: true,
+					MinLength:    0,
+					MinLengthSet: false,
 					MaxLength:    64,
 					MaxLengthSet: true,
 					Email:        false,

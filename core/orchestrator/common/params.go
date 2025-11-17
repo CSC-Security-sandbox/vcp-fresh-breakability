@@ -678,8 +678,8 @@ type CreateActiveDirectoryParams struct {
 	NetBIOS                    string `json:"netBIOS" validate:"NetBIOS"`
 	OrganizationalUnit         string `json:"organizationalUnit" validate:"OrganizationalUnit"`
 	Site                       string `json:"Site" validate:"Site"`
-	KdcIP                      string
-	KdcHostname                string
+	KdcIP                      string `json:"kdcIP" validate:"KdcIP"`
+	KdcHostname                string `json:"kdcHostname" validate:"KdcHostname"`
 	LdapSigning                bool
 	AllowLocalNFSUsersWithLdap bool
 	EncryptDCConnections       bool

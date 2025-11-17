@@ -72,6 +72,7 @@ enableAutoPoolScaling: true
 hardDeleteResources: true
 scheduleHardDelete: false
 createCommonResourcesInVCP: true
+secretManagerProjectId: "402007546452"
 autoPoolScalingLimits:
   c3-standard-4-lssd:
     min_volume_count: 1

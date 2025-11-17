@@ -591,6 +591,196 @@ func TestActiveDirectoryValidator_ADNameValidator_Invalid(t *testing.T) {
 	}
 }
 
+func TestActiveDirectoryValidator_KdcIpValidator_Valid(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	if err != nil {
+		return
+	}
+
+	validIPs := []string{
+		"",                // empty string allowed (optional field)
+		"1.2.3.4",         // minimum valid length (7 chars)
+		"10.0.0.1",        // 8 chars
+		"192.168.1.1",     // 11 chars
+		"255.255.255.255", // maximum length (15 chars)
+		"172.16.254.1",    // 12 chars
+		"8.8.8.8",         // 7 chars exactly
+	}
+
+	for _, ip := range validIPs {
+		t.Run("valid_kdcip_"+ip, func(t *testing.T) {
+			type TestStruct struct {
+				KdcIP string `validate:"KdcIP"`
+			}
+			testObj := &TestStruct{KdcIP: ip}
+			err := adValidator.validate.Struct(testObj)
+			assert.NoError(t, err, "KdcIP '%s' should be valid", ip)
+		})
+	}
+}
+
+func TestActiveDirectoryValidator_KdcIpValidator_Invalid(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	if err != nil {
+		return
+	}
+
+	invalidIPs := []string{
+		"1.2.3",  // 5 chars - too short
+		"10.0.0", // 6 chars - too short
+		"1.2.3.", // 6 chars - incomplete
+		"short",  // 5 chars
+		"abc",    // 3 chars
+	}
+
+	for _, ip := range invalidIPs {
+		t.Run("invalid_kdcip_"+ip, func(t *testing.T) {
+			type TestStruct struct {
+				KdcIP string `validate:"KdcIP"`
+			}
+			testObj := &TestStruct{KdcIP: ip}
+			err := adValidator.validate.Struct(testObj)
+			require.Error(t, err, "KdcIP '%s' should be invalid", ip)
+
+			var validationErrs validator.ValidationErrors
+			ok := errors.As(err, &validationErrs)
+			require.True(t, ok, "error should be ValidationErrors type")
+			require.Len(t, validationErrs, 1, "should have exactly one validation error")
+
+			translatedMsg := validationErrs[0].Translate(adValidator.Translator)
+			assert.Equal(t, kdcIpValidationErr, translatedMsg, "should use custom error message")
+		})
+	}
+}
+
+func TestActiveDirectoryValidator_KdcHostnameValidator_Valid(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	if err != nil {
+		return
+	}
+
+	validHostnames := []string{
+		"",                  // empty string allowed (optional field)
+		"a",                 // minimum valid length (1 char)
+		"host",              // 4 chars
+		"ad-server",         // 9 chars
+		"myactivedirectory", // 18 chars
+		"AD1234567890",      // 12 chars
+		"kdc.example.com",   // FQDN
+		"very-long-hostname-that-is-still-valid-as-per-spec", // long hostname
+	}
+
+	for _, hostname := range validHostnames {
+		t.Run("valid_kdchostname_"+hostname, func(t *testing.T) {
+			type TestStruct struct {
+				KdcHostname string `validate:"KdcHostname"`
+			}
+			testObj := &TestStruct{KdcHostname: hostname}
+			err := adValidator.validate.Struct(testObj)
+			assert.NoError(t, err, "KdcHostname '%s' should be valid", hostname)
+		})
+	}
+}
+
+func TestActiveDirectoryValidator_KdcHostnameValidator_Invalid(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	if err != nil {
+		return
+	}
+
+	// According to the validator, the only invalid case is when
+	// the string is non-empty but has length < 1 (which is impossible)
+	// So we test edge cases where it might fail
+
+	// Note: The current implementation only fails if len < 1 and non-nil
+	// Since Go strings can't have negative length, this test verifies
+	// that the validator is correctly registered
+
+	t.Run("validator_registration", func(t *testing.T) {
+		type TestStruct struct {
+			KdcHostname string `validate:"KdcHostname"`
+		}
+		// Test that valid values pass
+		testObj := &TestStruct{KdcHostname: "validhost"}
+		err := adValidator.validate.Struct(testObj)
+		assert.NoError(t, err, "Valid hostname should pass")
+
+		// Empty string should also pass as it's optional
+		testObj = &TestStruct{KdcHostname: ""}
+		err = adValidator.validate.Struct(testObj)
+		assert.NoError(t, err, "Empty hostname should pass")
+	})
+}
+
+func TestActiveDirectoryValidator_KdcValidators_InParams(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	if err != nil {
+		return
+	}
+
+	// Simulate the actual params structure
+	type CreateADParams struct {
+		KdcIP       string `validate:"KdcIP"`
+		KdcHostname string `validate:"KdcHostname"`
+	}
+
+	t.Run("ValidKdcIPAndHostname", func(t *testing.T) {
+		params := &CreateADParams{
+			KdcIP:       "192.168.1.10",
+			KdcHostname: "ad-server",
+		}
+		err := adValidator.validate.Struct(params)
+		assert.NoError(t, err, "Valid KDC params should pass validation")
+	})
+
+	t.Run("EmptyKdcIPAndHostname", func(t *testing.T) {
+		params := &CreateADParams{
+			KdcIP:       "",
+			KdcHostname: "",
+		}
+		err := adValidator.validate.Struct(params)
+		assert.NoError(t, err, "Empty KDC params should pass validation")
+	})
+
+	t.Run("InvalidKdcIPTooShort", func(t *testing.T) {
+		params := &CreateADParams{
+			KdcIP:       "1.2.3",
+			KdcHostname: "ad-server",
+		}
+		err := adValidator.validate.Struct(params)
+		require.Error(t, err, "Too short KdcIP should fail validation")
+
+		var validationErrs validator.ValidationErrors
+		ok := errors.As(err, &validationErrs)
+		require.True(t, ok, "error should be ValidationErrors type")
+		assert.Len(t, validationErrs, 1, "should have exactly one validation error")
+	})
+
+	t.Run("ValidKdcIPMinimumLength", func(t *testing.T) {
+		params := &CreateADParams{
+			KdcIP:       "1.2.3.4",
+			KdcHostname: "h",
+		}
+		err := adValidator.validate.Struct(params)
+		assert.NoError(t, err, "Minimum valid length KDC params should pass validation")
+	})
+}
+
 func TestActiveDirectoryValidator_ConcurrencySafety(t *testing.T) {
 	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)

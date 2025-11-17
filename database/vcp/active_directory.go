@@ -19,7 +19,7 @@ func createActiveDirectory(db *gorm.DB, ad *datamodel.ActiveDirectory) (*datamod
 	query := &datamodel.ActiveDirectory{AdName: ad.AdName, AccountId: ad.AccountId, BaseModel: datamodel.BaseModel{DeletedAt: nil}}
 	existingAd, _ := getActiveDirectoryWithDetails(db, query)
 	if existingAd != nil {
-		return nil, errors.New("Active Directory with the given name already exists")
+		return nil, customerrors.NewConflictErr("Active Directory with the given name already exists")
 	}
 	err := db.Create(ad).Error
 	if err != nil {

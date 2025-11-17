@@ -10868,7 +10868,6 @@ components:
         kdcIP:
           title: kdcIP
           type: string
-          minLength: 7
           maxLength: 15
           description: KDC server IP address for the Active Directory machine. This
             optional parameter is used only while creating kerberos volume.
@@ -10877,7 +10876,6 @@ components:
           title: kdcHostname
           type: string
           maxLength: 64
-          minLength: 1
           description: Name of the Active Directory machine. This optional parameter
             is used only while creating kerberos volume
           example: 2BOVAEKB44B
@@ -11059,7 +11057,6 @@ components:
         kdcIP:
           title: kdcIP
           type: string
-          minLength: 7
           maxLength: 15
           description: KDC server IP address for the Active Directory machine. This
             optional parameter is used only while creating kerberos volume.
@@ -11068,7 +11065,6 @@ components:
           title: kdcHostname
           type: string
           maxLength: 64
-          minLength: 1
           description: Name of the Active Directory machine. This optional parameter
             is used only while creating kerberos volume
           example: 2BOVAEKB44B

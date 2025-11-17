@@ -82,6 +82,12 @@ func (h Handler) V1betaCreateActiveDirectory(
 				Message: err.Error(),
 			}, nil
 		}
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaCreateActiveDirectoryConflict{
+				Code:    http.StatusConflict,
+				Message: err.Error(),
+			}, nil
+		}
 		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
