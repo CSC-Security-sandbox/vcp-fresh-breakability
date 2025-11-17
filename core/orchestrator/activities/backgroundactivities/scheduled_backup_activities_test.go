@@ -106,6 +106,8 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 		backupPolicyUUID := "policy-uuid"
 		policyEnabled := true
 		accountID := int64(42)
+		limit := 20
+		offset := 0
 
 		expectedVolumes := []*datamodel.Volume{
 			{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, DataProtection: &datamodel.DataProtection{BackupPolicyID: backupPolicyUUID, ScheduledBackupEnabled: &policyEnabled}},
@@ -117,9 +119,9 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
-		mockStorage.On("ListVolumes", ctx, conditions).Return(expectedVolumes, nil).Once()
+		mockStorage.On("ListVolumesWithPagination", ctx, conditions, mock.Anything).Return(expectedVolumes, nil).Once()
 
-		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID)
+		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID, limit, offset)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedVolumes, volumes)
 		mockStorage.AssertExpectations(t)
@@ -131,6 +133,8 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 		ctx := context.Background()
 		backupPolicyUUID := "policy-uuid"
 		accountID := int64(42)
+		limit := 20
+		offset := 0
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
@@ -138,13 +142,64 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
 
-		mockStorage.On("ListVolumes", ctx, conditions).Return(nil, errors.New("db error")).Once()
+		mockStorage.On("ListVolumesWithPagination", ctx, conditions, mock.Anything).Return(nil, errors.New("db error")).Once()
 
-		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID)
+		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID, limit, offset)
 		assert.Nil(t, volumes)
 		assert.Error(t, err)
 		assert.Equal(t, err.Error(), "db error")
 
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("GetVolumesByBackupPolicyUUIDWithDifferentPaginationParams", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		ctx := context.Background()
+		backupPolicyUUID := "policy-uuid"
+		policyEnabled := true
+		accountID := int64(42)
+		limit := 50
+		offset := 100
+
+		expectedVolumes := []*datamodel.Volume{
+			{BaseModel: datamodel.BaseModel{UUID: "vol-101"}, DataProtection: &datamodel.DataProtection{BackupPolicyID: backupPolicyUUID, ScheduledBackupEnabled: &policyEnabled}},
+		}
+
+		conditions := [][]interface{}{
+			{"account_id = ?", accountID},
+			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
+			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
+		}
+		mockStorage.On("ListVolumesWithPagination", ctx, conditions, mock.Anything).Return(expectedVolumes, nil).Once()
+
+		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID, limit, offset)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedVolumes, volumes)
+		assert.Len(t, volumes, 1)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("GetVolumesByBackupPolicyUUIDReturnsEmptyList", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		ctx := context.Background()
+		backupPolicyUUID := "policy-uuid"
+		accountID := int64(42)
+		limit := 20
+		offset := 0
+
+		conditions := [][]interface{}{
+			{"account_id = ?", accountID},
+			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
+			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
+		}
+		mockStorage.On("ListVolumesWithPagination", ctx, conditions, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+
+		volumes, err := activity.GetVolumesByBackupPolicyUUID(ctx, backupPolicyUUID, accountID, limit, offset)
+		assert.NoError(t, err)
+		assert.NotNil(t, volumes)
+		assert.Len(t, volumes, 0)
 		mockStorage.AssertExpectations(t)
 	})
 }

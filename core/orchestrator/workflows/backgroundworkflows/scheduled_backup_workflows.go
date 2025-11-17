@@ -24,6 +24,7 @@ import (
 
 const (
 	scheduledBackupTimestampFormat = "2006-01-02-150405"
+	scheduledBackupVolumeBatchSize = 20 // Number of volumes to fetch per batch when processing scheduled backups
 )
 
 var (
@@ -127,24 +128,52 @@ func (wf *createScheduledBackupInitWorkflow) Run(ctx workflow.Context, args ...i
 		}
 	}()
 
-	var volumes []*datamodel.Volume
-	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.GetVolumesByBackupPolicyUUID, backupPolicy.UUID, backupPolicy.AccountID).Get(ctx, &volumes)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+	offset := 0
+	totalVolumesProcessed := 0
 
 	ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		ParentClosePolicy: enums.PARENT_CLOSE_POLICY_ABANDON,
 	})
-	for _, volume := range volumes {
-		wf.Logger.Infof("Creating scheduled backup for volume: %s with backup policy: %s", volume.UUID, backupPolicy.UUID)
-		_ = workflow.ExecuteChildWorkflow(
-			ctx,
-			CreateScheduledBackupWorkflow,
-			volume,
-			backupPolicy,
-		)
+
+	for {
+		var volumes []*datamodel.Volume
+		err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.GetVolumesByBackupPolicyUUID,
+			backupPolicy.UUID, backupPolicy.AccountID, scheduledBackupVolumeBatchSize, offset).Get(ctx, &volumes)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		if len(volumes) == 0 {
+			break
+		}
+
+		for _, volume := range volumes {
+			wf.Logger.Infof("Creating scheduled backup for volume: %s with backup policy: %s (offset: %d, limit: %d)", volume.UUID, backupPolicy.UUID, offset, scheduledBackupVolumeBatchSize)
+			_ = workflow.ExecuteChildWorkflow(
+				ctx,
+				CreateScheduledBackupWorkflow,
+				volume,
+				backupPolicy,
+			)
+		}
+
+		totalVolumesProcessed += len(volumes)
+
+		if len(volumes) < scheduledBackupVolumeBatchSize {
+			break
+		}
+
+		// Move to next batch
+		offset += scheduledBackupVolumeBatchSize
 	}
+
+	if totalVolumesProcessed == 0 {
+		wf.Logger.Infof("No volumes found with scheduled backups enabled for backup policy: %s", backupPolicy.UUID)
+	} else {
+		wf.Logger.Infof("Completed scheduled backup initialization for %d volumes with backup policy: %s",
+			totalVolumesProcessed, backupPolicy.UUID)
+	}
+
 	return nil, nil
 }
 

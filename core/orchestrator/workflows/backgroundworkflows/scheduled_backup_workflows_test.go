@@ -123,8 +123,11 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 	}
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
-	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything).
-		Return(volumes, nil)
+	// Mock first batch returning volumes (2 volumes < 20 batch size, so workflow stops after this)
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return(volumes, nil).Once()
+	// Mock child workflows for each volume
+	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(len(volumes))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 	backupPolicy := &datamodel.BackupPolicy{
@@ -158,9 +161,11 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 	}
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
-	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything).
-		Return(volumes, nil)
-	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock first batch returning volumes (2 volumes < 20 batch size, so workflow stops after this)
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return(volumes, nil).Once()
+	// Mock child workflows for each volume
+	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(len(volumes))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update job"))
 
 	backupPolicy := &datamodel.BackupPolicy{
@@ -211,7 +216,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_GetVol
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
-	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return(nil, errors.New("could not fetch volumes attached to the backup policy"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update job"))
 
@@ -229,6 +234,99 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_GetVol
 	} else {
 		assert.Fail(s.T(), fmt.Sprintf("Expected ActivityError but got: %v", s.env.GetWorkflowError()))
 	}
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NoVolumesAttached() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+	// Mock returning empty volumes list (no volumes attached to this backup policy)
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return([]*datamodel.Volume{}, nil).Once()
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_PaginationWithLargeVolumeCount() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	// Simulate 50 volumes (will be fetched in 3 batches: 20, 20, 10)
+	batch1 := make([]*datamodel.Volume, 20)
+	for i := 0; i < 20; i++ {
+		batch1[i] = &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("volume-uuid-%d", i)},
+			Name:      fmt.Sprintf("test-volume-%d", i),
+		}
+	}
+
+	batch2 := make([]*datamodel.Volume, 20)
+	for i := 0; i < 20; i++ {
+		batch2[i] = &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("volume-uuid-%d", i+20)},
+			Name:      fmt.Sprintf("test-volume-%d", i+20),
+		}
+	}
+
+	batch3 := make([]*datamodel.Volume, 10)
+	for i := 0; i < 10; i++ {
+		batch3[i] = &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("volume-uuid-%d", i+40)},
+			Name:      fmt.Sprintf("test-volume-%d", i+40),
+		}
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+
+	// Mock first batch (20 volumes)
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return(batch1, nil).Once()
+	// Mock child workflows for first batch
+	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(20)
+
+	// Mock second batch (20 volumes)
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 20).
+		Return(batch2, nil).Once()
+	// Mock child workflows for second batch
+	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(20)
+
+	// Mock third batch (10 volumes, less than batch size so workflow stops after this)
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 40).
+		Return(batch3, nil).Once()
+	// Mock child workflows for third batch
+	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(10)
+
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 	s.env.AssertExpectations(s.T())
 }
 

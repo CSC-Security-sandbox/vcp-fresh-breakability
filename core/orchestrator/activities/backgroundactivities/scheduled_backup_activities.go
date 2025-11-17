@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
@@ -125,7 +126,7 @@ func (j *ScheduledBackupActivity) HydrateDeletedBackupsToCCFE(ctx context.Contex
 
 // GetVolumesByBackupPolicyUUID retrieves volumes that have the specified backup policy enabled for a given account.
 // Returns a slice of Volume objects or an error.
-func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountID int64) ([]*datamodel.Volume, error) {
+func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountID int64, limit, offset int) ([]*datamodel.Volume, error) {
 	se := j.SE
 	// Get the list of all volumes which have the specified backup policy enabled
 	conditions := [][]interface{}{
@@ -133,7 +134,11 @@ func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Conte
 		{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 		{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 	}
-	volumes, err := se.ListVolumes(ctx, conditions)
+	pagination := &dbutils.Pagination{
+		Limit:  limit,
+		Offset: offset,
+	}
+	volumes, err := se.ListVolumesWithPagination(ctx, conditions, pagination)
 	if err != nil {
 		return nil, err
 	}
