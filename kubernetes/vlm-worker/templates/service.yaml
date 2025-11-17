@@ -18,4 +18,5 @@ spec:
       name: metrics
   selector:
     app: {{ $.Values.app.name }}-{{ $version }}
+---
 {{- end }}
