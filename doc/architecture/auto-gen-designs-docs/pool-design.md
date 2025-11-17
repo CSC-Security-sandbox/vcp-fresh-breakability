@@ -259,18 +259,84 @@ C4Context
 title: Storage Pool Lifecycle State Transitions
 ---
 stateDiagram-v2
-    [*] --> Creating
-    Creating --> Active: Success
-    Creating --> Failed: Error
-    Active --> Updating: Update Request
-    Active --> Deleting: Delete Request
-    Updating --> Active: Success
-    Updating --> Failed: Error
-    Deleting --> Deleted: Success
-    Deleting --> Failed: Error
-    Failed --> [*]
-    Deleted --> [*]
+    [*] --> CREATING
+    CREATING --> READY: Success
+    CREATING --> ERROR: Error
+    READY --> UPDATING: Update Request
+    READY --> DELETING: Delete Request
+    UPDATING --> READY: Success
+    UPDATING --> ERROR: Error
+    DELETING --> DELETED: Success
+    DELETING --> ERROR: Error
+    ERROR --> [*]
+    DELETED --> [*]
 ```
+
+### Degraded Mode State Transitions
+
+The pool can enter a **DEGRADED** state when cluster health issues are detected (e.g., node failures, takeover issues). This is managed by the `SyncVSAClusterHealthTask` which runs periodically (every 30 seconds) to monitor cluster health and perform JSWAP operations.
+
+**Key Characteristics:**
+- Degraded mode transitions only occur when the pool is in `READY` or `DEGRADED` state (prevents race conditions with `UPDATING`, `DELETING`, etc.)
+- State transitions are driven by cluster health assessment and JSWAP operations
+- The system automatically recovers from degraded mode when cluster health is restored
+
+```mermaid
+---
+title: Pool Degraded Mode State Transitions
+---
+stateDiagram-v2
+    [*] --> READY: Pool Created
+    READY --> DEGRADED: Cluster Health Issue Detected
+    note right of READY
+        Conditions that trigger DEGRADED:
+        - Node takeover not possible
+        - Takeover state: in_takeover, in_progress, failed
+        - Critical takeover reasons detected
+        - JSWAP switches to ephemeral_disk
+    end note
+    
+    DEGRADED --> READY: Cluster Health Restored
+    note right of DEGRADED
+        Recovery conditions:
+        - Both nodes healthy
+        - Takeover possible: true
+        - JSWAP switches to ephemeral_memory
+    end note
+    
+    READY --> READY: Cluster Remains Healthy
+    DEGRADED --> DEGRADED: Cluster Remains Degraded
+    
+    note left of READY
+        SyncVSAClusterHealthTask
+        monitors every 30 seconds
+    end note
+    
+    note left of DEGRADED
+        Pool runs in degraded mode
+        due to node failure
+    end note
+```
+
+**State Transition Details:**
+
+| Transition | Trigger | Action | Notes |
+|------------|---------|--------|-------|
+| **READY → DEGRADED** | Cluster health issues detected | JSWAP to `ephemeral_disk` | Node failures, takeover issues, or critical reasons preventing takeover |
+| **DEGRADED → READY** | Cluster health restored | JSWAP to `ephemeral_memory` | Both nodes healthy, takeover possible |
+| **READY → READY** | Cluster remains healthy | No state change | Normal operation continues |
+| **DEGRADED → DEGRADED** | Cluster remains degraded | No state change | Health issues persist |
+
+**JSWAP Operations:**
+- **JSWAP to ephemeral_disk**: Performed when cluster health issues are detected, updates pool state to `DEGRADED`
+- **JSWAP to ephemeral_memory**: Performed when cluster health is restored, updates pool state to `READY`
+
+**Monitoring:**
+- `SyncVSAClusterHealthTask` runs every 30 seconds
+- Only processes pools in `READY` or `DEGRADED` state
+- Uses optimistic concurrency control to prevent race conditions
+
+> **Note**: When a pool is in `DEGRADED` mode, all control plane CRUD operations (Create, Read, Update, Delete) will continue to execute as before but will have no effect on the pool's operational state. The pool remains in degraded mode until cluster health is restored and the system automatically transitions it back to `READY` state.
 
 ### Error Handling Strategy
 
