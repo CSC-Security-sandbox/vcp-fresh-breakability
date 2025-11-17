@@ -119,6 +119,15 @@ func (d *DataStoreRepository) GetBackupVaultByNameAndOwnerID(ctx context.Context
 	return &bv, nil
 }
 
+func (d *DataStoreRepository) GetBackupVaultByCrossRegionBackupVaultName(ctx context.Context, crossRegionBackupVaultName string, accountID int64) (*datamodel.BackupVault, error) {
+	var bv datamodel.BackupVault
+	err := d.db.GORM().WithContext(ctx).Preload("Account").Where("cross_region_backup_vault_name = ?", crossRegionBackupVaultName).Where("account_id = ?", accountID).First(&bv).Error
+	if err != nil {
+		return nil, err
+	}
+	return &bv, nil
+}
+
 func (d *DataStoreRepository) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultID string, accountID int64) (*datamodel.BackupVault, error) {
 	db := d.db.GORM().WithContext(ctx)
 	dbBackupVault, err := getBackupVaultWithDetails(db, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultID}, AccountID: accountID})

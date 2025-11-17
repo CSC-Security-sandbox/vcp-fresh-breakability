@@ -2521,6 +2521,22 @@ func (re *retryEngine) GetBackupVaultByNameAndOwnerID(ctx context.Context, backu
 	return var0, err
 }
 
+func (re *retryEngine) GetBackupVaultByCrossRegionBackupVaultName(ctx context.Context, crossRegionBackupVaultName string, accountID int64) (*datamodel.BackupVault, error) {
+	var var0 *datamodel.BackupVault
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupVaultByCrossRegionBackupVaultName(ctx, crossRegionBackupVaultName, accountID)
+		if err != nil {
+			re.logError("GetBackupVaultByCrossRegionBackupVaultName", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreatingBackupVault(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	var var0 *datamodel.BackupVault
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2943,6 +2959,22 @@ func (re *retryEngine) GetBackup(ctx context.Context, backupVaultUUID string, ba
 		var0, err = re.dataStore.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 		if err != nil {
 			re.logError("GetBackup", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupByExternalUUID(ctx context.Context, backupVaultUUID string, externalUUID string, accountName string) (*datamodel.Backup, error) {
+	var var0 *datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupByExternalUUID(ctx, backupVaultUUID, externalUUID, accountName)
+		if err != nil {
+			re.logError("GetBackupByExternalUUID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

@@ -373,6 +373,7 @@ type BackupVaultParams struct {
 	AccountName                string
 	CrossRegionBackupVaultName *string
 	BackupVaultIDs             []string
+	IsInternal                 bool
 }
 
 // BackupRetentionPolicyParams describes parameters supplied to BackupRetentionPolicy
@@ -409,16 +410,30 @@ type ResourceNames struct {
 }
 
 type CreateBackupParams struct {
-	AccountName         string
-	BackupVaultID       string
-	VolumeUUID          string
-	BackupName          string
-	Description         string
-	SnapshotID          string
-	BackupType          string
-	LocationID          string
-	XCorrelationID      string
-	UseExistingSnapshot bool
+	AccountName              string
+	BackupVaultID            string
+	VolumeUUID               string
+	BackupName               string
+	BackupUUID               string // ExternalUUID for cross-region backups
+	Description              string
+	SnapshotID               string
+	BackupType               string
+	LocationID               string
+	XCorrelationID           string
+	UseExistingSnapshot      bool
+	VolumeName               string
+	Protocols                []string
+	SnapshotName             string
+	BucketName               string
+	EndpointUUID             string
+	IsRegionalHA             bool
+	CompletionTime           string
+	BackupPolicyName         string
+	OntapVolumeStyle         string
+	SourceVolumeZone         string
+	ServiceAccountName       string
+	SnapshotCreationTime     string
+	ConstituentCountOfBackup int32
 }
 
 type GetBackupsParams struct {

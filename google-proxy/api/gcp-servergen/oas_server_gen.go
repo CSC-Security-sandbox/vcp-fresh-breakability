@@ -317,6 +317,12 @@ type Handler interface {
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/authorize
 	V1betaInternalAuthorizeVolumeReplication(ctx context.Context, req *VolumeReplicationCreateInternalV1beta, params V1betaInternalAuthorizeVolumeReplicationParams) (V1betaInternalAuthorizeVolumeReplicationRes, error)
+	// V1betaInternalCreateBackup implements v1beta_internalCreateBackup operation.
+	//
+	// Create a backup under backup vault for cross-region operations.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+	V1betaInternalCreateBackup(ctx context.Context, req *InternalBackupCreateV1beta, params V1betaInternalCreateBackupParams) (V1betaInternalCreateBackupRes, error)
 	// V1betaInternalCreateBackupVault implements v1beta_internalCreateBackupVault operation.
 	//
 	// Creates a BackupVault entry in the VCP database for a remote BackupVault (i.e., BackupVault in
@@ -436,6 +442,13 @@ type Handler interface {
 	//
 	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop
 	V1betaInternalStopVolumeReplication(ctx context.Context, req *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (V1betaInternalStopVolumeReplicationRes, error)
+	// V1betaInternalUpdateBackup implements v1beta_internalUpdateBackup operation.
+	//
+	// Update a backup under backup vault for cross-region operations. Only the backup description can be
+	// updated.
+	//
+	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+	V1betaInternalUpdateBackup(ctx context.Context, req *BackupUpdateV1beta, params V1betaInternalUpdateBackupParams) (V1betaInternalUpdateBackupRes, error)
 	// V1betaInternalUpdateBackupVault implements v1beta_internalUpdateBackupVault operation.
 	//
 	// Internal endpoint to update a cross-region backup vault in the destination region. This operation

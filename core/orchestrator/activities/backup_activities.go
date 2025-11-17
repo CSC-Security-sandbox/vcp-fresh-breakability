@@ -1350,3 +1350,186 @@ func (a *BackupActivity) UpdateBackupRestoreCount(ctx context.Context, backupVau
 	logger.Infof("Successfully updated backup restore count to %d for backup %s", backup.Attributes.RestoreVolumeCount, backupUUID)
 	return nil
 }
+
+// CreateRemoteBackupFromVCPActivity creates the Backup in the remote region using Google Proxy Client
+// This is done after UpdateBackupSizeActivity to ensure ExternalUUID is set
+func (a *BackupActivity) CreateRemoteBackupFromVCPActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) error {
+	// Check if this is a cross-region backup
+	if backupActivitiesContext.BackupWorkflowInit.BackupVault.BackupVaultType != "CROSS_REGION" ||
+		backupActivitiesContext.BackupWorkflowInit.BackupVault.BackupRegionName == nil {
+		// Not a cross-region backup, skip
+		return nil
+	}
+
+	logger := util.GetLogger(ctx)
+	backup := backupActivitiesContext.BackupWorkflowInit.Backup
+	backupVault := backupActivitiesContext.BackupWorkflowInit.BackupVault
+	projectNumber := backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name
+	region := *backupActivitiesContext.BackupWorkflowInit.BackupVault.BackupRegionName
+
+	basePath, jwtToken, err := commonparams.GetRemoteRegionConfig(region, projectNumber)
+	if err != nil {
+		logger.Error("Failed to get remote region configuration", "region", region, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	// Convert backup to InternalBackupCreate format for the request
+	// Internal API requires volume and snapshot information as they are not available in remote region DB
+	// backupUUID is the ExternalUUID for cross-region backups - use backup.UUID (internal UUID from source region)
+	backupCreate := googleproxyclient.InternalBackupCreateV1beta{
+		ResourceId: backup.Name,
+		BackupUUID: backup.UUID, // This becomes ExternalUUID in the remote region
+		VolumeId:   backup.VolumeUUID,
+		Description: googleproxyclient.OptString{
+			Value: backup.Description,
+			Set:   backup.Description != "",
+		},
+	}
+
+	// Include volume information (required for cross-region)
+	if backup.Attributes != nil {
+		backupCreate.VolumeName = backup.Attributes.VolumeName
+		if len(backup.Attributes.Protocols) > 0 {
+			protocols := make([]googleproxyclient.InternalBackupCreateV1betaProtocolsItem, len(backup.Attributes.Protocols))
+			for i, p := range backup.Attributes.Protocols {
+				protocols[i] = googleproxyclient.InternalBackupCreateV1betaProtocolsItem(p)
+			}
+			backupCreate.Protocols = protocols
+		}
+		// Include useExistingSnapshot flag
+		backupCreate.UseExistingSnapshot = googleproxyclient.NewOptBool(backup.Attributes.UseExistingSnapshot)
+		// Include snapshot information if available (always include all details)
+		if backup.Attributes.SnapshotID != "" {
+			backupCreate.SnapshotId = googleproxyclient.NewOptString(backup.Attributes.SnapshotID)
+		}
+		if backup.Attributes.SnapshotName != "" {
+			backupCreate.SnapshotName = googleproxyclient.NewOptString(backup.Attributes.SnapshotName)
+		}
+		// Include backup attributes for cross-region operations
+		if backup.Attributes.BucketName != "" {
+			backupCreate.BucketName = googleproxyclient.NewOptString(backup.Attributes.BucketName)
+		}
+		if backup.Attributes.EndpointUUID != "" {
+			backupCreate.EndpointUuid = googleproxyclient.NewOptString(backup.Attributes.EndpointUUID)
+		}
+		backupCreate.IsRegionalHa = googleproxyclient.NewOptBool(backup.Attributes.IsRegionalHA)
+		if backup.Attributes.CompletionTime != "" {
+			// Parse the completion time string to time.Time for OptDateTime
+			if completionTime, err := time.Parse(time.RFC3339, backup.Attributes.CompletionTime); err == nil {
+				backupCreate.CompletionTime = googleproxyclient.NewOptDateTime(completionTime)
+			}
+		}
+		if backup.Attributes.BackupPolicyName != "" {
+			backupCreate.BackupPolicyName = googleproxyclient.NewOptString(backup.Attributes.BackupPolicyName)
+		}
+		if backup.Attributes.OntapVolumeStyle != "" {
+			backupCreate.OntapVolumeStyle = googleproxyclient.NewOptString(backup.Attributes.OntapVolumeStyle)
+		}
+		if backup.Attributes.SourceVolumeZone != "" {
+			backupCreate.SourceVolumeZone = googleproxyclient.NewOptString(backup.Attributes.SourceVolumeZone)
+		}
+		if backup.Attributes.ServiceAccountName != "" {
+			backupCreate.ServiceAccountName = googleproxyclient.NewOptString(backup.Attributes.ServiceAccountName)
+		}
+		if backup.Attributes.SnapshotCreationTime != "" {
+			// Parse the snapshot creation time string to time.Time for OptDateTime
+			if snapshotCreationTime, err := time.Parse(time.RFC3339, backup.Attributes.SnapshotCreationTime); err == nil {
+				backupCreate.SnapshotCreationTime = googleproxyclient.NewOptDateTime(snapshotCreationTime)
+			}
+		}
+		if backup.Attributes.ConstituentCountOfBackup > 0 {
+			backupCreate.ConstituentCountOfBackup = googleproxyclient.NewOptInt32(backup.Attributes.ConstituentCountOfBackup)
+		}
+	}
+
+	params := googleproxyclient.V1betaInternalCreateBackupParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     region,
+		BackupVaultId:  backupVault.UUID,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalCreateBackup(ctx, &backupCreate, params)
+	if err != nil {
+		logger.Errorf("Failed to create remote Backup: %v, region=%s, backupVaultID=%s", err, region, backupVault.ExternalUUID)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Check if the response indicates success
+	if res == nil {
+		logger.Error("Unexpected nil response from remote Backup creation", "backupName", backup.Name)
+		return vsaerrors.WrapAsTemporalApplicationError(errors.NewNotFoundErr("remote backup", &backup.Name))
+	}
+
+	logger.Infof("Successfully created remote Backup, backupName=%s, region=%s", backup.Name, region)
+	return nil
+}
+
+// UpdateRemoteBackupFromVCPActivity updates the Backup in the remote region using Google Proxy Client
+func (a *BackupActivity) UpdateRemoteBackupFromVCPActivity(ctx context.Context, backup *datamodel.Backup) error {
+	logger := util.GetLogger(ctx)
+	// Check if this is a cross-region backup
+	if backup.BackupVault == nil || backup.BackupVault.BackupVaultType != "CROSS_REGION" || backup.BackupVault.BackupRegionName == nil {
+		// Not a cross-region backup or missing required fields, skip
+		logger.Infof("Skipping remote backup update for non-cross-region backup, backupID=%s", backup.UUID)
+		return nil
+	}
+	backupVault, err := a.GetBackupVault(ctx, backup.BackupVault.UUID)
+	if err != nil {
+		logger.Errorf("Failed to get backup vault: %v, backupID=%s", err, backup.UUID)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	region := *backupVault.BackupRegionName
+
+	// Get account name from backup vault
+	var projectNumber string
+	if backupVault.Account != nil {
+		projectNumber = backupVault.Account.Name
+	} else if backupVault.AccountVendorID != "" {
+		// If account is not loaded, use AccountVendorID (project number)
+		projectNumber = backupVault.AccountVendorID
+	} else {
+		logger.Warnf("BackupVault account not loaded and AccountVendorID not available, cannot update remote backup", "backupID", backup.UUID)
+		return nil
+	}
+
+	basePath, jwtToken, err := commonparams.GetRemoteRegionConfig(region, projectNumber)
+	if err != nil {
+		logger.Error("Failed to get remote region configuration", "region", region, "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	backupUpdate := googleproxyclient.BackupUpdateV1beta{
+		Description: backup.Description,
+	}
+
+	params := googleproxyclient.V1betaInternalUpdateBackupParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     region,
+		BackupVaultId:  backupVault.UUID,
+		BackupId:       backup.UUID,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalUpdateBackup(ctx, &backupUpdate, params)
+	if err != nil {
+		logger.Errorf("Failed to update remote Backup: %v, region=%s, backupVaultID=%s, backupID=%s", err, region, backupVault.ExternalUUID, backup.ExternalUUID)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Check if the response indicates success
+	if res == nil {
+		logger.Error("Unexpected nil response from remote Backup update", "backupID", backup.ExternalUUID)
+		return vsaerrors.WrapAsTemporalApplicationError(errors.NewNotFoundErr("remote backup", &backup.ExternalUUID))
+	}
+
+	logger.Infof("Successfully updated remote Backup, backupID=%s, region=%s", backup.ExternalUUID, region)
+	return nil
+}

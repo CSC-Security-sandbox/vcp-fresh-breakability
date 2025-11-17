@@ -236,45 +236,77 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										return
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/backups/"
+									case '/': // Prefix: "/backups"
 
-										if l := len("/backups/"); len(elem) >= l && elem[0:l] == "/backups/" {
+										if l := len("/backups"); len(elem) >= l && elem[0:l] == "/backups" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
-										// Param: "backupId"
-										// Leaf parameter, slashes are prohibited
-										idx := strings.IndexByte(elem, '/')
-										if idx >= 0 {
-											break
-										}
-										args[3] = elem
-										elem = ""
-
 										if len(elem) == 0 {
-											// Leaf node.
 											switch r.Method {
-											case "DELETE":
-												s.handleV1betaInternalDeleteBackupUnderBackupVaultRequest([4]string{
+											case "POST":
+												s.handleV1betaInternalCreateBackupRequest([3]string{
 													args[0],
 													args[1],
 													args[2],
-													args[3],
-												}, elemIsEscaped, w, r)
-											case "GET":
-												s.handleV1betaInternalDescribeBackupRequest([4]string{
-													args[0],
-													args[1],
-													args[2],
-													args[3],
 												}, elemIsEscaped, w, r)
 											default:
-												s.notAllowed(w, r, "DELETE,GET")
+												s.notAllowed(w, r, "POST")
 											}
 
 											return
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "backupId"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[3] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "DELETE":
+													s.handleV1betaInternalDeleteBackupUnderBackupVaultRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												case "GET":
+													s.handleV1betaInternalDescribeBackupRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												case "PUT":
+													s.handleV1betaInternalUpdateBackupRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "DELETE,GET,PUT")
+												}
+
+												return
+											}
+
 										}
 
 									}
@@ -2653,45 +2685,78 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										}
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/backups/"
+									case '/': // Prefix: "/backups"
 
-										if l := len("/backups/"); len(elem) >= l && elem[0:l] == "/backups/" {
+										if l := len("/backups"); len(elem) >= l && elem[0:l] == "/backups" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
-										// Param: "backupId"
-										// Leaf parameter, slashes are prohibited
-										idx := strings.IndexByte(elem, '/')
-										if idx >= 0 {
-											break
-										}
-										args[3] = elem
-										elem = ""
-
 										if len(elem) == 0 {
-											// Leaf node.
 											switch method {
-											case "DELETE":
-												r.name = V1betaInternalDeleteBackupUnderBackupVaultOperation
-												r.summary = "Delete a backup under backup vault"
-												r.operationID = "v1beta_internalDeleteBackupUnderBackupVault"
-												r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}"
+											case "POST":
+												r.name = V1betaInternalCreateBackupOperation
+												r.summary = "Create a backup under backup vault (internal)"
+												r.operationID = "v1beta_internalCreateBackup"
+												r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups"
 												r.args = args
-												r.count = 4
-												return r, true
-											case "GET":
-												r.name = V1betaInternalDescribeBackupOperation
-												r.summary = "Describe a backup under backup vault"
-												r.operationID = "v1beta_internalDescribeBackup"
-												r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}"
-												r.args = args
-												r.count = 4
+												r.count = 3
 												return r, true
 											default:
 												return
 											}
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "backupId"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[3] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "DELETE":
+													r.name = V1betaInternalDeleteBackupUnderBackupVaultOperation
+													r.summary = "Delete a backup under backup vault"
+													r.operationID = "v1beta_internalDeleteBackupUnderBackupVault"
+													r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												case "GET":
+													r.name = V1betaInternalDescribeBackupOperation
+													r.summary = "Describe a backup under backup vault"
+													r.operationID = "v1beta_internalDescribeBackup"
+													r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												case "PUT":
+													r.name = V1betaInternalUpdateBackupOperation
+													r.summary = "Update a backup under backup vault (internal)"
+													r.operationID = "v1beta_internalUpdateBackup"
+													r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												default:
+													return
+												}
+											}
+
 										}
 
 									}

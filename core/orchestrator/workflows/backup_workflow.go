@@ -308,6 +308,14 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		wf.Logger.Errorf("Failed to update backup size fields for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
 	}
 
+	// Create remote backup from VCP if this is a cross-region backup
+	// This is done after UpdateBackupSizeActivity to ensure ExternalUUID is set
+	err = workflow.ExecuteActivity(ctx, backupActivity.CreateRemoteBackupFromVCPActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to create remote backup from VCP for backup %s: %v", backupActivitiesContext.BackupWorkflowInit.Backup.UUID, err)
+	}
+
 	// Cleanup older adhoc-backup snapshots for this volume
 	err = workflow.ExecuteActivity(ctx, backupActivity.CleanupOldAdhocBackupSnapshotsActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
 	if err != nil {
@@ -610,10 +618,10 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	// Delete remote backup from VCP if this is a cross-region backup
-	if dbBackupVault.BackupVaultType == activities.CrossRegionBackupType && dbBackup.ExternalUUID != "" && dbBackupVault.ExternalUUID != nil && dbBackupVault.BackupRegionName != nil {
+	if dbBackupVault.BackupVaultType == activities.CrossRegionBackupType && dbBackupVault.BackupRegionName != nil {
 		remoteBackupErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteRemoteBackupFromVCPActivity,
-			dbBackup.ExternalUUID,
-			*dbBackupVault.ExternalUUID,
+			dbBackup.UUID,
+			dbBackupVault.UUID,
 			deleteBackupParams.AccountName,
 			*dbBackupVault.BackupRegionName).Get(ctx, nil)
 		if remoteBackupErr != nil {
@@ -813,6 +821,13 @@ func (wf *backupUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(ctx, backupUpdateActivity.UpdateBackup, backup).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
+	}
+
+	// Update remote backup from VCP if this is a cross-region backup
+	err = workflow.ExecuteActivity(ctx, backupUpdateActivity.UpdateRemoteBackupFromVCPActivity, backup).Get(ctx, nil)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to update remote backup from VCP for backup %s: %v", backup.UUID, err)
 	}
 
 	return nil, nil

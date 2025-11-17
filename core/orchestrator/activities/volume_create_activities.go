@@ -859,6 +859,11 @@ func UpdateRemoteBackupVaultDetailsInVCP(ctx context.Context, volume *datamodel.
 		return errors.NewBadRequestErr(CrossRegionBackupVaultErrMsg)
 	}
 
+	// Ensure VendorSubnetID is set from volume if not already set in bucketDetails
+	if bucketDetails != nil && bucketDetails.VendorSubnetID == "" && volume.VolumeAttributes != nil {
+		bucketDetails.VendorSubnetID = volume.VolumeAttributes.VendorSubnetID
+	}
+
 	newBucketDetail := convertCommonToDatamodel(bucketDetails)
 	projectNumber := volume.Account.Name
 

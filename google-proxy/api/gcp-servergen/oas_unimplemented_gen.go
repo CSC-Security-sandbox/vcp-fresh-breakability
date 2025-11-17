@@ -472,6 +472,15 @@ func (UnimplementedHandler) V1betaInternalAuthorizeVolumeReplication(ctx context
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalCreateBackup implements v1beta_internalCreateBackup operation.
+//
+// Create a backup under backup vault for cross-region operations.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+func (UnimplementedHandler) V1betaInternalCreateBackup(ctx context.Context, req *InternalBackupCreateV1beta, params V1betaInternalCreateBackupParams) (r V1betaInternalCreateBackupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalCreateBackupVault implements v1beta_internalCreateBackupVault operation.
 //
 // Creates a BackupVault entry in the VCP database for a remote BackupVault (i.e., BackupVault in
@@ -642,6 +651,16 @@ func (UnimplementedHandler) V1betaInternalReverseVolumeReplication(ctx context.C
 //
 // POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop
 func (UnimplementedHandler) V1betaInternalStopVolumeReplication(ctx context.Context, req *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (r V1betaInternalStopVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaInternalUpdateBackup implements v1beta_internalUpdateBackup operation.
+//
+// Update a backup under backup vault for cross-region operations. Only the backup description can be
+// updated.
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+func (UnimplementedHandler) V1betaInternalUpdateBackup(ctx context.Context, req *BackupUpdateV1beta, params V1betaInternalUpdateBackupParams) (r V1betaInternalUpdateBackupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

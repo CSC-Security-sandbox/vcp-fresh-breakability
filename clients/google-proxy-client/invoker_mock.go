@@ -2997,6 +2997,66 @@ func (_c *MockInvoker_V1betaInternalAuthorizeVolumeReplication_Call) RunAndRetur
 	return _c
 }
 
+// V1betaInternalCreateBackup provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaInternalCreateBackup(ctx context.Context, request *InternalBackupCreateV1beta, params V1betaInternalCreateBackupParams) (V1betaInternalCreateBackupRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalCreateBackup")
+	}
+
+	var r0 V1betaInternalCreateBackupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *InternalBackupCreateV1beta, V1betaInternalCreateBackupParams) (V1betaInternalCreateBackupRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *InternalBackupCreateV1beta, V1betaInternalCreateBackupParams) V1betaInternalCreateBackupRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalCreateBackupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *InternalBackupCreateV1beta, V1betaInternalCreateBackupParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaInternalCreateBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalCreateBackup'
+type MockInvoker_V1betaInternalCreateBackup_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalCreateBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *InternalBackupCreateV1beta
+//   - params V1betaInternalCreateBackupParams
+func (_e *MockInvoker_Expecter) V1betaInternalCreateBackup(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaInternalCreateBackup_Call {
+	return &MockInvoker_V1betaInternalCreateBackup_Call{Call: _e.mock.On("V1betaInternalCreateBackup", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaInternalCreateBackup_Call) Run(run func(ctx context.Context, request *InternalBackupCreateV1beta, params V1betaInternalCreateBackupParams)) *MockInvoker_V1betaInternalCreateBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*InternalBackupCreateV1beta), args[2].(V1betaInternalCreateBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaInternalCreateBackup_Call) Return(_a0 V1betaInternalCreateBackupRes, _a1 error) *MockInvoker_V1betaInternalCreateBackup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaInternalCreateBackup_Call) RunAndReturn(run func(context.Context, *InternalBackupCreateV1beta, V1betaInternalCreateBackupParams) (V1betaInternalCreateBackupRes, error)) *MockInvoker_V1betaInternalCreateBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaInternalCreateBackupVault provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1betaInternalCreateBackupVault(ctx context.Context, request *BackupVaultInternalV1beta, params V1betaInternalCreateBackupVaultParams) (V1betaInternalCreateBackupVaultRes, error) {
 	ret := _m.Called(ctx, request, params)
@@ -4058,6 +4118,66 @@ func (_c *MockInvoker_V1betaInternalStopVolumeReplication_Call) Return(_a0 V1bet
 }
 
 func (_c *MockInvoker_V1betaInternalStopVolumeReplication_Call) RunAndReturn(run func(context.Context, *V1betaInternalStopVolumeReplicationReq, V1betaInternalStopVolumeReplicationParams) (V1betaInternalStopVolumeReplicationRes, error)) *MockInvoker_V1betaInternalStopVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaInternalUpdateBackup provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaInternalUpdateBackup(ctx context.Context, request *BackupUpdateV1beta, params V1betaInternalUpdateBackupParams) (V1betaInternalUpdateBackupRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalUpdateBackup")
+	}
+
+	var r0 V1betaInternalUpdateBackupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupUpdateV1beta, V1betaInternalUpdateBackupParams) (V1betaInternalUpdateBackupRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupUpdateV1beta, V1betaInternalUpdateBackupParams) V1betaInternalUpdateBackupRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalUpdateBackupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupUpdateV1beta, V1betaInternalUpdateBackupParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaInternalUpdateBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalUpdateBackup'
+type MockInvoker_V1betaInternalUpdateBackup_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalUpdateBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *BackupUpdateV1beta
+//   - params V1betaInternalUpdateBackupParams
+func (_e *MockInvoker_Expecter) V1betaInternalUpdateBackup(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaInternalUpdateBackup_Call {
+	return &MockInvoker_V1betaInternalUpdateBackup_Call{Call: _e.mock.On("V1betaInternalUpdateBackup", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaInternalUpdateBackup_Call) Run(run func(ctx context.Context, request *BackupUpdateV1beta, params V1betaInternalUpdateBackupParams)) *MockInvoker_V1betaInternalUpdateBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BackupUpdateV1beta), args[2].(V1betaInternalUpdateBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaInternalUpdateBackup_Call) Return(_a0 V1betaInternalUpdateBackupRes, _a1 error) *MockInvoker_V1betaInternalUpdateBackup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaInternalUpdateBackup_Call) RunAndReturn(run func(context.Context, *BackupUpdateV1beta, V1betaInternalUpdateBackupParams) (V1betaInternalUpdateBackupRes, error)) *MockInvoker_V1betaInternalUpdateBackup_Call {
 	_c.Call.Return(run)
 	return _c
 }

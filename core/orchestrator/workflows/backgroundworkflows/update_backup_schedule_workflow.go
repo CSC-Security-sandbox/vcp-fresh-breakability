@@ -65,7 +65,7 @@ func (wf *updateBackupScheduleWorkflow) Setup(ctx workflow.Context, input interf
 
 // Run executes the main backup schedule update logic: paginates through backup policies and updates their task queues.
 func (wf *updateBackupScheduleWorkflow) Run(ctx workflow.Context, _ ...interface{}) (interface{}, *vsaerrors.CustomError) {
-	logger := util.GetLogger(ctx)
+	logger := wf.Logger
 	logger.Infof("Starting UpdateBackupScheduleWorkflow")
 
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()

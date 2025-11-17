@@ -733,11 +733,18 @@ func convertBackupVaultInternalToDataModel(req *gcpgenserver.BackupVaultInternal
 	var bucketDetails datamodel.BucketDetailsArray
 	if len(req.BucketDetails) > 0 {
 		for _, bucket := range req.BucketDetails {
-			bucketDetail := &datamodel.BucketDetails{
-				BucketName:          bucket.BucketName.Value,
-				ServiceAccountName:  bucket.ServiceAccountName.Value,
-				VendorSubnetID:      bucket.VendorSubnetId.Value,
-				TenantProjectNumber: bucket.TenantProjectNumber.Value,
+			bucketDetail := &datamodel.BucketDetails{}
+			if bucket.BucketName.IsSet() {
+				bucketDetail.BucketName = bucket.BucketName.Value
+			}
+			if bucket.ServiceAccountName.IsSet() {
+				bucketDetail.ServiceAccountName = bucket.ServiceAccountName.Value
+			}
+			if bucket.VendorSubnetId.IsSet() {
+				bucketDetail.VendorSubnetID = bucket.VendorSubnetId.Value
+			}
+			if bucket.TenantProjectNumber.IsSet() {
+				bucketDetail.TenantProjectNumber = bucket.TenantProjectNumber.Value
 			}
 			bucketDetails = append(bucketDetails, bucketDetail)
 		}
@@ -842,6 +849,218 @@ func convertDataModelToBackupVaultInternal(bv *datamodel.BackupVault) gcpgenserv
 	}
 
 	return result
+}
+
+// V1betaInternalCreateBackup implements the internal endpoint for creating a backup
+// This is used for cross-region operations where the backup needs to be created in a remote region's database
+func (h Handler) V1betaInternalCreateBackup(ctx context.Context, req *gcpgenserver.InternalBackupCreateV1beta, params gcpgenserver.V1betaInternalCreateBackupParams) (gcpgenserver.V1betaInternalCreateBackupRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaInternalCreateBackupBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+	// If the request belongs to VSA, we will create the backup using the orchestrator
+	vsaParams := createInternalBackupParams(req, params)
+	_, jobId, err := h.Orchestrator.CreateBackupInternal(ctx, vsaParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalCreateBackupBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to create backup", "error", err.Error())
+		return &gcpgenserver.V1betaInternalCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	// Get the backup from database using ExternalUUID (backupUUID from request becomes ExternalUUID for cross-region backups)
+	dbBackup, err := h.Orchestrator.GetBackupByExternalUUID(ctx, params.BackupVaultId, req.BackupUUID, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Failed to get backup", "error", err.Error())
+		return &gcpgenserver.V1betaInternalCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	resp := convertBackupDataModelToInternalBackupsV1beta(dbBackup, false) // isRestoring not needed for create
+
+	if jobId == "" {
+		// Return the backup directly for synchronous operations
+		return &resp, nil
+	}
+	// Return operation for asynchronous operations
+	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(false),
+	}, nil
+}
+
+// V1betaInternalUpdateBackup implements the internal endpoint for updating a backup
+// This is used for cross-region operations where the backup needs to be updated in a remote region's database
+func (h Handler) V1betaInternalUpdateBackup(ctx context.Context, req *gcpgenserver.BackupUpdateV1beta, params gcpgenserver.V1betaInternalUpdateBackupParams) (gcpgenserver.V1betaInternalUpdateBackupRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaInternalUpdateBackupBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+	// If the request belongs to VSA, we will update the backup using the orchestrator
+	vsaParams := &commonparams.UpdateBackupParams{
+		AccountName:     params.ProjectNumber,
+		BackupVaultUUID: params.BackupVaultId,
+		BackupUUID:      params.BackupId,
+		Description:     req.Description,
+	}
+	_, jobId, err := h.Orchestrator.UpdateBackupInternal(ctx, vsaParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalUpdateBackupBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to update backup", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	// Get the backup from database using ExternalUUID (backupId in params is ExternalUUID for cross-region backups)
+	dbBackup, err := h.Orchestrator.GetBackupByExternalUUID(ctx, params.BackupVaultId, params.BackupId, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Failed to get backup", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	resp := convertBackupDataModelToInternalBackupsV1beta(dbBackup, false) // isRestoring not needed for update
+
+	if jobId == "" {
+		// Return the backup directly for synchronous operations
+		return &resp, nil
+	}
+	// Return operation for asynchronous operations
+	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(false),
+	}, nil
+}
+
+// createInternalBackupParams converts InternalBackupCreateV1beta to CreateBackupParams for internal cross-region operations
+func createInternalBackupParams(req *gcpgenserver.InternalBackupCreateV1beta, params gcpgenserver.V1betaInternalCreateBackupParams) *commonparams.CreateBackupParams {
+	// Convert protocols
+	protocols := make([]string, len(req.Protocols))
+	for i, p := range req.Protocols {
+		protocols[i] = string(p)
+	}
+
+	// Initialize backupParams with all fields, using correct values from request
+	backupParams := commonparams.CreateBackupParams{
+		AccountName:   params.ProjectNumber,
+		BackupVaultID: params.BackupVaultId,
+		VolumeUUID:    req.VolumeId,
+		BackupName:    req.ResourceId,
+		BackupUUID:    req.BackupUUID, // ExternalUUID for cross-region backups
+		BackupType:    utils.BackupTypeMANUAL,
+		LocationID:    params.LocationId,
+		// Volume information (required for cross-region)
+		VolumeName: req.VolumeName,
+		Protocols:  protocols,
+		// Optional fields - set from request if available
+		Description: func() string {
+			if req.Description.IsSet() {
+				return req.Description.Value
+			}
+			return ""
+		}(),
+		SnapshotID: func() string {
+			if req.SnapshotId.IsSet() {
+				return req.SnapshotId.Value
+			}
+			return ""
+		}(),
+		SnapshotName: func() string {
+			if req.SnapshotName.IsSet() {
+				return req.SnapshotName.Value
+			}
+			return ""
+		}(),
+		UseExistingSnapshot: func() bool {
+			if req.UseExistingSnapshot.IsSet() {
+				return req.UseExistingSnapshot.Value
+			}
+			return false
+		}(),
+		XCorrelationID: func() string {
+			if params.XCorrelationID.IsSet() {
+				return params.XCorrelationID.Value
+			}
+			return ""
+		}(),
+		// Backup attributes for cross-region operations
+		BucketName: func() string {
+			if req.BucketName.IsSet() {
+				return req.BucketName.Value
+			}
+			return ""
+		}(),
+		EndpointUUID: func() string {
+			if req.EndpointUuid.IsSet() {
+				return req.EndpointUuid.Value
+			}
+			return ""
+		}(),
+		IsRegionalHA: func() bool {
+			if req.IsRegionalHa.IsSet() {
+				return req.IsRegionalHa.Value
+			}
+			return false
+		}(),
+		CompletionTime: func() string {
+			if req.CompletionTime.IsSet() {
+				return req.CompletionTime.Value.Format(time.RFC3339)
+			}
+			return ""
+		}(),
+		BackupPolicyName: func() string {
+			if req.BackupPolicyName.IsSet() {
+				return req.BackupPolicyName.Value
+			}
+			return ""
+		}(),
+		OntapVolumeStyle: func() string {
+			if req.OntapVolumeStyle.IsSet() {
+				return req.OntapVolumeStyle.Value
+			}
+			return ""
+		}(),
+		SourceVolumeZone: func() string {
+			if req.SourceVolumeZone.IsSet() {
+				return req.SourceVolumeZone.Value
+			}
+			return ""
+		}(),
+		ServiceAccountName: func() string {
+			if req.ServiceAccountName.IsSet() {
+				return req.ServiceAccountName.Value
+			}
+			return ""
+		}(),
+		SnapshotCreationTime: func() string {
+			if req.SnapshotCreationTime.IsSet() {
+				return req.SnapshotCreationTime.Value.Format(time.RFC3339)
+			}
+			return ""
+		}(),
+		ConstituentCountOfBackup: func() int32 {
+			if req.ConstituentCountOfBackup.IsSet() {
+				return req.ConstituentCountOfBackup.Value
+			}
+			return 0
+		}(),
+	}
+
+	return &backupParams
 }
 
 func (h Handler) V1betaInternalDeleteBackupVault(ctx context.Context, params gcpgenserver.V1betaInternalDeleteBackupVaultParams) (gcpgenserver.V1betaInternalDeleteBackupVaultRes, error) {
@@ -1028,11 +1247,7 @@ func (h Handler) V1betaInternalDescribeBackup(ctx context.Context, params gcpgen
 			Message: parsingErr.Message,
 		}, nil
 	}
-	backup, err := h.Orchestrator.GetBackup(ctx, &commonparams.GetBackupParams{
-		BackupVaultID: params.BackupVaultId,
-		BackupUUID:    params.BackupId,
-		AccountName:   params.ProjectNumber,
-	})
+	backup, err := h.Orchestrator.GetBackupByExternalUUID(ctx, params.BackupVaultId, params.BackupId, params.ProjectNumber)
 	if err != nil {
 		logger.Error("Failed to get backup", "error", err.Error())
 		return &gcpgenserver.V1betaInternalDescribeBackupInternalServerError{Code: 500, Message: err.Error()}, err
@@ -1056,11 +1271,7 @@ func (h Handler) V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context,
 			Message: parsingErr.Message,
 		}, nil
 	}
-	_, err := h.Orchestrator.GetBackup(ctx, &commonparams.GetBackupParams{
-		BackupVaultID: params.BackupVaultId,
-		BackupUUID:    params.BackupId,
-		AccountName:   params.ProjectNumber,
-	})
+	_, err := h.Orchestrator.GetBackupByExternalUUID(ctx, params.BackupVaultId, params.BackupId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultNotFound{

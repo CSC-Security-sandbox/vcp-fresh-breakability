@@ -67,6 +67,7 @@ const (
 	MaxBackupPathComponents   = 8          // The expected number of components in the backup path
 	BackupNameIndex           = 7          // The index of the backup name in the components
 	BackupVaultNameIndex      = 5          // The index of the backup vault name in the components
+	LocationIdIndex           = 3          // The index of the locationId in the backup path
 	bytesPerGB                = 1073741824 // 1024^3 bytes = 1 GB
 	ErrMsgSnapReserveIncrease = "Cannot increase SnapReserve to %.0f%% as we cannot decrease the available space (%.2f GB). " +
 		"Please increase the volume size to at least %.0f GB with this SnapReserve or reduce the SnapReserve percentage to continue."
@@ -321,7 +322,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		if volumeObj.VolumeAttributes == nil {
 			volumeObj.VolumeAttributes = &datamodel.VolumeAttributes{}
 		}
-		logger.Debug("params.BackupPath: %v", params.BackupPath)
+		logger.Debugf("params.BackupPath: %s", params.BackupPath)
 		volumeObj.VolumeAttributes.RestoredBackupPath = params.BackupPath
 		components := strings.Split(params.BackupPath, "/")
 
@@ -329,14 +330,22 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		if len(components) < MaxBackupPathComponents {
 			return nil, "", customerrors.NewUserInputValidationErr("Backup path is not in correct format")
 		}
-		backupVaultName := components[BackupVaultNameIndex]
-		backupName := components[BackupNameIndex]
-		// backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
-		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
-		if err != nil {
-			return nil, "", err
+
+		backupRegion := components[LocationIdIndex]
+		if backupRegion != params.Region {
+			backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, params.BackupPath, account.ID)
+			if err != nil {
+				return nil, "", err
+			}
+		} else {
+			backupVaultName := components[BackupVaultNameIndex]
+			backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
+			if err != nil {
+				return nil, "", err
+			}
 		}
 
+		backupName := components[BackupNameIndex]
 		// TODO: restore SDE Backup to VCP - need to fetch the details from sde db and store it will bucket details in case if the record is not found in VCP DB
 		backup, err = se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
 		if err != nil {

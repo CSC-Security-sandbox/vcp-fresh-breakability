@@ -281,6 +281,181 @@ func TestGetBackup_Errors(t *testing.T) {
 	})
 }
 
+func TestGetBackupByExternalUUID(t *testing.T) {
+	t.Run("ReturnsBackupWhenExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		// Create backup vault with external UUID
+		backupVaultExternalUUID := "external-backup-vault-uuid"
+		backupVault := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:         "test-backup-vault",
+			AccountID:    account.ID,
+			Account:      account,
+			ExternalUUID: &backupVaultExternalUUID,
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup with external UUID
+		backupExternalUUID := "external-backup-uuid"
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test_backup",
+			BackupVaultID: backupVault.ID,
+			ExternalUUID:  backupExternalUUID,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		result, err := store.GetBackupByExternalUUID(context.Background(), backupVaultExternalUUID, backupExternalUUID, account.Name)
+		assert.NoError(tt, err)
+		assert.Equal(tt, backup.UUID, result.UUID)
+		assert.Equal(tt, backupExternalUUID, result.ExternalUUID)
+	})
+
+	t.Run("ReturnsErrorWhenBackupVaultDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		_, err = store.GetBackupByExternalUUID(context.Background(), "non-existent-backup-vault-uuid", "external-backup-uuid", account.Name)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("ReturnsErrorWhenBackupDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		// Create backup vault with external UUID
+		backupVaultExternalUUID := "external-backup-vault-uuid"
+		backupVault := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:         "test-backup-vault",
+			AccountID:    account.ID,
+			Account:      account,
+			ExternalUUID: &backupVaultExternalUUID,
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		_, err = store.GetBackupByExternalUUID(context.Background(), backupVaultExternalUUID, "non-existent-external-backup-uuid", account.Name)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("ReturnsErrorWhenAccountNameMismatch", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		// Create backup vault with external UUID
+		backupVaultExternalUUID := "external-backup-vault-uuid"
+		backupVault := &datamodel.BackupVault{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:         "test-backup-vault",
+			AccountID:    account.ID,
+			Account:      account,
+			ExternalUUID: &backupVaultExternalUUID,
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup with external UUID
+		backupExternalUUID := "external-backup-uuid"
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test_backup",
+			BackupVaultID: backupVault.ID,
+			ExternalUUID:  backupExternalUUID,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Try to get backup with wrong account name
+		_, err = store.GetBackupByExternalUUID(context.Background(), backupVaultExternalUUID, backupExternalUUID, "wrong-account-name")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+}
+
+func TestGetBackupByExternalUUID_Errors(t *testing.T) {
+	t.Run("ReturnsErrorWhenDBFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		_, err = store.GetBackupByExternalUUID(context.Background(), "external-backup-vault-uuid", "external-backup-uuid", "test-account")
+		assert.Error(tt, err)
+	})
+}
+
 func TestDeleteBackup_Errors(t *testing.T) {
 	t.Run("ReturnsErrorWhenDBFails", func(tt *testing.T) {
 		db, err := SetupTestDB()

@@ -102,28 +102,39 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		}
 		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrch}
+		backupRegionName := "backup-region"
 		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "backup-vault-uuid"},
 			Name:             "test-backup-vault",
 			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 			SourceRegionName: nillable.ToPointer("rgn-test"),
+			BackupRegionName: &backupRegionName,
 		}
 		b := []*datamodel.Backup{
 			{
+				BaseModel:     datamodel.BaseModel{UUID: "backup-uuid-1", CreatedAt: time.Now().UTC()},
 				State:         "InProgress",
 				Name:          "test-backup",
 				VolumeUUID:    "test-vol",
 				BackupVault:   backupVault,
 				BackupVaultID: 1,
 				Attributes:    &datamodel.BackupAttributes{},
+				SizeInBytes:   1000,
+				Description:   "test backup description",
+				Type:          "adhoc",
 			},
 
 			{
+				BaseModel:     datamodel.BaseModel{UUID: "backup-uuid-2", CreatedAt: time.Now().UTC()},
 				State:         "InProgress",
 				Name:          "test-backup-1",
 				VolumeUUID:    "test-vol",
 				BackupVault:   backupVault,
 				BackupVaultID: 1,
 				Attributes:    &datamodel.BackupAttributes{},
+				SizeInBytes:   2000,
+				Description:   "test backup 1 description",
+				Type:          "adhoc",
 			},
 		}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
@@ -208,17 +219,24 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		}
 		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrch}
+		backupRegionName := "backup-region"
 		backupVault := &datamodel.BackupVault{
-			Name:          "test-backup-vault",
-			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+			BaseModel:        datamodel.BaseModel{UUID: "backup-vault-uuid"},
+			Name:             "test-backup-vault",
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+			BackupRegionName: &backupRegionName,
 		}
 		b := []*datamodel.Backup{{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid-1", CreatedAt: time.Now().UTC()},
 			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes:    &datamodel.BackupAttributes{},
+			SizeInBytes:   1000,
+			Description:   "test backup description",
+			Type:          "adhoc",
 		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 
@@ -252,18 +270,25 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		}
 		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrch}
+		backupRegionName := "backup-region"
 		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "backup-vault-uuid"},
 			Name:             "test-backup-vault",
 			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
 			SourceRegionName: nillable.ToPointer("rgn-test"),
+			BackupRegionName: &backupRegionName,
 		}
 		b := []*datamodel.Backup{{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid-1", CreatedAt: time.Now().UTC()},
 			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes:    &datamodel.BackupAttributes{},
+			SizeInBytes:   1000,
+			Description:   "test backup description",
+			Type:          "adhoc",
 		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 
@@ -311,17 +336,24 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		}
 		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrch}
+		backupRegionName := "backup-region"
 		backupVault := &datamodel.BackupVault{
-			Name:          "test-backup-vault",
-			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+			BaseModel:        datamodel.BaseModel{UUID: "backup-vault-uuid"},
+			Name:             "test-backup-vault",
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+			BackupRegionName: &backupRegionName,
 		}
 		backups := []*datamodel.Backup{{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid-1", CreatedAt: time.Now().UTC()},
 			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes:    &datamodel.BackupAttributes{},
+			SizeInBytes:   1000,
+			Description:   "test backup description",
+			Type:          "adhoc",
 		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backups, nil) // Call the method under test
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
@@ -368,17 +400,24 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		}
 		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrch}
+		backupRegionName := "backup-region"
 		backupVault := &datamodel.BackupVault{
-			Name:          "test-backup-vault",
-			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+			BaseModel:        datamodel.BaseModel{UUID: "backup-vault-uuid"},
+			Name:             "test-backup-vault",
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+			BackupRegionName: &backupRegionName,
 		}
 		b := []*datamodel.Backup{{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid-1", CreatedAt: time.Now().UTC()},
 			State:         "InProgress",
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes:    &datamodel.BackupAttributes{},
+			SizeInBytes:   1000,
+			Description:   "test backup description",
+			Type:          "adhoc",
 		}}
 		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 		// Call the method under test

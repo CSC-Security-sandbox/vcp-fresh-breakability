@@ -3577,7 +3577,7 @@ func TestDeleteBackupInternal(t *testing.T) {
 		}
 
 		// Mock storage calls
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 		store.On("DeleteBackup", ctx, backup.UUID).Return(&datamodel.Backup{}, nil)
 
 		o := &Orchestrator{storage: store}
@@ -3606,7 +3606,7 @@ func TestDeleteBackupInternal(t *testing.T) {
 		}
 
 		expectedError := errors.New("backup not found")
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(nil, expectedError)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(nil, expectedError)
 
 		o := &Orchestrator{storage: store}
 		result, err := o.DeleteBackupInternal(ctx, params)
@@ -3644,7 +3644,7 @@ func TestDeleteBackupInternal(t *testing.T) {
 			},
 		}
 
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 		expectedError := errors.New("failed to delete backup")
 		store.On("DeleteBackup", ctx, backup.UUID).Return(nil, expectedError)
 
@@ -3674,7 +3674,7 @@ func TestDeleteBackupInternal(t *testing.T) {
 			AccountName:     "test-account",
 		}
 
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).
 			Return(nil, vsaerror.NewNotFoundErr("backup", nil))
 
 		o := &Orchestrator{storage: store}
@@ -3712,7 +3712,7 @@ func TestDeleteBackupInternal(t *testing.T) {
 			},
 		}
 
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 
 		o := &Orchestrator{storage: store}
 		result, err := o.DeleteBackupInternal(ctx, params)
@@ -3747,7 +3747,7 @@ func TestDeleteBackupInternal(t *testing.T) {
 			BackupVault: nil, // This should trigger the error
 		}
 
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 		store.On("DeleteBackup", ctx, backup.UUID).Return(&datamodel.Backup{}, nil)
 
 		o := &Orchestrator{storage: store}
@@ -3794,7 +3794,7 @@ func TestDeleteBackupInternal(t *testing.T) {
 			},
 		}
 
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 		store.On("DeleteBackup", ctx, backup.UUID).Return(&datamodel.Backup{}, nil)
 
 		o := &Orchestrator{storage: store}
@@ -3846,7 +3846,7 @@ func TestDeleteBackupInternal(t *testing.T) {
 			},
 		}
 
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 		store.On("DeleteBackup", ctx, backup.UUID).Return(&datamodel.Backup{}, nil)
 
 		o := &Orchestrator{storage: store}
@@ -3885,7 +3885,7 @@ func TestDeleteBackupInternal(t *testing.T) {
 			BackupVault: nil, // Even with nil BackupVault, should not error when hydration is disabled
 		}
 
-		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 		store.On("DeleteBackup", ctx, backup.UUID).Return(&datamodel.Backup{}, nil)
 
 		o := &Orchestrator{storage: store}
@@ -3916,9 +3916,9 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
 
 		// Mock getRemoteRegionConfig
-		originalGetRemoteRegionConfig := getRemoteRegionConfig
-		defer func() { getRemoteRegionConfig = originalGetRemoteRegionConfig }()
-		getRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
 			return basePath, jwtToken, nil
 		}
 
@@ -3959,9 +3959,9 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 		expectedError := errors.New("failed to get region config")
 
 		// Mock getRemoteRegionConfig to return error
-		originalGetRemoteRegionConfig := getRemoteRegionConfig
-		defer func() { getRemoteRegionConfig = originalGetRemoteRegionConfig }()
-		getRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
 			return "", "", expectedError
 		}
 
@@ -3979,9 +3979,9 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
 
 		// Mock getRemoteRegionConfig
-		originalGetRemoteRegionConfig := getRemoteRegionConfig
-		defer func() { getRemoteRegionConfig = originalGetRemoteRegionConfig }()
-		getRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
 			return basePath, jwtToken, nil
 		}
 
@@ -4016,9 +4016,9 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
 
 		// Mock getRemoteRegionConfig
-		originalGetRemoteRegionConfig := getRemoteRegionConfig
-		defer func() { getRemoteRegionConfig = originalGetRemoteRegionConfig }()
-		getRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
 			return basePath, jwtToken, nil
 		}
 
@@ -4053,9 +4053,9 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
 
 		// Mock getRemoteRegionConfig
-		originalGetRemoteRegionConfig := getRemoteRegionConfig
-		defer func() { getRemoteRegionConfig = originalGetRemoteRegionConfig }()
-		getRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
 			return basePath, jwtToken, nil
 		}
 
@@ -4092,9 +4092,9 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
 
 		// Mock getRemoteRegionConfig
-		originalGetRemoteRegionConfig := getRemoteRegionConfig
-		defer func() { getRemoteRegionConfig = originalGetRemoteRegionConfig }()
-		getRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
 			return basePath, jwtToken, nil
 		}
 
@@ -4140,9 +4140,9 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 		// No correlation ID in context
 
 		// Mock getRemoteRegionConfig
-		originalGetRemoteRegionConfig := getRemoteRegionConfig
-		defer func() { getRemoteRegionConfig = originalGetRemoteRegionConfig }()
-		getRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
 			return basePath, jwtToken, nil
 		}
 
@@ -4302,5 +4302,590 @@ func Test_hydrateDeletedBackupsToCCFE(t *testing.T) {
 		// Assert
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
+	})
+}
+
+func TestOrchestrator_CreateBackupInternal(t *testing.T) {
+	t.Run("CallsCreateBackupInternal", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.CreateBackupParams{}
+
+		createBackupInternal = func(ctx context.Context, se database.Storage, temporalClient client.Client, params *common.CreateBackupParams) (*models.Backup, string, error) {
+			return &models.Backup{}, "", nil
+		}
+
+		o := &Orchestrator{storage: store, temporal: temporal}
+		backup, jobID, err := o.CreateBackupInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, backup)
+		assert.Equal(tt, "", jobID)
+	})
+}
+
+func TestOrchestrator_UpdateBackupInternal(t *testing.T) {
+	t.Run("CallsUpdateBackupInternal", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.UpdateBackupParams{}
+
+		updateBackupInternal = func(ctx context.Context, se database.Storage, temporalClient client.Client, params *common.UpdateBackupParams) (*models.Backup, string, error) {
+			return &models.Backup{}, "", nil
+		}
+
+		o := &Orchestrator{storage: store, temporal: temporal}
+		backup, jobID, err := o.UpdateBackupInternal(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, backup)
+		assert.Equal(tt, "", jobID)
+	})
+}
+
+func TestOrchestrator_GetBackupByExternalUUID(t *testing.T) {
+	t.Run("CallsStorageGetBackupByExternalUUID", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		backupVaultUUID := "backup-vault-uuid"
+		externalUUID := "external-uuid"
+		accountName := "test-account"
+		expectedBackup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:      "test-backup",
+		}
+
+		store.On("GetBackupByExternalUUID", ctx, backupVaultUUID, externalUUID, accountName).Return(expectedBackup, nil)
+
+		o := &Orchestrator{storage: store}
+		backup, err := o.GetBackupByExternalUUID(ctx, backupVaultUUID, externalUUID, accountName)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedBackup, backup)
+		store.AssertExpectations(tt)
+	})
+}
+
+func Test_createBackup_WithOptionalAttributes(t *testing.T) {
+	t.Run("WithAllOptionalAttributes", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "testAccount"}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "testVolumeUUID"},
+			Name:      "testVolume",
+			Account:   account,
+			AccountID: 1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFS"},
+			},
+			State: models.LifeCycleStateREADY,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "testVaultID",
+			},
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "testVaultID"},
+			AccountID:        1,
+			SourceRegionName: func() *string { s := "us-east1"; return &s }(),
+		}
+		job := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID:   "workflow-id",
+			Type:         string(models.JobTypeCreateBackup),
+			State:        string(models.JobsStateNEW),
+			ResourceName: "testBackup",
+			AccountID:    sql.NullInt64{Int64: 1, Valid: true},
+		}
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         "testBackup",
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+		}
+
+		params := &common.CreateBackupParams{
+			BackupName:               "testBackup",
+			VolumeUUID:               "testVolumeUUID",
+			BackupVaultID:            "testVaultID",
+			AccountName:              "testAccount",
+			Description:              "test description",
+			BackupType:               "FULL",
+			BucketName:               "test-bucket",
+			EndpointUUID:             "endpoint-uuid",
+			CompletionTime:           "2024-01-01T00:00:00Z",
+			BackupPolicyName:         "test-policy",
+			OntapVolumeStyle:         "flexvol",
+			SourceVolumeZone:         "us-east1-a",
+			ServiceAccountName:       "test-sa",
+			SnapshotCreationTime:     "2024-01-01T00:00:00Z",
+			ConstituentCountOfBackup: 2,
+		}
+
+		originalValidateCreateBackupParams := validateCreateBackupParams
+		validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
+			return nil
+		}
+		defer func() { validateCreateBackupParams = originalValidateCreateBackupParams }()
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+		store.On("GetVolumeWithAccountID", ctx, params.VolumeUUID, int64(1)).Return(volume, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		result, jobID, err := _createBackup(ctx, store, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "job-uuid", jobID)
+		store.AssertExpectations(tt)
+	})
+}
+
+func Test_createBackupInternal(t *testing.T) {
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "testAccount"}
+	backupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "testVaultID"},
+		AccountID:        1,
+		SourceRegionName: func() *string { s := "us-east1"; return &s }(),
+	}
+
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	t.Run("SuccessWithAllAttributes", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.CreateBackupParams{
+			BackupName:               "testBackup",
+			BackupUUID:               "backup-uuid",
+			VolumeUUID:               "testVolumeUUID",
+			BackupVaultID:            "testVaultID",
+			AccountName:              "testAccount",
+			Description:              "test description",
+			BackupType:               "FULL",
+			VolumeName:               "testVolume",
+			Protocols:                []string{"NFS"},
+			BucketName:               "test-bucket",
+			EndpointUUID:             "endpoint-uuid",
+			CompletionTime:           "2024-01-01T00:00:00Z",
+			BackupPolicyName:         "test-policy",
+			OntapVolumeStyle:         "flexvol",
+			SourceVolumeZone:         "us-east1-a",
+			ServiceAccountName:       "test-sa",
+			SnapshotCreationTime:     "2024-01-01T00:00:00Z",
+			ConstituentCountOfBackup: 2,
+			UseExistingSnapshot:      false,
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: params.VolumeName},
+		}
+
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(nil, vsaerror.NewNotFoundErr("backup", &params.BackupUUID))
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		store.On("FinishBackup", ctx, backup).Return(backup, nil)
+
+		result, jobID, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", jobID)
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("FailsWhenAccountCreationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("failed to get account")
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		_, _, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get account")
+	})
+
+	t.Run("FailsWhenVolumeInfoMissing", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "", // Missing volume name
+			Protocols:     []string{},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		_, _, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Volume information")
+	})
+
+	t.Run("FailsWhenBackupVaultNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupUUID:    "backup-uuid",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "testVolume",
+			Protocols:     []string{"NFS"},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		// When backup vault is not found, the function returns early, so GetBackupByExternalUUID is never called
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(nil, vsaerror.NewNotFoundErr("backup vault", &params.BackupVaultID))
+
+		_, _, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Backup vault not found")
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsExistingBackupWhenFound", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupUUID:    "backup-uuid",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "testVolume",
+			Protocols:     []string{"NFS"},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		existingBackup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         "testBackup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+		}
+
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(existingBackup, nil)
+
+		result, jobID, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", jobID)
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("FailsWhenGetBackupByExternalUUIDReturnsNonNotFoundError", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupUUID:    "backup-uuid",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "testVolume",
+			Protocols:     []string{"NFS"},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(nil, errors.New("database error"))
+
+		_, _, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database error")
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("FailsWhenCreateBackupFails", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupUUID:    "backup-uuid",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "testVolume",
+			Protocols:     []string{"NFS"},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(nil, vsaerror.NewNotFoundErr("backup", &params.BackupUUID))
+		store.On("CreateBackup", ctx, mock.Anything).Return(nil, errors.New("failed to create backup"))
+
+		_, _, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to create backup")
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("FailsWhenFinishBackupFails", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupUUID:    "backup-uuid",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "testVolume",
+			Protocols:     []string{"NFS"},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: params.VolumeName},
+		}
+
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(nil, vsaerror.NewNotFoundErr("backup", &params.BackupUUID))
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		store.On("FinishBackup", ctx, backup).Return(nil, errors.New("failed to finish backup"))
+
+		_, _, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to finish backup")
+		store.AssertExpectations(tt)
+	})
+}
+
+func Test_updateBackupInternal(t *testing.T) {
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "testAccount"}
+	backupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "testVaultID"},
+		AccountID:        1,
+		SourceRegionName: func() *string { s := "us-east1"; return &s }(),
+	}
+
+	origGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+	t.Run("Success", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.UpdateBackupParams{
+			BackupVaultUUID: "testVaultID",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "testAccount",
+			Description:     "updated description",
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         "testBackup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			Description:  "old description",
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+		}
+		updatedBackup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         "testBackup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			Description:  params.Description,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+		}
+
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("UpdateBackup", ctx, mock.Anything).Return(updatedBackup, nil)
+
+		result, jobID, err := _updateBackupInternal(ctx, store, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", jobID)
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("FailsWhenAccountCreationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.UpdateBackupParams{
+			BackupVaultUUID: "testVaultID",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "testAccount",
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("failed to get account")
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		_, _, err := _updateBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get account")
+	})
+
+	t.Run("FailsWhenBackupNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.UpdateBackupParams{
+			BackupVaultUUID: "testVaultID",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "testAccount",
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(nil, vsaerror.NewNotFoundErr("backup", &params.BackupUUID))
+
+		_, _, err := _updateBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Backup not found")
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("FailsWhenBackupNotInAvailableState", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.UpdateBackupParams{
+			BackupVaultUUID: "testVaultID",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "testAccount",
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         "testBackup",
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+		}
+
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+
+		_, _, err := _updateBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Backup can only be updated when in AVAILABLE state")
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("FailsWhenUpdateBackupFails", func(tt *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+		params := &common.UpdateBackupParams{
+			BackupVaultUUID: "testVaultID",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "testAccount",
+			Description:     "updated description",
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         "testBackup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			Description:  "old description",
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+		}
+
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		store.On("UpdateBackup", ctx, mock.Anything).Return(nil, errors.New("failed to update backup"))
+
+		_, _, err := _updateBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to update backup")
+		store.AssertExpectations(tt)
 	})
 }

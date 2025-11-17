@@ -3449,6 +3449,7 @@ func (*ErrorStatusCode) v1betaGetReplicationCountRes()                       {}
 func (*ErrorStatusCode) v1betaGetVolumeCountRes()                            {}
 func (*ErrorStatusCode) v1betaInternalAcceptClusterPeerRes()                 {}
 func (*ErrorStatusCode) v1betaInternalAuthorizeVolumeReplicationRes()        {}
+func (*ErrorStatusCode) v1betaInternalCreateBackupRes()                      {}
 func (*ErrorStatusCode) v1betaInternalCreateVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalDeleteBackupUnderBackupVaultRes()      {}
 func (*ErrorStatusCode) v1betaInternalDeleteBackupVaultRes()                 {}
@@ -3466,6 +3467,7 @@ func (*ErrorStatusCode) v1betaInternalReleaseVolumeReplicationRes()          {}
 func (*ErrorStatusCode) v1betaInternalResumeVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalReverseVolumeReplicationRes()          {}
 func (*ErrorStatusCode) v1betaInternalStopVolumeReplicationRes()             {}
+func (*ErrorStatusCode) v1betaInternalUpdateBackupRes()                      {}
 func (*ErrorStatusCode) v1betaInternalUpdateBackupVaultRes()                 {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationRes()           {}
@@ -4795,6 +4797,296 @@ func (s *HybridReplicationUserCommandsV1beta) SetCommands(val []string) {
 	s.Commands = val
 }
 
+// Request object for creating backups in cross-region operations. Volume and snapshot information
+// must be provided as they are not available in remote region DB.
+// Ref: #/components/schemas/InternalBackupCreate_v1beta
+type InternalBackupCreateV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// UUID v4 of the backup (ExternalUUID for cross-region backups).
+	BackupUUID string `json:"backupUUID"`
+	// UUID v4 of the volume.
+	VolumeId string `json:"volumeId"`
+	// A description of the backup.
+	Description OptString `json:"description"`
+	// Name of the volume (required for cross-region internal API calls).
+	VolumeName string `json:"volumeName"`
+	// Protocols supported by the volume (required for cross-region internal API calls).
+	Protocols []InternalBackupCreateV1betaProtocolsItem `json:"protocols"`
+	// UUID v4 of the snapshot (required when using existing snapshot).
+	SnapshotId OptString `json:"snapshotId"`
+	// Name of the snapshot (required when using existing snapshot for cross-region internal API calls).
+	SnapshotName OptString `json:"snapshotName"`
+	// Whether to use an existing snapshot for the backup.
+	UseExistingSnapshot OptBool `json:"useExistingSnapshot"`
+	// Name of the bucket used for backup storage.
+	BucketName OptString `json:"bucketName"`
+	// UUID of the endpoint used for backup.
+	EndpointUuid OptString `json:"endpointUuid"`
+	// Whether the backup is regional HA.
+	IsRegionalHa OptBool `json:"isRegionalHa"`
+	// Time when the backup was completed.
+	CompletionTime OptDateTime `json:"completionTime"`
+	// Name of the backup policy associated with this backup.
+	BackupPolicyName OptString `json:"backupPolicyName"`
+	// ONTAP volume style (flexvol, flexgroup, etc.).
+	OntapVolumeStyle OptString `json:"ontapVolumeStyle"`
+	// Zone where the source volume is located.
+	SourceVolumeZone OptString `json:"sourceVolumeZone"`
+	// Service account name used for backup operations.
+	ServiceAccountName OptString `json:"serviceAccountName"`
+	// Time when the snapshot was created.
+	SnapshotCreationTime OptDateTime `json:"snapshotCreationTime"`
+	// Number of constituent volumes in the backup.
+	ConstituentCountOfBackup OptInt32 `json:"constituentCountOfBackup"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *InternalBackupCreateV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetBackupUUID returns the value of BackupUUID.
+func (s *InternalBackupCreateV1beta) GetBackupUUID() string {
+	return s.BackupUUID
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *InternalBackupCreateV1beta) GetVolumeId() string {
+	return s.VolumeId
+}
+
+// GetDescription returns the value of Description.
+func (s *InternalBackupCreateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetVolumeName returns the value of VolumeName.
+func (s *InternalBackupCreateV1beta) GetVolumeName() string {
+	return s.VolumeName
+}
+
+// GetProtocols returns the value of Protocols.
+func (s *InternalBackupCreateV1beta) GetProtocols() []InternalBackupCreateV1betaProtocolsItem {
+	return s.Protocols
+}
+
+// GetSnapshotId returns the value of SnapshotId.
+func (s *InternalBackupCreateV1beta) GetSnapshotId() OptString {
+	return s.SnapshotId
+}
+
+// GetSnapshotName returns the value of SnapshotName.
+func (s *InternalBackupCreateV1beta) GetSnapshotName() OptString {
+	return s.SnapshotName
+}
+
+// GetUseExistingSnapshot returns the value of UseExistingSnapshot.
+func (s *InternalBackupCreateV1beta) GetUseExistingSnapshot() OptBool {
+	return s.UseExistingSnapshot
+}
+
+// GetBucketName returns the value of BucketName.
+func (s *InternalBackupCreateV1beta) GetBucketName() OptString {
+	return s.BucketName
+}
+
+// GetEndpointUuid returns the value of EndpointUuid.
+func (s *InternalBackupCreateV1beta) GetEndpointUuid() OptString {
+	return s.EndpointUuid
+}
+
+// GetIsRegionalHa returns the value of IsRegionalHa.
+func (s *InternalBackupCreateV1beta) GetIsRegionalHa() OptBool {
+	return s.IsRegionalHa
+}
+
+// GetCompletionTime returns the value of CompletionTime.
+func (s *InternalBackupCreateV1beta) GetCompletionTime() OptDateTime {
+	return s.CompletionTime
+}
+
+// GetBackupPolicyName returns the value of BackupPolicyName.
+func (s *InternalBackupCreateV1beta) GetBackupPolicyName() OptString {
+	return s.BackupPolicyName
+}
+
+// GetOntapVolumeStyle returns the value of OntapVolumeStyle.
+func (s *InternalBackupCreateV1beta) GetOntapVolumeStyle() OptString {
+	return s.OntapVolumeStyle
+}
+
+// GetSourceVolumeZone returns the value of SourceVolumeZone.
+func (s *InternalBackupCreateV1beta) GetSourceVolumeZone() OptString {
+	return s.SourceVolumeZone
+}
+
+// GetServiceAccountName returns the value of ServiceAccountName.
+func (s *InternalBackupCreateV1beta) GetServiceAccountName() OptString {
+	return s.ServiceAccountName
+}
+
+// GetSnapshotCreationTime returns the value of SnapshotCreationTime.
+func (s *InternalBackupCreateV1beta) GetSnapshotCreationTime() OptDateTime {
+	return s.SnapshotCreationTime
+}
+
+// GetConstituentCountOfBackup returns the value of ConstituentCountOfBackup.
+func (s *InternalBackupCreateV1beta) GetConstituentCountOfBackup() OptInt32 {
+	return s.ConstituentCountOfBackup
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *InternalBackupCreateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetBackupUUID sets the value of BackupUUID.
+func (s *InternalBackupCreateV1beta) SetBackupUUID(val string) {
+	s.BackupUUID = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *InternalBackupCreateV1beta) SetVolumeId(val string) {
+	s.VolumeId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *InternalBackupCreateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetVolumeName sets the value of VolumeName.
+func (s *InternalBackupCreateV1beta) SetVolumeName(val string) {
+	s.VolumeName = val
+}
+
+// SetProtocols sets the value of Protocols.
+func (s *InternalBackupCreateV1beta) SetProtocols(val []InternalBackupCreateV1betaProtocolsItem) {
+	s.Protocols = val
+}
+
+// SetSnapshotId sets the value of SnapshotId.
+func (s *InternalBackupCreateV1beta) SetSnapshotId(val OptString) {
+	s.SnapshotId = val
+}
+
+// SetSnapshotName sets the value of SnapshotName.
+func (s *InternalBackupCreateV1beta) SetSnapshotName(val OptString) {
+	s.SnapshotName = val
+}
+
+// SetUseExistingSnapshot sets the value of UseExistingSnapshot.
+func (s *InternalBackupCreateV1beta) SetUseExistingSnapshot(val OptBool) {
+	s.UseExistingSnapshot = val
+}
+
+// SetBucketName sets the value of BucketName.
+func (s *InternalBackupCreateV1beta) SetBucketName(val OptString) {
+	s.BucketName = val
+}
+
+// SetEndpointUuid sets the value of EndpointUuid.
+func (s *InternalBackupCreateV1beta) SetEndpointUuid(val OptString) {
+	s.EndpointUuid = val
+}
+
+// SetIsRegionalHa sets the value of IsRegionalHa.
+func (s *InternalBackupCreateV1beta) SetIsRegionalHa(val OptBool) {
+	s.IsRegionalHa = val
+}
+
+// SetCompletionTime sets the value of CompletionTime.
+func (s *InternalBackupCreateV1beta) SetCompletionTime(val OptDateTime) {
+	s.CompletionTime = val
+}
+
+// SetBackupPolicyName sets the value of BackupPolicyName.
+func (s *InternalBackupCreateV1beta) SetBackupPolicyName(val OptString) {
+	s.BackupPolicyName = val
+}
+
+// SetOntapVolumeStyle sets the value of OntapVolumeStyle.
+func (s *InternalBackupCreateV1beta) SetOntapVolumeStyle(val OptString) {
+	s.OntapVolumeStyle = val
+}
+
+// SetSourceVolumeZone sets the value of SourceVolumeZone.
+func (s *InternalBackupCreateV1beta) SetSourceVolumeZone(val OptString) {
+	s.SourceVolumeZone = val
+}
+
+// SetServiceAccountName sets the value of ServiceAccountName.
+func (s *InternalBackupCreateV1beta) SetServiceAccountName(val OptString) {
+	s.ServiceAccountName = val
+}
+
+// SetSnapshotCreationTime sets the value of SnapshotCreationTime.
+func (s *InternalBackupCreateV1beta) SetSnapshotCreationTime(val OptDateTime) {
+	s.SnapshotCreationTime = val
+}
+
+// SetConstituentCountOfBackup sets the value of ConstituentCountOfBackup.
+func (s *InternalBackupCreateV1beta) SetConstituentCountOfBackup(val OptInt32) {
+	s.ConstituentCountOfBackup = val
+}
+
+type InternalBackupCreateV1betaProtocolsItem string
+
+const (
+	InternalBackupCreateV1betaProtocolsItemNFSV3 InternalBackupCreateV1betaProtocolsItem = "NFSV3"
+	InternalBackupCreateV1betaProtocolsItemNFSV4 InternalBackupCreateV1betaProtocolsItem = "NFSV4"
+	InternalBackupCreateV1betaProtocolsItemSMB   InternalBackupCreateV1betaProtocolsItem = "SMB"
+	InternalBackupCreateV1betaProtocolsItemISCSI InternalBackupCreateV1betaProtocolsItem = "ISCSI"
+)
+
+// AllValues returns all InternalBackupCreateV1betaProtocolsItem values.
+func (InternalBackupCreateV1betaProtocolsItem) AllValues() []InternalBackupCreateV1betaProtocolsItem {
+	return []InternalBackupCreateV1betaProtocolsItem{
+		InternalBackupCreateV1betaProtocolsItemNFSV3,
+		InternalBackupCreateV1betaProtocolsItemNFSV4,
+		InternalBackupCreateV1betaProtocolsItemSMB,
+		InternalBackupCreateV1betaProtocolsItemISCSI,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InternalBackupCreateV1betaProtocolsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case InternalBackupCreateV1betaProtocolsItemNFSV3:
+		return []byte(s), nil
+	case InternalBackupCreateV1betaProtocolsItemNFSV4:
+		return []byte(s), nil
+	case InternalBackupCreateV1betaProtocolsItemSMB:
+		return []byte(s), nil
+	case InternalBackupCreateV1betaProtocolsItemISCSI:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InternalBackupCreateV1betaProtocolsItem) UnmarshalText(data []byte) error {
+	switch InternalBackupCreateV1betaProtocolsItem(data) {
+	case InternalBackupCreateV1betaProtocolsItemNFSV3:
+		*s = InternalBackupCreateV1betaProtocolsItemNFSV3
+		return nil
+	case InternalBackupCreateV1betaProtocolsItemNFSV4:
+		*s = InternalBackupCreateV1betaProtocolsItemNFSV4
+		return nil
+	case InternalBackupCreateV1betaProtocolsItemSMB:
+		*s = InternalBackupCreateV1betaProtocolsItemSMB
+		return nil
+	case InternalBackupCreateV1betaProtocolsItemISCSI:
+		*s = InternalBackupCreateV1betaProtocolsItemISCSI
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/InternalBackup_v1beta
 type InternalBackupV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
@@ -4832,8 +5124,20 @@ type InternalBackupV1beta struct {
 	VolumeRegion OptString `json:"volumeRegion"`
 	// Name of the backup region.
 	BackupRegion OptString `json:"backupRegion"`
-	// Flag indicating if the backup is being used to restore a volume.
-	IsRestoring           OptBool                    `json:"isRestoring"`
+	// Name of the bucket where backup is stored.
+	BucketName OptString `json:"bucketName"`
+	// Uuid v4 of the destination endpoint.
+	DestEndpointUuid OptString `json:"destEndpointUuid"`
+	// Storage class of the backup.
+	StorageClass OptString `json:"storageClass"`
+	// Style of the volume.
+	VolumeStyle OptString `json:"volumeStyle"`
+	// Project number.
+	ProjectNumber OptString `json:"projectNumber"`
+	// Flag indicating if backup is currently being used for restoration.
+	IsRestoring OptBool `json:"isRestoring"`
+	// Correlation ID for tracking the operation.
+	CorrelationId         OptString                  `json:"correlationId"`
 	AssetLocationMetadata OptAssetLocationMetadataV2 `json:"assetLocationMetadata"`
 }
 
@@ -4922,9 +5226,39 @@ func (s *InternalBackupV1beta) GetBackupRegion() OptString {
 	return s.BackupRegion
 }
 
+// GetBucketName returns the value of BucketName.
+func (s *InternalBackupV1beta) GetBucketName() OptString {
+	return s.BucketName
+}
+
+// GetDestEndpointUuid returns the value of DestEndpointUuid.
+func (s *InternalBackupV1beta) GetDestEndpointUuid() OptString {
+	return s.DestEndpointUuid
+}
+
+// GetStorageClass returns the value of StorageClass.
+func (s *InternalBackupV1beta) GetStorageClass() OptString {
+	return s.StorageClass
+}
+
+// GetVolumeStyle returns the value of VolumeStyle.
+func (s *InternalBackupV1beta) GetVolumeStyle() OptString {
+	return s.VolumeStyle
+}
+
+// GetProjectNumber returns the value of ProjectNumber.
+func (s *InternalBackupV1beta) GetProjectNumber() OptString {
+	return s.ProjectNumber
+}
+
 // GetIsRestoring returns the value of IsRestoring.
 func (s *InternalBackupV1beta) GetIsRestoring() OptBool {
 	return s.IsRestoring
+}
+
+// GetCorrelationId returns the value of CorrelationId.
+func (s *InternalBackupV1beta) GetCorrelationId() OptString {
+	return s.CorrelationId
 }
 
 // GetAssetLocationMetadata returns the value of AssetLocationMetadata.
@@ -5017,9 +5351,39 @@ func (s *InternalBackupV1beta) SetBackupRegion(val OptString) {
 	s.BackupRegion = val
 }
 
+// SetBucketName sets the value of BucketName.
+func (s *InternalBackupV1beta) SetBucketName(val OptString) {
+	s.BucketName = val
+}
+
+// SetDestEndpointUuid sets the value of DestEndpointUuid.
+func (s *InternalBackupV1beta) SetDestEndpointUuid(val OptString) {
+	s.DestEndpointUuid = val
+}
+
+// SetStorageClass sets the value of StorageClass.
+func (s *InternalBackupV1beta) SetStorageClass(val OptString) {
+	s.StorageClass = val
+}
+
+// SetVolumeStyle sets the value of VolumeStyle.
+func (s *InternalBackupV1beta) SetVolumeStyle(val OptString) {
+	s.VolumeStyle = val
+}
+
+// SetProjectNumber sets the value of ProjectNumber.
+func (s *InternalBackupV1beta) SetProjectNumber(val OptString) {
+	s.ProjectNumber = val
+}
+
 // SetIsRestoring sets the value of IsRestoring.
 func (s *InternalBackupV1beta) SetIsRestoring(val OptBool) {
 	s.IsRestoring = val
+}
+
+// SetCorrelationId sets the value of CorrelationId.
+func (s *InternalBackupV1beta) SetCorrelationId(val OptString) {
+	s.CorrelationId = val
 }
 
 // SetAssetLocationMetadata sets the value of AssetLocationMetadata.
@@ -5027,7 +5391,9 @@ func (s *InternalBackupV1beta) SetAssetLocationMetadata(val OptAssetLocationMeta
 	s.AssetLocationMetadata = val
 }
 
+func (*InternalBackupV1beta) v1betaInternalCreateBackupRes()                 {}
 func (*InternalBackupV1beta) v1betaInternalDeleteBackupUnderBackupVaultRes() {}
+func (*InternalBackupV1beta) v1betaInternalUpdateBackupRes()                 {}
 
 // Type of backup, manually created or created by a backup policy.
 type InternalBackupV1betaBackupType string
@@ -6904,10 +7270,12 @@ func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
 func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
 func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
 func (*OperationV1beta) v1betaEstablishVolumePeeringRes()                    {}
+func (*OperationV1beta) v1betaInternalCreateBackupRes()                      {}
 func (*OperationV1beta) v1betaInternalDeleteBackupUnderBackupVaultRes()      {}
 func (*OperationV1beta) v1betaInternalDeleteBackupVaultRes()                 {}
 func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()    {}
 func (*OperationV1beta) v1betaInternalReleaseVolumeReplicationRes()          {}
+func (*OperationV1beta) v1betaInternalUpdateBackupRes()                      {}
 func (*OperationV1beta) v1betaInternalUpdateBackupVaultRes()                 {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeRes()                      {}
@@ -18774,6 +19142,38 @@ type V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity Error
 func (*V1betaInternalAuthorizeVolumeReplicationUnprocessableEntity) v1betaInternalAuthorizeVolumeReplicationRes() {
 }
 
+type V1betaInternalCreateBackupBadRequest Error
+
+func (*V1betaInternalCreateBackupBadRequest) v1betaInternalCreateBackupRes() {}
+
+type V1betaInternalCreateBackupConflict Error
+
+func (*V1betaInternalCreateBackupConflict) v1betaInternalCreateBackupRes() {}
+
+type V1betaInternalCreateBackupForbidden Error
+
+func (*V1betaInternalCreateBackupForbidden) v1betaInternalCreateBackupRes() {}
+
+type V1betaInternalCreateBackupInternalServerError Error
+
+func (*V1betaInternalCreateBackupInternalServerError) v1betaInternalCreateBackupRes() {}
+
+type V1betaInternalCreateBackupNotImplemented Error
+
+func (*V1betaInternalCreateBackupNotImplemented) v1betaInternalCreateBackupRes() {}
+
+type V1betaInternalCreateBackupTooManyRequests Error
+
+func (*V1betaInternalCreateBackupTooManyRequests) v1betaInternalCreateBackupRes() {}
+
+type V1betaInternalCreateBackupUnauthorized Error
+
+func (*V1betaInternalCreateBackupUnauthorized) v1betaInternalCreateBackupRes() {}
+
+type V1betaInternalCreateBackupUnprocessableEntity Error
+
+func (*V1betaInternalCreateBackupUnprocessableEntity) v1betaInternalCreateBackupRes() {}
+
 type V1betaInternalCreateBackupVaultBadRequest Error
 
 func (*V1betaInternalCreateBackupVaultBadRequest) v1betaInternalCreateBackupVaultRes() {}
@@ -19441,6 +19841,38 @@ type V1betaInternalStopVolumeReplicationUnprocessableEntity Error
 
 func (*V1betaInternalStopVolumeReplicationUnprocessableEntity) v1betaInternalStopVolumeReplicationRes() {
 }
+
+type V1betaInternalUpdateBackupBadRequest Error
+
+func (*V1betaInternalUpdateBackupBadRequest) v1betaInternalUpdateBackupRes() {}
+
+type V1betaInternalUpdateBackupForbidden Error
+
+func (*V1betaInternalUpdateBackupForbidden) v1betaInternalUpdateBackupRes() {}
+
+type V1betaInternalUpdateBackupInternalServerError Error
+
+func (*V1betaInternalUpdateBackupInternalServerError) v1betaInternalUpdateBackupRes() {}
+
+type V1betaInternalUpdateBackupNotFound Error
+
+func (*V1betaInternalUpdateBackupNotFound) v1betaInternalUpdateBackupRes() {}
+
+type V1betaInternalUpdateBackupNotImplemented Error
+
+func (*V1betaInternalUpdateBackupNotImplemented) v1betaInternalUpdateBackupRes() {}
+
+type V1betaInternalUpdateBackupTooManyRequests Error
+
+func (*V1betaInternalUpdateBackupTooManyRequests) v1betaInternalUpdateBackupRes() {}
+
+type V1betaInternalUpdateBackupUnauthorized Error
+
+func (*V1betaInternalUpdateBackupUnauthorized) v1betaInternalUpdateBackupRes() {}
+
+type V1betaInternalUpdateBackupUnprocessableEntity Error
+
+func (*V1betaInternalUpdateBackupUnprocessableEntity) v1betaInternalUpdateBackupRes() {}
 
 type V1betaInternalUpdateBackupVaultBadRequest Error
 

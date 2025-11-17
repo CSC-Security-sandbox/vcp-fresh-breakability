@@ -4714,6 +4714,67 @@ func (_c *MockDataStore_GetBackup_Call) RunAndReturn(run func(context.Context, s
 	return _c
 }
 
+// GetBackupByExternalUUID provides a mock function with given fields: ctx, backupVaultUUID, externalUUID, accountName
+func (_m *MockDataStore) GetBackupByExternalUUID(ctx context.Context, backupVaultUUID string, externalUUID string, accountName string) (*datamodel.Backup, error) {
+	ret := _m.Called(ctx, backupVaultUUID, externalUUID, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupByExternalUUID")
+	}
+
+	var r0 *datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*datamodel.Backup, error)); ok {
+		return rf(ctx, backupVaultUUID, externalUUID, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *datamodel.Backup); ok {
+		r0 = rf(ctx, backupVaultUUID, externalUUID, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, backupVaultUUID, externalUUID, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetBackupByExternalUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupByExternalUUID'
+type MockDataStore_GetBackupByExternalUUID_Call struct {
+	*mock.Call
+}
+
+// GetBackupByExternalUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultUUID string
+//   - externalUUID string
+//   - accountName string
+func (_e *MockDataStore_Expecter) GetBackupByExternalUUID(ctx interface{}, backupVaultUUID interface{}, externalUUID interface{}, accountName interface{}) *MockDataStore_GetBackupByExternalUUID_Call {
+	return &MockDataStore_GetBackupByExternalUUID_Call{Call: _e.mock.On("GetBackupByExternalUUID", ctx, backupVaultUUID, externalUUID, accountName)}
+}
+
+func (_c *MockDataStore_GetBackupByExternalUUID_Call) Run(run func(ctx context.Context, backupVaultUUID string, externalUUID string, accountName string)) *MockDataStore_GetBackupByExternalUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupByExternalUUID_Call) Return(_a0 *datamodel.Backup, _a1 error) *MockDataStore_GetBackupByExternalUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupByExternalUUID_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.Backup, error)) *MockDataStore_GetBackupByExternalUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupByNameAndBackupVaultID provides a mock function with given fields: ctx, backupName, backupVaultID
 func (_m *MockDataStore) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backupName, backupVaultID)
@@ -5305,6 +5366,66 @@ func (_c *MockDataStore_GetBackupVault_Call) Return(_a0 *datamodel.BackupVault, 
 }
 
 func (_c *MockDataStore_GetBackupVault_Call) RunAndReturn(run func(context.Context, string) (*datamodel.BackupVault, error)) *MockDataStore_GetBackupVault_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupVaultByCrossRegionBackupVaultName provides a mock function with given fields: ctx, crossRegionBackupVaultName, accountID
+func (_m *MockDataStore) GetBackupVaultByCrossRegionBackupVaultName(ctx context.Context, crossRegionBackupVaultName string, accountID int64) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, crossRegionBackupVaultName, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupVaultByCrossRegionBackupVaultName")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, crossRegionBackupVaultName, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, crossRegionBackupVaultName, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, crossRegionBackupVaultName, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultByCrossRegionBackupVaultName'
+type MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call struct {
+	*mock.Call
+}
+
+// GetBackupVaultByCrossRegionBackupVaultName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - crossRegionBackupVaultName string
+//   - accountID int64
+func (_e *MockDataStore_Expecter) GetBackupVaultByCrossRegionBackupVaultName(ctx interface{}, crossRegionBackupVaultName interface{}, accountID interface{}) *MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call {
+	return &MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call{Call: _e.mock.On("GetBackupVaultByCrossRegionBackupVaultName", ctx, crossRegionBackupVaultName, accountID)}
+}
+
+func (_c *MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call) Run(run func(ctx context.Context, crossRegionBackupVaultName string, accountID int64)) *MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.BackupVault, error)) *MockDataStore_GetBackupVaultByCrossRegionBackupVaultName_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -395,6 +395,20 @@ func encodeV1betaInternalAuthorizeVolumeReplicationRequest(
 	return nil
 }
 
+func encodeV1betaInternalCreateBackupRequest(
+	req *InternalBackupCreateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaInternalCreateBackupVaultRequest(
 	req *BackupVaultInternalV1beta,
 	r *http.Request,
@@ -425,6 +439,20 @@ func encodeV1betaInternalCreateVolumeReplicationRequest(
 
 func encodeV1betaInternalStopVolumeReplicationRequest(
 	req *V1betaInternalStopVolumeReplicationReq,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaInternalUpdateBackupRequest(
+	req *BackupUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

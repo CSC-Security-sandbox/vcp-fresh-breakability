@@ -1310,6 +1310,59 @@ func TestGetBackup_Persistence_Store(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestGetBackupByExternalUUID_Persistence_Store(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create an account
+	acc := &datamodel.Account{Name: "acc_backup_external"}
+	createdAcc, err := store.CreateAccount(ctx, acc)
+	assert.NoError(t, err)
+
+	// Create a backup vault with external UUID
+	backupVaultExternalUUID := "external-backup-vault-uuid-123"
+	bv := &datamodel.BackupVault{
+		Name:         "backupVaultExternal",
+		AccountID:    createdAcc.ID,
+		Account:      createdAcc,
+		ExternalUUID: &backupVaultExternalUUID,
+	}
+	creatingBv, err := store.CreateBackupVaultEntryInVCP(ctx, bv)
+	assert.NoError(t, err)
+
+	// Create a backup with external UUID
+	backupExternalUUID := "external-backup-uuid-456"
+	backup := &datamodel.Backup{
+		VolumeUUID:    "uuid",
+		State:         "new",
+		BackupVaultID: creatingBv.ID,
+		ExternalUUID:  backupExternalUUID,
+	}
+	created, err := store.CreateBackup(ctx, backup)
+	assert.NoError(t, err)
+
+	// Case 1: Successful retrieval by external UUID
+	found, err := store.GetBackupByExternalUUID(ctx, backupVaultExternalUUID, backupExternalUUID, acc.Name)
+	assert.NoError(t, err)
+	assert.NotNil(t, found)
+	assert.Equal(t, created.UUID, found.UUID)
+	assert.Equal(t, backupExternalUUID, found.ExternalUUID)
+
+	// Case 2: Error scenario (non-existent backup vault external UUID)
+	_, err = store.GetBackupByExternalUUID(ctx, "non-existent-backup-vault-uuid", backupExternalUUID, acc.Name)
+	assert.Error(t, err)
+
+	// Case 3: Error scenario (non-existent backup external UUID)
+	_, err = store.GetBackupByExternalUUID(ctx, backupVaultExternalUUID, "non-existent-external-uuid", acc.Name)
+	assert.Error(t, err)
+
+	// Case 4: Error scenario (wrong account name)
+	_, err = store.GetBackupByExternalUUID(ctx, backupVaultExternalUUID, backupExternalUUID, "wrong-account-name")
+	assert.Error(t, err)
+}
+
 func TestDeleteBackup_Persistence_Store(t *testing.T) {
 	logger := &log.MockLogger{}
 	store, _ := NewTestStorage(logger)
@@ -5306,6 +5359,162 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID_Persistence_store(t *testing.T) 
 		if vsaerrors.As(err, &customErr) {
 			assert.Equal(tt, vsaerrors.ErrResourceNotFound, customErr.TrackingID, "Error code should be ErrResourceNotFound")
 		}
+	})
+}
+
+func TestGetBackupVaultByCrossRegionBackupVaultName_Persistence_store(t *testing.T) {
+	t.Run("WhenBackupVaultExistsWithValidCrossRegionBackupVaultNameAndOwnerID", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid-cross-region",
+			},
+			Name: "test_account_cross_region",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Create backup vault with cross region backup vault name
+		crossRegionBackupVaultName := "cross-region-backup-vault-name-123"
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-vault-uuid-cross-region",
+			},
+			Name:                       "test_backup_vault_cross_region",
+			AccountID:                  account.ID,
+			Account:                    account,
+			CrossRegionBackupVaultName: &crossRegionBackupVaultName,
+			LifeCycleState:             models.LifeCycleStateAvailable,
+			LifeCycleStateDetails:      models.LifeCycleStateAvailableDetails,
+			BackupVaultType:            "STANDARD",
+			AccountVendorID:            "test-vendor-id",
+		}
+		createdVault, err := store.CreateBackupVaultEntryInVCP(ctx, backupVault)
+		assert.NoError(tt, err, "Failed to create backup vault")
+		assert.NotNil(tt, createdVault, "Created backup vault should not be nil")
+
+		// Test the method
+		result, err := store.GetBackupVaultByCrossRegionBackupVaultName(ctx, crossRegionBackupVaultName, account.ID)
+		assert.NoError(tt, err, "Expected no error when getting backup vault")
+		assert.NotNil(tt, result, "Result should not be nil")
+		assert.Equal(tt, createdVault.UUID, result.UUID, "UUID should match")
+		assert.Equal(tt, backupVault.Name, result.Name, "Name should match")
+		assert.Equal(tt, account.ID, result.AccountID, "AccountID should match")
+		assert.NotNil(tt, result.CrossRegionBackupVaultName, "CrossRegionBackupVaultName should not be nil")
+		assert.Equal(tt, crossRegionBackupVaultName, *result.CrossRegionBackupVaultName, "CrossRegionBackupVaultName should match")
+		assert.NotNil(tt, result.Account, "Account should be preloaded")
+		assert.Equal(tt, account.Name, result.Account.Name, "Account name should match")
+	})
+
+	t.Run("WhenBackupVaultNotFoundByCrossRegionBackupVaultName", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid-cross-region-2",
+			},
+			Name: "test_account_cross_region_2",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		assert.NoError(tt, err, "Failed to create account")
+		account = createdAccount
+
+		// Try to get backup vault with non-existent cross region backup vault name
+		nonExistentCrossRegionName := "non-existent-cross-region-name"
+		result, err := store.GetBackupVaultByCrossRegionBackupVaultName(ctx, nonExistentCrossRegionName, account.ID)
+		assert.Error(tt, err, "Expected error when backup vault not found")
+		assert.Nil(tt, result, "Result should be nil when not found")
+	})
+
+	t.Run("WhenBackupVaultNotFoundByOwnerID", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Create test accounts
+		account1 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid-cross-region-3",
+			},
+			Name: "test_account_cross_region_3",
+		}
+		createdAccount1, err := store.CreateAccount(ctx, account1)
+		assert.NoError(tt, err, "Failed to create account")
+		account1 = createdAccount1
+
+		account2 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-account-uuid-cross-region-4",
+			},
+			Name: "test_account_cross_region_4",
+		}
+		createdAccount2, err := store.CreateAccount(ctx, account2)
+		assert.NoError(tt, err, "Failed to create account")
+		account2 = createdAccount2
+
+		// Create backup vault with account1
+		crossRegionBackupVaultName := "cross-region-backup-vault-name-456"
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-vault-uuid-cross-region-2",
+			},
+			Name:                       "test_backup_vault_cross_region_2",
+			AccountID:                  account1.ID,
+			Account:                    account1,
+			CrossRegionBackupVaultName: &crossRegionBackupVaultName,
+			LifeCycleState:             models.LifeCycleStateAvailable,
+			LifeCycleStateDetails:      models.LifeCycleStateAvailableDetails,
+			BackupVaultType:            "STANDARD",
+			AccountVendorID:            "test-vendor-id",
+		}
+		_, err = store.CreateBackupVaultEntryInVCP(ctx, backupVault)
+		assert.NoError(tt, err, "Failed to create backup vault")
+
+		// Try to get backup vault with correct cross region name but wrong account ID
+		result, err := store.GetBackupVaultByCrossRegionBackupVaultName(ctx, crossRegionBackupVaultName, account2.ID)
+		assert.Error(tt, err, "Expected error when backup vault not found for different account")
+		assert.Nil(tt, result, "Result should be nil when not found")
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			_ = store.Close()
+		}()
+
+		ctx := context.Background()
+
+		// Try to get backup vault with non-existent account ID
+		var nonExistentAccountID int64 = 999999
+		crossRegionBackupVaultName := "some-cross-region-name"
+		result, err := store.GetBackupVaultByCrossRegionBackupVaultName(ctx, crossRegionBackupVaultName, nonExistentAccountID)
+		assert.Error(tt, err, "Expected error when account does not exist")
+		assert.Nil(tt, result, "Result should be nil when account not found")
 	})
 }
 

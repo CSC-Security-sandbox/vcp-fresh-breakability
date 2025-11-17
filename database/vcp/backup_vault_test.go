@@ -228,6 +228,123 @@ func TestGetBackupVaultByNameAndOwnerID(t *testing.T) {
 	})
 }
 
+func TestGetBackupVaultByCrossRegionBackupVaultName(t *testing.T) {
+	t.Run("WhenGetBackupVaultByCrossRegionBackupVaultNameReturnsBackupVaultWhenExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 20, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		crossRegionBackupVaultName := "cross-region-backup-vault-name"
+		backupVault := &datamodel.BackupVault{
+			BaseModel:                  datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                       "test_backup_vault",
+			AccountID:                  account.ID,
+			Account:                    account,
+			CrossRegionBackupVaultName: &crossRegionBackupVaultName,
+		}
+		err = store.db.Create(backupVault).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		result, err := store.GetBackupVaultByCrossRegionBackupVaultName(context.Background(), crossRegionBackupVaultName, account.ID)
+		if err != nil {
+			tt.Errorf("Expected no error, got %v", err)
+		}
+		if result.UUID != backupVault.UUID {
+			tt.Errorf("Expected backup vault UUID %v, got %v", backupVault.UUID, result.UUID)
+		}
+		if result.Account.Name != account.Name {
+			tt.Errorf("Expected account name %v, got %v", account.Name, result.Account.Name)
+		}
+		if result.CrossRegionBackupVaultName == nil || *result.CrossRegionBackupVaultName != crossRegionBackupVaultName {
+			tt.Errorf("Expected cross region backup vault name %v, got %v", crossRegionBackupVaultName, result.CrossRegionBackupVaultName)
+		}
+	})
+	t.Run("WhenGetBackupVaultByCrossRegionBackupVaultNameReturnsErrorWhenBackupVaultDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		_, err = store.GetBackupVaultByCrossRegionBackupVaultName(context.Background(), "non-existent-cross-region-name", 999999)
+		if err == nil {
+			tt.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		}
+	})
+	t.Run("WhenGetBackupVaultByCrossRegionBackupVaultNameReturnsErrorWhenAccountIDDoesNotMatch", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 21, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		crossRegionBackupVaultName := "cross-region-backup-vault-name"
+		backupVault := &datamodel.BackupVault{
+			BaseModel:                  datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:                       "test_backup_vault",
+			AccountID:                  account.ID,
+			Account:                    account,
+			CrossRegionBackupVaultName: &crossRegionBackupVaultName,
+		}
+		err = store.db.Create(backupVault).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		// Try to get with wrong account ID
+		_, err = store.GetBackupVaultByCrossRegionBackupVaultName(context.Background(), crossRegionBackupVaultName, 999)
+		if err == nil {
+			tt.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		}
+	})
+}
+
 func TestGetBackupVault(t *testing.T) {
 	t.Run("WhenGetBackupVaultReturnsErrorWhenBackupVaultDoesNotExist", func(tt *testing.T) {
 		db, err := SetupTestDB()

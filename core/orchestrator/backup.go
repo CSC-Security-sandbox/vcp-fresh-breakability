@@ -28,6 +28,8 @@ import (
 var (
 	hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true)
 
+	createBackupInternal        = _createBackupInternal
+	updateBackupInternal        = _updateBackupInternal
 	createBackup                = _createBackup
 	validateCreateBackupParams  = _validateCreateBackupParams
 	getBackups                  = _getBackups
@@ -36,7 +38,6 @@ var (
 	validateBackupDeleteParams  = _validateBackupDeleteParams
 	validateSnapshotForBackup   = _validateSnapshotForBackup
 	fetchRemoteBackupFromVCP    = _fetchRemoteBackupFromVCP
-	getRemoteRegionConfig       = common.GetRemoteRegionConfig
 	hydrateDeletedBackupsToCCFE = _hydrateDeletedBackupsToCCFE
 )
 
@@ -47,6 +48,14 @@ func (o *Orchestrator) CreateBackup(ctx context.Context, params *common.CreateBa
 
 func (o *Orchestrator) UpdateBackup(ctx context.Context, params *common.UpdateBackupParams) (*models.Backup, string, error) {
 	return updateBackup(ctx, o.storage, o.temporal, params)
+}
+
+func (o *Orchestrator) CreateBackupInternal(ctx context.Context, params *common.CreateBackupParams) (*models.Backup, string, error) {
+	return createBackupInternal(ctx, o.storage, o.temporal, params)
+}
+
+func (o *Orchestrator) UpdateBackupInternal(ctx context.Context, params *common.UpdateBackupParams) (*models.Backup, string, error) {
+	return updateBackupInternal(ctx, o.storage, o.temporal, params)
 }
 
 func (o *Orchestrator) ListBackups(ctx context.Context, backupVaultID, ownerID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
@@ -134,6 +143,35 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		backupAttributes.SnapshotName = dbSnapshot.Name
 		backupAttributes.SnapshotID = dbSnapshot.SnapshotAttributes.ExternalUUID
 	}
+	// Set backup attributes from params (for cross-region operations)
+	if params.BucketName != "" {
+		backupAttributes.BucketName = params.BucketName
+	}
+	if params.EndpointUUID != "" {
+		backupAttributes.EndpointUUID = params.EndpointUUID
+	}
+	backupAttributes.IsRegionalHA = params.IsRegionalHA
+	if params.CompletionTime != "" {
+		backupAttributes.CompletionTime = params.CompletionTime
+	}
+	if params.BackupPolicyName != "" {
+		backupAttributes.BackupPolicyName = params.BackupPolicyName
+	}
+	if params.OntapVolumeStyle != "" {
+		backupAttributes.OntapVolumeStyle = params.OntapVolumeStyle
+	}
+	if params.SourceVolumeZone != "" {
+		backupAttributes.SourceVolumeZone = params.SourceVolumeZone
+	}
+	if params.ServiceAccountName != "" {
+		backupAttributes.ServiceAccountName = params.ServiceAccountName
+	}
+	if params.SnapshotCreationTime != "" {
+		backupAttributes.SnapshotCreationTime = params.SnapshotCreationTime
+	}
+	if params.ConstituentCountOfBackup > 0 {
+		backupAttributes.ConstituentCountOfBackup = params.ConstituentCountOfBackup
+	}
 	dbBackup := &datamodel.Backup{
 		Name:          params.BackupName,
 		VolumeUUID:    params.VolumeUUID,
@@ -172,7 +210,6 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	stateUpdated = true
-
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -343,6 +380,10 @@ func _getBackup(ctx context.Context, se database.Storage, params *common.GetBack
 	return se.GetBackup(ctx, params.BackupVaultID, params.BackupUUID, params.AccountName)
 }
 
+func (o *Orchestrator) GetBackupByExternalUUID(ctx context.Context, backupVaultUUID string, externalUUID string, accountName string) (*datamodel.Backup, error) {
+	return o.storage.GetBackupByExternalUUID(ctx, backupVaultUUID, externalUUID, accountName)
+}
+
 func convertDatastoreBackupToModel(backup *datamodel.Backup) *models.Backup {
 	minimumEnforcedRetentionDuration := int64(0)
 	isBackupImmutable := false
@@ -386,7 +427,7 @@ func (o *Orchestrator) DeleteBackupInternal(ctx context.Context, params *common.
 	se := o.storage
 	logger := util.GetLogger(ctx)
 
-	backup, err := se.GetBackup(ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName)
+	backup, err := se.GetBackupByExternalUUID(ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName)
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
 			logger.Infof("Backup %s not found, nothing to delete", params.BackupUUID)
@@ -487,7 +528,7 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
-		remoteBackup, err := fetchRemoteBackupFromVCP(ctx, backup.ExternalUUID, *backup.BackupVault.ExternalUUID, params.AccountName, *backup.BackupVault.BackupRegionName)
+		remoteBackup, err := fetchRemoteBackupFromVCP(ctx, backup.UUID, backup.BackupVault.UUID, params.AccountName, *backup.BackupVault.BackupRegionName)
 		if err != nil {
 			logger.Errorf("Failed to fetch remote backup from VCP: %v", err)
 			return nil, "", err
@@ -695,7 +736,7 @@ func _validateSnapshotForBackup(ctx context.Context, se database.Storage, params
 // fetchRemoteBackupFromVCP fetches the Backup from the remote region using Google Proxy Client
 func _fetchRemoteBackupFromVCP(ctx context.Context, backupUUID, backupVaultUUID, projectNumber, region string) (googleproxyclient.InternalBackupV1beta, error) {
 	logger := util.GetLogger(ctx)
-	basePath, jwtToken, err := getRemoteRegionConfig(region, projectNumber)
+	basePath, jwtToken, err := common.GetRemoteRegionConfig(region, projectNumber)
 	if err != nil {
 		logger.Error("Failed to get remote region configuration", "region", region, "error", err)
 		return googleproxyclient.InternalBackupV1beta{}, err
@@ -733,4 +774,134 @@ func _fetchRemoteBackupFromVCP(ctx context.Context, backupUUID, backupVaultUUID,
 	backup := backupResponse.Backups[0]
 	logger.Infof("Successfully fetched remote Backup, backupID=%s, region=%s", backup.ResourceId.Value, region)
 	return backup, nil
+}
+
+// _createBackupInternal creates a backup without starting a workflow (for internal cross-region operations)
+func _createBackupInternal(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateBackupParams) (*models.Backup, string, error) {
+	// Get the account
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Internal calls are only for cross-region backups - expect everything in params
+	// Volume and snapshot are not available in remote region DB, so we use params directly
+	if params.VolumeName == "" || len(params.Protocols) == 0 {
+		return nil, "", customerrors.NewUserInputValidationErr("Volume information (volumeName and protocols) is required for cross-region backup creation")
+	}
+
+	backupVault, err := se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, params.BackupVaultID, account.ID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return nil, "", customerrors.NewUserInputValidationErr("Backup vault not found")
+		}
+		return nil, "", err
+	}
+
+	// Check if backup already exists by ExternalUUID (backupUUID from request)
+	existingBackup, err := se.GetBackupByExternalUUID(ctx, params.BackupVaultID, params.BackupUUID, params.AccountName)
+	if err == nil && existingBackup != nil {
+		// Backup already exists, return it
+		return convertDatastoreBackupToModel(existingBackup), "", nil
+	}
+	// If error is not NotFound, return the error
+	if err != nil && !customerrors.IsNotFoundErr(err) {
+		return nil, "", err
+	}
+
+	// Use UseExistingSnapshot directly from params
+	backupAttributes := datamodel.BackupAttributes{
+		VolumeName:          params.VolumeName,
+		AccountIdentifier:   account.Name,
+		Protocols:           params.Protocols,
+		UseExistingSnapshot: params.UseExistingSnapshot,
+		SnapshotID:          params.SnapshotID,
+		SnapshotName:        params.SnapshotName,
+	}
+	// Set backup attributes from params (for cross-region operations)
+	if params.BucketName != "" {
+		backupAttributes.BucketName = params.BucketName
+	}
+	if params.EndpointUUID != "" {
+		backupAttributes.EndpointUUID = params.EndpointUUID
+	}
+	backupAttributes.IsRegionalHA = params.IsRegionalHA
+	if params.CompletionTime != "" {
+		backupAttributes.CompletionTime = params.CompletionTime
+	}
+	if params.BackupPolicyName != "" {
+		backupAttributes.BackupPolicyName = params.BackupPolicyName
+	}
+	if params.OntapVolumeStyle != "" {
+		backupAttributes.OntapVolumeStyle = params.OntapVolumeStyle
+	}
+	if params.SourceVolumeZone != "" {
+		backupAttributes.SourceVolumeZone = params.SourceVolumeZone
+	}
+	if params.ServiceAccountName != "" {
+		backupAttributes.ServiceAccountName = params.ServiceAccountName
+	}
+	if params.SnapshotCreationTime != "" {
+		backupAttributes.SnapshotCreationTime = params.SnapshotCreationTime
+	}
+	if params.ConstituentCountOfBackup > 0 {
+		backupAttributes.ConstituentCountOfBackup = params.ConstituentCountOfBackup
+	}
+
+	dbBackup := &datamodel.Backup{
+		Name:          params.BackupName,
+		ExternalUUID:  params.BackupUUID, // For cross-region backups, backupUUID from request becomes ExternalUUID
+		VolumeUUID:    params.VolumeUUID,
+		BackupVaultID: backupVault.ID,
+		Attributes:    &backupAttributes,
+		Description:   params.Description,
+		Type:          params.BackupType,
+	}
+	dbBackup.State = models.LifeCycleStateAvailable
+	dbBackup.StateDetails = models.LifeCycleStateAvailableDetails
+
+	dbBackup, err = se.CreateBackup(ctx, dbBackup)
+	if err != nil {
+		return nil, "", err
+	}
+	dbBackup, err = se.FinishBackup(ctx, dbBackup)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return convertDatastoreBackupToModel(dbBackup), "", nil
+}
+
+// _updateBackupInternal updates a backup without starting a workflow (for internal cross-region operations)
+func _updateBackupInternal(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateBackupParams) (*models.Backup, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+	// Fetch the backup using ExternalUUID (for internal cross-region operations, BackupUUID is ExternalUUID)
+	backup, err := se.GetBackupByExternalUUID(ctx, params.BackupVaultUUID, params.BackupUUID, account.Name)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return nil, "", customerrors.NewUserInputValidationErr("Backup not found")
+		}
+		return nil, "", err
+	}
+	// Check if the backup is in a state that allows updates
+	if backup.State != models.LifeCycleStateAvailable {
+		logger.Errorf("Backup %s cannot be updated, current state: %s. Only backups in AVAILABLE state can be updated", params.BackupUUID, backup.State)
+		return nil, "", customerrors.NewUserInputValidationErr("Backup can only be updated when in AVAILABLE state, current state: " + backup.State)
+	}
+
+	backup.Description = params.Description
+
+	// Update backup in local database
+	backup, err = se.UpdateBackup(ctx, backup)
+	if err != nil {
+		logger.Error("Failed to update backup in database", "error", err)
+		return nil, "", err
+	}
+
+	return convertDatastoreBackupToModel(backup), "", nil
 }

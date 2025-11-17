@@ -739,6 +739,11 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		}
 	}
 
+	backupRegion := *backup.BackupVault.SourceRegionName
+	if backupRegion == "" {
+		backupRegion = *backup.BackupVault.BackupRegionName
+	}
+
 	backupV1 := gcpgenserver.BackupV1beta{
 		ResourceId: gcpgenserver.OptString{
 			Value: backup.Name,
@@ -785,12 +790,12 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			Set:   true,
 		},
 		BackupRegion: gcpgenserver.OptString{
-			Value: *backup.BackupVault.SourceRegionName,
+			Value: backupRegion,
 			Set:   true,
 		},
 		VolumeRegion: gcpgenserver.OptString{
 			Value: *backup.BackupVault.SourceRegionName,
-			Set:   true,
+			Set:   backup.BackupVault.SourceRegionName != nil,
 		},
 		SatisfiesPzi: gcpgenserver.OptBool{
 			Value: satisfiesPzi,
@@ -848,11 +853,14 @@ func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserve
 	}
 	if req.SnapshotId.IsSet() {
 		backupParams.SnapshotID = req.SnapshotId.Value
-		backupParams.UseExistingSnapshot = true
 	}
 	if params.XCorrelationID.IsSet() {
 		backupParams.XCorrelationID = params.XCorrelationID.Value
 	}
+	// For public API, volume and snapshot information is retrieved from database
+	// VolumeName, Protocols, and SnapshotName are only available in InternalBackupCreateV1beta
+	// Derive UseExistingSnapshot from whether SnapshotID is provided
+	backupParams.UseExistingSnapshot = backupParams.SnapshotID != ""
 	return &backupParams
 }
 

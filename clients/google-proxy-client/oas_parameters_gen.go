@@ -578,6 +578,18 @@ type V1betaInternalAuthorizeVolumeReplicationParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaInternalCreateBackupParams is parameters of v1beta_internalCreateBackup operation.
+type V1betaInternalCreateBackupParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuid v4 used to identify the backup vault.
+	BackupVaultId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaInternalCreateBackupVaultParams is parameters of v1beta_internalCreateBackupVault operation.
 type V1betaInternalCreateBackupVaultParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -794,6 +806,20 @@ type V1betaInternalStopVolumeReplicationParams struct {
 	// The location/region to perform the operation in.
 	LocationId          string
 	VolumeReplicationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaInternalUpdateBackupParams is parameters of v1beta_internalUpdateBackup operation.
+type V1betaInternalUpdateBackupParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuid v4 used to identify the backup vault.
+	BackupVaultId string
+	// UUID v4 used to identify the backup.
+	BackupId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }

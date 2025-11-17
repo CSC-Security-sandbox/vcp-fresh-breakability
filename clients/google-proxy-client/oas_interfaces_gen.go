@@ -201,6 +201,10 @@ type V1betaInternalAuthorizeVolumeReplicationRes interface {
 	v1betaInternalAuthorizeVolumeReplicationRes()
 }
 
+type V1betaInternalCreateBackupRes interface {
+	v1betaInternalCreateBackupRes()
+}
+
 type V1betaInternalCreateBackupVaultRes interface {
 	v1betaInternalCreateBackupVaultRes()
 }
@@ -271,6 +275,10 @@ type V1betaInternalReverseVolumeReplicationRes interface {
 
 type V1betaInternalStopVolumeReplicationRes interface {
 	v1betaInternalStopVolumeReplicationRes()
+}
+
+type V1betaInternalUpdateBackupRes interface {
+	v1betaInternalUpdateBackupRes()
 }
 
 type V1betaInternalUpdateBackupVaultRes interface {

@@ -919,6 +919,10 @@ func (s *PersistenceStore) GetBackupVaultByNameAndOwnerID(ctx context.Context, b
 	return s.dataStore.GetBackupVaultByNameAndOwnerID(ctx, backupVaultId, account_id)
 }
 
+func (s *PersistenceStore) GetBackupVaultByCrossRegionBackupVaultName(ctx context.Context, crossRegionBackupVaultName string, accountID int64) (*datamodel.BackupVault, error) {
+	return s.dataStore.GetBackupVaultByCrossRegionBackupVaultName(ctx, crossRegionBackupVaultName, accountID)
+}
+
 func (s *PersistenceStore) CreatingBackupVault(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	return s.dataStore.CreatingBackupVault(ctx, bv)
 }
@@ -981,6 +985,10 @@ func (s *PersistenceStore) GetVolumeCountByBackupVaultID(ctx context.Context, ba
 
 func (s *PersistenceStore) GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error) {
 	return s.dataStore.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
+}
+
+func (s *PersistenceStore) GetBackupByExternalUUID(ctx context.Context, backupVaultUUID string, externalUUID string, accountName string) (*datamodel.Backup, error) {
+	return s.dataStore.GetBackupByExternalUUID(ctx, backupVaultUUID, externalUUID, accountName)
 }
 
 func (s *PersistenceStore) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error) {

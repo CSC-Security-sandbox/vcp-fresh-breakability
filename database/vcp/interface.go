@@ -210,6 +210,7 @@ type (
 		DeleteServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) error
 
 		GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultName, ownerID string) (*datamodel.BackupVault, error)
+		GetBackupVaultByCrossRegionBackupVaultName(ctx context.Context, crossRegionBackupVaultName string, accountID int64) (*datamodel.BackupVault, error)
 		CreatingBackupVault(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)
 		ListBackupVaults(ctx context.Context, accountID int64) ([]*datamodel.BackupVault, error)
 		GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error)
@@ -239,6 +240,7 @@ type (
 
 		CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error)
+		GetBackupByExternalUUID(ctx context.Context, backupVaultUUID string, externalUUID string, accountName string) (*datamodel.Backup, error)
 		DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
 		UpdateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error

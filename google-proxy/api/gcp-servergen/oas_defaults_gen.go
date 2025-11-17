@@ -172,6 +172,10 @@ func (s *InternalBackupV1beta) setDefaults() {
 		val := bool(false)
 		s.SatisfiesPzi.SetTo(val)
 	}
+	{
+		val := bool(false)
+		s.IsRestoring.SetTo(val)
+	}
 }
 
 // setDefaults set default value of fields.

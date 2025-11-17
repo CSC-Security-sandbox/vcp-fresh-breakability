@@ -80,6 +80,7 @@ func (o *Orchestrator) DeleteBackupVaultInternal(ctx context.Context, params *co
 		return nil, "", err
 	}
 	params.BackupVaultID = RemoteBV.UUID
+	params.IsInternal = true
 	return deleteBackupVault(ctx, o.storage, o.temporal, params)
 }
 
@@ -99,7 +100,7 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
 	}
 
-	if dbBv.BackupVaultType == activities.CrossRegionBackupType && params.Region == *dbBv.BackupRegionName {
+	if !params.IsInternal && dbBv.BackupVaultType == activities.CrossRegionBackupType && params.Region == *dbBv.BackupRegionName {
 		return nil, "", customerrors.NewUserInputValidationErr("backup vault cannot be deleted from the destination region")
 	}
 

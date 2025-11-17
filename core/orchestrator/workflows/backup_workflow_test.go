@@ -4523,6 +4523,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
 	externalVaultUUID := "external-vault-uuid"
 	backupRegionName := "us-west1"
 	backupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: params.BackupVaultUUID},
 		Name:             "test-backup-vault",
 		BackupVaultType:  "CROSS_REGION",
 		ExternalUUID:     &externalVaultUUID,
@@ -4552,6 +4553,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
 	}
 	externalBackupUUID := "external-backup-uuid"
 	backup := &datamodel.Backup{
+		BaseModel:     datamodel.BaseModel{UUID: params.BackupUUID},
 		Name:          "test-backup",
 		VolumeUUID:    "test-vol",
 		BackupVault:   backupVault,
@@ -4580,7 +4582,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
 	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(backup, nil)
 	// Mock DeleteRemoteBackupFromVCPActivity to succeed
-	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, externalBackupUUID, externalVaultUUID, params.AccountName, backupRegionName).Return(nil)
+	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, params.BackupUUID, params.BackupVaultUUID, params.AccountName, backupRegionName).Return(nil)
 	env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
@@ -4618,6 +4620,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 	externalVaultUUID := "external-vault-uuid"
 	backupRegionName := "us-west1"
 	backupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: params.BackupVaultUUID},
 		Name:             "test-backup-vault",
 		BackupVaultType:  "CROSS_REGION",
 		ExternalUUID:     &externalVaultUUID,
@@ -4647,6 +4650,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 	}
 	externalBackupUUID := "external-backup-uuid"
 	backup := &datamodel.Backup{
+		BaseModel:     datamodel.BaseModel{UUID: params.BackupUUID},
 		Name:          "test-backup",
 		VolumeUUID:    "test-vol",
 		BackupVault:   backupVault,
@@ -4675,12 +4679,13 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(backup, nil)
 	// Mock DeleteRemoteBackupFromVCPActivity to fail
-	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, externalBackupUUID, externalVaultUUID, params.AccountName, backupRegionName).Return(errors.New("failed to delete remote backup from VCP"))
+	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, params.BackupUUID, params.BackupVaultUUID, params.AccountName, backupRegionName).Return(errors.New("failed to delete remote backup from VCP"))
 	// When deleteInitiated is true, HandleError calls UpdateBackupError (not MarkBackupAvailable)
 	env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock GetBackup for HandleError rollback path
 	env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 	// Mock DeleteRemoteBackupFromVCPActivity for HandleError rollback path (second call)
+	// Note: In error handling path, the workflow uses ExternalUUID instead of UUID
 	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, externalBackupUUID, externalVaultUUID, params.AccountName, backupRegionName).Return(nil)
 
 	// Execute workflow

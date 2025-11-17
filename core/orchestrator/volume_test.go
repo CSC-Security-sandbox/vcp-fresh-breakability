@@ -2633,12 +2633,321 @@ func TestCreateVolume(t *testing.T) {
 				BackupChainBytes:       &[]int64{1000}[0],
 			},
 			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
-			BackupPath: "projects/project123/locations/location123/backupVaults/bv1/backups/backupName",
+			BackupPath: "projects/project123/locations/test_region/backupVaults/bv1/backups/backupName",
 		}
 
 		dbAccount := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+		volume, _, _ := createVolume(ctx, store, temporal, params)
+		assert.Equal(tt, volume.DisplayName, "test_volume")
+		assert.Equal(tt, volume.AccountName, "test_account")
+		assert.Equal(tt, volume.PoolID, "test-pool-uuid")
+		assert.Equal(tt, volume.PoolName, "test_pool")
+		assert.Equal(tt, volume.VendorID, "")
+		assert.Equal(tt, volume.CreationToken, "test-creation-token")
+		assert.Equal(tt, volume.Description, "Some description")
+		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
+		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
+		assert.Equal(tt, volume.LifeCycleState, "RESTORING")
+		assert.Equal(tt, volume.LifeCycleStateDetails, "Restore in progress")
+	})
+	t.Run("WhenCreateVolumeSuccessWithRestoreCrossRegion", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			State:     "READY",
+		}
+
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		minEnforcedRetentionDuration := int64(30)
+		backupPath := "projects/project123/locations/different_region/backupVaults/bv1/backups/backupName"
+		// Create backup vault for cross-region restore
+		bv := &datamodel.BackupVault{
+			BaseModel:                  datamodel.BaseModel{UUID: "backup-vault-uuid"},
+			Name:                       "bv1",
+			AccountID:                  account.ID,
+			CrossRegionBackupVaultName: &backupPath,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &minEnforcedRetentionDuration,
+			},
+		}
+
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "463811e7-9760-acf5-9bdb-020073ca3333"}, Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating", BackupVaultID: bv.ID, SizeInBytes: int64(10 * 1024 * 1024 * 1024)}
+
+		err = store.DB().Create(bv).Error
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		err = store.DB().Create(backup).Error
+		if err != nil {
+			tt.Fatalf("Failed to create backup: %v", err)
+		}
+
+		// Cross-region scenario: backupRegion (different_region) != params.Region (test_region)
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &[]bool{true}[0],
+				BackupVaultID:          "bv1",
+				BackupPolicyId:         "test-backup-policy-id",
+				BackupChainBytes:       &[]int64{1000}[0],
+			},
+			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
+			BackupPath: backupPath,
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+				ID:   account.ID,
+			},
+			Name: "test_account",
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+		volume, _, _ := createVolume(ctx, store, temporal, params)
+		assert.Equal(tt, volume.DisplayName, "test_volume")
+		assert.Equal(tt, volume.AccountName, "test_account")
+		assert.Equal(tt, volume.PoolID, "test-pool-uuid")
+		assert.Equal(tt, volume.PoolName, "test_pool")
+		assert.Equal(tt, volume.VendorID, "")
+		assert.Equal(tt, volume.CreationToken, "test-creation-token")
+		assert.Equal(tt, volume.Description, "Some description")
+		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
+		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
+		assert.Equal(tt, volume.LifeCycleState, "RESTORING")
+		assert.Equal(tt, volume.LifeCycleStateDetails, "Restore in progress")
+	})
+	t.Run("WhenCreateVolumeSuccessWithRestoreSameRegion", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			State:     "READY",
+		}
+
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		minEnforcedRetentionDuration := int64(30)
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+			Name:      "bv1",
+			AccountID: account.ID,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &minEnforcedRetentionDuration,
+			},
+		}
+
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "463811e7-9760-acf5-9bdb-020073ca3333"}, Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating", BackupVaultID: bv.ID, SizeInBytes: int64(10 * 1024 * 1024 * 1024)}
+
+		err = store.DB().Create(bv).Error
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		err = store.DB().Create(backup).Error
+		if err != nil {
+			tt.Fatalf("Failed to create backup: %v", err)
+		}
+
+		// Same-region scenario: backupRegion (test_region) == params.Region (test_region)
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &[]bool{true}[0],
+				BackupVaultID:          "bv1",
+				BackupPolicyId:         "test-backup-policy-id",
+				BackupChainBytes:       &[]int64{1000}[0],
+			},
+			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
+			BackupPath: "projects/project123/locations/test_region/backupVaults/bv1/backups/backupName",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+				ID:   account.ID,
 			},
 			Name: "test_account",
 		}
@@ -4099,7 +4408,7 @@ func TestCreateVolume(t *testing.T) {
 				BackupChainBytes:       &[]int64{1000}[0],
 			},
 			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
-			BackupPath: "projects/project123/locations/location123/backupVaults/bv1/backups/backupName",
+			BackupPath: "projects/project123/locations/test_region/backupVaults/bv1/backups/backupName",
 		}
 
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -4226,7 +4535,7 @@ func TestCreateVolume(t *testing.T) {
 				BackupChainBytes:       &[]int64{1000}[0],
 			},
 			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
-			BackupPath: "projects/project123/locations/location123/backupVaults/bv1/backups/backupName",
+			BackupPath: "projects/project123/locations/test_region/backupVaults/bv1/backups/backupName",
 		}
 
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -19312,7 +19621,7 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 			PoolID:        "test-pool-uuid",
 			CreationToken: "test-creation-token",
 			LargeCapacity: true, // This should cause the error
-			BackupPath:    "projects/project123/locations/location123/backupVaults/bv1/backups/backupName",
+			BackupPath:    "projects/project123/locations/test_region/backupVaults/bv1/backups/backupName",
 		}
 
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -19430,7 +19739,7 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 			CreationToken:               "test-creation-token",
 			LargeCapacity:               true,
 			LargeVolumeConstituentCount: 5, // Mismatched count (5 vs 10)
-			BackupPath:                  "projects/project123/locations/location123/backupVaults/bv1/backups/backupName",
+			BackupPath:                  "projects/project123/locations/test_region/backupVaults/bv1/backups/backupName",
 		}
 
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {

@@ -158,6 +158,38 @@ func getBackup(db *gorm.DB, backupVaultUUID string, backupUUID string, accountNa
 	return backup, nil
 }
 
+func (d *DataStoreRepository) GetBackupByExternalUUID(ctx context.Context, backupVaultUUID string, externalUUID string, accountName string) (*datamodel.Backup, error) {
+	return getBackupByExternalUUID(d.db.GORM().WithContext(ctx), backupVaultUUID, externalUUID, accountName)
+}
+
+func getBackupByExternalUUID(db *gorm.DB, backupVaultUUID string, externalUUID string, accountName string) (*datamodel.Backup, error) {
+	// Retrieve the backup vault details using the backupVaultUUID and account
+	backupVault, err := getBackupVaultWithDetails(db, &datamodel.BackupVault{
+		ExternalUUID: &backupVaultUUID,
+		Account: &datamodel.Account{
+			Name: accountName,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if backupVault.Account.Name != accountName {
+		return nil, customerrors.NewNotFoundErr("backup vault", &backupVaultUUID)
+	}
+
+	// Retrieve the backup using the backupVaultID and externalUUID
+	var backup *datamodel.Backup
+	backup, err = getBackupWithDetails(db, &datamodel.Backup{
+		ExternalUUID:  externalUUID,
+		BackupVaultID: backupVault.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return backup, nil
+}
+
 func (d *DataStoreRepository) IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error) {
 	return isBackupInCreatingorDeletingStateByVolume(d.db.GORM().WithContext(ctx), volumeUUID)
 }
