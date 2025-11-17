@@ -1090,7 +1090,7 @@ func TestSnapmirrorInONTAPSkipsWhenSnapmirrorRelationshipNotFound(t *testing.T) 
 
 	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
 	mockStorage.On("GetBackupVault", ctx, "backup-vault-123").Return(mockBackupVault, nil)
-	mockProvider.On("SnapmirrorRelationshipGet", "test-bucket:/objstore/test-volume-uuid", "test-svm:test-volume").Return(nil, utilErrors.NewNotFoundErr("snapmirror", nil))
+	mockProvider.On("SnapmirrorRelationshipGet", "test-bucket:/objstore/test-volume-uuid", "test-svm:test-volume").Return(nil, utilErrors.NewNotFoundErr("snapmirror relationship not found for destination: test-bucket:/objstore/test-volume-uuid and source: test-svm:test-volume", nil))
 
 	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
 

@@ -235,7 +235,8 @@ func TestSnapmirrorRelationshipGetNotFound(t *testing.T) {
 	result, err := ontapProvider.SnapmirrorRelationshipGet(destinationPath, sourcePath)
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.EqualError(t, err, fmt.Sprintf("snapmirror relationship not found for destination: %s and source: %s", destinationPath, sourcePath))
+	assert.True(t, utilsErrors.IsNotFoundErr(err))
+	assert.Contains(t, err.Error(), "snapmirror relationship not found")
 }
 
 func TestSnapmirrorRelationshipGetAPIError(t *testing.T) {

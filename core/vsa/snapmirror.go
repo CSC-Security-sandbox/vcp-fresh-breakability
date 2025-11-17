@@ -64,7 +64,7 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipGet(destinationPath, sourcePa
 		return nil, err
 	}
 	if len(snapmirror) == 0 {
-		return nil, fmt.Errorf("snapmirror relationship not found for destination: %s and source: %s", destinationPath, sourcePath)
+		return nil, errors.NewNotFoundErr(fmt.Sprintf("snapmirror relationship not found for destination: %s and source: %s", destinationPath, sourcePath), nil)
 	}
 	return snapmirror[0], nil
 }

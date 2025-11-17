@@ -368,7 +368,7 @@ func TestSnapmirrorGetorCreate_CreateNew(t *testing.T) {
 		SourceUUID:      nil,
 		IsRestore:       false,
 	}
-	mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, errors.New("not found"))
+	mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, utilerrors.NewNotFoundErr("snapmirror relationship not found for destination: "+destinationPath+" and source: "+sourcePath, nil))
 	mockProvider.On("SnapmirrorRelationshipCreate", SnapmirrorRelationshipParams, mock.Anything).Return(expectedResponse, nil)
 
 	// Act
@@ -1026,11 +1026,11 @@ func TestGetSnapmirror(t *testing.T) {
 		}
 		sourcePath := "source-path"
 		destinationPath := "destination-path"
-		mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, errors.New("not found"))
+		mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, utilerrors.NewNotFoundErr("snapmirror relationship not found for destination: "+destinationPath+" and source: "+sourcePath, nil))
 		snapmirror, err := activity.GetSnapmirror(context.Background(), &models.Node{}, sourcePath, destinationPath)
 		assert.NotNil(t, err)
 		assert.Nil(t, snapmirror)
-		assert.EqualError(t, err, "failed to get snapmirror relationship: not found")
+		assert.Contains(t, err.Error(), "failed to get snapmirror relationship")
 	})
 	t.Run("onGetProviderByNodeFailure", func(t *testing.T) {
 		activity := BackupActivity{}
@@ -2483,7 +2483,7 @@ func TestCreateSnapmirrorRelationshipActivity_Success(t *testing.T) {
 		},
 	}
 
-	mockProvider.On("SnapmirrorRelationshipGet", state.SmDestinationPath, state.SmSourcePath).Return(nil, errors.New("not found"))
+	mockProvider.On("SnapmirrorRelationshipGet", state.SmDestinationPath, state.SmSourcePath).Return(nil, utilerrors.NewNotFoundErr("snapmirror relationship not found for destination: "+state.SmDestinationPath+" and source: "+state.SmSourcePath, nil))
 	mockProvider.On("SnapmirrorRelationshipCreate", mock.Anything, mock.Anything).Return(expectedSnapmirror, nil)
 
 	// Act
@@ -2585,7 +2585,7 @@ func TestCreateSnapmirrorRelationshipActivity_WithNilDestinationUUID(t *testing.
 		},
 	}
 
-	mockProvider.On("SnapmirrorRelationshipGet", state.SmDestinationPath, state.SmSourcePath).Return(nil, errors.New("not found"))
+	mockProvider.On("SnapmirrorRelationshipGet", state.SmDestinationPath, state.SmSourcePath).Return(nil, utilerrors.NewNotFoundErr("snapmirror relationship not found for destination: "+state.SmDestinationPath+" and source: "+state.SmSourcePath, nil))
 	mockProvider.On("SnapmirrorRelationshipCreate", mock.Anything, mock.Anything).Return(expectedSnapmirror, nil)
 
 	// Act
