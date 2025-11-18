@@ -91,6 +91,7 @@ const (
 	V1betaListSnapshotOperation                              OperationName = "V1betaListSnapshot"
 	V1betaListVolumesOperation                               OperationName = "V1betaListVolumes"
 	V1betaResourceStateUpdateOperation                       OperationName = "V1betaResourceStateUpdate"
+	V1betaRestoreBackupFilesOperation                        OperationName = "V1betaRestoreBackupFiles"
 	V1betaResumeReplicationOperation                         OperationName = "V1betaResumeReplication"
 	V1betaReverseAndResumeReplicationOperation               OperationName = "V1betaReverseAndResumeReplication"
 	V1betaRevertVolumeOperation                              OperationName = "V1betaRevertVolume"

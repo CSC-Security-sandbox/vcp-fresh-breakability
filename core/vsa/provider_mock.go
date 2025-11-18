@@ -5517,6 +5517,55 @@ func (_c *MockProvider_SnapmirrorRelationshipTransferCreate_Call) RunAndReturn(r
 	return _c
 }
 
+// SnapmirrorRelationshipTransferCreateWithFiles provides a mock function with given fields: snapmirrorUUID, snapshotName, smcToken, files
+func (_m *MockProvider) SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID string, snapshotName string, smcToken *string, files []*common.SnapmirrorTransferFile) error {
+	ret := _m.Called(snapmirrorUUID, snapshotName, smcToken, files)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorRelationshipTransferCreateWithFiles")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, *string, []*common.SnapmirrorTransferFile) error); ok {
+		r0 = rf(snapmirrorUUID, snapshotName, smcToken, files)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorRelationshipTransferCreateWithFiles'
+type MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorRelationshipTransferCreateWithFiles is a helper method to define mock.On call
+//   - snapmirrorUUID string
+//   - snapshotName string
+//   - smcToken *string
+//   - files []*common.SnapmirrorTransferFile
+func (_e *MockProvider_Expecter) SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID interface{}, snapshotName interface{}, smcToken interface{}, files interface{}) *MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call {
+	return &MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call{Call: _e.mock.On("SnapmirrorRelationshipTransferCreateWithFiles", snapmirrorUUID, snapshotName, smcToken, files)}
+}
+
+func (_c *MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call) Run(run func(snapmirrorUUID string, snapshotName string, smcToken *string, files []*common.SnapmirrorTransferFile)) *MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(*string), args[3].([]*common.SnapmirrorTransferFile))
+	})
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call) Return(_a0 error) *MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call) RunAndReturn(run func(string, string, *string, []*common.SnapmirrorTransferFile) error) *MockProvider_SnapmirrorRelationshipTransferCreateWithFiles_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SnapmirrorRelationshipTransferGet provides a mock function with given fields: snapmirrorUUID, snapshotName
 func (_m *MockProvider) SnapmirrorRelationshipTransferGet(snapmirrorUUID string, snapshotName string) (*ontap_rest.SnapmirrorTransfer, error) {
 	ret := _m.Called(snapmirrorUUID, snapshotName)

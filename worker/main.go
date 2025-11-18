@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"net/http"
 	"os"
 	"time"
@@ -12,6 +11,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
@@ -236,6 +236,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(replicationWorkflows.UpdateVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.CreateBackupWorkflow)
 	worker.RegisterWorkflow(workflows.ADCWorkflow)
+	worker.RegisterWorkflow(workflows.RestoreFilesFromBackupWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.GetMultipleReplicationsInternalWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteBackupWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateBackupWorkflow)
@@ -301,6 +302,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&activities.BackupActivity{SE: dbcon})
 	worker.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.ADCActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.SFRActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.ReplicationInternalGetMultipleActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.MountJobActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.SmcTokenRotationActivity{SE: dbcon})

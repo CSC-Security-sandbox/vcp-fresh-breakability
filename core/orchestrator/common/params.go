@@ -527,6 +527,12 @@ type ADCResponse struct {
 	RedirectURL string
 }
 
+// SnapmirrorTransferFile represents a file entry for snapmirror transfer
+type SnapmirrorTransferFile struct {
+	SourcePath      string
+	DestinationPath string
+}
+
 type DeleteBackupParams struct {
 	AccountName     string
 	BackupVaultUUID string
@@ -737,6 +743,16 @@ type GetADParams struct {
 	ProjectNumber string
 	ResourceID    string
 }
+
+type RestoreFilesFromBackupParams struct {
+	AccountName     string
+	BackupPath      string
+	BackupID        string
+	SourceFileList  []string
+	RestoreFilePath string
+	VolumeUUID      string
+}
+
 type AdSdeUpdateResult struct {
 	Done *bool   `json:"done,omitempty"`
 	Name *string `json:"name,omitempty"`

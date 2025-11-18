@@ -1364,6 +1364,59 @@ func (s *BackupPolicyV1betaState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Request object for restoring single file from backups.
+// Ref: #/components/schemas/BackupRestoreFiles_v1beta
+type BackupRestoreFilesV1beta struct {
+	// Restore file list with a comma as a separator.
+	SourceFileList []string `json:"sourceFileList"`
+	// Path to restore.
+	RestoreFilePath OptString `json:"restoreFilePath"`
+	// Complete resource path of the backup.
+	BackupPath OptNilString `json:"backupPath"`
+	// UUID v4 used to identify the backup.
+	BackupId OptNilString `json:"backupId"`
+}
+
+// GetSourceFileList returns the value of SourceFileList.
+func (s *BackupRestoreFilesV1beta) GetSourceFileList() []string {
+	return s.SourceFileList
+}
+
+// GetRestoreFilePath returns the value of RestoreFilePath.
+func (s *BackupRestoreFilesV1beta) GetRestoreFilePath() OptString {
+	return s.RestoreFilePath
+}
+
+// GetBackupPath returns the value of BackupPath.
+func (s *BackupRestoreFilesV1beta) GetBackupPath() OptNilString {
+	return s.BackupPath
+}
+
+// GetBackupId returns the value of BackupId.
+func (s *BackupRestoreFilesV1beta) GetBackupId() OptNilString {
+	return s.BackupId
+}
+
+// SetSourceFileList sets the value of SourceFileList.
+func (s *BackupRestoreFilesV1beta) SetSourceFileList(val []string) {
+	s.SourceFileList = val
+}
+
+// SetRestoreFilePath sets the value of RestoreFilePath.
+func (s *BackupRestoreFilesV1beta) SetRestoreFilePath(val OptString) {
+	s.RestoreFilePath = val
+}
+
+// SetBackupPath sets the value of BackupPath.
+func (s *BackupRestoreFilesV1beta) SetBackupPath(val OptNilString) {
+	s.BackupPath = val
+}
+
+// SetBackupId sets the value of BackupId.
+func (s *BackupRestoreFilesV1beta) SetBackupId(val OptNilString) {
+	s.BackupId = val
+}
+
 // Ref: #/components/schemas/BackupRetentionPolicyUpdate_v1beta
 type BackupRetentionPolicyUpdateV1beta struct {
 	// Backup vault minimum enforced retention period in days.
@@ -3483,6 +3536,7 @@ func (*ErrorStatusCode) v1betaListReplicationsRes()                          {}
 func (*ErrorStatusCode) v1betaListSnapshotRes()                              {}
 func (*ErrorStatusCode) v1betaListVolumesRes()                               {}
 func (*ErrorStatusCode) v1betaResourceStateUpdateRes()                       {}
+func (*ErrorStatusCode) v1betaRestoreBackupFilesRes()                        {}
 func (*ErrorStatusCode) v1betaResumeReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaReverseAndResumeReplicationRes()               {}
 func (*ErrorStatusCode) v1betaRevertVolumeRes()                              {}
@@ -7354,6 +7408,7 @@ func (*OperationV1beta) v1betaInternalUpdateBackupRes()                      {}
 func (*OperationV1beta) v1betaInternalUpdateBackupVaultRes()                 {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeRes()                      {}
+func (*OperationV1beta) v1betaRestoreBackupFilesRes()                        {}
 func (*OperationV1beta) v1betaResumeReplicationRes()                         {}
 func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()               {}
 func (*OperationV1beta) v1betaRevertVolumeRes()                              {}
@@ -20609,6 +20664,38 @@ func (*V1betaResourceStateUpdateUnauthorized) v1betaResourceStateUpdateRes() {}
 type V1betaResourceStateUpdateUnprocessableEntity Error
 
 func (*V1betaResourceStateUpdateUnprocessableEntity) v1betaResourceStateUpdateRes() {}
+
+type V1betaRestoreBackupFilesBadRequest Error
+
+func (*V1betaRestoreBackupFilesBadRequest) v1betaRestoreBackupFilesRes() {}
+
+type V1betaRestoreBackupFilesConflict Error
+
+func (*V1betaRestoreBackupFilesConflict) v1betaRestoreBackupFilesRes() {}
+
+type V1betaRestoreBackupFilesForbidden Error
+
+func (*V1betaRestoreBackupFilesForbidden) v1betaRestoreBackupFilesRes() {}
+
+type V1betaRestoreBackupFilesInternalServerError Error
+
+func (*V1betaRestoreBackupFilesInternalServerError) v1betaRestoreBackupFilesRes() {}
+
+type V1betaRestoreBackupFilesNotImplemented Error
+
+func (*V1betaRestoreBackupFilesNotImplemented) v1betaRestoreBackupFilesRes() {}
+
+type V1betaRestoreBackupFilesTooManyRequests Error
+
+func (*V1betaRestoreBackupFilesTooManyRequests) v1betaRestoreBackupFilesRes() {}
+
+type V1betaRestoreBackupFilesUnauthorized Error
+
+func (*V1betaRestoreBackupFilesUnauthorized) v1betaRestoreBackupFilesRes() {}
+
+type V1betaRestoreBackupFilesUnprocessableEntity Error
+
+func (*V1betaRestoreBackupFilesUnprocessableEntity) v1betaRestoreBackupFilesRes() {}
 
 type V1betaResumeReplicationBadRequest Error
 

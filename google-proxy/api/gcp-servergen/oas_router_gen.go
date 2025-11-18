@@ -2104,64 +2104,36 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 											}
 
-										case 'r': // Prefix: "replications"
+										case 'r': // Prefix: "re"
 
-											if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+											if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												switch r.Method {
-												case "POST":
-													s.handleV1betaCreateReplicationRequest([3]string{
-														args[0],
-														args[1],
-														args[2],
-													}, elemIsEscaped, w, r)
-												default:
-													s.notAllowed(w, r, "POST")
-												}
-
-												return
+												break
 											}
 											switch elem[0] {
-											case '/': // Prefix: "/"
+											case 'p': // Prefix: "plications"
 
-												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												if l := len("plications"); len(elem) >= l && elem[0:l] == "plications" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
-												// Param: "replicationResourceId"
-												// Match until "/"
-												idx := strings.IndexByte(elem, '/')
-												if idx < 0 {
-													idx = len(elem)
-												}
-												args[3] = elem[:idx]
-												elem = elem[idx:]
-
 												if len(elem) == 0 {
 													switch r.Method {
-													case "DELETE":
-														s.handleV1betaDeleteReplicationRequest([4]string{
+													case "POST":
+														s.handleV1betaCreateReplicationRequest([3]string{
 															args[0],
 															args[1],
 															args[2],
-															args[3],
-														}, elemIsEscaped, w, r)
-													case "PUT":
-														s.handleV1betaUpdateReplicationRequest([4]string{
-															args[0],
-															args[1],
-															args[2],
-															args[3],
 														}, elemIsEscaped, w, r)
 													default:
-														s.notAllowed(w, r, "DELETE,PUT")
+														s.notAllowed(w, r, "POST")
 													}
 
 													return
@@ -2175,13 +2147,41 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 														break
 													}
 
+													// Param: "replicationResourceId"
+													// Match until "/"
+													idx := strings.IndexByte(elem, '/')
+													if idx < 0 {
+														idx = len(elem)
+													}
+													args[3] = elem[:idx]
+													elem = elem[idx:]
+
 													if len(elem) == 0 {
-														break
+														switch r.Method {
+														case "DELETE":
+															s.handleV1betaDeleteReplicationRequest([4]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+															}, elemIsEscaped, w, r)
+														case "PUT":
+															s.handleV1betaUpdateReplicationRequest([4]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "DELETE,PUT")
+														}
+
+														return
 													}
 													switch elem[0] {
-													case 'r': // Prefix: "re"
+													case '/': // Prefix: "/"
 
-														if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+														if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 															elem = elem[l:]
 														} else {
 															break
@@ -2191,124 +2191,162 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 															break
 														}
 														switch elem[0] {
-														case 's': // Prefix: "sume"
+														case 'r': // Prefix: "re"
 
-															if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+															if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
 																elem = elem[l:]
 															} else {
 																break
 															}
 
 															if len(elem) == 0 {
-																// Leaf node.
-																switch r.Method {
-																case "POST":
-																	s.handleV1betaResumeReplicationRequest([4]string{
-																		args[0],
-																		args[1],
-																		args[2],
-																		args[3],
-																	}, elemIsEscaped, w, r)
-																default:
-																	s.notAllowed(w, r, "POST")
+																break
+															}
+															switch elem[0] {
+															case 's': // Prefix: "sume"
+
+																if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+																	elem = elem[l:]
+																} else {
+																	break
 																}
 
-																return
+																if len(elem) == 0 {
+																	// Leaf node.
+																	switch r.Method {
+																	case "POST":
+																		s.handleV1betaResumeReplicationRequest([4]string{
+																			args[0],
+																			args[1],
+																			args[2],
+																			args[3],
+																		}, elemIsEscaped, w, r)
+																	default:
+																		s.notAllowed(w, r, "POST")
+																	}
+
+																	return
+																}
+
+															case 'v': // Prefix: "verseAndResumeReplication"
+
+																if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+																	elem = elem[l:]
+																} else {
+																	break
+																}
+
+																if len(elem) == 0 {
+																	// Leaf node.
+																	switch r.Method {
+																	case "POST":
+																		s.handleV1betaReverseAndResumeReplicationRequest([4]string{
+																			args[0],
+																			args[1],
+																			args[2],
+																			args[3],
+																		}, elemIsEscaped, w, r)
+																	default:
+																		s.notAllowed(w, r, "POST")
+																	}
+
+																	return
+																}
+
 															}
 
-														case 'v': // Prefix: "verseAndResumeReplication"
+														case 's': // Prefix: "s"
 
-															if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+															if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 																elem = elem[l:]
 															} else {
 																break
 															}
 
 															if len(elem) == 0 {
-																// Leaf node.
-																switch r.Method {
-																case "POST":
-																	s.handleV1betaReverseAndResumeReplicationRequest([4]string{
-																		args[0],
-																		args[1],
-																		args[2],
-																		args[3],
-																	}, elemIsEscaped, w, r)
-																default:
-																	s.notAllowed(w, r, "POST")
-																}
-
-																return
-															}
-
-														}
-
-													case 's': // Prefix: "s"
-
-														if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
-															elem = elem[l:]
-														} else {
-															break
-														}
-
-														if len(elem) == 0 {
-															break
-														}
-														switch elem[0] {
-														case 't': // Prefix: "top"
-
-															if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
-																elem = elem[l:]
-															} else {
 																break
 															}
+															switch elem[0] {
+															case 't': // Prefix: "top"
 
-															if len(elem) == 0 {
-																// Leaf node.
-																switch r.Method {
-																case "POST":
-																	s.handleV1betaStopReplicationRequest([4]string{
-																		args[0],
-																		args[1],
-																		args[2],
-																		args[3],
-																	}, elemIsEscaped, w, r)
-																default:
-																	s.notAllowed(w, r, "POST")
+																if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
+																	elem = elem[l:]
+																} else {
+																	break
 																}
 
-																return
-															}
+																if len(elem) == 0 {
+																	// Leaf node.
+																	switch r.Method {
+																	case "POST":
+																		s.handleV1betaStopReplicationRequest([4]string{
+																			args[0],
+																			args[1],
+																			args[2],
+																			args[3],
+																		}, elemIsEscaped, w, r)
+																	default:
+																		s.notAllowed(w, r, "POST")
+																	}
 
-														case 'y': // Prefix: "ync"
-
-															if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
-																elem = elem[l:]
-															} else {
-																break
-															}
-
-															if len(elem) == 0 {
-																// Leaf node.
-																switch r.Method {
-																case "POST":
-																	s.handleV1betaSyncReplicationRequest([4]string{
-																		args[0],
-																		args[1],
-																		args[2],
-																		args[3],
-																	}, elemIsEscaped, w, r)
-																default:
-																	s.notAllowed(w, r, "POST")
+																	return
 																}
 
-																return
+															case 'y': // Prefix: "ync"
+
+																if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
+																	elem = elem[l:]
+																} else {
+																	break
+																}
+
+																if len(elem) == 0 {
+																	// Leaf node.
+																	switch r.Method {
+																	case "POST":
+																		s.handleV1betaSyncReplicationRequest([4]string{
+																			args[0],
+																			args[1],
+																			args[2],
+																			args[3],
+																		}, elemIsEscaped, w, r)
+																	default:
+																		s.notAllowed(w, r, "POST")
+																	}
+
+																	return
+																}
+
 															}
 
 														}
 
 													}
 
+												}
+
+											case 's': // Prefix: "storeFilesFromBackup"
+
+												if l := len("storeFilesFromBackup"); len(elem) >= l && elem[0:l] == "storeFilesFromBackup" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaRestoreBackupFilesRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
 												}
 
 											}
@@ -4636,63 +4674,35 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 											}
 
-										case 'r': // Prefix: "replications"
+										case 'r': // Prefix: "re"
 
-											if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+											if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												switch method {
-												case "POST":
-													r.name = V1betaCreateReplicationOperation
-													r.summary = "Create a new replication"
-													r.operationID = "v1beta_createReplication"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications"
-													r.args = args
-													r.count = 3
-													return r, true
-												default:
-													return
-												}
+												break
 											}
 											switch elem[0] {
-											case '/': // Prefix: "/"
+											case 'p': // Prefix: "plications"
 
-												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												if l := len("plications"); len(elem) >= l && elem[0:l] == "plications" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
-												// Param: "replicationResourceId"
-												// Match until "/"
-												idx := strings.IndexByte(elem, '/')
-												if idx < 0 {
-													idx = len(elem)
-												}
-												args[3] = elem[:idx]
-												elem = elem[idx:]
-
 												if len(elem) == 0 {
 													switch method {
-													case "DELETE":
-														r.name = V1betaDeleteReplicationOperation
-														r.summary = "Delete replication"
-														r.operationID = "v1beta_deleteReplication"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
+													case "POST":
+														r.name = V1betaCreateReplicationOperation
+														r.summary = "Create a new replication"
+														r.operationID = "v1beta_createReplication"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications"
 														r.args = args
-														r.count = 4
-														return r, true
-													case "PUT":
-														r.name = V1betaUpdateReplicationOperation
-														r.summary = "Update replication"
-														r.operationID = "v1beta_updateReplication"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
-														r.args = args
-														r.count = 4
+														r.count = 3
 														return r, true
 													default:
 														return
@@ -4707,13 +4717,41 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 														break
 													}
 
+													// Param: "replicationResourceId"
+													// Match until "/"
+													idx := strings.IndexByte(elem, '/')
+													if idx < 0 {
+														idx = len(elem)
+													}
+													args[3] = elem[:idx]
+													elem = elem[idx:]
+
 													if len(elem) == 0 {
-														break
+														switch method {
+														case "DELETE":
+															r.name = V1betaDeleteReplicationOperation
+															r.summary = "Delete replication"
+															r.operationID = "v1beta_deleteReplication"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
+															r.args = args
+															r.count = 4
+															return r, true
+														case "PUT":
+															r.name = V1betaUpdateReplicationOperation
+															r.summary = "Update replication"
+															r.operationID = "v1beta_updateReplication"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}"
+															r.args = args
+															r.count = 4
+															return r, true
+														default:
+															return
+														}
 													}
 													switch elem[0] {
-													case 'r': // Prefix: "re"
+													case '/': // Prefix: "/"
 
-														if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+														if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 															elem = elem[l:]
 														} else {
 															break
@@ -4723,120 +4761,158 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 															break
 														}
 														switch elem[0] {
-														case 's': // Prefix: "sume"
+														case 'r': // Prefix: "re"
 
-															if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+															if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
 																elem = elem[l:]
 															} else {
 																break
 															}
 
 															if len(elem) == 0 {
-																// Leaf node.
-																switch method {
-																case "POST":
-																	r.name = V1betaResumeReplicationOperation
-																	r.summary = "Resume replication"
-																	r.operationID = "v1beta_resumeReplication"
-																	r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume"
-																	r.args = args
-																	r.count = 4
-																	return r, true
-																default:
-																	return
+																break
+															}
+															switch elem[0] {
+															case 's': // Prefix: "sume"
+
+																if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
+																	elem = elem[l:]
+																} else {
+																	break
 																}
+
+																if len(elem) == 0 {
+																	// Leaf node.
+																	switch method {
+																	case "POST":
+																		r.name = V1betaResumeReplicationOperation
+																		r.summary = "Resume replication"
+																		r.operationID = "v1beta_resumeReplication"
+																		r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/resume"
+																		r.args = args
+																		r.count = 4
+																		return r, true
+																	default:
+																		return
+																	}
+																}
+
+															case 'v': // Prefix: "verseAndResumeReplication"
+
+																if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+																	elem = elem[l:]
+																} else {
+																	break
+																}
+
+																if len(elem) == 0 {
+																	// Leaf node.
+																	switch method {
+																	case "POST":
+																		r.name = V1betaReverseAndResumeReplicationOperation
+																		r.summary = "Reverse and resume a replication"
+																		r.operationID = "v1beta_reverseAndResumeReplication"
+																		r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication"
+																		r.args = args
+																		r.count = 4
+																		return r, true
+																	default:
+																		return
+																	}
+																}
+
 															}
 
-														case 'v': // Prefix: "verseAndResumeReplication"
+														case 's': // Prefix: "s"
 
-															if l := len("verseAndResumeReplication"); len(elem) >= l && elem[0:l] == "verseAndResumeReplication" {
+															if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 																elem = elem[l:]
 															} else {
 																break
 															}
 
 															if len(elem) == 0 {
-																// Leaf node.
-																switch method {
-																case "POST":
-																	r.name = V1betaReverseAndResumeReplicationOperation
-																	r.summary = "Reverse and resume a replication"
-																	r.operationID = "v1beta_reverseAndResumeReplication"
-																	r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication"
-																	r.args = args
-																	r.count = 4
-																	return r, true
-																default:
-																	return
-																}
-															}
-
-														}
-
-													case 's': // Prefix: "s"
-
-														if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
-															elem = elem[l:]
-														} else {
-															break
-														}
-
-														if len(elem) == 0 {
-															break
-														}
-														switch elem[0] {
-														case 't': // Prefix: "top"
-
-															if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
-																elem = elem[l:]
-															} else {
 																break
 															}
+															switch elem[0] {
+															case 't': // Prefix: "top"
 
-															if len(elem) == 0 {
-																// Leaf node.
-																switch method {
-																case "POST":
-																	r.name = V1betaStopReplicationOperation
-																	r.summary = "Stop replication"
-																	r.operationID = "v1beta_stopReplication"
-																	r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop"
-																	r.args = args
-																	r.count = 4
-																	return r, true
-																default:
-																	return
+																if l := len("top"); len(elem) >= l && elem[0:l] == "top" {
+																	elem = elem[l:]
+																} else {
+																	break
 																}
-															}
 
-														case 'y': // Prefix: "ync"
-
-															if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
-																elem = elem[l:]
-															} else {
-																break
-															}
-
-															if len(elem) == 0 {
-																// Leaf node.
-																switch method {
-																case "POST":
-																	r.name = V1betaSyncReplicationOperation
-																	r.summary = "Sync replication"
-																	r.operationID = "v1beta_syncReplication"
-																	r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync"
-																	r.args = args
-																	r.count = 4
-																	return r, true
-																default:
-																	return
+																if len(elem) == 0 {
+																	// Leaf node.
+																	switch method {
+																	case "POST":
+																		r.name = V1betaStopReplicationOperation
+																		r.summary = "Stop replication"
+																		r.operationID = "v1beta_stopReplication"
+																		r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/stop"
+																		r.args = args
+																		r.count = 4
+																		return r, true
+																	default:
+																		return
+																	}
 																}
+
+															case 'y': // Prefix: "ync"
+
+																if l := len("ync"); len(elem) >= l && elem[0:l] == "ync" {
+																	elem = elem[l:]
+																} else {
+																	break
+																}
+
+																if len(elem) == 0 {
+																	// Leaf node.
+																	switch method {
+																	case "POST":
+																		r.name = V1betaSyncReplicationOperation
+																		r.summary = "Sync replication"
+																		r.operationID = "v1beta_syncReplication"
+																		r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/sync"
+																		r.args = args
+																		r.count = 4
+																		return r, true
+																	default:
+																		return
+																	}
+																}
+
 															}
 
 														}
 
 													}
 
+												}
+
+											case 's': // Prefix: "storeFilesFromBackup"
+
+												if l := len("storeFilesFromBackup"); len(elem) >= l && elem[0:l] == "storeFilesFromBackup" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaRestoreBackupFilesOperation
+														r.summary = "Restore files from backup"
+														r.operationID = "v1beta_restoreBackupFiles"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/restoreFilesFromBackup"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
 												}
 
 											}

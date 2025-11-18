@@ -3380,6 +3380,22 @@ func (re *retryEngine) UpdateBackupMetadata(ctx context.Context, backupMetadata 
 	return var0, err
 }
 
+func (re *retryEngine) CreateSfrMetadata(ctx context.Context, sfrMetadata *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error) {
+	var var0 *datamodel.SfrMetadata
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateSfrMetadata(ctx, sfrMetadata)
+		if err != nil {
+			re.logError("CreateSfrMetadata", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	var var0 *datamodel.AdminJobSpec
 	err := retry.Do(func(attempt int) (bool, error) {

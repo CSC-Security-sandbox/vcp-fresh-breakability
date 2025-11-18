@@ -93,6 +93,7 @@ type Provider interface {
 	SnapmirrorRelationshipCreate(params *commonparams.SnapmirrorRelationshipParams, smcToken *string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipGet(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string, smcToken *string) error
+	SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName string, smcToken *string, files []*commonparams.SnapmirrorTransferFile) error
 	SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName string) (*ontapRest.SnapmirrorTransfer, error)
 	SnapmirrorRelationshipDelete(UUID string) (*OntapAsyncResponse, error)
 	SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID string) (*OntapAsyncResponse, error)

@@ -1444,6 +1444,27 @@ func TestDnsCreateParamsToONTAP(t *testing.T) {
 		}
 		result := dnsCreateParamsToONTAP(params)
 		assert.NotNil(t, result)
+		assert.NotNil(t, result.Info)
+		assert.Equal(t, 2, len(result.Info.Domains))
+		assert.Equal(t, "example.com", *result.Info.Domains[0])
+		assert.Equal(t, "test.com", *result.Info.Domains[1])
+		// Verify Servers field is set (line 3499)
+		assert.Equal(t, 2, len(result.Info.Servers))
+		assert.Equal(t, "8.8.8.8", *result.Info.Servers[0])
+		assert.Equal(t, "8.8.4.4", *result.Info.Servers[1])
+	})
+	t.Run("WhenParamsSetWithEmptyDNSServers", func(t *testing.T) {
+		domains := []string{"example.com"}
+		servers := []string{}
+		params := &DNSCreateParams{
+			Domains:    domains,
+			DNSServers: servers,
+		}
+		result := dnsCreateParamsToONTAP(params)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.Info)
+		// Verify Servers field is set even when empty (line 3499)
+		assert.Equal(t, 0, len(result.Info.Servers))
 	})
 }
 
@@ -1460,7 +1481,21 @@ func TestGcpKmsModifyParamsToONTAP(t *testing.T) {
 
 		otParams := gcpKmsModifyParamsToONTAP(params)
 		assert.Equal(tt, "uuid", otParams.UUID)
+		// Verify ApplicationCredentials is set when not nil (line 3511)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.ApplicationCredentials)
 		assert.Equal(tt, "app cred", otParams.Info.ApplicationCredentials.String())
+	})
+	t.Run("WhenParamsSetWithNilApplicationCredentials", func(tt *testing.T) {
+		params := &GcpKmsModifyParams{
+			UUID:                   "uuid",
+			ApplicationCredentials: nil,
+		}
+
+		otParams := gcpKmsModifyParamsToONTAP(params)
+		assert.Equal(tt, "uuid", otParams.UUID)
+		// When ApplicationCredentials is nil, Info should not be set (line 3510 check)
+		assert.Nil(tt, otParams.Info)
 	})
 }
 

@@ -341,6 +341,10 @@ type V1betaResourceStateUpdateRes interface {
 	v1betaResourceStateUpdateRes()
 }
 
+type V1betaRestoreBackupFilesRes interface {
+	v1betaRestoreBackupFilesRes()
+}
+
 type V1betaResumeReplicationRes interface {
 	v1betaResumeReplicationRes()
 }

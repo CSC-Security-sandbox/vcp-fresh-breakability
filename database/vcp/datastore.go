@@ -28,6 +28,7 @@ func getVcpModels() []interface{} {
 		&datamodel.Backup{},
 		&datamodel.BackupPolicy{},
 		&datamodel.BackupMetadata{},
+		&datamodel.SfrMetadata{},
 		&datamodel.NodeNodeGroupMap{},
 		&datamodel.NodeGroup{},
 		&datamodel.ClusterUpgradeJob{},

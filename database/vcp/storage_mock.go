@@ -1963,6 +1963,65 @@ func (_c *MockStorage_CreateSVM_Call) RunAndReturn(run func(context.Context, *da
 	return _c
 }
 
+// CreateSfrMetadata provides a mock function with given fields: ctx, sfrMetadata
+func (_m *MockStorage) CreateSfrMetadata(ctx context.Context, sfrMetadata *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error) {
+	ret := _m.Called(ctx, sfrMetadata)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSfrMetadata")
+	}
+
+	var r0 *datamodel.SfrMetadata
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error)); ok {
+		return rf(ctx, sfrMetadata)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.SfrMetadata) *datamodel.SfrMetadata); ok {
+		r0 = rf(ctx, sfrMetadata)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.SfrMetadata)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.SfrMetadata) error); ok {
+		r1 = rf(ctx, sfrMetadata)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CreateSfrMetadata_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSfrMetadata'
+type MockStorage_CreateSfrMetadata_Call struct {
+	*mock.Call
+}
+
+// CreateSfrMetadata is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sfrMetadata *datamodel.SfrMetadata
+func (_e *MockStorage_Expecter) CreateSfrMetadata(ctx interface{}, sfrMetadata interface{}) *MockStorage_CreateSfrMetadata_Call {
+	return &MockStorage_CreateSfrMetadata_Call{Call: _e.mock.On("CreateSfrMetadata", ctx, sfrMetadata)}
+}
+
+func (_c *MockStorage_CreateSfrMetadata_Call) Run(run func(ctx context.Context, sfrMetadata *datamodel.SfrMetadata)) *MockStorage_CreateSfrMetadata_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.SfrMetadata))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateSfrMetadata_Call) Return(_a0 *datamodel.SfrMetadata, _a1 error) *MockStorage_CreateSfrMetadata_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CreateSfrMetadata_Call) RunAndReturn(run func(context.Context, *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error)) *MockStorage_CreateSfrMetadata_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateVolume provides a mock function with given fields: ctx, volume
 func (_m *MockStorage) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	ret := _m.Called(ctx, volume)

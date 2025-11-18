@@ -312,6 +312,18 @@ func TestBackupPolicyV1betaState_Examples(t *testing.T) {
 		})
 	}
 }
+func TestBackupRestoreFilesV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupRestoreFilesV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupRestoreFilesV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestBackupRetentionPolicyUpdateV1beta_EncodeDecode(t *testing.T) {
 	var typ BackupRetentionPolicyUpdateV1beta
 	typ.SetFake()
@@ -11748,6 +11760,102 @@ func TestV1betaResourceStateUpdateUnprocessableEntity_EncodeDecode(t *testing.T)
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaResourceStateUpdateUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRestoreBackupFilesBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaRestoreBackupFilesBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRestoreBackupFilesBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRestoreBackupFilesConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaRestoreBackupFilesConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRestoreBackupFilesConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRestoreBackupFilesForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaRestoreBackupFilesForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRestoreBackupFilesForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRestoreBackupFilesInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaRestoreBackupFilesInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRestoreBackupFilesInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRestoreBackupFilesNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaRestoreBackupFilesNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRestoreBackupFilesNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRestoreBackupFilesTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaRestoreBackupFilesTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRestoreBackupFilesTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRestoreBackupFilesUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaRestoreBackupFilesUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRestoreBackupFilesUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRestoreBackupFilesUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaRestoreBackupFilesUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRestoreBackupFilesUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaResumeReplicationBadRequest_EncodeDecode(t *testing.T) {

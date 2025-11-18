@@ -1035,6 +1035,10 @@ func (s *PersistenceStore) UpdateBackupMetadata(ctx context.Context, backupMetad
 	return s.dataStore.UpdateBackupMetadata(ctx, backupMetadata)
 }
 
+func (s *PersistenceStore) CreateSfrMetadata(ctx context.Context, sfrMetadata *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error) {
+	return s.dataStore.CreateSfrMetadata(ctx, sfrMetadata)
+}
+
 func (s *PersistenceStore) CreateAdminJobSpec(ctx context.Context, spec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	return s.dataStore.CreateAdminJobSpec(ctx, spec)
 }

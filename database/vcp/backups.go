@@ -766,3 +766,20 @@ func (d *DataStoreRepository) UpdateBackupMetadata(ctx context.Context, backupMe
 	// Return the updated record
 	return &existingBackupMetadata, nil
 }
+
+// CreateSfrMetadata creates a new SfrMetadata entry in the database
+func (d *DataStoreRepository) CreateSfrMetadata(ctx context.Context, sfrMetadata *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	err = tx.Create(sfrMetadata).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return sfrMetadata, nil
+}

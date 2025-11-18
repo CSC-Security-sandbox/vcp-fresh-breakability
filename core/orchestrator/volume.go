@@ -2358,3 +2358,137 @@ func _verifyBackupRestoreCompatibilityForLargeVolumes(backup *datamodel.Backup, 
 	}
 	return params, nil
 }
+
+func (o *Orchestrator) RestoreFilesFromBackup(ctx context.Context, params *common.RestoreFilesFromBackupParams) (string, error) {
+	return _restoreFilesFromBackup(ctx, o.storage, o.temporal, params)
+}
+
+func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal client.Client, params *common.RestoreFilesFromBackupParams) (string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return "", err
+	}
+
+	volume, err := se.GetVolume(ctx, params.VolumeUUID)
+	if err != nil {
+		return "", err
+	}
+
+	if volume.State != models.LifeCycleStateREADY {
+		return "", customerrors.NewUserInputValidationErr("Volume is not ready")
+	}
+
+	// Get backup either by BackupID or BackupPath
+	var backup *datamodel.Backup
+	var backupVault *datamodel.BackupVault
+
+	if params.BackupPath != "" {
+		// Get backup by path (existing logic)
+		components := strings.Split(params.BackupPath, "/")
+		backupVaultName := components[BackupVaultNameIndex]
+		backupName := components[BackupNameIndex]
+
+		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
+		if err != nil {
+			return "", err
+		}
+
+		backup, err = se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		return "", customerrors.NewUserInputValidationErr("BackupPath must be provided")
+	}
+
+	// Validate that backup is in a valid state for restore
+	if backup.State != models.LifeCycleStateAvailable {
+		return "", customerrors.NewUserInputValidationErr("Cannot restore files from backup which is not available")
+	}
+
+	// check that volume is files not block
+	if utils.IsSanProtocols(volume.VolumeAttributes.Protocols) {
+		return "", customerrors.NewUserInputValidationErr("Single file restore is not supported for ISCSI Volumes")
+	}
+
+	if utils.IsSanProtocols(backup.Attributes.Protocols) {
+		return "", customerrors.NewUserInputValidationErr("Single file restore is not supported from a backup of ISCSI Volumes")
+	}
+
+	originalState := volume.State
+	originalStateDetails := volume.StateDetails
+	workflowStarted := false
+	stateUpdated := false
+
+	// Update volume state to RESTORING
+	volume.State = models.LifeCycleStateRestoring
+	volume.StateDetails = models.LifeCycleStateRestoringDetails
+
+	// Create a job for the restore files operation
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeRestoreFilesBackup),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  volume.UUID,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create restore files from backup job in database", "error", err)
+		return "", err
+	}
+
+	defer func() {
+		if err != nil && !workflowStarted {
+			// Only rollback if the state was successfully updated but workflow failed to start
+			// The workflow will handle its own error states
+			if stateUpdated {
+				volume.State = originalState
+				volume.StateDetails = originalStateDetails
+				if _, rollbackErr := updateVolumeStatus(ctx, se, volume, originalState, originalStateDetails); rollbackErr != nil {
+					logger.Error("Failed to rollback volume state", "error", rollbackErr, "originalState", originalState)
+				}
+			}
+
+			// Mark job as error if it was created
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
+				}
+			}
+		}
+	}()
+
+	// Update volume state in database
+	volume, err = updateVolumeStatus(ctx, se, volume, models.LifeCycleStateRestoring, models.LifeCycleStateRestoringDetails)
+	if err != nil {
+		logger.Error("Failed to update volume state to restoring", "error", err)
+		return "", err
+	}
+	stateUpdated = true
+
+	// Execute the workflow
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		workflows.RestoreFilesFromBackupWorkflow,
+		params,
+		backup,
+		volume,
+	)
+	if err != nil {
+		logger.Error("Failed to start restore files from backup workflow: ", "error", err)
+		return "", err
+	}
+	workflowStarted = true
+	return createdJob.UUID, nil
+}

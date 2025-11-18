@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +15,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -702,7 +703,7 @@ func TestCheckOperationStatus(t *testing.T) {
 func TestCreateHmacKeys(t *testing.T) {
 	t.Run("OnSuccess", func(t *testing.T) {
 		ctx := context.Background()
-		params := &common.HmacKeyCreateParams{
+		params := &commonparams.HmacKeyCreateParams{
 			ProjectNumber:  "123456789",
 			ServiceAccount: "adc-sa@test-project.iam.gserviceaccount.com",
 		}
@@ -731,14 +732,14 @@ func TestCreateHmacKeys(t *testing.T) {
 		}
 
 		activity := activities.ADCActivity{}
-		keys, err := activity.CreateHmacKeys(ctx, &common.HmacKeyCreateParams{})
+		keys, err := activity.CreateHmacKeys(ctx, &commonparams.HmacKeyCreateParams{})
 		assert.NotNil(t, err)
 		assert.Nil(t, keys)
 	})
 
 	t.Run("OnCreateHmacKeyFailure", func(t *testing.T) {
 		ctx := context.Background()
-		params := &common.HmacKeyCreateParams{
+		params := &commonparams.HmacKeyCreateParams{
 			ProjectNumber:  "123456789",
 			ServiceAccount: "adc-sa@test-project.iam.gserviceaccount.com",
 		}
@@ -758,7 +759,7 @@ func TestCreateHmacKeys(t *testing.T) {
 
 	t.Run("OnNilKeys", func(t *testing.T) {
 		ctx := context.Background()
-		params := &common.HmacKeyCreateParams{
+		params := &commonparams.HmacKeyCreateParams{
 			ProjectNumber:  "123456789",
 			ServiceAccount: "adc-sa@test-project.iam.gserviceaccount.com",
 		}
@@ -847,7 +848,7 @@ func TestInitialDeleteRequestWithCloudRun(t *testing.T) {
 
 	t.Run("OnInvalidADCParams", func(t *testing.T) {
 		ctx := setupTestContext()
-		adcParams := &common.ADCParams{
+		adcParams := &commonparams.ADCParams{
 			AccessKey: "invalid-base64",
 			SecretKey: "invalid-base64",
 		}
@@ -995,7 +996,7 @@ func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 
 	t.Run("OnInvalidADCParams", func(t *testing.T) {
 		ctx := setupTestContext()
-		params := &common.ADCParams{
+		params := &commonparams.ADCParams{
 			AccessKey: "invalid-base64",
 			SecretKey: "invalid-base64",
 		}
@@ -1098,8 +1099,8 @@ func setupTestContext() context.Context {
 	return context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 }
 
-func createTestADCParams() *common.ADCParams {
-	return &common.ADCParams{
+func createTestADCParams() *commonparams.ADCParams {
+	return &commonparams.ADCParams{
 		ADCName:          "test-adc",
 		DestEndpointUUID: "endpoint-uuid",
 		SnapshotUUID:     "snapshot-uuid",
@@ -1211,7 +1212,7 @@ func TestCalculateLogicalBytesAndOptimizedBytes(t *testing.T) {
 
 	t.Run("OnInvalidADCParams", func(t *testing.T) {
 		ctx := setupTestContext()
-		adcParams := &common.ADCParams{
+		adcParams := &commonparams.ADCParams{
 			AccessKey: "invalid-base64",
 			SecretKey: "invalid-base64",
 		}
@@ -1327,7 +1328,7 @@ func TestCreateADCGetRequestForLogicalSize(t *testing.T) {
 	})
 
 	t.Run("OnInvalidAccessKey", func(t *testing.T) {
-		adcParams := &common.ADCParams{
+		adcParams := &commonparams.ADCParams{
 			AccessKey:        "invalid-base64",
 			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
 			DestEndpointUUID: "endpoint-uuid",
@@ -1346,7 +1347,7 @@ func TestCreateADCGetRequestForLogicalSize(t *testing.T) {
 	})
 
 	t.Run("OnInvalidSecretKey", func(t *testing.T) {
-		adcParams := &common.ADCParams{
+		adcParams := &commonparams.ADCParams{
 			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
 			SecretKey:        "invalid-base64",
 			DestEndpointUUID: "endpoint-uuid",
@@ -1551,4 +1552,830 @@ func TestFetchLogicalSizeAndUpdateActivity_HTTPError(t *testing.T) {
 	assert.Contains(t, err.Error(), "An internal error occurred.")
 	// Verify that UpdateLatestBackupLogicalSize was not called
 	mockStorage.AssertNotCalled(t, "UpdateLatestBackupLogicalSize")
+}
+
+func TestGetFileInodeNumbers(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create mock HTTP server
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "GET", r.Method)
+			assert.Contains(t, r.URL.Path, "/file1.txt")
+			assert.Equal(t, "test-access-key", r.Header.Get("access_key"))
+			assert.Equal(t, "test-secret-key", r.Header.Get("secret_password"))
+			assert.Equal(t, "Bearer test-identity-token", r.Header.Get("Authorization"))
+
+			response := map[string]interface{}{
+				"records": []map[string]interface{}{
+					{
+						"inode":    12345,
+						"size":     1024,
+						"filename": "file1.txt",
+					},
+				},
+				"end-of-list": true,
+				"num-records": 1,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(response)
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 1, len(result))
+		assert.Equal(t, "12345", result["/file1.txt"].Inode)
+		assert.Equal(t, int64(1024), result["/file1.txt"].Size)
+	})
+
+	t.Run("MultipleFiles", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt", "/file2.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		callCount := 0
+		// Create mock HTTP server
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			callCount++
+			response := map[string]interface{}{
+				"records": []map[string]interface{}{
+					{
+						"inode":    10000 + callCount,
+						"size":     1024 * callCount,
+						"filename": fmt.Sprintf("file%d.txt", callCount),
+					},
+				},
+				"end-of-list": true,
+				"num-records": 1,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(response)
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 2, len(result))
+	})
+
+	t.Run("GetStandardAuthTokenError", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken to return error
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "", errors.New("failed to get identity token")
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		serviceURL := "https://adc-service.run.app"
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("InvalidAccessKey", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        "invalid-base64", // Invalid base64
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		serviceURL := "https://adc-service.run.app"
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to decode access key")
+	})
+
+	t.Run("InvalidSecretKey", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        "invalid-base64", // Invalid base64
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		serviceURL := "https://adc-service.run.app"
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to decode secret key")
+	})
+
+	t.Run("HTTPRequestError", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		// Use invalid URL to trigger HTTP error
+		serviceURL := "https://invalid-url-that-will-fail.com"
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should return error because no files were successfully retrieved
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// ExtractCustomError wraps the error, so check OriginalErr
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Contains(t, customErr.OriginalErr.Error(), "failed to get inode numbers for any files")
+		} else {
+			// Fallback to checking error message directly
+			assert.Contains(t, err.Error(), "failed to get inode numbers for any files")
+		}
+	})
+
+	t.Run("FileNotFound", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/missing-file.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create mock HTTP server returning 404
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should return error because no files were found
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// ExtractCustomError wraps the error, so check OriginalErr
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Contains(t, customErr.OriginalErr.Error(), "failed to get inode numbers for any files")
+		} else {
+			// Fallback to checking error message directly
+			assert.Contains(t, err.Error(), "failed to get inode numbers for any files")
+		}
+	})
+
+	t.Run("TooManyRequests", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create mock HTTP server returning 429
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusTooManyRequests)
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should return error because no files were successfully retrieved
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("InvalidJSONResponse", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create mock HTTP server returning invalid JSON
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("invalid json"))
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should return error because no files were successfully retrieved
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("MultipleRecords", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/directory"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create mock HTTP server returning multiple records (directory)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			response := map[string]interface{}{
+				"records": []map[string]interface{}{
+					{"inode": 1, "size": 100, "filename": "file1"},
+					{"inode": 2, "size": 200, "filename": "file2"},
+				},
+				"end-of-list": true,
+				"num-records": 2,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(response)
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should return error because directory has multiple records
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("ZeroInode", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create mock HTTP server returning zero inode
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			response := map[string]interface{}{
+				"records": []map[string]interface{}{
+					{
+						"inode":    0, // Invalid inode
+						"size":     1024,
+						"filename": "file1.txt",
+					},
+				},
+				"end-of-list": true,
+				"num-records": 1,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(response)
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should return error because zero inode is invalid
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("PartialSuccess", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt", "/file2.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		callCount := 0
+		// Create mock HTTP server - first file succeeds, second fails
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			callCount++
+			if callCount == 1 {
+				// First file succeeds
+				response := map[string]interface{}{
+					"records": []map[string]interface{}{
+						{
+							"inode":    12345,
+							"size":     1024,
+							"filename": "file1.txt",
+						},
+					},
+					"end-of-list": true,
+					"num-records": 1,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(response)
+			} else {
+				// Second file not found
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should succeed with partial results
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 1, len(result))
+		assert.Equal(t, "12345", result["/file1.txt"].Inode)
+	})
+
+	t.Run("TemporaryRedirect", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create mock HTTP server returning 307 redirect
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			response := map[string]interface{}{
+				"records": []map[string]interface{}{
+					{
+						"inode":    12345,
+						"size":     1024,
+						"filename": "file1.txt",
+					},
+				},
+				"end-of-list": true,
+				"num-records": 1,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			_ = json.NewEncoder(w).Encode(response)
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 1, len(result))
+	})
+
+	t.Run("HTTPRequestCreationFailure", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Use invalid URL that will cause http.NewRequest to fail
+		// Using a URL with invalid characters that will cause parsing to fail
+		serviceURL := "http://[invalid-url"
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Contains(t, customErr.OriginalErr.Error(), "failed to create HTTP request")
+		}
+	})
+
+	t.Run("ResponseBodyReadError", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create mock HTTP server that returns a response with a body that fails on read
+		// We'll use a custom handler that closes the connection prematurely
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Set headers and status before attempting to write
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			// Try to hijack and close connection to cause read error
+			if hj, ok := w.(http.Hijacker); ok {
+				conn, _, _ := hj.Hijack()
+				if conn != nil {
+					err := conn.Close()
+					if err != nil {
+						return
+					}
+				}
+			}
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should return error because no files were successfully retrieved
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Contains(t, customErr.OriginalErr.Error(), "failed to get inode numbers for any files")
+		}
+	})
+
+	t.Run("OtherStatusCode", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create mock HTTP server returning 500 Internal Server Error
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("Internal Server Error"))
+		}))
+		defer server.Close()
+
+		serviceURL := server.URL
+
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should return error because no files were successfully retrieved
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Contains(t, customErr.OriginalErr.Error(), "failed to get inode numbers for any files")
+		}
+	})
+
+	t.Run("ResponseBodyCloseError", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockSE := database.NewMockStorage(t)
+		activity := activities.ADCActivity{SE: mockSE}
+
+		adcParams := &commonparams.ADCParams{
+			DestEndpointUUID: "endpoint-uuid",
+			SnapshotUUID:     "snapshot-uuid",
+			BucketName:       "test-bucket",
+			AccessKey:        base64.StdEncoding.EncodeToString([]byte("test-access-key")),
+			SecretKey:        base64.StdEncoding.EncodeToString([]byte("test-secret-key")),
+			ProvideType:      "GoogleCloud",
+			ServerURL:        "storage.googleapis.com",
+			Port:             443,
+		}
+
+		filePaths := []string{"/file1.txt"}
+
+		// Mock GetStandardAuthToken
+		originalGetStandardAuthToken := activities.GetStandardAuthToken
+		activities.GetStandardAuthToken = func(ctx context.Context, audience string) (string, error) {
+			return "test-identity-token", nil
+		}
+		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
+
+		// Create a mock ReadCloser that returns an error on Close (line 608)
+		closeErr := errors.New("close error")
+		mockBody := &mockReadCloser{
+			data:     []byte(`{"records":[{"inode":12345,"size":1024,"filename":"file1.txt"}],"end-of-list":true,"num-records":1}`),
+			readErr:  nil,
+			closeErr: closeErr,
+		}
+
+		// Override the HTTP client to return our custom body
+		originalHTTPClient := activities.RestHTTPClient
+		activities.RestHTTPClient = &mockHTTPClient{
+			transport: &mockHTTPTransport{
+				response: &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       mockBody,
+					Header:     make(http.Header),
+				},
+			},
+		}
+		defer func() { activities.RestHTTPClient = originalHTTPClient }()
+
+		serviceURL := "https://test-service.com"
+
+		// The function should handle the close error gracefully (line 608)
+		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
+		// Should still succeed despite close error
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 1, len(result))
+	})
+}
+
+// mockReadCloser is a mock io.ReadCloser for testing
+type mockReadCloser struct {
+	data      []byte
+	readErr   error
+	closeErr  error
+	readCount int
+}
+
+func (m *mockReadCloser) Read(p []byte) (n int, err error) {
+	if m.readErr != nil {
+		return 0, m.readErr
+	}
+	if len(m.data) == 0 {
+		return 0, io.EOF
+	}
+	n = copy(p, m.data)
+	m.data = m.data[n:]
+	m.readCount++
+	return n, nil
+}
+
+func (m *mockReadCloser) Close() error {
+	return m.closeErr
+}
+
+// mockHTTPTransport is a helper to mock HTTP transport
+type mockHTTPTransport struct {
+	response *http.Response
+}
+
+func (m *mockHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return m.response, nil
+}
+
+// mockHTTPClient implements rest.HTTPClient interface
+type mockHTTPClient struct {
+	transport *mockHTTPTransport
+}
+
+func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	return m.transport.RoundTrip(req)
 }

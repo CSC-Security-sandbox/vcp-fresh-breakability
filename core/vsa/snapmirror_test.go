@@ -16,6 +16,167 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+func TestSnapmirrorRelationshipTransferCreateWithFiles_Success(t *testing.T) {
+	mockClient := new(ontapRest.MockRESTClient)
+	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
+	}
+
+	ontapProvider := &OntapRestProvider{}
+	snapmirrorUUID := "snapmirror-uuid"
+	snapshotName := "snapshot-name"
+	smcToken := nillable.ToPointer("smc-token")
+	files := []*commonparams.SnapmirrorTransferFile{
+		{SourcePath: "/source/file1.txt", DestinationPath: "/dest/file1.txt"},
+		{SourcePath: "/source/file2.txt", DestinationPath: "/dest/file2.txt"},
+	}
+
+	expectedParams := &ontapRest.SnapmirrorRelationshipTransferCreateParams{
+		UUID:             snapmirrorUUID,
+		SnapshotName:     snapshotName,
+		AccessToken:      smcToken,
+		Files:            files,
+		CleanUpOnFailure: true,
+	}
+
+	mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+	mockSnapmirrorClient.On("SnapmirrorRelationshipTransferCreate", expectedParams).Return(nil)
+
+	err := ontapProvider.SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName, smcToken, files)
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+	mockSnapmirrorClient.AssertExpectations(t)
+}
+
+func TestSnapmirrorRelationshipTransferCreateWithFiles_GetClientError(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return nil, errors.New("failed to get ontap client")
+	}
+
+	ontapProvider := &OntapRestProvider{}
+	snapmirrorUUID := "snapmirror-uuid"
+	snapshotName := "snapshot-name"
+	smcToken := nillable.ToPointer("smc-token")
+	files := []*commonparams.SnapmirrorTransferFile{
+		{SourcePath: "/source/file1.txt", DestinationPath: "/dest/file1.txt"},
+	}
+
+	err := ontapProvider.SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName, smcToken, files)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get ontap client")
+}
+
+func TestSnapmirrorRelationshipTransferCreateWithFiles_TransferCreateError(t *testing.T) {
+	mockClient := new(ontapRest.MockRESTClient)
+	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
+	}
+
+	ontapProvider := &OntapRestProvider{}
+	snapmirrorUUID := "snapmirror-uuid"
+	snapshotName := "snapshot-name"
+	smcToken := nillable.ToPointer("smc-token")
+	files := []*commonparams.SnapmirrorTransferFile{
+		{SourcePath: "/source/file1.txt", DestinationPath: "/dest/file1.txt"},
+	}
+
+	expectedParams := &ontapRest.SnapmirrorRelationshipTransferCreateParams{
+		UUID:             snapmirrorUUID,
+		SnapshotName:     snapshotName,
+		AccessToken:      smcToken,
+		Files:            files,
+		CleanUpOnFailure: true,
+	}
+
+	mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+	mockSnapmirrorClient.On("SnapmirrorRelationshipTransferCreate", expectedParams).Return(errors.New("transfer create failed"))
+
+	err := ontapProvider.SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName, smcToken, files)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "transfer create failed")
+	mockClient.AssertExpectations(t)
+	mockSnapmirrorClient.AssertExpectations(t)
+}
+
+func TestSnapmirrorRelationshipTransferCreateWithFiles_WithNilToken(t *testing.T) {
+	mockClient := new(ontapRest.MockRESTClient)
+	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
+	}
+
+	ontapProvider := &OntapRestProvider{}
+	snapmirrorUUID := "snapmirror-uuid"
+	snapshotName := "snapshot-name"
+	var smcToken *string = nil
+	files := []*commonparams.SnapmirrorTransferFile{
+		{SourcePath: "/source/file1.txt", DestinationPath: "/dest/file1.txt"},
+	}
+
+	expectedParams := &ontapRest.SnapmirrorRelationshipTransferCreateParams{
+		UUID:             snapmirrorUUID,
+		SnapshotName:     snapshotName,
+		AccessToken:      nil,
+		Files:            files,
+		CleanUpOnFailure: true,
+	}
+
+	mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+	mockSnapmirrorClient.On("SnapmirrorRelationshipTransferCreate", expectedParams).Return(nil)
+
+	err := ontapProvider.SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName, smcToken, files)
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+	mockSnapmirrorClient.AssertExpectations(t)
+}
+
+func TestSnapmirrorRelationshipTransferCreateWithFiles_WithEmptyFiles(t *testing.T) {
+	mockClient := new(ontapRest.MockRESTClient)
+	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
+	}
+
+	ontapProvider := &OntapRestProvider{}
+	snapmirrorUUID := "snapmirror-uuid"
+	snapshotName := "snapshot-name"
+	smcToken := nillable.ToPointer("smc-token")
+	files := []*commonparams.SnapmirrorTransferFile{}
+
+	expectedParams := &ontapRest.SnapmirrorRelationshipTransferCreateParams{
+		UUID:             snapmirrorUUID,
+		SnapshotName:     snapshotName,
+		AccessToken:      smcToken,
+		Files:            files,
+		CleanUpOnFailure: true,
+	}
+
+	mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+	mockSnapmirrorClient.On("SnapmirrorRelationshipTransferCreate", expectedParams).Return(nil)
+
+	err := ontapProvider.SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName, smcToken, files)
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+	mockSnapmirrorClient.AssertExpectations(t)
+}
+
 func TestSnapmirrorRelationshipCreateSucceeds(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)

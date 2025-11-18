@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -23,10 +25,11 @@ import (
 const (
 	adcDeleteEndpointTemplate      = "%s/api/endpoints/%s/snapshots/%s"
 	adcLogicalSizeEndpointTemplate = "%s/api/endpoints/%s"
+	adcFileListEndpointTemplate    = "%s/api/endpoints/%s/snapshots/%s/files/%s"
 )
 
 var (
-	restHTTPClient       rest.HTTPClient = &http.Client{}
+	RestHTTPClient       rest.HTTPClient = &http.Client{}
 	GetStandardAuthToken                 = _getStandardAuthToken
 )
 
@@ -242,7 +245,7 @@ func (a *ADCActivity) InitialDeleteRequestWithCloudRun(ctx context.Context, adcP
 	req.Header.Set("Accept", "application/hal+json")
 	req.Header.Set("Authorization", "Bearer "+identityToken)
 
-	resp, err := restHTTPClient.Do(req)
+	resp, err := RestHTTPClient.Do(req)
 	if err != nil && (resp == nil || resp.StatusCode != http.StatusTemporaryRedirect) {
 		logger.Errorf("ADC delete request error: %v", err)
 		return nil, err
@@ -311,7 +314,7 @@ func (a *ADCActivity) CheckDeleteStatusWithCloudRun(ctx context.Context, params 
 	req.Header.Set("Accept", "application/hal+json")
 	req.Header.Set("Authorization", "Bearer "+identityToken)
 
-	resp, err := restHTTPClient.Do(req)
+	resp, err := RestHTTPClient.Do(req)
 	if err != nil && (resp == nil || resp.StatusCode != http.StatusTemporaryRedirect) {
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("ADC status request error: %w", err))
 	}
@@ -434,7 +437,7 @@ func (a *ADCActivity) CalculateLogicalBytesAndOptimizedBytes(ctx context.Context
 	req.Header.Set("Authorization", "Bearer "+identityToken)
 
 	// Make HTTP request to ADC service
-	resp, err := restHTTPClient.Do(req)
+	resp, err := RestHTTPClient.Do(req)
 	if err != nil {
 		logger.Errorf("HTTP request failed in CalculateLogicalBytesAndOptimizedBytes: %v", err)
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("HTTP request failed: %w", err))
@@ -538,6 +541,132 @@ func _getStandardAuthToken(ctx context.Context, audience string) (string, error)
 	}
 
 	return token, nil
+}
+
+// GetFileInodeNumbers gets inode numbers and sizes for a list of file paths using ADC service
+// Based on cloud-backup-service ADC API: GET /api/endpoints/{endpoint_uuid}/snapshots/{snapshot_uuid}/files/{encoded_file_path}
+// The response is ADCFileListResponse with a records array containing File objects with inode numbers and sizes
+func (a *ADCActivity) GetFileInodeNumbers(ctx context.Context, adcParams *common.ADCParams, serviceURL string, filePaths []string) (map[string]*FileInodeAndSize, error) {
+	logger := util.GetLogger(ctx)
+	fileInodeSizeMap := make(map[string]*FileInodeAndSize)
+
+	// Generate identity token for the Cloud Run service
+	identityToken, err := GetStandardAuthToken(ctx, serviceURL)
+	if err != nil {
+		logger.Errorf("Failed to get identity token: %v", err)
+		return nil, err
+	}
+
+	// Decode HMAC keys once for all requests
+	accessKeyBytes, err := base64.StdEncoding.DecodeString(adcParams.AccessKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode access key: %w", err)
+	}
+
+	secretKeyBytes, err := base64.StdEncoding.DecodeString(adcParams.SecretKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode secret key: %w", err)
+	}
+
+	// Loop through each file path and get its inode number and size
+	for _, filePath := range filePaths {
+		// Create ADC request for getting file information (including inode and size)
+		// API endpoint: GET /api/endpoints/{endpoint_uuid}/snapshots/{snapshot_uuid}/files/{encoded_file_path}
+		// Encode the file path (replaces "." with "%2E" and "/" with "%2F")
+		encodedFilePath := url.QueryEscape(filePath)
+		adcFileListEndpoint := fmt.Sprintf(adcFileListEndpointTemplate, serviceURL, adcParams.DestEndpointUUID, adcParams.SnapshotUUID, encodedFilePath)
+
+		req, err := http.NewRequest("GET", adcFileListEndpoint, nil)
+		if err != nil {
+			logger.Errorf("Failed to create HTTP request for file list: %v", err)
+			return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to create HTTP request: %w", err))
+		}
+
+		// Add headers for ADC authentication (matching FrameAdcGetRequest pattern from cloud-backup-service)
+		req.Header.Add("access_key", string(accessKeyBytes))
+		req.Header.Add("secret_password", string(secretKeyBytes))
+		req.Header.Add("port", fmt.Sprintf("%d", adcParams.Port))
+		req.Header.Add("container", adcParams.BucketName)
+		req.Header.Add("server", adcParams.ServerURL)
+		req.Header.Add("provider_type", adcParams.ProvideType)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Authorization", "Bearer "+identityToken)
+
+		// Make HTTP request to ADC service
+		resp, err := RestHTTPClient.Do(req)
+		if err != nil {
+			logger.Errorf("HTTP request failed in GetFileInodeNumbers for file %s: %v", filePath, err)
+			// Continue with other files even if one fails
+			continue
+		}
+
+		// Read response body
+		body, err := io.ReadAll(resp.Body)
+		closeErr := resp.Body.Close()
+		if closeErr != nil {
+			logger.Error("failed to close response body", "error", closeErr)
+		}
+
+		if err != nil {
+			logger.Errorf("Failed to read response body for file %s: %v", filePath, err)
+			continue
+		}
+
+		// Parse response based on status code
+		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusTemporaryRedirect {
+			// Response structure matches ADCFileListResponse from cloud-backup-service
+			var adcFileListResponse struct {
+				Files []struct {
+					Inode    int    `json:"inode"`
+					Size     int    `json:"size"`
+					Filename string `json:"filename"`
+				} `json:"records"`
+				EndOfList  bool `json:"end-of-list"`
+				NumRecords int  `json:"num-records"`
+			}
+			if err := json.Unmarshal(body, &adcFileListResponse); err != nil {
+				logger.Errorf("Failed to parse ADC file list response for file %s: %v, body: %s", filePath, err, string(body))
+				continue
+			}
+
+			// Check if response contains exactly one file (not a directory)
+			if adcFileListResponse.NumRecords != 1 || len(adcFileListResponse.Files) != 1 {
+				logger.Warnf("Expected exactly one file record for %s, but got %d records. This may be a directory.", filePath, adcFileListResponse.NumRecords)
+				continue
+			}
+
+			// Extract inode number and size from the first (and only) file record
+			fileRecord := adcFileListResponse.Files[0]
+			inodeNumber := strconv.Itoa(fileRecord.Inode)
+			if inodeNumber == "0" {
+				logger.Warnf("Invalid inode number (0) returned for file %s", filePath)
+				continue
+			}
+			fileInodeSizeMap[filePath] = &FileInodeAndSize{
+				Inode: inodeNumber,
+				Size:  int64(fileRecord.Size),
+			}
+			logger.Debugf("Successfully retrieved inode number %s and size %d for file %s", inodeNumber, fileRecord.Size, filePath)
+		} else if resp.StatusCode == http.StatusNotFound {
+			logger.Warnf("File not found in backup: %s (status: %d)", filePath, resp.StatusCode)
+		} else if resp.StatusCode == http.StatusTooManyRequests {
+			logger.Warnf("Too many requests for file %s, will retry (status: %d)", filePath, resp.StatusCode)
+			// Could implement retry logic here if needed
+		} else {
+			logger.Warnf("Failed to get inode number for file %s, status code: %d, body: %s", filePath, resp.StatusCode, string(body))
+		}
+	}
+
+	if len(fileInodeSizeMap) == 0 {
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to get inode numbers for any files"))
+	}
+
+	if len(fileInodeSizeMap) < len(filePaths) {
+		logger.Warnf("Successfully retrieved inode numbers for %d out of %d files", len(fileInodeSizeMap), len(filePaths))
+	}
+
+	return fileInodeSizeMap, nil
 }
 
 func (a *ADCActivity) FetchLogicalSizeAndUpdateActivity(ctx context.Context, volumeUUID string, adcParams *common.ADCParams, serviceURL string) error {

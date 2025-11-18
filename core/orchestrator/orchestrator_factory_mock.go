@@ -5458,6 +5458,63 @@ func (_c *MockOrchestratorFactory_ReleaseVolumeReplication_Call) RunAndReturn(ru
 	return _c
 }
 
+// RestoreFilesFromBackup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) RestoreFilesFromBackup(ctx context.Context, params *common.RestoreFilesFromBackupParams) (string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RestoreFilesFromBackup")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RestoreFilesFromBackupParams) (string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RestoreFilesFromBackupParams) string); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.RestoreFilesFromBackupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_RestoreFilesFromBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RestoreFilesFromBackup'
+type MockOrchestratorFactory_RestoreFilesFromBackup_Call struct {
+	*mock.Call
+}
+
+// RestoreFilesFromBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.RestoreFilesFromBackupParams
+func (_e *MockOrchestratorFactory_Expecter) RestoreFilesFromBackup(ctx interface{}, params interface{}) *MockOrchestratorFactory_RestoreFilesFromBackup_Call {
+	return &MockOrchestratorFactory_RestoreFilesFromBackup_Call{Call: _e.mock.On("RestoreFilesFromBackup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_RestoreFilesFromBackup_Call) Run(run func(ctx context.Context, params *common.RestoreFilesFromBackupParams)) *MockOrchestratorFactory_RestoreFilesFromBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.RestoreFilesFromBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_RestoreFilesFromBackup_Call) Return(_a0 string, _a1 error) *MockOrchestratorFactory_RestoreFilesFromBackup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_RestoreFilesFromBackup_Call) RunAndReturn(run func(context.Context, *common.RestoreFilesFromBackupParams) (string, error)) *MockOrchestratorFactory_RestoreFilesFromBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ResumeReplication provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) ResumeReplication(ctx context.Context, params *common.ResumeReplicationParams) (*models.VolumeReplication, string, error) {
 	ret := _m.Called(ctx, params)

@@ -541,6 +541,12 @@ type Handler interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent
 	V1betaResourceStateUpdate(ctx context.Context, req *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (V1betaResourceStateUpdateRes, error)
+	// V1betaRestoreBackupFiles implements v1beta_restoreBackupFiles operation.
+	//
+	// Restore files from backup.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/restoreFilesFromBackup
+	V1betaRestoreBackupFiles(ctx context.Context, req *BackupRestoreFilesV1beta, params V1betaRestoreBackupFilesParams) (V1betaRestoreBackupFilesRes, error)
 	// V1betaResumeReplication implements v1beta_resumeReplication operation.
 	//
 	// Resume a replication.

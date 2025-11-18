@@ -801,6 +801,15 @@ func (UnimplementedHandler) V1betaResourceStateUpdate(ctx context.Context, req *
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaRestoreBackupFiles implements v1beta_restoreBackupFiles operation.
+//
+// Restore files from backup.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/restoreFilesFromBackup
+func (UnimplementedHandler) V1betaRestoreBackupFiles(ctx context.Context, req *BackupRestoreFilesV1beta, params V1betaRestoreBackupFilesParams) (r V1betaRestoreBackupFilesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaResumeReplication implements v1beta_resumeReplication operation.
 //
 // Resume a replication.

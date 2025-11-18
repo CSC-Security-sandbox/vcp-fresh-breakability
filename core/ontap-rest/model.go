@@ -21,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	priv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
 	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1980,11 +1981,13 @@ type SnapmirrorPolicyDeleteCollectionParams struct {
 	SvmUUID string
 }
 
-// SnapmirrorRelationshipResyncParams describes the params to invoke snapmirror relationship resync
+// SnapmirrorRelationshipTransferCreateParams describes the params to invoke snapmirror relationship resync
 type SnapmirrorRelationshipTransferCreateParams struct {
-	UUID         string
-	SnapshotName string
-	AccessToken  *string
+	UUID             string
+	SnapshotName     string
+	AccessToken      *string
+	Files            []*commonparams.SnapmirrorTransferFile
+	CleanUpOnFailure bool
 }
 
 // SnapmirrorRelationshipTransferGetParams describes the params to invoke snapmirror relationship transfer get
@@ -3490,9 +3493,26 @@ func snapmirrorRelationshipTransferCreateParamsToONTAP(params *SnapmirrorRelatio
 		return otParams
 	}
 	otParams.SetRelationshipUUID(params.UUID)
+
+	transferInfo := &models.SnapmirrorTransfer{}
 	if params.SnapshotName != "" {
-		otParams.SetInfo(&models.SnapmirrorTransfer{SourceSnapshot: &params.SnapshotName})
+		transferInfo.SourceSnapshot = &params.SnapshotName
 	}
+
+	// Add files if provided
+	if params.Files != nil && len(params.Files) > 0 {
+		files := make([]*models.SnapmirrorTransferInlineFilesInlineArrayItem, 0, len(params.Files))
+		for _, file := range params.Files {
+			files = append(files, &models.SnapmirrorTransferInlineFilesInlineArrayItem{
+				SourcePath:      &file.SourcePath,
+				DestinationPath: &file.DestinationPath,
+			})
+		}
+		transferInfo.SnapmirrorTransferInlineFiles = files
+	}
+
+	otParams.SetInfo(transferInfo)
+
 	if params.AccessToken != nil && *params.AccessToken != "" {
 		xNetappAuthorization := "Bearer " + *params.AccessToken
 		otParams.WithXNetappAuthorization(&xNetappAuthorization)

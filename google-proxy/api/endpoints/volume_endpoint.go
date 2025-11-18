@@ -38,6 +38,8 @@ var (
 	autoTieringEnabled            = env.GetBool("AUTO_TIERING_ENABLED", false)
 	qaEnabled                     = env.GetBool("QA_ENABLED", false)
 	flexCacheEnabled              = env.GetBool("FLEXCACHE_ENABLED", false)
+	sfrEnabled                    = env.GetBool("SFR_ENABLED", false)
+	MaxSourceFileList             = env.GetInt("MAX_SOURCE_FILE_LIST", 8)
 	thinCloneGASupport            = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
 )
 
@@ -2419,4 +2421,87 @@ func validateFlexCacheRequest(req *gcpgenserver.VolumeCreateV1beta) error {
 	}
 
 	return nil
+}
+
+func (h Handler) V1betaRestoreBackupFiles(ctx context.Context, req *gcpgenserver.BackupRestoreFilesV1beta,
+	params gcpgenserver.V1betaRestoreBackupFilesParams) (gcpgenserver.V1betaRestoreBackupFilesRes, error) {
+	logger := util.GetLogger(ctx)
+
+	if !sfrEnabled {
+		return &gcpgenserver.V1betaRestoreBackupFilesBadRequest{
+			Code:    400,
+			Message: "SFR feature is currently not enabled.",
+		}, nil
+	}
+
+	var backupPath string
+	if req.BackupPath.IsSet() {
+		backupPath = req.BackupPath.Value
+		components := strings.Split(backupPath, "/")
+		// Ensure there are enough components to avoid out of range errors
+		if len(components) < MaxBackupPathComponents {
+			return &gcpgenserver.V1betaRestoreBackupFilesBadRequest{
+				Code:    400,
+				Message: "Invalid backup path format",
+			}, nil
+		}
+	}
+
+	var backupID string
+	if req.BackupId.IsSet() {
+		backupID = req.BackupId.Value
+	}
+
+	if len(req.SourceFileList) == 0 {
+		return &gcpgenserver.V1betaRestoreBackupFilesBadRequest{
+			Code:    400,
+			Message: "Source file list cannot be empty",
+		}, nil
+	} else if len(req.SourceFileList) > MaxSourceFileList {
+		return &gcpgenserver.V1betaRestoreBackupFilesBadRequest{
+			Code:    400,
+			Message: fmt.Sprintf("Source file list cannot contain more than %d files", MaxSourceFileList),
+		}, nil
+	}
+
+	if params.VolumeId == "" {
+		return &gcpgenserver.V1betaRestoreBackupFilesBadRequest{
+			Code:    400,
+			Message: fmt.Sprintf("Volume ID cannot be empty"),
+		}, nil
+	}
+
+	var restoreFilePath string
+	if req.RestoreFilePath.IsSet() {
+		restoreFilePath = req.RestoreFilePath.Value
+	}
+
+	restoreFilesParams := &common.RestoreFilesFromBackupParams{
+		AccountName:     params.ProjectNumber,
+		BackupPath:      backupPath,
+		BackupID:        backupID,
+		SourceFileList:  req.SourceFileList,
+		RestoreFilePath: restoreFilePath,
+		VolumeUUID:      params.VolumeId,
+	}
+
+	jobUUID, err := h.Orchestrator.RestoreFilesFromBackup(ctx, restoreFilesParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaRestoreBackupFilesBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to restore files from backup", "error", err.Error())
+		return &gcpgenserver.V1betaRestoreBackupFilesInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(false),
+	}, nil
 }

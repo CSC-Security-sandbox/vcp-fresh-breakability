@@ -934,6 +934,19 @@ func (b *BackupAttributes) Value() (driver.Value, error) {
 	return json.Marshal(b)
 }
 
+// SfrMetadata represents metadata for Single File Restore operations
+type SfrMetadata struct {
+	ID         int64         `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	CreatedAt  time.Time     `gorm:"column:created_at" json:"created_at"`
+	FilesSize  int64         `gorm:"column:files_size;type:bigint" json:"files_size"`
+	FileCount  int           `gorm:"column:file_count;type:integer" json:"file_count"`
+	VolumeName string        `gorm:"column:volume_name;type:text" json:"volume_name"`
+	VolumeUUID string        `gorm:"column:volume_uuid;type:text;index" json:"volume_uuid"`
+	BackupUUID string        `gorm:"column:backup_uuid;type:text" json:"backup_uuid"`
+	AccountID  sql.NullInt64 `gorm:"column:account_id;type:bigint;index" json:"account_id"`
+	JobID      sql.NullInt64 `gorm:"column:job_id;type:bigint;index" json:"job_id"`
+}
+
 type BackupMetadata struct {
 	BaseModel
 	VolumeUUID string `json:"volume_uuid" gorm:"type:text"`

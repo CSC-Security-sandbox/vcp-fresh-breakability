@@ -81,6 +81,28 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipTransferCreate(snapmirrorUUID
 	return nil
 }
 
+func (rc *OntapRestProvider) SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName string, smcToken *string, files []*commonparams.SnapmirrorTransferFile) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	// Convert commonparams.SnapmirrorTransferFile to ontapRest format
+	ontapFiles := make([]*commonparams.SnapmirrorTransferFile, len(files))
+	copy(ontapFiles, files)
+
+	err = client.Snapmirror().SnapmirrorRelationshipTransferCreate(&ontapRest.SnapmirrorRelationshipTransferCreateParams{
+		UUID:             snapmirrorUUID,
+		SnapshotName:     snapshotName,
+		AccessToken:      smcToken,
+		Files:            ontapFiles,
+		CleanUpOnFailure: true,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (rc *OntapRestProvider) SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName string) (*ontapRest.SnapmirrorTransfer, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
