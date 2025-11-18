@@ -6464,9 +6464,9 @@ func (s *FlexCacheConfigV1beta) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FlexCacheConfigV1beta) encodeFields(e *jx.Encoder) {
 	{
-		if s.PrePopulate.Set {
-			e.FieldStart("prePopulate")
-			s.PrePopulate.Encode(e)
+		if s.CachePrePopulate.Set {
+			e.FieldStart("cachePrePopulate")
+			s.CachePrePopulate.Encode(e)
 		}
 	}
 	{
@@ -6493,14 +6493,21 @@ func (s *FlexCacheConfigV1beta) encodeFields(e *jx.Encoder) {
 			s.CifsChangeNotifyEnabled.Encode(e)
 		}
 	}
+	{
+		if s.CachePrePopulateState.Set {
+			e.FieldStart("cachePrePopulateState")
+			s.CachePrePopulateState.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfFlexCacheConfigV1beta = [5]string{
-	0: "prePopulate",
+var jsonFieldsNameOfFlexCacheConfigV1beta = [6]string{
+	0: "cachePrePopulate",
 	1: "writebackEnabled",
 	2: "atimeScrubEnabled",
 	3: "atimeScrubDays",
 	4: "cifsChangeNotifyEnabled",
+	5: "cachePrePopulateState",
 }
 
 // Decode decodes FlexCacheConfigV1beta from json.
@@ -6511,15 +6518,15 @@ func (s *FlexCacheConfigV1beta) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "prePopulate":
+		case "cachePrePopulate":
 			if err := func() error {
-				s.PrePopulate.Reset()
-				if err := s.PrePopulate.Decode(d); err != nil {
+				s.CachePrePopulate.Reset()
+				if err := s.CachePrePopulate.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"prePopulate\"")
+				return errors.Wrap(err, "decode field \"cachePrePopulate\"")
 			}
 		case "writebackEnabled":
 			if err := func() error {
@@ -6561,6 +6568,16 @@ func (s *FlexCacheConfigV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cifsChangeNotifyEnabled\"")
 			}
+		case "cachePrePopulateState":
+			if err := func() error {
+				s.CachePrePopulateState.Reset()
+				if err := s.CachePrePopulateState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cachePrePopulateState\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -6581,6 +6598,52 @@ func (s *FlexCacheConfigV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FlexCacheConfigV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FlexCacheConfigV1betaCachePrePopulateState as json.
+func (s FlexCacheConfigV1betaCachePrePopulateState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FlexCacheConfigV1betaCachePrePopulateState from json.
+func (s *FlexCacheConfigV1betaCachePrePopulateState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FlexCacheConfigV1betaCachePrePopulateState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FlexCacheConfigV1betaCachePrePopulateState(v) {
+	case FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED
+	case FlexCacheConfigV1betaCachePrePopulateStateNOTNEEDED:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateNOTNEEDED
+	case FlexCacheConfigV1betaCachePrePopulateStateINPROGRESS:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateINPROGRESS
+	case FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE
+	case FlexCacheConfigV1betaCachePrePopulateStateERROR:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateERROR
+	default:
+		*s = FlexCacheConfigV1betaCachePrePopulateState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FlexCacheConfigV1betaCachePrePopulateState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FlexCacheConfigV1betaCachePrePopulateState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -13282,6 +13345,39 @@ func (s OptFlexCacheConfigV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptFlexCacheConfigV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FlexCacheConfigV1betaCachePrePopulateState as json.
+func (o OptFlexCacheConfigV1betaCachePrePopulateState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes FlexCacheConfigV1betaCachePrePopulateState from json.
+func (o *OptFlexCacheConfigV1betaCachePrePopulateState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptFlexCacheConfigV1betaCachePrePopulateState to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptFlexCacheConfigV1betaCachePrePopulateState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptFlexCacheConfigV1betaCachePrePopulateState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

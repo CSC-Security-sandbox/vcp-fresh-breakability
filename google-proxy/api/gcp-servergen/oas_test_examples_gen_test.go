@@ -981,6 +981,18 @@ func TestFlexCacheConfigV1beta_EncodeDecode(t *testing.T) {
 	var typ2 FlexCacheConfigV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestFlexCacheConfigV1betaCachePrePopulateState_EncodeDecode(t *testing.T) {
+	var typ FlexCacheConfigV1betaCachePrePopulateState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 FlexCacheConfigV1betaCachePrePopulateState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestFlexCachePrePopulateV1beta_EncodeDecode(t *testing.T) {
 	var typ FlexCachePrePopulateV1beta
 	typ.SetFake()

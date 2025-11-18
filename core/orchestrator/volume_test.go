@@ -15157,7 +15157,7 @@ func TestConvertDatastoreVolumeToModelCacheParameters(t *testing.T) {
 				EnableGlobalFileLock:  nillable.ToPointer(true),
 
 				CacheConfig: &datamodel.CacheConfig{
-					PrePopulate: &datamodel.CachePrePopulate{
+					CachePrePopulate: &datamodel.CachePrePopulate{
 						Recursion: nillable.ToPointer(true),
 					},
 					WritebackEnabled: nillable.ToPointer(true),
@@ -15180,8 +15180,8 @@ func TestConvertDatastoreVolumeToModelCacheParameters(t *testing.T) {
 		assert.NotNil(tt, result.CacheParameters.PeerExpiryTime)
 		assert.True(tt, *result.CacheParameters.EnableGlobalFileLock)
 		assert.NotNil(tt, result.CacheParameters.CacheConfig)
-		assert.NotNil(tt, result.CacheParameters.CacheConfig.PrePopulate)
-		assert.True(tt, *result.CacheParameters.CacheConfig.PrePopulate.Recursion)
+		assert.NotNil(tt, result.CacheParameters.CacheConfig.CachePrePopulate)
+		assert.True(tt, *result.CacheParameters.CacheConfig.CachePrePopulate.Recursion)
 		assert.True(tt, *result.CacheParameters.CacheConfig.WritebackEnabled)
 	})
 }

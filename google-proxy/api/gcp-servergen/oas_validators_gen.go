@@ -3326,7 +3326,7 @@ func (s *FlexCacheConfigV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if value, ok := s.PrePopulate.Get(); ok {
+		if value, ok := s.CachePrePopulate.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
 					return err
@@ -3339,7 +3339,7 @@ func (s *FlexCacheConfigV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "prePopulate",
+			Name:  "cachePrePopulate",
 			Error: err,
 		})
 	}
@@ -3370,10 +3370,45 @@ func (s *FlexCacheConfigV1beta) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.CachePrePopulateState.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "cachePrePopulateState",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FlexCacheConfigV1betaCachePrePopulateState) Validate() error {
+	switch s {
+	case "CACHE_PRE_POPULATE_STATE_UNSPECIFIED":
+		return nil
+	case "NOT_NEEDED":
+		return nil
+	case "IN_PROGRESS":
+		return nil
+	case "COMPLETE":
+		return nil
+	case "ERROR":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *FlexCachePrePopulateV1beta) Validate() error {

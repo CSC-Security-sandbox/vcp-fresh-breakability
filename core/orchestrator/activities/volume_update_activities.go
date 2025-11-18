@@ -541,20 +541,20 @@ func _applyFlexCacheParameters(volume *datamodel.Volume, params *common.UpdateVo
 		changed = true
 	}
 
-	if src.PrePopulate != nil {
-		if dst.PrePopulate == nil {
-			dst.PrePopulate = &datamodel.CachePrePopulate{}
+	if src.CachePrePopulate != nil {
+		if dst.CachePrePopulate == nil {
+			dst.CachePrePopulate = &datamodel.CachePrePopulate{}
 		}
-		if src.PrePopulate.Recursion != nil && (dst.PrePopulate.Recursion == nil || *dst.PrePopulate.Recursion != *src.PrePopulate.Recursion) {
-			dst.PrePopulate.Recursion = src.PrePopulate.Recursion
+		if src.CachePrePopulate.Recursion != nil && (dst.CachePrePopulate.Recursion == nil || *dst.CachePrePopulate.Recursion != *src.CachePrePopulate.Recursion) {
+			dst.CachePrePopulate.Recursion = src.CachePrePopulate.Recursion
 			changed = true
 		}
-		if src.PrePopulate.PathList != nil {
-			dst.PrePopulate.PathList = src.PrePopulate.PathList
+		if src.CachePrePopulate.PathList != nil {
+			dst.CachePrePopulate.PathList = src.CachePrePopulate.PathList
 			changed = true
 		}
-		if src.PrePopulate.ExcludePathList != nil {
-			dst.PrePopulate.ExcludePathList = src.PrePopulate.ExcludePathList
+		if src.CachePrePopulate.ExcludePathList != nil {
+			dst.CachePrePopulate.ExcludePathList = src.CachePrePopulate.ExcludePathList
 			changed = true
 		}
 	}

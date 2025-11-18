@@ -1169,7 +1169,7 @@ func TestApplyFlexCacheParameters(t *testing.T) {
 						AtimeScrubEnabled:       func(b bool) *bool { return &b }(true),
 						AtimeScrubDays:          func(b int16) *int16 { return &b }(5),
 						CifsChangeNotifyEnabled: func(b bool) *bool { return &b }(true),
-						PrePopulate: &models.CachePrePopulate{
+						CachePrePopulate: &models.CachePrePopulate{
 							Recursion:       func(b bool) *bool { return &b }(true),
 							PathList:        []string{"/vol1/folder1", "/vol1/folder2"},
 							ExcludePathList: []string{"/vol1/folder1", "/vol1/folder2"},

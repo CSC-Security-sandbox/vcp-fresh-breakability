@@ -3145,7 +3145,7 @@ func TestCloneCacheParameters(t *testing.T) {
 		PeerClusterName: "peer-cluster",
 		CacheConfig: &datamodel.CacheConfig{
 			WritebackEnabled: func(b bool) *bool { return &b }(true),
-			PrePopulate: &datamodel.CachePrePopulate{
+			CachePrePopulate: &datamodel.CachePrePopulate{
 				Recursion: func(b bool) *bool { return &b }(true),
 			},
 		},
@@ -3968,7 +3968,7 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 				AtimeScrubEnabled:       boolPtr(true),
 				AtimeScrubDays:          int16Ptr(7),
 				CifsChangeNotifyEnabled: boolPtr(false),
-				PrePopulate: &datamodel.CachePrePopulate{
+				CachePrePopulate: &datamodel.CachePrePopulate{
 					PathList:        []string{"a", "b"},
 					ExcludePathList: []string{"x"},
 					Recursion:       boolPtr(false),
@@ -4030,7 +4030,7 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
 				CacheConfig: &models.CacheConfig{
-					PrePopulate: &models.CachePrePopulate{
+					CachePrePopulate: &models.CachePrePopulate{
 						PathList:  []string{"p1"},
 						Recursion: boolPtr(true),
 					},
@@ -4044,7 +4044,7 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
 				CacheConfig: &models.CacheConfig{
-					PrePopulate: &models.CachePrePopulate{
+					CachePrePopulate: &models.CachePrePopulate{
 						Recursion: boolPtr(true), // existing false
 					},
 				},
@@ -4057,7 +4057,7 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
 				CacheConfig: &models.CacheConfig{
-					PrePopulate: &models.CachePrePopulate{
+					CachePrePopulate: &models.CachePrePopulate{
 						PathList: []string{"b", "a"}, // same set
 					},
 				},
@@ -4070,7 +4070,7 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
 				CacheConfig: &models.CacheConfig{
-					PrePopulate: &models.CachePrePopulate{
+					CachePrePopulate: &models.CachePrePopulate{
 						PathList: []string{"a", "c"},
 					},
 				},
@@ -4083,7 +4083,7 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
 				CacheConfig: &models.CacheConfig{
-					PrePopulate: &models.CachePrePopulate{
+					CachePrePopulate: &models.CachePrePopulate{
 						PathList: []string{}, // explicit clear
 					},
 				},
@@ -4096,7 +4096,7 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
 				CacheConfig: &models.CacheConfig{
-					PrePopulate: &models.CachePrePopulate{
+					CachePrePopulate: &models.CachePrePopulate{
 						ExcludePathList: []string{"y"},
 					},
 				},
@@ -4110,7 +4110,7 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
 				CacheConfig: &models.CacheConfig{
-					PrePopulate: &models.CachePrePopulate{
+					CachePrePopulate: &models.CachePrePopulate{
 						PathList: []string{"a", "b", "a", "b"},
 					},
 				},

@@ -52,8 +52,8 @@ func _verifyAndGetFlexCacheUpdateParams(volume *datamodel.Volume, params *common
 	}
 
 	flexCacheUpdateVolumeParams := vsa.UpdateFlexCacheVolumeParams{}
-	if params.CacheParameters.CacheConfig.PrePopulate != nil {
-		prePop := params.CacheParameters.CacheConfig.PrePopulate
+	if params.CacheParameters.CacheConfig.CachePrePopulate != nil {
+		prePop := params.CacheParameters.CacheConfig.CachePrePopulate
 		if prePop.PathList != nil {
 			flexCacheUpdateVolumeParams.PrepopulateDirPaths = common.ConvertStringSliceToPointerSlice(prePop.PathList)
 		}

@@ -1376,7 +1376,7 @@ func (s *ExportPolicyV1beta) SetFake() {
 func (s *FlexCacheConfigV1beta) SetFake() {
 	{
 		{
-			s.PrePopulate.SetFake()
+			s.CachePrePopulate.SetFake()
 		}
 	}
 	{
@@ -1399,6 +1399,16 @@ func (s *FlexCacheConfigV1beta) SetFake() {
 			s.CifsChangeNotifyEnabled.SetFake()
 		}
 	}
+	{
+		{
+			s.CachePrePopulateState.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *FlexCacheConfigV1betaCachePrePopulateState) SetFake() {
+	*s = FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -2885,6 +2895,15 @@ func (s *OptExportPolicyV1beta) SetFake() {
 // SetFake set fake values.
 func (s *OptFlexCacheConfigV1beta) SetFake() {
 	var elem FlexCacheConfigV1beta
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptFlexCacheConfigV1betaCachePrePopulateState) SetFake() {
+	var elem FlexCacheConfigV1betaCachePrePopulateState
 	{
 		elem.SetFake()
 	}

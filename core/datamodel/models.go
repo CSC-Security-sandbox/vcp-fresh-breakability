@@ -42,12 +42,12 @@ type Pool struct {
 	SatisfyZS         bool               `gorm:"column:satisfy_zs;default:false"`
 	AssetMetadata     *AssetMetadata     `gorm:"column:asset_metadata;type:jsonb"`
 	// Build information - images used to create this pool
-	BuildInfo               *PoolBuildInfo   `gorm:"column:build_info;type:jsonb" json:"buildInfo,omitempty"`
-	ActiveDirectoryID       sql.NullInt64    `gorm:"column:active_directory_id"`
-	ActiveDirectory         *ActiveDirectory `gorm:"ForeignKey:ActiveDirectoryID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	ActiveDirectoryChangeId string           `gorm:"column:active_directory_change_id;type:text"`
-	APIAccessMode         string                 `gorm:"column:api_access_mode;type:text"`
-	ExpertModeCredentials *ExpertModeCredentials `gorm:"column:expert_mode_credentials;type:jsonb"`
+	BuildInfo               *PoolBuildInfo         `gorm:"column:build_info;type:jsonb" json:"buildInfo,omitempty"`
+	ActiveDirectoryID       sql.NullInt64          `gorm:"column:active_directory_id"`
+	ActiveDirectory         *ActiveDirectory       `gorm:"ForeignKey:ActiveDirectoryID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	ActiveDirectoryChangeId string                 `gorm:"column:active_directory_change_id;type:text"`
+	APIAccessMode           string                 `gorm:"column:api_access_mode;type:text"`
+	ExpertModeCredentials   *ExpertModeCredentials `gorm:"column:expert_mode_credentials;type:jsonb"`
 }
 
 type ExpertModeCredentials struct {
@@ -1075,7 +1075,8 @@ type CacheConfig struct {
 	CifsChangeNotifyEnabled *bool  `json:"cifs_change_notify_enabled"`
 	WritebackEnabled        *bool  `json:"writeback_enabled"`
 
-	PrePopulate *CachePrePopulate `json:"pre_populate"`
+	CachePrePopulate      *CachePrePopulate `json:"cache_pre_populate"`
+	CachePrePopulateState string            `json:"cache_pre_populate_state,omitempty"`
 }
 
 type CacheParameters struct {

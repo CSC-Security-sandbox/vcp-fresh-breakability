@@ -13,7 +13,8 @@ type CacheConfig struct {
 	CifsChangeNotifyEnabled *bool  `json:"cifsChangeNotifyEnabled"`
 	WritebackEnabled        *bool  `json:"writebackEnabled"`
 
-	PrePopulate *CachePrePopulate `json:"prePopulate"`
+	CachePrePopulate      *CachePrePopulate `json:"cachePrePopulate"`
+	CachePrePopulateState string            `json:"cachePrePopulateState,omitempty"`
 }
 type CacheParameters struct {
 	PeerClusterName      string       `json:"peerClusterName"`

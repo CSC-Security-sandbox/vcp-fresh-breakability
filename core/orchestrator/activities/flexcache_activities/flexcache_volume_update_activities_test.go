@@ -41,7 +41,7 @@ func TestFlexCacheVolumeUpdateActivity_UpdateFlexCacheVolumeInOntap(t *testing.T
 		},
 		CacheParameters: &models.CacheParameters{
 			CacheConfig: &models.CacheConfig{
-				PrePopulate: &models.CachePrePopulate{
+				CachePrePopulate: &models.CachePrePopulate{
 					PathList:        []string{"/data1", "/data2"},
 					ExcludePathList: []string{"/data1/exclude"},
 				},
@@ -50,8 +50,8 @@ func TestFlexCacheVolumeUpdateActivity_UpdateFlexCacheVolumeInOntap(t *testing.T
 	}
 	expectedParams := vsa.UpdateFlexCacheVolumeParams{
 		UUID:                       "uuid-123",
-		PrepopulateDirPaths:        common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.PrePopulate.PathList),
-		PrepopulateExcludeDirPaths: common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.PrePopulate.ExcludePathList),
+		PrepopulateDirPaths:        common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.CachePrePopulate.PathList),
+		PrepopulateExcludeDirPaths: common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.CachePrePopulate.ExcludePathList),
 	}
 
 	t.Run("UpdateFlexCacheVolumeInONTAP_hyperScalerGetProviderByNode_error", func(tt *testing.T) {
@@ -173,7 +173,7 @@ func Test_verifyAndGetFlexCacheUpdateParams(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
 				CacheConfig: &models.CacheConfig{
-					PrePopulate: &models.CachePrePopulate{
+					CachePrePopulate: &models.CachePrePopulate{
 						PathList:        []string{"/data1", "/data2"},
 						ExcludePathList: []string{"/data1/exclude"},
 						Recursion:       &recursion,
@@ -187,9 +187,9 @@ func Test_verifyAndGetFlexCacheUpdateParams(t *testing.T) {
 		}
 		expectedParams := &vsa.UpdateFlexCacheVolumeParams{
 			UUID:                       "uuid-123",
-			PrepopulateDirPaths:        common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.PrePopulate.PathList),
-			PrepopulateExcludeDirPaths: common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.PrePopulate.ExcludePathList),
-			IsRecursionEnabled:         params.CacheParameters.CacheConfig.PrePopulate.Recursion,
+			PrepopulateDirPaths:        common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.CachePrePopulate.PathList),
+			PrepopulateExcludeDirPaths: common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.CachePrePopulate.ExcludePathList),
+			IsRecursionEnabled:         params.CacheParameters.CacheConfig.CachePrePopulate.Recursion,
 			WritebackEnabled:           params.CacheParameters.CacheConfig.WritebackEnabled,
 			AtimeScrubEnabled:          params.CacheParameters.CacheConfig.AtimeScrubEnabled,
 			AtimeScrubPeriod:           params.CacheParameters.CacheConfig.AtimeScrubDays,
@@ -205,7 +205,7 @@ func Test_verifyAndGetFlexCacheUpdateParams(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
 				CacheConfig: &models.CacheConfig{
-					PrePopulate: &models.CachePrePopulate{
+					CachePrePopulate: &models.CachePrePopulate{
 						PathList: []string{"/data1", "/data2"},
 					},
 					WritebackEnabled: &writebackEnabled,
@@ -214,7 +214,7 @@ func Test_verifyAndGetFlexCacheUpdateParams(t *testing.T) {
 		}
 		expectedParams := &vsa.UpdateFlexCacheVolumeParams{
 			UUID:                "uuid-123",
-			PrepopulateDirPaths: common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.PrePopulate.PathList),
+			PrepopulateDirPaths: common.ConvertStringSliceToPointerSlice(params.CacheParameters.CacheConfig.CachePrePopulate.PathList),
 			WritebackEnabled:    params.CacheParameters.CacheConfig.WritebackEnabled,
 		}
 		result, err := _verifyAndGetFlexCacheUpdateParams(volume, params)

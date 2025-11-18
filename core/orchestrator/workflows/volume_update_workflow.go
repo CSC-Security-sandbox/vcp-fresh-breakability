@@ -617,11 +617,11 @@ func _isUpdateFlexCacheRequired(existingVolume *datamodel.Volume, params *common
 	}
 
 	// PrePopulate diff handling
-	pp := inCfg.PrePopulate
+	pp := inCfg.CachePrePopulate
 	if pp == nil {
 		return false
 	}
-	exPP := exCfg.PrePopulate
+	exPP := exCfg.CachePrePopulate
 
 	// Adding new PrePopulate section
 	if exPP == nil {
@@ -719,11 +719,11 @@ func _convertCacheParameters(src *datamodel.CacheParameters) *models.CacheParame
 			AtimeScrubDays:          src.CacheConfig.AtimeScrubDays,
 			CifsChangeNotifyEnabled: src.CacheConfig.CifsChangeNotifyEnabled,
 		}
-		if src.CacheConfig.PrePopulate != nil {
-			cc.PrePopulate = &models.CachePrePopulate{
-				PathList:        src.CacheConfig.PrePopulate.PathList,
-				ExcludePathList: src.CacheConfig.PrePopulate.ExcludePathList,
-				Recursion:       src.CacheConfig.PrePopulate.Recursion,
+		if src.CacheConfig.CachePrePopulate != nil {
+			cc.CachePrePopulate = &models.CachePrePopulate{
+				PathList:        src.CacheConfig.CachePrePopulate.PathList,
+				ExcludePathList: src.CacheConfig.CachePrePopulate.ExcludePathList,
+				Recursion:       src.CacheConfig.CachePrePopulate.Recursion,
 			}
 		}
 		dst.CacheConfig = cc

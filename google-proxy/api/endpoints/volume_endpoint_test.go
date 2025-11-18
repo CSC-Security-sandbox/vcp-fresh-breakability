@@ -2406,7 +2406,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 			AtimeScrubEnabled:       nillable.GetBoolPtr(true),
 			AtimeScrubDays:          nillable.GetInt16Ptr(30),
 			CifsChangeNotifyEnabled: nillable.GetBoolPtr(true),
-			PrePopulate:             cachePrepopulate,
+			CachePrePopulate:        cachePrepopulate,
 			WritebackEnabled:        nillable.GetBoolPtr(true),
 		}
 
@@ -4309,7 +4309,7 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 			PeerIPAddresses: []string{"192.168.1.1", "192.168.1.2"},
 			CacheConfig: &models.CacheConfig{
 				WritebackEnabled: nillable.ToPointer(true),
-				PrePopulate: &models.CachePrePopulate{
+				CachePrePopulate: &models.CachePrePopulate{
 					Recursion: nillable.ToPointer(true),
 				},
 			},
@@ -4327,7 +4327,7 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 		assert.Equal(tt, "test-peer-svm", result.PeerSvmName)
 		assert.Equal(tt, []string{"192.168.1.1", "192.168.1.2"}, result.PeerIpAddresses)
 		assert.True(tt, result.CacheConfig.IsSet())
-		assert.True(tt, result.CacheConfig.Value.PrePopulate.IsSet())
+		assert.True(tt, result.CacheConfig.Value.CachePrePopulate.IsSet())
 	})
 	t.Run("WhenPrepopulateNotSet", func(tt *testing.T) {
 		cp := &models.CacheParameters{
@@ -4344,7 +4344,7 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 
 		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
 		assert.True(tt, result.CacheConfig.IsSet())
-		assert.False(tt, result.CacheConfig.Value.PrePopulate.IsSet())
+		assert.False(tt, result.CacheConfig.Value.CachePrePopulate.IsSet())
 	})
 	t.Run("WhenCacheConfigNotSet", func(tt *testing.T) {
 		cp := &models.CacheParameters{
@@ -8431,7 +8431,7 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 					},
 					CacheConfig: gcpgenserver.OptFlexCacheConfigV1beta{
 						Value: gcpgenserver.FlexCacheConfigV1beta{
-							PrePopulate: gcpgenserver.OptFlexCachePrePopulateV1beta{
+							CachePrePopulate: gcpgenserver.OptFlexCachePrePopulateV1beta{
 								Value: gcpgenserver.FlexCachePrePopulateV1beta{
 									PathList: gcpgenserver.OptNilStringArray{
 										Value: []string{"/path1", "/path2"},
@@ -8485,10 +8485,10 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 		assert.True(t, *result.CacheParameters.CacheConfig.AtimeScrubEnabled)
 		assert.True(t, *result.CacheParameters.CacheConfig.CifsChangeNotifyEnabled)
 		assert.True(t, *result.CacheParameters.CacheConfig.WritebackEnabled)
-		assert.NotNil(t, result.CacheParameters.CacheConfig.PrePopulate)
-		assert.True(t, *result.CacheParameters.CacheConfig.PrePopulate.Recursion)
-		assert.Equal(t, []string{"/path1", "/path2"}, result.CacheParameters.CacheConfig.PrePopulate.PathList)
-		assert.Equal(t, []string{"/exclude1", "/exclude2"}, result.CacheParameters.CacheConfig.PrePopulate.ExcludePathList)
+		assert.NotNil(t, result.CacheParameters.CacheConfig.CachePrePopulate)
+		assert.True(t, *result.CacheParameters.CacheConfig.CachePrePopulate.Recursion)
+		assert.Equal(t, []string{"/path1", "/path2"}, result.CacheParameters.CacheConfig.CachePrePopulate.PathList)
+		assert.Equal(t, []string{"/exclude1", "/exclude2"}, result.CacheParameters.CacheConfig.CachePrePopulate.ExcludePathList)
 	})
 
 	t.Run("CacheParameters_WhenSet_Partial_values", func(t *testing.T) {
@@ -8697,7 +8697,7 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 						PeerClusterName: "cluster_test",
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
-							PrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
+							CachePrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
 								PathList:        gcpgenserver.NewOptNilStringArray([]string{}),
 								ExcludePathList: gcpgenserver.NewOptNilStringArray([]string{}),
 								Recursion:       gcpgenserver.NewOptNilBool(false),
@@ -8990,7 +8990,7 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 						PeerClusterName: "cluster_test",
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
-							PrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
+							CachePrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
 								PathList: gcpgenserver.NewOptNilStringArray([]string{"/dir1"}),
 							}),
 						}),
@@ -9010,7 +9010,7 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 						PeerClusterName: "cluster_test",
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
-							PrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
+							CachePrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
 								ExcludePathList: gcpgenserver.NewOptNilStringArray([]string{"/dir2"}),
 							}),
 						}),
@@ -9030,7 +9030,7 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 						PeerClusterName: "cluster_test",
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
-							PrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
+							CachePrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
 								Recursion: gcpgenserver.NewOptNilBool(true),
 							}),
 						}),

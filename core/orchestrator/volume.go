@@ -1443,11 +1443,11 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 				WritebackEnabled:        volume.CacheParameters.CacheConfig.WritebackEnabled,
 			}
 
-			if volume.CacheParameters.CacheConfig.PrePopulate != nil {
-				cacheConfig.PrePopulate = &models.CachePrePopulate{
-					ExcludePathList: volume.CacheParameters.CacheConfig.PrePopulate.ExcludePathList,
-					PathList:        volume.CacheParameters.CacheConfig.PrePopulate.PathList,
-					Recursion:       volume.CacheParameters.CacheConfig.PrePopulate.Recursion,
+			if volume.CacheParameters.CacheConfig.CachePrePopulate != nil {
+				cacheConfig.CachePrePopulate = &models.CachePrePopulate{
+					ExcludePathList: volume.CacheParameters.CacheConfig.CachePrePopulate.ExcludePathList,
+					PathList:        volume.CacheParameters.CacheConfig.CachePrePopulate.PathList,
+					Recursion:       volume.CacheParameters.CacheConfig.CachePrePopulate.Recursion,
 				}
 			}
 		}

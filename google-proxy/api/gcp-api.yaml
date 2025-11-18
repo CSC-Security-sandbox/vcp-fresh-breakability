@@ -9087,7 +9087,7 @@ components:
       type: object
       description: FlexCache volume configuration options.
       properties:
-        prePopulate:
+        cachePrePopulate:
           description: Prepopulate FlexCache volume
           nullable: true
           $ref: '#/components/schemas/FlexCachePrePopulate_v1beta'
@@ -9113,6 +9113,16 @@ components:
           type: boolean
           description: Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
           nullable: true
+        cachePrePopulateState:
+          type: string
+          readOnly: true
+          description: Current state of FlexCache prepopulation (read-only).
+          enum:
+            - CACHE_PRE_POPULATE_STATE_UNSPECIFIED
+            - NOT_NEEDED
+            - IN_PROGRESS
+            - COMPLETE
+            - ERROR
     FlexCachePrePopulate_v1beta:
       title: FlexCache PrePopulate request
       type: object

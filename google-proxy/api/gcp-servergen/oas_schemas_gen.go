@@ -3585,7 +3585,7 @@ func (s *ExportPolicyV1beta) SetRules(val []SimpleExportPolicyRuleV1beta) {
 // Ref: #/components/schemas/FlexCacheConfig_v1beta
 type FlexCacheConfigV1beta struct {
 	// Prepopulate FlexCache volume.
-	PrePopulate OptFlexCachePrePopulateV1beta `json:"prePopulate"`
+	CachePrePopulate OptFlexCachePrePopulateV1beta `json:"cachePrePopulate"`
 	// Flag indicating whether writeback is enabled for the FlexCache volume.
 	WritebackEnabled OptNilBool `json:"writebackEnabled"`
 	// Flag indicating whether the atime based scrub is enabled for the FlexCache volume.
@@ -3594,11 +3594,13 @@ type FlexCacheConfigV1beta struct {
 	AtimeScrubDays OptNilInt16 `json:"atimeScrubDays"`
 	// Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
 	CifsChangeNotifyEnabled OptNilBool `json:"cifsChangeNotifyEnabled"`
+	// Current state of FlexCache prepopulation (read-only).
+	CachePrePopulateState OptFlexCacheConfigV1betaCachePrePopulateState `json:"cachePrePopulateState"`
 }
 
-// GetPrePopulate returns the value of PrePopulate.
-func (s *FlexCacheConfigV1beta) GetPrePopulate() OptFlexCachePrePopulateV1beta {
-	return s.PrePopulate
+// GetCachePrePopulate returns the value of CachePrePopulate.
+func (s *FlexCacheConfigV1beta) GetCachePrePopulate() OptFlexCachePrePopulateV1beta {
+	return s.CachePrePopulate
 }
 
 // GetWritebackEnabled returns the value of WritebackEnabled.
@@ -3621,9 +3623,14 @@ func (s *FlexCacheConfigV1beta) GetCifsChangeNotifyEnabled() OptNilBool {
 	return s.CifsChangeNotifyEnabled
 }
 
-// SetPrePopulate sets the value of PrePopulate.
-func (s *FlexCacheConfigV1beta) SetPrePopulate(val OptFlexCachePrePopulateV1beta) {
-	s.PrePopulate = val
+// GetCachePrePopulateState returns the value of CachePrePopulateState.
+func (s *FlexCacheConfigV1beta) GetCachePrePopulateState() OptFlexCacheConfigV1betaCachePrePopulateState {
+	return s.CachePrePopulateState
+}
+
+// SetCachePrePopulate sets the value of CachePrePopulate.
+func (s *FlexCacheConfigV1beta) SetCachePrePopulate(val OptFlexCachePrePopulateV1beta) {
+	s.CachePrePopulate = val
 }
 
 // SetWritebackEnabled sets the value of WritebackEnabled.
@@ -3644,6 +3651,74 @@ func (s *FlexCacheConfigV1beta) SetAtimeScrubDays(val OptNilInt16) {
 // SetCifsChangeNotifyEnabled sets the value of CifsChangeNotifyEnabled.
 func (s *FlexCacheConfigV1beta) SetCifsChangeNotifyEnabled(val OptNilBool) {
 	s.CifsChangeNotifyEnabled = val
+}
+
+// SetCachePrePopulateState sets the value of CachePrePopulateState.
+func (s *FlexCacheConfigV1beta) SetCachePrePopulateState(val OptFlexCacheConfigV1betaCachePrePopulateState) {
+	s.CachePrePopulateState = val
+}
+
+// Current state of FlexCache prepopulation (read-only).
+type FlexCacheConfigV1betaCachePrePopulateState string
+
+const (
+	FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED FlexCacheConfigV1betaCachePrePopulateState = "CACHE_PRE_POPULATE_STATE_UNSPECIFIED"
+	FlexCacheConfigV1betaCachePrePopulateStateNOTNEEDED                        FlexCacheConfigV1betaCachePrePopulateState = "NOT_NEEDED"
+	FlexCacheConfigV1betaCachePrePopulateStateINPROGRESS                       FlexCacheConfigV1betaCachePrePopulateState = "IN_PROGRESS"
+	FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE                         FlexCacheConfigV1betaCachePrePopulateState = "COMPLETE"
+	FlexCacheConfigV1betaCachePrePopulateStateERROR                            FlexCacheConfigV1betaCachePrePopulateState = "ERROR"
+)
+
+// AllValues returns all FlexCacheConfigV1betaCachePrePopulateState values.
+func (FlexCacheConfigV1betaCachePrePopulateState) AllValues() []FlexCacheConfigV1betaCachePrePopulateState {
+	return []FlexCacheConfigV1betaCachePrePopulateState{
+		FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED,
+		FlexCacheConfigV1betaCachePrePopulateStateNOTNEEDED,
+		FlexCacheConfigV1betaCachePrePopulateStateINPROGRESS,
+		FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE,
+		FlexCacheConfigV1betaCachePrePopulateStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FlexCacheConfigV1betaCachePrePopulateState) MarshalText() ([]byte, error) {
+	switch s {
+	case FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED:
+		return []byte(s), nil
+	case FlexCacheConfigV1betaCachePrePopulateStateNOTNEEDED:
+		return []byte(s), nil
+	case FlexCacheConfigV1betaCachePrePopulateStateINPROGRESS:
+		return []byte(s), nil
+	case FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE:
+		return []byte(s), nil
+	case FlexCacheConfigV1betaCachePrePopulateStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FlexCacheConfigV1betaCachePrePopulateState) UnmarshalText(data []byte) error {
+	switch FlexCacheConfigV1betaCachePrePopulateState(data) {
+	case FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED
+		return nil
+	case FlexCacheConfigV1betaCachePrePopulateStateNOTNEEDED:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateNOTNEEDED
+		return nil
+	case FlexCacheConfigV1betaCachePrePopulateStateINPROGRESS:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateINPROGRESS
+		return nil
+	case FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE
+		return nil
+	case FlexCacheConfigV1betaCachePrePopulateStateERROR:
+		*s = FlexCacheConfigV1betaCachePrePopulateStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // FlexCache PrePopulate request.
@@ -8347,6 +8422,52 @@ func (o OptFlexCacheConfigV1beta) Get() (v FlexCacheConfigV1beta, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFlexCacheConfigV1beta) Or(d FlexCacheConfigV1beta) FlexCacheConfigV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFlexCacheConfigV1betaCachePrePopulateState returns new OptFlexCacheConfigV1betaCachePrePopulateState with value set to v.
+func NewOptFlexCacheConfigV1betaCachePrePopulateState(v FlexCacheConfigV1betaCachePrePopulateState) OptFlexCacheConfigV1betaCachePrePopulateState {
+	return OptFlexCacheConfigV1betaCachePrePopulateState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFlexCacheConfigV1betaCachePrePopulateState is optional FlexCacheConfigV1betaCachePrePopulateState.
+type OptFlexCacheConfigV1betaCachePrePopulateState struct {
+	Value FlexCacheConfigV1betaCachePrePopulateState
+	Set   bool
+}
+
+// IsSet returns true if OptFlexCacheConfigV1betaCachePrePopulateState was set.
+func (o OptFlexCacheConfigV1betaCachePrePopulateState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFlexCacheConfigV1betaCachePrePopulateState) Reset() {
+	var v FlexCacheConfigV1betaCachePrePopulateState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFlexCacheConfigV1betaCachePrePopulateState) SetTo(v FlexCacheConfigV1betaCachePrePopulateState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFlexCacheConfigV1betaCachePrePopulateState) Get() (v FlexCacheConfigV1betaCachePrePopulateState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFlexCacheConfigV1betaCachePrePopulateState) Or(d FlexCacheConfigV1betaCachePrePopulateState) FlexCacheConfigV1betaCachePrePopulateState {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -6,6 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -27,11 +29,16 @@ type FlexCacheConfigV1beta struct {
 	// Flag indicating whether the atime based scrub is enabled for the FlexCache volume.
 	AtimeScrubEnabled *bool `json:"atimeScrubEnabled,omitempty"`
 
+	// Prepopulate FlexCache volume
+	CachePrePopulate *FlexCachePrePopulateV1beta `json:"cachePrePopulate,omitempty"`
+
+	// Current state of FlexCache prepopulation (read-only).
+	// Read Only: true
+	// Enum: [CACHE_PRE_POPULATE_STATE_UNSPECIFIED NOT_NEEDED IN_PROGRESS COMPLETE ERROR]
+	CachePrePopulateState string `json:"cachePrePopulateState,omitempty"`
+
 	// Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
 	CifsChangeNotifyEnabled *bool `json:"cifsChangeNotifyEnabled,omitempty"`
-
-	// Prepopulate FlexCache volume
-	PrePopulate *FlexCachePrePopulateV1beta `json:"prePopulate,omitempty"`
 
 	// Flag indicating whether writeback is enabled for the FlexCache volume.
 	WritebackEnabled *bool `json:"writebackEnabled,omitempty"`
@@ -45,7 +52,11 @@ func (m *FlexCacheConfigV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
-	if err := m.validatePrePopulate(formats); err != nil {
+	if err := m.validateCachePrePopulate(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateCachePrePopulateState(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -72,19 +83,71 @@ func (m *FlexCacheConfigV1beta) validateAtimeScrubDays(formats strfmt.Registry) 
 	return nil
 }
 
-func (m *FlexCacheConfigV1beta) validatePrePopulate(formats strfmt.Registry) error {
+func (m *FlexCacheConfigV1beta) validateCachePrePopulate(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.PrePopulate) { // not required
+	if swag.IsZero(m.CachePrePopulate) { // not required
 		return nil
 	}
 
-	if m.PrePopulate != nil {
-		if err := m.PrePopulate.Validate(formats); err != nil {
+	if m.CachePrePopulate != nil {
+		if err := m.CachePrePopulate.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("prePopulate")
+				return ve.ValidateName("cachePrePopulate")
 			}
 			return err
 		}
+	}
+
+	return nil
+}
+
+var flexCacheConfigV1betaTypeCachePrePopulateStatePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["CACHE_PRE_POPULATE_STATE_UNSPECIFIED","NOT_NEEDED","IN_PROGRESS","COMPLETE","ERROR"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		flexCacheConfigV1betaTypeCachePrePopulateStatePropEnum = append(flexCacheConfigV1betaTypeCachePrePopulateStatePropEnum, v)
+	}
+}
+
+const (
+
+	// FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED captures enum value "CACHE_PRE_POPULATE_STATE_UNSPECIFIED"
+	FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED string = "CACHE_PRE_POPULATE_STATE_UNSPECIFIED"
+
+	// FlexCacheConfigV1betaCachePrePopulateStateNOTNEEDED captures enum value "NOT_NEEDED"
+	FlexCacheConfigV1betaCachePrePopulateStateNOTNEEDED string = "NOT_NEEDED"
+
+	// FlexCacheConfigV1betaCachePrePopulateStateINPROGRESS captures enum value "IN_PROGRESS"
+	FlexCacheConfigV1betaCachePrePopulateStateINPROGRESS string = "IN_PROGRESS"
+
+	// FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE captures enum value "COMPLETE"
+	FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE string = "COMPLETE"
+
+	// FlexCacheConfigV1betaCachePrePopulateStateERROR captures enum value "ERROR"
+	FlexCacheConfigV1betaCachePrePopulateStateERROR string = "ERROR"
+)
+
+// prop value enum
+func (m *FlexCacheConfigV1beta) validateCachePrePopulateStateEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, flexCacheConfigV1betaTypeCachePrePopulateStatePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *FlexCacheConfigV1beta) validateCachePrePopulateState(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.CachePrePopulateState) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateCachePrePopulateStateEnum("cachePrePopulateState", "body", m.CachePrePopulateState); err != nil {
+		return err
 	}
 
 	return nil
