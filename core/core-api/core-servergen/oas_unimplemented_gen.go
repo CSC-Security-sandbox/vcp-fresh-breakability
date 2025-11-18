@@ -13,6 +13,15 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// GetHealth implements getHealth operation.
+//
+// Returns the server health status.
+//
+// GET /health
+func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1CreateImageVersion implements v1_createImageVersion operation.
 //
 // Creates a new image version entry in the database. This is useful when an image version was missed

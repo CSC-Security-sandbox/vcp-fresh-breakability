@@ -8,6 +8,12 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// GetHealth implements getHealth operation.
+	//
+	// Returns the server health status.
+	//
+	// GET /health
+	GetHealth(ctx context.Context) (GetHealthRes, error)
 	// V1CreateImageVersion implements v1_createImageVersion operation.
 	//
 	// Creates a new image version entry in the database. This is useful when an image version was missed

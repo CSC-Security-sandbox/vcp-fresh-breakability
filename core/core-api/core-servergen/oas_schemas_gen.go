@@ -870,6 +870,48 @@ func (s *GcpKmsKeyRotateV1) SetOwnerID(val string) {
 	s.OwnerID = val
 }
 
+type GetHealthBadRequest Error
+
+func (*GetHealthBadRequest) getHealthRes() {}
+
+type GetHealthForbidden Error
+
+func (*GetHealthForbidden) getHealthRes() {}
+
+type GetHealthInternalServerError Error
+
+func (*GetHealthInternalServerError) getHealthRes() {}
+
+type GetHealthNotFound Error
+
+func (*GetHealthNotFound) getHealthRes() {}
+
+type GetHealthTooManyRequests Error
+
+func (*GetHealthTooManyRequests) getHealthRes() {}
+
+type GetHealthUnauthorized Error
+
+func (*GetHealthUnauthorized) getHealthRes() {}
+
+// Ref: #/components/schemas/Health
+type Health struct {
+	// Server health status.
+	Status OptString `json:"status"`
+}
+
+// GetStatus returns the value of Status.
+func (s *Health) GetStatus() OptString {
+	return s.Status
+}
+
+// SetStatus sets the value of Status.
+func (s *Health) SetStatus(val OptString) {
+	s.Status = val
+}
+
+func (*Health) getHealthRes() {}
+
 // Request to create a new image version entry.
 // Ref: #/components/schemas/ImageVersionCreateRequest_v1
 type ImageVersionCreateRequestV1 struct {

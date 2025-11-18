@@ -11,6 +11,8 @@ servers:
   - url: http://netapp.googleapis.com/
   - url: https://netapp.googleapis.com/
 tags:
+  - name: health
+    description: Health check operations
   - name: pools
     description: Pool operations
   - name: clusters
@@ -18,6 +20,38 @@ tags:
   - name: replications
     description: Replication operations
 paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Get the server health status
+      description: Returns the server health status
+      tags:
+        - health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1/pools:
     get:
       tags:
@@ -996,6 +1030,16 @@ components:
       example:
         code: 1994.0
         message: Out of cheese error! Please reboot the Universe
+    Health:
+      type: object
+      title: Health
+      properties:
+        status:
+          title: healthStatus
+          type: string
+          readOnly: true
+          description: Server health status
+          example: healthy
     ServiceLevel_v1:
       title: ServiceLevel
       type: object

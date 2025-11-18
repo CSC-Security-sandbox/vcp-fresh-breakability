@@ -6,6 +6,7 @@ package coreapi
 type OperationName = string
 
 const (
+	GetHealthOperation                               OperationName = "GetHealth"
 	V1CreateImageVersionOperation                    OperationName = "V1CreateImageVersion"
 	V1CreatePoolOperation                            OperationName = "V1CreatePool"
 	V1DeleteImageVersionOperation                    OperationName = "V1DeleteImageVersion"

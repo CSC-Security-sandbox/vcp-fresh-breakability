@@ -63,6 +63,26 @@ spec:
               memory: {{ .Values.resources.requests.memory }}
           ports:
             - containerPort: {{ .Values.service.appPort }}
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ .Values.service.appPort }}
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: {{ .Values.service.appPort }}
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
           envFrom:
             - configMapRef:
                 name: google-proxy-service-env-config
