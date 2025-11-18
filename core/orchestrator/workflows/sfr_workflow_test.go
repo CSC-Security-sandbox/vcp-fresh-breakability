@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -100,6 +101,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock activity responses
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2) // Called for PROCESSING and DONE in success case
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -145,6 +147,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}, nil)
+		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{UUID: "test-job-uuid", State: "success"}, nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -155,6 +159,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(job, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function even on success
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -226,8 +232,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock activity responses - GenerateResourceTimestamp fails
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe() // May be called if workflow gets far enough
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("", errors.New("failed to generate timestamp"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -299,9 +308,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock activity responses - CreateServiceAccount fails
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe() // May be called if workflow gets far enough
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create service account"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -375,6 +387,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock activity responses - GetFileInodeNumbers fails
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe() // May be called if workflow gets far enough
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -398,6 +411,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -471,6 +486,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock activity responses - file not found in backup
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe() // May be called if workflow gets far enough
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -502,6 +518,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -584,6 +602,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock activity responses - SnapmirrorTransferWithFiles fails
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe() // May be called if workflow gets far enough
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -632,6 +651,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -714,6 +735,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock activity responses - transfer status returns failed
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe() // May be called if workflow gets far enough
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -763,6 +785,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -847,6 +871,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock activity responses - GetJob fails but workflow should continue
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2) // Called for PROCESSING and DONE
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -888,6 +913,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}, nil)
+		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{UUID: "test-job-uuid", State: "success"}, nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -897,6 +924,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get job"))
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -984,6 +1013,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Mock activity responses - PopulateSfrMetadataActivity fails but workflow should continue
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2) // Called for PROCESSING and DONE
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -1025,6 +1055,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}, nil)
+		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{UUID: "test-job-uuid", State: "success"}, nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1035,6 +1067,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(job, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to populate SfrMetadata"))
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -1148,8 +1182,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			return job.State == string(models.JobsStatePROCESSING)
 		})).Return(nil)
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("", errors.New("test error"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// UpdateJobStatus should fail when trying to set ERROR status
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.State == string(models.JobsStateERROR)
@@ -1230,6 +1267,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			return job.State == string(models.JobsStatePROCESSING)
 		})).Return(nil)
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -1271,6 +1309,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}, nil)
+		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{UUID: "test-job-uuid", State: "success"}, nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -1280,6 +1320,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// UpdateJobStatus should fail when trying to set DONE status
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.State == string(models.JobsStateDONE)
@@ -1334,6 +1376,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
 		assert.True(t, env.IsWorkflowCompleted())
@@ -1397,8 +1441,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
 		assert.True(t, env.IsWorkflowCompleted())
@@ -1462,8 +1509,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
 		assert.True(t, env.IsWorkflowCompleted())
@@ -1527,10 +1577,13 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(false, errors.New("failed to check service account"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// RemoveRolesFromServiceAccount may be called in cleanup, but might be skipped if service account wasn't created
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1597,10 +1650,13 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(false, nil) // Service account not created
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// RemoveRolesFromServiceAccount may be called in cleanup, but might be skipped if service account wasn't created
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1667,11 +1723,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to attach roles"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// RemoveRolesFromServiceAccount may be called in cleanup, but might fail
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1738,12 +1797,15 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create HMAC keys"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1809,6 +1871,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -1819,6 +1882,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(nil, errors.New("failed to deploy Cloud Run service"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1884,6 +1949,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -1899,6 +1965,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Return false 20 times to trigger timeout
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(false, nil).Times(20)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1964,6 +2032,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -1979,6 +2048,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("failed to get ADC service URL"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -2053,6 +2124,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -2076,6 +2148,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetFileInodeNumbers", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fileInodeSizeMap, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get nodes"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -2155,6 +2229,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -2277,6 +2352,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2)
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -2320,6 +2396,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}, nil)
+		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{UUID: "test-job-uuid", State: "success"}, nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -2328,6 +2406,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// GetJob may or may not be called depending on workflow path
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
@@ -2404,6 +2484,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -2524,6 +2605,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -2553,6 +2635,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("GetObjStoreNameFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("failed to get obj store name"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -2631,6 +2715,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -2661,6 +2746,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetObjStoreNameFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return("obj-store-name", nil)
 		env.OnActivity("GetBucketDetailsFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get bucket details"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -2739,6 +2826,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -2772,6 +2860,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("", errors.New("failed to get SM source path"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -2850,6 +2940,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -2884,6 +2975,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("/source/path", nil)
 		env.OnActivity("GetSmSourcePathForRestoreActivity", mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("failed to get SM source path for restore"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -2962,6 +3055,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -2997,6 +3091,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetSmSourcePathForRestoreActivity", mock.Anything, mock.Anything, mock.Anything).Return("/restore/source/path", nil)
 		env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get or create object store"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -3075,6 +3171,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -3113,6 +3210,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("SnapmirrorGetOrCreate", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get or create snapmirror"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -3192,6 +3291,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2)
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -3233,12 +3333,15 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
 		}, nil)
 		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(false, errors.New("failed to check cleanup status"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// GetJob may or may not be called depending on workflow path
@@ -3316,6 +3419,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2)
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -3357,6 +3461,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -3364,6 +3469,8 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(true, nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to remove roles"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// GetJob may or may not be called depending on workflow path
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
@@ -3440,6 +3547,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2)
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
@@ -3481,6 +3589,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
 			OperationName: "operations/cleanup-operation-123",
 			Status:        "RUNNING",
@@ -3489,8 +3598,501 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to delete service account"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// GetJob may or may not be called depending on workflow path
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("CrossPoolOrVPCRestorationActivityFailure", func(t *testing.T) {
+		// Test line 191: CrossPoolOrVPCRestorationActivity failure
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to setup cross VPC restoration"))
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupRestoreCountDecrementFailure", func(t *testing.T) {
+		// Test line 161: UpdateBackupRestoreCount decrement failure in defer function
+		// The workflow should complete successfully, but the decrement fails (just logs error)
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:     "test-account",
+			SourceFileList:  []string{"/backup.txt"},
+			RestoreFilePath: "/restore_dir",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				SnapshotName: "snapshot-name",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 1,
+			Account:   account,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "deployment-name",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      1,
+				},
+			},
+			PoolID: 1,
+		}
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
+		}
+
+		// Mock activity responses - workflow succeeds but decrement fails
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2)
+		// First call (increment) succeeds, second call (decrement in defer) fails
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(op string) bool {
+			return op == string(activities.BackupRestoreCountIncrement)
+		})).Return(nil)
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(op string) bool {
+			return op == string(activities.BackupRestoreCountDecrement)
+		})).Return(errors.New("failed to decrement backup restore count"))
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "dGVzdC1hY2Nlc3Mta2V5",
+			SecretKey: "dGVzdC1zZWNyZXQta2V5",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/test-operation",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
+		fileInodeSizeMap := map[string]*activities.FileInodeAndSize{
+			"/backup.txt": {
+				Inode: "12345",
+				Size:  1024,
+			},
+		}
+		env.OnActivity("GetFileInodeNumbers", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fileInodeSizeMap, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "node-uuid"},
+				Name:      "node-1",
+			},
+		}, nil)
+		env.OnActivity("GetObjStoreNameFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return("obj-store-name", nil)
+		env.OnActivity("GetBucketDetailsFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+			BucketName: "test-bucket",
+		}, nil)
+		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("/source/path", nil)
+		env.OnActivity("GetSmSourcePathForRestoreActivity", mock.Anything, mock.Anything, mock.Anything).Return("/restore/source/path", nil)
+		env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{
+			UUID: "obj-store-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorGetOrCreate", mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID: "snapmirror-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}, nil)
+		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{UUID: "test-job-uuid", State: "success"}, nil)
+		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/cleanup-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(true, nil)
+		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(job, nil)
+		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function even on success
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+		// Workflow should complete successfully even if decrement fails (just logs error)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("DeleteObjectStoreForCrossVPCFailure", func(t *testing.T) {
+		// Test line 534: DeleteObjectStoreForCrossVPC failure
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:     "test-account",
+			SourceFileList:  []string{"/backup.txt"},
+			RestoreFilePath: "/restore_dir",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				SnapshotName: "snapshot-name",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 1,
+			Account:   account,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "deployment-name",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      1,
+				},
+			},
+			PoolID: 1,
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "dGVzdC1hY2Nlc3Mta2V5",
+			SecretKey: "dGVzdC1zZWNyZXQta2V5",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/test-operation",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
+		fileInodeSizeMap := map[string]*activities.FileInodeAndSize{
+			"/backup.txt": {
+				Inode: "12345",
+				Size:  1024,
+			},
+		}
+		env.OnActivity("GetFileInodeNumbers", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fileInodeSizeMap, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "node-uuid"},
+				Name:      "node-1",
+			},
+		}, nil)
+		env.OnActivity("GetObjStoreNameFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return("obj-store-name", nil)
+		env.OnActivity("GetBucketDetailsFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+			BucketName: "test-bucket",
+		}, nil)
+		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("/source/path", nil)
+		env.OnActivity("GetSmSourcePathForRestoreActivity", mock.Anything, mock.Anything, mock.Anything).Return("/restore/source/path", nil)
+		env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{
+			UUID: "obj-store-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorGetOrCreate", mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID: "snapmirror-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to delete object store for cross VPC"))
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/cleanup-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WaitForONTAPJobFailure", func(t *testing.T) {
+		// Test line 539: WaitForONTAPJob failure after DeleteObjectStoreForCrossVPC returns non-nil response
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:     "test-account",
+			SourceFileList:  []string{"/backup.txt"},
+			RestoreFilePath: "/restore_dir",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				SnapshotName: "snapshot-name",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 1,
+			Account:   account,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "deployment-name",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      1,
+				},
+			},
+			PoolID: 1,
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "dGVzdC1hY2Nlc3Mta2V5",
+			SecretKey: "dGVzdC1zZWNyZXQta2V5",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/test-operation",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
+		fileInodeSizeMap := map[string]*activities.FileInodeAndSize{
+			"/backup.txt": {
+				Inode: "12345",
+				Size:  1024,
+			},
+		}
+		env.OnActivity("GetFileInodeNumbers", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fileInodeSizeMap, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "node-uuid"},
+				Name:      "node-1",
+			},
+		}, nil)
+		env.OnActivity("GetObjStoreNameFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return("obj-store-name", nil)
+		env.OnActivity("GetBucketDetailsFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+			BucketName: "test-bucket",
+		}, nil)
+		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("/source/path", nil)
+		env.OnActivity("GetSmSourcePathForRestoreActivity", mock.Anything, mock.Anything, mock.Anything).Return("/restore/source/path", nil)
+		env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{
+			UUID: "obj-store-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorGetOrCreate", mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID: "snapmirror-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		// DeleteObjectStoreForCrossVPC returns non-nil response, but WaitForONTAPJob fails
+		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}, nil)
+		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get ONTAP job"))
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Rollback cleanup activity - called in defer function
+		env.OnActivity("DeleteRolesForServiceAccountInBackupTenantProject", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/cleanup-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
 		assert.True(t, env.IsWorkflowCompleted())

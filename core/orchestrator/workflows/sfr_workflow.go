@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -146,18 +147,22 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 
 	rollbackManager := commonparams.NewRollbackManager()
+	rollbackManager.AddActivity(activities.VolumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, volume.Pool, backup)
 	defer func() {
+		// Capture the workflow error before any cleanup operations
+		workflowErr := err
+
 		// Decrement backup restore count after the workflow is complete
-		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
+		decrementErr := workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
 			backupVault.UUID,
 			backup.UUID,
 			volume.Account.Name, activities.BackupRestoreCountDecrement).Get(ctx, nil)
-		if err != nil {
-			log.Errorf("Failed to revert backup restore count: %v", err)
+		if decrementErr != nil {
+			log.Errorf("Failed to revert backup restore count: %v", decrementErr)
 		}
 
 		// Check for ContinueAsNewError - if so, don't execute rollback
-		if err != nil && workflow.IsContinueAsNewError(err) {
+		if workflowErr != nil && workflow.IsContinueAsNewError(workflowErr) {
 			// Don't execute rollback for ContinueAsNew - let the new execution handle it
 			return
 		}
@@ -165,7 +170,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		// Always restore volume to READY/Available state after workflow completes
 		// The orchestrator sets volume to RESTORING before starting workflow,
 		// so we restore it to READY regardless of success or failure
-		if err != nil {
+		if workflowErr != nil {
 			log.Infof("SFR workflow failed, restoring volume %s from RESTORING state back to READY (original state was: %s)", volume.UUID, models.LifeCycleStateREADY)
 		} else {
 			log.Infof("SFR workflow completed, restoring volume %s from RESTORING state back to READY", volume.UUID)
@@ -175,10 +180,16 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 			log.Errorf("Failed to restore volume state to READY: %v", err2)
 		}
 
-		// Execute rollback manager cleanup if there was an error
+		// Execute rollback manager cleanup if there was a workflow error
 		disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-		rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		rollbackManager.ExecuteRollback(disconnectedCtx, workflowErr)
 	}()
+
+	// Execute VPC pool restoration activity to handle cross-project permissions
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CrossPoolOrVPCRestorationActivity, volume.Pool, backup).Get(ctx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 
 	// Generate deterministic timestamp for resource naming
 	var saTimestamp string
@@ -513,6 +524,19 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		err = workflow.Sleep(ctx, waitTime)
 		if err != nil {
 			return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during transfer polling: %w", err))
+		}
+	}
+
+	// Delete object store for cross VPC after transfer completes
+	var ontapAsyncResponse *vsa.OntapAsyncResponse
+	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteObjectStoreForCrossVPC, volume.Pool, backup, node, objStoreName).Get(ctx, &ontapAsyncResponse)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	if ontapAsyncResponse != nil {
+		err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+		if err != nil {
+			return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
 		}
 	}
 
