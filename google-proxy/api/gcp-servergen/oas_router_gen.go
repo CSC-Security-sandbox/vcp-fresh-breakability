@@ -2018,6 +2018,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												return
 											}
 
+										case 'c': // Prefix: "clonesplit"
+
+											if l := len("clonesplit"); len(elem) >= l && elem[0:l] == "clonesplit" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaSplitCloneVolumeRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
+											}
+
 										case 'e': // Prefix: "establishPeering"
 
 											if l := len("establishPeering"); len(elem) >= l && elem[0:l] == "establishPeering" {
@@ -4580,6 +4604,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													r.summary = "Revert a volume to a snapshot"
 													r.operationID = "v1beta_revertVolume"
 													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/Revert"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+
+										case 'c': // Prefix: "clonesplit"
+
+											if l := len("clonesplit"); len(elem) >= l && elem[0:l] == "clonesplit" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaSplitCloneVolumeOperation
+													r.summary = "Split a thin clone volume"
+													r.operationID = "v1beta_splitCloneVolume"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit"
 													r.args = args
 													r.count = 3
 													return r, true

@@ -12122,6 +12122,102 @@ func TestV1betaRevertVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1betaRevertVolumeUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaSplitCloneVolumeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitCloneVolumeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitCloneVolumeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitCloneVolumeConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitCloneVolumeConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitCloneVolumeConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitCloneVolumeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitCloneVolumeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitCloneVolumeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitCloneVolumeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitCloneVolumeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitCloneVolumeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitCloneVolumeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitCloneVolumeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitCloneVolumeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitCloneVolumeTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitCloneVolumeTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitCloneVolumeTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitCloneVolumeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitCloneVolumeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitCloneVolumeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaSplitCloneVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaSplitCloneVolumeUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaSplitCloneVolumeUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaStartProjectEventAccepted_EncodeDecode(t *testing.T) {
 	var typ V1betaStartProjectEventAccepted
 	typ.SetFake()

@@ -9367,3 +9367,310 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestV1betaSplitCloneVolume(t *testing.T) {
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	mockParseAndValidateRegionAndZone := func(region string) (string, string, *gcpgenserver.Error) {
+		return "test-region", "test-location", nil
+	}
+	utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	t.Run("FeatureDisabled_Returns403Forbidden", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = false
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		forbidden, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeForbidden)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(403), forbidden.Code)
+		assert.Contains(tt, forbidden.Message, "Thin clone split feature is currently not enabled")
+	})
+
+	t.Run("ValidSplitCloneVolume", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "READY",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+		assert.True(tt, op.Done.Value)
+	})
+
+	t.Run("ValidSplitCloneVolume_WithSplittingState", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateSplitting,
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+		assert.False(tt, op.Done.Value)
+	})
+
+	t.Run("UserInputValidationError", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		prepareSplitCloneVolumeParams = func(params gcpgenserver.V1betaSplitCloneVolumeParams, region string) (*common.SplitCloneVolumeParams, error) {
+			return nil, errors.NewUserInputValidationErr("invalid input")
+		}
+		defer func() { prepareSplitCloneVolumeParams = _prepareSplitCloneVolumeParams }()
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "invalid input")
+	})
+
+	t.Run("InternalServerError_PrepareParams", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		prepareSplitCloneVolumeParams = func(params gcpgenserver.V1betaSplitCloneVolumeParams, region string) (*common.SplitCloneVolumeParams, error) {
+			return nil, fmt.Errorf("unexpected error")
+		}
+		defer func() { prepareSplitCloneVolumeParams = _prepareSplitCloneVolumeParams }()
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.Nil(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "unexpected error")
+	})
+
+	t.Run("BadRequest_InvalidLocation", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		defer func() { utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "invalid-location",
+			VolumeId:      "vol-1",
+		}
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+	})
+
+	t.Run("WhenOrchestratorValidationThrowsAnError_Return400BadRequest", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "An error occurred")
+	})
+
+	t.Run("WhenOrchestratorConflictThrowsAnError_Return400BadRequest", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume is in transition state"))
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), badReq.Code)
+		assert.Contains(tt, badReq.Message, "Volume is in transition state")
+	})
+
+	t.Run("WhenOrchestratorThrowsAnError_ReturnError", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(nil, "", fmt.Errorf("An error occurred"))
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.Error(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "An error occurred")
+	})
+
+	t.Run("WhenOrchestratorNotFoundError_Return404NotFoundError", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewNotFoundErr("Volume not found", nil))
+
+		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		notFound, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeNotFound)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), notFound.Code)
+		assert.Contains(tt, notFound.Message, "Volume not found")
+	})
+}
+
+func TestPrepareSplitCloneVolumeParams(t *testing.T) {
+	t.Run("ValidSplitCloneVolumeParams", func(tt *testing.T) {
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		region := "test-region"
+
+		expected := &common.SplitCloneVolumeParams{
+			AccountName: "test-project",
+			Region:      "test-region",
+			VolumeID:    "vol-1",
+		}
+
+		result, err := prepareSplitCloneVolumeParams(params, region)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("EmptyVolumeId_ReturnsError", func(tt *testing.T) {
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+
+		result, err := prepareSplitCloneVolumeParams(params, region)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "No Volume ID given")
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+	})
+
+	t.Run("EmptyProjectNumber_ReturnsError", func(tt *testing.T) {
+		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+			ProjectNumber: "",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		region := "test-region"
+
+		result, err := prepareSplitCloneVolumeParams(params, region)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "No Project Number given")
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+	})
+}

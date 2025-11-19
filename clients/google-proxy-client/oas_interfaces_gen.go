@@ -357,6 +357,10 @@ type V1betaRevertVolumeRes interface {
 	v1betaRevertVolumeRes()
 }
 
+type V1betaSplitCloneVolumeRes interface {
+	v1betaSplitCloneVolumeRes()
+}
+
 type V1betaStartProjectEventRes interface {
 	v1betaStartProjectEventRes()
 }

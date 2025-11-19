@@ -42,6 +42,7 @@ type OrchestratorFactory interface {
 	ListVolumes(ctx context.Context, accountName string) ([]*models.Volume, error)
 	EstablishFlexCacheVolumePeering(ctx context.Context, params *commonparams.EstablishVolumePeeringParams) (*models.Volume, string, error)
 	RestoreFilesFromBackup(ctx context.Context, params *commonparams.RestoreFilesFromBackupParams) (string, error)
+	SplitCloneVolume(ctx context.Context, params *commonparams.SplitCloneVolumeParams) (*models.Volume, string, error)
 
 	GetJob(ctx context.Context, operationId string) (*models.Job, error)
 	GetReplicationJobs(ctx context.Context, projectName string, poolUUID string) ([]*models.Job, error)

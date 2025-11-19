@@ -43,7 +43,9 @@ var (
 	maxQuotaInBytesVolume         = utils.MaxQuotaInBytesVolumeForVolume
 	createVolume                  = _createVolume
 	revertVolume                  = _revertVolume
+	splitCloneVolume               = _splitCloneVolume
 	validateCreateVolumeParams    = _validateCreateVolumeParams
+	validateSplitCloneVolumeParams = _validateSplitCloneVolumeParams
 	getIPAddressForVolume         = _getIPAddressForVolume
 	updateVolume                  = _updateVolume
 	deleteVolume                  = _deleteVolume
@@ -145,6 +147,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	clonesSharedBytes := uint64(0)
 	volumeSizeInBytes := params.QuotaInBytes
+	parentVolumeUUID := ""
 	if params.SnapshotID != "" {
 		dbSnapshot, err := se.GetSnapshotByPoolID(ctx, params.SnapshotID, account.ID, pool.ID, true)
 		if err != nil {
@@ -180,6 +183,11 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			logger.Error("Parent snapshot is not in a valid state for volume creation", "snapshot_state", dbSnapshot.State)
 			return nil, "", customerrors.NewUserInputValidationErr("Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
 		}
+
+		if dbSnapshot.Volume != nil {
+			parentVolumeUUID = dbSnapshot.Volume.UUID
+		}
+
 		if dbSnapshot.Volume != nil && dbSnapshot.Volume.LargeVolumeAttributes != nil && dbSnapshot.Volume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
 			params.LargeVolumeConstituentCount = *dbSnapshot.Volume.LargeVolumeAttributes.LargeVolumeConstituentCount
 		}
@@ -285,6 +293,13 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				},
 				JunctionPath: junctionPath,
 			}
+		}
+	}
+
+	if params.SnapshotID != "" {
+		volumeObj.VolumeAttributes.CloneParentInfo = &datamodel.CloneParentInfo{
+			ParentSnapshotUUID: params.SnapshotID,
+			ParentVolumeUUID:   parentVolumeUUID,
 		}
 	}
 
@@ -2491,4 +2506,135 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 	}
 	workflowStarted = true
 	return createdJob.UUID, nil
+}
+
+func (o *Orchestrator) SplitCloneVolume(ctx context.Context, params *common.SplitCloneVolumeParams) (*models.Volume, string, error) {
+	return splitCloneVolume(ctx, o.storage, o.temporal, params)
+}
+
+func _splitCloneVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.SplitCloneVolumeParams) (*models.Volume, string, error) {
+	logger := util.GetLogger(ctx)
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Error("Failed to fetch account for the given projectNumber", "error", err)
+		return nil, "", err
+	}
+
+	volume, err := se.GetVolumeWithAccountID(ctx, params.VolumeID, account.ID)
+	if err != nil {
+		logger.Error("Failed to fetch volume for the given account ID", "error", err)
+		return nil, "", err
+	}
+
+	pool, err := se.GetPool(ctx, volume.Pool.UUID, account.ID)
+	if err != nil {
+		logger.Error("Failed to fetch pool for the given account ID", "error", err)
+		return nil, "", err
+	}
+
+	if utils.IsTransitionalState(volume.State) {
+		logger.Errorf("Volume %s cannot be split, while in transitioning state: %s", volume.Name, volume.State)
+		return nil, "", customerrors.NewConflictErr("volume is in transition state and cannot be split, state: " + volume.State)
+	}
+
+	if volume.State != models.LifeCycleStateREADY {
+		return nil, "", customerrors.NewConflictErr("Volume is not in READY state, state: " + volume.State)
+	}
+
+	err = validateSplitCloneVolumeParams(ctx, volume, pool)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeSplitVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  volume.Name,
+		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create volume split job in database", "error", err)
+		return nil, "", err
+	}
+
+	// Defer to mark job as deleted if any error happens
+	defer func() {
+		if err != nil {
+			// Delete job if error occurred
+			if createdJob != nil && createdJob.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", createdJob.UUID)
+				if delErr := se.DeleteJob(ctx, createdJob.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+			}
+		}
+	}()
+
+	previousState := volume.State
+	previousStateDetails := volume.StateDetails
+	volume, err = updateVolumeStatus(ctx, se, volume, models.LifeCycleStateSplitting, models.LifeCycleStateSplittingDetails)
+	if err != nil {
+		logger.Error("Failed to update volume state in database", "error", err)
+		return nil, "", err
+	}
+	// Defer to revert the resource state
+	defer func() {
+		if err != nil {
+			// Revert volume state back to previous state if it was set to SPLITTING
+			if volume.State == models.LifeCycleStateSplitting {
+				logger.Warnf("Error occurred during volume split, reverting volume state to previous state '%s'. Volume UUID: %s", previousState, volume.UUID)
+				volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+					"state":         previousState,
+					"state_details": previousStateDetails,
+				})
+				if volumeUpdateErr != nil {
+					logger.Errorf("Failed to revert volume state to previous volume state: %v", volumeUpdateErr)
+				}
+			}
+		}
+	}()
+
+	location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
+	if err != nil {
+		logger.Error("Failed to get location from vendor ID: ", "error", err)
+		return nil, "", err
+	}
+
+	// controlWorkflowID defines the workflow ID for the control workflow
+	controlWorkflowID := workflows.GenerateControlWorkflowID(volume.Account.ID, location, volume.Pool.Name)
+	workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, createdJob.WorkflowID)
+	err = workflowExecutor.ExecuteSequentialWorkflow(
+		ctx,
+		workflowOptions,
+		workflows.SplitVolumeWorkflow,
+		volume,
+	)
+	if err != nil {
+		logger.Error("Failed to start split clone workflow after retries: ", "error", err)
+		return nil, "", err
+	}
+
+	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
+}
+
+func _validateSplitCloneVolumeParams(ctx context.Context, volume *datamodel.Volume, pool *datamodel.PoolView) error {
+	logger := util.GetLogger(ctx)
+
+	if volume.ClonesSharedBytes == 0 {
+		logger.Errorf("Volume %s is not a thin clone volume, cannot perform split operation", volume.Name)
+		return customerrors.NewUserInputValidationErr("volume is not a thin clone volume, cannot perform split operation")
+	}
+
+	if pool.QuotaInBytes+volume.ClonesSharedBytes > uint64(pool.SizeInBytes) {
+		logger.Errorf("Insufficient space in pool %s to split the clone volume %s", pool.Name, volume.Name)
+		return customerrors.NewUserInputValidationErr("insufficient space in pool to split the clone volume, please free up space and try again")
+	}
+
+	return nil
 }

@@ -3540,6 +3540,7 @@ func (*ErrorStatusCode) v1betaRestoreBackupFilesRes()                        {}
 func (*ErrorStatusCode) v1betaResumeReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaReverseAndResumeReplicationRes()               {}
 func (*ErrorStatusCode) v1betaRevertVolumeRes()                              {}
+func (*ErrorStatusCode) v1betaSplitCloneVolumeRes()                          {}
 func (*ErrorStatusCode) v1betaStartProjectEventRes()                         {}
 func (*ErrorStatusCode) v1betaStopReplicationRes()                           {}
 func (*ErrorStatusCode) v1betaSyncReplicationRes()                           {}
@@ -7412,6 +7413,7 @@ func (*OperationV1beta) v1betaRestoreBackupFilesRes()                        {}
 func (*OperationV1beta) v1betaResumeReplicationRes()                         {}
 func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()               {}
 func (*OperationV1beta) v1betaRevertVolumeRes()                              {}
+func (*OperationV1beta) v1betaSplitCloneVolumeRes()                          {}
 func (*OperationV1beta) v1betaStopReplicationRes()                           {}
 func (*OperationV1beta) v1betaSyncReplicationRes()                           {}
 func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()                     {}
@@ -20789,6 +20791,43 @@ func (*V1betaRevertVolumeUnauthorized) v1betaRevertVolumeRes() {}
 type V1betaRevertVolumeUnprocessableEntity Error
 
 func (*V1betaRevertVolumeUnprocessableEntity) v1betaRevertVolumeRes() {}
+
+type V1betaSplitCloneVolumeBadRequest Error
+
+func (*V1betaSplitCloneVolumeBadRequest) v1betaSplitCloneVolumeRes() {}
+
+type V1betaSplitCloneVolumeConflict Error
+
+func (*V1betaSplitCloneVolumeConflict) v1betaSplitCloneVolumeRes() {}
+
+type V1betaSplitCloneVolumeForbidden Error
+
+func (*V1betaSplitCloneVolumeForbidden) v1betaSplitCloneVolumeRes() {}
+
+type V1betaSplitCloneVolumeInternalServerError Error
+
+func (*V1betaSplitCloneVolumeInternalServerError) v1betaSplitCloneVolumeRes() {}
+
+// V1betaSplitCloneVolumeNoContent is response for V1betaSplitCloneVolume operation.
+type V1betaSplitCloneVolumeNoContent struct{}
+
+func (*V1betaSplitCloneVolumeNoContent) v1betaSplitCloneVolumeRes() {}
+
+type V1betaSplitCloneVolumeNotFound Error
+
+func (*V1betaSplitCloneVolumeNotFound) v1betaSplitCloneVolumeRes() {}
+
+type V1betaSplitCloneVolumeTooManyRequests Error
+
+func (*V1betaSplitCloneVolumeTooManyRequests) v1betaSplitCloneVolumeRes() {}
+
+type V1betaSplitCloneVolumeUnauthorized Error
+
+func (*V1betaSplitCloneVolumeUnauthorized) v1betaSplitCloneVolumeRes() {}
+
+type V1betaSplitCloneVolumeUnprocessableEntity Error
+
+func (*V1betaSplitCloneVolumeUnprocessableEntity) v1betaSplitCloneVolumeRes() {}
 
 type V1betaStartProjectEventAccepted OperationV1beta
 

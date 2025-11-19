@@ -5310,6 +5310,65 @@ func (_c *MockInvoker_V1betaRevertVolume_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1betaSplitCloneVolume provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaSplitCloneVolume")
+	}
+
+	var r0 V1betaSplitCloneVolumeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaSplitCloneVolumeParams) V1betaSplitCloneVolumeRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaSplitCloneVolumeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaSplitCloneVolumeParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaSplitCloneVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaSplitCloneVolume'
+type MockInvoker_V1betaSplitCloneVolume_Call struct {
+	*mock.Call
+}
+
+// V1betaSplitCloneVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaSplitCloneVolumeParams
+func (_e *MockInvoker_Expecter) V1betaSplitCloneVolume(ctx interface{}, params interface{}) *MockInvoker_V1betaSplitCloneVolume_Call {
+	return &MockInvoker_V1betaSplitCloneVolume_Call{Call: _e.mock.On("V1betaSplitCloneVolume", ctx, params)}
+}
+
+func (_c *MockInvoker_V1betaSplitCloneVolume_Call) Run(run func(ctx context.Context, params V1betaSplitCloneVolumeParams)) *MockInvoker_V1betaSplitCloneVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaSplitCloneVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaSplitCloneVolume_Call) Return(_a0 V1betaSplitCloneVolumeRes, _a1 error) *MockInvoker_V1betaSplitCloneVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaSplitCloneVolume_Call) RunAndReturn(run func(context.Context, V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error)) *MockInvoker_V1betaSplitCloneVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaStartProjectEvent provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1betaStartProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error) {
 	ret := _m.Called(ctx, request, params)

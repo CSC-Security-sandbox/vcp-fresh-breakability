@@ -35,6 +35,7 @@ var (
 	prepareUpdateVolumeParams     = _prepareUpdateVolumeParams
 	prepareCreateVolumeParams     = _prepareCreateVolumeParams
 	prepareRevertVolumeParams     = _prepareRevertVolumeParams
+	prepareSplitCloneVolumeParams = _prepareSplitCloneVolumeParams
 	autoTieringEnabled            = env.GetBool("AUTO_TIERING_ENABLED", false)
 	qaEnabled                     = env.GetBool("QA_ENABLED", false)
 	flexCacheEnabled              = env.GetBool("FLEXCACHE_ENABLED", false)
@@ -2504,4 +2505,94 @@ func (h Handler) V1betaRestoreBackupFiles(ctx context.Context, req *gcpgenserver
 		Name: gcpgenserver.NewOptString(operationID),
 		Done: gcpgenserver.NewOptBool(false),
 	}, nil
+}
+
+func (h Handler) V1betaSplitCloneVolume(ctx context.Context, params gcpgenserver.V1betaSplitCloneVolumeParams) (gcpgenserver.V1betaSplitCloneVolumeRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	if !thinCloneGASupport {
+		return &gcpgenserver.V1betaSplitCloneVolumeForbidden{
+			Code:    403,
+			Message: "Thin clone split feature is currently not enabled.",
+		}, nil
+	}
+
+	region, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaSplitCloneVolumeBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	param, err := prepareSplitCloneVolumeParams(params, region)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaSplitCloneVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to split volume", "error", err.Error())
+		return &gcpgenserver.V1betaSplitCloneVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+
+	volume, jobUUID, err := h.Orchestrator.SplitCloneVolume(ctx, param)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaSplitCloneVolumeNotFound{
+				Code:    404,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaSplitCloneVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaSplitCloneVolumeConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to split volume", "error", err.Error())
+		return &gcpgenserver.V1betaSplitCloneVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))
+	if err != nil {
+		return nil, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volume.LifeCycleState == models.LifeCycleStateSplitting {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func _prepareSplitCloneVolumeParams(params gcpgenserver.V1betaSplitCloneVolumeParams, region string) (*common.SplitCloneVolumeParams, error) {
+	if params.VolumeId == "" {
+		return nil, errors.NewUserInputValidationErr("No Volume ID given")
+	}
+	if params.ProjectNumber == "" {
+		return nil, errors.NewUserInputValidationErr("No Project Number given")
+	}
+	param := &common.SplitCloneVolumeParams{
+		AccountName: params.ProjectNumber,
+		Region:      region,
+		VolumeID:    params.VolumeId,
+	}
+
+	return param, nil
 }

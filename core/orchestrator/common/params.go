@@ -763,3 +763,9 @@ type DeleteActiveDirectoryParams struct {
 	AccountId           int64
 	ActiveDirectoryUUID string
 }
+
+type SplitCloneVolumeParams struct {
+	AccountName string
+	Region      string
+	VolumeID    string
+}

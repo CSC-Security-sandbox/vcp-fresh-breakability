@@ -729,6 +729,7 @@ func IsTransitionalState(state string) bool {
 		models.LifeCycleStateUpdating:  {},
 		models.LifeCycleStateDeleting:  {},
 		models.LifeCycleStateReverting: {},
+		models.LifeCycleStateSplitting: {},
 	}
 	_, exists := transitionalStates[state]
 	return exists

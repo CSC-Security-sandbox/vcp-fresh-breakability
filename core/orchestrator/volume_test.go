@@ -21164,3 +21164,732 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		mockTemporal.AssertExpectations(tt)
 	})
 }
+
+func TestSplitCloneVolume(t *testing.T) {
+	t.Run("WhenAccountNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: "non-existent-account",
+			VolumeID:    "test-volume-uuid",
+		}
+
+		_, _, err = orch.SplitCloneVolume(ctx, params)
+		assert.EqualError(tt, err, "Account not found")
+		var customErr *vsaerrors.CustomError
+		errors2.As(err, &customErr)
+		assert.NotNil(tt, customErr.OriginalErr, "account not found")
+	})
+
+	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    "non-existent-volume-uuid",
+		}
+
+		_, _, err = orch.SplitCloneVolume(ctx, params)
+		assert.EqualError(tt, err, "Volume not found")
+		var customErr *vsaerrors.CustomError
+		errors2.As(err, &customErr)
+		assert.NotNil(tt, customErr, "Expected a CustomError")
+		assert.NotNil(tt, customErr.HttpCode, 404)
+		assert.NotNil(tt, customErr.OriginalErr, "volume not found")
+	})
+
+	t.Run("WhenVolumeInTransitionState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test_volume",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateDeleting,
+			StateDetails: models.LifeCycleStateDeletingDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+		}
+
+		_, _, err = orch.SplitCloneVolume(ctx, params)
+		assert.Contains(tt, err.Error(), "volume is in transition state and cannot be split, state: DELETING")
+	})
+
+	t.Run("WhenVolumeNotInReadyState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test_volume",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateError, // Non-transitional state that is not READY
+			StateDetails: "Error state",
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+		}
+
+		_, _, err = orch.SplitCloneVolume(ctx, params)
+		assert.Contains(tt, err.Error(), "Volume is not in READY state, state: ERROR")
+	})
+
+	t.Run("WhenVolumeIsNotThinClone", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			AccountID:         account.ID,
+			Pool:              pool,
+			PoolID:            pool.ID,
+			State:             models.LifeCycleStateREADY,
+			ClonesSharedBytes: 0, // Not a thin clone
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+		}
+
+		_, _, err = orch.SplitCloneVolume(ctx, params)
+		assert.Contains(tt, err.Error(), "volume is not a thin clone volume, cannot perform split operation")
+	})
+
+	t.Run("WhenInsufficientSpaceInPool", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			SizeInBytes: 500, // Less than ClonesSharedBytes
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			AccountID:         account.ID,
+			Pool:              pool,
+			PoolID:            pool.ID,
+			State:             models.LifeCycleStateREADY,
+			ClonesSharedBytes: 1000, // Thin clone with shared bytes
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+		}
+
+		_, _, err = orch.SplitCloneVolume(ctx, params)
+		assert.Contains(tt, err.Error(), "insufficient space in pool to split the clone volume")
+	})
+
+	t.Run("WhenPoolNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create a pool that we won't use
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create volume with a non-existent pool UUID
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			AccountID:         account.ID,
+			PoolID:            pool.ID, // Use existing pool ID for foreign key constraint
+			State:             models.LifeCycleStateREADY,
+			ClonesSharedBytes: 1000,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+		}
+
+		_, _, err = orch.SplitCloneVolume(ctx, params)
+		assert.Error(tt, err)
+		// The error might be wrapped, so check for "pool" in the error message
+		assert.True(tt, strings.Contains(strings.ToLower(err.Error()), "pool") || strings.Contains(strings.ToLower(err.Error()), "not found"),
+			"Expected error to contain 'pool' or 'not found', got: %s", err.Error())
+	})
+
+	t.Run("WhenWorkflowExecutionSucceeds", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			SizeInBytes: 100000, // Set large enough size to have sufficient space
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+			VendorID: "/projects/project123/locations/location123/pools/pool123",
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			AccountID:         account.ID,
+			Pool:              pool,
+			PoolID:            pool.ID,
+			State:             models.LifeCycleStateREADY,
+			ClonesSharedBytes: 1000, // Thin clone with shared bytes
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		// Mock updateVolumeStatus
+		originalUpdateVolumeStatus := updateVolumeStatus
+		updateVolumeStatus = func(ctx context.Context, se database.Storage, vol *datamodel.Volume, state string, details string) (*datamodel.Volume, error) {
+			vol.State = state
+			vol.StateDetails = details
+			return vol, nil
+		}
+		defer func() { updateVolumeStatus = originalUpdateVolumeStatus }()
+
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+		}
+
+		resultVolume, jobUUID, err := orch.SplitCloneVolume(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resultVolume)
+		assert.NotEmpty(tt, jobUUID)
+		assert.Equal(tt, models.LifeCycleStateSplitting, resultVolume.LifeCycleState)
+	})
+	t.Run("WhenWorkflowExecutionFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			SizeInBytes: 100000, // Set large enough size to have sufficient space
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+			VendorID: "/projects/project123/locations/location123/pools/pool123",
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			AccountID:         account.ID,
+			Pool:              pool,
+			PoolID:            pool.ID,
+			State:             models.LifeCycleStateREADY,
+			ClonesSharedBytes: 1000,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return errors.New("workflow execution failed")
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		// Mock updateVolumeStatus
+		originalUpdateVolumeStatus := updateVolumeStatus
+		updateVolumeStatus = func(ctx context.Context, se database.Storage, vol *datamodel.Volume, state string, details string) (*datamodel.Volume, error) {
+			vol.State = state
+			return vol, nil
+		}
+		defer func() { updateVolumeStatus = originalUpdateVolumeStatus }()
+
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+		}
+
+		_, _, tempErr := orch.SplitCloneVolume(ctx, params)
+
+		// Assert the error
+		assert.NotNil(tt, tempErr, "Expected an error but got nil")
+		assert.EqualError(tt, tempErr, "workflow execution failed")
+	})
+
+	t.Run("WhenGetLocationFromVendorIDFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			SizeInBytes: 100000,              // Set large enough size to have sufficient space
+			VendorID:    "invalid-vendor-id", // Invalid vendor ID to trigger GetLocationFromVendorID error
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			AccountID:         account.ID,
+			Pool:              pool,
+			PoolID:            pool.ID,
+			State:             models.LifeCycleStateREADY,
+			ClonesSharedBytes: 1000,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Mock updateVolumeStatus
+		originalUpdateVolumeStatus := updateVolumeStatus
+		updateVolumeStatus = func(ctx context.Context, se database.Storage, vol *datamodel.Volume, state string, details string) (*datamodel.Volume, error) {
+			vol.State = state
+			return vol, nil
+		}
+		defer func() { updateVolumeStatus = originalUpdateVolumeStatus }()
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.SplitCloneVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+		}
+
+		_, _, err = orch.SplitCloneVolume(ctx, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid vendor ID")
+	})
+}
+
+func TestValidateSplitCloneVolumeParams(t *testing.T) {
+	t.Run("ValidParams", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			ClonesSharedBytes: 1000,
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Name:        "test_pool",
+				SizeInBytes: 10000,
+			},
+			QuotaInBytes: 2000,
+		}
+
+		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenVolumeIsNotThinClone", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			ClonesSharedBytes: 0, // Not a thin clone
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Name:        "test_pool",
+				SizeInBytes: 10000,
+			},
+			QuotaInBytes: 2000,
+		}
+
+		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume is not a thin clone volume, cannot perform split operation")
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+	})
+
+	t.Run("WhenInsufficientSpaceInPool", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			ClonesSharedBytes: 1000,
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Name:        "test_pool",
+				SizeInBytes: 500, // Less than ClonesSharedBytes
+			},
+			QuotaInBytes: 0,
+		}
+
+		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "insufficient space in pool to split the clone volume")
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+	})
+
+	t.Run("WhenAvailableSpaceEqualsClonesSharedBytes", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			ClonesSharedBytes: 1000,
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Name:        "test_pool",
+				SizeInBytes: 2000,
+			},
+			QuotaInBytes: 1000, // Available space = 2000 - 1000 = 1000, which equals ClonesSharedBytes
+		}
+
+		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenAvailableSpaceGreaterThanClonesSharedBytes", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		volume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:              "test_volume",
+			ClonesSharedBytes: 1000,
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Name:        "test_pool",
+				SizeInBytes: 5000,
+			},
+			QuotaInBytes: 2000, // Available space = 5000 - 2000 = 3000, which is greater than ClonesSharedBytes
+		}
+
+		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		assert.NoError(tt, err)
+	})
+}

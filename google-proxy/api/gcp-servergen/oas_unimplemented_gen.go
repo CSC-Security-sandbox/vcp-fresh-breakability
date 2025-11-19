@@ -837,6 +837,15 @@ func (UnimplementedHandler) V1betaRevertVolume(ctx context.Context, req *VolumeR
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaSplitCloneVolume implements v1beta_splitCloneVolume operation.
+//
+// Warning! This operation will permanently split the thin clone from its source volume.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit
+func (UnimplementedHandler) V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (r V1betaSplitCloneVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaStartProjectEvent implements v1beta_startProjectEvent operation.
 //
 // Updates the project state for a 1P account based on the path parameter and project state value.

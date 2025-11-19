@@ -578,6 +578,12 @@ type Invoker interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/Revert
 	V1betaRevertVolume(ctx context.Context, request *VolumeRevertV1beta, params V1betaRevertVolumeParams) (V1betaRevertVolumeRes, error)
+	// V1betaSplitCloneVolume invokes v1beta_splitCloneVolume operation.
+	//
+	// Warning! This operation will permanently split the thin clone from its source volume.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit
+	V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error)
 	// V1betaStartProjectEvent invokes v1beta_startProjectEvent operation.
 	//
 	// Updates the project state for a 1P account based on the path parameter and project state value.
@@ -10816,6 +10822,115 @@ func (c *Client) sendV1betaRevertVolume(ctx context.Context, request *VolumeReve
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaRevertVolumeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaSplitCloneVolume invokes v1beta_splitCloneVolume operation.
+//
+// Warning! This operation will permanently split the thin clone from its source volume.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit
+func (c *Client) V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error) {
+	res, err := c.sendV1betaSplitCloneVolume(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (res V1betaSplitCloneVolumeRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/clonesplit"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaSplitCloneVolumeResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

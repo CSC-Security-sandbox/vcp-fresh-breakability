@@ -367,6 +367,7 @@ type VolumeAttributes struct {
 	Labels             *JSONB           `json:"labels"`
 	RestoredBackupID   string           `json:"restored_backup_id"`
 	RestoredBackupPath string           `json:"restored_backup_path"`
+	CloneParentInfo    *CloneParentInfo `json:"clone_parent_info"`
 }
 
 type BlockProperties struct {
@@ -417,6 +418,11 @@ type ExportRule struct {
 	Kerberos5pReadOnly  bool   `json:"kerberos_5_p_read_only"`
 	Kerberos5pReadWrite bool   `json:"kerberos_5_p_read_write"`
 	Superuser           bool   `json:"superuser"`
+}
+
+type CloneParentInfo struct {
+	ParentVolumeUUID   string `json:"parent_volume_uuid"`
+	ParentSnapshotUUID string `json:"parent_snapshot_uuid"`
 }
 
 type HostGroupDetail struct {

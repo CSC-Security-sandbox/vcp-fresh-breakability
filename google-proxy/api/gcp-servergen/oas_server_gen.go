@@ -565,6 +565,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/Revert
 	V1betaRevertVolume(ctx context.Context, req *VolumeRevertV1beta, params V1betaRevertVolumeParams) (V1betaRevertVolumeRes, error)
+	// V1betaSplitCloneVolume implements v1beta_splitCloneVolume operation.
+	//
+	// Warning! This operation will permanently split the thin clone from its source volume.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit
+	V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error)
 	// V1betaStartProjectEvent implements v1beta_startProjectEvent operation.
 	//
 	// Updates the project state for a 1P account based on the path parameter and project state value.

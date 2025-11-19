@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -1174,6 +1175,49 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 		logger.Errorf("Failed to initiate split %s in ontap: %v", volume.Name, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
+	var cloneSnapshot *datamodel.Snapshot
+	// Get the clone volume snapshot that has the same name as the parent snapshot
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil && volume.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID != "" && volume.VolumeAttributes.CloneParentInfo.ParentVolumeUUID != "" {
+		// Get the parent volume to access its account ID and volume ID
+		parentVolume, err := a.SE.GetVolume(ctx, volume.VolumeAttributes.CloneParentInfo.ParentVolumeUUID)
+		if err != nil {
+			logger.Warnf("Failed to get parent volume %s: %v", volume.VolumeAttributes.CloneParentInfo.ParentVolumeUUID, err)
+			return nil
+		}
+
+		// Get the parent snapshot by UUID to retrieve its name
+		parentSnapshot, err := a.SE.GetSnapshotByUUID(ctx, volume.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID, parentVolume.AccountID, parentVolume.ID)
+		if err != nil {
+			logger.Warnf("Failed to get parent snapshot %s: %v", volume.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID, err)
+			return nil
+		}
+
+		// Get the clone volume snapshot that has the same name as the parent snapshot
+		cloneSnapshot, err = a.SE.GetSnapshotByNameAndVolumeId(ctx, parentSnapshot.Name, volume.AccountID, volume.ID)
+		if err != nil {
+			logger.Warnf("Failed to get clone volume snapshot with name %s for volume %s: %v", parentSnapshot.Name, volume.Name, err)
+			return nil
+		}
+		logger.Debugf("Found clone volume snapshot %s (UUID: %s) with same name as parent snapshot %s", cloneSnapshot.Name, cloneSnapshot.UUID, parentSnapshot.Name)
+
+		if cloneSnapshot != nil {
+			_, err := a.SE.DeleteSnapshot(ctx, cloneSnapshot.UUID)
+			if err != nil {
+				logger.Warnf("Snapshot %s not found, assuming it is already deleted", cloneSnapshot.Name)
+				return nil
+			}
+
+			logger.Debugf("Snapshot %s (UUID: %s) marked as deleted successfully in the db", cloneSnapshot.Name, cloneSnapshot.UUID)
+
+			// Hydrate the clone snapshot to CCFE after split
+			hydrateErr := hydrationActivities.HydrateBatchSnapshotstoCCFE(ctx, nil, []*datamodel.Snapshot{cloneSnapshot})
+			if hydrateErr != nil {
+				logger.Warnf("Failed to hydrate snapshots to CCFE after volume revert: %v, snapshots: %+v", hydrateErr, cloneSnapshot)
+			}
+		}
+	}
+
 	logger.Debugf("Split %s initiated successfully in ontap", volume.Name)
 	return nil
 }
