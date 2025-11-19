@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -104,6 +105,13 @@ func (a ActiveDirectoryActivity) CreateOrModifyADDNS(ctx context.Context, node *
 // Returns information about the service state
 func (a ActiveDirectoryActivity) GetOrCreateCifsService(ctx context.Context, node *models.Node, ad *vsa.ActiveDirectory, svmName, externalSVMUUID string) (*GetOrCreateCifsServiceResult, error) {
 	logger := util.GetLogger(ctx)
+
+	decryptedPassword, err := utils.DecryptPassword(ad.Password)
+	if err != nil {
+		logger.Error("failed to decrypt AD password", "error", err.Error())
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to decrypt AD password: %w", err))
+	}
+	ad.Password = log.Secret(*decryptedPassword)
 
 	ontapProvider, err := getOntapRestProvider(ctx, node)
 	if err != nil {

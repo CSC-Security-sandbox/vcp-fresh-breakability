@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -13,12 +12,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	customValidators "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/validator"
@@ -35,7 +31,6 @@ var (
 	getActiveDirectory           = _getActiveDirectory
 	listActiveDirectories        = _listActiveDirectories
 	getMultipleActiveDirectories = _getMultipleActiveDirectories
-	storePasswordSecret          = _storePasswordSecret
 	deleteActiveDirectory        = _deleteActiveDirectory
 )
 
@@ -82,7 +77,7 @@ func _createActiveDirectory(
 	var adRecord *datamodel.ActiveDirectory
 
 	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
-		adRecord, err = createVCPActiveDirectoryDBRecord(ctx, se, params, account.ID)
+		adRecord, err = createAdRecordForNonSDE(ctx, se, params, account.ID)
 		if err != nil {
 			return nil, "", err
 		}
@@ -339,21 +334,19 @@ func createAdRecordForNonSDE(
 	se database.Storage,
 	params *common.CreateActiveDirectoryParams,
 	accountID int64,
-	SecretID string,
 ) (*datamodel.ActiveDirectory, error) {
 	adRecord := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{
 			UUID: utils.RandomUUID(),
 		},
-		AdName:         params.ResourceId,
-		Username:       params.Username,
-		Domain:         params.Domain,
-		DNS:            params.DNS,
-		NetBIOS:        params.NetBIOS,
-		State:          models.LifeCycleStateCreating,
-		StateDetails:   models.LifeCycleStateCreatingDetails,
-		AccountId:      accountID,
-		CredentialPath: SecretID,
+		AdName:       params.ResourceId,
+		Username:     params.Username,
+		Domain:       params.Domain,
+		DNS:          params.DNS,
+		NetBIOS:      params.NetBIOS,
+		State:        models.LifeCycleStateCreating,
+		StateDetails: models.LifeCycleStateCreatingDetails,
+		AccountId:    accountID,
 		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 			OrganizationalUnit: params.OrganizationalUnit,
 			Site:               params.Site,
@@ -374,73 +367,6 @@ func createAdRecordForNonSDE(
 	}
 
 	return se.CreateActiveDirectory(ctx, adRecord)
-}
-
-func _storePasswordSecret(ctx context.Context, password string, secretID string) error {
-	logger := util.GetLogger(ctx)
-
-	gcpService, err := hyperscaler.GetGCPService(ctx)
-	if err != nil {
-		logger.Error("Failed to get GCP service", "error", err)
-		return err
-	}
-
-	existingSecret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, secretID)
-	if err != nil {
-		logger.Error("Failed to check existing secret", "secretID", secretID, "error", err)
-		return err
-	}
-
-	// Only create secret if it doesn't exist
-	if existingSecret == nil {
-		projectID := env.SecretManagerProjectID
-		secret, err := gcpService.CreateSecret(projectID, env.Region, secretID, password)
-		if err != nil {
-			logger.Error("Failed to create secret", "secretID", secretID, "error", err)
-			return err
-		}
-		logger.Info("Successfully created new secret", "secretID", secretID)
-		common.AddToUserAuthCache(secretID, secret.SecretVersion.Value)
-	} else {
-		logger.Info("Secret already exists, skipping creation", "secretID", secretID)
-		// Add existing secret to cache for consistency
-		common.AddToUserAuthCache(secretID, existingSecret.SecretVersion.Value)
-	}
-
-	return nil
-}
-
-// createVCPActiveDirectoryDBRecord handles Active Directory creation for non-SDE environments.
-// It manages password secret storage in GCP Secret Manager and creates the AD database record.
-func createVCPActiveDirectoryDBRecord(
-	ctx context.Context,
-	se database.Storage,
-	params *common.CreateActiveDirectoryParams,
-	accountID int64,
-) (*datamodel.ActiveDirectory, error) {
-	logger := util.GetLogger(ctx)
-
-	// Generate secret ID before creating AD record since we need accountID
-	// Note: adRecord doesn't exist yet, so we use params values
-	secretId := adHelper.GeneratePasswordSecretId(
-		env.SecretManagerProjectID,
-		strconv.FormatInt(accountID, 10),
-		params.ResourceId,
-		env.Region,
-	)
-
-	err := storePasswordSecret(ctx, params.Password, secretId)
-	if err != nil {
-		return nil, err
-	}
-
-	adRecord, err := createAdRecordForNonSDE(ctx, se, params, accountID, secretId)
-	if err != nil {
-		logger.Error("Failed to create Active Directory record in database", "error", err)
-		return nil, err
-	}
-
-	return adRecord, nil
 }
 
 func convertActiveDirectoryParamsToModel(params *common.CreateActiveDirectoryParams) *models.ActiveDirectory {

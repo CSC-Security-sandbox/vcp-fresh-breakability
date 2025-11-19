@@ -13,11 +13,11 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	gcpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -53,6 +53,9 @@ func TestActiveDirectoryCreateActivity_CreateVcpActiveDirectory(t *testing.T) {
 		adUUID := "test-ad-uuid"
 		accountId := int64(123)
 
+		encryptedPassword := "encrypted-test-password"
+		params.Password = encryptedPassword
+
 		ad := &datamodel.ActiveDirectory{
 			BaseModel: datamodel.BaseModel{UUID: adUUID},
 			AdName:    params.ResourceId,
@@ -64,12 +67,27 @@ func TestActiveDirectoryCreateActivity_CreateVcpActiveDirectory(t *testing.T) {
 			State:     string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING),
 		}
 
+		// Mock password decryption
+		originalDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(password log.Secret) (*string, error) {
+			decrypted := "decrypted-password"
+			return &decrypted, nil
+		}
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
+		// Mock StorePasswordSecret
+		originalStorePasswordSecret := adHelper.StorePasswordSecret
+		adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+			return nil
+		}
+		defer func() { adHelper.StorePasswordSecret = originalStorePasswordSecret }()
+
 		// Only test that the activity updates the AD state to READY
 		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
 			return ad.State == string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY)
 		})).Return(ad, nil)
 
-		_ = activity.CreateVcpActiveDirectory(ctx, ad)
+		_ = activity.CreateVcpActiveDirectory(ctx, params, ad)
 	})
 
 	t.Run("DatabaseErrorDuringCreate", func(t *testing.T) {
@@ -90,6 +108,9 @@ func TestActiveDirectoryCreateActivity_CreateVcpActiveDirectory(t *testing.T) {
 		adUUID := "test-ad-uuid"
 		accountId := int64(123)
 
+		encryptedPassword := "encrypted-test-password"
+		params.Password = encryptedPassword
+
 		ad := &datamodel.ActiveDirectory{
 			BaseModel: datamodel.BaseModel{UUID: adUUID},
 			AdName:    params.ResourceId,
@@ -101,10 +122,25 @@ func TestActiveDirectoryCreateActivity_CreateVcpActiveDirectory(t *testing.T) {
 			State:     string(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING),
 		}
 
+		// Mock password decryption
+		originalDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(password log.Secret) (*string, error) {
+			decrypted := "decrypted-password"
+			return &decrypted, nil
+		}
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
+		// Mock StorePasswordSecret
+		originalStorePasswordSecret := adHelper.StorePasswordSecret
+		adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+			return nil
+		}
+		defer func() { adHelper.StorePasswordSecret = originalStorePasswordSecret }()
+
 		updateError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, vsaerrors.New("database update failed"))
 		mockStorage.On("UpdateActiveDirectory", ctx, mock.Anything).Return(nil, updateError)
 
-		err := activity.CreateVcpActiveDirectory(ctx, ad)
+		err := activity.CreateVcpActiveDirectory(ctx, params, ad)
 
 		assert.Error(t, err)
 		assert.Equal(t, updateError, err)
@@ -369,9 +405,9 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 
 		// Mock successful secret deletion
 		deleteSecretCalled := false
-		originalDeleteSecret := DeleteSecretFromGCP
-		defer func() { DeleteSecretFromGCP = originalDeleteSecret }()
-		DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
+		originalDeleteSecret := adHelper.DeleteSecretFromGCP
+		defer func() { adHelper.DeleteSecretFromGCP = originalDeleteSecret }()
+		adHelper.DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
 			deleteSecretCalled = true
 			assert.Equal(t, credentialPath, path)
 			return nil
@@ -406,9 +442,9 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 
 		// Verify DeleteSecretFromGCP is not called
 		deleteSecretCalled := false
-		originalDeleteSecret := DeleteSecretFromGCP
-		defer func() { DeleteSecretFromGCP = originalDeleteSecret }()
-		DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
+		originalDeleteSecret := adHelper.DeleteSecretFromGCP
+		defer func() { adHelper.DeleteSecretFromGCP = originalDeleteSecret }()
+		adHelper.DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
 			deleteSecretCalled = true
 			return nil
 		}
@@ -456,9 +492,9 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 
 		// Mock failed secret deletion
 		expectedSecretError := vsaerror.New("failed to delete secret from GCP during AD creation rollback")
-		originalDeleteSecret := DeleteSecretFromGCP
-		defer func() { DeleteSecretFromGCP = originalDeleteSecret }()
-		DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
+		originalDeleteSecret := adHelper.DeleteSecretFromGCP
+		defer func() { adHelper.DeleteSecretFromGCP = originalDeleteSecret }()
+		adHelper.DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
 			return vsaerror.New("GCP secret deletion error")
 		}
 
@@ -491,9 +527,9 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 		}
 
 		// Mock successful secret deletion
-		originalDeleteSecret := DeleteSecretFromGCP
-		defer func() { DeleteSecretFromGCP = originalDeleteSecret }()
-		DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
+		originalDeleteSecret := adHelper.DeleteSecretFromGCP
+		defer func() { adHelper.DeleteSecretFromGCP = originalDeleteSecret }()
+		adHelper.DeleteSecretFromGCP = func(ctx context.Context, gcpService hyperscaler.GoogleServices, path string) error {
 			return nil
 		}
 
@@ -535,133 +571,5 @@ func TestActiveDirectoryCreateActivity_RollbackActiveDirectory(t *testing.T) {
 		assert.Equal(t, models.LifeCycleStateError, ad.State)
 		assert.NotEqual(t, originalState, ad.State)
 		mockStorage.AssertExpectations(t)
-	})
-}
-
-func TestDeleteSecretFromGCP(t *testing.T) {
-	t.Run("SuccessfulSecretDeletion", func(t *testing.T) {
-		mockGcpService := &hyperscaler.MockGoogleServices{}
-		ctx := context.Background()
-		credentialPath := "test-secret-id"
-		projectID := "test-project-id"
-
-		// Mock successful secret retrieval
-		secretData := &gcpModels.CustomSecret{}
-		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
-			Return(secretData, nil)
-
-		// Mock successful secret deletion
-		mockGcpService.On("DeleteSecret", projectID, credentialPath).
-			Return(nil)
-
-		// Set the env variable for the test
-		originalProjectID := env.SecretManagerProjectID
-		env.SecretManagerProjectID = projectID
-		defer func() { env.SecretManagerProjectID = originalProjectID }()
-
-		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
-
-		assert.NoError(t, err)
-		mockGcpService.AssertExpectations(t)
-	})
-
-	t.Run("SecretNotFound", func(t *testing.T) {
-		mockGcpService := &hyperscaler.MockGoogleServices{}
-		ctx := context.Background()
-		credentialPath := "non-existent-secret"
-		projectID := "test-project-id"
-
-		// Mock secret not found
-		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
-			Return(nil, vsaerror.New("secret not found"))
-
-		originalProjectID := env.SecretManagerProjectID
-		env.SecretManagerProjectID = projectID
-		defer func() { env.SecretManagerProjectID = originalProjectID }()
-
-		// Should not fail when secret is not found
-		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
-
-		assert.NoError(t, err)
-		mockGcpService.AssertExpectations(t)
-	})
-
-	t.Run("NilGcpService", func(t *testing.T) {
-		ctx := context.Background()
-		credentialPath := "test-secret-id"
-
-		err := deleteSecretFromGCP(ctx, nil, credentialPath)
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "GCP service is nil")
-	})
-
-	t.Run("SecretDeletionFailed", func(t *testing.T) {
-		mockGcpService := &hyperscaler.MockGoogleServices{}
-		ctx := context.Background()
-		credentialPath := "test-secret-id"
-		projectID := "test-project-id"
-
-		secretData := &gcpModels.CustomSecret{}
-		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
-			Return(secretData, nil)
-
-		// Mock deletion failure
-		deleteError := vsaerror.New("failed to delete secret")
-		mockGcpService.On("DeleteSecret", projectID, credentialPath).
-			Return(deleteError)
-
-		originalProjectID := env.SecretManagerProjectID
-		env.SecretManagerProjectID = projectID
-		defer func() { env.SecretManagerProjectID = originalProjectID }()
-
-		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
-
-		assert.Error(t, err)
-		assert.Equal(t, deleteError, err)
-		mockGcpService.AssertExpectations(t)
-	})
-
-	t.Run("NilSecretReturned", func(t *testing.T) {
-		mockGcpService := &hyperscaler.MockGoogleServices{}
-		ctx := context.Background()
-		credentialPath := "test-secret-id"
-		projectID := "test-project-id"
-
-		// Mock nil secret with no error
-		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
-			Return(nil, nil)
-
-		originalProjectID := env.SecretManagerProjectID
-		env.SecretManagerProjectID = projectID
-		defer func() { env.SecretManagerProjectID = originalProjectID }()
-
-		// Should succeed without attempting deletion
-		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
-
-		assert.NoError(t, err)
-		// Verify DeleteSecret was NOT called
-		mockGcpService.AssertNotCalled(t, "DeleteSecret", mock.Anything, mock.Anything)
-		mockGcpService.AssertExpectations(t)
-	})
-
-	t.Run("EmptyCredentialPath", func(t *testing.T) {
-		mockGcpService := &hyperscaler.MockGoogleServices{}
-		ctx := context.Background()
-		credentialPath := ""
-		projectID := "test-project-id"
-
-		mockGcpService.On("GetSecretWithLatestVersion", projectID, credentialPath).
-			Return(nil, vsaerror.New("invalid secret path"))
-
-		originalProjectID := env.SecretManagerProjectID
-		env.SecretManagerProjectID = projectID
-		defer func() { env.SecretManagerProjectID = originalProjectID }()
-
-		err := deleteSecretFromGCP(ctx, mockGcpService, credentialPath)
-
-		// Should not fail as secret not found is treated as success
-		assert.NoError(t, err)
-		mockGcpService.AssertExpectations(t)
 	})
 }

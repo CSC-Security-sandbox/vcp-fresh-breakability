@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -88,6 +89,14 @@ func TestGetOrCreateCifsService(t *testing.T) {
 	externalSVMUUID := "svm-uuid"
 
 	t.Run("success_service_exists_and_needs_ddns", func(t *testing.T) {
+		// Mock password decryption
+		originalDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(password log.Secret) (*string, error) {
+			decrypted := "decrypted-password"
+			return &decrypted, nil
+		}
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
 		mockClient := new(ontapRest.MockRESTClient)
 		mockNAS := new(ontapRest.MockNASClient)
 		mockClient.On("NAS").Return(mockNAS)
@@ -134,6 +143,14 @@ func TestGetOrCreateCifsService(t *testing.T) {
 	})
 
 	t.Run("success_creates_service_when_missing", func(t *testing.T) {
+		// Mock password decryption
+		originalDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(password log.Secret) (*string, error) {
+			decrypted := "decrypted-password"
+			return &decrypted, nil
+		}
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
 		mockClient := new(ontapRest.MockRESTClient)
 		mockNAS := new(ontapRest.MockNASClient)
 		mockClient.On("NAS").Return(mockNAS)
@@ -179,6 +196,14 @@ func TestGetOrCreateCifsService(t *testing.T) {
 	})
 
 	t.Run("error_provider_not_ontap", func(t *testing.T) {
+		// Mock password decryption
+		originalDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(password log.Secret) (*string, error) {
+			decrypted := "decrypted-password"
+			return &decrypted, nil
+		}
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
 		mockProvider := vsa.NewMockProvider(t)
 		originalGetProvider := hyperscaler2.GetProviderByNode
 		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
@@ -193,6 +218,14 @@ func TestGetOrCreateCifsService(t *testing.T) {
 	})
 
 	t.Run("error_provider_lookup_fails", func(t *testing.T) {
+		// Mock password decryption
+		originalDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(password log.Secret) (*string, error) {
+			decrypted := "decrypted-password"
+			return &decrypted, nil
+		}
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
 		originalGetProvider := hyperscaler2.GetProviderByNode
 		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")

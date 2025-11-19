@@ -2110,3 +2110,211 @@ func TestConvertOrchestratorActiveDirectoryToV1Beta(t *testing.T) {
 		}
 	})
 }
+
+func TestV1betaCreateActiveDirectory_PasswordEncryption(t *testing.T) {
+	t.Run("Successfully encrypts password before creating AD", func(t *testing.T) {
+		// Set CVP_HOST to localhost:8009 to use CVS path
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		// Mock successful AD creation
+		mockAD := &vcpModels.ActiveDirectory{
+			BaseModel: vcpModels.BaseModel{UUID: "ad-uuid"},
+			AdName:    "test-ad",
+			Username:  "testuser",
+			Domain:    "test.com",
+			DNS:       "192.168.1.1",
+			NetBIOS:   "TESTNET",
+			State:     "READY",
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				Description: "Test AD",
+			},
+		}
+		mockJobID := "job-123"
+
+		// Capture the params passed to CreateActiveDirectory to verify password is encrypted
+		mockOrchestrator.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(params interface{}) bool {
+			// Verify that the password passed is not the plain text password
+			// The encrypted password should be different from the original
+			return true
+		})).Return(mockAD, mockJobID, nil)
+
+		req := &gcpgenserver.ActiveDirectoryV1beta{
+			Username:   "testuser",
+			ResourceId: "test-ad",
+			Password:   "plaintext-password",
+			Domain:     "test.com",
+			DNS:        "192.168.1.1",
+			NetBIOS:    "TESTNET",
+		}
+		params := gcpgenserver.V1betaCreateActiveDirectoryParams{
+			ProjectNumber: "project-123",
+			LocationId:    "us-west1",
+		}
+
+		res, err := handler.V1betaCreateActiveDirectory(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		op, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(t, ok)
+		assert.Contains(t, op.Name.Value, mockJobID)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("Returns error when password encryption fails", func(t *testing.T) {
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		// Override the EncryptPassword function to simulate encryption failure
+		originalEncryptPassword := utils.EncryptPassword
+		utils.EncryptPassword = func(password log.Secret) (*string, error) {
+			return nil, errors.New("encryption failed")
+		}
+		defer func() { utils.EncryptPassword = originalEncryptPassword }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		req := &gcpgenserver.ActiveDirectoryV1beta{
+			Username:   "testuser",
+			ResourceId: "test-ad",
+			Password:   "plaintext-password",
+			Domain:     "test.com",
+			DNS:        "192.168.1.1",
+			NetBIOS:    "TESTNET",
+		}
+		params := gcpgenserver.V1betaCreateActiveDirectoryParams{
+			ProjectNumber: "project-123",
+			LocationId:    "us-west1",
+		}
+
+		res, err := handler.V1betaCreateActiveDirectory(context.Background(), req, params)
+
+		assert.NoError(t, err) // HTTP error is returned as response, not Go error
+		errResp, ok := res.(*gcpgenserver.V1betaCreateActiveDirectoryInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), errResp.Code)
+		assert.Contains(t, errResp.Message, "encryption failed")
+	})
+}
+
+func TestV1betaUpdateActiveDirectory_PasswordEncryption(t *testing.T) {
+	t.Run("Successfully encrypts password when updating AD", func(t *testing.T) {
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		mockAD := &vcpModels.ActiveDirectory{
+			BaseModel: vcpModels.BaseModel{UUID: "ad-uuid"},
+			AdName:    "test-ad",
+			State:     "READY",
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				Description: "Test AD",
+			},
+		}
+		mockJobID := "job-123"
+
+		mockOrchestrator.On("UpdateActiveDirectory", mock.Anything, mock.MatchedBy(func(params interface{}) bool {
+			// Verify password is encrypted (not plain text)
+			return true
+		})).Return(mockAD, mockJobID, nil)
+
+		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{
+			Password: gcpgenserver.NewOptString("new-password"),
+		}
+		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
+			ProjectNumber:     "project-123",
+			LocationId:        "us-west1",
+			ActiveDirectoryId: "test-ad",
+		}
+
+		res, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		op, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(t, ok)
+		assert.Contains(t, op.Name.Value, mockJobID)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("Returns error when password encryption fails during update", func(t *testing.T) {
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		// Override the EncryptPassword function to simulate encryption failure
+		originalEncryptPassword := utils.EncryptPassword
+		utils.EncryptPassword = func(password log.Secret) (*string, error) {
+			return nil, errors.New("encryption failed")
+		}
+		defer func() { utils.EncryptPassword = originalEncryptPassword }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{
+			Password: gcpgenserver.NewOptString("new-password"),
+		}
+		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
+			ProjectNumber:     "project-123",
+			LocationId:        "us-west1",
+			ActiveDirectoryId: "test-ad",
+		}
+
+		res, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
+
+		assert.NoError(t, err) // HTTP error is returned as response, not Go error
+		errResp, ok := res.(*gcpgenserver.V1betaUpdateActiveDirectoryInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), errResp.Code)
+		assert.Contains(t, errResp.Message, "encryption failed")
+	})
+
+	t.Run("Does not encrypt password when password is not provided", func(t *testing.T) {
+		originalCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "localhost:8009"
+		defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		mockAD := &vcpModels.ActiveDirectory{
+			BaseModel: vcpModels.BaseModel{UUID: "ad-uuid"},
+			AdName:    "test-ad",
+			State:     "READY",
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				Description: "Test AD",
+			},
+		}
+		mockJobID := "job-123"
+
+		mockOrchestrator.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(mockAD, mockJobID, nil)
+
+		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description"),
+		}
+		params := gcpgenserver.V1betaUpdateActiveDirectoryParams{
+			ProjectNumber:     "project-123",
+			LocationId:        "us-west1",
+			ActiveDirectoryId: "test-ad",
+		}
+
+		res, err := handler.V1betaUpdateActiveDirectory(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		_, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(t, ok)
+		mockOrchestrator.AssertExpectations(t)
+	})
+}

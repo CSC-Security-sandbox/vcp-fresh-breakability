@@ -6,9 +6,10 @@ import (
 	"fmt"
 
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	logmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -40,10 +41,21 @@ func (a ActiveDirectoryActivity) GetActiveDirectoryForPool(ctx context.Context, 
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("active directory credential path is empty"))
 	}
 
-	password, err := hyperscaler.GetPasswordFromCacheOrSecretManager(ctx, activeDirectory.CredentialPath)
+	passwordSecret, err := adHelper.GetPasswordSecret(ctx, activeDirectory.CredentialPath)
 	if err != nil {
 		logger.Error("Failed to fetch Active Directory password", "adUUID", activeDirectory.UUID, "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if passwordSecret == nil || passwordSecret.SecretVersion == nil {
+		logger.Error("Password secret or secret version is nil", "adUUID", activeDirectory.UUID)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("password secret fetch unsuccessful"))
+	}
+	password := passwordSecret.SecretVersion.Value
+	encryptedPassword, err := utils.EncryptPassword(logmiddleware.Secret(password))
+	if err != nil {
+		logger.Error("failed to encrypt AD password", "error", err.Error())
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to encrypt AD password: %w", err))
 	}
 
 	attributes := activeDirectory.ActiveDirectoryAttributes
@@ -53,7 +65,7 @@ func (a ActiveDirectoryActivity) GetActiveDirectoryForPool(ctx context.Context, 
 		DNS:                     activeDirectory.DNS,
 		NetBIOS:                 activeDirectory.NetBIOS,
 		Username:                activeDirectory.Username,
-		Password:                logmiddleware.Secret(password),
+		Password:                logmiddleware.Secret(*encryptedPassword),
 		ManagedAD:               &attributes.ManagedAD,
 		PrimaryAD:               &attributes.PrimaryAD,
 		OrganizationalUnit:      attributes.OrganizationalUnit,

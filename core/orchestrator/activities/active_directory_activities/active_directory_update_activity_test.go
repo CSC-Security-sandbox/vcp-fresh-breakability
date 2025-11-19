@@ -2,23 +2,23 @@ package active_directory_activities
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
-	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 var mockUpdatePasswordSecret = func(ctx context.Context, password string, secretID string) error {
@@ -117,6 +117,15 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_Success(t *testi
 			ad.State == models.LifeCycleStateREADY &&
 			ad.StateDetails == models.LifeCycleStateReadyDetails
 	})).Return(updatedRecord, nil)
+
+	// Mock password decryption
+	originalDecryptPassword := utils.DecryptPassword
+	utils.DecryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-password"
+		return &decrypted, nil
+	}
+	defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
 	// Mock password storage
 	originalUpdatePassword := updatePasswordSecret
 	updatePasswordSecret = mockUpdatePasswordSecret
@@ -210,6 +219,14 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordStoreFai
 
 	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).
 		Return(existingRecord, nil)
+
+	// Mock password decryption
+	originalDecryptPassword := utils.DecryptPassword
+	utils.DecryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-password"
+		return &decrypted, nil
+	}
+	defer func() { utils.DecryptPassword = originalDecryptPassword }()
 
 	// Mock password storage failure
 	originalUpdatePassword := updatePasswordSecret
@@ -1422,4 +1439,280 @@ func TestActiveDirectoryUpdateActivity_MarkVcpAdToErrorActivity_UpdateFailed(t *
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "database update failed")
 	mockStorage.AssertExpectations(t)
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecryption(t *testing.T) {
+	t.Run("Successfully decrypts and updates password", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+
+		activity := &ActiveDirectoryUpdateActivity{
+			SE: mockStorage,
+		}
+
+		encryptedPassword := "encrypted-password"
+		params := &common.UpdateActiveDirectoryParams{
+			ActiveDirectoryId: "test-ad-uuid",
+			AccountId:         "123",
+			Password:          &encryptedPassword,
+		}
+
+		oldAd := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AdName: "test-ad",
+			ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+				OrganizationalUnit:         "OU=test",
+				Site:                       "test-site",
+				SecurityOperators:          []string{},
+				BackupOperators:            []string{},
+				Administrators:             []string{},
+				KdcIP:                      "192.168.1.1",
+				KdcHostname:                "kdc.test.com",
+				AesEncryption:              true,
+				EncryptDCConnections:       true,
+				LdapSigning:                true,
+				AllowLocalNFSUsersWithLdap: true,
+			},
+		}
+
+		oldAdDbRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AdName:         "test-ad",
+			AccountId:      123,
+			CredentialPath: "old-credential-path",
+		}
+
+		// Mock DecryptPassword
+		originalDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(password log.Secret) (*string, error) {
+			decrypted := "decrypted-password"
+			return &decrypted, nil
+		}
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
+		// Mock updatePasswordSecret
+		updatePasswordSecretCalled := false
+		originalUpdatePasswordSecret := updatePasswordSecret
+		updatePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+			assert.Equal(t, "decrypted-password", password)
+			assert.Equal(t, "old-credential-path", secretID)
+			updatePasswordSecretCalled = true
+			return nil
+		}
+		defer func() { updatePasswordSecret = originalUpdatePasswordSecret }()
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 123,
+			},
+		}
+		mockStorage.On("GetAccount", mock.Anything, "123").Return(mockAccount, nil)
+		mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(oldAdDbRecord, nil)
+		mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(oldAdDbRecord, nil)
+
+		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id")
+
+		assert.NoError(t, err)
+		assert.True(t, updatePasswordSecretCalled, "updatePasswordSecret should have been called")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Returns error when password decryption fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+
+		activity := &ActiveDirectoryUpdateActivity{
+			SE: mockStorage,
+		}
+
+		encryptedPassword := "encrypted-password"
+		params := &common.UpdateActiveDirectoryParams{
+			ActiveDirectoryId: "test-ad-uuid",
+			AccountId:         "123",
+			Password:          &encryptedPassword,
+		}
+
+		oldAd := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AdName: "test-ad",
+			ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+				OrganizationalUnit:         "OU=test",
+				Site:                       "test-site",
+				SecurityOperators:          []string{},
+				BackupOperators:            []string{},
+				Administrators:             []string{},
+				KdcIP:                      "192.168.1.1",
+				KdcHostname:                "kdc.test.com",
+				AesEncryption:              true,
+				EncryptDCConnections:       true,
+				LdapSigning:                true,
+				AllowLocalNFSUsersWithLdap: true,
+			},
+		}
+
+		oldAdDbRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AdName:         "test-ad",
+			AccountId:      123,
+			CredentialPath: "old-credential-path",
+		}
+
+		// Mock DecryptPassword to fail
+		originalDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(password log.Secret) (*string, error) {
+			return nil, vsaerrors.New("decryption failed")
+		}
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 123,
+			},
+		}
+		mockStorage.On("GetAccount", mock.Anything, "123").Return(mockAccount, nil)
+		mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(oldAdDbRecord, nil)
+
+		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id")
+
+		assert.Error(t, err)
+	})
+
+	t.Run("Returns error when updatePasswordSecret fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+
+		activity := &ActiveDirectoryUpdateActivity{
+			SE: mockStorage,
+		}
+
+		encryptedPassword := "encrypted-password"
+		params := &common.UpdateActiveDirectoryParams{
+			ActiveDirectoryId: "test-ad-uuid",
+			AccountId:         "123",
+			Password:          &encryptedPassword,
+		}
+
+		oldAd := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AdName: "test-ad",
+			ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+				OrganizationalUnit:         "OU=test",
+				Site:                       "test-site",
+				SecurityOperators:          []string{},
+				BackupOperators:            []string{},
+				Administrators:             []string{},
+				KdcIP:                      "192.168.1.1",
+				KdcHostname:                "kdc.test.com",
+				AesEncryption:              true,
+				EncryptDCConnections:       true,
+				LdapSigning:                true,
+				AllowLocalNFSUsersWithLdap: true,
+			},
+		}
+
+		oldAdDbRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AdName:         "test-ad",
+			AccountId:      123,
+			CredentialPath: "old-credential-path",
+		}
+
+		// Mock DecryptPassword
+		originalDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(password log.Secret) (*string, error) {
+			decrypted := "decrypted-password"
+			return &decrypted, nil
+		}
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
+		// Mock updatePasswordSecret to fail
+		originalUpdatePasswordSecret := updatePasswordSecret
+		updatePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+			return vsaerrors.New("failed to update password secret")
+		}
+		defer func() { updatePasswordSecret = originalUpdatePasswordSecret }()
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 123,
+			},
+		}
+		mockStorage.On("GetAccount", mock.Anything, "123").Return(mockAccount, nil)
+		mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(oldAdDbRecord, nil)
+
+		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id")
+
+		assert.Error(t, err)
+	})
+
+	t.Run("Does not update password when password is nil", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+
+		activity := &ActiveDirectoryUpdateActivity{
+			SE: mockStorage,
+		}
+
+		params := &common.UpdateActiveDirectoryParams{
+			ActiveDirectoryId: "test-ad-uuid",
+			AccountId:         "123",
+			Password:          nil, // No password update
+		}
+
+		oldAd := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AdName: "test-ad",
+			ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+				OrganizationalUnit:         "OU=test",
+				Site:                       "test-site",
+				SecurityOperators:          []string{},
+				BackupOperators:            []string{},
+				Administrators:             []string{},
+				KdcIP:                      "192.168.1.1",
+				KdcHostname:                "kdc.test.com",
+				AesEncryption:              true,
+				EncryptDCConnections:       true,
+				LdapSigning:                true,
+				AllowLocalNFSUsersWithLdap: true,
+			},
+		}
+
+		oldAdDbRecord := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-ad-uuid",
+			},
+			AdName:         "test-ad",
+			AccountId:      123,
+			CredentialPath: "old-credential-path",
+		}
+
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 123,
+			},
+		}
+		mockStorage.On("GetAccount", mock.Anything, "123").Return(mockAccount, nil)
+		mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(oldAdDbRecord, nil)
+		mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(oldAdDbRecord, nil)
+
+		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id")
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		// Verify that DecryptPassword was not called by not setting up mock
+	})
 }

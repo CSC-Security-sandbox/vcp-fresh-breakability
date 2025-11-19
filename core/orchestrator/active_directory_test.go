@@ -4,25 +4,26 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/mocks"
+	"go.temporal.io/sdk/workflow"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/mocks"
-	"go.temporal.io/sdk/workflow"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestCreateActiveDirectory_Success(t *testing.T) {
@@ -108,11 +109,11 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 	}
 	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+	originalStorePassword := adHelper.StorePasswordSecret
+	adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
 		return nil
 	}
-	defer func() { storePasswordSecret = originalStorePassword }()
+	defer func() { adHelper.StorePasswordSecret = originalStorePassword }()
 
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
@@ -189,11 +190,11 @@ func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	}
 	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+	originalStorePassword := adHelper.StorePasswordSecret
+	adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
 		return nil
 	}
-	defer func() { storePasswordSecret = originalStorePassword }()
+	defer func() { adHelper.StorePasswordSecret = originalStorePassword }()
 
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = "https://cvp.example.com"
@@ -311,11 +312,11 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 	}
 	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+	originalStorePassword := adHelper.StorePasswordSecret
+	adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
 		return nil
 	}
-	defer func() { storePasswordSecret = originalStorePassword }()
+	defer func() { adHelper.StorePasswordSecret = originalStorePassword }()
 
 	mockStorage.On("GetAccount", mock.Anything, "123").
 		Return(nil, errors.New("account not found")).Maybe()
@@ -402,11 +403,11 @@ func TestCreateActiveDirectory_DefaultOrganizationalUnit(t *testing.T) {
 	})).Return(adRecord, nil)
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(job, nil)
 
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+	originalStorePassword := adHelper.StorePasswordSecret
+	adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
 		return nil
 	}
-	defer func() { storePasswordSecret = originalStorePassword }()
+	defer func() { adHelper.StorePasswordSecret = originalStorePassword }()
 
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
@@ -457,11 +458,11 @@ func TestCreateActiveDirectory_JobCreationFailed(t *testing.T) {
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).
 		Return(nil, errors.New("database error"))
 
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+	originalStorePassword := adHelper.StorePasswordSecret
+	adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
 		return nil
 	}
-	defer func() { storePasswordSecret = originalStorePassword }()
+	defer func() { adHelper.StorePasswordSecret = originalStorePassword }()
 
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
@@ -526,11 +527,11 @@ func TestCreateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	}
 	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+	originalStorePassword := adHelper.StorePasswordSecret
+	adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
 		return nil
 	}
-	defer func() { storePasswordSecret = originalStorePassword }()
+	defer func() { adHelper.StorePasswordSecret = originalStorePassword }()
 
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
@@ -542,56 +543,6 @@ func TestCreateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	assert.Nil(t, ad)
 	assert.Empty(t, jobUUID)
 	mockStorage.AssertCalled(t, "UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything)
-}
-
-func TestCreateActiveDirectory_PasswordStorageFailed(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-	mockTemporal := mocks.NewClient(t)
-
-	params := &common.CreateActiveDirectoryParams{
-		ResourceId: "test-ad",
-		AccountId:  "123",
-		Username:   "admin@test.local",
-		Password:   "SecurePass123!",
-		Domain:     "test.local",
-		DNS:        "10.0.0.1",
-		NetBIOS:    "TEST",
-	}
-
-	account := &datamodel.Account{
-		BaseModel: datamodel.BaseModel{ID: 123},
-	}
-
-	// Save original function
-	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
-	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
-	}
-	// Restore original function after test
-	defer func() {
-		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
-	}()
-
-	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
-
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
-		return errors.New("failed to store password")
-	}
-	defer func() { storePasswordSecret = originalStorePassword }()
-
-	originalCVPHost := cvp.CVP_HOST
-	cvp.CVP_HOST = ""
-	defer func() { cvp.CVP_HOST = originalCVPHost }()
-
-	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
-
-	assert.Error(t, err)
-	assert.Nil(t, ad)
-	assert.Empty(t, jobUUID)
-	assert.Contains(t, err.Error(), "failed to store password")
 }
 
 func TestCreateActiveDirectory_DatabaseRecordCreationFailed(t *testing.T) {
@@ -626,11 +577,11 @@ func TestCreateActiveDirectory_DatabaseRecordCreationFailed(t *testing.T) {
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).
 		Return(nil, errors.New("database insert failed"))
 
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+	originalStorePassword := adHelper.StorePasswordSecret
+	adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
 		return nil
 	}
-	defer func() { storePasswordSecret = originalStorePassword }()
+	defer func() { adHelper.StorePasswordSecret = originalStorePassword }()
 
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
@@ -699,7 +650,6 @@ func TestCreateAdRecordForNonSDE(t *testing.T) {
 	}
 
 	accountID := int64(123)
-	secretID := "secret-id-123"
 
 	expectedRecord := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
@@ -712,12 +662,11 @@ func TestCreateAdRecordForNonSDE(t *testing.T) {
 		return ad.AdName == params.ResourceId &&
 			ad.Username == params.Username &&
 			ad.AccountId == accountID &&
-			ad.CredentialPath == secretID &&
 			ad.ActiveDirectoryAttributes.OrganizationalUnit == params.OrganizationalUnit &&
 			ad.ActiveDirectoryAttributes.PrimaryAD == true
 	})).Return(expectedRecord, nil)
 
-	adRecord, err := createAdRecordForNonSDE(ctx, mockStorage, params, accountID, secretID)
+	adRecord, err := createAdRecordForNonSDE(ctx, mockStorage, params, accountID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, adRecord)
@@ -736,97 +685,11 @@ func TestCreateAdRecordForNonSDE_DatabaseError(t *testing.T) {
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).
 		Return(nil, errors.New("database error"))
 
-	adRecord, err := createAdRecordForNonSDE(ctx, mockStorage, params, 123, "secret-id")
+	adRecord, err := createAdRecordForNonSDE(ctx, mockStorage, params, 123)
 
 	assert.Error(t, err)
 	assert.Nil(t, adRecord)
 	assert.Contains(t, err.Error(), "database error")
-}
-
-func TestCreateVCPActiveDirectoryDBRecord_Success(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	params := &common.CreateActiveDirectoryParams{
-		ResourceId: "test-ad",
-		Username:   "admin@test.local",
-		Password:   "SecurePass123!",
-		Domain:     "test.local",
-		DNS:        "10.0.0.1",
-		NetBIOS:    "TEST",
-	}
-
-	accountID := int64(123)
-
-	expectedRecord := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{UUID: "ad-uuid"},
-		AdName:    params.ResourceId,
-	}
-
-	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(expectedRecord, nil)
-
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
-		return nil
-	}
-	defer func() { storePasswordSecret = originalStorePassword }()
-
-	adRecord, err := createVCPActiveDirectoryDBRecord(ctx, mockStorage, params, accountID)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, adRecord)
-	assert.Equal(t, "test-ad", adRecord.AdName)
-}
-
-func TestCreateVCPActiveDirectoryDBRecord_PasswordStoreError(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	params := &common.CreateActiveDirectoryParams{
-		ResourceId: "test-ad",
-		Username:   "admin@test.local",
-		Password:   "SecurePass123!",
-		Domain:     "test.local",
-	}
-
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
-		return errors.New("password store failed")
-	}
-	defer func() { storePasswordSecret = originalStorePassword }()
-
-	adRecord, err := createVCPActiveDirectoryDBRecord(ctx, mockStorage, params, 123)
-
-	assert.Error(t, err)
-	assert.Nil(t, adRecord)
-	assert.Contains(t, err.Error(), "password store failed")
-}
-
-func TestCreateVCPActiveDirectoryDBRecord_CreateRecordError(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	params := &common.CreateActiveDirectoryParams{
-		ResourceId: "test-ad",
-		Username:   "admin@test.local",
-		Password:   "SecurePass123!",
-		Domain:     "test.local",
-	}
-
-	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).
-		Return(nil, errors.New("database create failed"))
-
-	originalStorePassword := storePasswordSecret
-	storePasswordSecret = func(ctx context.Context, password string, secretID string) error {
-		return nil
-	}
-	defer func() { storePasswordSecret = originalStorePassword }()
-
-	adRecord, err := createVCPActiveDirectoryDBRecord(ctx, mockStorage, params, 123)
-
-	assert.Error(t, err)
-	assert.Nil(t, adRecord)
-	assert.Contains(t, err.Error(), "database create failed")
 }
 
 func TestOrchestratorCreateActiveDirectory(t *testing.T) {

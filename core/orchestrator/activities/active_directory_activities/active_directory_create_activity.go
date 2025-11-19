@@ -4,6 +4,7 @@ import (
 	// Standard library
 	"context"
 	"gorm.io/gorm"
+	"strconv"
 	"time"
 
 	// Third-party and local
@@ -14,6 +15,7 @@ import (
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
@@ -21,6 +23,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -30,16 +33,32 @@ type ActiveDirectoryCreateActivity struct {
 }
 
 var (
-	CvpClient           = cvp.CreateClient
-	DeleteSecretFromGCP = deleteSecretFromGCP
+	CvpClient = cvp.CreateClient
 )
 
-func (a ActiveDirectoryCreateActivity) CreateVcpActiveDirectory(ctx context.Context, adRecord *datamodel.ActiveDirectory) error {
-	// As the adRecord with password stored as GCP secret already exists in DB by now, just mark the AD as record and return
+func (a ActiveDirectoryCreateActivity) CreateVcpActiveDirectory(ctx context.Context, params *common.CreateActiveDirectoryParams, adRecord *datamodel.ActiveDirectory) error {
+	password, err := utils.DecryptPassword(log.Secret(params.Password))
+	if err != nil {
+		return err
+	}
+
+	secretId := adHelper.GeneratePasswordSecretId(
+		env.SecretManagerProjectID,
+		strconv.FormatInt(adRecord.ID, 10),
+		adRecord.AdName,
+		env.Region,
+	)
+
+	err = adHelper.StorePasswordSecret(ctx, *password, secretId)
+	if err != nil {
+		return err
+	}
+
+	adRecord.CredentialPath = secretId
 	adRecord.State = models.LifeCycleStateREADY
 	adRecord.StateDetails = models.LifeCycleStateReadyDetails
 	adRecord.ChangeId = utils.RandomUUID()
-	_, err := a.SE.UpdateActiveDirectory(ctx, adRecord)
+	_, err = a.SE.UpdateActiveDirectory(ctx, adRecord)
 	if err != nil {
 		return err
 	}
@@ -64,33 +83,10 @@ func (a ActiveDirectoryCreateActivity) RollbackActiveDirectory(ctx context.Conte
 
 	if ad.CredentialPath != "" {
 		gcpService, _ := hyperscaler.GetGCPService(ctx)
-		err := DeleteSecretFromGCP(ctx, gcpService, ad.CredentialPath)
+		err := adHelper.DeleteSecretFromGCP(ctx, gcpService, ad.CredentialPath)
 		if err != nil {
 			logger.Errorf("failed to delete secret from GCP during AD creation rollback, err: %v", err)
 			return vsaerror.New("failed to delete secret from GCP during AD creation rollback")
-		}
-	}
-
-	return nil
-}
-
-func deleteSecretFromGCP(ctx context.Context, gcpService hyperscaler.GoogleServices, credentialPath string) error {
-	logger := util.GetLogger(ctx)
-
-	if gcpService == nil {
-		return vsaerror.New("GCP service is nil, cannot delete secret from Secret Manager")
-	}
-
-	secret, err := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, credentialPath)
-	if err != nil || secret == nil {
-		logger.Infof("secret %s not found in Secret Manager - considering deletion successful", credentialPath)
-	}
-
-	if secret != nil {
-		err = gcpService.DeleteSecret(env.SecretManagerProjectID, credentialPath)
-		if err != nil {
-			logger.Errorf("failed to delete password for secretID: %s, err : %v", credentialPath, err)
-			return err
 		}
 	}
 

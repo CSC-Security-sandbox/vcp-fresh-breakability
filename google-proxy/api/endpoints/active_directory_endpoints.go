@@ -50,6 +50,14 @@ func (h Handler) V1betaCreateActiveDirectory(
 ) (gcpgenserver.V1betaCreateActiveDirectoryRes, error) {
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
+	encryptedPassword, err := utils.EncryptPassword(log.Secret(req.Password))
+	if err != nil {
+		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}, nil
+	}
+
 	param := common.CreateActiveDirectoryParams{
 		AccountId:                  params.ProjectNumber,
 		LocationId:                 params.LocationId,
@@ -57,7 +65,7 @@ func (h Handler) V1betaCreateActiveDirectory(
 		Username:                   req.Username,
 		ResourceId:                 req.ResourceId,
 		Description:                req.Description.Value,
-		Password:                   req.Password,
+		Password:                   *encryptedPassword,
 		Domain:                     req.Domain,
 		DNS:                        req.DNS,
 		NetBIOS:                    req.NetBIOS,
@@ -497,6 +505,17 @@ func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gc
 
 func (h Handler) V1betaUpdateActiveDirectory(ctx context.Context, req *gcpgenserver.ActiveDirectoryUpdateV1beta, params gcpgenserver.V1betaUpdateActiveDirectoryParams) (r gcpgenserver.V1betaUpdateActiveDirectoryRes, _ error) {
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	if req.Password.IsSet() {
+		encryptedPassword, err := utils.EncryptPassword(log.Secret(req.Password.Value))
+		if err != nil {
+			return &gcpgenserver.V1betaUpdateActiveDirectoryInternalServerError{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}, nil
+		}
+		req.Password = gcpgenserver.NewOptString(*encryptedPassword)
+	}
 
 	param := convertToUpdateParamsForValidation(req, params)
 

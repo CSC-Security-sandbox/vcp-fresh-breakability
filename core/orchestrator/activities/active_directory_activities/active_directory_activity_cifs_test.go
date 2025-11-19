@@ -13,6 +13,7 @@ import (
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -151,6 +152,14 @@ func TestCreateOrModifyADDNS_NoChangeWhenConfigMatches(t *testing.T) {
 func TestGetOrCreateCifsService_CreatesWhenMissing(t *testing.T) {
 	ctx := context.Background()
 
+	// Mock password decryption
+	originalDecryptPassword := utils.DecryptPassword
+	utils.DecryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-password"
+		return &decrypted, nil
+	}
+	defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNas := new(ontapRest.MockNASClient)
 	mockClient.On("NAS").Return(mockNas).Once()
@@ -178,6 +187,14 @@ func TestGetOrCreateCifsService_CreatesWhenMissing(t *testing.T) {
 
 func TestGetOrCreateCifsService_ReturnsExistingRequestsDDNS(t *testing.T) {
 	ctx := context.Background()
+
+	// Mock password decryption
+	originalDecryptPassword := utils.DecryptPassword
+	utils.DecryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-password"
+		return &decrypted, nil
+	}
+	defer func() { utils.DecryptPassword = originalDecryptPassword }()
 
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNas := new(ontapRest.MockNASClient)
@@ -213,6 +230,14 @@ func TestGetOrCreateCifsService_ReturnsExistingRequestsDDNS(t *testing.T) {
 
 func TestGetOrCreateCifsService_ReturnsExistingNoDDNS(t *testing.T) {
 	ctx := context.Background()
+
+	// Mock password decryption
+	originalDecryptPassword := utils.DecryptPassword
+	utils.DecryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-password"
+		return &decrypted, nil
+	}
+	defer func() { utils.DecryptPassword = originalDecryptPassword }()
 
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNas := new(ontapRest.MockNASClient)
@@ -489,6 +514,14 @@ func TestGetOrCreateCifsService_CreateRESTClientError(t *testing.T) {
 	originalGetter := getOntapRestProvider
 	defer func() { getOntapRestProvider = originalGetter }()
 
+	// Mock password decryption
+	originalDecryptPassword := utils.DecryptPassword
+	utils.DecryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-password"
+		return &decrypted, nil
+	}
+	defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
 	logger := util.GetLogger(ctx)
 	provider := &vsa.OntapRestProvider{
 		ClientParams: ontapRest.RESTClientParams{Trace: logger, Ctx: ctx},
@@ -515,6 +548,14 @@ func TestGetOrCreateCifsService_CreateRESTClientError(t *testing.T) {
 func TestGetOrCreateCifsService_EnsureCifsServerNamePostFixError(t *testing.T) {
 	ctx := context.Background()
 	mockClient := new(ontapRest.MockRESTClient)
+
+	// Mock password decryption
+	originalDecryptPassword := utils.DecryptPassword
+	utils.DecryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-password"
+		return &decrypted, nil
+	}
+	defer func() { utils.DecryptPassword = originalDecryptPassword }()
 
 	originalHooks := vsa.SetTestHooks(vsa.TestHooks{
 		GetOntapClient: func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
@@ -546,6 +587,15 @@ func TestGetOrCreateCifsService_EnsureCifsServerNamePostFixError(t *testing.T) {
 
 func TestGetOrCreateCifsService_CifsServiceGetError(t *testing.T) {
 	ctx := context.Background()
+
+	// Mock password decryption
+	originalDecryptPassword := utils.DecryptPassword
+	utils.DecryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-password"
+		return &decrypted, nil
+	}
+	defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNas := new(ontapRest.MockNASClient)
 	mockClient.On("NAS").Return(mockNas).Once()
@@ -563,6 +613,15 @@ func TestGetOrCreateCifsService_CifsServiceGetError(t *testing.T) {
 
 func TestGetOrCreateCifsService_CreateAndSetupCIFSServerError(t *testing.T) {
 	ctx := context.Background()
+
+	// Mock password decryption
+	originalDecryptPassword := utils.DecryptPassword
+	utils.DecryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-password"
+		return &decrypted, nil
+	}
+	defer func() { utils.DecryptPassword = originalDecryptPassword }()
+
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNas := new(ontapRest.MockNASClient)
 	mockClient.On("NAS").Return(mockNas).Once()

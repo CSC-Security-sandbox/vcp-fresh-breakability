@@ -3,9 +3,6 @@ package active_directory_activities
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"strconv"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
@@ -20,8 +17,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 )
@@ -116,9 +117,14 @@ func (a ActiveDirectoryUpdateActivity) UpdateVcpActiveDirectory(ctx context.Cont
 	updatedAd := convertUpdateParamsToModel(params, oldAd)
 
 	if params.Password != nil {
-		err := updatePasswordSecret(ctx, *params.Password, olAdVcpDbRecord.CredentialPath)
-		if err != nil {
-			return err
+		decryptedPassword, decryptErr := utils.DecryptPassword(log.Secret(*params.Password))
+		if decryptErr != nil {
+			return decryptErr
+		}
+
+		passwordErr := updatePasswordSecret(ctx, *decryptedPassword, olAdVcpDbRecord.CredentialPath)
+		if passwordErr != nil {
+			return passwordErr
 		}
 		updatedAd.CredentialPath = olAdVcpDbRecord.CredentialPath
 	}

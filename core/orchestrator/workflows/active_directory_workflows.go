@@ -121,6 +121,7 @@ func (wf *ActiveDirectoryCreateWorkflow) Run(ctx workflow.Context, args ...inter
 		err = workflow.ExecuteActivity(
 			ctx,
 			activeDirectoryActivity.CreateVcpActiveDirectory,
+			params,
 			adRecord,
 		).Get(ctx, nil)
 	} else {
