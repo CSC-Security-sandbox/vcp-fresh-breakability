@@ -1005,6 +1005,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				VendorSubnetID: "subnet-12345",
 			},
+			DataProtection: &datamodel.DataProtection{},
 		}
 		backup := &datamodel.Backup{
 			Name:          "test-backup",
@@ -1030,6 +1031,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
 		env.OnActivity("DeleteSnapmirror", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+		env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 		env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
@@ -4456,6 +4458,7 @@ func TestDeleteBackupWorkflow_DeleteBackupMetadataIfLastBackupActivityFailure(t 
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			VendorSubnetID: "subnet-12345",
 		},
+		DataProtection: &datamodel.DataProtection{},
 	}
 	backup := &datamodel.Backup{
 		Name:          "test-backup",
@@ -4481,6 +4484,7 @@ func TestDeleteBackupWorkflow_DeleteBackupMetadataIfLastBackupActivityFailure(t 
 	env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
 	env.OnActivity("DeleteSnapmirror", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
@@ -4550,6 +4554,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
 			VendorSubnetID: "subnet-12345",
 		},
 		Account: account,
+		DataProtection: &datamodel.DataProtection{},
 	}
 	externalBackupUUID := "external-backup-uuid"
 	backup := &datamodel.Backup{
@@ -4578,6 +4583,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
 	env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
 	env.OnActivity("DeleteSnapmirror", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(backup, nil)
@@ -4647,6 +4653,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 			VendorSubnetID: "subnet-12345",
 		},
 		Account: account,
+		DataProtection: &datamodel.DataProtection{},
 	}
 	externalBackupUUID := "external-backup-uuid"
 	backup := &datamodel.Backup{
@@ -4675,6 +4682,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 	env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
 	env.OnActivity("DeleteSnapmirror", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(backup, nil)

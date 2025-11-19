@@ -7912,3 +7912,257 @@ func TestUpdateRemoteBackupFromVCPActivity(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 }
+
+// TestUpdateVolumeLatestLogicalBackupSize_Success tests successful update of volume's latest logical backup size
+func TestUpdateVolumeLatestLogicalBackupSize_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	logicalSize := int64(1073741824) // 1 GB
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-123",
+		},
+		Name: "test-volume",
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: nil, // Will be updated
+		},
+	}
+
+	// Mock the UpdateVolumeFields call
+	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+		dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+		if !ok {
+			return false
+		}
+		return dp.BackupChainBytes != nil && *dp.BackupChainBytes == logicalSize
+	})).Return(nil)
+
+	// Act
+	err := activity.UpdateVolumeLatestLogicalBackupSize(ctx, volume, logicalSize)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, volume.DataProtection.BackupChainBytes)
+	assert.Equal(t, logicalSize, *volume.DataProtection.BackupChainBytes)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestUpdateVolumeLatestLogicalBackupSize_UpdateVolumeFieldsError tests error handling when UpdateVolumeFields fails
+func TestUpdateVolumeLatestLogicalBackupSize_UpdateVolumeFieldsError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	logicalSize := int64(2147483648) // 2 GB
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-456",
+		},
+		Name: "test-volume-error",
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: nil,
+		},
+	}
+
+	expectedError := errors.New("database connection error")
+
+	// Mock the UpdateVolumeFields call to return an error
+	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.Anything).Return(expectedError)
+
+	// Act
+	err := activity.UpdateVolumeLatestLogicalBackupSize(ctx, volume, logicalSize)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "database connection error")
+	// Verify the volume's DataProtection was updated even though DB update failed
+	assert.NotNil(t, volume.DataProtection.BackupChainBytes)
+	assert.Equal(t, logicalSize, *volume.DataProtection.BackupChainBytes)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestUpdateVolumeLatestLogicalBackupSize_ZeroSize tests updating with zero logical size
+func TestUpdateVolumeLatestLogicalBackupSize_ZeroSize(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	logicalSize := int64(0)
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-zero",
+		},
+		Name: "test-volume-zero-size",
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: nillable.GetInt64Ptr(1000000), // Previously had a value
+		},
+	}
+
+	// Mock the UpdateVolumeFields call
+	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+		dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+		if !ok {
+			return false
+		}
+		return dp.BackupChainBytes != nil && *dp.BackupChainBytes == int64(0)
+	})).Return(nil)
+
+	// Act
+	err := activity.UpdateVolumeLatestLogicalBackupSize(ctx, volume, logicalSize)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, volume.DataProtection.BackupChainBytes)
+	assert.Equal(t, int64(0), *volume.DataProtection.BackupChainBytes)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestUpdateVolumeLatestLogicalBackupSize_LargeSize tests updating with very large logical size
+func TestUpdateVolumeLatestLogicalBackupSize_LargeSize(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	logicalSize := int64(10995116277760) // 10 TB
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-large",
+		},
+		Name: "test-volume-large-size",
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: nil,
+		},
+	}
+
+	// Mock the UpdateVolumeFields call
+	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+		dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+		if !ok {
+			return false
+		}
+		return dp.BackupChainBytes != nil && *dp.BackupChainBytes == logicalSize
+	})).Return(nil)
+
+	// Act
+	err := activity.UpdateVolumeLatestLogicalBackupSize(ctx, volume, logicalSize)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, volume.DataProtection.BackupChainBytes)
+	assert.Equal(t, logicalSize, *volume.DataProtection.BackupChainBytes)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestUpdateVolumeLatestLogicalBackupSize_UpdateExistingValue tests updating when BackupChainBytes already has a value
+func TestUpdateVolumeLatestLogicalBackupSize_UpdateExistingValue(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	oldSize := int64(1073741824) // 1 GB
+	newSize := int64(2147483648) // 2 GB
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-update",
+		},
+		Name: "test-volume-update",
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: &oldSize,
+		},
+	}
+
+	// Mock the UpdateVolumeFields call
+	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+		dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+		if !ok {
+			return false
+		}
+		return dp.BackupChainBytes != nil && *dp.BackupChainBytes == newSize
+	})).Return(nil)
+
+	// Act
+	err := activity.UpdateVolumeLatestLogicalBackupSize(ctx, volume, newSize)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, volume.DataProtection.BackupChainBytes)
+	assert.Equal(t, newSize, *volume.DataProtection.BackupChainBytes)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestUpdateVolumeLatestLogicalBackupSize_TemporalErrorWrapping tests that errors are properly wrapped for Temporal
+func TestUpdateVolumeLatestLogicalBackupSize_TemporalErrorWrapping(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	logicalSize := int64(5368709120) // 5 GB
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-temporal",
+		},
+		Name: "test-volume-temporal-error",
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: nil,
+		},
+	}
+
+	dbError := errors.New("database timeout error")
+
+	// Mock the UpdateVolumeFields call to return an error
+	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.Anything).Return(dbError)
+
+	// Act
+	err := activity.UpdateVolumeLatestLogicalBackupSize(ctx, volume, logicalSize)
+
+	// Assert
+	assert.Error(t, err)
+	// Verify the error message contains the original database error
+	assert.Contains(t, err.Error(), "database timeout error")
+	mockStorage.AssertExpectations(t)
+}
+
+// TestUpdateVolumeLatestLogicalBackupSize_NegativeSize tests handling of negative size (edge case)
+func TestUpdateVolumeLatestLogicalBackupSize_NegativeSize(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	logicalSize := int64(-1000) // Negative size (should not happen in practice, but testing edge case)
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-negative",
+		},
+		Name: "test-volume-negative-size",
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: nil,
+		},
+	}
+
+	// Mock the UpdateVolumeFields call
+	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+		dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+		if !ok {
+			return false
+		}
+		return dp.BackupChainBytes != nil && *dp.BackupChainBytes == logicalSize
+	})).Return(nil)
+
+	// Act
+	err := activity.UpdateVolumeLatestLogicalBackupSize(ctx, volume, logicalSize)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, volume.DataProtection.BackupChainBytes)
+	assert.Equal(t, logicalSize, *volume.DataProtection.BackupChainBytes)
+	mockStorage.AssertExpectations(t)
+}

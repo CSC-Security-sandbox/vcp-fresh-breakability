@@ -578,6 +578,10 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror: %w", err))
 			}
+			err = workflow.ExecuteActivity(ctx, backupActivity.UpdateVolumeLatestLogicalBackupSize, volume, 0).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
 
 			wf.deleteInitiated = true
 			err = workflow.ExecuteActivity(ctx, backupActivity.DeleteCloudEndpoint, node, objStore.UUID, dbBackup.Attributes.EndpointUUID).Get(ctx, &ontapAsyncResponse)

@@ -440,6 +440,23 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 	return backupActivitiesContext, nil
 }
 
+func (a *BackupActivity) UpdateVolumeLatestLogicalBackupSize(ctx context.Context, volume *datamodel.Volume, logicalSize int64) error {
+	logger := util.GetLogger(ctx)
+	// Update volume's latest logical backup size
+	volumeUpdates := make(map[string]interface{})
+	// LatestLogicalBackupSize(backup datamodel) is equivalent to BackupChainBytes(volume datamodel) and chainStorageBytes
+	volume.DataProtection.BackupChainBytes = &logicalSize
+	volumeUpdates["data_protection"] = volume.DataProtection
+	err := a.SE.UpdateVolumeFields(ctx, volume.UUID, volumeUpdates)
+	if err != nil {
+		logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	logger.Infof("Successfully updated logical size %d for volume %s",
+		logicalSize, volume.Name)
+	return nil
+}
+
 // UpdateConstituentCountForBackup updates constituent count for large volume backups
 func (b *BackupActivity) UpdateConstituentCountForBackup(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
 	if backupActivitiesContext.BackupWorkflowInit.Volume.LargeVolumeAttributes == nil || !backupActivitiesContext.BackupWorkflowInit.Volume.LargeVolumeAttributes.LargeCapacity {
