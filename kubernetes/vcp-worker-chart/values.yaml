@@ -182,10 +182,9 @@ workerConfig:
   proberProjectList: ""
   enableUniqueSerialNumberGeneration: false
   clusterSerialNumberPrefix: "935"
-  numberOfHaPairsLargeCapacity: 2
+  numberOfHaPairsLargeCapacity: 6
   nonLinearScalingActivePassive: true
   vlmCreateVsaClusterDeploymentWfTimeoutMinutesLv: 45
-  vlmMinLvHaPairs: 2
   startToCloseWorkflowTimeoutLv: "60m"
   dataSubnetCidrBlockLv: 26
   minLvPoolCoolTierCapacity: "13194139533312"

@@ -92,7 +92,7 @@ data:
   ENABLE_AUTO_POOL_SCALING: "{{ index .Values "enableAutoPoolScaling" }}"
   SECRET_MANAGER_PROJECT_ID: "{{ index .Values "secretManagerProjectId" }}"
   AUTO_POOL_SCALING_LIMITS:  {{ index .Values "autoPoolScalingLimits" | toJson | quote }}
-
+  NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{ index .Values "numberOfHaPairsLargeCapacity" | quote }}
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

@@ -27,11 +27,11 @@ func TestNewLeastCostLargeVolumeClusterDecisionMaker(t *testing.T) {
 			},
 			expectedError: "",
 			expectedDecision: &vmrs.Decision{
-				ChosenVMs: []string{"c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd"},
+				ChosenVMs: []string{"c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd", "c3-standard-4-lssd"},
 				ClusterMetadata: &vmrs.ClusterMetadata{
-					NumHAPairs:    2,
-					NumNodes:      4,
-					NumLIFs:       2, // Active-passive mode: only active nodes have LIFs
+					NumHAPairs:    6,
+					NumNodes:      12,
+					NumLIFs:       6, // Active-passive mode: only active nodes have LIFs
 					IsHomogeneous: true,
 					VMType:        "c3-standard-4-lssd", // With 2 HA pairs and 1.8 scaling factor
 				},
@@ -47,13 +47,13 @@ func TestNewLeastCostLargeVolumeClusterDecisionMaker(t *testing.T) {
 			},
 			expectedError: "",
 			expectedDecision: &vmrs.Decision{
-				ChosenVMs: []string{"c3-standard-44-lssd", "c3-standard-44-lssd", "c3-standard-44-lssd", "c3-standard-44-lssd"},
+				ChosenVMs: []string{"c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd"},
 				ClusterMetadata: &vmrs.ClusterMetadata{
-					NumHAPairs:    2,
-					NumNodes:      4,
-					NumLIFs:       2, // Active-passive mode: only active nodes have LIFs
+					NumHAPairs:    6,
+					NumNodes:      12,
+					NumLIFs:       6, // Active-passive mode: only active nodes have LIFs
 					IsHomogeneous: true,
-					VMType:        "c3-standard-44-lssd", // With 2 HA pairs, needs higher capacity VM
+					VMType:        "c3-standard-22-lssd", // With 2 HA pairs, needs higher capacity VM
 				},
 			},
 		},
@@ -67,11 +67,11 @@ func TestNewLeastCostLargeVolumeClusterDecisionMaker(t *testing.T) {
 			},
 			expectedError: "",
 			expectedDecision: &vmrs.Decision{
-				ChosenVMs: []string{"c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd"},
+				ChosenVMs: []string{"c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd", "c3-standard-88-lssd"},
 				ClusterMetadata: &vmrs.ClusterMetadata{
-					NumHAPairs:    2,
-					NumNodes:      4,
-					NumLIFs:       2, // Active-passive mode: only active nodes have LIFs
+					NumHAPairs:    6,
+					NumNodes:      12,
+					NumLIFs:       6, // Active-passive mode: only active nodes have LIFs
 					IsHomogeneous: true,
 					VMType:        "c3-standard-88-lssd", // High IOPS requirement needs largest VM
 				},
@@ -92,7 +92,7 @@ func TestNewLeastCostLargeVolumeClusterDecisionMaker(t *testing.T) {
 			name:           "MaxCapacityLargeVolumeRequest",
 			configFilename: "testdata/valid_large_volume.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             50000,   // Medium IOPS
+				DesiredIOPS:             500000,  // Medium IOPS
 				DesiredThroughputInMiBs: 2000,    // Medium throughput
 				DesiredCapacityInGiB:    2621440, // 20 PiB (max capacity)
 			},

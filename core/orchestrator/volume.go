@@ -35,7 +35,7 @@ import (
 )
 
 var (
-	numOfLvHAPairs                = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
+	numOfLvHAPairs                = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
 	volumeRefreshIntervalMinutes  = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
 	maxThinClonesPerPool          = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
 	thinCloneGASupport            = env.GetBool("THIN_CLONE_GA_SUPPORT", false)

@@ -39,7 +39,7 @@ We have implemented a dedicated `LeastCostLargeVolumeClusterDecisionMaker` that 
    - Accounts for cluster coordination overhead and deployment mode differences
 
 3. **Fixed HA Pair Architecture**:
-   - Uses environment variable `NUMBER_OF_HA_PAIRS_LARGE_CAPACITY` (defaults to 2)
+   - Uses environment variable `NUMBER_OF_HA_PAIRS_LARGE_CAPACITY` (defaults to 6)
    - Uses environment variable `NON_LINEAR_SCALING_ACTIVE_PASSIVE` (defaults to true)
    - Avoids dynamic HA pair calculation complexity
    - Aligns with product requirements for large volume clusters

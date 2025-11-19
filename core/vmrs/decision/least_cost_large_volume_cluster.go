@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	LVHaPair        = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 2)
+	LVHaPair        = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
 	IsActivePassive = env.GetBool("NON_LINEAR_SCALING_ACTIVE_PASSIVE", true)
 )
 

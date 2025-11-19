@@ -673,12 +673,79 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Network:       "test-network",
 			SizeInBytes:   13194139533312, // 12TB
 			LargeCapacity: true,
-			VLMConfig:     "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-16-lssd\"}}",
+			VLMConfig:     "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-22-lssd\"}}",
 		}
 
 		err = store.DB().Create(pool).Error
 		if err != nil {
 			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create nodes (required for validation)
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-1-uuid"},
+			Name:            "test_node_1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-2-uuid"},
+			Name:            "test_node_2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for nodes (required for validation)
+		lif1 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-1-uuid"},
+			Name:      "test_lif_1",
+			AccountID: account.ID,
+			NodeID:    node1.ID,
+		}
+
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-2-uuid"},
+			Name:      "test_lif_2",
+			AccountID: account.ID,
+			NodeID:    node2.ID,
+		}
+
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
 		}
 
 		params := &common.CreateVolumeParams{
@@ -689,7 +756,9 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:                   []string{utils.ProtocolNFSv3},
 			Network:                     "test-network",
 			LargeCapacity:               true,
-			LargeVolumeConstituentCount: 2000,
+			LargeVolumeConstituentCount: 6000,
+			CreationToken:               "test-creation-token",
+			FileProperties:              &models.FileProperties{},
 		}
 
 		poolView := &datamodel.PoolView{
@@ -698,7 +767,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(1997)))
+		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(5993)))
 	})
 
 	t.Run("MaxConstituentCountForLargeCapacityWith4CPUs", func(tt *testing.T) {
@@ -741,6 +810,73 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create nodes (required for validation)
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-1-uuid"},
+			Name:            "test_node_1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-2-uuid"},
+			Name:            "test_node_2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for nodes (required for validation)
+		lif1 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-1-uuid"},
+			Name:      "test_lif_1",
+			AccountID: account.ID,
+			NodeID:    node1.ID,
+		}
+
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-2-uuid"},
+			Name:      "test_lif_2",
+			AccountID: account.ID,
+			NodeID:    node2.ID,
+		}
+
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
+		}
+
 		params := &common.CreateVolumeParams{
 			AccountName:                 "test_account",
 			Name:                        "test-volume",
@@ -749,7 +885,9 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:                   []string{utils.ProtocolNFSv3},
 			Network:                     "test-network",
 			LargeCapacity:               true,
-			LargeVolumeConstituentCount: 500,
+			LargeVolumeConstituentCount: 1500,
+			CreationToken:               "test-creation-token",
+			FileProperties:              &models.FileProperties{},
 		}
 
 		poolView := &datamodel.PoolView{
@@ -758,7 +896,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(497)))
+		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(1493)))
 	})
 
 	t.Run("MaxConstituentCountForLargeCapacityWith8CPUs", func(tt *testing.T) {
@@ -801,6 +939,19 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
 		params := &common.CreateVolumeParams{
 			AccountName:                 "test_account",
 			Name:                        "test-volume",
@@ -809,7 +960,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			Protocols:                   []string{utils.ProtocolNFSv3},
 			Network:                     "test-network",
 			LargeCapacity:               true,
-			LargeVolumeConstituentCount: 1000,
+			LargeVolumeConstituentCount: 3000,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -818,7 +969,7 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(997)))
+		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(2993)))
 	})
 
 	t.Run("LargeCapacityQuotaTooSmall", func(tt *testing.T) {

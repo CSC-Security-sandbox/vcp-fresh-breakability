@@ -30,7 +30,7 @@ var (
 	VlmWorkflowRetryMaxAttempts       = env.GetInt("VLMWORKFLOW_RETRY_MAX_ATTEMPTS", 3)
 	VlmWorkflowRetryMaxInterval       = env.GetString("VLMWORKFLOW_RETRY_MAX_INTERVAL", "5m")
 	VlmWorkflowRetryBackoff           = env.GetString("VLMWORKFLOW_RETRY_BACKOFF_COEFFICIENT", "2.0")
-	MinLvHAPair                       = env.GetInt("VLM_MIN_LV_HA_PAIRS", 2) // Minimum HA pairs to trigger large capacity workflow time logic
+	MinLvHAPair                       = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6) // Minimum HA pairs to trigger large capacity workflow time logic
 	CreateVSAClusterLargeCapacityTime = time.Duration(env.GetInt("VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES_LV", 45)) * time.Minute
 
 	// RetryErrorPatterns Configurable error patterns that trigger delete and retry operations
