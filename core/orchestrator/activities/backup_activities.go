@@ -1372,7 +1372,7 @@ func (a *BackupActivity) UpdateBackupRestoreCount(ctx context.Context, backupVau
 // This is done after UpdateBackupSizeActivity to ensure ExternalUUID is set
 func (a *BackupActivity) CreateRemoteBackupFromVCPActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) error {
 	// Check if this is a cross-region backup
-	if backupActivitiesContext.BackupWorkflowInit.BackupVault.BackupVaultType != "CROSS_REGION" ||
+	if backupActivitiesContext.BackupWorkflowInit.BackupVault.BackupVaultType != CrossRegionBackupType ||
 		backupActivitiesContext.BackupWorkflowInit.BackupVault.BackupRegionName == nil {
 		// Not a cross-region backup, skip
 		return nil

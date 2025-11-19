@@ -473,7 +473,7 @@ func (d *DataStoreRepository) ListVolumesWithPagination(ctx context.Context, con
 
 func _listVolumesWithDetailsPagination(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
-	err := db.Preload("Account").Preload("Pool").Scopes(dbutils.Paginate(pagination)).Find(&volumes).Error
+	err := db.Preload("Account").Preload("Pool").Preload("Svm").Scopes(dbutils.Paginate(pagination)).Find(&volumes).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

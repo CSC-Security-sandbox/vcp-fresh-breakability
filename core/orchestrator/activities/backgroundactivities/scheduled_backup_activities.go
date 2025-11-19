@@ -131,6 +131,7 @@ func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Conte
 	// Get the list of all volumes which have the specified backup policy enabled
 	conditions := [][]interface{}{
 		{"account_id = ?", accountID},
+		{"state = ?", models.LifeCycleStateREADY},
 		{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 		{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 	}
@@ -269,4 +270,52 @@ func (j *ScheduledBackupActivity) GetSnapshotByNameAndVolumeID(ctx context.Conte
 // Returns the generated string.
 func RandomString(n int) string {
 	return randomstring.HumanFriendlyEnglishString(n)
+}
+
+// CreateRemoteScheduledBackupsFromVCPActivity creates remote backups in the remote region for scheduled backups
+func (j *ScheduledBackupActivity) CreateRemoteScheduledBackupsFromVCPActivity(ctx context.Context, backupVault *datamodel.BackupVault, backups []*datamodel.Backup, volume *datamodel.Volume, projectNumber string) error {
+	logger := util.GetLogger(ctx)
+
+	// Check if this is a cross-region backup vault
+	if backupVault.BackupVaultType != activities.CrossRegionBackupType || backupVault.BackupRegionName == nil {
+		// Not a cross-region backup, skip
+		return nil
+	}
+
+	// Create remote backup for each backup
+	backupActivity := &activities.BackupActivity{SE: j.SE}
+	for _, backup := range backups {
+		// Create context with backup vault and volume information
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup:      backup,
+				BackupVault: backupVault,
+				Volume:      volume,
+			},
+		}
+
+		err := backupActivity.CreateRemoteBackupFromVCPActivity(ctx, backupActivitiesContext)
+		if err != nil {
+			logger.Errorf("Failed to create remote backup from VCP for scheduled backup %s: %v", backup.UUID, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	logger.Infof("Successfully created %d remote backups for scheduled backups", len(backups))
+	return nil
+}
+
+// DeleteRemoteScheduledBackupFromVCPActivity deletes a remote backup in the remote region for scheduled backup
+func (j *ScheduledBackupActivity) DeleteRemoteScheduledBackupFromVCPActivity(ctx context.Context, backupUUID, backupVaultUUID, projectNumber, region string) error {
+	logger := util.GetLogger(ctx)
+	backupActivity := &activities.BackupActivity{SE: j.SE}
+
+	err := backupActivity.DeleteRemoteBackupFromVCPActivity(ctx, backupUUID, backupVaultUUID, projectNumber, region)
+	if err != nil {
+		logger.Errorf("Failed to delete remote backup from VCP for scheduled backup %s: %v", backupUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully deleted remote backup for scheduled backup %s", backupUUID)
+	return nil
 }

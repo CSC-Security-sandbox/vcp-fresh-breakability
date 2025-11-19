@@ -539,6 +539,14 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		wf.Logger.Errorf("Failed to update backup size fields for volume %s: %v", volume.Name, err)
 	}
 
+	// Create remote backups from VCP if this is a cross-region backup
+	// This is done after UpdateBackupSize to ensure all backup fields are set
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateRemoteScheduledBackupsFromVCPActivity, scheduledBackupContext.BackupWorkflowInit.BackupVault, backups, volume, volume.Account.Name).Get(ctx, nil)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to create remote backups from VCP for scheduled backups: %v", err)
+	}
+
 	if hydrationEnabled {
 		location := utils.GetLocation(*scheduledBackupContext.DbSnapshot)
 		err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotToCCFEActivity,
@@ -728,6 +736,18 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		if err != nil {
 			wf.Logger.Errorf("Failed to delete backup %s: %v", backup.Name, err)
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to delete backup %s: %w", backup.Name, err))
+		}
+
+		// Delete remote backup from VCP if this is a cross-region backup
+		if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil {
+			remoteBackupErr := workflow.ExecuteActivity(ctx, scheduledBackupActivities.DeleteRemoteScheduledBackupFromVCPActivity,
+				backup.UUID,
+				backupVault.UUID,
+				volume.Account.Name,
+				*backupVault.BackupRegionName).Get(ctx, nil)
+			if remoteBackupErr != nil {
+				wf.Logger.Errorf("Failed to delete remote backup from VCP for backup %s: %v", backup.UUID, remoteBackupErr)
+			}
 		}
 
 		if hydrationEnabled {

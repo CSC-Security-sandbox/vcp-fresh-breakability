@@ -8,14 +8,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -116,6 +119,7 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
+			{"state = ?", models.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -138,6 +142,7 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
+			{"state = ?", models.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -168,6 +173,7 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
+			{"state = ?", models.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -191,6 +197,7 @@ func TestGetVolumesByBackupPolicyUUID(t *testing.T) {
 
 		conditions := [][]interface{}{
 			{"account_id = ?", accountID},
+			{"state = ?", models.LifeCycleStateREADY},
 			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
 			{"data_protection->>'scheduled_backup_enabled' = 'true'"},
 		}
@@ -1121,5 +1128,380 @@ func TestUpdateBackupState(t *testing.T) {
 				mockStorage.AssertExpectations(t)
 			})
 		}
+	})
+}
+
+func TestCreateRemoteScheduledBackupsFromVCPActivity(t *testing.T) {
+	// Common test data
+	projectNumber := "123456789"
+	backupRegion := "us-west1"
+
+	t.Run("Success_MultipleBackups", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{Name: projectNumber},
+			State:     models.LifeCycleStateREADY,
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+			BackupVaultType:  "CROSS_REGION",
+			BackupRegionName: nillable.ToPointer(backupRegion),
+		}
+
+		backups := []*datamodel.Backup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "backup-1"},
+				Name:      "daily-backup",
+				Attributes: &datamodel.BackupAttributes{
+					SnapshotID:   "snap-1",
+					SnapshotName: "snap-daily",
+				},
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "backup-2"},
+				Name:      "weekly-backup",
+				Attributes: &datamodel.BackupAttributes{
+					SnapshotID:   "snap-2",
+					SnapshotName: "snap-weekly",
+				},
+			},
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := commonparams.GetRemoteRegionConfig
+		defer func() { commonparams.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		commonparams.GetRemoteRegionConfig = func(regionParam, projectNumberParam string) (string, string, error) {
+			return "https://example.com", "test-jwt-token", nil
+		}
+
+		// Mock googleproxyclient.GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		// Mock V1betaInternalCreateBackup for each backup
+		mockResponse := &googleproxyclient.InternalBackupV1beta{
+			ResourceId: googleproxyclient.NewOptString("test-backup"),
+		}
+		mockInvoker.On("V1betaInternalCreateBackup", mock.Anything, mock.Anything, mock.Anything).Return(mockResponse, nil).Times(2)
+
+		// Act
+		err := activity.CreateRemoteScheduledBackupsFromVCPActivity(ctx, backupVault, backups, volume, projectNumber)
+
+		// Assert
+		assert.NoError(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_NonCrossRegion", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{Name: projectNumber},
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+			BackupVaultType: "LOCAL", // Not cross-region
+		}
+
+		backups := []*datamodel.Backup{
+			{BaseModel: datamodel.BaseModel{UUID: "backup-1"}},
+		}
+
+		// Act
+		err := activity.CreateRemoteScheduledBackupsFromVCPActivity(ctx, backupVault, backups, volume, projectNumber)
+
+		// Assert
+		assert.NoError(t, err)
+		// No remote calls should be made for non-cross-region
+	})
+
+	t.Run("Success_NilBackupRegionName", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{Name: projectNumber},
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+			BackupVaultType:  "CROSS_REGION",
+			BackupRegionName: nil, // Nil region name
+		}
+
+		backups := []*datamodel.Backup{
+			{BaseModel: datamodel.BaseModel{UUID: "backup-1"}},
+		}
+
+		// Act
+		err := activity.CreateRemoteScheduledBackupsFromVCPActivity(ctx, backupVault, backups, volume, projectNumber)
+
+		// Assert
+		assert.NoError(t, err)
+	})
+
+	t.Run("Error_GetRemoteRegionConfigFails", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{Name: projectNumber},
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+			BackupVaultType:  "CROSS_REGION",
+			BackupRegionName: nillable.ToPointer(backupRegion),
+		}
+
+		backups := []*datamodel.Backup{
+			{BaseModel: datamodel.BaseModel{UUID: "backup-1"}},
+		}
+
+		// Mock GetRemoteRegionConfig to return error
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(regionParam, projectNumberParam string) (string, string, error) {
+			return "", "", errors.New("failed to get remote region config")
+		}
+
+		// Act
+		err := activity.CreateRemoteScheduledBackupsFromVCPActivity(ctx, backupVault, backups, volume, projectNumber)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get remote region config")
+	})
+
+	t.Run("Error_RemoteBackupCreationFails", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{Name: projectNumber},
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+			BackupVaultType:  "CROSS_REGION",
+			BackupRegionName: nillable.ToPointer(backupRegion),
+		}
+
+		backups := []*datamodel.Backup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "backup-1"},
+				Name:      "daily-backup",
+				Attributes: &datamodel.BackupAttributes{
+					SnapshotID: "snap-1",
+				},
+			},
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(regionParam, projectNumberParam string) (string, string, error) {
+			return "https://example.com", "test-jwt-token", nil
+		}
+
+		// Mock googleproxyclient.GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		// Mock V1betaInternalCreateBackup to fail
+		mockInvoker.On("V1betaInternalCreateBackup", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("remote backup creation failed"))
+
+		// Act
+		err := activity.CreateRemoteScheduledBackupsFromVCPActivity(ctx, backupVault, backups, volume, projectNumber)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "remote backup creation failed")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_EmptyBackupList", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{Name: projectNumber},
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+			BackupVaultType:  "CROSS_REGION",
+			BackupRegionName: nillable.ToPointer(backupRegion),
+		}
+
+		backups := []*datamodel.Backup{}
+
+		// Act
+		err := activity.CreateRemoteScheduledBackupsFromVCPActivity(ctx, backupVault, backups, volume, projectNumber)
+
+		// Assert
+		assert.NoError(t, err)
+	})
+}
+
+func TestDeleteRemoteScheduledBackupFromVCPActivity(t *testing.T) {
+	// Common test data
+	backupUUID := "test-backup-uuid"
+	backupVaultUUID := "test-backup-vault-uuid"
+	projectNumber := "123456789"
+	region := "us-central1"
+
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(regionParam, projectNumberParam string) (string, string, error) {
+			return "https://example.com", "test-jwt-token", nil
+		}
+
+		// Mock googleproxyclient.GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		// Mock V1betaInternalDeleteBackupUnderBackupVault
+		mockResponse := &googleproxyclient.OperationV1beta{
+			Name: googleproxyclient.NewOptString("operations/test-operation"),
+			Done: googleproxyclient.NewOptBool(true),
+		}
+		mockInvoker.On("V1betaInternalDeleteBackupUnderBackupVault", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		err := activity.DeleteRemoteScheduledBackupFromVCPActivity(ctx, backupUUID, backupVaultUUID, projectNumber, region)
+
+		// Assert
+		assert.NoError(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Error_GetRemoteRegionConfigFails", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock GetRemoteRegionConfig to return error
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(regionParam, projectNumberParam string) (string, string, error) {
+			return "", "", errors.New("VCP_PAIRED_REGIONS environment variable not set")
+		}
+
+		// Act
+		err := activity.DeleteRemoteScheduledBackupFromVCPActivity(ctx, backupUUID, backupVaultUUID, projectNumber, region)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "VCP_PAIRED_REGIONS environment variable not set")
+	})
+
+	t.Run("Error_DeleteBackupFails", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(regionParam, projectNumberParam string) (string, string, error) {
+			return "https://example.com", "test-jwt-token", nil
+		}
+
+		// Mock googleproxyclient.GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		// Mock V1betaInternalDeleteBackupUnderBackupVault to return error
+		mockInvoker.On("V1betaInternalDeleteBackupUnderBackupVault", mock.Anything, mock.Anything).Return(nil, errors.New("delete failed"))
+
+		// Act
+		err := activity.DeleteRemoteScheduledBackupFromVCPActivity(ctx, backupUUID, backupVaultUUID, projectNumber, region)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete failed")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Error_RegionNotFound", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock GetRemoteRegionConfig to return region not found error
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(regionParam, projectNumberParam string) (string, string, error) {
+			return "", "", errors.New("no base path configured for region: unknown-region in VCP_PAIRED_REGIONS")
+		}
+
+		// Act
+		err := activity.DeleteRemoteScheduledBackupFromVCPActivity(ctx, backupUUID, backupVaultUUID, projectNumber, "unknown-region")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no base path configured for region")
 	})
 }
