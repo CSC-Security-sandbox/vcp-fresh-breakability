@@ -3,32 +3,29 @@
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
-  name: ontap-proxy-authorization-policy
+  name: allow-to-ontap-proxy
+  namespace: {{ .Release.Namespace }}
   annotations:
-    kubernetes.io/description: "Authorization policy for ontap-proxy to allow access from ontap-proxy service account only"
+    kubernetes.io/description: "Authorization policy for ontap-proxy to allow access from all sources (including CCFE)"
   labels:
     app: {{ .Chart.Name }}
 spec:
+  action: ALLOW
   selector:
     matchLabels:
       app: {{ .Chart.Name }}
   rules:
-    - from:
-        - source:
-            principals: ["cluster.local/ns/{{ .Release.Namespace }}/sa/ontap-proxy"]
-      to:
-        - operation:
-            methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
-            paths: ["/api/*"]
+    - {}   # Matches all sources (internal and external, including CCFE)
 ---
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
-  name: ontap-proxy-peer-authentication
+  name: istio-peer-authentication-ontap-proxy
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
       app: {{ .Chart.Name }}
   mtls:
-    mode: PERMISSIVE
+    mode: PERMISSIVE # CCFE should be able to invoke ontap-proxy api hence mode is set as PERMISSIVE here.
 {{- end }}
