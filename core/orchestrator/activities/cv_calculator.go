@@ -21,18 +21,21 @@ var availableAggregateStates = []string{AggregateStateOnline}
 func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context, aggregates []*vsa.Aggregate, largeVolumeConstituentCount, size int64, totalNodes int, instanceType string) (*models.AggregateDistributionResult, error) {
 	logger := util.GetLogger(ctx)
 	expectedAggregateCount := totalNodes / 2
+	logger.Infof("CalculateAggregatesForConstituentVolumesWithSpaceLimits: constituents=%d, sizeBytes=%d, totalNodes=%d, instanceType=%s, expectedAggregates=%d, providedAggregates=%d",
+		largeVolumeConstituentCount, size, totalNodes, instanceType, expectedAggregateCount, len(aggregates))
 
 	if largeVolumeConstituentCount <= 0 {
+		logger.Errorf("Invalid constituent volume count: %d", largeVolumeConstituentCount)
 		return nil, fmt.Errorf("constituent volume count must be greater than zero")
 	}
 
 	// Validate total aggregates is same as number of HA pairs
 	if len(aggregates) != expectedAggregateCount {
+		logger.Errorf("Aggregate count mismatch: expected %d aggregates (nodes=%d), received %d", expectedAggregateCount, totalNodes, len(aggregates))
 		return nil, fmt.Errorf("expected exactly %d aggregates, got %d", expectedAggregateCount, len(aggregates))
 	}
 
 	maxConstituentsPerAggregate := GetMaxConstituentsPerAggregate(logger, instanceType)
-
 	// Build map of aggregate name to available CVs based on size
 	aggregateNameToAvailableCvMap := make(map[string]int64)
 	availableAggregates := make([]string, 0, len(aggregates))
@@ -40,35 +43,49 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 
 	// Get the size of each CV based on total size and constituent count
 	cvSizeInBytes := size / largeVolumeConstituentCount
+	logger.Debugf("Computed constituent volume size: %d bytes (total size %d / constituents %d)", cvSizeInBytes, size, largeVolumeConstituentCount)
 	for _, agg := range aggregates {
+		logger.Debugf("Inspecting aggregate %s: state=%s, volumeCount=%d, size=%d, totalProvisioned=%d", agg.Name, agg.State, agg.VolumeCount, agg.Size, agg.TotalProvisionedSize)
+
 		// Check if any aggregate is not available - return error immediately
 		if !utils.ContainsString(availableAggregateStates, agg.State) {
+			logger.Errorf("Aggregate %s is not online (state: %s)", agg.Name, agg.State)
 			return nil, fmt.Errorf("aggregate %s is not online (state: %s), all aggregates must be online", agg.Name, agg.State)
 		}
 
-		if agg.VolumeCount < maxConstituentsPerAggregate {
-			agg.AvailableSize = agg.Size - agg.TotalProvisionedSize
-			if agg.AvailableSize <= 0 {
-				continue // No available space
-			}
-
-			// Based on a cv size find out how many more cvs can fit in this aggregate
-			availableCvs := (agg.AvailableSize) / cvSizeInBytes
-			if availableCvs > maxConstituentsPerAggregate-agg.VolumeCount {
-				availableCvs = maxConstituentsPerAggregate - agg.VolumeCount
-			}
-			aggregateNameToAvailableCvMap[agg.Name] = availableCvs
-			availableAggregates = append(availableAggregates, agg.Name)
-			totalAvailableCapacity += availableCvs
+		if agg.VolumeCount >= maxConstituentsPerAggregate {
+			logger.Debugf("Aggregate %s skipped: current CV count %d has reached max %d", agg.Name, agg.VolumeCount, maxConstituentsPerAggregate)
+			continue
 		}
+
+		agg.AvailableSize = agg.Size - agg.TotalProvisionedSize
+		if agg.AvailableSize <= 0 {
+			logger.Debugf("Aggregate %s skipped: no available capacity (availableSize=%d)", agg.Name, agg.AvailableSize)
+			continue // No available space
+		}
+
+		// Based on a cv size find out how many more cvs can fit in this aggregate
+		availableCvs := (agg.AvailableSize) / cvSizeInBytes
+		if availableCvs > maxConstituentsPerAggregate-agg.VolumeCount {
+			availableCvs = maxConstituentsPerAggregate - agg.VolumeCount
+		}
+		logger.Debugf("Aggregate %s can host up to %d additional CVs (current=%d, max=%d, availableSize=%d)", agg.Name, availableCvs, agg.VolumeCount, maxConstituentsPerAggregate, agg.AvailableSize)
+		aggregateNameToAvailableCvMap[agg.Name] = availableCvs
+		availableAggregates = append(availableAggregates, agg.Name)
+		totalAvailableCapacity += availableCvs
 	}
 
+	logger.Debugf("Aggregates eligible for placement: %v", availableAggregates)
+	logger.Debugf("Available CV capacity map: %v (total capacity=%d)", aggregateNameToAvailableCvMap, totalAvailableCapacity)
+
 	if len(availableAggregates) == 0 {
+		logger.Errorf("No aggregates with available capacity (max allowed %d)", maxConstituentsPerAggregate)
 		return nil, fmt.Errorf("no aggregates with available capacity (all have reached max %d constituents)", maxConstituentsPerAggregate)
 	}
 
 	// Check if we can serve the customer request
 	if largeVolumeConstituentCount > totalAvailableCapacity {
+		logger.Errorf("Insufficient total aggregate capacity: requested %d CVs, available %d", largeVolumeConstituentCount, totalAvailableCapacity)
 		return nil, fmt.Errorf("insufficient total aggregate capacity: requested %d CVs, but only %d capacity available across all aggregates",
 			largeVolumeConstituentCount, totalAvailableCapacity)
 	}
@@ -78,6 +95,7 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 
 	// Optimized approach: maintain first and second maxima
 	remaining := largeVolumeConstituentCount
+	logger.Debugf("Starting CV placement loop with remaining=%d", remaining)
 	for remaining > 0 {
 		// Find first and second maxima
 		firstMax, secondMax := findFirstAndSecondMaxima(availableAggregates, aggregateNameToAvailableCvMap, maxConstituentsPerAggregate)
@@ -106,6 +124,7 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 		if cvsToPlace > remaining {
 			cvsToPlace = remaining
 		}
+		logger.Debugf("Placing %d CVs across %d aggregates at target level %d", cvsToPlace, len(firstMaxAggregates), targetLevel)
 
 		// Distribute CVs evenly among first minima aggregates
 		cvsPerAggregate := cvsToPlace / int64(len(firstMaxAggregates))
@@ -121,6 +140,7 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 			remaining -= cvs
 			// Update distribution map to know how many cvs have been placed in each aggregate
 			aggregateDistribution[aggName] += cvs
+			logger.Debugf("Placed %d CVs on aggregate %s; remaining=%d; new available=%d", cvs, aggName, remaining, aggregateNameToAvailableCvMap[aggName])
 		}
 	}
 
@@ -128,6 +148,11 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 
 	// Calculate HCF of all CV counts
 	hcf := calculateHCF(aggregateDistribution)
+	totalPlaced := int64(0)
+	for _, count := range aggregateDistribution {
+		totalPlaced += count
+	}
+	logger.Infof("Completed CalculateAggregatesForConstituentVolumesWithSpaceLimits: aggregatesUsed=%d, totalPlaced=%d, multiplier=%d", len(aggregateDistribution), totalPlaced, hcf)
 
 	// Create flattened result based on HCF
 	var result []string
@@ -150,9 +175,12 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, aggregates []*vsa.Aggregate, largeVolumeConstituentCount int64, totalNodes int, instanceType string) (*models.AggregateDistributionResult, error) {
 	logger := util.GetLogger(ctx)
 	expectedAggregateCount := totalNodes / 2
+	logger.Infof("CalculateAggregatesForConstituentVolumesWithCVLimits: constituents=%d, totalNodes=%d, instanceType=%s, expectedAggregates=%d, providedAggregates=%d",
+		largeVolumeConstituentCount, totalNodes, instanceType, expectedAggregateCount, len(aggregates))
 
 	// Validate that we have exactly 12 aggregates
 	if len(aggregates) != expectedAggregateCount {
+		logger.Errorf("Aggregate count mismatch: expected %d aggregates (nodes=%d), received %d", expectedAggregateCount, totalNodes, len(aggregates))
 		return nil, fmt.Errorf("expected exactly %d aggregates, got %d", expectedAggregateCount, len(aggregates))
 	}
 
@@ -164,24 +192,37 @@ func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, a
 	totalAvailableCapacity := int64(0)
 
 	for _, agg := range aggregates {
+		logger.Debugf("Inspecting aggregate %s: state=%s, volumeCount=%d (max=%d)", agg.Name, agg.State, agg.VolumeCount, maxConstituentsPerAggregate)
+
 		// Check if any aggregate is not available - return error immediately
 		if !utils.ContainsString(availableAggregateStates, agg.State) {
+			logger.Errorf("Aggregate %s is not online (state: %s)", agg.Name, agg.State)
 			return nil, fmt.Errorf("aggregate %s is not online (state: %s), all aggregates must be online", agg.Name, agg.State)
 		}
 
-		if agg.VolumeCount < maxConstituentsPerAggregate {
-			aggregateState[agg.Name] = agg.VolumeCount
-			availableAggregates = append(availableAggregates, agg.Name)
-			totalAvailableCapacity += maxConstituentsPerAggregate - agg.VolumeCount
+		if agg.VolumeCount >= maxConstituentsPerAggregate {
+			logger.Debugf("Aggregate %s skipped: current CV count %d has reached max %d", agg.Name, agg.VolumeCount, maxConstituentsPerAggregate)
+			continue
 		}
+
+		aggregateState[agg.Name] = agg.VolumeCount
+		availableAggregates = append(availableAggregates, agg.Name)
+		additionalCapacity := maxConstituentsPerAggregate - agg.VolumeCount
+		totalAvailableCapacity += additionalCapacity
+		logger.Debugf("Aggregate %s contributes %d additional CV slots (current=%d, max=%d)", agg.Name, additionalCapacity, agg.VolumeCount, maxConstituentsPerAggregate)
 	}
 
+	logger.Debugf("Aggregates eligible for placement: %v", availableAggregates)
+	logger.Debugf("Initial aggregate state: %v (total additional capacity=%d)", aggregateState, totalAvailableCapacity)
+
 	if len(availableAggregates) == 0 {
+		logger.Errorf("No aggregates with available capacity (max allowed %d)", maxConstituentsPerAggregate)
 		return nil, fmt.Errorf("no aggregates with available capacity (all have reached max %d constituents)", maxConstituentsPerAggregate)
 	}
 
 	// Check if we can serve the customer request
 	if largeVolumeConstituentCount > totalAvailableCapacity {
+		logger.Errorf("Insufficient total aggregate capacity: requested %d CVs, available %d", largeVolumeConstituentCount, totalAvailableCapacity)
 		return nil, fmt.Errorf("insufficient total aggregate capacity: requested %d CVs, but only %d capacity available across all aggregates",
 			largeVolumeConstituentCount, totalAvailableCapacity)
 	}
@@ -191,6 +232,7 @@ func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, a
 
 	// Optimized approach: maintain first and second minima
 	remaining := largeVolumeConstituentCount
+	logger.Debugf("Starting CV placement loop with remaining=%d", remaining)
 
 	for remaining > 0 {
 		// Find first and second minima
@@ -220,6 +262,7 @@ func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, a
 		if cvsToPlace > remaining {
 			cvsToPlace = remaining
 		}
+		logger.Debugf("Placing %d CVs across %d aggregates to reach target level %d", cvsToPlace, len(firstMinAggregates), targetLevel)
 
 		// Distribute CVs evenly among first minima aggregates
 		cvsPerAggregate := cvsToPlace / int64(len(firstMinAggregates))
@@ -234,6 +277,7 @@ func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, a
 			remaining -= cvs
 			// Update distribution map to know how many cvs have been placed in each aggregate
 			aggregateDistribution[aggName] += cvs
+			logger.Debugf("Placed %d CVs on aggregate %s; remaining=%d; new count=%d", cvs, aggName, remaining, aggregateState[aggName])
 		}
 	}
 
@@ -241,6 +285,11 @@ func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, a
 
 	// Calculate HCF of all CV counts
 	hcf := calculateHCF(aggregateDistribution)
+	totalPlaced := int64(0)
+	for _, count := range aggregateDistribution {
+		totalPlaced += count
+	}
+	logger.Infof("Completed CalculateAggregatesForConstituentVolumesWithCVLimits: aggregatesUsed=%d, totalPlaced=%d, multiplier=%d", len(aggregateDistribution), totalPlaced, hcf)
 
 	// Create flattened result based on HCF
 	var result []string
