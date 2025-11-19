@@ -1003,6 +1003,11 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	}
 
 	if params.LargeCapacity {
+		if utils.IsSMBProtocols(params.Protocols) {
+			// TODO: Remove SMB check when large capacity volumes support SMB protocol
+			return customerrors.NewUserInputValidationErr("SMB protocol is not supported for large capacity volumes")
+		}
+
 		if utils.IsSanProtocols(params.Protocols) {
 			return customerrors.NewUserInputValidationErr("SAN protocols are not supported for large capacity volumes")
 		}
