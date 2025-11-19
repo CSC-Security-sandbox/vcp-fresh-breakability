@@ -275,7 +275,11 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
-		// Add cluster peering foreign key relationship to volume in DB
+		// Add cluster peering relationship to volume in DB when cluster peer is created
+		// This is needed to track which volumes are using this cluster peering relationship
+		// for cleanup during delete flexcache volume, if cluster peer creation fails
+		// We call this activity here to ensure that the relationship is created in DB
+		// before we proceed to create cluster peer on ONTAP
 		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringInVolume, &flexcacheResult).Get(ctx, &flexcacheResult)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
@@ -286,6 +290,23 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 
 		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForClusterPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		// Update cluster peering row state to PENDING_CLUSTER_PEERING and update other details
+		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStatePendingInDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
+
+	// Update volume with cluster peering relationship in DB if existing peer for new volume or peer is ready
+	// calling activity again here only for existing peer scenario where action is READY to avoid unnecessary
+	// DB calls for create action and wait action
+	if flexcacheResult.ClusterPeerAction == flexcache.ActionReady {
+		// Add cluster peering relationship to volume in DB when cluster peer is created or ready (existing peer for new volume)
+		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringInVolume, &flexcacheResult).Get(ctx, &flexcacheResult)
+		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
 	}
@@ -310,14 +331,6 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 	setActiveJob(coremodels.JobTypeFlexCacheInternalPeering)
 
-	if flexcacheResult.ClusterPeeringRow.State == coremodels.CvpClusterPeeringStatusCREATING {
-		// Update cluster peering row state to PENDING_CLUSTER_PEERING and update other details
-		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStatePendingInDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-	}
-
 	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate || flexcacheResult.ClusterPeerAction == flexcache.ActionWait {
 		clusterPeerWaitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
 		if err = workflow.ExecuteActivity(clusterPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
@@ -326,10 +339,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			}
 			return nil, workflows.ConvertToVSAError(err)
 		}
-	}
 
-	if flexcacheResult.ClusterPeeringRow.State == coremodels.CvpClusterPeeringStatusPENDINGCLUSTERPEERING {
-		// Update cluster peering row state to PEERED
 		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStatePeeredInDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
@@ -348,7 +358,6 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
-		flexcacheResult.DBVolume.SvmPeerUUID = nil
 		flexcacheResult.SVMPeer = nil
 	}
 

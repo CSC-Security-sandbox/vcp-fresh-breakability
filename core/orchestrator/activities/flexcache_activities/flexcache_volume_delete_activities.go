@@ -2,6 +2,7 @@ package flexcache_activities
 
 import (
 	"context"
+	"strings"
 
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -78,20 +79,24 @@ func (a FlexCacheVolumeDeleteActivity) DeleteSVMPeeringInOntapActivity(ctx conte
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	if volume.SvmPeerUUID != nil {
-		err = provider.DeleteSVMPeer(*volume.SvmPeerUUID, false)
-		if err != nil {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDeletingSVMPeer, err)
-		}
-
-		updates := map[string]interface{}{
-			"svm_peer_uuid": nil,
-		}
-		if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
-		}
-		logger.Debugf("SVM peering with UUID %s deleted successfully", *volume.SvmPeerUUID)
+	svmPeer, err := provider.GetSVMPeer(&volume.Svm.Name, &volume.CacheParameters.PeerSvmName)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
+	svmPeerUUID := svmPeer.UUID
+	err = provider.DeleteSVMPeer(svmPeerUUID, false)
+	if err != nil {
+		// Ignore FlexCache in-use condition (idempotent handling)
+		if msg := err.Error(); strings.Contains(msg, "The peer relationship is in use by FlexCache") ||
+			strings.Contains(msg, "Relationship is in use by SnapMirror in local cluster") {
+			logger.Infof("Skipping SVM peer delete for %s: still in use (%s); leaving svm_peer_uuid unchanged", svmPeerUUID, msg)
+			return result, nil
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDeletingSVMPeer, err)
+	}
+
+	logger.Debugf("SVM peering with UUID %s deleted successfully", svmPeerUUID)
 
 	return result, nil
 }

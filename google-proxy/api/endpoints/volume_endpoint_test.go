@@ -8754,7 +8754,7 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 					}),
 				},
 			},
-			expectError: false,
+			expectError: true,
 		},
 		{
 			name: "Valid FlexCache request - tiering policy with empty tier action",
@@ -8771,7 +8771,7 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 					}),
 				},
 			},
-			expectError: false,
+			expectError: true,
 		},
 		{
 			name: "Valid FlexCache request - empty SMB settings",
@@ -9080,6 +9080,24 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			errorMsg:    "atimeScrubEnabled must be true to set atimeScrubDays",
 		},
 
+		// protocols validation
+		{
+			name: "Invalid FlexCache request - snapshot policy set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     "svm_test",
+						PeerVolumeName:  "vol_test",
+						PeerClusterName: "cluster_test",
+						PeerIpAddresses: []string{"10.0.0.1"},
+					}),
+					Protocols: []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3, gcpgenserver.ProtocolsV1betaSMB, gcpgenserver.ProtocolsV1betaNFSV4},
+				},
+			},
+			expectError: true,
+			errorMsg:    "volume can only support up to two protocols, please remove any additional entries in the protocols list",
+		},
+
 		// Snapshot policy validation
 		{
 			name: "Invalid FlexCache request - snapshot policy set",
@@ -9153,7 +9171,7 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "backup policy is not allowed for FlexCache volumes",
+			errorMsg:    "backup config is not allowed for FlexCache volumes",
 		},
 		{
 			name: "Invalid FlexCache request - backup vault set",
@@ -9171,7 +9189,7 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "backup vault is not allowed for FlexCache volumes",
+			errorMsg:    "backup config is not allowed for FlexCache volumes",
 		},
 
 		// Tiering policy validation
@@ -9673,4 +9691,83 @@ func TestPrepareSplitCloneVolumeParams(t *testing.T) {
 		assert.Contains(tt, err.Error(), "No Project Number given")
 		assert.True(tt, errors.IsUserInputValidationErr(err))
 	})
+}
+
+func TestValidateProtocolsV1beta(t *testing.T) {
+	tests := []struct {
+		name      string
+		in        []gcpgenserver.ProtocolsV1beta
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name: "SingleNFSv3_OK",
+			in:   []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+		},
+		{
+			name: "DualNFS_OK",
+			in:   []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3, gcpgenserver.ProtocolsV1betaNFSV4},
+		},
+		{
+			name:      "UnspecifiedProtocol_Error",
+			in:        []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaPROTOCOLUNSPECIFIED},
+			wantErr:   true,
+			errSubstr: "unspecified",
+		},
+		{
+			name:      "ISCSIProtocol_Error",
+			in:        []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			wantErr:   true,
+			errSubstr: "not supported",
+		},
+		{
+			name:    "EmptySlice_Error",
+			in:      []gcpgenserver.ProtocolsV1beta{},
+			wantErr: false,
+		},
+		{
+			name:      "MoreThanTwoProtocols_Error",
+			in:        []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaSMB, gcpgenserver.ProtocolsV1betaNFSV3, gcpgenserver.ProtocolsV1betaNFSV4},
+			wantErr:   true,
+			errSubstr: "volume can only support up to two protocols",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateProtocolsV1beta(tc.in)
+			if tc.wantErr {
+				assert.Error(t, err)
+				if tc.errSubstr != "" {
+					assert.Contains(t, strings.ToLower(err.Error()), tc.errSubstr)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestContainsProtocolTypeV1beta(t *testing.T) {
+	tests := []struct {
+		name          string
+		in            []gcpgenserver.ProtocolsV1beta
+		target        gcpgenserver.ProtocolsV1beta
+		wantContained bool
+	}{
+		{"NilSlice", nil, gcpgenserver.ProtocolsV1betaISCSI, false},
+		{"EmptySlice", []gcpgenserver.ProtocolsV1beta{}, gcpgenserver.ProtocolsV1betaISCSI, false},
+		{"SingleMatch", []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI}, gcpgenserver.ProtocolsV1betaISCSI, true},
+		{"SingleNoMatch", []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3}, gcpgenserver.ProtocolsV1betaISCSI, false},
+		{"MultipleContains", []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3, gcpgenserver.ProtocolsV1betaISCSI}, gcpgenserver.ProtocolsV1betaISCSI, true},
+		{"Duplicates", []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3, gcpgenserver.ProtocolsV1betaNFSV3}, gcpgenserver.ProtocolsV1betaNFSV3, true},
+		{"UnspecifiedNotPresent", []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4}, gcpgenserver.ProtocolsV1betaPROTOCOLUNSPECIFIED, false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := containsProtocolTypeV1beta(tc.in, tc.target)
+			assert.Equal(t, tc.wantContained, got)
+		})
+	}
 }

@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
@@ -15,6 +17,7 @@ import (
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -38,6 +41,7 @@ var (
 	verifyClusterPeering                 = _verifyClusterPeering
 	checkForFlexCacheJobInProgress       = _checkForFlexCacheJobInProgress
 	flexCacheParamsMatch                 = _flexCacheParamsMatch
+	verifyCommandExpiryTime              = _verifyCommandExpiryTime
 )
 
 func (o *Orchestrator) CreateFlexCacheVolume(ctx context.Context, params *common.CreateVolumeParams) (*coremodels.Volume, string, error) {
@@ -113,6 +117,11 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		}
 	}
 
+	err = verifyCommandExpiryTime(params.CacheParameters.PeerExpiryTime)
+	if err != nil {
+		return nil, "", err
+	}
+
 	if params.CacheParameters != nil {
 		volumeObj.CacheParameters = &datamodel.CacheParameters{
 			PeerSvmName:           params.CacheParameters.PeerSvmName,
@@ -127,6 +136,12 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 
 	dbVolume, err := se.CreateVolume(ctx, volumeObj)
 	if err != nil {
+		var ce *vsaerrors.CustomError
+		if vsaerrors.As(err, &ce) {
+			logger.Errorf("CreateVolume failed trackingID=%d message=%s original=%v", ce.TrackingID, ce.Message, ce.OriginalErr)
+			return nil, "", ce.OriginalErr
+		}
+		logger.Errorf("CreateVolume failed: %v", err)
 		return nil, "", err
 	}
 
@@ -220,6 +235,11 @@ func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, 
 		return nil, "", err
 	}
 
+	err = verifyCommandExpiryTime(params.ExpiryTime)
+	if err != nil {
+		return nil, "", err
+	}
+
 	requestURI := utilsGetRequestIDFromContext(ctx)
 	correlationID := utilsGetCorrelationIDFromContext(ctx)
 
@@ -237,6 +257,7 @@ func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, 
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: correlationID,
 		RequestID:     requestURI,
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbVolume.UUID},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -377,4 +398,13 @@ func _flexCacheParamsMatch(dbVolume *datamodel.Volume, params *common.EstablishV
 	return dbVolume.CacheParameters.PeerClusterName == params.PeerClusterName &&
 		dbVolume.CacheParameters.PeerSvmName == params.PeerSvmName &&
 		dbVolume.CacheParameters.PeerVolumeName == params.PeerVolumeName
+}
+
+func _verifyCommandExpiryTime(peerExpiryTime *time.Time) error {
+	if peerExpiryTime != nil {
+		if peerExpiryTime.Before(time.Now().UTC()) {
+			return errors.NewUserInputValidationErr("invalid CommandExpiryTime: cannot be in the past")
+		}
+	}
+	return nil
 }

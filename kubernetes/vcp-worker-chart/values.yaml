@@ -71,6 +71,7 @@ workerConfig:
   objectStoresServer: "storage.googleapis.com"
   objectStoreAuthType: "GCP_SA"
   gcpHydrateEnabled: "true"
+  flexCacheEnabled: "false"
   gcpHydrateBatchSize: "10"
   thinCloneGASupport: false
   snapshotSyncMaxConcurrency: 20

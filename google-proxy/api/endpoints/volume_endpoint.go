@@ -313,6 +313,26 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		BackupSchedule: backupSchedule,
 	}
 
+	if req.Volume.CacheParameters.IsSet() {
+		if err := validateFlexCacheRequest(req); err != nil {
+			return nil, errors.NewUserInputValidationErr(err.Error())
+		}
+
+		reqCacheProperties, _ := req.Volume.CacheParameters.Get()
+		param.CacheParameters = &models.CacheParameters{
+			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
+			CacheStateDetails:     models.InitiatingClusterPeering,
+			PeerVolumeName:        reqCacheProperties.PeerVolumeName,
+			PeerClusterName:       reqCacheProperties.PeerClusterName,
+			PeerSvmName:           reqCacheProperties.PeerSvmName,
+			PeerIPAddresses:       reqCacheProperties.PeerIpAddresses,
+		}
+
+		if reqCacheProperties.PeeringCommandExpiryTime.IsSet() {
+			param.CacheParameters.PeerExpiryTime = &reqCacheProperties.PeeringCommandExpiryTime.Value
+		}
+	}
+
 	if req.Volume.SnapshotDirectory.IsSet() {
 		param.SnapshotDirectory = req.Volume.SnapshotDirectory.Value
 	}
@@ -506,26 +526,6 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			return nil, errors.NewUserInputValidationErr("Maximum allowed snapshot-reserve-percentage value during create is 90.Use volume update to set it to a higher value after the volume has been created.")
 		}
 		param.SnapReserve = int64(snapReserve)
-	}
-
-	if req.Volume.CacheParameters.IsSet() {
-		if err := validateFlexCacheRequest(req); err != nil {
-			return nil, errors.NewUserInputValidationErr(err.Error())
-		}
-
-		reqCacheProperties, _ := req.Volume.CacheParameters.Get()
-		param.CacheParameters = &models.CacheParameters{
-			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
-			CacheStateDetails:     models.InitiatingClusterPeering,
-			PeerVolumeName:        reqCacheProperties.PeerVolumeName,
-			PeerClusterName:       reqCacheProperties.PeerClusterName,
-			PeerSvmName:           reqCacheProperties.PeerSvmName,
-			PeerIPAddresses:       reqCacheProperties.PeerIpAddresses,
-		}
-
-		if reqCacheProperties.PeeringCommandExpiryTime.IsSet() {
-			param.CacheParameters.PeerExpiryTime = &reqCacheProperties.PeeringCommandExpiryTime.Value
-		}
 	}
 
 	if req.Volume.LargeCapacity.IsSet() {
@@ -2361,6 +2361,11 @@ func validateFlexCacheRequest(req *gcpgenserver.VolumeCreateV1beta) error {
 		}
 	}
 
+	err := validateProtocolsV1beta(vol.Protocols)
+	if err != nil {
+		return err
+	}
+
 	if vol.SnapshotPolicy.IsSet() {
 		return fmt.Errorf("snapshot policy is not allowed for FlexCache volumes")
 	}
@@ -2374,20 +2379,11 @@ func validateFlexCacheRequest(req *gcpgenserver.VolumeCreateV1beta) error {
 	}
 
 	if vol.BackupConfig.IsSet() {
-		bc := vol.BackupConfig.Value
-		if bc.BackupPolicyId.IsSet() && bc.BackupPolicyId.Value != "" {
-			return fmt.Errorf("backup policy is not allowed for FlexCache volumes")
-		}
-		if bc.BackupVaultId.IsSet() && bc.BackupVaultId.Value != "" {
-			return fmt.Errorf("backup vault is not allowed for FlexCache volumes")
-		}
+		return fmt.Errorf("backup config is not allowed for FlexCache volumes")
 	}
 
 	if vol.TieringPolicy.IsSet() {
-		tp := vol.TieringPolicy.Value
-		if tp.TierAction.IsSet() && tp.TierAction.Value != "" {
-			return fmt.Errorf("tiering policy is not allowed for FlexCache volumes")
-		}
+		return fmt.Errorf("tiering policy is not allowed for FlexCache volumes")
 	}
 
 	if req.HybridReplicationParameters.IsSet() {
@@ -2595,4 +2591,35 @@ func _prepareSplitCloneVolumeParams(params gcpgenserver.V1betaSplitCloneVolumePa
 	}
 
 	return param, nil
+}
+
+
+// validateProtocolsV1beta enforces protocol constraints for FlexCache volume requests.
+// FlexCache volumes are file-only; block protocols (currently iSCSI) must be excluded.
+// Rules:
+// 1. PROTOCOL_UNSPECIFIED is not allowed (explicit protocols required).
+// 2. Block protocols (e.g. iSCSI) are rejected since FlexCache does not support block.
+// 3. Maximum of two protocols (e.g. NFS + SMB) allowed.
+// Returns the first validation error encountered or nil if valid.
+// NOTE: If additional block protocols are introduced, extend the block protocol checks here.
+func validateProtocolsV1beta(protocols []gcpgenserver.ProtocolsV1beta) error {
+	if containsProtocolTypeV1beta(protocols, gcpgenserver.ProtocolsV1betaPROTOCOLUNSPECIFIED) {
+		return fmt.Errorf("can't have PROTOCOL_UNSPECIFIED in protocol list")
+	}
+	if containsProtocolTypeV1beta(protocols, gcpgenserver.ProtocolsV1betaISCSI) {
+		return fmt.Errorf("iSCSI protocol is not supported")
+	}
+	if len(protocols) > 2 {
+		return fmt.Errorf("volume can only support up to two protocols, please remove any additional entries in the protocols list")
+	}
+	return nil
+}
+
+func containsProtocolTypeV1beta(protocols []gcpgenserver.ProtocolsV1beta, protocolType gcpgenserver.ProtocolsV1beta) bool {
+	for _, prot := range protocols {
+		if prot == protocolType {
+			return true
+		}
+	}
+	return false
 }

@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -32,6 +33,7 @@ type monkeyMethods interface {
 	verifyClusterPeering(ctx context.Context, dbVolume *datamodel.Volume) bool
 	checkForFlexCacheJobInProgress(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams) (bool, string, error)
 	identicalParams(dbVolume *datamodel.Volume, params *common.EstablishVolumePeeringParams) bool
+	verifyCommandExpiryTime(peerExpiryTime *time.Time) error
 
 	// FlexCache specific methods
 	createFlexCacheVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error)

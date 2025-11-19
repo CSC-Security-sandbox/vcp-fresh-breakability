@@ -27,6 +27,7 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 	verifyFlexCacheParameters = mm.verifyFlexCacheParameters
 	verifyClusterPeering = mm.verifyClusterPeering
 	checkForFlexCacheJobInProgress = mm.checkForFlexCacheJobInProgress
+	verifyCommandExpiryTime = mm.verifyCommandExpiryTime
 
 	createFlexCacheVolume = mm.createFlexCacheVolume
 	establishFlexCacheVolumePeering = mm.establishFlexCacheVolumePeering
@@ -54,6 +55,7 @@ func newMonkeyMockAndPatch(t *testing.T) *monkeyMock {
 		verifyFlexCacheParameters = _verifyFlexCacheParameters
 		verifyClusterPeering = _verifyClusterPeering
 		checkForFlexCacheJobInProgress = _checkForFlexCacheJobInProgress
+		verifyCommandExpiryTime = _verifyCommandExpiryTime
 
 		createFlexCacheVolume = _createFlexCacheVolume
 		establishFlexCacheVolumePeering = _establishFlexCacheVolumePeering

@@ -2,7 +2,6 @@ package flexcache_activities
 
 import (
 	"context"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -226,12 +226,10 @@ func TestFlexCacheVolumeDeleteActivity_DeleteFlexCacheVolumeInOntapActivity(t *t
 
 func TestFlexCacheVolumeDeleteActivity_DeleteSVMPeeringInOntapActivity(t *testing.T) {
 	baseVolume := func() *datamodel.Volume {
-		peerUUID := "svm-peer-uuid"
 		return &datamodel.Volume{
 			BaseModel:        datamodel.BaseModel{UUID: "volume-uuid-svm-peer"},
 			Name:             "flexcache-vol",
 			Svm:              &datamodel.Svm{Name: "local-svm"},
-			SvmPeerUUID:      &peerUUID,
 			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "external-uuid"},
 		}
 	}
@@ -246,15 +244,14 @@ func TestFlexCacheVolumeDeleteActivity_DeleteSVMPeeringInOntapActivity(t *testin
 		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
 		ctx := context.Background()
 		vol := baseVolume()
+		vol.CacheParameters = &datamodel.CacheParameters{PeerSvmName: "peer-svm"}
 		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).
+			Return(&vsa.SvmPeer{UUID: "svm-peer-uuid"}, nil)
 		mockProvider.EXPECT().DeleteSVMPeer("svm-peer-uuid", false).Return(nil)
-		mockStorage.EXPECT().UpdateVolumeFields(ctx, vol.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
-			v, ok := updates["svm_peer_uuid"]
-			return ok && v == nil
-		})).Return(nil).Once()
 		logger.EXPECT().Debugf("SVM peering with UUID %s deleted successfully", "svm-peer-uuid")
 
 		resp, err := activity.DeleteSVMPeeringInOntapActivity(ctx, result)
@@ -288,31 +285,14 @@ func TestFlexCacheVolumeDeleteActivity_DeleteSVMPeeringInOntapActivity(t *testin
 		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
 		ctx := context.Background()
 		vol := baseVolume()
+		vol.CacheParameters = &datamodel.CacheParameters{PeerSvmName: "peer-svm"}
 		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).
+			Return(&vsa.SvmPeer{UUID: "svm-peer-uuid"}, nil)
 		mockProvider.EXPECT().DeleteSVMPeer("svm-peer-uuid", false).Return(assert.AnError)
-
-		resp, err := activity.DeleteSVMPeeringInOntapActivity(ctx, result)
-		assert.Error(tt, err)
-		assert.Nil(tt, resp)
-	})
-
-	t.Run("WhenUpdateVolumeFieldsFails", func(tt *testing.T) {
-		mm := newMonkeyMockAndPatch(tt)
-		logger := log.NewMockLogger(tt)
-		mockProvider := vsa.NewMockProvider(tt)
-		mockStorage := database.NewMockStorage(tt)
-		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
-		ctx := context.Background()
-		vol := baseVolume()
-		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
-
-		mm.EXPECT().utilGetLogger(ctx).Return(logger)
-		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
-		mockProvider.EXPECT().DeleteSVMPeer("svm-peer-uuid", false).Return(nil)
-		mockStorage.EXPECT().UpdateVolumeFields(ctx, vol.UUID, mock.Anything).Return(assert.AnError).Once()
 
 		resp, err := activity.DeleteSVMPeeringInOntapActivity(ctx, result)
 		assert.Error(tt, err)
@@ -327,15 +307,71 @@ func TestFlexCacheVolumeDeleteActivity_DeleteSVMPeeringInOntapActivity(t *testin
 		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
 		ctx := context.Background()
 		vol := baseVolume()
-		vol.SvmPeerUUID = nil
+		vol.CacheParameters = &datamodel.CacheParameters{PeerSvmName: "peer-svm"}
 		result := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(logger)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).
+			Return(&vsa.SvmPeer{UUID: "svm-peer-uuid"}, assert.AnError)
 
 		resp, err := activity.DeleteSVMPeeringInOntapActivity(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+	})
+
+	t.Run("FlexCacheInUse", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		storage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: storage}
+		ctx := context.Background()
+		vol := baseVolume()
+		vol.CacheParameters = &datamodel.CacheParameters{PeerSvmName: "peer-svm"}
+		res := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().
+			GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).
+			Return(&vsa.SvmPeer{UUID: "svm-peer-uuid"}, nil)
+		inUseErr := customerrors.New("The peer relationship is in use by FlexCache: details")
+		provider.EXPECT().DeleteSVMPeer("svm-peer-uuid", false).Return(inUseErr)
+		logger.EXPECT().
+			Infof("Skipping SVM peer delete for %s: still in use (%s); leaving svm_peer_uuid unchanged", "svm-peer-uuid", inUseErr.Error())
+
+		out, err := activity.DeleteSVMPeeringInOntapActivity(ctx, res)
 		assert.NoError(tt, err)
-		assert.NotNil(tt, resp)
+		assert.Equal(tt, res, out)
+		storage.AssertExpectations(tt)
+	})
+
+	t.Run("SnapMirrorInUse", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		storage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: storage}
+		ctx := context.Background()
+		vol := baseVolume()
+		vol.CacheParameters = &datamodel.CacheParameters{PeerSvmName: "peer-svm"}
+		res := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+		provider.EXPECT().
+			GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).
+			Return(&vsa.SvmPeer{UUID: "svm-peer-uuid"}, nil)
+		inUseErr := customerrors.New("Relationship is in use by SnapMirror in local cluster: details")
+		provider.EXPECT().DeleteSVMPeer("svm-peer-uuid", false).Return(inUseErr)
+		logger.EXPECT().
+			Infof("Skipping SVM peer delete for %s: still in use (%s); leaving svm_peer_uuid unchanged", "svm-peer-uuid", inUseErr.Error())
+
+		out, err := activity.DeleteSVMPeeringInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, res, out)
+		storage.AssertExpectations(tt)
 	})
 }
 

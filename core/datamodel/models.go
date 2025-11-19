@@ -292,7 +292,6 @@ type Volume struct {
 	CacheParameters       *CacheParameters       `gorm:"column:cache_parameters;type:jsonb"`
 	LargeVolumeAttributes *LargeVolumeAttributes `gorm:"column:large_volume_attributes;type:jsonb"`
 	ClonesSharedBytes     uint64                 `gorm:"column:clones_shared_bytes"`
-	SvmPeerUUID           *string                `gorm:"column:svm_peer_uuid"`
 	ClusterPeerID         sql.NullInt64          `gorm:"column:cluster_peer_id"`
 }
 

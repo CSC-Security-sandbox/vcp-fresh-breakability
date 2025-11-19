@@ -85,18 +85,20 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mockLogger, store := setupStore(tt)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			VendorID:      "test_vendor",
-			QuotaInBytes:  minQuotaInBytesPool,
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
 		}
 
 		dbAccount := &datamodel.Account{
@@ -117,6 +119,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().utilsGetRequestIDFromContext(ctx).Return(requestURI)
 		mm.EXPECT().utilsGetCorrelationIDFromContext(ctx).Return(correlationID)
 		mm.EXPECT().workflowsExecuteWorkflowSequentially(
@@ -281,24 +284,26 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Error(tt, err)
 	})
 
-	t.Run("CreateVolume_Error", func(tt *testing.T) {
+	t.Run("verifyCommandExpiryTime_Error", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewMockLogger(tt)
 		store := database.NewMockStorage(tt)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			VendorID:      "test_vendor",
-			QuotaInBytes:  minQuotaInBytesPool,
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
 		}
 
 		dbAccount := &datamodel.Account{
@@ -310,6 +315,50 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
+		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(&datamodel.PoolView{}, nil)
+		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
+		store.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{}, nil)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(assert.AnError)
+
+		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume)
+		assert.Empty(tt, jobID)
+		assert.Error(tt, err)
+	})
+
+	t.Run("CreateVolume_Error", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewMockLogger(tt)
+		store := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
+
+		params := &common.CreateVolumeParams{
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+
+		mockLogger.On("Errorf", mock.AnythingOfType("string"), mock.Anything).Return()
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(&datamodel.PoolView{}, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		store.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{}, nil)
@@ -326,18 +375,20 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mockLogger, store := setupStore(tt)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			VendorID:      "test_vendor",
-			QuotaInBytes:  minQuotaInBytesPool,
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
 		}
 
 		dbAccount := &datamodel.Account{
@@ -348,6 +399,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return("", assert.AnError)
@@ -366,18 +418,20 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		store := database.NewMockStorage(tt)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			VendorID:      "test_vendor",
-			QuotaInBytes:  minQuotaInBytesPool,
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
 		}
 
 		dbAccount := &datamodel.Account{
@@ -388,6 +442,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(&datamodel.PoolView{}, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
@@ -414,18 +469,20 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mockLogger, store := setupStore(tt)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			VendorID:      "test_vendor",
-			QuotaInBytes:  minQuotaInBytesPool,
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
 		}
 
 		dbAccount := &datamodel.Account{
@@ -443,6 +500,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
@@ -468,18 +526,20 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mockLogger, store := setupStore(tt)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			VendorID:      "test_vendor",
-			QuotaInBytes:  minQuotaInBytesPool,
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
 			FileProperties: &models.FileProperties{
 				ExportPolicy: &models.ExportPolicy{
 					ExportPolicyName: "test-export-policy",
@@ -512,6 +572,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
@@ -545,19 +606,21 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mockLogger, store := setupStore(tt)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			VendorID:      "test_vendor",
-			QuotaInBytes:  minQuotaInBytesPool,
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
-			FileProperties: &models.FileProperties{
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
+			FileProperties:  &models.FileProperties{
 				// No ExportPolicy set
 			},
 		}
@@ -577,6 +640,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
@@ -743,6 +807,25 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		assert.Nil(tt, vol)
 	})
 
+	t.Run("verifyCommandExpiryTime_Error", func(tt *testing.T) {
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(t)
+		mockLogger := log.NewMockLogger(t)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(dbVolume, nil)
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(dbAccount, nil)
+		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
+		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		mm.EXPECT().utilsGetRequestIDFromContext(ctx).Return(requestURI).Maybe()
+		mm.EXPECT().utilsGetCorrelationIDFromContext(ctx).Return(correlationID).Maybe()
+		mm.EXPECT().verifyCommandExpiryTime(params.ExpiryTime).Return(assert.AnError)
+
+		vol, _, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, vol)
+	})
+
 	t.Run("CreateJob_Error", func(tt *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		mm := newMonkeyMockAndPatch(t)
@@ -750,6 +833,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mockStorage := new(database.MockStorage)
 		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(dbVolume, nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(params.ExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
 		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -779,6 +863,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(params.ExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
@@ -813,6 +898,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		}
 
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(params.ExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
 		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -1217,5 +1303,24 @@ func Test_VerifyVolumeState_TwoCases(t *testing.T) {
 
 		err := _verifyVolumeState(ctx, vol)
 		assert.Error(tt, err)
+	})
+}
+
+func Test_verifyCommandExpiryTime(t *testing.T) {
+	t.Run("NilExpiryTime", func(t *testing.T) {
+		err := _verifyCommandExpiryTime(nil)
+		assert.NoError(t, err)
+	})
+
+	t.Run("FutureExpiryTime", func(t *testing.T) {
+		future := time.Now().Add(1 * time.Hour)
+		err := _verifyCommandExpiryTime(&future)
+		assert.NoError(t, err)
+	})
+
+	t.Run("PastExpiryTime", func(t *testing.T) {
+		past := time.Now().Add(-1 * time.Hour)
+		err := _verifyCommandExpiryTime(&past)
+		assert.Error(t, err)
 	})
 }
