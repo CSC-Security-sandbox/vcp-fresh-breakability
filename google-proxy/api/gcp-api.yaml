@@ -11881,6 +11881,12 @@ components:
               tenantProjectNumber:
                 type: string
                 description: Tenant project number
+              satisfiesPzi:
+                type: boolean
+                description: Whether the bucket satisfies PZI requirements
+              satisfiesPzs:
+                type: boolean
+                description: Whether the bucket satisfies PZS requirements
     BackupRetentionPolicy_v1beta:
       title: BackupRetentionPolicy
       type: object
@@ -12021,6 +12027,12 @@ components:
               tenantProjectNumber:
                 type: string
                 description: Tenant project number
+              satisfiesPzi:
+                type: boolean
+                description: Whether the bucket satisfies PZI requirements
+              satisfiesPzs:
+                type: boolean
+                description: Whether the bucket satisfies PZS requirements
     BackupVaultUuidList_v1beta:
       title: BackupUuidList
       type: object

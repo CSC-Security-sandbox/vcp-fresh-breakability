@@ -3903,13 +3903,27 @@ func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) encodeFields(e *jx.En
 			s.TenantProjectNumber.Encode(e)
 		}
 	}
+	{
+		if s.SatisfiesPzi.Set {
+			e.FieldStart("satisfiesPzi")
+			s.SatisfiesPzi.Encode(e)
+		}
+	}
+	{
+		if s.SatisfiesPzs.Set {
+			e.FieldStart("satisfiesPzs")
+			s.SatisfiesPzs.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupVaultInternalUpdateV1betaBucketDetailsItem = [4]string{
+var jsonFieldsNameOfBackupVaultInternalUpdateV1betaBucketDetailsItem = [6]string{
 	0: "bucketName",
 	1: "serviceAccountName",
 	2: "vendorSubnetId",
 	3: "tenantProjectNumber",
+	4: "satisfiesPzi",
+	5: "satisfiesPzs",
 }
 
 // Decode decodes BackupVaultInternalUpdateV1betaBucketDetailsItem from json.
@@ -3959,6 +3973,26 @@ func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) Decode(d *jx.Decoder)
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"tenantProjectNumber\"")
+			}
+		case "satisfiesPzi":
+			if err := func() error {
+				s.SatisfiesPzi.Reset()
+				if err := s.SatisfiesPzi.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"satisfiesPzi\"")
+			}
+		case "satisfiesPzs":
+			if err := func() error {
+				s.SatisfiesPzs.Reset()
+				if err := s.SatisfiesPzs.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"satisfiesPzs\"")
 			}
 		default:
 			return d.Skip()
@@ -4451,13 +4485,27 @@ func (s *BackupVaultInternalV1betaBucketDetailsItem) encodeFields(e *jx.Encoder)
 			s.TenantProjectNumber.Encode(e)
 		}
 	}
+	{
+		if s.SatisfiesPzi.Set {
+			e.FieldStart("satisfiesPzi")
+			s.SatisfiesPzi.Encode(e)
+		}
+	}
+	{
+		if s.SatisfiesPzs.Set {
+			e.FieldStart("satisfiesPzs")
+			s.SatisfiesPzs.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupVaultInternalV1betaBucketDetailsItem = [4]string{
+var jsonFieldsNameOfBackupVaultInternalV1betaBucketDetailsItem = [6]string{
 	0: "bucketName",
 	1: "serviceAccountName",
 	2: "vendorSubnetId",
 	3: "tenantProjectNumber",
+	4: "satisfiesPzi",
+	5: "satisfiesPzs",
 }
 
 // Decode decodes BackupVaultInternalV1betaBucketDetailsItem from json.
@@ -4507,6 +4555,26 @@ func (s *BackupVaultInternalV1betaBucketDetailsItem) Decode(d *jx.Decoder) error
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"tenantProjectNumber\"")
+			}
+		case "satisfiesPzi":
+			if err := func() error {
+				s.SatisfiesPzi.Reset()
+				if err := s.SatisfiesPzi.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"satisfiesPzi\"")
+			}
+		case "satisfiesPzs":
+			if err := func() error {
+				s.SatisfiesPzs.Reset()
+				if err := s.SatisfiesPzs.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"satisfiesPzs\"")
 			}
 		default:
 			return d.Skip()

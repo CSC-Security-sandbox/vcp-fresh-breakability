@@ -2032,6 +2032,10 @@ type BackupVaultInternalUpdateV1betaBucketDetailsItem struct {
 	VendorSubnetId OptString `json:"vendorSubnetId"`
 	// Tenant project number.
 	TenantProjectNumber OptString `json:"tenantProjectNumber"`
+	// Whether the bucket satisfies PZI requirements.
+	SatisfiesPzi OptBool `json:"satisfiesPzi"`
+	// Whether the bucket satisfies PZS requirements.
+	SatisfiesPzs OptBool `json:"satisfiesPzs"`
 }
 
 // GetBucketName returns the value of BucketName.
@@ -2054,6 +2058,16 @@ func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) GetTenantProjectNumbe
 	return s.TenantProjectNumber
 }
 
+// GetSatisfiesPzi returns the value of SatisfiesPzi.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) GetSatisfiesPzi() OptBool {
+	return s.SatisfiesPzi
+}
+
+// GetSatisfiesPzs returns the value of SatisfiesPzs.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) GetSatisfiesPzs() OptBool {
+	return s.SatisfiesPzs
+}
+
 // SetBucketName sets the value of BucketName.
 func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetBucketName(val OptString) {
 	s.BucketName = val
@@ -2072,6 +2086,16 @@ func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetVendorSubnetId(val
 // SetTenantProjectNumber sets the value of TenantProjectNumber.
 func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetTenantProjectNumber(val OptString) {
 	s.TenantProjectNumber = val
+}
+
+// SetSatisfiesPzi sets the value of SatisfiesPzi.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetSatisfiesPzi(val OptBool) {
+	s.SatisfiesPzi = val
+}
+
+// SetSatisfiesPzs sets the value of SatisfiesPzs.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetSatisfiesPzs(val OptBool) {
+	s.SatisfiesPzs = val
 }
 
 // Internal BackupVault model for cross-region operations.
@@ -2349,6 +2373,10 @@ type BackupVaultInternalV1betaBucketDetailsItem struct {
 	VendorSubnetId OptString `json:"vendorSubnetId"`
 	// Tenant project number.
 	TenantProjectNumber OptString `json:"tenantProjectNumber"`
+	// Whether the bucket satisfies PZI requirements.
+	SatisfiesPzi OptBool `json:"satisfiesPzi"`
+	// Whether the bucket satisfies PZS requirements.
+	SatisfiesPzs OptBool `json:"satisfiesPzs"`
 }
 
 // GetBucketName returns the value of BucketName.
@@ -2371,6 +2399,16 @@ func (s *BackupVaultInternalV1betaBucketDetailsItem) GetTenantProjectNumber() Op
 	return s.TenantProjectNumber
 }
 
+// GetSatisfiesPzi returns the value of SatisfiesPzi.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) GetSatisfiesPzi() OptBool {
+	return s.SatisfiesPzi
+}
+
+// GetSatisfiesPzs returns the value of SatisfiesPzs.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) GetSatisfiesPzs() OptBool {
+	return s.SatisfiesPzs
+}
+
 // SetBucketName sets the value of BucketName.
 func (s *BackupVaultInternalV1betaBucketDetailsItem) SetBucketName(val OptString) {
 	s.BucketName = val
@@ -2389,6 +2427,16 @@ func (s *BackupVaultInternalV1betaBucketDetailsItem) SetVendorSubnetId(val OptSt
 // SetTenantProjectNumber sets the value of TenantProjectNumber.
 func (s *BackupVaultInternalV1betaBucketDetailsItem) SetTenantProjectNumber(val OptString) {
 	s.TenantProjectNumber = val
+}
+
+// SetSatisfiesPzi sets the value of SatisfiesPzi.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) SetSatisfiesPzi(val OptBool) {
+	s.SatisfiesPzi = val
+}
+
+// SetSatisfiesPzs sets the value of SatisfiesPzs.
+func (s *BackupVaultInternalV1betaBucketDetailsItem) SetSatisfiesPzs(val OptBool) {
+	s.SatisfiesPzs = val
 }
 
 // Immutable backup retention attributes stored as JSONB.

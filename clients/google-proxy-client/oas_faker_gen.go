@@ -860,6 +860,16 @@ func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetFake() {
 			s.TenantProjectNumber.SetFake()
 		}
 	}
+	{
+		{
+			s.SatisfiesPzi.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzs.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -988,6 +998,16 @@ func (s *BackupVaultInternalV1betaBucketDetailsItem) SetFake() {
 	{
 		{
 			s.TenantProjectNumber.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzi.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzs.SetFake()
 		}
 	}
 }

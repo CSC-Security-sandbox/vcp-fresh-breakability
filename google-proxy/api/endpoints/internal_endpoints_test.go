@@ -3454,6 +3454,8 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 					ServiceAccountName:  gcpgenserver.NewOptString("test-sa-1"),
 					VendorSubnetId:      gcpgenserver.NewOptString("subnet-123"),
 					TenantProjectNumber: gcpgenserver.NewOptString("project-456"),
+					SatisfiesPzs:        gcpgenserver.NewOptBool(true),
+					SatisfiesPzi:        gcpgenserver.NewOptBool(true),
 				},
 			},
 		}
@@ -3477,7 +3479,9 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			return bucket.BucketName == "test-bucket-1" &&
 				bucket.ServiceAccountName == "test-sa-1" &&
 				bucket.VendorSubnetID == "subnet-123" &&
-				bucket.TenantProjectNumber == "project-456"
+				bucket.TenantProjectNumber == "project-456" &&
+				bucket.SatisfiesPzi == true &&
+				bucket.SatisfiesPzs == true
 		})).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
@@ -3549,6 +3553,8 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 					ServiceAccountName:  gcpgenserver.NewOptString("sa-1"),
 					VendorSubnetId:      gcpgenserver.NewOptString("subnet-1"),
 					TenantProjectNumber: gcpgenserver.NewOptString("project-1"),
+					SatisfiesPzi:        gcpgenserver.NewOptBool(true),
+					SatisfiesPzs:        gcpgenserver.NewOptBool(true),
 				},
 				{
 					BucketName:         gcpgenserver.NewOptString("bucket-2"),
@@ -3586,6 +3592,8 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				bucket1.ServiceAccountName == "sa-1" &&
 				bucket1.VendorSubnetID == "subnet-1" &&
 				bucket1.TenantProjectNumber == "project-1" &&
+				bucket1.SatisfiesPzi == true &&
+				bucket1.SatisfiesPzs == true &&
 				bucket2.BucketName == "bucket-2" &&
 				bucket2.ServiceAccountName == "sa-2" &&
 				bucket2.VendorSubnetID == "" &&
@@ -5511,6 +5519,8 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 					ServiceAccountName:  gcpgenserver.NewOptString("test-sa"),
 					VendorSubnetId:      gcpgenserver.NewOptString("test-subnet"),
 					TenantProjectNumber: gcpgenserver.NewOptString("test-tenant-project"),
+					SatisfiesPzs:        gcpgenserver.NewOptBool(true),
+					SatisfiesPzi:        gcpgenserver.NewOptBool(true),
 				},
 			},
 		}
@@ -5576,6 +5586,8 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 					ServiceAccountName:  "test-sa",
 					VendorSubnetID:      "test-subnet",
 					TenantProjectNumber: "test-tenant-project",
+					SatisfiesPzs:        true,
+					SatisfiesPzi:        true,
 				},
 			},
 		}

@@ -888,6 +888,8 @@ func UpdateRemoteBackupVaultWithBucketDetails(ctx context.Context, volume *datam
 			ServiceAccountName:  googleproxyclient.NewOptString(bd.ServiceAccountName),
 			VendorSubnetId:      googleproxyclient.NewOptString(bd.VendorSubnetID),
 			TenantProjectNumber: googleproxyclient.NewOptString(bd.TenantProjectNumber),
+			SatisfiesPzi:        googleproxyclient.NewOptBool(bd.SatisfiesPzi),
+			SatisfiesPzs:        googleproxyclient.NewOptBool(bd.SatisfiesPzs),
 		})
 	}
 
@@ -1840,6 +1842,8 @@ func convertDatamodelToInternalAPI(datamodelBackupVault *datamodel.BackupVault) 
 				ServiceAccountName:  googleproxyclient.NewOptString(bucket.ServiceAccountName),
 				VendorSubnetId:      googleproxyclient.NewOptString(bucket.VendorSubnetID),
 				TenantProjectNumber: googleproxyclient.NewOptString(bucket.TenantProjectNumber),
+				SatisfiesPzs:        googleproxyclient.NewOptBool(bucket.SatisfiesPzs),
+				SatisfiesPzi:        googleproxyclient.NewOptBool(bucket.SatisfiesPzi),
 			}
 			bucketDetails = append(bucketDetails, bucketDetail)
 		}

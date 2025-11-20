@@ -697,10 +697,15 @@ func (h Handler) V1betaInternalCreateBackupVault(ctx context.Context, req *gcpge
 			if bucket.TenantProjectNumber.IsSet() {
 				bucketDetail.TenantProjectNumber = bucket.TenantProjectNumber.Value
 			}
+			if bucket.SatisfiesPzs.IsSet() {
+				bucketDetail.SatisfiesPzs = bucket.SatisfiesPzs.Value
+			}
+			if bucket.SatisfiesPzi.IsSet() {
+				bucketDetail.SatisfiesPzi = bucket.SatisfiesPzi.Value
+			}
 			bucketDetails = append(bucketDetails, bucketDetail)
 		}
 		backupVault.BucketDetails = bucketDetails
-		logger.Infof("Added %d bucket details from request to BackupVault", len(bucketDetails))
 	}
 
 	backupVault.ExternalUUID = &req.BackupVaultId                             // Setting External UUID CRB destination case
@@ -1161,6 +1166,12 @@ func (h Handler) V1betaInternalUpdateBackupVault(ctx context.Context, req *gcpge
 			}
 			if bucket.TenantProjectNumber.IsSet() {
 				bucketDetail.TenantProjectNumber = bucket.TenantProjectNumber.Value
+			}
+			if bucket.SatisfiesPzs.IsSet() {
+				bucketDetail.SatisfiesPzs = bucket.SatisfiesPzs.Value
+			}
+			if bucket.SatisfiesPzi.IsSet() {
+				bucketDetail.SatisfiesPzi = bucket.SatisfiesPzi.Value
 			}
 			bucketDetails = append(bucketDetails, bucketDetail)
 		}
