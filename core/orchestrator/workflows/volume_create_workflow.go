@@ -357,11 +357,13 @@ func EnsureCIFSShareWorkflow(ctx workflow.Context, volume *datamodel.Volume, nod
 	}
 
 	// Step 4: Create junction path for CIFS share
-	log.Info("Step 4: Creating junction path for CIFS share", "junctionPath", volume.VolumeAttributes.FileProperties.JunctionPath)
-	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CreateJunctionPathForCifsShare, &node, svmName, volume.VolumeAttributes.FileProperties.JunctionPath).Get(ctx, nil)
-	if err != nil {
-		log.Error("Failed to create junction path for CIFS share", "error", err)
-		return "", ConvertToVSAError(err)
+	if utils.IsSMBProtocols(volume.VolumeAttributes.Protocols) {
+		log.Info("Step 4: Creating junction path for CIFS share", "junctionPath", volume.VolumeAttributes.FileProperties.JunctionPath)
+		err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CreateJunctionPathForCifsShare, &node, svmName, volume.VolumeAttributes.FileProperties.JunctionPath).Get(ctx, nil)
+		if err != nil {
+			log.Error("Failed to create junction path for CIFS share", "error", err)
+			return "", ConvertToVSAError(err)
+		}
 	}
 
 	log.Info("CIFS share creation completed successfully", "fqdn", fqdn)
@@ -389,7 +391,9 @@ func _getActivityOptionsForEnsureCIFSShareVolumeActivity(retryPolicy *WorkflowRe
 
 // PostFileVolumeWorkflow handles post-provisioning for file volumes
 func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, restoreVolCreateResponse *vsa.VolumeResponse) (*datamodel.Volume, error) {
+	log := util.GetLogger(ctx)
 	// Configure activity options for child workflow
+	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, err
@@ -406,7 +410,47 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	log := util.GetLogger(ctx)
+	if enableLdap {
+		if dbVolume.Pool == nil {
+			err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
+			log.Error("Pool details missing during PostFileVolumeWorkflow with error: ", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		ldapEnabled := false
+		if dbVolume.Pool.PoolAttributes != nil {
+			ldapEnabled = dbVolume.Pool.PoolAttributes.LdapEnabled
+		}
+
+		if ldapEnabled {
+			var dbSvm *datamodel.Svm
+			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetSVM, &dbVolume.PoolID).Get(ctx, &dbSvm)
+			if err != nil {
+				log.Error("Failed to get SVM info during PostFileVolumeWorkflow with error: ", err)
+				return nil, ConvertToVSAError(err)
+			}
+
+			var activeDirectory *vsa.ActiveDirectory
+			err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.GetActiveDirectoryForPool, &dbVolume.PoolID).Get(ctx, &activeDirectory)
+			if err != nil {
+				log.Error("Failed to get active directory during PostFileVolumeWorkflow with error: ", err)
+				return nil, ConvertToVSAError(err)
+			}
+
+			// Use the new workflow instead of the single activity
+			_, err = EnsureCIFSShareWorkflow(ctx, dbVolume, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID)
+			if err != nil {
+				log.Error("Failed to create cifs share during PostFileVolumeWorkflow with error: ", err)
+				return nil, ConvertToVSAError(err)
+			}
+
+			err = workflow.ExecuteActivity(ctx, volumeActivity.ConfigureLdap, dbVolume, node).Get(ctx, nil)
+			if err != nil {
+				log.Error("Failed to configure Ldap with error: ", err)
+				return nil, ConvertToVSAError(err)
+			}
+		}
+	}
 	log.Info("File post-provisioning: anything after volume create. (placeholder)")
 	return dbVolume, nil
 }

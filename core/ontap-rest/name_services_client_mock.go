@@ -182,6 +182,260 @@ func (_c *MockNameServicesClient_DnsCreate_Call) RunAndReturn(run func(*DNSCreat
 	return _c
 }
 
+// LdapCreate provides a mock function with given fields: params
+func (_m *MockNameServicesClient) LdapCreate(params *LdapCreateParams) (*models.LdapServiceResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LdapCreate")
+	}
+
+	var r0 *models.LdapServiceResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*LdapCreateParams) (*models.LdapServiceResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*LdapCreateParams) *models.LdapServiceResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.LdapServiceResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*LdapCreateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNameServicesClient_LdapCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LdapCreate'
+type MockNameServicesClient_LdapCreate_Call struct {
+	*mock.Call
+}
+
+// LdapCreate is a helper method to define mock.On call
+//   - params *LdapCreateParams
+func (_e *MockNameServicesClient_Expecter) LdapCreate(params interface{}) *MockNameServicesClient_LdapCreate_Call {
+	return &MockNameServicesClient_LdapCreate_Call{Call: _e.mock.On("LdapCreate", params)}
+}
+
+func (_c *MockNameServicesClient_LdapCreate_Call) Run(run func(params *LdapCreateParams)) *MockNameServicesClient_LdapCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LdapCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapCreate_Call) Return(_a0 *models.LdapServiceResponse, _a1 error) *MockNameServicesClient_LdapCreate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapCreate_Call) RunAndReturn(run func(*LdapCreateParams) (*models.LdapServiceResponse, error)) *MockNameServicesClient_LdapCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LdapDelete provides a mock function with given fields: params
+func (_m *MockNameServicesClient) LdapDelete(params *LdapDeleteParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LdapDelete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*LdapDeleteParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNameServicesClient_LdapDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LdapDelete'
+type MockNameServicesClient_LdapDelete_Call struct {
+	*mock.Call
+}
+
+// LdapDelete is a helper method to define mock.On call
+//   - params *LdapDeleteParams
+func (_e *MockNameServicesClient_Expecter) LdapDelete(params interface{}) *MockNameServicesClient_LdapDelete_Call {
+	return &MockNameServicesClient_LdapDelete_Call{Call: _e.mock.On("LdapDelete", params)}
+}
+
+func (_c *MockNameServicesClient_LdapDelete_Call) Run(run func(params *LdapDeleteParams)) *MockNameServicesClient_LdapDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LdapDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapDelete_Call) Return(_a0 error) *MockNameServicesClient_LdapDelete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapDelete_Call) RunAndReturn(run func(*LdapDeleteParams) error) *MockNameServicesClient_LdapDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LdapGet provides a mock function with given fields: params
+func (_m *MockNameServicesClient) LdapGet(params *LdapGetParams) (*LdapService, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LdapGet")
+	}
+
+	var r0 *LdapService
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*LdapGetParams) (*LdapService, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*LdapGetParams) *LdapService); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*LdapService)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*LdapGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNameServicesClient_LdapGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LdapGet'
+type MockNameServicesClient_LdapGet_Call struct {
+	*mock.Call
+}
+
+// LdapGet is a helper method to define mock.On call
+//   - params *LdapGetParams
+func (_e *MockNameServicesClient_Expecter) LdapGet(params interface{}) *MockNameServicesClient_LdapGet_Call {
+	return &MockNameServicesClient_LdapGet_Call{Call: _e.mock.On("LdapGet", params)}
+}
+
+func (_c *MockNameServicesClient_LdapGet_Call) Run(run func(params *LdapGetParams)) *MockNameServicesClient_LdapGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LdapGetParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapGet_Call) Return(_a0 *LdapService, _a1 error) *MockNameServicesClient_LdapGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapGet_Call) RunAndReturn(run func(*LdapGetParams) (*LdapService, error)) *MockNameServicesClient_LdapGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LdapSchemaCreate provides a mock function with given fields: params
+func (_m *MockNameServicesClient) LdapSchemaCreate(params *LdapSchemaCreateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LdapSchemaCreate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*LdapSchemaCreateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNameServicesClient_LdapSchemaCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LdapSchemaCreate'
+type MockNameServicesClient_LdapSchemaCreate_Call struct {
+	*mock.Call
+}
+
+// LdapSchemaCreate is a helper method to define mock.On call
+//   - params *LdapSchemaCreateParams
+func (_e *MockNameServicesClient_Expecter) LdapSchemaCreate(params interface{}) *MockNameServicesClient_LdapSchemaCreate_Call {
+	return &MockNameServicesClient_LdapSchemaCreate_Call{Call: _e.mock.On("LdapSchemaCreate", params)}
+}
+
+func (_c *MockNameServicesClient_LdapSchemaCreate_Call) Run(run func(params *LdapSchemaCreateParams)) *MockNameServicesClient_LdapSchemaCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LdapSchemaCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapSchemaCreate_Call) Return(_a0 error) *MockNameServicesClient_LdapSchemaCreate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapSchemaCreate_Call) RunAndReturn(run func(*LdapSchemaCreateParams) error) *MockNameServicesClient_LdapSchemaCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LdapSchemaModify provides a mock function with given fields: params
+func (_m *MockNameServicesClient) LdapSchemaModify(params *LdapSchemaModifyParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LdapSchemaModify")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*LdapSchemaModifyParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNameServicesClient_LdapSchemaModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LdapSchemaModify'
+type MockNameServicesClient_LdapSchemaModify_Call struct {
+	*mock.Call
+}
+
+// LdapSchemaModify is a helper method to define mock.On call
+//   - params *LdapSchemaModifyParams
+func (_e *MockNameServicesClient_Expecter) LdapSchemaModify(params interface{}) *MockNameServicesClient_LdapSchemaModify_Call {
+	return &MockNameServicesClient_LdapSchemaModify_Call{Call: _e.mock.On("LdapSchemaModify", params)}
+}
+
+func (_c *MockNameServicesClient_LdapSchemaModify_Call) Run(run func(params *LdapSchemaModifyParams)) *MockNameServicesClient_LdapSchemaModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LdapSchemaModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapSchemaModify_Call) Return(_a0 error) *MockNameServicesClient_LdapSchemaModify_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapSchemaModify_Call) RunAndReturn(run func(*LdapSchemaModifyParams) error) *MockNameServicesClient_LdapSchemaModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockNameServicesClient creates a new instance of MockNameServicesClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockNameServicesClient(t interface {

@@ -7,6 +7,8 @@ import (
 
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+
 	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 
 	mock "github.com/stretchr/testify/mock"
@@ -921,6 +923,53 @@ func (_c *MockProvider_CreateKmsConfig_Call) RunAndReturn(run func(CreateKmsConf
 	return _c
 }
 
+// CreateLdap provides a mock function with given fields: ad, volume
+func (_m *MockProvider) CreateLdap(ad *datamodel.ActiveDirectory, volume *datamodel.Volume) error {
+	ret := _m.Called(ad, volume)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateLdap")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*datamodel.ActiveDirectory, *datamodel.Volume) error); ok {
+		r0 = rf(ad, volume)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_CreateLdap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateLdap'
+type MockProvider_CreateLdap_Call struct {
+	*mock.Call
+}
+
+// CreateLdap is a helper method to define mock.On call
+//   - ad *datamodel.ActiveDirectory
+//   - volume *datamodel.Volume
+func (_e *MockProvider_Expecter) CreateLdap(ad interface{}, volume interface{}) *MockProvider_CreateLdap_Call {
+	return &MockProvider_CreateLdap_Call{Call: _e.mock.On("CreateLdap", ad, volume)}
+}
+
+func (_c *MockProvider_CreateLdap_Call) Run(run func(ad *datamodel.ActiveDirectory, volume *datamodel.Volume)) *MockProvider_CreateLdap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*datamodel.ActiveDirectory), args[1].(*datamodel.Volume))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateLdap_Call) Return(_a0 error) *MockProvider_CreateLdap_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_CreateLdap_Call) RunAndReturn(run func(*datamodel.ActiveDirectory, *datamodel.Volume) error) *MockProvider_CreateLdap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateNetworkIpRoute provides a mock function with given fields: params
 func (_m *MockProvider) CreateNetworkIpRoute(params CreateNetworkIPRouteParams) error {
 	ret := _m.Called(params)
@@ -1774,6 +1823,52 @@ func (_c *MockProvider_DeleteFlexCacheVolume_Call) Return(_a0 *OntapAsyncRespons
 }
 
 func (_c *MockProvider_DeleteFlexCacheVolume_Call) RunAndReturn(run func(string, string) (*OntapAsyncResponse, error)) *MockProvider_DeleteFlexCacheVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteLdap provides a mock function with given fields: svmUUID
+func (_m *MockProvider) DeleteLdap(svmUUID string) error {
+	ret := _m.Called(svmUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteLdap")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(svmUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_DeleteLdap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteLdap'
+type MockProvider_DeleteLdap_Call struct {
+	*mock.Call
+}
+
+// DeleteLdap is a helper method to define mock.On call
+//   - svmUUID string
+func (_e *MockProvider_Expecter) DeleteLdap(svmUUID interface{}) *MockProvider_DeleteLdap_Call {
+	return &MockProvider_DeleteLdap_Call{Call: _e.mock.On("DeleteLdap", svmUUID)}
+}
+
+func (_c *MockProvider_DeleteLdap_Call) Run(run func(svmUUID string)) *MockProvider_DeleteLdap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteLdap_Call) Return(_a0 error) *MockProvider_DeleteLdap_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_DeleteLdap_Call) RunAndReturn(run func(string) error) *MockProvider_DeleteLdap_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -1468,6 +1468,109 @@ func TestDnsCreateParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestLdapGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := ldapGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParmasSet", func(tt *testing.T) {
+		params := &LdapGetParams{
+			BaseParams: BaseParams{Fields: []string{"field1"}},
+			SvmUUID:    "zeUUID",
+		}
+		otParams := ldapGetParamsToONTAP(params)
+		assert.Equal(tt, []string{"field1"}, otParams.Fields)
+		assert.Equal(tt, "zeUUID", otParams.SvmUUID)
+	})
+}
+
+func TestLdapCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := ldapCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSetForLdap", func(tt *testing.T) {
+		ipadd1 := "10.10.10.1"
+		ipadd2 := "10.10.10.2"
+		var ldapPort int64 = 389
+		var queryTimeout int64 = 10
+		sessionSecuritySign := "sign"
+		midBindLevel := "anonymous"
+		baseScope := "subtree"
+		bindAsCifsServer := true
+		params := &LdapCreateParams{
+			DomainName:                    nillable.ToPointer("test.com"),
+			BaseDN:                        nillable.ToPointer("DC=test, DC=com"),
+			UserDn:                        nillable.ToPointer("OU=fin,OU=hr"),
+			GroupDn:                       nillable.ToPointer("OU=fin,OU=hr"),
+			GroupMembershipFilter:         nillable.ToPointer("(*gidnumber)"),
+			Schema:                        nillable.ToPointer("custom-schema"),
+			TLSEnabled:                    nillable.ToPointer(true),
+			LdapPort:                      &ldapPort,
+			SessionSecurity:               &sessionSecuritySign,
+			BindAsCifsServer:              &bindAsCifsServer,
+			PreferredServersForLdapClient: []*string{&ipadd1, &ipadd2},
+		}
+		otParams := ldapCreateParamsToONTAP(params)
+		assert.Equal(tt, false, *otParams.Info.SkipConfigValidation)
+		assert.Equal(tt, "OU=fin,OU=hr", *otParams.Info.UserDn)
+		assert.Equal(tt, "OU=fin,OU=hr", *otParams.Info.GroupDn)
+		assert.Equal(tt, "(*gidnumber)", *otParams.Info.GroupMembershipFilter)
+		assert.Equal(tt, "custom-schema", *otParams.Info.Schema)
+		assert.Equal(tt, true, *otParams.Info.UseStartTLS)
+		assert.Equal(tt, nillable.ToPointer(ipadd1), otParams.Info.LdapServiceInlinePreferredAdServers[0])
+		assert.Equal(tt, nillable.ToPointer(ipadd2), otParams.Info.LdapServiceInlinePreferredAdServers[1])
+		assert.Equal(tt, ldapPort, *otParams.Info.Port)
+		assert.Equal(tt, "sign", *otParams.Info.SessionSecurity)
+		assert.Equal(tt, "test.com", *otParams.Info.AdDomain)
+		assert.Equal(tt, "DC=test, DC=com", *otParams.Info.BaseDn)
+		assert.Equal(tt, queryTimeout, *otParams.Info.QueryTimeout)
+		assert.False(tt, *otParams.Info.SkipConfigValidation)
+		assert.Equal(tt, midBindLevel, *otParams.Info.MinBindLevel)
+		assert.Equal(tt, baseScope, *otParams.Info.BaseScope)
+		assert.Equal(tt, baseScope, *otParams.Info.BaseScope)
+		assert.False(tt, *otParams.Info.ReferralEnabled)
+		assert.True(tt, *otParams.Info.BindAsCifsServer)
+		assert.Nil(tt, otParams.Info.LdapServiceInlineServers)
+	})
+}
+
+func TestLdapSchemaCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := ldapSchemaCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &LdapSchemaCreateParams{
+			Name:     nillable.ToPointer("schemaName"),
+			Template: nillable.ToPointer("templateName"),
+			SvmUUID:  nillable.ToPointer("zeUUID"),
+		}
+		otParams := ldapSchemaCreateParamsToONTAP(params)
+		assert.Equal(tt, "schemaName", *otParams.Info.Name)
+		assert.Equal(tt, "templateName", *otParams.Info.Template.Name)
+		assert.Equal(tt, "zeUUID", *otParams.Info.Owner.UUID)
+	})
+}
+
+func TestLdapSchemaModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := ldapSchemaModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &LdapSchemaModifyParams{
+			MaximumGroups: nillable.ToPointer(int64(10)),
+			SchemaName:    "schemaName",
+			SvmUUID:       "zeUUID",
+		}
+		otParams := ldapSchemaModifyParamsToONTAP(params)
+		assert.Equal(tt, int64(10), *otParams.Info.Rfc2307bis.MaximumGroups)
+		assert.Equal(tt, "schemaName", otParams.Name)
+		assert.Equal(tt, "zeUUID", otParams.OwnerUUID)
+	})
+}
+
 func TestGcpKmsModifyParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil", func(tt *testing.T) {
 		otParams := gcpKmsModifyParamsToONTAP(nil)

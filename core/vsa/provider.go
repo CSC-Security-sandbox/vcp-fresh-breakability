@@ -4,6 +4,7 @@ import (
 	"context"
 
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -108,6 +109,8 @@ type Provider interface {
 	ModifyGcpKms(externalUUID string, credentials *log.Secret) (*ontapRest.GcpKms, *string, error)
 	PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*string, error)
 	CreateDns(params CreateDnsParams) error
+	CreateLdap(ad *datamodel.ActiveDirectory, volume *datamodel.Volume) error
+	DeleteLdap(svmUUID string) error
 	CreateQoSGroupPolicy(params CreateQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
 	ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolicyParams) error
 	FindQoSGroupPolicy(params FindQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)

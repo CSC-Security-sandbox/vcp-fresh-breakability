@@ -4,6 +4,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/name_services"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 // NameServicesClient describes a name_services client
@@ -11,6 +12,11 @@ type NameServicesClient interface { // generate:mock
 	DnsCreate(params *DNSCreateParams) (*models.DNSResponse, error)
 	DNSGet(params *DNSGetParams) (*DNS, error)
 	DNSModify(params *DNSModifyParams) error
+	LdapCreate(params *LdapCreateParams) (*models.LdapServiceResponse, error)
+	LdapDelete(params *LdapDeleteParams) error
+	LdapGet(params *LdapGetParams) (*LdapService, error)
+	LdapSchemaCreate(params *LdapSchemaCreateParams) error
+	LdapSchemaModify(params *LdapSchemaModifyParams) error
 }
 
 type nameServicesClient struct {
@@ -44,5 +50,47 @@ func (nsc *nameServicesClient) DNSGet(params *DNSGetParams) (*DNS, error) {
 // DNSModify modifies the DNS
 func (nsc *nameServicesClient) DNSModify(params *DNSModifyParams) error {
 	_, err := (*nsc.api).DNSModify(dnsModifyParamsToONTAP(params), nil)
+	return err
+}
+
+// LdapCreate invokes pkg/ontap-rest/client/name_services/Client.LdapCreate
+func (nsc *nameServicesClient) LdapCreate(params *LdapCreateParams) (*models.LdapServiceResponse, error) {
+	response, err := (*nsc.api).LdapCreate(ldapCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil || response.Payload == nil {
+		return nil, errors.New("unexpected response from LdapCreate")
+	}
+
+	return response.Payload, err
+}
+
+// LdapGet invokes pkg/ontap-rest/client/name_services/Client.LdapGet
+func (nsc *nameServicesClient) LdapGet(params *LdapGetParams) (*LdapService, error) {
+	response, err := (*nsc.api).LdapGet(ldapGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LdapService{LdapService: nillable.FromPointer(response.Payload)}, nil
+}
+
+// LdapDelete invokes pkg/ontap-rest/client/name_services/Client.LdapDelete
+func (nsc *nameServicesClient) LdapDelete(params *LdapDeleteParams) error {
+	_, err := (*nsc.api).LdapDelete(ldapDeleteParamsToONTAP(params), nil)
+	return err
+}
+
+// LdapSchemaCreate invokes pkg/ontap-rest/client/name_services/Client.LdapSchemaCreate
+func (nsc *nameServicesClient) LdapSchemaCreate(params *LdapSchemaCreateParams) error {
+	_, err := (*nsc.api).LdapSchemaCreate(ldapSchemaCreateParamsToONTAP(params), nil)
+	return err
+}
+
+// LdapSchemaModify invokes pkg/ontap-rest/client/name_services/Client.LdapSchemaModify
+func (nsc *nameServicesClient) LdapSchemaModify(params *LdapSchemaModifyParams) error {
+	_, err := (*nsc.api).LdapSchemaModify(ldapSchemaModifyParamsToONTAP(params), nil)
 	return err
 }

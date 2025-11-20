@@ -17,6 +17,64 @@ func (_m *MockSVMClient) EXPECT() *MockSVMClient_Expecter {
 	return &MockSVMClient_Expecter{mock: &_m.Mock}
 }
 
+// SvmCollectionGet provides a mock function with given fields: params
+func (_m *MockSVMClient) SvmCollectionGet(params *SvmGetCollectionParams) ([]*Svm, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SvmCollectionGet")
+	}
+
+	var r0 []*Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*SvmGetCollectionParams) ([]*Svm, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*SvmGetCollectionParams) []*Svm); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*SvmGetCollectionParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSVMClient_SvmCollectionGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SvmCollectionGet'
+type MockSVMClient_SvmCollectionGet_Call struct {
+	*mock.Call
+}
+
+// SvmCollectionGet is a helper method to define mock.On call
+//   - params *SvmGetCollectionParams
+func (_e *MockSVMClient_Expecter) SvmCollectionGet(params interface{}) *MockSVMClient_SvmCollectionGet_Call {
+	return &MockSVMClient_SvmCollectionGet_Call{Call: _e.mock.On("SvmCollectionGet", params)}
+}
+
+func (_c *MockSVMClient_SvmCollectionGet_Call) Run(run func(params *SvmGetCollectionParams)) *MockSVMClient_SvmCollectionGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SvmGetCollectionParams))
+	})
+	return _c
+}
+
+func (_c *MockSVMClient_SvmCollectionGet_Call) Return(_a0 []*Svm, _a1 error) *MockSVMClient_SvmCollectionGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSVMClient_SvmCollectionGet_Call) RunAndReturn(run func(*SvmGetCollectionParams) ([]*Svm, error)) *MockSVMClient_SvmCollectionGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SvmCreate provides a mock function with given fields: params
 func (_m *MockSVMClient) SvmCreate(params *SvmCreateParams) (*Svm, *JobAccepted, error) {
 	ret := _m.Called(params)

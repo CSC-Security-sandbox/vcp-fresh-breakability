@@ -1200,22 +1200,33 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
 		assert.Equal(tt, "Active directory cannot be assigned to a Unified Flex Storage Pool", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
-	t.Run("WhenLdapEnabledIsSet", func(tt *testing.T) {
+	t.Run("WhenLdapEnabledIsSetButActiveDirectoryConfigIdIsNotSet", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
 		}
+
+		labels := make(map[string]string)
+		labels["test"] = "label"
+
 		req := &gcpgenserver.PoolV1beta{
-			Unified:     gcpgenserver.NewOptBool(true),
-			LdapEnabled: gcpgenserver.NewOptNilBool(true),
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			Zone:                     gcpgenserver.NewOptString("us-east4-a"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
+			Labels:                   gcpgenserver.NewOptPoolV1betaLabels(labels),
+			LdapEnabled:              gcpgenserver.NewOptNilBool(true),
 		}
 
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-			return "us-east4", "us-east4", nil
+			return "us-east4", "us-east4-a", nil
 		}
 
 		handler := Handler{
@@ -1226,7 +1237,60 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
-		assert.Equal(tt, "Ldap can not enabled on a Unified Flex Storage Pool", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+		assert.Equal(tt, "Active Directory configuration is required when LDAP is enabled", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
+	t.Run("WhenLdapEnabledIsSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		// Mock Active Directory config
+		adConfig := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{
+				UUID: "ad-config-uuid",
+			},
+			AdName: "test-ad",
+		}
+
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		labels := make(map[string]string)
+		labels["test"] = "label"
+
+		req := &gcpgenserver.PoolV1beta{
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			Zone:                     gcpgenserver.NewOptString("us-east4-a"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
+			Labels:                   gcpgenserver.NewOptPoolV1betaLabels(labels),
+			ActiveDirectoryConfigId:  gcpgenserver.NewOptNilString("some-config-id"),
+			LdapEnabled:              gcpgenserver.NewOptNilBool(true),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		// Mock the AD config retrieval
+		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(adConfig, nil)
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{Labels: labels}}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "operation-id")
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
+		assert.NotNil(tt, result)
 	})
 	t.Run("WhenRegionalPoolSupportIsNotEnabled", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)

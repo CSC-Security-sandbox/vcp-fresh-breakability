@@ -83,6 +83,35 @@ func TestSvmGet(t *testing.T) {
 	})
 }
 
+func TestSvmCollectionGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		svmName := "test-svm"
+		svmAPI := svm.New(transport, nil)
+		client := &svmClient{api: svmAPI}
+		response, err := client.SvmCollectionGet(&SvmGetCollectionParams{SvmName: &svmName})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+	t.Run("WhenSvmCollectionGetIsSuccessful_ThenReturnSvms", func(tt *testing.T) {
+		name := "test-svm"
+		numRecords := int64(1)
+		transport := &mockTransport{response: &svm.SvmCollectionGetOK{
+			Payload: &models.SvmResponse{
+				SvmResponseInlineRecords: []*models.Svm{
+					{Name: &name},
+				},
+				NumRecords: &numRecords,
+			},
+		}}
+		svmAPI := svm.New(transport, nil)
+		client := &svmClient{api: svmAPI}
+		response, err := client.SvmCollectionGet(&SvmGetCollectionParams{SvmName: &name})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+	})
+}
+
 func TestSvmCreate(t *testing.T) {
 	t.Run("WhenParamsAreNil_ThenReturnError", func(tt *testing.T) {
 		client := &svmClient{}

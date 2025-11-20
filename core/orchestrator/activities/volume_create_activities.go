@@ -1546,6 +1546,55 @@ func (a VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, 
 	return asyncResp, nil
 }
 
+func (a VolumeCreateActivity) ConfigureLdap(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	se := a.SE
+	logger := util.GetLogger(ctx)
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.FileProperties == nil {
+		logger.Info("Skipping ldap configuration for non-file volume")
+		return nil
+	}
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	pool, err := se.GetPool(ctx, volume.Pool.UUID, volume.AccountID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	ldapEnabled := false
+	if pool.PoolAttributes != nil {
+		ldapEnabled = pool.PoolAttributes.LdapEnabled
+	}
+	logger.Infof("Configure LDAP for volume %s", ldapEnabled)
+	if !ldapEnabled {
+		logger.Info("Skipping ldap configuration for non-LDAP pool")
+		return nil
+	}
+
+	ad, err := se.GetActiveDirectoryForPoolByPoolID(ctx, pool.ID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if ad == nil {
+		logger.Error("Skipping ldap configuration for non-active directory pool")
+		return vsaerrors.WrapAsTemporalApplicationError(errors.New("Active Directory configuration is required for LDAP-enabled pools but is missing"))
+	}
+
+	err = provider.CreateLdap(ad, volume)
+	if err != nil {
+		if errors.IsConflictErr(err) {
+			// If LDAP config already exists, we can skip creation
+			logger.Info("LDAP config already exists, skipping LDAP configuration")
+			return nil
+		}
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}
+
 // convertCommonToDatamodel converts common.BucketDetails to datamodel.BucketDetails
 func convertCommonToDatamodel(b *common.BucketDetails) *datamodel.BucketDetails {
 	if b == nil {

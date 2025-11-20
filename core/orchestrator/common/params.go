@@ -47,6 +47,7 @@ type CreatePoolParams struct {
 	LargeCapacity           bool
 	ActiveDirectoryId       string
 	ActiveDirectory         *models.ActiveDirectory
+	LdapEnabled             bool
 	Mode                    string
 }
 

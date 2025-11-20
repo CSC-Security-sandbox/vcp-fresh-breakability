@@ -162,6 +162,7 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			SecondaryZone:   params.SecondaryZone,
 			Labels:          params.Labels,
 			IsRegionalHA:    params.IsRegionalHA,
+			LdapEnabled:     params.LdapEnabled,
 		},
 		APIAccessMode: params.Mode,
 	}
@@ -729,6 +730,12 @@ func convertDatastorePoolsToModelWithoutAccountNameParam(pools []*datamodel.Pool
 }
 
 func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *models.Pool {
+	logger := util.GetLogger(context.Background())
+	ldapEnabled := false
+	if pool.PoolAttributes != nil {
+		ldapEnabled = pool.PoolAttributes.LdapEnabled
+	}
+	logger.Infof("LDAP enabled: %v", ldapEnabled)
 	labels := make(map[string]string)
 	if pool.PoolAttributes != nil && pool.PoolAttributes.Labels != nil {
 		labels = convertJSONBToMap(pool.PoolAttributes.Labels)
@@ -770,6 +777,7 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			SecondaryZone:   pool.PoolAttributes.SecondaryZone,
 			Labels:          labels,
 			IsRegionalHA:    pool.PoolAttributes.IsRegionalHA,
+			LdapEnabled:     ldapEnabled,
 		},
 		AutoTieringConfig: autoTieringConfig,
 		CustomPerformanceParams: &models.CustomPerformanceParams{

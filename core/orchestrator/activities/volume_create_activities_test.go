@@ -3448,6 +3448,291 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 	})
 }
 
+func TestConfigureLdap(t *testing.T) {
+	t.Run("Skip_NonFileVolume", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock provider setup
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Test data for block volume (no FileProperties)
+		volume := &datamodel.Volume{
+			AccountID: 1,
+			PoolID:    123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: nil, // Block volume has no file properties
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+			SvmID: 123,
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Mock expectations
+		mockStorage.AssertNotCalled(t, "GetPool")
+		mockProvider.AssertNotCalled(t, "CreateLdap")
+
+		// Execute test
+		err := activity.ConfigureLdap(ctx, volume, node)
+
+		// Assertions
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("Ldap_NotEnabled", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock provider setup
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Test data - Volume with file properties
+		volume := &datamodel.Volume{
+			AccountID: 1,
+			PoolID:    123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "test-export-policy",
+						ExportRules: []*datamodel.ExportRule{
+							{
+								AllowedClients: "10.0.0.0/8",
+								AccessType:     "ReadWrite",
+								UnixReadOnly:   false,
+								UnixReadWrite:  true,
+							},
+						},
+					},
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+			SvmID: 123,
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-pool-uuid",
+				},
+			},
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Mock expectations
+		ad := &datamodel.ActiveDirectory{
+			AdName:    "test-ad",
+			Username:  "test-username",
+			Domain:    "test-domain",
+			DNS:       "test-dns",
+			NetBIOS:   "test-netbios",
+			AccountId: 123,
+		}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-pool-uuid",
+				},
+				ActiveDirectory: ad,
+				PoolAttributes: &datamodel.PoolAttributes{
+					LdapEnabled: false,
+				},
+			},
+		}
+
+		mockStorage.EXPECT().GetPool(mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+		mockProvider.AssertNotCalled(t, "CreateLdap")
+
+		// Execute test
+		err := activity.ConfigureLdap(ctx, volume, node)
+
+		// Assertions
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("ActiveDirectory_NotConfigured", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock provider setup
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Test data - Volume with file properties
+		volume := &datamodel.Volume{
+			AccountID: 1,
+			PoolID:    123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "test-export-policy",
+						ExportRules: []*datamodel.ExportRule{
+							{
+								AllowedClients: "10.0.0.0/8",
+								AccessType:     "ReadWrite",
+								UnixReadOnly:   false,
+								UnixReadWrite:  true,
+							},
+						},
+					},
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+			SvmID: 123,
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-pool-uuid",
+				},
+			},
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Mock expectations
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-pool-uuid",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					LdapEnabled: true,
+				},
+			},
+		}
+
+		mockStorage.EXPECT().GetPool(mock.Anything, volume.Pool.UUID, volume.AccountID).Return(pool, nil)
+		mockStorage.EXPECT().GetActiveDirectoryForPoolByPoolID(ctx, mock.Anything).Return(nil, errors.New("Active Directory configuration is required for LDAP-enabled pools but is missing"))
+		mockProvider.AssertNotCalled(t, "CreateLdap")
+
+		// Execute test
+		err := activity.ConfigureLdap(ctx, volume, node)
+
+		// Assertions
+		assert.Error(t, err)
+		assert.EqualError(t, err, "Active Directory configuration is required for LDAP-enabled pools but is missing")
+		mockProvider.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("Success_FileVolume", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock provider setup
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Test data - Volume with file properties
+		volume := &datamodel.Volume{
+			AccountID: 1,
+			PoolID:    123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "test-export-policy",
+						ExportRules: []*datamodel.ExportRule{
+							{
+								AllowedClients: "10.0.0.0/8",
+								AccessType:     "ReadWrite",
+								UnixReadOnly:   false,
+								UnixReadWrite:  true,
+							},
+						},
+					},
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+			SvmID: 123,
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-pool-uuid",
+				},
+			},
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Mock expectations
+		ad := &datamodel.ActiveDirectory{
+			AdName:    "test-ad",
+			Username:  "test-username",
+			Domain:    "test-domain",
+			DNS:       "test-dns",
+			NetBIOS:   "test-netbios",
+			AccountId: 123,
+		}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				ActiveDirectory: ad,
+				PoolAttributes: &datamodel.PoolAttributes{
+					LdapEnabled: true,
+				},
+			},
+		}
+
+		mockStorage.EXPECT().GetPool(mock.Anything, volume.Pool.UUID, volume.AccountID).Return(pool, nil)
+		mockStorage.EXPECT().GetActiveDirectoryForPoolByPoolID(ctx, mock.Anything).Return(ad, nil)
+		mockProvider.EXPECT().CreateLdap(ad, volume).Return(nil)
+
+		// Execute test
+		err := activity.ConfigureLdap(ctx, volume, node)
+
+		// Assertions
+		assert.NoError(t, err)
+	})
+}
+
 func TestCreateBackupPolicySchedule(t *testing.T) {
 	t.Run("CreateBackupPolicyScheduleSucceeds", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
@@ -5876,34 +6161,34 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("us-west1"),
 			}, setupMocks: func() func() {
-				originalEnabled := utils.IsCrossRegionBackupEnabled()
-				utils.SetCrossRegionBackupEnabledForTest(true)
-				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
-				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
-					return "https://vcp.example.com", "mock-token", nil
-				}
+			originalEnabled := utils.IsCrossRegionBackupEnabled()
+			utils.SetCrossRegionBackupEnabledForTest(true)
+			originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+			common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+				return "https://vcp.example.com", "mock-token", nil
+			}
 
-				// Set up mock for V1betaInternalDescribeBackupVault that will be called by FetchRemoteBackupVaultFromVCP
-				mockInvoker := googleproxyclient.NewMockInvoker(t)
-				mockProxyClient := &googleproxyclient.ProxyClient{
-					Invoker: mockInvoker,
-				}
-				originalGetGProxyClient := googleproxyclient.GetGProxyClient
-				googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
-					return mockProxyClient
-				}
+			// Set up mock for V1betaInternalDescribeBackupVault that will be called by FetchRemoteBackupVaultFromVCP
+			mockInvoker := googleproxyclient.NewMockInvoker(t)
+			mockProxyClient := &googleproxyclient.ProxyClient{
+				Invoker: mockInvoker,
+			}
+			originalGetGProxyClient := googleproxyclient.GetGProxyClient
+			googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+				return mockProxyClient
+			}
 
-				// Mock the HTTP call to return a not found error
-				mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(
-					nil, fmt.Errorf("not found"),
-				)
+			// Mock the HTTP call to return a not found error
+			mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(
+				nil, fmt.Errorf("not found"),
+			)
 
-				return func() {
-					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
-					googleproxyclient.GetGProxyClient = originalGetGProxyClient
-				}
-			},
+			return func() {
+				utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
+				common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+				googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			}
+		},
 			expectError: true, // Will fail at HTTP level but tests conversion
 			description: "Tests convertCommonToDatamodel with nil bucket details",
 		},
@@ -5927,17 +6212,17 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("us-west1"),
 			}, setupMocks: func() func() {
-				originalEnabled := utils.IsCrossRegionBackupEnabled()
-				utils.SetCrossRegionBackupEnabledForTest(true)
-				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
-				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
-					return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
-				}
-				return func() {
-					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
-				}
-			},
+			originalEnabled := utils.IsCrossRegionBackupEnabled()
+			utils.SetCrossRegionBackupEnabledForTest(true)
+			originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+			common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+				return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
+			}
+			return func() {
+				utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
+				common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+			}
+		},
 			expectError:   true,
 			expectedError: "VCP_PAIRED_REGIONS environment variable not set",
 			description:   "Tests GetRemoteRegionConfig error when VCP_PAIRED_REGIONS not set",
@@ -5957,17 +6242,17 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("us-west1"),
 			}, setupMocks: func() func() {
-				originalEnabled := utils.IsCrossRegionBackupEnabled()
-				utils.SetCrossRegionBackupEnabledForTest(true)
-				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
-				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
-					return "", "", fmt.Errorf("failed to parse VCP_PAIRED_REGIONS JSON")
-				}
-				return func() {
-					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
-				}
-			},
+			originalEnabled := utils.IsCrossRegionBackupEnabled()
+			utils.SetCrossRegionBackupEnabledForTest(true)
+			originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+			common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+				return "", "", fmt.Errorf("failed to parse VCP_PAIRED_REGIONS JSON")
+			}
+			return func() {
+				utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
+				common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+			}
+		},
 			expectError:   true,
 			expectedError: "failed to parse VCP_PAIRED_REGIONS JSON",
 			description:   "Tests GetRemoteRegionConfig error when VCP_PAIRED_REGIONS has invalid JSON",
@@ -5987,17 +6272,17 @@ func TestUpdateRemoteBackupVaultDetailsInVCP(t *testing.T) {
 				SourceRegionName: nillable.GetStringPtr("us-central1"),
 				BackupRegionName: nillable.GetStringPtr("us-west1"),
 			}, setupMocks: func() func() {
-				originalEnabled := utils.IsCrossRegionBackupEnabled()
-				utils.SetCrossRegionBackupEnabledForTest(true)
-				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
-				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
-					return "", "", fmt.Errorf("no base path configured for region: us-west1 in VCP_PAIRED_REGIONS")
-				}
-				return func() {
-					utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
-					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
-				}
-			},
+			originalEnabled := utils.IsCrossRegionBackupEnabled()
+			utils.SetCrossRegionBackupEnabledForTest(true)
+			originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+			common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+				return "", "", fmt.Errorf("no base path configured for region: us-west1 in VCP_PAIRED_REGIONS")
+			}
+			return func() {
+				utils.SetCrossRegionBackupEnabledForTest(originalEnabled)
+				common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+			}
+		},
 			expectError:   true,
 			expectedError: "no base path configured for region: us-west1",
 			description:   "Tests GetRemoteRegionConfig error when region not in VCP_PAIRED_REGIONS",

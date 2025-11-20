@@ -11,6 +11,7 @@ import (
 // SVMClient describes an SVM client
 type SVMClient interface {
 	SvmGet(params *SvmGetParams) (*Svm, error)
+	SvmCollectionGet(params *SvmGetCollectionParams) ([]*Svm, error)
 	SvmCreate(params *SvmCreateParams) (*Svm, *JobAccepted, error)
 	SvmDelete(externalSvmUUID string) (bool, *JobAccepted, error)
 	SvmModify(params *SvmModifyParams) (bool, *JobAccepted, error)
@@ -50,6 +51,20 @@ func (sc *svmClient) SvmGet(params *SvmGetParams) (*Svm, error) {
 	}
 
 	return &Svm{Svm: *response.Payload.SvmResponseInlineRecords[0]}, nil
+}
+
+// SvmCollectionGet invokes pkg/ontap-rest/svm/Client.SvmCollectionGet
+func (sc *svmClient) SvmCollectionGet(params *SvmGetCollectionParams) ([]*Svm, error) {
+	// Fix me: pagination is missing
+	response, err := sc.api.SvmCollectionGet(svmGetCollectionParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]*Svm, nillable.FromPointer(response.Payload.NumRecords))
+	for i, currentSvm := range response.Payload.SvmResponseInlineRecords {
+		resp[i] = &Svm{Svm: *currentSvm}
+	}
+	return resp, nil
 }
 
 // SvmCreate invokes pkg/ontap-rest/client/svm/Client.SvmCreate

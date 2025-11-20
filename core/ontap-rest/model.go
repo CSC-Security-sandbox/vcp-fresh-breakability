@@ -1719,6 +1719,17 @@ type SvmGetCollectionParams struct {
 	IpspaceName *string
 }
 
+func svmGetCollectionParamsToONTAP(params *SvmGetCollectionParams) *svm.SvmCollectionGetParams {
+	otParams := svm.NewSvmCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetIpspaceName(params.IpspaceName)
+	otParams.SetName(params.SvmName)
+	otParams.SetFields(params.Fields)
+	return otParams
+}
+
 // SvmPeer represents an svm peer
 type SvmPeer struct {
 	models.SvmPeer
@@ -3648,6 +3659,100 @@ func gcpKmsModifyParamsToONTAP(params *GcpKmsModifyParams) *security.GcpKmsModif
 	return otParams
 }
 
+func ldapGetParamsToONTAP(params *LdapGetParams) *name_services.LdapGetParams {
+	otParams := name_services.NewLdapGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	if params.SvmUUID != "" {
+		otParams.SetSvmUUID(params.SvmUUID)
+	}
+	otParams.SetFields(params.Fields)
+	return otParams
+}
+
+func ldapCreateParamsToONTAP(params *LdapCreateParams) *name_services.LdapCreateParams {
+	var skipConfigValidation = false
+	var minBindLevel = "anonymous"
+	var baseScope = "subtree"
+	var referralEnabled = false
+	var queryTimeout int64 = 10
+	otParams := name_services.NewLdapCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	rr := "true"
+	otParams.SetReturnRecords(&rr)
+
+	otParams.SetInfo(
+		&models.LdapService{
+			AdDomain:                            params.DomainName,
+			MinBindLevel:                        &minBindLevel,
+			BaseScope:                           &baseScope,
+			QueryTimeout:                        &queryTimeout,
+			ReferralEnabled:                     &referralEnabled,
+			BindAsCifsServer:                    params.BindAsCifsServer,
+			SkipConfigValidation:                &skipConfigValidation,
+			UserDn:                              params.UserDn,
+			GroupDn:                             params.GroupDn,
+			GroupMembershipFilter:               params.GroupMembershipFilter,
+			LdapServiceInlinePreferredAdServers: params.PreferredServersForLdapClient,
+			UseStartTLS:                         params.TLSEnabled,
+			Schema:                              params.Schema,
+			SessionSecurity:                     params.SessionSecurity,
+			Port:                                params.LdapPort,
+			BaseDn:                              params.BaseDN,
+			Svm:                                 &models.LdapServiceInlineSvm{UUID: &params.SvmUUID},
+			LdapServiceInlineServers:            params.LdapServers,
+		})
+	return otParams
+}
+
+func ldapSchemaCreateParamsToONTAP(params *LdapSchemaCreateParams) *name_services.LdapSchemaCreateParams {
+	otParams := name_services.NewLdapSchemaCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	rr := "true"
+	otParams.SetReturnRecords(&rr)
+
+	otParams.SetInfo(
+		&models.LdapSchema{
+			Name:     params.Name,
+			Template: &models.LdapSchemaInlineTemplate{Name: params.Template},
+			Owner:    &models.LdapSchemaInlineOwner{UUID: params.SvmUUID},
+		})
+	return otParams
+}
+
+func ldapSchemaModifyParamsToONTAP(params *LdapSchemaModifyParams) *name_services.LdapSchemaModifyParams {
+	otParams := name_services.NewLdapSchemaModifyParams()
+	enabled := true
+	if params == nil {
+		return otParams
+	}
+	otParams.SetOwnerUUID(params.SvmUUID)
+	otParams.SetName(params.SchemaName)
+	otParams.SetInfo(
+		&models.LdapSchema{
+			Rfc2307bis: &models.Rfc2307bis{MaximumGroups: params.MaximumGroups, Enabled: &enabled},
+		})
+	return otParams
+}
+
+func ldapDeleteParamsToONTAP(params *LdapDeleteParams) *name_services.LdapDeleteParams {
+	otParams := name_services.NewLdapDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetSvmUUID(params.SvmUUID)
+	return otParams
+}
+
 func roleCreateParamsToONTAP(params *RoleCreateParams) *security.RoleCreateParams {
 	otParams := security.NewRoleCreateParams()
 	if params == nil {
@@ -3788,11 +3893,14 @@ type NfsServiceCreateParams struct {
 // NfsServiceModifyParams is the input param struct for nasClient.NfsServiceModify
 type NfsServiceModifyParams struct {
 	BaseParams
-	SvmUUID string
-	Enabled *bool
-	V3      *bool
-	V4      *bool
-	V41     *bool
+	SvmUUID                    string
+	V4IDDomain                 *string
+	AllowLocalNFSUsersWithLdap *bool
+	ExtendedGroupsLimit        *int64
+	Enabled                    *bool
+	V3                         *bool
+	V4                         *bool
+	V41                        *bool
 }
 
 // CifsService is a simple wrapper of models.CifsService
@@ -4058,6 +4166,15 @@ func nfsServiceModifyParamsToONTAP(params *NfsServiceModifyParams) *nas.NfsModif
 		}
 		if params.V41 != nil {
 			nfsInfo.Protocol.V41Enabled = params.V41
+		}
+		if params.V4IDDomain != nil {
+			nfsInfo.Protocol.V4IDDomain = params.V4IDDomain
+		}
+		if params.AllowLocalNFSUsersWithLdap != nil {
+			nfsInfo.AuthSysExtendedGroupsEnabled = params.AllowLocalNFSUsersWithLdap
+		}
+		if params.ExtendedGroupsLimit != nil {
+			nfsInfo.ExtendedGroupsLimit = params.ExtendedGroupsLimit
 		}
 	}
 

@@ -28,6 +28,7 @@ func TestEnsureCIFSShareWorkflow(t *testing.T) {
 			FileProperties: &datamodel.FileProperties{
 				JunctionPath: "/test/junction",
 			},
+			Protocols: []string{"SMB"},
 		},
 	}
 	node := &models.Node{Name: "node-1"}

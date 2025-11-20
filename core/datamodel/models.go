@@ -174,6 +174,7 @@ type PoolAttributes struct {
 	MediatorZone    string `json:"mediator_zone"`
 	Labels          *JSONB `json:"labels"`
 	IsRegionalHA    bool   `json:"is_regional_ha"`
+	LdapEnabled     bool   `json:"ldap_enabled"`
 }
 
 // Node represents the public.nodes table in the database

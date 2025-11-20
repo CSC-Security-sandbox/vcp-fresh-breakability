@@ -102,6 +102,7 @@ func (s *UnitTestSuite) SetupTest() {
 	s.env.RegisterActivity(volumeCreateActivity.CreateBackupPolicyFetchedFromSDE)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateLunName)
 	s.env.RegisterActivity(volumeCreateActivity.GetAggregatesFromOntap)
+	s.env.RegisterActivity(volumeCreateActivity.ConfigureLdap)
 
 	// Register volume delete activities
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
@@ -1640,6 +1641,66 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Success() {
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 }
 
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_Success() {
+	// Test PostFileVolumeWorkflow with LDAP Enabled Pool
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	enableLdap = true
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				LdapEnabled: true,
+			},
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:      "svm-name",
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: "svm-external-uuid",
+		},
+	}
+	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+	isRestoreSnapshot := false
+
+	// Enable file protocols for testing with allowlisted accounts
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&active_directory_activities.GetOrCreateCifsServiceResult{FQDN: "fqdn.example.com"}, nil).Once()
+	s.env.OnActivity(volumeActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, volCreateResponse)
+	enableLdap = false
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
 func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
 	// Test PostFileVolumeWorkflow when file protocols are disabled
 	volume := &datamodel.Volume{
@@ -2169,6 +2230,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_Success() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
@@ -2330,6 +2392,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
@@ -2417,6 +2480,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_MultipleExportR
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
@@ -2615,6 +2679,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreat
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Backup vault related activities - no existing bucket
 	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{RegionalTenantProject: "new-tenant-project"}, nil)
@@ -4810,6 +4875,7 @@ func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Error_CreateJunctionPathFai
 			FileProperties: &datamodel.FileProperties{
 				JunctionPath: "/junction",
 			},
+			Protocols: []string{"SMB"},
 		},
 	}
 

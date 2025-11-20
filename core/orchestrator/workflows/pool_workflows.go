@@ -63,6 +63,7 @@ var (
 	enableAutoVolOfflineCronForGCPKMS = env.GetBool("ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS", true)
 	ginLoggingFeatureFlag             = env.GetBool("GIN_LOGGING_FEATURE", false)
 	enableSyncPoolZIZS                = env.GetBool("ENABLE_SYNC_POOL_ZIZS", false)
+	enableLdap                        = env.GetBool("ENABLE_LDAP", false)
 )
 
 const (
@@ -815,6 +816,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			MediatorZone:    dbPool.PoolAttributes.MediatorZone,
 			Labels:          dbPool.PoolAttributes.Labels,
 			IsRegionalHA:    dbPool.PoolAttributes.IsRegionalHA,
+			LdapEnabled:     dbPool.PoolAttributes.LdapEnabled,
 		}
 		// Update pool in DB to reflect QoS changes
 		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{

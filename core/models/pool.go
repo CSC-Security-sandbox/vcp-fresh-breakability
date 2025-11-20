@@ -51,6 +51,7 @@ type PoolAttributes struct {
 	NumberOfVolumes int64
 	IsRegionalHA    bool
 	Labels          map[string]string
+	LdapEnabled     bool
 }
 
 // ClusterAttributes describes the attributes of a cluster model

@@ -185,6 +185,13 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		createPoolParams.ActiveDirectory = adConfig
 	}
 
+	// Set LDAP enabled param
+	if req.LdapEnabled.IsSet() {
+		createPoolParams.LdapEnabled = req.LdapEnabled.Value
+	} else {
+		createPoolParams.LdapEnabled = false
+	}
+
 	// Set kms config related params if kms config is provided
 	kmsConfig, errResp := getAndSyncKmsConfigForPool(ctx, req, createPoolParams, h.Orchestrator)
 	if errResp != nil {
@@ -688,6 +695,14 @@ func convertToPoolsV1Beta(pools []*models.Pool) []gcpgenserver.PoolV1beta {
 	return poolsV1Beta
 }
 
+// getLdapEnabled safely extracts LdapEnabled from PoolAttributes
+func getLdapEnabled(pool *models.Pool) bool {
+	if pool.PoolAttributes != nil {
+		return pool.PoolAttributes.LdapEnabled
+	}
+	return false
+}
+
 func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 	var deletedAt time.Time
 	if pool.DeletedAt != nil {
@@ -747,6 +762,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		SatisfiesPzs:     gcpgenserver.NewOptNilBool(pool.SatisfiesPzs),
 		SatisfiesPzi:     gcpgenserver.NewOptNilBool(pool.SatisfiesPzi),
 		Mode:             gcpgenserver.NewOptPoolV1betaMode(gcpgenserver.PoolV1betaMode(pool.APIAccessMode)),
+		LdapEnabled:      gcpgenserver.NewOptNilBool(getLdapEnabled(pool)),
 	}
 
 	if pool.ActiveDirectoryConfigId != "" {
@@ -957,10 +973,10 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 		}
 	}
 
-	if req.LdapEnabled.Value {
+	if req.LdapEnabled.IsSet() && req.LdapEnabled.Value && req.ActiveDirectoryConfigId.Value == "" {
 		return &gcpgenserver.Error{
 			Code:    http.StatusBadRequest,
-			Message: "Ldap can not enabled on a Unified Flex Storage Pool",
+			Message: "Active Directory configuration is required when LDAP is enabled",
 		}
 	}
 
