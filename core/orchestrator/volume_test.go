@@ -10199,7 +10199,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			LargeCapacity:           false,
 			IsClone:                 true,                  // MUST be true for cloneSharedBytes to be set
 			CreationToken:           "test-creation-token", // Required for file volumes
-			FileProperties:          &models.FileProperties{
+			FileProperties: &models.FileProperties{
 				// Required for NAS volumes (can be minimal)
 			},
 		}
@@ -15919,6 +15919,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 	t.Run("Success_WithValidExportPolicy", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3"},
 			CreationToken: "test-token",
 			FileProperties: &models.FileProperties{
 				ExportPolicy: &models.ExportPolicy{
@@ -15942,6 +15943,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 	t.Run("Success_WithMultipleExportRules", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3", "NFSV4"},
 			CreationToken: "test-token",
 			FileProperties: &models.FileProperties{
 				ExportPolicy: &models.ExportPolicy{
@@ -16036,6 +16038,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 	t.Run("Error_EmptyCreationToken", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3"},
 			CreationToken: "",
 			FileProperties: &models.FileProperties{
 				ExportPolicy: &models.ExportPolicy{
@@ -16058,6 +16061,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 	t.Run("ClearsBlockProperties", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3"},
 			CreationToken: "test-token",
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType: "linux",
@@ -16084,6 +16088,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 	t.Run("MultipleExportRules_OneWithInvalidClients", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3", "NFSV4"},
 			CreationToken: "test-token",
 			FileProperties: &models.FileProperties{
 				ExportPolicy: &models.ExportPolicy{
@@ -16112,6 +16117,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 	t.Run("MultipleExportRules_OneWithEmptyClients", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3", "NFSV4"},
 			CreationToken: "test-token",
 			FileProperties: &models.FileProperties{
 				ExportPolicy: &models.ExportPolicy{
@@ -16136,6 +16142,285 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.EqualError(tt, err, "allowed clients cannot be nil in export rules")
+	})
+
+	// NFSv3/NFSv4 Export Policy Validation Tests
+	t.Run("NFSv3Only_WithNFSv4True_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv3},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							NFSv4:          true, // Invalid: NFSv4 should be false for NFSv3-only volume
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.EqualError(tt, err, "Cannot specify NFSv4 export policy rules for non-NFSv4 volume")
+	})
+
+	t.Run("NFSv3Only_WithNFSv4False_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv3},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							NFSv4:          false, // Valid: NFSv4 is false for NFSv3-only volume
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NFSv3Only_WithNFSv4DefaultFalse_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv3},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							// NFSv4 not set, defaults to false - should pass
+							Index: 1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NFSv4Only_WithNFSv3True_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv4},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true, // Invalid: NFSv3 should be false for NFSv4-only volume
+							NFSv4:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.EqualError(tt, err, "Cannot specify NFSv3 export policy rules for non-NFSv3 volume")
+	})
+
+	t.Run("NFSv4Only_WithNFSv3False_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv4},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          false, // Valid: NFSv3 is false for NFSv4-only volume
+							NFSv4:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NFSv4Only_WithNFSv3DefaultFalse_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv4},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							// NFSv3 not set, defaults to false - should pass
+							NFSv4: true,
+							Index: 1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("BothNFSv3AndNFSv4_WithAnyValues_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							NFSv4:          true, // Both allowed when volume supports both
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("BothNFSv3AndNFSv4_WithNFSv3Only_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							NFSv4:          false, // Customer choice when both protocols supported
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("BothNFSv3AndNFSv4_WithNFSv4Only_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          false, // Customer choice when both protocols supported
+							NFSv4:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NFSv3Only_MultipleRules_OneWithNFSv4True_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv3},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							NFSv4:          false,
+							Index:          1,
+						},
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     models.ReadOnly,
+							NFSv3:          true,
+							NFSv4:          true, // Invalid: NFSv4 should be false
+							Index:          2,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.EqualError(tt, err, "Cannot specify NFSv4 export policy rules for non-NFSv4 volume")
+	})
+
+	t.Run("NFSv4Only_MultipleRules_OneWithNFSv3True_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			Protocols:     []string{utils.ProtocolNFSv4},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          false,
+							NFSv4:          true,
+							Index:          1,
+						},
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     models.ReadOnly,
+							NFSv3:          true, // Invalid: NFSv3 should be false
+							NFSv4:          true,
+							Index:          2,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.EqualError(tt, err, "Cannot specify NFSv3 export policy rules for non-NFSv3 volume")
 	})
 }
 
@@ -18078,6 +18363,384 @@ func TestValidateUpdateFileProperties_NilVolumeAttributes(t *testing.T) {
 	err := validateUpdateFileProperties(params, volume)
 	expectedError := errors.NewUserInputValidationErr("File properties is mandatory to update file properties on the volume")
 	assert.EqualError(t, err, expectedError.Error())
+}
+
+// NFSv3/NFSv4 Export Policy Validation Tests for Update Volume
+func TestValidateUpdateFileProperties_NFSv3NFSv4Validation(t *testing.T) {
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	t.Run("NFSv3Only_WithNFSv4True_ShouldFail", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv3},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          true,
+							NFSv4:          true, // Invalid: NFSv4 should be false for NFSv3-only volume
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.EqualError(tt, err, "Cannot specify NFSv4 export policy rules for non-NFSv4 volume")
+	})
+
+	t.Run("NFSv3Only_WithNFSv4False_ShouldPass", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv3},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          true,
+							NFSv4:          false, // Valid: NFSv4 is false for NFSv3-only volume
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NFSv3Only_WithNFSv4DefaultFalse_ShouldPass", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv3},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          true,
+							// NFSv4 not set, defaults to false - should pass
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NFSv4Only_WithNFSv3True_ShouldFail", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv4},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          true, // Invalid: NFSv3 should be false for NFSv4-only volume
+							NFSv4:          true,
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.EqualError(tt, err, "Cannot specify NFSv3 export policy rules for non-NFSv3 volume")
+	})
+
+	t.Run("NFSv4Only_WithNFSv3False_ShouldPass", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv4},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          false, // Valid: NFSv3 is false for NFSv4-only volume
+							NFSv4:          true,
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NFSv4Only_WithNFSv3DefaultFalse_ShouldPass", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv4},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							// NFSv3 not set, defaults to false - should pass
+							NFSv4: true,
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("BothNFSv3AndNFSv4_WithAnyValues_ShouldPass", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          true,
+							NFSv4:          true, // Both allowed when volume supports both
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("UpdateWithProtocolsInParams_ShouldUseParamsProtocols", func(tt *testing.T) {
+		// Volume has both protocols, but update params specify only NFSv3
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			Protocols: []string{utils.ProtocolNFSv3}, // Update to NFSv3-only
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          true,
+							NFSv4:          true, // Should fail because params specify NFSv3-only
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.EqualError(tt, err, "Cannot specify NFSv4 export policy rules for non-NFSv4 volume")
+	})
+
+	t.Run("UpdateWithoutProtocolsInParams_ShouldUseVolumeProtocols", func(tt *testing.T) {
+		// Volume has NFSv3-only, update params don't specify protocols
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv3},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			// Protocols not specified, should use volume's existing protocols
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          true,
+							NFSv4:          true, // Should fail because volume is NFSv3-only
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.EqualError(tt, err, "Cannot specify NFSv4 export policy rules for non-NFSv4 volume")
+	})
+
+	t.Run("NFSv3Only_MultipleRules_OneWithNFSv4True_ShouldFail", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv3},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          true,
+							NFSv4:          false,
+						},
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ro",
+							NFSv3:          true,
+							NFSv4:          true, // Invalid: NFSv4 should be false
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.EqualError(tt, err, "Cannot specify NFSv4 export policy rules for non-NFSv4 volume")
+	})
+
+	t.Run("NFSv4Only_MultipleRules_OneWithNFSv3True_ShouldFail", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv4},
+				FileProperties: &datamodel.FileProperties{},
+			},
+			Account: &datamodel.Account{
+				Name: "test-account",
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "rw",
+							NFSv3:          false,
+							NFSv4:          true,
+						},
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ro",
+							NFSv3:          true, // Invalid: NFSv3 should be false
+							NFSv4:          true,
+						},
+					},
+				},
+			},
+		}
+
+		err := validateUpdateFileProperties(params, volume)
+		assert.EqualError(tt, err, "Cannot specify NFSv3 export policy rules for non-NFSv3 volume")
+	})
 }
 
 func TestTriggerRefreshWorkflow(t *testing.T) {

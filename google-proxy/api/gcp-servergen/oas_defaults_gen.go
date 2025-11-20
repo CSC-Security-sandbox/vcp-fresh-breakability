@@ -325,14 +325,6 @@ func (s *SimpleExportPolicyRuleV1beta) setDefaults() {
 		s.HasRootAccess.SetTo(val)
 	}
 	{
-		val := bool(true)
-		s.Nfsv3.SetTo(val)
-	}
-	{
-		val := bool(false)
-		s.Nfsv4.SetTo(val)
-	}
-	{
 		val := bool(false)
 		s.Kerberos5ReadOnly.SetTo(val)
 	}

@@ -9010,14 +9010,12 @@ components:
             matching the 'allowedClients' specification.
           nullable: true
           example: true
-          default: true
         nfsv4:
           type: boolean
           description: If enabled (true) the rule allows NFSv4 protocol for clients
             matching the 'allowedClients' specification.
           nullable: true
           example: false
-          default: false
         kerberos5ReadOnly:
           type: boolean
           description: If enabled (true) the rule defines a read only access for clients

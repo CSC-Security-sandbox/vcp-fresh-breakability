@@ -35,24 +35,24 @@ import (
 )
 
 var (
-	numOfLvHAPairs                = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
-	volumeRefreshIntervalMinutes  = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
-	maxThinClonesPerPool          = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
-	thinCloneGASupport            = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
-	minQuotaInBytesVolume         = utils.MinQuotaInBytesVolumeForVolume
-	maxQuotaInBytesVolume         = utils.MaxQuotaInBytesVolumeForVolume
-	createVolume                  = _createVolume
-	revertVolume                  = _revertVolume
+	numOfLvHAPairs                 = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
+	volumeRefreshIntervalMinutes   = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
+	maxThinClonesPerPool           = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
+	thinCloneGASupport             = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+	minQuotaInBytesVolume          = utils.MinQuotaInBytesVolumeForVolume
+	maxQuotaInBytesVolume          = utils.MaxQuotaInBytesVolumeForVolume
+	createVolume                   = _createVolume
+	revertVolume                   = _revertVolume
 	splitCloneVolume               = _splitCloneVolume
-	validateCreateVolumeParams    = _validateCreateVolumeParams
+	validateCreateVolumeParams     = _validateCreateVolumeParams
 	validateSplitCloneVolumeParams = _validateSplitCloneVolumeParams
-	getIPAddressForVolume         = _getIPAddressForVolume
-	updateVolume                  = _updateVolume
-	deleteVolume                  = _deleteVolume
-	validateDeleteVolumeParams    = _validateDeleteVolumeParams
-	updateVolumeStatus            = _updateVolumeStatus
-	convertDatastoreVolumeToModel = _convertDatastoreVolumeToModel
-	minPrimeNumberConfigAllowed   = 7
+	getIPAddressForVolume          = _getIPAddressForVolume
+	updateVolume                   = _updateVolume
+	deleteVolume                   = _deleteVolume
+	validateDeleteVolumeParams     = _validateDeleteVolumeParams
+	updateVolumeStatus             = _updateVolumeStatus
+	convertDatastoreVolumeToModel  = _convertDatastoreVolumeToModel
+	minPrimeNumberConfigAllowed    = 7
 
 	envIsLocalEnv                                   = env.IsLocalEnv
 	cvpCreateClient                                 = cvp.CreateClient
@@ -724,15 +724,8 @@ func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage,
 	}
 
 	if params.FileProperties.ExportPolicy != nil && params.FileProperties.ExportPolicy.ExportRules != nil {
-		for _, rule := range params.FileProperties.ExportPolicy.ExportRules {
-			if rule.AllowedClients == "" {
-				return customerrors.NewUserInputValidationErr("allowed clients cannot be nil in export rules")
-			} else {
-				// Validate allowed clients
-				if err := validateAllowedClients(rule.AllowedClients); err != nil {
-					return customerrors.NewUserInputValidationErr(fmt.Sprintf("allowed clients validation failed: %v", err))
-				}
-			}
+		if err := validateExportRulesAgainstProtocols(params.FileProperties.ExportPolicy.ExportRules, params.Protocols); err != nil {
+			return err
 		}
 	}
 
@@ -2196,15 +2189,14 @@ func validateUpdateFileProperties(params *common.UpdateVolumeParams, volume *dat
 	}
 
 	if params.FileProperties.ExportPolicy != nil && params.FileProperties.ExportPolicy.ExportRules != nil {
-		for _, rule := range params.FileProperties.ExportPolicy.ExportRules {
-			if rule.AllowedClients == "" {
-				return customerrors.NewUserInputValidationErr("allowed clients cannot be nil in export rules")
-			} else {
-				// Validate allowed clients
-				if err := validateAllowedClients(rule.AllowedClients); err != nil {
-					return customerrors.NewUserInputValidationErr(fmt.Sprintf("allowed clients validation failed: %v", err))
-				}
-			}
+		// Use update params protocols if provided, otherwise use existing volume protocols
+		protocols := params.Protocols
+		if len(protocols) == 0 && volume.VolumeAttributes != nil {
+			protocols = volume.VolumeAttributes.Protocols
+		}
+
+		if err := validateExportRulesAgainstProtocols(params.FileProperties.ExportPolicy.ExportRules, protocols); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -2269,6 +2261,44 @@ func validateAllowedClients(allowedClients string) error {
 
 	if len(clientsMap) != len(clients) {
 		return customerrors.NewUserInputValidationErr("allowedClients must include unique IPv4 or IPv4 CIDR values.")
+	}
+	return nil
+}
+
+// validateExportRulesAgainstProtocols validates export rules against the supported NFS protocols.
+// It checks that allowed clients are valid and that NFSv3/NFSv4 export policy rules match volume protocols.
+func validateExportRulesAgainstProtocols(rules []*models.ExportRule, protocols []string) error {
+	// Determine if volume supports NFSv3 and/or NFSv4
+	hasNFSv3 := false
+	hasNFSv4 := false
+	for _, protocol := range protocols {
+		if protocol == utils.ProtocolNFSv3 {
+			hasNFSv3 = true
+		}
+		if protocol == utils.ProtocolNFSv4 {
+			hasNFSv4 = true
+		}
+	}
+
+	for _, rule := range rules {
+		if rule.AllowedClients == "" {
+			return customerrors.NewUserInputValidationErr("allowed clients cannot be nil in export rules")
+		}
+		// Validate allowed clients
+		if err := validateAllowedClients(rule.AllowedClients); err != nil {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("allowed clients validation failed: %v", err))
+		}
+
+		// Validate NFSv3/NFSv4 export policy rules match volume protocols
+		// For NFSv3-only volumes: exportPolicy.NFSv4 should always be false
+		if !hasNFSv4 && rule.NFSv4 {
+			return customerrors.NewUserInputValidationErr("Cannot specify NFSv4 export policy rules for non-NFSv4 volume")
+		}
+
+		// For NFSv4-only volumes: exportPolicy.NFSv3 should always be false
+		if !hasNFSv3 && rule.NFSv3 {
+			return customerrors.NewUserInputValidationErr("Cannot specify NFSv3 export policy rules for non-NFSv3 volume")
+		}
 	}
 	return nil
 }
