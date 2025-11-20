@@ -589,7 +589,7 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 	if bv.BackupVaultType != nil {
 		backupVaultType = *bv.BackupVaultType
 	}
-	if bv.Description != nil {
+	if bv.Description != nil && *bv.Description != "" {
 		description = bv.Description
 	}
 	if bv.SourceRegion != nil {

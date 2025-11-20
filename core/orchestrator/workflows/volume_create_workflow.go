@@ -730,6 +730,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
+			bucketDetails.VendorSubnetID = dbVolume.VolumeAttributes.VendorSubnetID
 			// Setting the 'satisfiesPzi' and 'satisfiesPzs' fields in bucketDetails by fetching the latest info from GCP
 			err = syncBucketDetailsWithGCP(ctx, bucketDetails)
 			if err != nil {
