@@ -332,10 +332,10 @@ func TestCreateJunctionPathForCifsShare(t *testing.T) {
 		})
 		t.Cleanup(cleanupHooks)
 
-		overrideProvider(t, newOntapProvider(ctx))
+	overrideProvider(t, newOntapProvider(ctx))
 
-		err := activity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath)
-		assert.NoError(t, err)
+	err := activity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath, []string{})
+	assert.NoError(t, err)
 
 		mockClient.AssertExpectations(t)
 		mockNAS.AssertExpectations(t)
@@ -345,23 +345,23 @@ func TestCreateJunctionPathForCifsShare(t *testing.T) {
 		mockProvider := vsa.NewMockProvider(t)
 		originalGetProvider := hyperscaler2.GetProviderByNode
 		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
-			return mockProvider, nil
-		}
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
 
-		err := activity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "provider is not OntapRestProvider")
+	err := activity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "provider is not OntapRestProvider")
 	})
 
 	t.Run("error_provider_lookup_fails", func(t *testing.T) {
 		originalGetProvider := hyperscaler2.GetProviderByNode
 		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
-			return nil, errors.New("provider error")
-		}
-		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		return nil, errors.New("provider error")
+	}
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
 
-		err := activity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath)
-		assert.Error(t, err)
+	err := activity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath, []string{})
+	assert.Error(t, err)
 	})
 }

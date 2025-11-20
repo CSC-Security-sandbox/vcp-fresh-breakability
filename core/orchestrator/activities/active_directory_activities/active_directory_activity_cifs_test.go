@@ -310,7 +310,7 @@ func TestCreateJunctionPathForCifsShare_Succeeds(t *testing.T) {
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
-	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction")
+	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction", []string{})
 
 	require.NoError(t, err)
 	mockNas.AssertExpectations(t)
@@ -327,10 +327,36 @@ func TestCreateJunctionPathForCifsShare_PropagatesError(t *testing.T) {
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
-	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction")
+	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction", []string{})
 
 	require.Error(t, err)
 	mockNas.AssertExpectations(t)
+}
+
+func TestCreateJunctionPathForCifsShare_WithSMBShareProperties(t *testing.T) {
+	ctx := context.Background()
+
+	mockClient := new(ontapRest.MockRESTClient)
+	mockNas := new(ontapRest.MockNASClient)
+	mockClient.On("NAS").Return(mockNas).Once()
+
+	expectedProperties := []string{"browsable", "encrypt_data", "oplocks"}
+	mockNas.On("CifsShareCreate", mock.MatchedBy(func(params *ontapRest.CifsShareCreateParams) bool {
+		assert.Equal(t, "svm", *params.SvmName)
+		assert.Equal(t, "/test_share", params.Path)
+		assert.Equal(t, "test_share", params.Name)
+		assert.ElementsMatch(t, expectedProperties, params.ShareProperties)
+		return true
+	})).Return(nil).Once()
+
+	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
+	defer cleanup()
+
+	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/test_share", expectedProperties)
+
+	require.NoError(t, err)
+	mockNas.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
 }
 
 func TestGetOntapRestProvider_GetProviderByNodeError(t *testing.T) {
@@ -706,7 +732,7 @@ func TestCreateJunctionPathForCifsShare_GetOntapRestProviderError(t *testing.T) 
 		return nil, errors.New("provider error")
 	}
 
-	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction")
+	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction", []string{})
 	require.Error(t, err)
 }
 
@@ -732,7 +758,7 @@ func TestCreateJunctionPathForCifsShare_CreateRESTClientError(t *testing.T) {
 	})
 	defer originalHooks()
 
-	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction")
+	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction", []string{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get ONTAP client")
 }

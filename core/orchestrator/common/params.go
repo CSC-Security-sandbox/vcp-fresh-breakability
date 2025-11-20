@@ -182,6 +182,7 @@ type UpdateVolumeParams struct {
 	SnapshotDirectoryAccess *bool
 	CacheParameters         *models.CacheParameters
 	IncrementalSpaceInBytes uint64
+	SMBShareSettings        []string
 }
 
 type CreateLunMapParams struct {

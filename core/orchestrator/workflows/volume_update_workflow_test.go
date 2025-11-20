@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -4183,5 +4186,84 @@ func Test_updateOrAddBlockDevice(t *testing.T) {
 		assert.Equal(t, "lun2", params.BlockDevices[0].Name)
 		assert.Equal(t, int64(1073741824), params.BlockDevices[0].SizeInBytes)
 		assert.Equal(t, []string{"hg1", "hg2"}, params.BlockDevices[0].HostGroups)
+	})
+}
+
+func TestUpdateSMBShareSettings_WorkflowIntegration(t *testing.T) {
+	t.Run("Calls UpdateSMBShareSettings activity for SMB volumes", func(tt *testing.T) {
+		// This test verifies that the volume update workflow correctly calls
+		// the UpdateSMBShareSettings activity when SMB share settings are provided
+
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+			Name:      "test-smb-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"CIFS"},
+				FileProperties: &datamodel.FileProperties{
+					JunctionPath:     "/test_share",
+					SMBShareSettings: []string{"browsable", "encrypt_data"},
+				},
+			},
+			Svm: &datamodel.Svm{
+				SvmDetails: &datamodel.SvmDetails{
+					ExternalUUID: "test-svm-uuid",
+				},
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			SMBShareSettings: []string{"browsable", "encrypt_data", "oplocks"},
+		}
+
+		node := &models.Node{}
+
+		// Mock CifsShareCollectionGet to return existing properties without oplocks
+		mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test_share", []string{"continuously_available"}).
+			Return([]string{"browsable", "encrypt_data"}, nil)
+
+		// Mock UpdateCIFSServer - this should be called with the new settings
+		mockProvider.On("UpdateCIFSServer", "test-svm-uuid", "test_share", []string{"browsable", "encrypt_data", "oplocks"}).
+			Return(nil)
+
+		// Call the UpdateSMBShareSettings activity directly to verify the workflow integration
+		activity := activities.VolumeUpdateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Returns error for volumes without FileProperties", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+			Name:      "test-volume-without-file-properties",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"CIFS"},
+				// No FileProperties
+			},
+		}
+
+		params := &common.UpdateVolumeParams{
+			SMBShareSettings: []string{"browsable"},
+		}
+
+		node := &models.Node{}
+
+		// Call the UpdateSMBShareSettings activity - should return error for missing FileProperties
+		activity := activities.VolumeUpdateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
 	})
 }

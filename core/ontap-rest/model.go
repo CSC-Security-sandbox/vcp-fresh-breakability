@@ -29,17 +29,8 @@ import (
 )
 
 const (
-	hybridUser                            = "hybrid_user"
-	authMethodCertificate                 = "certificate"
-	CIFSSharePropertyBrowsable            = "browsable"
-	CIFSSharePropertyChangenotify         = "changenotify"
-	CIFSSharePropertyEncryptData          = "encrypt_data"
-	CIFSSharePropertyOplocks              = "oplocks"
-	CIFSSharePropertyShowsnapshot         = "showsnapshot"
-	CIFSSharePropertyShowPreviousVersions = "show_previous_versions"
-	CIFSSharePropertyCA                   = "continuously_available"
-	CIFSAccessBasedEnumeration            = "access_based_enumeration"
-	CIFSSharePropertyNonBrowsable         = "non_browsable"
+	hybridUser            = "hybrid_user"
+	authMethodCertificate = "certificate"
 )
 
 var (
@@ -52,8 +43,8 @@ var (
 	objStoreAuthenticationType   = env.GetString("OBJECT_STORE_AUTH_TYPE", "GCP_SA")
 	objStoreSnapmirrorUse        = "data"
 	objStoreOwner                = "snapmirror"
-	defaultCIFSCAShareProperties = []string{CIFSSharePropertyOplocks, CIFSSharePropertyShowsnapshot}
-	defaultCIFSShareProperties   = []string{CIFSSharePropertyOplocks, CIFSSharePropertyChangenotify, CIFSSharePropertyShowsnapshot, CIFSSharePropertyShowPreviousVersions}
+	defaultCIFSCAShareProperties = []string{utils.CIFSSharePropertyOplocks, utils.CIFSSharePropertyShowsnapshot}
+	defaultCIFSShareProperties   = []string{utils.CIFSSharePropertyOplocks, utils.CIFSSharePropertyChangenotify, utils.CIFSSharePropertyShowsnapshot, utils.CIFSSharePropertyShowPreviousVersions}
 )
 
 // BaseParams contains all the common parameters that ONTAP REST supports
@@ -253,6 +244,25 @@ type CifsShareCreateParams struct {
 	SvmName         *string
 	Path            string
 	Name            string
+}
+
+type CifsShareModifyParams struct {
+	BaseParams
+	ShareProperties []string
+	SvmUUID         string
+	ShareName       string
+}
+
+type CifsShareCollectionGetParams struct {
+	BaseParams
+	Fields    []string
+	SvmUUID   string
+	ShareName string
+}
+
+// CifsShareGetResponse will represent the response from CifsShareGet endpoint
+type CifsShareGetResponse struct {
+	ShareProperties []string
 }
 
 // HostRecordGetParams is the input param struct for nameServicesClient.HostRecordGet
@@ -4319,6 +4329,31 @@ func cifsShareCreateParamsToONTAP(params *CifsShareCreateParams) *nas.CifsShareC
 	return otParams
 }
 
+func cifsShareModifyParamsToONTAP(params *CifsShareModifyParams) *nas.CifsShareModifyParams {
+	otParams := nas.NewCifsShareModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetName(params.ShareName)
+	otParams.SetSvmUUID(params.SvmUUID)
+
+	otParams.SetInfo(calculateShareProperties(params.ShareProperties))
+	return otParams
+}
+
+func cifsShareCollectionGetParamsToONTAP(params *CifsShareCollectionGetParams) *nas.CifsShareCollectionGetParams {
+	otParams := nas.NewCifsShareCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetSvmUUID(&params.SvmUUID)
+	otParams.SetName(&params.ShareName)
+	otParams.Fields = params.Fields
+	return otParams
+}
+
 func calculateShareProperties(shareProperties []string) *models.CifsShare {
 	cifsShareParams := &models.CifsShare{
 		ShowPreviousVersions:   nillable.ToPointer(false),
@@ -4333,21 +4368,21 @@ func calculateShareProperties(shareProperties []string) *models.CifsShare {
 	shareProperties = ExtendSharePropertiesWithDefaults(shareProperties)
 	for _, sp := range shareProperties {
 		switch sp {
-		case CIFSSharePropertyShowPreviousVersions:
+		case utils.CIFSSharePropertyShowPreviousVersions:
 			cifsShareParams.ShowPreviousVersions = nillable.ToPointer(true)
-		case CIFSSharePropertyBrowsable:
+		case utils.CIFSSharePropertyBrowsable:
 			cifsShareParams.Browsable = nillable.ToPointer(true)
-		case CIFSSharePropertyChangenotify:
+		case utils.CIFSSharePropertyChangenotify:
 			cifsShareParams.ChangeNotify = nillable.ToPointer(true)
-		case CIFSSharePropertyOplocks:
+		case utils.CIFSSharePropertyOplocks:
 			cifsShareParams.Oplocks = nillable.ToPointer(true)
-		case CIFSSharePropertyShowsnapshot:
+		case utils.CIFSSharePropertyShowsnapshot:
 			cifsShareParams.ShowSnapshot = nillable.ToPointer(true)
-		case CIFSSharePropertyCA:
+		case utils.CIFSSharePropertyCA:
 			cifsShareParams.ContinuouslyAvailable = nillable.ToPointer(true)
-		case CIFSSharePropertyEncryptData:
+		case utils.CIFSSharePropertyEncryptData:
 			cifsShareParams.Encryption = nillable.ToPointer(true)
-		case CIFSAccessBasedEnumeration:
+		case utils.CIFSAccessBasedEnumeration:
 			cifsShareParams.AccessBasedEnumeration = nillable.ToPointer(true)
 		}
 	}
@@ -4357,18 +4392,18 @@ func calculateShareProperties(shareProperties []string) *models.CifsShare {
 // ExtendSharePropertiesWithDefaults extends the share properties with default values
 func ExtendSharePropertiesWithDefaults(shareProperties []string) []string {
 	var extendedShareProperties []string
-	if slices.Contains(shareProperties, CIFSSharePropertyCA) {
+	if slices.Contains(shareProperties, utils.CIFSSharePropertyCA) {
 		extendedShareProperties = defaultCIFSCAShareProperties
 	} else {
 		extendedShareProperties = defaultCIFSShareProperties
 	}
 
-	if !slices.Contains(shareProperties, CIFSSharePropertyNonBrowsable) && !slices.Contains(shareProperties, CIFSSharePropertyBrowsable) {
-		shareProperties = append(shareProperties, CIFSSharePropertyBrowsable)
+	if !slices.Contains(shareProperties, utils.CIFSSharePropertyNonBrowsable) && !slices.Contains(shareProperties, utils.CIFSSharePropertyBrowsable) {
+		shareProperties = append(shareProperties, utils.CIFSSharePropertyBrowsable)
 	}
 
 	for _, shareProperty := range shareProperties {
-		if !slices.Contains(extendedShareProperties, shareProperty) && strings.ToLower(shareProperty) != CIFSSharePropertyNonBrowsable {
+		if !slices.Contains(extendedShareProperties, shareProperty) && strings.ToLower(shareProperty) != utils.CIFSSharePropertyNonBrowsable {
 			extendedShareProperties = append(extendedShareProperties, shareProperty)
 		}
 	}

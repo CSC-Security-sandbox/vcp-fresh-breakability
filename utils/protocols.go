@@ -18,6 +18,19 @@ const (
 	ontapISCSI = "iscsi"
 )
 
+const (
+	CIFSSharePropertyBrowsable            = "browsable"
+	CIFSSharePropertyChangenotify         = "changenotify"
+	CIFSSharePropertyEncryptData          = "encrypt_data"
+	CIFSSharePropertyOplocks              = "oplocks"
+	CIFSSharePropertyShowsnapshot         = "showsnapshot"
+	CIFSSharePropertyShowPreviousVersions = "show_previous_versions"
+	CIFSSharePropertyCA                   = "continuously_available"
+	CIFSAccessBasedEnumeration            = "access_based_enumeration"
+	CIFSSharePropertyNonBrowsable         = "non_browsable"
+	CIFSShareSmbSettingsUnspecified       = "unspecified"
+)
+
 // ProtocolType represents the category of a protocol
 type ProtocolType string
 

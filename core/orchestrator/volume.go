@@ -294,6 +294,9 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				JunctionPath: junctionPath,
 			}
 		}
+		if len(params.FileProperties.SMBShareSettings) > 0 {
+			volumeObj.VolumeAttributes.FileProperties.SMBShareSettings = params.FileProperties.SMBShareSettings
+		}
 	}
 
 	if params.SnapshotID != "" {
@@ -1434,6 +1437,9 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		if attributes.FileProperties.Fqdn != "" {
 			res.FileProperties.Fqdn = attributes.FileProperties.Fqdn
 		}
+		if attributes.FileProperties.SMBShareSettings != nil {
+			res.FileProperties.SMBShareSettings = attributes.FileProperties.SMBShareSettings
+		}
 	}
 
 	// Return AutoTieringPolicy if pool has auto tiering enabled.
@@ -1776,6 +1782,8 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		dbVolume.VolumeAttributes.SnapshotDirectory = *params.SnapshotDirectoryAccess
 	}
 
+	// @TODO: Implement CIFSAccessBasedEnumeration check when implementing security style
+
 	pool, err := se.GetPool(ctx, params.PoolID, dbVolume.AccountID)
 	if err != nil {
 		return nil, "", err
@@ -1823,6 +1831,13 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if params.SnapshotPolicy != nil {
 		params.SnapshotPolicy.Name = dbVolume.Name
+	}
+
+	if params.SMBShareSettings != nil {
+		if dbVolume.VolumeAttributes.FileProperties == nil {
+			dbVolume.VolumeAttributes.FileProperties = &datamodel.FileProperties{}
+		}
+		dbVolume.VolumeAttributes.FileProperties.SMBShareSettings = params.SMBShareSettings
 	}
 
 	dbVolume, err = updateVolumeStatus(ctx, se, dbVolume, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)

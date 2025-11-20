@@ -299,6 +299,12 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 			volume.VolumeAttributes.FileProperties.ExportPolicy = getUpdatedExportPolicy(params.FileProperties.ExportPolicy)
 		}
+		if volume.VolumeAttributes != nil && utils.IsSMBProtocols(volume.VolumeAttributes.Protocols) && len(params.SMBShareSettings) != 0 {
+			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateSMBShareSettings, &volume, &params, &node).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		}
 	}
 
 	if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {

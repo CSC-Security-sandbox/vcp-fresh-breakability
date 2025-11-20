@@ -24,6 +24,7 @@ var (
 	secureDDNS                   = env.GetBool("SECURE_DDNS", true)
 	isLDAPOverTLS                = env.GetBool("CVS_LDAP_OVER_TLS_ENABLED", false)
 	deleteCIFSServer             = _deleteCIFSServer
+	updateCIFSShareProperties    = _updateCIFSShareProperties
 )
 
 func (rc *OntapRestProvider) EnsureCIFSShare(params ConfigActiveDirectoryParams) (string, error) {
@@ -556,4 +557,43 @@ func (rc *OntapRestProvider) DeleteCIFSServer(externalSVMUUID, adUsername, adPas
 	}
 
 	return deleteCIFSServer(rc.Logger, client, externalSVMUUID, adUsername, adPassword)
+}
+
+func (rc *OntapRestProvider) UpdateCIFSServer(svmUUID, shareName string, shareProperties []string) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return fmt.Errorf("failed to get ONTAP client: %w", err)
+	}
+	return updateCIFSShareProperties(rc.Logger, client, svmUUID, shareName, shareProperties)
+}
+
+func _updateCIFSShareProperties(traceLog log.Logger, trc ontapRest.RESTClient, svmUUID, shareName string, shareProperties []string) error {
+	traceLog.Infof("Updating CIFS server %s, Share: %s, ShareProperties: %v", svmUUID, shareName, shareProperties)
+	err := trc.NAS().CifsShareModify(&ontapRest.CifsShareModifyParams{
+		SvmUUID:         svmUUID,
+		ShareName:       shareName,
+		ShareProperties: shareProperties})
+	if err != nil {
+		traceLog.Errorf("failed to update CIFS Server properties, error: %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (rc *OntapRestProvider) CifsShareCollectionGet(svmUUID, shareName string, fields []string) ([]string, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ONTAP client in CifsShareCollectionGet with error: %v", err)
+	}
+	rc.Logger.Infof("Getting CIFS ShareCollectionGet for svm: %s, Share: %s, fields: %v", svmUUID, shareName, fields)
+	share, err := client.NAS().CifsShareCollectionGet(&ontapRest.CifsShareCollectionGetParams{
+		SvmUUID:   svmUUID,
+		ShareName: shareName,
+		Fields:    fields,
+	})
+	if err != nil {
+		rc.Logger.Errorf("failed to Get CifsShareCollectionGet, error: %s", err.Error())
+		return nil, err
+	}
+	return share.ShareProperties, nil
 }

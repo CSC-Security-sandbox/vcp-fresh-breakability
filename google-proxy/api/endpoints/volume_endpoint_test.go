@@ -9771,3 +9771,552 @@ func TestContainsProtocolTypeV1beta(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSmbShareSettingsV2(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings []gcpgenserver.SMBSettingsV1betaItem
+		wantErr  bool
+		errMsg   string
+	}{
+		{
+			name:     "Valid settings with browsable",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{gcpgenserver.SMBSettingsV1betaItemBROWSABLE},
+			wantErr:  false,
+		},
+		{
+			name:     "Valid settings with non_browsable",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE},
+			wantErr:  false,
+		},
+		{
+			name:     "Valid settings with encrypt_data",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA},
+			wantErr:  false,
+		},
+		{
+			name:     "Valid settings with access_based_enumeration",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION},
+			wantErr:  false,
+		},
+		{
+			name: "Valid settings with multiple allowed values",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{
+				gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+				gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+				gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid - both browsable and non_browsable",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{
+				gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+				gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE,
+			},
+			wantErr: true,
+			errMsg:  "cannot have both browsable and non_browsable",
+		},
+		{
+			name: "Invalid - unsupported setting continuously_available",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{
+				gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+			},
+			wantErr: true,
+			errMsg:  "not supported for software based volumes",
+		},
+		{
+			name: "Invalid - unsupported setting show_snapshot",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{
+				gcpgenserver.SMBSettingsV1betaItemSHOWSNAPSHOT,
+			},
+			wantErr: true,
+			errMsg:  "not supported for software based volumes",
+		},
+		{
+			name:     "Empty settings list",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{},
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSmbShareSettingsV2(tt.settings)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateSmbVolumeParams(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     *gcpgenserver.VolumeUpdateV1beta
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "Valid - no unix permissions or export policy",
+			req: &gcpgenserver.VolumeUpdateV1beta{
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid - unix permissions set",
+			req: &gcpgenserver.VolumeUpdateV1beta{
+				UnixPermissions: gcpgenserver.NewOptNilString("0755"),
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+				},
+			},
+			wantErr: true,
+			errMsg:  "Unix permission is not allowed for SMB volumes",
+		},
+		{
+			name: "Invalid - export policy rules set",
+			req: &gcpgenserver.VolumeUpdateV1beta{
+				ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+					Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+						{AllowedClients: "0.0.0.0/0"},
+					},
+				}),
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+				},
+			},
+			wantErr: true,
+			errMsg:  "Cannot specify export policy rules for non-NFS volume",
+		},
+		{
+			name: "Invalid - continuously_available in settings",
+			req: &gcpgenserver.VolumeUpdateV1beta{
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+					gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+				},
+			},
+			wantErr: true,
+			errMsg:  "Cannot modify continuously_available smb share property",
+		},
+		{
+			name: "Valid - unix permissions unset",
+			req: &gcpgenserver.VolumeUpdateV1beta{
+				UnixPermissions: gcpgenserver.OptNilString{Set: true, Value: ""},
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - export policy set but empty rules",
+			req: &gcpgenserver.VolumeUpdateV1beta{
+				ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+					Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{},
+				}),
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Valid - nil request",
+			req:     nil,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSmbVolumeParams(tt.req)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetSMBShareSettings(t *testing.T) {
+	tests := []struct {
+		name     string
+		params   *gcpgenserver.VolumeUpdateV1beta
+		expected []string
+	}{
+		{
+			name: "Single setting",
+			params: &gcpgenserver.VolumeUpdateV1beta{
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+				},
+			},
+			expected: []string{"browsable"},
+		},
+		{
+			name: "Multiple settings",
+			params: &gcpgenserver.VolumeUpdateV1beta{
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+					gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+					gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION,
+				},
+			},
+			expected: []string{"browsable", "encrypt_data", "access_based_enumeration"},
+		},
+		{
+			name: "Duplicate settings - should deduplicate",
+			params: &gcpgenserver.VolumeUpdateV1beta{
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+					gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+					gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+				},
+			},
+			expected: []string{"browsable", "encrypt_data"},
+		},
+		{
+			name: "Non-browsable setting",
+			params: &gcpgenserver.VolumeUpdateV1beta{
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE,
+				},
+			},
+			expected: []string{"non_browsable"},
+		},
+		{
+			name: "Continuously available setting",
+			params: &gcpgenserver.VolumeUpdateV1beta{
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+				},
+			},
+			expected: []string{"continuously_available"},
+		},
+		{
+			name: "Empty settings",
+			params: &gcpgenserver.VolumeUpdateV1beta{
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{},
+			},
+			expected: []string{},
+		},
+		{
+			name:     "Nil params",
+			params:   nil,
+			expected: nil,
+		},
+		{
+			name: "Nil SMB settings",
+			params: &gcpgenserver.VolumeUpdateV1beta{
+				SmbSettings: nil,
+			},
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result []string
+			if tt.params == nil {
+				result = getSMBShareSettings(nil)
+			} else {
+				result = getSMBShareSettings(tt.params.SmbSettings)
+			}
+			if tt.expected == nil {
+				assert.Nil(t, result)
+			} else {
+				assert.NotNil(t, result)
+				assert.ElementsMatch(t, tt.expected, result)
+				// Verify deduplication by checking length
+				if len(result) > 0 {
+					assert.Equal(t, len(tt.expected), len(result))
+				}
+			}
+		})
+	}
+}
+
+func TestConvertToOntapShareSettingString(t *testing.T) {
+	tests := []struct {
+		name     string
+		setting  gcpgenserver.SMBSettingsV1betaItem
+		expected string
+	}{
+		{
+			name:     "NonBrowsable",
+			setting:  gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE,
+			expected: utils.CIFSSharePropertyNonBrowsable,
+		},
+		{
+			name:     "Unspecified",
+			setting:  gcpgenserver.SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED,
+			expected: utils.CIFSShareSmbSettingsUnspecified,
+		},
+		{
+			name:     "EncryptData",
+			setting:  gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+			expected: utils.CIFSSharePropertyEncryptData,
+		},
+		{
+			name:     "ChangeNotify",
+			setting:  gcpgenserver.SMBSettingsV1betaItemCHANGENOTIFY,
+			expected: utils.CIFSSharePropertyChangenotify,
+		},
+		{
+			name:     "Browsable",
+			setting:  gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+			expected: utils.CIFSSharePropertyBrowsable,
+		},
+		{
+			name:     "Oplocks",
+			setting:  gcpgenserver.SMBSettingsV1betaItemOPLOCKS,
+			expected: utils.CIFSSharePropertyOplocks,
+		},
+		{
+			name:     "ShowSnapshot",
+			setting:  gcpgenserver.SMBSettingsV1betaItemSHOWSNAPSHOT,
+			expected: utils.CIFSSharePropertyShowsnapshot,
+		},
+		{
+			name:     "ShowPreviousVersions",
+			setting:  gcpgenserver.SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS,
+			expected: utils.CIFSSharePropertyShowPreviousVersions,
+		},
+		{
+			name:     "AccessBasedEnumeration",
+			setting:  gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION,
+			expected: utils.CIFSAccessBasedEnumeration,
+		},
+		{
+			name:     "ContinuouslyAvailable",
+			setting:  gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+			expected: utils.CIFSSharePropertyCA,
+		},
+		{
+			name:     "DefaultCase",
+			setting:  gcpgenserver.SMBSettingsV1betaItem("UNKNOWN"),
+			expected: utils.CIFSShareSmbSettingsUnspecified,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertToOntapShareSettingString(tt.setting)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestConvertFromOntapShareSettingString(t *testing.T) {
+	tests := []struct {
+		name     string
+		setting  string
+		expected gcpgenserver.SMBSettingsV1betaItem
+	}{
+		{
+			name:     "NonBrowsable",
+			setting:  utils.CIFSSharePropertyNonBrowsable,
+			expected: gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE,
+		},
+		{
+			name:     "Unspecified",
+			setting:  utils.CIFSShareSmbSettingsUnspecified,
+			expected: gcpgenserver.SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED,
+		},
+		{
+			name:     "EncryptData",
+			setting:  utils.CIFSSharePropertyEncryptData,
+			expected: gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+		},
+		{
+			name:     "ChangeNotify",
+			setting:  utils.CIFSSharePropertyChangenotify,
+			expected: gcpgenserver.SMBSettingsV1betaItemCHANGENOTIFY,
+		},
+		{
+			name:     "Browsable",
+			setting:  utils.CIFSSharePropertyBrowsable,
+			expected: gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+		},
+		{
+			name:     "Oplocks",
+			setting:  utils.CIFSSharePropertyOplocks,
+			expected: gcpgenserver.SMBSettingsV1betaItemOPLOCKS,
+		},
+		{
+			name:     "ShowSnapshot",
+			setting:  utils.CIFSSharePropertyShowsnapshot,
+			expected: gcpgenserver.SMBSettingsV1betaItemSHOWSNAPSHOT,
+		},
+		{
+			name:     "ShowPreviousVersions",
+			setting:  utils.CIFSSharePropertyShowPreviousVersions,
+			expected: gcpgenserver.SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS,
+		},
+		{
+			name:     "AccessBasedEnumeration",
+			setting:  utils.CIFSAccessBasedEnumeration,
+			expected: gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION,
+		},
+		{
+			name:     "ContinuouslyAvailable",
+			setting:  utils.CIFSSharePropertyCA,
+			expected: gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+		},
+		{
+			name:     "DefaultCase",
+			setting:  "unknown_setting",
+			expected: gcpgenserver.SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertFromOntapShareSettingString(tt.setting)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestConvertSMBShareSettingToVCP(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings []string
+		expected []gcpgenserver.SMBSettingsV1betaItem
+	}{
+		{
+			name:     "SingleSetting",
+			settings: []string{utils.CIFSSharePropertyBrowsable},
+			expected: []gcpgenserver.SMBSettingsV1betaItem{
+				gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+			},
+		},
+		{
+			name: "MultipleSettings",
+			settings: []string{
+				utils.CIFSSharePropertyBrowsable,
+				utils.CIFSSharePropertyEncryptData,
+				utils.CIFSSharePropertyOplocks,
+			},
+			expected: []gcpgenserver.SMBSettingsV1betaItem{
+				gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+				gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+				gcpgenserver.SMBSettingsV1betaItemOPLOCKS,
+			},
+		},
+		{
+			name:     "EmptySettings",
+			settings: []string{},
+			expected: []gcpgenserver.SMBSettingsV1betaItem{},
+		},
+		{
+			name:     "WithUnknownSetting",
+			settings: []string{utils.CIFSSharePropertyBrowsable, "unknown"},
+			expected: []gcpgenserver.SMBSettingsV1betaItem{
+				gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+				gcpgenserver.SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertSMBShareSettingToVCP(tt.settings)
+			assert.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
+func TestConvertModelToVolumeV1beta_WithSMBSettings(t *testing.T) {
+	t.Run("Success_ConvertsSMBSettingsToResponse", func(tt *testing.T) {
+		volume := &models.Volume{
+			BaseModel:     models.BaseModel{UUID: "test-uuid"},
+			DisplayName:   "test-volume",
+			ProtocolTypes: []string{"SMB"},
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/test-share",
+				ExportPolicy: &models.ExportPolicy{
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "0.0.0.0/0",
+							AccessType:     "READ_WRITE",
+						},
+					},
+				},
+				SMBShareSettings: []string{
+					utils.CIFSSharePropertyBrowsable,
+					utils.CIFSSharePropertyEncryptData,
+					utils.CIFSSharePropertyOplocks,
+				},
+			},
+			LifeCycleState: "READY",
+			IPAddresses:    []string{"192.168.1.1"},
+		}
+
+		result := convertModelToVCPVolume(volume)
+		require.NotNil(tt, result, "convertModelToVCPVolume returned nil")
+		require.NotNil(tt, result.SmbSettings, "SmbSettings should be populated but got nil")
+		assert.Len(tt, result.SmbSettings, 3)
+		assert.ElementsMatch(tt, []gcpgenserver.SMBSettingsV1betaItem{
+			gcpgenserver.SMBSettingsV1betaItemBROWSABLE,
+			gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA,
+			gcpgenserver.SMBSettingsV1betaItemOPLOCKS,
+		}, result.SmbSettings)
+	})
+
+	t.Run("Success_EmptySMBSettings", func(tt *testing.T) {
+		volume := &models.Volume{
+			BaseModel:     models.BaseModel{UUID: "test-uuid"},
+			DisplayName:   "test-volume",
+			ProtocolTypes: []string{"SMB"},
+			FileProperties: &models.FileProperties{
+				JunctionPath: "/test-share",
+				ExportPolicy: &models.ExportPolicy{
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "0.0.0.0/0",
+							AccessType:     "READ_WRITE",
+						},
+					},
+				},
+				SMBShareSettings: []string{},
+			},
+			LifeCycleState: "READY",
+			IPAddresses:    []string{"192.168.1.1"},
+		}
+
+		result := convertModelToVCPVolume(volume)
+		assert.NotNil(tt, result)
+		// Empty SMB settings array should not populate SmbSettings field
+		assert.Nil(tt, result.SmbSettings)
+	})
+
+	t.Run("Success_NoFileProperties", func(tt *testing.T) {
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "test-uuid"},
+			DisplayName:    "test-volume",
+			ProtocolTypes:  []string{"ISCSI"},
+			LifeCycleState: "READY",
+			IPAddresses:    []string{"192.168.1.1"},
+		}
+
+		result := convertModelToVCPVolume(volume)
+		require.NotNil(tt, result, "convertModelToVCPVolume returned nil for volume without FileProperties")
+		// Volumes without FileProperties should not have SmbSettings
+		assert.Nil(tt, result.SmbSettings)
+	})
+}

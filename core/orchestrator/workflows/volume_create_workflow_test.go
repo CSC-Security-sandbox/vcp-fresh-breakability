@@ -1862,7 +1862,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_AssignsActiveDirectory
 
 	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&active_directory_activities.GetOrCreateCifsServiceResult{FQDN: "fqdn.example.com"}, nil).Once()
-	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
 
@@ -4691,7 +4691,7 @@ func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Success_AllSteps() {
 			FQDN:      expectedFQDN,
 			NeedsDDNS: false,
 		}, nil)
-	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
@@ -4740,7 +4740,7 @@ func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Success_WithDDNS() {
 			AdDomain:        "example.com",
 		}, nil)
 	s.env.OnActivity(adActivity.DdnsModify, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
@@ -4788,7 +4788,7 @@ func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Success_NoDDNSNeeded() {
 			CifsServiceName: "NETBIOS-1234",
 			AdDomain:        "example.com",
 		}, nil)
-	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
@@ -4831,6 +4831,61 @@ func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_SkipsNonFileVolume() {
 	err := s.env.GetWorkflowResult(&resultFQDN)
 	assert.NoError(s.T(), err)
 	assert.Empty(s.T(), resultFQDN)
+}
+
+func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_WithSMBShareProperties() {
+	mockStorage := database.NewMockStorage(s.T())
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	expectedSMBProperties := []string{"browsable", "encrypt_data", "oplocks"}
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath:     "/test_share",
+				SMBShareSettings: expectedSMBProperties,
+			},
+		},
+	}
+
+	node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+	expectedFQDN := "NETBIOS-1234.example.com"
+
+	// Mock activities
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:      expectedFQDN,
+			NeedsDDNS: false,
+		}, nil)
+
+	// Verify that CreateJunctionPathForCifsShare is called with the correct SMB properties
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare,
+		mock.Anything,
+		mock.Anything,
+		svmName,
+		"/test_share",
+		expectedSMBProperties).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, activeDirectory, svmName, externalSVMUUID)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Get result
+	var resultFQDN string
+	err := s.env.GetWorkflowResult(&resultFQDN)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), expectedFQDN, resultFQDN)
 }
 
 func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Error_CreateDNSFails() {
@@ -4975,7 +5030,7 @@ func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Error_CreateJunctionPathFai
 			FQDN:      expectedFQDN,
 			NeedsDDNS: false,
 		}, nil)
-	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
 		errors.New("junction path creation failed"))
 
 	// Execute workflow

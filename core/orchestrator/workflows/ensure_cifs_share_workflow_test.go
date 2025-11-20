@@ -66,7 +66,7 @@ func TestEnsureCIFSShareWorkflow(t *testing.T) {
 		env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(cifsResult, nil).Once()
 
 		// Mock CreateJunctionPathForCifsShare
-		env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 		env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, ad, svmName, externalSVMUUID)
 
@@ -108,7 +108,7 @@ func TestEnsureCIFSShareWorkflow(t *testing.T) {
 		env.OnActivity(adActivity.DdnsModify, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 		// Mock CreateJunctionPathForCifsShare
-		env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 		env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, ad, svmName, externalSVMUUID)
 
@@ -146,7 +146,7 @@ func TestEnsureCIFSShareWorkflow(t *testing.T) {
 		env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(cifsResult, nil).Once()
 
 		// Mock CreateJunctionPathForCifsShare
-		env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 		env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, ad, svmName, externalSVMUUID)
 
@@ -272,7 +272,7 @@ func TestEnsureCIFSShareWorkflow(t *testing.T) {
 		env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(cifsResult, nil).Once()
 
 		// Mock CreateJunctionPathForCifsShare to fail - allow retries
-		env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+		env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 
 		env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, ad, svmName, externalSVMUUID)
 

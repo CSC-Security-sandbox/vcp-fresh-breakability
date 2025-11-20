@@ -412,6 +412,13 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				ExportPolicyName: req.Volume.CreationToken.Value,
 			},
 		}
+		if req.Volume.SmbSettings != nil {
+			err := validateSmbShareSettingsV2(req.Volume.SmbSettings)
+			if err != nil {
+				return nil, err
+			}
+			param.FileProperties.SMBShareSettings = getSMBShareSettings(req.Volume.SmbSettings)
+		}
 	}
 
 	if req.Volume.ExportPolicy.IsSet() {
@@ -535,6 +542,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	if req.Volume.LargeVolumeConstituentCount.IsSet() {
 		param.LargeVolumeConstituentCount = req.Volume.LargeVolumeConstituentCount.Value
 	}
+
 	return param, nil
 }
 
@@ -919,7 +927,99 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 	}
 
+	if len(req.SmbSettings) > 0 {
+		if dbVolume != nil && !utils.IsSMBProtocols(dbVolume.ProtocolTypes) {
+			return nil, errors.NewUserInputValidationErr("Cannot change SMB share settings for NFS volume or Block Volume")
+		}
+		err := validateSmbShareSettingsV2(req.SmbSettings)
+		if err != nil {
+			return nil, err
+		}
+		err = validateSmbVolumeParams(req)
+		if err != nil {
+			return nil, err
+		}
+		param.SMBShareSettings = getSMBShareSettings(req.SmbSettings)
+	}
 	return param, nil
+}
+
+func getSMBShareSettings(params gcpgenserver.SMBSettingsV1beta) []string {
+	if params != nil {
+		shareSettings := make([]string, 0)
+		seenShareSettings := make(map[gcpgenserver.SMBSettingsV1betaItem]bool)
+		for _, setting := range params {
+			if !seenShareSettings[setting] {
+				seenShareSettings[setting] = true
+				shareSettings = append(shareSettings, convertToOntapShareSettingString(setting))
+			}
+		}
+		return shareSettings
+	}
+	return nil
+}
+
+func convertToOntapShareSettingString(setting gcpgenserver.SMBSettingsV1betaItem) string {
+	switch setting {
+	case gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE:
+		return utils.CIFSSharePropertyNonBrowsable
+	case gcpgenserver.SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED:
+		return utils.CIFSShareSmbSettingsUnspecified
+	case gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA:
+		return utils.CIFSSharePropertyEncryptData
+	case gcpgenserver.SMBSettingsV1betaItemCHANGENOTIFY:
+		return utils.CIFSSharePropertyChangenotify
+	case gcpgenserver.SMBSettingsV1betaItemBROWSABLE:
+		return utils.CIFSSharePropertyBrowsable
+	case gcpgenserver.SMBSettingsV1betaItemOPLOCKS:
+		return utils.CIFSSharePropertyOplocks
+	case gcpgenserver.SMBSettingsV1betaItemSHOWSNAPSHOT:
+		return utils.CIFSSharePropertyShowsnapshot
+	case gcpgenserver.SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS:
+		return utils.CIFSSharePropertyShowPreviousVersions
+	case gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION:
+		return utils.CIFSAccessBasedEnumeration
+	case gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE:
+		return utils.CIFSSharePropertyCA
+	default:
+		return utils.CIFSShareSmbSettingsUnspecified
+	}
+}
+
+func convertFromOntapShareSettingString(setting string) gcpgenserver.SMBSettingsV1betaItem {
+	switch setting {
+	case utils.CIFSSharePropertyNonBrowsable:
+		return gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE
+	case utils.CIFSShareSmbSettingsUnspecified:
+		return gcpgenserver.SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED
+	case utils.CIFSSharePropertyEncryptData:
+		return gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA
+	case utils.CIFSSharePropertyChangenotify:
+		return gcpgenserver.SMBSettingsV1betaItemCHANGENOTIFY
+	case utils.CIFSSharePropertyBrowsable:
+		return gcpgenserver.SMBSettingsV1betaItemBROWSABLE
+	case utils.CIFSSharePropertyOplocks:
+		return gcpgenserver.SMBSettingsV1betaItemOPLOCKS
+	case utils.CIFSSharePropertyShowsnapshot:
+		return gcpgenserver.SMBSettingsV1betaItemSHOWSNAPSHOT
+	case utils.CIFSSharePropertyShowPreviousVersions:
+		return gcpgenserver.SMBSettingsV1betaItemSHOWPREVIOUSVERSIONS
+	case utils.CIFSAccessBasedEnumeration:
+		return gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION
+	case utils.CIFSSharePropertyCA:
+		return gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE
+	default:
+		return gcpgenserver.SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED
+	}
+}
+
+func convertSMBShareSettingToVCP(settings []string) []gcpgenserver.SMBSettingsV1betaItem {
+	res := make([]gcpgenserver.SMBSettingsV1betaItem, 0)
+	for _, setting := range settings {
+		setting := convertFromOntapShareSettingString(setting)
+		res = append(res, setting)
+	}
+	return res
 }
 
 func validateVolumeQuotaSize(quota float64) error {
@@ -1133,6 +1233,9 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 					}
 				}
 			}
+		}
+		if len(volume.FileProperties.SMBShareSettings) > 0 {
+			res.SmbSettings = convertSMBShareSettingToVCP(volume.FileProperties.SMBShareSettings)
 		}
 	}
 
@@ -2622,4 +2725,43 @@ func containsProtocolTypeV1beta(protocols []gcpgenserver.ProtocolsV1beta, protoc
 		}
 	}
 	return false
+}
+
+func validateSmbShareSettingsV2(settings []gcpgenserver.SMBSettingsV1betaItem) error {
+	browsable := false
+	nonBrowsable := false
+	for _, setting := range settings {
+		if setting == gcpgenserver.SMBSettingsV1betaItemBROWSABLE {
+			browsable = true
+		}
+		if setting == gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE {
+			nonBrowsable = true
+		}
+		if !(setting == gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA ||
+			setting == gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION ||
+			setting == gcpgenserver.SMBSettingsV1betaItemBROWSABLE ||
+			setting == gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE) {
+			return errors.NewUserInputValidationErr(fmt.Sprintf("Provided SMB share setting '%s' is not supported for software based volumes", setting))
+		}
+	}
+	if nonBrowsable && browsable {
+		return errors.NewUserInputValidationErr("SMBShareSettings cannot have both browsable and non_browsable settings")
+	}
+	return nil
+}
+
+func validateSmbVolumeParams(req *gcpgenserver.VolumeUpdateV1beta) error {
+	if req == nil {
+		return nil
+	}
+	if req.UnixPermissions.IsSet() && req.UnixPermissions.Value != "" {
+		return errors.NewUserInputValidationErr("Setting Unix permission is not allowed for SMB volumes")
+	}
+	if req.ExportPolicy.IsSet() && len(req.ExportPolicy.Value.GetRules()) > 0 {
+		return errors.NewUserInputValidationErr("Cannot specify export policy rules for non-NFS volume")
+	}
+	if slices.Contains(req.SmbSettings, gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE) {
+		return errors.NewUserInputValidationErr("Cannot modify continuously_available smb share property")
+	}
+	return nil
 }

@@ -4023,3 +4023,575 @@ func TestGetUpdatedFieldsFromParams_WithIncrementalSpaceInBytesAndSnapReserveCha
 	assert.True(t, ok)
 	assert.Equal(t, expectedSize, sizeInBytes)
 }
+
+func TestUpdateSMBShareSettings_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable", "encrypt_data"},
+	}
+
+	node := &models.Node{}
+
+	// Mock CifsShareCollectionGet to return share without continuously_available
+	mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test-share", []string{"continuously_available"}).
+		Return([]string{"browsable"}, nil)
+
+	// Mock UpdateCIFSServer
+	mockProvider.On("UpdateCIFSServer", "test-svm-uuid", "test-share", []string{"browsable", "encrypt_data"}).
+		Return(nil)
+
+	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateSMBShareSettings_EmptyJunctionPath(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "",
+			},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable"},
+	}
+
+	node := &models.Node{}
+
+	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateSMBShareSettings_GetProviderError(t *testing.T) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	expectedError := errors.New("failed to get provider")
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, expectedError
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable"},
+	}
+
+	node := &models.Node{}
+
+	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	assert.Error(t, err)
+}
+
+func TestUpdateSMBShareSettings_ShareNotFound(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable"},
+	}
+
+	node := &models.Node{}
+
+	// Mock CifsShareCollectionGet to return not found error
+	notFoundErr := errors.NewNotFoundErr("share", nil)
+	mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test-share", []string{"continuously_available"}).
+		Return(nil, notFoundErr)
+
+	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	assert.NoError(t, err) // Should not return error when share not found
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateSMBShareSettings_ContinuouslyAvailableNotAllowed(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable", "encrypt_data"},
+	}
+
+	node := &models.Node{}
+
+	// Mock CifsShareCollectionGet to return share with continuously_available
+	mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test-share", []string{"continuously_available"}).
+		Return([]string{"browsable", "continuously_available"}, nil)
+
+	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "continuously_available share property cannot be modified")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateSMBShareSettings_NoChangesDetected(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable", "encrypt_data"},
+	}
+
+	node := &models.Node{}
+
+	// Mock CifsShareCollectionGet to return all requested settings already present
+	mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test-share", []string{"continuously_available"}).
+		Return([]string{"browsable", "encrypt_data", "oplocks"}, nil)
+
+	// UpdateCIFSServer should NOT be called since no changes are needed
+	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateSMBShareSettings_CifsShareCollectionGetError(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable"},
+	}
+
+	node := &models.Node{}
+
+	// Mock CifsShareCollectionGet to return generic error
+	expectedErr := errors.New("connection error")
+	mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test-share", []string{"continuously_available"}).
+		Return(nil, expectedErr)
+
+	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	assert.Error(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateSMBShareSettings_UpdateCIFSServerError(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable", "encrypt_data"},
+	}
+
+	node := &models.Node{}
+
+	// Mock CifsShareCollectionGet to succeed (returns only "browsable", so "encrypt_data" is new)
+	mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test-share", []string{"continuously_available"}).
+		Return([]string{"browsable"}, nil)
+
+	// Mock UpdateCIFSServer to fail
+	expectedErr := errors.New("update failed")
+	mockProvider.On("UpdateCIFSServer", "test-svm-uuid", "test-share", []string{"browsable", "encrypt_data"}).
+		Return(expectedErr)
+
+	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	assert.Error(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestGetUpdatedFieldsFromParams_WithSMBSettings(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"ENCRYPT_DATA", "BROWSABLE", "ACCESS_BASED_ENUMERATION"},
+	}
+
+	updatedFields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedFields)
+	assert.Contains(t, updatedFields, "volume_attributes")
+
+	volumeAttrs, ok := updatedFields["volume_attributes"].(*datamodel.VolumeAttributes)
+	assert.True(t, ok)
+	assert.NotNil(t, volumeAttrs.FileProperties)
+	assert.Equal(t, []string{"ENCRYPT_DATA", "BROWSABLE", "ACCESS_BASED_ENUMERATION"}, volumeAttrs.FileProperties.SMBShareSettings)
+}
+
+func TestGetUpdatedFieldsFromParams_WithSMBSettings_InitializesVolumeAttributes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:             "test-volume",
+		VolumeAttributes: nil, // Testing nil VolumeAttributes
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"ENCRYPT_DATA"},
+	}
+
+	updatedFields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedFields)
+	assert.Contains(t, updatedFields, "volume_attributes")
+
+	volumeAttrs, ok := updatedFields["volume_attributes"].(*datamodel.VolumeAttributes)
+	assert.True(t, ok)
+	assert.NotNil(t, volumeAttrs)
+	assert.NotNil(t, volumeAttrs.FileProperties)
+	assert.Equal(t, []string{"ENCRYPT_DATA"}, volumeAttrs.FileProperties.SMBShareSettings)
+}
+
+func TestUpdateSMBShareSettings_NilParams(t *testing.T) {
+	activity := VolumeUpdateActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+	}
+
+	// Test with nil params
+	err := activity.UpdateSMBShareSettings(ctx, volume, nil, &models.Node{})
+	assert.NoError(t, err) // Should return nil without error
+
+	// Test with nil volume
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable"},
+	}
+	err = activity.UpdateSMBShareSettings(ctx, nil, params, &models.Node{})
+	assert.NoError(t, err) // Should return nil without error
+}
+
+func TestGetUpdatedFieldsFromParams_WithSMBSettings_InitializesFileProperties(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: nil, // Testing nil FileProperties
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"BROWSABLE", "ACCESS_BASED_ENUMERATION"},
+	}
+
+	updatedFields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedFields)
+	assert.Contains(t, updatedFields, "volume_attributes")
+
+	volumeAttrs, ok := updatedFields["volume_attributes"].(*datamodel.VolumeAttributes)
+	assert.True(t, ok)
+	assert.NotNil(t, volumeAttrs.FileProperties)
+	assert.Equal(t, []string{"BROWSABLE", "ACCESS_BASED_ENUMERATION"}, volumeAttrs.FileProperties.SMBShareSettings)
+}
+
+func TestGetUpdatedFieldsFromParams_EmptySMBSettings(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath:     "/test-share",
+				SMBShareSettings: []string{"EXISTING_SETTING"},
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{}, // Empty SMB settings
+	}
+
+	updatedFields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedFields)
+
+	// When SMBShareSettings is empty, existing settings should be preserved
+	volumeAttrs, ok := updatedFields["volume_attributes"].(*datamodel.VolumeAttributes)
+	assert.True(t, ok)
+	assert.Equal(t, []string{"EXISTING_SETTING"}, volumeAttrs.FileProperties.SMBShareSettings)
+}
+
+func TestUpdateVolumeInDB_WithSMBSettings_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeUpdateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"ENCRYPT_DATA", "BROWSABLE"},
+	}
+
+	// Mock the UpdateVolumeFields call
+	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		// Verify that volume_attributes contains the SMB settings
+		volumeAttrs, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+		if !ok {
+			return false
+		}
+		if volumeAttrs.FileProperties == nil {
+			return false
+		}
+		expectedSettings := []string{"ENCRYPT_DATA", "BROWSABLE"}
+		if len(volumeAttrs.FileProperties.SMBShareSettings) != len(expectedSettings) {
+			return false
+		}
+		for i, setting := range expectedSettings {
+			if volumeAttrs.FileProperties.SMBShareSettings[i] != setting {
+				return false
+			}
+		}
+		return true
+	})).Return(nil)
+
+	err := activity.UpdateVolumeInDB(ctx, volume, params)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeInDB_WithSMBSettingsAndOtherFields_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeUpdateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:      "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test-share",
+			},
+		},
+	}
+
+	snapReserve := int64(10)
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes:     5368709120, // 5GB
+		Description:      "Updated volume",
+		SMBShareSettings: []string{"ACCESS_BASED_ENUMERATION"},
+		SnapReserve:      &snapReserve,
+	}
+
+	// Mock the UpdateVolumeFields call
+	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		// Verify that multiple fields are updated correctly
+		if fields["size_in_bytes"] != int64(5368709120) {
+			return false
+		}
+		if fields["description"] != "Updated volume" {
+			return false
+		}
+		volumeAttrs, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+		if !ok {
+			return false
+		}
+		if volumeAttrs.SnapReserve != int64(10) {
+			return false
+		}
+		if volumeAttrs.FileProperties == nil {
+			return false
+		}
+		expectedSettings := []string{"ACCESS_BASED_ENUMERATION"}
+		if len(volumeAttrs.FileProperties.SMBShareSettings) != len(expectedSettings) {
+			return false
+		}
+		for i, setting := range expectedSettings {
+			if volumeAttrs.FileProperties.SMBShareSettings[i] != setting {
+				return false
+			}
+		}
+		return fields["state"] == models.LifeCycleStateREADY
+	})).Return(nil)
+
+	err := activity.UpdateVolumeInDB(ctx, volume, params)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}

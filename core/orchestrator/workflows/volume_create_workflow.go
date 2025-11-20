@@ -359,7 +359,7 @@ func EnsureCIFSShareWorkflow(ctx workflow.Context, volume *datamodel.Volume, nod
 	// Step 4: Create junction path for CIFS share
 	if utils.IsSMBProtocols(volume.VolumeAttributes.Protocols) {
 		log.Info("Step 4: Creating junction path for CIFS share", "junctionPath", volume.VolumeAttributes.FileProperties.JunctionPath)
-		err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CreateJunctionPathForCifsShare, &node, svmName, volume.VolumeAttributes.FileProperties.JunctionPath).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CreateJunctionPathForCifsShare, &node, svmName, volume.VolumeAttributes.FileProperties.JunctionPath, volume.VolumeAttributes.FileProperties.SMBShareSettings).Get(ctx, nil)
 		if err != nil {
 			log.Error("Failed to create junction path for CIFS share", "error", err)
 			return "", ConvertToVSAError(err)

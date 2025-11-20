@@ -1020,3 +1020,155 @@ func TestEnsureCIFSShare_CreatesServiceWhenMissing(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, createCalled)
 }
+
+func TestUpdateCIFSServer_Success(t *testing.T) {
+	provider := newTestProvider()
+
+	mockREST := &ontapRest.MockRESTClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	mockNAS.On("CifsShareModify", mock.MatchedBy(func(params *ontapRest.CifsShareModifyParams) bool {
+		return params.SvmUUID == "test-svm-uuid" &&
+			params.ShareName == "test-share" &&
+			assert.ElementsMatch(t, []string{"browsable", "encrypt_data"}, params.ShareProperties)
+	})).Return(nil).Once()
+
+	withMockOntapClient(t, mockREST, nil, func() {
+		err := provider.UpdateCIFSServer("test-svm-uuid", "test-share", []string{"browsable", "encrypt_data"})
+		require.NoError(t, err)
+	})
+
+	mockNAS.AssertExpectations(t)
+	mockREST.AssertExpectations(t)
+}
+
+func TestUpdateCIFSServer_GetClientError(t *testing.T) {
+	provider := newTestProvider()
+
+	expectedErr := stdErrors.New("failed to get client")
+	withMockOntapClient(t, nil, expectedErr, func() {
+		err := provider.UpdateCIFSServer("test-svm-uuid", "test-share", []string{"browsable"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get ONTAP client")
+	})
+}
+
+func TestUpdateCIFSServer_ModifyError(t *testing.T) {
+	provider := newTestProvider()
+
+	mockREST := &ontapRest.MockRESTClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	expectedErr := stdErrors.New("modify failed")
+	mockNAS.On("CifsShareModify", mock.Anything).Return(expectedErr).Once()
+
+	withMockOntapClient(t, mockREST, nil, func() {
+		err := provider.UpdateCIFSServer("test-svm-uuid", "test-share", []string{"browsable"})
+		require.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+	})
+
+	mockNAS.AssertExpectations(t)
+	mockREST.AssertExpectations(t)
+}
+
+func TestCifsShareCollectionGet_Success(t *testing.T) {
+	provider := newTestProvider()
+
+	mockREST := &ontapRest.MockRESTClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	expectedResponse := &ontapRest.CifsShareGetResponse{
+		ShareProperties: []string{"browsable", "continuously_available", "encrypt_data"},
+	}
+
+	mockNAS.On("CifsShareCollectionGet", mock.MatchedBy(func(params *ontapRest.CifsShareCollectionGetParams) bool {
+		return params.SvmUUID == "test-svm-uuid" &&
+			params.ShareName == "test-share" &&
+			assert.ElementsMatch(t, []string{"continuously_available"}, params.Fields)
+	})).Return(expectedResponse, nil).Once()
+
+	withMockOntapClient(t, mockREST, nil, func() {
+		result, err := provider.CifsShareCollectionGet("test-svm-uuid", "test-share", []string{"continuously_available"})
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.ElementsMatch(t, []string{"browsable", "continuously_available", "encrypt_data"}, result)
+	})
+
+	mockNAS.AssertExpectations(t)
+	mockREST.AssertExpectations(t)
+}
+
+func TestCifsShareCollectionGet_GetClientError(t *testing.T) {
+	provider := newTestProvider()
+
+	expectedErr := stdErrors.New("failed to get client")
+	withMockOntapClient(t, nil, expectedErr, func() {
+		result, err := provider.CifsShareCollectionGet("test-svm-uuid", "test-share", []string{"browsable"})
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to get ONTAP client")
+	})
+}
+
+func TestCifsShareCollectionGet_GetError(t *testing.T) {
+	provider := newTestProvider()
+
+	mockREST := &ontapRest.MockRESTClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	expectedErr := stdErrors.New("share not found")
+	mockNAS.On("CifsShareCollectionGet", mock.Anything).Return(nil, expectedErr).Once()
+
+	withMockOntapClient(t, mockREST, nil, func() {
+		result, err := provider.CifsShareCollectionGet("test-svm-uuid", "non-existent-share", []string{"browsable"})
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, expectedErr, err)
+	})
+
+	mockNAS.AssertExpectations(t)
+	mockREST.AssertExpectations(t)
+}
+
+func Test_updateCIFSShareProperties_Success(t *testing.T) {
+	logger := log.NewLogger()
+
+	mockREST := &ontapRest.MockRESTClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	mockNAS.On("CifsShareModify", mock.MatchedBy(func(params *ontapRest.CifsShareModifyParams) bool {
+		return params.SvmUUID == "test-svm-uuid" &&
+			params.ShareName == "test-share" &&
+			assert.ElementsMatch(t, []string{"browsable", "oplocks"}, params.ShareProperties)
+	})).Return(nil).Once()
+
+	err := _updateCIFSShareProperties(logger, mockREST, "test-svm-uuid", "test-share", []string{"browsable", "oplocks"})
+	require.NoError(t, err)
+
+	mockNAS.AssertExpectations(t)
+	mockREST.AssertExpectations(t)
+}
+
+func Test_updateCIFSShareProperties_Error(t *testing.T) {
+	logger := log.NewLogger()
+
+	mockREST := &ontapRest.MockRESTClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	expectedErr := stdErrors.New("modification failed")
+	mockNAS.On("CifsShareModify", mock.Anything).Return(expectedErr).Once()
+
+	err := _updateCIFSShareProperties(logger, mockREST, "test-svm-uuid", "test-share", []string{"browsable"})
+	require.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+
+	mockNAS.AssertExpectations(t)
+	mockREST.AssertExpectations(t)
+}

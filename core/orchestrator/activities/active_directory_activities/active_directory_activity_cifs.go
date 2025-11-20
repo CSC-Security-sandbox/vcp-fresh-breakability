@@ -200,7 +200,7 @@ func (a ActiveDirectoryActivity) DdnsModify(ctx context.Context, node *models.No
 }
 
 // CreateJunctionPathForCifsShare creates a CIFS share for the junction path
-func (a ActiveDirectoryActivity) CreateJunctionPathForCifsShare(ctx context.Context, node *models.Node, svmName, junctionPath string) error {
+func (a ActiveDirectoryActivity) CreateJunctionPathForCifsShare(ctx context.Context, node *models.Node, svmName, junctionPath string, smbshareProperties []string) error {
 	logger := util.GetLogger(ctx)
 
 	ontapProvider, err := getOntapRestProvider(ctx, node)
@@ -213,11 +213,12 @@ func (a ActiveDirectoryActivity) CreateJunctionPathForCifsShare(ctx context.Cont
 		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get ONTAP client: %w", err))
 	}
 
-	logger.Info("Creating CIFS share", "svm", svmName, "junctionPath", junctionPath)
+	logger.Info("Creating CIFS share", "svm", svmName, "junctionPath", junctionPath, "shareProperties", smbshareProperties)
 	if err := client.NAS().CifsShareCreate(&ontapRest.CifsShareCreateParams{
-		SvmName: &svmName,
-		Path:    junctionPath,
-		Name:    junctionPath[1:],
+		SvmName:         &svmName,
+		Path:            junctionPath,
+		Name:            junctionPath[1:],
+		ShareProperties: smbshareProperties,
 	}); err != nil {
 		logger.Error("failed to create junction path for CIFS share", "error", err.Error())
 		return vsaerrors.WrapAsTemporalApplicationError(err)

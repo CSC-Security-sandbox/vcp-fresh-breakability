@@ -474,6 +474,64 @@ func (_c *MockNASClient_CifsShareACLDelete_Call) RunAndReturn(run func(*CifsShar
 	return _c
 }
 
+// CifsShareCollectionGet provides a mock function with given fields: params
+func (_m *MockNASClient) CifsShareCollectionGet(params *CifsShareCollectionGetParams) (*CifsShareGetResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsShareCollectionGet")
+	}
+
+	var r0 *CifsShareGetResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*CifsShareCollectionGetParams) (*CifsShareGetResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*CifsShareCollectionGetParams) *CifsShareGetResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*CifsShareGetResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*CifsShareCollectionGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNASClient_CifsShareCollectionGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsShareCollectionGet'
+type MockNASClient_CifsShareCollectionGet_Call struct {
+	*mock.Call
+}
+
+// CifsShareCollectionGet is a helper method to define mock.On call
+//   - params *CifsShareCollectionGetParams
+func (_e *MockNASClient_Expecter) CifsShareCollectionGet(params interface{}) *MockNASClient_CifsShareCollectionGet_Call {
+	return &MockNASClient_CifsShareCollectionGet_Call{Call: _e.mock.On("CifsShareCollectionGet", params)}
+}
+
+func (_c *MockNASClient_CifsShareCollectionGet_Call) Run(run func(params *CifsShareCollectionGetParams)) *MockNASClient_CifsShareCollectionGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsShareCollectionGetParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareCollectionGet_Call) Return(_a0 *CifsShareGetResponse, _a1 error) *MockNASClient_CifsShareCollectionGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareCollectionGet_Call) RunAndReturn(run func(*CifsShareCollectionGetParams) (*CifsShareGetResponse, error)) *MockNASClient_CifsShareCollectionGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CifsShareCreate provides a mock function with given fields: params
 func (_m *MockNASClient) CifsShareCreate(params *CifsShareCreateParams) error {
 	ret := _m.Called(params)
@@ -516,6 +574,52 @@ func (_c *MockNASClient_CifsShareCreate_Call) Return(_a0 error) *MockNASClient_C
 }
 
 func (_c *MockNASClient_CifsShareCreate_Call) RunAndReturn(run func(*CifsShareCreateParams) error) *MockNASClient_CifsShareCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CifsShareModify provides a mock function with given fields: params
+func (_m *MockNASClient) CifsShareModify(params *CifsShareModifyParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsShareModify")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*CifsShareModifyParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNASClient_CifsShareModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsShareModify'
+type MockNASClient_CifsShareModify_Call struct {
+	*mock.Call
+}
+
+// CifsShareModify is a helper method to define mock.On call
+//   - params *CifsShareModifyParams
+func (_e *MockNASClient_Expecter) CifsShareModify(params interface{}) *MockNASClient_CifsShareModify_Call {
+	return &MockNASClient_CifsShareModify_Call{Call: _e.mock.On("CifsShareModify", params)}
+}
+
+func (_c *MockNASClient_CifsShareModify_Call) Run(run func(params *CifsShareModifyParams)) *MockNASClient_CifsShareModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsShareModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareModify_Call) Return(_a0 error) *MockNASClient_CifsShareModify_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareModify_Call) RunAndReturn(run func(*CifsShareModifyParams) error) *MockNASClient_CifsShareModify_Call {
 	_c.Call.Return(run)
 	return _c
 }

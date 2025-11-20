@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/snapmirror"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -3397,39 +3398,39 @@ func TestCifsShareCreateParamsToONTAP(t *testing.T) {
 
 func TestCalculateShareProperties(t *testing.T) {
 	t.Run("WhenSharePropertyCA", func(tt *testing.T) {
-		shareProperties := []string{CIFSSharePropertyCA}
+		shareProperties := []string{utils.CIFSSharePropertyCA}
 		result := calculateShareProperties(shareProperties)
 		assert.NotNil(tt, result)
 		assert.True(tt, *result.ContinuouslyAvailable)
 	})
 
 	t.Run("WhenSharePropertyEncryptData", func(tt *testing.T) {
-		shareProperties := []string{CIFSSharePropertyEncryptData}
+		shareProperties := []string{utils.CIFSSharePropertyEncryptData}
 		result := calculateShareProperties(shareProperties)
 		assert.NotNil(tt, result)
 		assert.True(tt, *result.Encryption)
 	})
 
 	t.Run("WhenSharePropertyAccessBasedEnumeration", func(tt *testing.T) {
-		shareProperties := []string{CIFSAccessBasedEnumeration}
+		shareProperties := []string{utils.CIFSAccessBasedEnumeration}
 		result := calculateShareProperties(shareProperties)
 		assert.NotNil(tt, result)
 		assert.True(tt, *result.AccessBasedEnumeration)
 	})
 
 	t.Run("WhenSharePropertyCAInExtendShareProperties", func(tt *testing.T) {
-		shareProperties := []string{CIFSSharePropertyCA}
+		shareProperties := []string{utils.CIFSSharePropertyCA}
 		extended := ExtendSharePropertiesWithDefaults(shareProperties)
 		assert.NotNil(tt, extended)
-		assert.Contains(tt, extended, CIFSSharePropertyCA)
+		assert.Contains(tt, extended, utils.CIFSSharePropertyCA)
 	})
 
 	t.Run("WhenMultipleShareProperties", func(tt *testing.T) {
 		shareProperties := []string{
-			CIFSSharePropertyCA,
-			CIFSSharePropertyEncryptData,
-			CIFSAccessBasedEnumeration,
-			CIFSSharePropertyBrowsable,
+			utils.CIFSSharePropertyCA,
+			utils.CIFSSharePropertyEncryptData,
+			utils.CIFSAccessBasedEnumeration,
+			utils.CIFSSharePropertyBrowsable,
 		}
 		result := calculateShareProperties(shareProperties)
 		assert.NotNil(tt, result)

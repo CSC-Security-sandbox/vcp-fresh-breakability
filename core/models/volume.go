@@ -67,9 +67,10 @@ type BlockDevice struct {
 }
 
 type FileProperties struct {
-	JunctionPath string
-	ExportPolicy *ExportPolicy
-	Fqdn         string
+	JunctionPath     string
+	ExportPolicy     *ExportPolicy
+	Fqdn             string
+	SMBShareSettings []string
 }
 
 type ExportPolicy struct {

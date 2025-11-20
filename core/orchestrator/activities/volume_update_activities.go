@@ -2,6 +2,8 @@ package activities
 
 import (
 	"context"
+	"slices"
+
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -16,6 +18,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+const (
+	VolumeAttributesProperty = "volume_attributes"
 )
 
 var (
@@ -487,13 +493,25 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 		updates["auto_tiering_policy"] = autoTieringPolicy
 	}
 
-	updates["volume_attributes"] = volume.VolumeAttributes
+	updates[VolumeAttributesProperty] = volume.VolumeAttributes
 	if params.SnapReserve != nil {
 		if volume.VolumeAttributes == nil {
 			volume.VolumeAttributes = &datamodel.VolumeAttributes{}
 		}
 		volume.VolumeAttributes.SnapReserve = *params.SnapReserve
-		updates["volume_attributes"] = volume.VolumeAttributes
+		updates[VolumeAttributesProperty] = volume.VolumeAttributes
+	}
+
+	// Update SMB share settings if provided
+	if len(params.SMBShareSettings) > 0 {
+		if volume.VolumeAttributes == nil {
+			volume.VolumeAttributes = &datamodel.VolumeAttributes{}
+		}
+		if volume.VolumeAttributes.FileProperties == nil {
+			volume.VolumeAttributes.FileProperties = &datamodel.FileProperties{}
+		}
+		volume.VolumeAttributes.FileProperties.SMBShareSettings = params.SMBShareSettings
+		updates[VolumeAttributesProperty] = volume.VolumeAttributes
 	}
 
 	updates["state"] = models.LifeCycleStateREADY
@@ -755,4 +773,55 @@ func (a *VolumeUpdateActivity) UpdateExportPolicyRulesInONTAP(ctx context.Contex
 
 	logger.Debugf("Export policy updated successfully for volume %s in ONTAP", volume.Name)
 	return nil
+}
+
+func (a *VolumeUpdateActivity) UpdateSMBShareSettings(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	if volume == nil || params == nil {
+		logger.Warn("Parameters are empty")
+		return nil
+	}
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.FileProperties == nil {
+		logger.Errorf("Volume attributes or file properties are nil for volume %v when attempting to update SMB share settings", volume.Name)
+		return vsaerrors.WrapAsTemporalApplicationError(errors.NewNotFoundErr("share", nil))
+	}
+	junctionPath := volume.VolumeAttributes.FileProperties.JunctionPath
+	if len(junctionPath) < 1 {
+		logger.Errorf("SMB share for volume %v not found when attempting to update SMB share settings", volume.Name)
+		return vsaerrors.WrapAsTemporalApplicationError(errors.NewNotFoundErr("share", nil))
+	}
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	cifsShareName := junctionPath[1:]
+	var share []string
+	share, err = provider.CifsShareCollectionGet(volume.Svm.SvmDetails.ExternalUUID, cifsShareName, []string{utils.CIFSSharePropertyCA})
+	if err != nil {
+		if !errors.IsNotFoundErr(err) {
+			logger.Errorf("Failed to get SMB share %s for volume %v: %v", cifsShareName, volume.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		} else {
+			logger.Warnf("SMB share %s for volume %v not found when attempting to update SMB share settings", cifsShareName, volume.Name)
+			return nil
+		}
+	}
+	if slices.Contains(share, utils.CIFSSharePropertyCA) {
+		return vsaerrors.WrapAsTemporalApplicationError(errors.NewBadRequestErr("SMB continuously_available share property cannot be modified or added during update"))
+	}
+
+	// Check if all values in params.SMBShareSettings are already present in share
+	allPresent := true
+	for _, setting := range params.SMBShareSettings {
+		if !slices.Contains(share, setting) {
+			allPresent = false
+			break
+		}
+	}
+	if allPresent {
+		logger.Infof("No changes detected in SMB share settings for volume %v, skipping update", volume.Name)
+		return nil
+	}
+
+	return provider.UpdateCIFSServer(volume.Svm.SvmDetails.ExternalUUID, cifsShareName, params.SMBShareSettings)
 }

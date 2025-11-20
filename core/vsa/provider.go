@@ -138,6 +138,8 @@ type Provider interface {
 	EnsureCifsServerNamePostFix(client ontapRest.RESTClient, ad *ActiveDirectory, svmName string) error
 	CreateAndSetupCIFSServer(client ontapRest.RESTClient, ad *ActiveDirectory, externalSVMUUID, svmName string) (string, error)
 	IsDDNSEnabled(client ontapRest.RESTClient, svmUUID string) bool
+	CifsShareCollectionGet(svmUUID, shareName string, fields []string) ([]string, error)
+	UpdateCIFSServer(svmUUID, shareName string, shareProperties []string) error
 }
 
 type OntapRestProvider struct {

@@ -389,9 +389,10 @@ type BlockDevice struct {
 }
 
 type FileProperties struct {
-	ExportPolicy *ExportPolicy `json:"export_policy"`
-	JunctionPath string        `json:"junction_path"`
-	Fqdn         string        `json:"fqdn"`
+	ExportPolicy     *ExportPolicy `json:"export_policy"`
+	JunctionPath     string        `json:"junction_path"`
+	Fqdn             string        `json:"fqdn"`
+	SMBShareSettings []string      `json:"smb_share_settings"`
 }
 
 type ExportPolicy struct {

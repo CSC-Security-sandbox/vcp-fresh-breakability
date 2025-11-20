@@ -28,11 +28,14 @@ type NASClient interface { // generate:mock
 	CifsServiceDelete(params *CifsServiceDeleteParams) error
 	CifsServiceAddSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error
 	CifsShareCreate(params *CifsShareCreateParams) error
+	CifsShareModify(params *CifsShareModifyParams) error
+	CifsShareCollectionGet(params *CifsShareCollectionGetParams) (*CifsShareGetResponse, error)
 }
 
 var (
 	paginateExportPolicyCollectionGet = _paginate[[]*ExportPolicy]
 	cifsUserSeSecurityPrivilege       = nillable.ToPointer(utils.ActiveDirectorySeSecurityPrivilege)
+	convertCifsShareFromREST          = _convertCifsShareFromREST
 )
 
 type nasClient struct {
@@ -244,4 +247,55 @@ func (tnc *nasClient) CifsShareCreate(params *CifsShareCreateParams) error {
 		return err
 	}
 	return nil
+}
+
+// CifsShareCollectionGet retrieves a CIFS share
+func (tnc *nasClient) CifsShareCollectionGet(params *CifsShareCollectionGetParams) (*CifsShareGetResponse, error) {
+	response, err := tnc.api.CifsShareCollectionGet(cifsShareCollectionGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+	if (response.Payload != nil) && len(response.Payload.CifsShareResponseInlineRecords) < 1 {
+		return nil, errors.NewNotFoundErr("Share", &params.ShareName)
+	}
+	return convertCifsShareFromREST(response.Payload.CifsShareResponseInlineRecords[0]), nil
+}
+
+func _convertCifsShareFromREST(resp *models.CifsShare) *CifsShareGetResponse {
+	var shareProperties []string
+	cs := &CifsShareGetResponse{}
+
+	if resp.Browsable != nil && *resp.Browsable {
+		shareProperties = append(shareProperties, utils.CIFSSharePropertyBrowsable)
+	}
+	if resp.ContinuouslyAvailable != nil && *resp.ContinuouslyAvailable {
+		shareProperties = append(shareProperties, utils.CIFSSharePropertyCA)
+	}
+	if resp.ChangeNotify != nil && *resp.ChangeNotify {
+		shareProperties = append(shareProperties, utils.CIFSSharePropertyChangenotify)
+	}
+	if resp.Oplocks != nil && *resp.Oplocks {
+		shareProperties = append(shareProperties, utils.CIFSSharePropertyOplocks)
+	}
+	if resp.Encryption != nil && *resp.Encryption {
+		shareProperties = append(shareProperties, utils.CIFSSharePropertyEncryptData)
+	}
+	if resp.ShowPreviousVersions != nil && *resp.ShowPreviousVersions {
+		shareProperties = append(shareProperties, utils.CIFSSharePropertyShowPreviousVersions)
+	}
+	if resp.ShowSnapshot != nil && *resp.ShowSnapshot {
+		shareProperties = append(shareProperties, utils.CIFSSharePropertyShowsnapshot)
+	}
+	if resp.AccessBasedEnumeration != nil && *resp.AccessBasedEnumeration {
+		shareProperties = append(shareProperties, utils.CIFSAccessBasedEnumeration)
+	}
+	cs.ShareProperties = shareProperties
+
+	return cs
+}
+
+// CifsShareModify Modifies a CIFS share for the ONTAP API SVM
+func (tnc *nasClient) CifsShareModify(params *CifsShareModifyParams) error {
+	_, err := tnc.api.CifsShareModify(cifsShareModifyParamsToONTAP(params), nil)
+	return err
 }

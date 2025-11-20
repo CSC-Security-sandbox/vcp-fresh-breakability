@@ -173,7 +173,13 @@ func (m *mockNASClient) CifsShareACLDelete(params *nas.CifsShareACLDeleteParams,
 }
 
 func (m *mockNASClient) CifsShareCollectionGet(params *nas.CifsShareCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsShareCollectionGetOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	if resp, ok := m.response.(*nas.CifsShareCollectionGetOK); ok {
+		return resp, nil
+	}
+	return &nas.CifsShareCollectionGetOK{}, nil
 }
 
 func (m *mockNASClient) CifsShareCreate(params *nas.CifsShareCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsShareCreateCreated, error) {
@@ -192,7 +198,10 @@ func (m *mockNASClient) CifsShareGet(params *nas.CifsShareGetParams, authInfo ru
 }
 
 func (m *mockNASClient) CifsShareModify(params *nas.CifsShareModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsShareModifyOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &nas.CifsShareModifyOK{}, nil
 }
 
 func (m *mockNASClient) ClientLockDeleteCollection(params *nas.ClientLockDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.ClientLockDeleteCollectionOK, error) {
@@ -725,4 +734,231 @@ func TestCifsShareCreate(t *testing.T) {
 // Helper function to create a string pointer
 func stringPtr(s string) *string {
 	return &s
+}
+
+func TestCifsShareModify_Success(t *testing.T) {
+	t.Run("Successfully modifies CIFS share", func(tt *testing.T) {
+		mockAPI := &mockNASClient{}
+		client := &nasClient{api: mockAPI}
+
+		params := &CifsShareModifyParams{
+			SvmUUID:         "test-svm-uuid",
+			ShareName:       "test-share",
+			ShareProperties: []string{"browsable", "encrypt_data"},
+		}
+
+		err := client.CifsShareModify(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Returns error when API call fails", func(tt *testing.T) {
+		mockAPI := &mockNASClient{
+			err: errors.New("API error"),
+		}
+		client := &nasClient{api: mockAPI}
+
+		params := &CifsShareModifyParams{
+			SvmUUID:         "test-svm-uuid",
+			ShareName:       "test-share",
+			ShareProperties: []string{"browsable"},
+		}
+
+		err := client.CifsShareModify(params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "API error")
+	})
+}
+
+func TestCifsShareCollectionGet_Success(t *testing.T) {
+	t.Run("Successfully retrieves CIFS share with all properties", func(tt *testing.T) {
+		browsable := true
+		continuouslyAvailable := true
+		changeNotify := true
+		oplocks := true
+		encryption := true
+		showPreviousVersions := true
+		showSnapshot := true
+		accessBasedEnumeration := true
+
+		mockAPI := &mockNASClient{
+			response: &nas.CifsShareCollectionGetOK{
+				Payload: &models.CifsShareResponse{
+					CifsShareResponseInlineRecords: []*models.CifsShare{
+						{
+							Browsable:              &browsable,
+							ContinuouslyAvailable:  &continuouslyAvailable,
+							ChangeNotify:           &changeNotify,
+							Oplocks:                &oplocks,
+							Encryption:             &encryption,
+							ShowPreviousVersions:   &showPreviousVersions,
+							ShowSnapshot:           &showSnapshot,
+							AccessBasedEnumeration: &accessBasedEnumeration,
+						},
+					},
+				},
+			},
+		}
+		client := &nasClient{api: mockAPI}
+
+		params := &CifsShareCollectionGetParams{
+			SvmUUID:   "test-svm-uuid",
+			ShareName: "test-share",
+			Fields:    []string{"continuously_available"},
+		}
+
+		result, err := client.CifsShareCollectionGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Contains(tt, result.ShareProperties, "browsable")
+		assert.Contains(tt, result.ShareProperties, "continuously_available")
+		assert.Contains(tt, result.ShareProperties, "changenotify")
+		assert.Contains(tt, result.ShareProperties, "oplocks")
+		assert.Contains(tt, result.ShareProperties, "encrypt_data")
+		assert.Contains(tt, result.ShareProperties, "show_previous_versions")
+		assert.Contains(tt, result.ShareProperties, "showsnapshot")
+		assert.Contains(tt, result.ShareProperties, "access_based_enumeration")
+	})
+
+	t.Run("Successfully retrieves CIFS share with partial properties", func(tt *testing.T) {
+		browsable := true
+		encryption := false
+		continuouslyAvailable := false
+
+		mockAPI := &mockNASClient{
+			response: &nas.CifsShareCollectionGetOK{
+				Payload: &models.CifsShareResponse{
+					CifsShareResponseInlineRecords: []*models.CifsShare{
+						{
+							Browsable:             &browsable,
+							Encryption:            &encryption,
+							ContinuouslyAvailable: &continuouslyAvailable,
+						},
+					},
+				},
+			},
+		}
+		client := &nasClient{api: mockAPI}
+
+		params := &CifsShareCollectionGetParams{
+			SvmUUID:   "test-svm-uuid",
+			ShareName: "test-share",
+			Fields:    []string{"browsable"},
+		}
+
+		result, err := client.CifsShareCollectionGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Contains(tt, result.ShareProperties, "browsable")
+		assert.NotContains(tt, result.ShareProperties, "encrypt_data")
+		assert.NotContains(tt, result.ShareProperties, "continuously_available")
+	})
+
+	t.Run("Returns not found error when no records returned", func(tt *testing.T) {
+		mockAPI := &mockNASClient{
+			response: &nas.CifsShareCollectionGetOK{
+				Payload: &models.CifsShareResponse{
+					CifsShareResponseInlineRecords: []*models.CifsShare{},
+				},
+			},
+		}
+		client := &nasClient{api: mockAPI}
+
+		params := &CifsShareCollectionGetParams{
+			SvmUUID:   "test-svm-uuid",
+			ShareName: "non-existent-share",
+			Fields:    []string{"browsable"},
+		}
+
+		result, err := client.CifsShareCollectionGet(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("Returns error when API call fails", func(tt *testing.T) {
+		mockAPI := &mockNASClient{
+			err: errors.New("API error"),
+		}
+		client := &nasClient{api: mockAPI}
+
+		params := &CifsShareCollectionGetParams{
+			SvmUUID:   "test-svm-uuid",
+			ShareName: "test-share",
+			Fields:    []string{"browsable"},
+		}
+
+		result, err := client.CifsShareCollectionGet(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "API error")
+	})
+}
+
+func Test_convertCifsShareFromREST(t *testing.T) {
+	t.Run("Converts all properties correctly", func(tt *testing.T) {
+		browsable := true
+		continuouslyAvailable := true
+		changeNotify := true
+		oplocks := true
+		encryption := true
+		showPreviousVersions := true
+		showSnapshot := true
+		accessBasedEnumeration := true
+
+		share := &models.CifsShare{
+			Browsable:              &browsable,
+			ContinuouslyAvailable:  &continuouslyAvailable,
+			ChangeNotify:           &changeNotify,
+			Oplocks:                &oplocks,
+			Encryption:             &encryption,
+			ShowPreviousVersions:   &showPreviousVersions,
+			ShowSnapshot:           &showSnapshot,
+			AccessBasedEnumeration: &accessBasedEnumeration,
+		}
+
+		result := _convertCifsShareFromREST(share)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result.ShareProperties, 8)
+		assert.Contains(tt, result.ShareProperties, "browsable")
+		assert.Contains(tt, result.ShareProperties, "continuously_available")
+		assert.Contains(tt, result.ShareProperties, "changenotify")
+		assert.Contains(tt, result.ShareProperties, "oplocks")
+		assert.Contains(tt, result.ShareProperties, "encrypt_data")
+		assert.Contains(tt, result.ShareProperties, "show_previous_versions")
+		assert.Contains(tt, result.ShareProperties, "showsnapshot")
+		assert.Contains(tt, result.ShareProperties, "access_based_enumeration")
+	})
+
+	t.Run("Only includes true properties", func(tt *testing.T) {
+		browsable := true
+		encryption := false
+		continuouslyAvailable := false
+
+		share := &models.CifsShare{
+			Browsable:             &browsable,
+			Encryption:            &encryption,
+			ContinuouslyAvailable: &continuouslyAvailable,
+		}
+
+		result := _convertCifsShareFromREST(share)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result.ShareProperties, 1)
+		assert.Contains(tt, result.ShareProperties, "browsable")
+		assert.NotContains(tt, result.ShareProperties, "encrypt_data")
+		assert.NotContains(tt, result.ShareProperties, "continuously_available")
+	})
+
+	t.Run("Returns empty array when all properties are false or nil", func(tt *testing.T) {
+		browsable := false
+		encryption := false
+
+		share := &models.CifsShare{
+			Browsable:  &browsable,
+			Encryption: &encryption,
+		}
+
+		result := _convertCifsShareFromREST(share)
+		assert.NotNil(tt, result)
+		assert.Empty(tt, result.ShareProperties)
+	})
 }

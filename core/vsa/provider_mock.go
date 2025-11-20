@@ -365,6 +365,66 @@ func (_c *MockProvider_BreakVolumeReplication_Call) RunAndReturn(run func(*Volum
 	return _c
 }
 
+// CifsShareCollectionGet provides a mock function with given fields: svmUUID, shareName, fields
+func (_m *MockProvider) CifsShareCollectionGet(svmUUID string, shareName string, fields []string) ([]string, error) {
+	ret := _m.Called(svmUUID, shareName, fields)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsShareCollectionGet")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, []string) ([]string, error)); ok {
+		return rf(svmUUID, shareName, fields)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, []string) []string); ok {
+		r0 = rf(svmUUID, shareName, fields)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, []string) error); ok {
+		r1 = rf(svmUUID, shareName, fields)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CifsShareCollectionGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsShareCollectionGet'
+type MockProvider_CifsShareCollectionGet_Call struct {
+	*mock.Call
+}
+
+// CifsShareCollectionGet is a helper method to define mock.On call
+//   - svmUUID string
+//   - shareName string
+//   - fields []string
+func (_e *MockProvider_Expecter) CifsShareCollectionGet(svmUUID interface{}, shareName interface{}, fields interface{}) *MockProvider_CifsShareCollectionGet_Call {
+	return &MockProvider_CifsShareCollectionGet_Call{Call: _e.mock.On("CifsShareCollectionGet", svmUUID, shareName, fields)}
+}
+
+func (_c *MockProvider_CifsShareCollectionGet_Call) Run(run func(svmUUID string, shareName string, fields []string)) *MockProvider_CifsShareCollectionGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].([]string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CifsShareCollectionGet_Call) Return(_a0 []string, _a1 error) *MockProvider_CifsShareCollectionGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CifsShareCollectionGet_Call) RunAndReturn(run func(string, string, []string) ([]string, error)) *MockProvider_CifsShareCollectionGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CloudTargetCreate provides a mock function with given fields: name, containerName
 func (_m *MockProvider) CloudTargetCreate(name string, containerName string) (*ontap_rest.CloudTarget, error) {
 	ret := _m.Called(name, containerName)
@@ -5933,6 +5993,54 @@ func (_c *MockProvider_UpdateAggregate_Call) Return(_a0 error) *MockProvider_Upd
 }
 
 func (_c *MockProvider_UpdateAggregate_Call) RunAndReturn(run func(UpdateAggregateParams) error) *MockProvider_UpdateAggregate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCIFSServer provides a mock function with given fields: svmUUID, shareName, shareProperties
+func (_m *MockProvider) UpdateCIFSServer(svmUUID string, shareName string, shareProperties []string) error {
+	ret := _m.Called(svmUUID, shareName, shareProperties)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCIFSServer")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, []string) error); ok {
+		r0 = rf(svmUUID, shareName, shareProperties)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateCIFSServer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCIFSServer'
+type MockProvider_UpdateCIFSServer_Call struct {
+	*mock.Call
+}
+
+// UpdateCIFSServer is a helper method to define mock.On call
+//   - svmUUID string
+//   - shareName string
+//   - shareProperties []string
+func (_e *MockProvider_Expecter) UpdateCIFSServer(svmUUID interface{}, shareName interface{}, shareProperties interface{}) *MockProvider_UpdateCIFSServer_Call {
+	return &MockProvider_UpdateCIFSServer_Call{Call: _e.mock.On("UpdateCIFSServer", svmUUID, shareName, shareProperties)}
+}
+
+func (_c *MockProvider_UpdateCIFSServer_Call) Run(run func(svmUUID string, shareName string, shareProperties []string)) *MockProvider_UpdateCIFSServer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].([]string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateCIFSServer_Call) Return(_a0 error) *MockProvider_UpdateCIFSServer_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateCIFSServer_Call) RunAndReturn(run func(string, string, []string) error) *MockProvider_UpdateCIFSServer_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -125,6 +125,19 @@ func (m *MockNASClient) CifsShareCreate(params *ontapRest.CifsShareCreateParams)
 	return args.Error(0)
 }
 
+func (m *MockNASClient) CifsShareModify(params *ontapRest.CifsShareModifyParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsShareCollectionGet(params *ontapRest.CifsShareCollectionGetParams) (*ontapRest.CifsShareGetResponse, error) {
+	args := m.Called(params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*ontapRest.CifsShareGetResponse), args.Error(1)
+}
+
 // MockRESTClientForNAS extends the existing MockRESTClient to include NAS
 type MockRESTClientForNAS struct {
 	ontapRest.MockRESTClient
