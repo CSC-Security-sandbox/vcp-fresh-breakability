@@ -368,13 +368,13 @@ type BackupVaultParams struct {
 	Region                     string
 	AccountVendorID            string
 	BackupRetentionPolicy      BackupRetentionPolicyParams
+	BucketDetails              []*datamodel.BucketDetails
 	SourceBackupVault          *string
 	DestinationBackupVault     *string
 	BackupVaultType            *string
 	AccountName                string
 	CrossRegionBackupVaultName *string
 	BackupVaultIDs             []string
-	IsInternal                 bool
 }
 
 // BackupRetentionPolicyParams describes parameters supplied to BackupRetentionPolicy

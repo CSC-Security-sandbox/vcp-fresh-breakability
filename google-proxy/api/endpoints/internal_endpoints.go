@@ -4,11 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
@@ -18,8 +22,9 @@ import (
 )
 
 var (
-	jsonUnmarshal           = json.Unmarshal
-	convertLabelsMapToJSONB = utils.ConvertLabelsMapToJSONB
+	jsonUnmarshal                  = json.Unmarshal
+	convertLabelsMapToJSONB        = utils.ConvertLabelsMapToJSONB
+	_convertToBackupVaultDataModel = activities.ConvertToBackupVaultDataModel
 )
 
 func (h Handler) V1betaInternalDescribePool(ctx context.Context, params gcpgenserver.V1betaInternalDescribePoolParams) (gcpgenserver.V1betaInternalDescribePoolRes, error) {
@@ -591,64 +596,129 @@ func (h Handler) V1betaInternalUpdateVolume(ctx context.Context, req *gcpgenserv
 
 // V1betaInternalCreateBackupVault implements the internal endpoint for creating a BackupVault entry in the VCP database
 // This is used for cross-region operations where the BackupVault needs to be created in a remote region's database
+// It fetches the BackupVault from the local CVP using the provided backupVaultId (ExternalUUID) and creates an entry in VCP
 func (h Handler) V1betaInternalCreateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultInternalV1beta, params gcpgenserver.V1betaInternalCreateBackupVaultParams) (gcpgenserver.V1betaInternalCreateBackupVaultRes, error) {
 	logger := util.GetLogger(ctx)
 
-	if req == nil {
+	if req == nil || req.BackupVaultId == "" {
 		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
-			Code:    400,
-			Message: "Request body is required",
-		}, errors.New("request body is required")
-	}
-
-	if req.BackupVaultId == "" {
-		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
-			Code:    400,
-			Message: "BackupVaultId is required",
+			Code: 400,
 		}, errors.New("backupVaultId is required")
 	}
 
 	if params.ProjectNumber == "" {
 		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
-			Code:    400,
-			Message: "ProjectNumber is required",
+			Code: 400,
 		}, errors.New("projectNumber is required")
+	}
+
+	if params.LocationId == "" {
+		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
+			Code: 400,
+		}, errors.New("locationId is required")
 	}
 
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
-	logger.Info("Processing internal BackupVault creation request",
-		"backupVaultId", req.BackupVaultId,
-		"projectNumber", params.ProjectNumber)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, jwtToken)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
 
-	// Convert the API model to datamodel with validation
-	backupVault := convertBackupVaultInternalToDataModel(req)
-	if backupVault == nil {
+	listParams := &backup_vault.V1betaListBackupVaultsParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &correlationID,
+	}
+
+	vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(listParams)
+	if err != nil {
+		logger.Error("Failed to list backup vaults from CVP", "error", err.Error())
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
+				Code:    404,
+				Message: fmt.Sprintf("No backup vaults found in CVP for project %s in region %s", params.ProjectNumber, params.LocationId),
+			}, nil
+		}
+		return &gcpgenserver.V1betaInternalCreateBackupVaultInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("Failed to list backup vaults from CVP: %v", err),
+		}, err
+	}
+
+	if vaults == nil || vaults.Payload == nil || vaults.Payload.BackupVaults == nil {
+		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
+			Code:    404,
+			Message: "No backup vaults found in CVP",
+		}, nil
+	}
+
+	var cvpBackupVault *cvpmodels.BackupVaultV1beta
+	for _, bv := range vaults.Payload.BackupVaults {
+		if bv.BackupVaultType != nil && *bv.BackupVaultType != activities.CrossRegionBackupType {
+			continue
+		}
+		if bv.SourceBackupVault != nil && strings.HasSuffix(*bv.SourceBackupVault, req.ResourceId) {
+			cvpBackupVault = bv
+			logger.Info("Found Remote Backup Vault with matching resource IDs", "cvpResourceID", *bv.ResourceID, "reqResourceID", req.ResourceId)
+			break
+		}
+	}
+
+	if cvpBackupVault == nil {
+		logger.Error("BackupVault not found in CVP", "backupVaultId", req.BackupVaultId)
+		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
+			Code:    404,
+			Message: fmt.Sprintf("BackupVault %s not found in CVP", req.BackupVaultId),
+		}, nil
+	}
+
+	backupVault, err := _convertToBackupVaultDataModel(cvpBackupVault, params.LocationId)
+	if err != nil {
+		logger.Error("Failed to convert CVP BackupVault to datamodel", "error", err.Error())
 		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
 			Code:    400,
-			Message: "Failed to convert request to internal model",
-		}, errors.New("failed to convert request to internal model")
+			Message: "Failed to convert CVP BackupVault to internal model",
+		}, err
 	}
 
-	param := &commonparams.BackupVaultParams{
-		OwnerID:     params.ProjectNumber,
-		Region:      params.LocationId,
-		AccountName: params.ProjectNumber,
+	if len(req.BucketDetails) > 0 {
+		var bucketDetails datamodel.BucketDetailsArray
+		for _, bucket := range req.BucketDetails {
+			bucketDetail := &datamodel.BucketDetails{}
+			if bucket.BucketName.IsSet() {
+				bucketDetail.BucketName = bucket.BucketName.Value
+			}
+			if bucket.ServiceAccountName.IsSet() {
+				bucketDetail.ServiceAccountName = bucket.ServiceAccountName.Value
+			}
+			if bucket.VendorSubnetId.IsSet() {
+				bucketDetail.VendorSubnetID = bucket.VendorSubnetId.Value
+			}
+			if bucket.TenantProjectNumber.IsSet() {
+				bucketDetail.TenantProjectNumber = bucket.TenantProjectNumber.Value
+			}
+			bucketDetails = append(bucketDetails, bucketDetail)
+		}
+		backupVault.BucketDetails = bucketDetails
+		logger.Infof("Added %d bucket details from request to BackupVault", len(bucketDetails))
 	}
+
+	backupVault.ExternalUUID = &req.BackupVaultId                             // Setting External UUID CRB destination case
+	backupVault.CrossRegionBackupVaultName = cvpBackupVault.SourceBackupVault // overriding for CRB destination case
+
+	param := &commonparams.BackupVaultParams{
+		Region:  params.LocationId,
+		OwnerID: params.ProjectNumber,
+	}
+
 	createdBackupVault, err := h.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault, param)
 	if err != nil {
 		if errors.IsConflictErr(err) {
-			logger.Info("BackupVault already exists, returning existing", "uuid", req.BackupVaultId)
-			existingBackupVault, getErr := h.Orchestrator.GetBackupVaultByExternalUUIDAndOwnerID(ctx, req.BackupVaultId, params.ProjectNumber)
-			if getErr != nil {
-				logger.Error("Failed to retrieve existing BackupVault", "error", getErr.Error())
-				return &gcpgenserver.V1betaInternalCreateBackupVaultInternalServerError{
-					Code:    500,
-					Message: "Failed to retrieve existing BackupVault",
-				}, getErr
-			}
-			converted := convertDataModelToBackupVaultInternal(existingBackupVault)
-			return &converted, nil
+			logger.Info("BackupVault already exists in VCP", "uuid", backupVault.UUID)
+			return &gcpgenserver.V1betaInternalCreateBackupVaultConflict{
+				Code:    409,
+				Message: "BackupVault already exists in VCP",
+			}, nil
 		}
 		logger.Error("Failed to create BackupVault entry in VCP", "error", err.Error())
 		return &gcpgenserver.V1betaInternalCreateBackupVaultInternalServerError{
@@ -656,8 +726,12 @@ func (h Handler) V1betaInternalCreateBackupVault(ctx context.Context, req *gcpge
 			Message: "Failed to create BackupVault entry in VCP database",
 		}, err
 	}
+
 	result := convertDataModelToBackupVaultInternal(createdBackupVault)
-	logger.Info("Successfully created BackupVault", "backupVaultId", req.BackupVaultId)
+	logger.Info("Successfully created BackupVault in VCP",
+		"backupVaultId", createdBackupVault.UUID,
+		"backupVaultName", createdBackupVault.Name,
+		"backupRegion", params.LocationId)
 	return &result, nil
 }
 
@@ -683,104 +757,6 @@ func (h Handler) V1betaInternalDescribeBackupVault(ctx context.Context, params g
 	}
 	result := convertDataModelToBackupVaultInternal(backupVault)
 	return &result, nil
-}
-
-// convertBackupVaultInternalToDataModel converts the API BackupVaultInternal model to datamodel.BackupVault
-func convertBackupVaultInternalToDataModel(req *gcpgenserver.BackupVaultInternalV1beta) *datamodel.BackupVault {
-	var description, backupRegion, sourceRegion, crossRegionBackupVaultName, externalUuid *string
-
-	if req.Description.IsSet() {
-		description = &req.Description.Value
-	}
-	if req.BackupRegion.IsSet() {
-		backupRegion = &req.BackupRegion.Value
-	}
-	if req.SourceRegion.IsSet() {
-		sourceRegion = &req.SourceRegion.Value
-	}
-	if req.CrossRegionBackupVaultName.IsSet() {
-		crossRegionBackupVaultName = &req.CrossRegionBackupVaultName.Value
-	}
-	if req.ExternalUuid.IsSet() {
-		externalUuid = &req.ExternalUuid.Value
-	}
-
-	// Handle immutable attributes
-	var immutableAttrs *datamodel.ImmutableAttributes
-	if req.ImmutableAttributes.IsSet() {
-		attrs := req.ImmutableAttributes.Value
-		immutableAttrs = &datamodel.ImmutableAttributes{}
-
-		if attrs.BackupMinimumEnforcedRetentionDuration.IsSet() {
-			duration := int64(attrs.BackupMinimumEnforcedRetentionDuration.Value)
-			immutableAttrs.BackupMinimumEnforcedRetentionDuration = &duration
-		}
-		if attrs.IsDailyBackupImmutable.IsSet() {
-			immutableAttrs.IsDailyBackupImmutable = attrs.IsDailyBackupImmutable.Value
-		}
-		if attrs.IsWeeklyBackupImmutable.IsSet() {
-			immutableAttrs.IsWeeklyBackupImmutable = attrs.IsWeeklyBackupImmutable.Value
-		}
-		if attrs.IsMonthlyBackupImmutable.IsSet() {
-			immutableAttrs.IsMonthlyBackupImmutable = attrs.IsMonthlyBackupImmutable.Value
-		}
-		if attrs.IsAdhocBackupImmutable.IsSet() {
-			immutableAttrs.IsAdhocBackupImmutable = attrs.IsAdhocBackupImmutable.Value
-		}
-	}
-
-	// Handle bucket details
-	var bucketDetails datamodel.BucketDetailsArray
-	if len(req.BucketDetails) > 0 {
-		for _, bucket := range req.BucketDetails {
-			bucketDetail := &datamodel.BucketDetails{}
-			if bucket.BucketName.IsSet() {
-				bucketDetail.BucketName = bucket.BucketName.Value
-			}
-			if bucket.ServiceAccountName.IsSet() {
-				bucketDetail.ServiceAccountName = bucket.ServiceAccountName.Value
-			}
-			if bucket.VendorSubnetId.IsSet() {
-				bucketDetail.VendorSubnetID = bucket.VendorSubnetId.Value
-			}
-			if bucket.TenantProjectNumber.IsSet() {
-				bucketDetail.TenantProjectNumber = bucket.TenantProjectNumber.Value
-			}
-			bucketDetails = append(bucketDetails, bucketDetail)
-		}
-	}
-
-	var createdAt, updatedAt time.Time
-	if req.CreatedAt.IsSet() {
-		createdAt = req.CreatedAt.Value
-	} else {
-		createdAt = time.Now()
-	}
-	if req.UpdatedAt.IsSet() {
-		updatedAt = req.UpdatedAt.Value
-	} else {
-		updatedAt = time.Now()
-	}
-
-	return &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{
-			UUID:      req.BackupVaultId,
-			CreatedAt: createdAt,
-			UpdatedAt: updatedAt,
-		},
-		Name:                       req.ResourceId,
-		BackupRegionName:           backupRegion,
-		SourceRegionName:           sourceRegion,
-		LifeCycleState:             string(req.LifeCycleState),
-		LifeCycleStateDetails:      req.LifeCycleStateDetails.Value,
-		BackupVaultType:            string(req.BackupVaultType),
-		AccountVendorID:            req.AccountVendorId,
-		Description:                description,
-		ImmutableAttributes:        immutableAttrs,
-		CrossRegionBackupVaultName: crossRegionBackupVaultName,
-		ExternalUUID:               externalUuid,
-		BucketDetails:              bucketDetails,
-	}
 }
 
 // convertDataModelToBackupVaultInternal converts datamodel.BackupVault to API BackupVaultInternal model
@@ -1081,7 +1057,7 @@ func (h Handler) V1betaInternalDeleteBackupVault(ctx context.Context, params gcp
 		Region:        params.LocationId,
 	}
 
-	_, operationID, err := h.Orchestrator.DeleteBackupVaultInternal(ctx, param)
+	operationID, err := h.Orchestrator.DeleteBackupVaultInternal(ctx, param)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) {
 			logger.Error("Failed to delete backup vault - validation error", "error", err.Error())
@@ -1107,7 +1083,7 @@ func (h Handler) V1betaInternalDeleteBackupVault(ctx context.Context, params gcp
 	return &gcpgenserver.OperationV1beta{}, nil
 }
 
-func (h Handler) V1betaInternalUpdateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaInternalUpdateBackupVaultParams) (gcpgenserver.V1betaInternalUpdateBackupVaultRes, error) {
+func (h Handler) V1betaInternalUpdateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultInternalUpdateV1beta, params gcpgenserver.V1betaInternalUpdateBackupVaultParams) (gcpgenserver.V1betaInternalUpdateBackupVaultRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
@@ -1131,10 +1107,6 @@ func (h Handler) V1betaInternalUpdateBackupVault(ctx context.Context, req *gcpge
 			Message: "ProjectNumber is required",
 		}, errors.New("projectNumber is required")
 	}
-
-	logger.Info("Processing internal BackupVault update request",
-		"backupVaultId", params.BackupVaultId,
-		"projectNumber", params.ProjectNumber)
 
 	var description string
 	if req.Description.IsSet() {
@@ -1177,6 +1149,27 @@ func (h Handler) V1betaInternalUpdateBackupVault(ctx context.Context, req *gcpge
 			IsMonthlyBackupImmutable:               monthlyBackupImmutable,
 			IsAdhocBackupImmutable:                 adhocBackupImmutable,
 		},
+	}
+
+	if req.BucketDetails != nil {
+		var bucketDetails datamodel.BucketDetailsArray
+		for _, bucket := range req.BucketDetails {
+			bucketDetail := &datamodel.BucketDetails{}
+			if bucket.BucketName.IsSet() {
+				bucketDetail.BucketName = bucket.BucketName.Value
+			}
+			if bucket.ServiceAccountName.IsSet() {
+				bucketDetail.ServiceAccountName = bucket.ServiceAccountName.Value
+			}
+			if bucket.VendorSubnetId.IsSet() {
+				bucketDetail.VendorSubnetID = bucket.VendorSubnetId.Value
+			}
+			if bucket.TenantProjectNumber.IsSet() {
+				bucketDetail.TenantProjectNumber = bucket.TenantProjectNumber.Value
+			}
+			bucketDetails = append(bucketDetails, bucketDetail)
+		}
+		updateParams.BucketDetails = bucketDetails
 	}
 
 	updated, operationID, err := h.Orchestrator.UpdateBackupVaultInternal(ctx, updateParams)

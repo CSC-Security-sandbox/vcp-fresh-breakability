@@ -1536,40 +1536,31 @@ func (_c *MockOrchestratorFactory_DeleteBackupVault_Call) RunAndReturn(run func(
 }
 
 // DeleteBackupVaultInternal provides a mock function with given fields: ctx, params
-func (_m *MockOrchestratorFactory) DeleteBackupVaultInternal(ctx context.Context, params *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+func (_m *MockOrchestratorFactory) DeleteBackupVaultInternal(ctx context.Context, params *common.BackupVaultParams) (string, error) {
 	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteBackupVaultInternal")
 	}
 
-	var r0 *models.BackupVaultV1beta
-	var r1 string
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error)); ok {
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams) (string, error)); ok {
 		return rf(ctx, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams) *models.BackupVaultV1beta); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BackupVaultParams) string); ok {
 		r0 = rf(ctx, params)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*models.BackupVaultV1beta)
-		}
+		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *common.BackupVaultParams) string); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *common.BackupVaultParams) error); ok {
 		r1 = rf(ctx, params)
 	} else {
-		r1 = ret.Get(1).(string)
+		r1 = ret.Error(1)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, *common.BackupVaultParams) error); ok {
-		r2 = rf(ctx, params)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
+	return r0, r1
 }
 
 // MockOrchestratorFactory_DeleteBackupVaultInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBackupVaultInternal'
@@ -1591,12 +1582,12 @@ func (_c *MockOrchestratorFactory_DeleteBackupVaultInternal_Call) Run(run func(c
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_DeleteBackupVaultInternal_Call) Return(_a0 *models.BackupVaultV1beta, _a1 string, _a2 error) *MockOrchestratorFactory_DeleteBackupVaultInternal_Call {
-	_c.Call.Return(_a0, _a1, _a2)
+func (_c *MockOrchestratorFactory_DeleteBackupVaultInternal_Call) Return(_a0 string, _a1 error) *MockOrchestratorFactory_DeleteBackupVaultInternal_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_DeleteBackupVaultInternal_Call) RunAndReturn(run func(context.Context, *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error)) *MockOrchestratorFactory_DeleteBackupVaultInternal_Call {
+func (_c *MockOrchestratorFactory_DeleteBackupVaultInternal_Call) RunAndReturn(run func(context.Context, *common.BackupVaultParams) (string, error)) *MockOrchestratorFactory_DeleteBackupVaultInternal_Call {
 	_c.Call.Return(run)
 	return _c
 }

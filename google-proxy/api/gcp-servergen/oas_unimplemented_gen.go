@@ -670,7 +670,7 @@ func (UnimplementedHandler) V1betaInternalUpdateBackup(ctx context.Context, req 
 // allows updating backup vault properties in the remote region's VCP database.
 //
 // PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
-func (UnimplementedHandler) V1betaInternalUpdateBackupVault(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (r V1betaInternalUpdateBackupVaultRes, _ error) {
+func (UnimplementedHandler) V1betaInternalUpdateBackupVault(ctx context.Context, req *BackupVaultInternalUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (r V1betaInternalUpdateBackupVaultRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

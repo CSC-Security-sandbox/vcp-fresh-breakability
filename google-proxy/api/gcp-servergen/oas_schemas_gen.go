@@ -1984,6 +1984,96 @@ func (s *BackupVaultCreateV1beta) SetBackupRetentionPolicy(val OptBackupRetentio
 	s.BackupRetentionPolicy = val
 }
 
+// Ref: #/components/schemas/BackupVaultInternalUpdate_v1beta
+type BackupVaultInternalUpdateV1beta struct {
+	// Description of the resource.
+	Description           OptString                            `json:"description"`
+	BackupRetentionPolicy OptBackupRetentionPolicyUpdateV1beta `json:"backupRetentionPolicy"`
+	// Bucket details for the backup vault stored as JSONB array.
+	BucketDetails []BackupVaultInternalUpdateV1betaBucketDetailsItem `json:"bucketDetails"`
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupVaultInternalUpdateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetBackupRetentionPolicy returns the value of BackupRetentionPolicy.
+func (s *BackupVaultInternalUpdateV1beta) GetBackupRetentionPolicy() OptBackupRetentionPolicyUpdateV1beta {
+	return s.BackupRetentionPolicy
+}
+
+// GetBucketDetails returns the value of BucketDetails.
+func (s *BackupVaultInternalUpdateV1beta) GetBucketDetails() []BackupVaultInternalUpdateV1betaBucketDetailsItem {
+	return s.BucketDetails
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupVaultInternalUpdateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetBackupRetentionPolicy sets the value of BackupRetentionPolicy.
+func (s *BackupVaultInternalUpdateV1beta) SetBackupRetentionPolicy(val OptBackupRetentionPolicyUpdateV1beta) {
+	s.BackupRetentionPolicy = val
+}
+
+// SetBucketDetails sets the value of BucketDetails.
+func (s *BackupVaultInternalUpdateV1beta) SetBucketDetails(val []BackupVaultInternalUpdateV1betaBucketDetailsItem) {
+	s.BucketDetails = val
+}
+
+type BackupVaultInternalUpdateV1betaBucketDetailsItem struct {
+	// Name of the GCS bucket.
+	BucketName OptString `json:"bucketName"`
+	// Service account used for bucket access.
+	ServiceAccountName OptString `json:"serviceAccountName"`
+	// Vendor subnet ID.
+	VendorSubnetId OptString `json:"vendorSubnetId"`
+	// Tenant project number.
+	TenantProjectNumber OptString `json:"tenantProjectNumber"`
+}
+
+// GetBucketName returns the value of BucketName.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) GetBucketName() OptString {
+	return s.BucketName
+}
+
+// GetServiceAccountName returns the value of ServiceAccountName.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) GetServiceAccountName() OptString {
+	return s.ServiceAccountName
+}
+
+// GetVendorSubnetId returns the value of VendorSubnetId.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) GetVendorSubnetId() OptString {
+	return s.VendorSubnetId
+}
+
+// GetTenantProjectNumber returns the value of TenantProjectNumber.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) GetTenantProjectNumber() OptString {
+	return s.TenantProjectNumber
+}
+
+// SetBucketName sets the value of BucketName.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetBucketName(val OptString) {
+	s.BucketName = val
+}
+
+// SetServiceAccountName sets the value of ServiceAccountName.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetServiceAccountName(val OptString) {
+	s.ServiceAccountName = val
+}
+
+// SetVendorSubnetId sets the value of VendorSubnetId.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetVendorSubnetId(val OptString) {
+	s.VendorSubnetId = val
+}
+
+// SetTenantProjectNumber sets the value of TenantProjectNumber.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetTenantProjectNumber(val OptString) {
+	s.TenantProjectNumber = val
+}
+
 // Internal BackupVault model for cross-region operations.
 // Ref: #/components/schemas/BackupVaultInternal_v1beta
 type BackupVaultInternalV1beta struct {

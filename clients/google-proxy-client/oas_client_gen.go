@@ -468,7 +468,7 @@ type Invoker interface {
 	// allows updating backup vault properties in the remote region's VCP database.
 	//
 	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
-	V1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)
+	V1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultInternalUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)
 	// V1betaInternalUpdateVolume invokes v1beta_internalUpdateVolume operation.
 	//
 	// Update the volume (Internal endpoint).
@@ -8649,12 +8649,12 @@ func (c *Client) sendV1betaInternalUpdateBackup(ctx context.Context, request *Ba
 // allows updating backup vault properties in the remote region's VCP database.
 //
 // PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
-func (c *Client) V1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error) {
+func (c *Client) V1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultInternalUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error) {
 	res, err := c.sendV1betaInternalUpdateBackupVault(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendV1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (res V1betaInternalUpdateBackupVaultRes, err error) {
+func (c *Client) sendV1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultInternalUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (res V1betaInternalUpdateBackupVaultRes, err error) {
 	// Validate request before sending.
 	if err := func() error {
 		if err := request.Validate(); err != nil {

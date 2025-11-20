@@ -741,7 +741,13 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
-			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultDetailsInVCP, &dbVolume, &bucketDetails, backupVault).Get(ctx, nil)
+			var RemoteBV *datamodel.BackupVault
+			err = workflow.ExecuteActivity(ctx, volumeActivity.CheckOrCreateRemoteBackupVaultInVCP, &dbVolume, backupVault, &bucketDetails).Get(ctx, &RemoteBV)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+
+			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultWithBucketDetails, &dbVolume, backupVault, RemoteBV, &bucketDetails).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

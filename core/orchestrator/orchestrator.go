@@ -94,7 +94,7 @@ type OrchestratorFactory interface {
 	UpdateBackupVault(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error)
 	GetMultipleBackupVaults(ctx context.Context, backupVaultUUIDList []string) ([]*models.BackupVaultV1beta, error)
 	DeleteBackupVault(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error)
-	DeleteBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error)
+	DeleteBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (string, error)
 	UpdateBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error)
 	IsBackupVaultAttachedToVolume(ctx context.Context, backupVaultUUID string) (bool, error)
 	GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountName string) ([]string, error)

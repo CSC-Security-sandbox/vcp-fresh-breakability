@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
@@ -25,7 +24,6 @@ import (
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -668,8 +666,12 @@ func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, v
 	return CheckBackupVaultExistsInVCP(ctx, a.SE, volume, region)
 }
 
-func (a VolumeCreateActivity) UpdateRemoteBackupVaultDetailsInVCP(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails, backupVault *datamodel.BackupVault) error {
-	return UpdateRemoteBackupVaultDetailsInVCP(ctx, volume, bucketDetails, backupVault)
+func (a VolumeCreateActivity) CheckOrCreateRemoteBackupVaultInVCP(ctx context.Context, volume *datamodel.Volume, backupVault *datamodel.BackupVault, bucketDetails *common.BucketDetails) (*datamodel.BackupVault, error) {
+	return CheckOrCreateRemoteBackupVaultInVCP(ctx, volume, backupVault, bucketDetails)
+}
+
+func (a VolumeCreateActivity) UpdateRemoteBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, sourceBV *datamodel.BackupVault, remoteBV *datamodel.BackupVault, bucketDetails *common.BucketDetails) error {
+	return UpdateRemoteBackupVaultWithBucketDetails(ctx, volume, sourceBV, remoteBV, bucketDetails)
 }
 
 // SetupCrossRegionBackupPermissionsActivity sets up IAM permissions for cross-region backup vaults
@@ -848,65 +850,182 @@ func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context
 	return nil
 }
 
-func UpdateRemoteBackupVaultDetailsInVCP(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails, backupVault *datamodel.BackupVault) error {
+func UpdateRemoteBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, sourceBV *datamodel.BackupVault, remoteBV *datamodel.BackupVault, bucketDetails *common.BucketDetails) error {
+	logger := util.GetLogger(ctx)
+	newBucketDetail := &datamodel.BucketDetails{
+		BucketName:          bucketDetails.BucketName,
+		ServiceAccountName:  bucketDetails.ServiceAccountName,
+		TenantProjectNumber: bucketDetails.TenantProjectNumber,
+		VendorSubnetID:      volume.VolumeAttributes.VendorSubnetID,
+		SatisfiesPzi:        bucketDetails.SatisfiesPzi,
+		SatisfiesPzs:        bucketDetails.SatisfiesPzs,
+	}
+
+	if bucketDetailsExist(remoteBV.BucketDetails, newBucketDetail) {
+		logger.Info("Bucket details already exist in remote BackupVault",
+			"backupVaultID", remoteBV.UUID,
+			"bucketName", bucketDetails.BucketName)
+		return nil
+	}
+
+	projectNumber := volume.Account.Name
+	backupRegion := *remoteBV.BackupRegionName
+	basePath, jwtToken, err := common.GetRemoteRegionConfig(backupRegion, projectNumber)
+	if err != nil {
+		logger.Error("Failed to get remote region configuration", "region", backupRegion, "error", err.Error())
+		return err
+	}
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	updatedBucketDetails := append(sourceBV.BucketDetails, newBucketDetail)
+
+	internalBucketDetails := make([]googleproxyclient.BackupVaultInternalUpdateV1betaBucketDetailsItem, 0, len(updatedBucketDetails))
+	for _, bd := range updatedBucketDetails {
+		internalBucketDetails = append(internalBucketDetails, googleproxyclient.BackupVaultInternalUpdateV1betaBucketDetailsItem{
+			BucketName:          googleproxyclient.NewOptString(bd.BucketName),
+			ServiceAccountName:  googleproxyclient.NewOptString(bd.ServiceAccountName),
+			VendorSubnetId:      googleproxyclient.NewOptString(bd.VendorSubnetID),
+			TenantProjectNumber: googleproxyclient.NewOptString(bd.TenantProjectNumber),
+		})
+	}
+
+	updateRequest := &googleproxyclient.BackupVaultInternalUpdateV1beta{
+		BucketDetails: internalBucketDetails,
+	}
+
+	params := googleproxyclient.V1betaInternalUpdateBackupVaultParams{
+		BackupVaultId:  sourceBV.UUID,
+		ProjectNumber:  projectNumber,
+		LocationId:     backupRegion,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalUpdateBackupVault(ctx, updateRequest, params)
+	if err != nil {
+		logger.Error("Failed to call V1betaInternalUpdateBackupVault",
+			"error", err.Error(),
+			"backupVaultID", remoteBV.UUID,
+			"region", backupRegion)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to update remote backup vault: %v", err),
+			"InternalUpdateBackupVaultFailed",
+			err,
+		)
+	}
+
+	switch r := res.(type) {
+	case *googleproxyclient.OperationV1beta:
+		isDone := r.Done.Value
+		if !isDone {
+			logger.Warn("Update operation for remote backup vault not marked as done, but treating as synchronous",
+				"backupVaultID", remoteBV.UUID)
+		}
+		logger.Info("Successfully updated remote backup vault with new bucket details",
+			"backupVaultID", remoteBV.UUID,
+			"bucketName", bucketDetails.BucketName)
+		return nil
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultBadRequest:
+		logger.Error("Bad request updating remote backup vault", "message", r.Message, "backupVaultID", remoteBV.UUID)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Bad request updating remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultBadRequest",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultUnauthorized:
+		logger.Error("Unauthorized to update remote backup vault", "message", r.Message, "backupVaultID", remoteBV.UUID)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unauthorized to update remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultUnauthorized",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultForbidden:
+		logger.Error("Forbidden to update remote backup vault", "message", r.Message, "backupVaultID", remoteBV.UUID)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Forbidden to update remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultForbidden",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultNotFound:
+		logger.Error("Remote backup vault not found", "message", r.Message, "backupVaultID", remoteBV.UUID)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Remote backup vault not found: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultNotFound",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultConflict:
+		logger.Warn("Conflict updating remote backup vault", "message", r.Message, "backupVaultID", remoteBV.UUID)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Conflict updating remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultConflict",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultUnprocessableEntity:
+		logger.Error("Unprocessable entity updating remote backup vault", "message", r.Message, "backupVaultID", remoteBV.UUID)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unprocessable entity updating remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultUnprocessableEntity",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalUpdateBackupVaultInternalServerError:
+		logger.Error("Internal server error updating remote backup vault", "message", r.Message, "backupVaultID", remoteBV.UUID)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Internal server error updating remote backup vault: %s", r.Message),
+			"V1betaInternalUpdateBackupVaultInternalServerError",
+			errors.New(r.Message),
+		)
+
+	default:
+		logger.Error("Unexpected response type from internal update backup vault endpoint",
+			"type", fmt.Sprintf("%T", r),
+			"backupVaultID", remoteBV.UUID)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unexpected response type from internal update backup vault endpoint: %T", r),
+			"UnexpectedUpdateResponseType",
+			fmt.Errorf("unexpected response type: %T", r),
+		)
+	}
+}
+
+// CheckOrCreateRemoteBackupVaultInVCP checks if the remote BackupVault exists in VCP for cross-region backups
+func CheckOrCreateRemoteBackupVaultInVCP(ctx context.Context, volume *datamodel.Volume, backupVault *datamodel.BackupVault, bucketDetails *common.BucketDetails) (*datamodel.BackupVault, error) {
 	logger := util.GetLogger(ctx)
 	if backupVault.BackupVaultType != CrossRegionBackupType ||
 		backupVault.SourceRegionName == nil || backupVault.BackupRegionName == nil ||
 		*backupVault.SourceRegionName == *backupVault.BackupRegionName {
-		return nil
+		return nil, nil
 	}
-
-	if !utils.IsCrossRegionBackupEnabled() {
-		return errors.NewBadRequestErr(CrossRegionBackupVaultErrMsg)
-	}
-
-	// Ensure VendorSubnetID is set from volume if not already set in bucketDetails
-	if bucketDetails != nil && bucketDetails.VendorSubnetID == "" && volume.VolumeAttributes != nil {
-		bucketDetails.VendorSubnetID = volume.VolumeAttributes.VendorSubnetID
-	}
-
-	newBucketDetail := convertCommonToDatamodel(bucketDetails)
 	projectNumber := volume.Account.Name
 
-	remoteBackupVault, err := FetchRemoteBackupVaultFromVCP(ctx, backupVault.UUID, projectNumber, *backupVault.BackupRegionName)
+	remoteBV, err := FetchRemoteBackupVaultFromVCP(ctx, backupVault.UUID, projectNumber, *backupVault.BackupRegionName)
 	if err != nil && !errors.IsNotFoundErr(err) {
 		logger.Error("Failed to fetch remote BackupVault from VCP", "error", err.Error())
-		return err
+		return nil, err
 	}
 
-	if remoteBackupVault == nil {
-		logger.Info("BackupVault not found in remote VCP, fetching from CVP",
-			"region", *backupVault.BackupRegionName,
-			"backupVaultName", backupVault.Name)
-
-		remoteBackupVault, err = FetchRemoteBackupVaultFromCVP(ctx, backupVault.Name, projectNumber, *backupVault.BackupRegionName)
-		if err != nil {
-			logger.Error("Failed to fetch remote BackupVault from CVP", "error", err.Error())
-			return err
-		}
-
-		remoteBackupVault.AccountID = volume.AccountID
-		remoteBackupVault.ExternalUUID = &backupVault.UUID
+	if remoteBV != nil {
+		logger.Info("Remote BackupVault already exists in VCP", "backupVaultID", remoteBV.Name, "region", *backupVault.BackupRegionName)
+		return remoteBV, nil
 	}
 
-	if bucketDetailsExist(remoteBackupVault.BucketDetails, newBucketDetail) {
-		logger.Debug("Bucket details already exist in remote BackupVault, skipping update")
-		return nil
-	}
-
-	remoteBackupVault.BucketDetails = append(remoteBackupVault.BucketDetails, newBucketDetail)
-
-	_, err = createRemoteBackupVaultWithBucketDetailsInVCP(ctx, volume, remoteBackupVault, *backupVault.BackupRegionName)
+	bv, err := CreateRemoteBackupVaultInVCP(ctx, projectNumber, backupVault, bucketDetails)
 	if err != nil {
 		logger.Error("Failed to create remote BackupVault with bucket details", "error", err.Error())
-		return err
+		return nil, err
 	}
 
-	logger.Info("Successfully updated remote BackupVault with bucket details", "bucketName", newBucketDetail.BucketName)
-	return nil
+	return bv, nil
 }
 
-// FetchRemoteBackupVaultFromVCP calls the internal GET endpoint to fetch BackupVault from a remote region
+// FetchRemoteBackupVaultFromVCP calls the internal GET endpoint to fetch BackupVault from a backup region
 func FetchRemoteBackupVaultFromVCP(ctx context.Context, backupVaultUUID, projectNumber, region string) (*datamodel.BackupVault, error) {
 	logger := util.GetLogger(ctx)
 	basePath, jwtToken, err := common.GetRemoteRegionConfig(region, projectNumber)
@@ -942,74 +1061,14 @@ func FetchRemoteBackupVaultFromVCP(ctx context.Context, backupVaultUUID, project
 	return result, nil
 }
 
-// FetchRemoteBackupVaultFromCVP calls the CVP service to fetch BackupVault from a remote region
-func FetchRemoteBackupVaultFromCVP(ctx context.Context, backupVaultName, projectNumber, region string) (*datamodel.BackupVault, error) {
+// CreateRemoteBackupVaultInVCP calls the internal POST endpoint to create BackupVault in a backup region
+func CreateRemoteBackupVaultInVCP(ctx context.Context, projectNumber string, backupVault *datamodel.BackupVault, bucketDetails *common.BucketDetails) (*datamodel.BackupVault, error) {
 	logger := util.GetLogger(ctx)
-	cvpHostsJSON := env.GetString("CVP_HOSTS", "")
-	if cvpHostsJSON == "" {
-		return nil, errors.New("CVP_HOSTS environment variable not configured")
-	}
+	BackupRegion := *backupVault.BackupRegionName
 
-	var cvpHosts map[string]string
-	if err := json.Unmarshal([]byte(cvpHostsJSON), &cvpHosts); err != nil {
-		return nil, fmt.Errorf("failed to parse CVP_HOSTS JSON: %w", err)
-	}
-
-	cvpHost, exists := cvpHosts[region]
-	if !exists {
-		return nil, fmt.Errorf("no CVP host configured for region: %s in CVP_HOSTS", region)
-	}
-
-	originalHost := cvp.CVP_HOST
-	cvp.SetCVPHost(cvpHost)
-	defer cvp.SetCVPHost(originalHost)
-
-	cvpClient := CvpCreateClient(logger, utils.GetAuthTokenFromContext(ctx))
-	correlationID := utils.GetCoRelationIDFromContext(ctx)
-
-	vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(&backup_vault.V1betaListBackupVaultsParams{
-		LocationID:     region,
-		ProjectNumber:  projectNumber,
-		XCorrelationID: &correlationID,
-	})
+	basePath, jwtToken, err := common.GetRemoteRegionConfig(BackupRegion, projectNumber)
 	if err != nil {
-		logger.Error("Error fetching backup vaults from CVP", "error", err.Error(), "region", region)
-		if errors.IsNotFoundErr(err) {
-			return nil, errors.NewNotFoundErr("backup vault", &backupVaultName)
-		}
-		return nil, err
-	}
-
-	if vaults == nil || vaults.Payload == nil || vaults.Payload.BackupVaults == nil {
-		return nil, errors.NewNotFoundErr("backup vault", &backupVaultName)
-	}
-
-	for _, bv := range vaults.Payload.BackupVaults {
-		if bv.BackupVaultType == nil || *bv.BackupVaultType != CrossRegionBackupType {
-			continue
-		}
-		if bv.SourceBackupVault != nil && strings.HasSuffix(*bv.SourceBackupVault, "/"+backupVaultName) {
-			logger.Info("Found matching cross-region BackupVault in CVP",
-				"backupVaultID", bv.BackupVaultID,
-				"backupVaultName", bv.ResourceID,
-				"sourceBackupVault", *bv.SourceBackupVault,
-				"region", region)
-
-			return ConvertToBackupVaultDataModel(bv, region)
-		}
-	}
-
-	logger.Error("BackupVault not found in CVP", "backupVaultName", backupVaultName, "region", region)
-	return nil, errors.NewNotFoundErr("backup vault", &backupVaultName)
-}
-
-// createRemoteBackupVaultWithBucketDetailsInVCP calls the internal POST endpoint to create BackupVault in a remote region
-func createRemoteBackupVaultWithBucketDetailsInVCP(ctx context.Context, volume *datamodel.Volume, backupVault *datamodel.BackupVault, region string) (*datamodel.BackupVault, error) {
-	logger := util.GetLogger(ctx)
-
-	basePath, jwtToken, err := common.GetRemoteRegionConfig(region, volume.Account.Name)
-	if err != nil {
-		logger.Error("Failed to get remote region configuration", "region", region, "error", err.Error())
+		logger.Error("Failed to get remote region configuration", "region", BackupRegion, "error", err.Error())
 		return nil, err
 	}
 
@@ -1017,27 +1076,93 @@ func createRemoteBackupVaultWithBucketDetailsInVCP(ctx context.Context, volume *
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 
 	params := googleproxyclient.V1betaInternalCreateBackupVaultParams{
-		ProjectNumber:  volume.Account.Name,
-		LocationId:     region,
+		ProjectNumber:  projectNumber,
+		LocationId:     BackupRegion,
 		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	if backupVault.BucketDetails == nil {
+		backupVault.BucketDetails = append(backupVault.BucketDetails, &datamodel.BucketDetails{
+			BucketName:          bucketDetails.BucketName,
+			ServiceAccountName:  bucketDetails.ServiceAccountName,
+			TenantProjectNumber: bucketDetails.TenantProjectNumber,
+			VendorSubnetID:      bucketDetails.VendorSubnetID,
+			SatisfiesPzi:        bucketDetails.SatisfiesPzi,
+			SatisfiesPzs:        bucketDetails.SatisfiesPzs,
+		})
 	}
 
 	res, err := googleProxyClient.Invoker.V1betaInternalCreateBackupVault(ctx, convertDatamodelToInternalAPI(backupVault), params)
 	if err != nil {
-		logger.Error("Failed to create remote BackupVault with bucket details", "error", err.Error())
-		return nil, err
+		logger.Error("Failed to call V1betaInternalCreateBackupVault", "error", err.Error(), "region", BackupRegion, "backupVaultID", backupVault.UUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to create remote backup vault: %v", err),
+			"InternalCreateBackupVaultFailed",
+			err,
+		)
 	}
 
-	createdBackupVault, ok := res.(*googleproxyclient.BackupVaultInternalV1beta)
-	if !ok {
-		return nil, errors.New("unexpected response type from remote BackupVault creation")
-	}
+	switch r := res.(type) {
+	case *googleproxyclient.BackupVaultInternalV1beta:
+		result := convertInternalAPIToDatamodel(r)
+		return result, nil
 
-	result := convertInternalAPIToDatamodel(createdBackupVault)
-	logger.Info("Successfully created remote BackupVault with bucket details",
-		"backupVaultID", result.Name,
-		"bucketCount", len(result.BucketDetails))
-	return result, nil
+	case *googleproxyclient.V1betaInternalCreateBackupVaultBadRequest:
+		logger.Error("Bad request creating remote backup vault", "message", r.Message, "backupVaultID", backupVault.UUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Bad request creating remote backup vault: %s", r.Message),
+			"V1betaInternalCreateBackupVaultBadRequest",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupVaultUnauthorized:
+		logger.Error("Unauthorized to create remote backup vault", "message", r.Message, "backupVaultID", backupVault.UUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unauthorized to create remote backup vault: %s", r.Message),
+			"V1betaInternalCreateBackupVaultUnauthorized",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupVaultForbidden:
+		logger.Error("Forbidden to create remote backup vault", "message", r.Message, "backupVaultID", backupVault.UUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Forbidden to create remote backup vault: %s", r.Message),
+			"V1betaInternalCreateBackupVaultForbidden",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupVaultConflict:
+		logger.Warn("Conflict creating remote backup vault - may already exist", "message", r.Message, "backupVaultID", backupVault.UUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Conflict creating remote backup vault: %s", r.Message),
+			"V1betaInternalCreateBackupVaultConflict",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupVaultUnprocessableEntity:
+		logger.Error("Unprocessable entity creating remote backup vault", "message", r.Message, "backupVaultID", backupVault.UUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unprocessable entity creating remote backup vault: %s", r.Message),
+			"V1betaInternalCreateBackupVaultUnprocessableEntity",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupVaultInternalServerError:
+		logger.Error("Internal server error creating remote backup vault", "message", r.Message, "backupVaultID", backupVault.UUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Internal server error creating remote backup vault: %s", r.Message),
+			"V1betaInternalCreateBackupVaultInternalServerError",
+			errors.New(r.Message),
+		)
+
+	default:
+		logger.Error("Unexpected response type from internal create backup vault endpoint", "type", fmt.Sprintf("%T", r), "backupVaultID", backupVault.UUID)
+		return nil, temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unexpected response type from internal create backup vault endpoint: %T", r),
+			"UnexpectedCreateResponseType",
+			fmt.Errorf("unexpected response type: %T", r),
+		)
+	}
 }
 
 func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*hyperscalermodels.ServiceAccount, []*common.BucketDetails, error) {
@@ -1593,19 +1718,6 @@ func (a VolumeCreateActivity) ConfigureLdap(ctx context.Context, volume *datamod
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
-}
-
-// convertCommonToDatamodel converts common.BucketDetails to datamodel.BucketDetails
-func convertCommonToDatamodel(b *common.BucketDetails) *datamodel.BucketDetails {
-	if b == nil {
-		return nil
-	}
-	return &datamodel.BucketDetails{
-		BucketName:          b.BucketName,
-		ServiceAccountName:  b.ServiceAccountName,
-		VendorSubnetID:      b.VendorSubnetID,
-		TenantProjectNumber: b.TenantProjectNumber,
-	}
 }
 
 // convertInternalAPIToDatamodel converts internal API BackupVault to datamodel BackupVault

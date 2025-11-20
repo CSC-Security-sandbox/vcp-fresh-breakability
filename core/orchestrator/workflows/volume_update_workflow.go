@@ -321,7 +321,6 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		backupRegion := params.Region
 		if backupVault.BackupVaultType == activities.CrossRegionBackupType && *backupVault.BackupRegionName != "" {
 			backupRegion = *backupVault.BackupRegionName
-			log.Infof("BackupRegion set to: %+v", backupRegion)
 		}
 
 		tenancyDetails := &common.TenancyInfo{}
@@ -357,7 +356,15 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
-			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateRemoteBackupVaultDetailsInVCPForUpdate, &volume, &bucketDetails, backupVault).Get(ctx, nil)
+
+			var RemoteBV *datamodel.BackupVault
+			volumeActivity := &activities.VolumeCreateActivity{}
+			err = workflow.ExecuteActivity(ctx, volumeActivity.CheckOrCreateRemoteBackupVaultInVCP, &volume, backupVault, &bucketDetails).Get(ctx, &RemoteBV)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+
+			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultWithBucketDetails, &volume, backupVault, RemoteBV, &bucketDetails).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

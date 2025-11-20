@@ -5769,7 +5769,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BackupVaultUpdate_v1beta'
+              $ref: '#/components/schemas/BackupVaultInternalUpdate_v1beta'
         required: true
       responses:
         '202':
@@ -11990,6 +11990,37 @@ components:
           x-nullable: true
         backupRetentionPolicy:
           $ref: '#/components/schemas/BackupRetentionPolicyUpdate_v1beta'
+    BackupVaultInternalUpdate_v1beta:
+      title: BackupVaultInternalUpdate
+      type: object
+      properties:
+        description:
+          title: description
+          type: string
+          description: Description of the resource
+          x-nullable: true
+        backupRetentionPolicy:
+          $ref: '#/components/schemas/BackupRetentionPolicyUpdate_v1beta'
+        bucketDetails:
+          title: bucketDetails
+          type: array
+          description: Bucket details for the backup vault stored as JSONB array
+          x-nullable: true
+          items:
+            type: object
+            properties:
+              bucketName:
+                type: string
+                description: Name of the GCS bucket
+              serviceAccountName:
+                type: string
+                description: Service account used for bucket access
+              vendorSubnetId:
+                type: string
+                description: Vendor subnet ID
+              tenantProjectNumber:
+                type: string
+                description: Tenant project number
     BackupVaultUuidList_v1beta:
       title: BackupUuidList
       type: object

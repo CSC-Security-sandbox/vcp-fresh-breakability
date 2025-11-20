@@ -813,6 +813,56 @@ func (s *BackupVaultCreateV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BackupVaultInternalUpdateV1beta) SetFake() {
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupRetentionPolicy.SetFake()
+		}
+	}
+	{
+		{
+			s.BucketDetails = nil
+			for i := 0; i < 0; i++ {
+				var elem BackupVaultInternalUpdateV1betaBucketDetailsItem
+				{
+					elem.SetFake()
+				}
+				s.BucketDetails = append(s.BucketDetails, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetFake() {
+	{
+		{
+			s.BucketName.SetFake()
+		}
+	}
+	{
+		{
+			s.ServiceAccountName.SetFake()
+		}
+	}
+	{
+		{
+			s.VendorSubnetId.SetFake()
+		}
+	}
+	{
+		{
+			s.TenantProjectNumber.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *BackupVaultInternalV1beta) SetFake() {
 	{
 		{

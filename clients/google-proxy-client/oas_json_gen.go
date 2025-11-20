@@ -3763,6 +3763,228 @@ func (s *BackupVaultCreateV1beta) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *BackupVaultInternalUpdateV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultInternalUpdateV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.BackupRetentionPolicy.Set {
+			e.FieldStart("backupRetentionPolicy")
+			s.BackupRetentionPolicy.Encode(e)
+		}
+	}
+	{
+		if s.BucketDetails != nil {
+			e.FieldStart("bucketDetails")
+			e.ArrStart()
+			for _, elem := range s.BucketDetails {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupVaultInternalUpdateV1beta = [3]string{
+	0: "description",
+	1: "backupRetentionPolicy",
+	2: "bucketDetails",
+}
+
+// Decode decodes BackupVaultInternalUpdateV1beta from json.
+func (s *BackupVaultInternalUpdateV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultInternalUpdateV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "backupRetentionPolicy":
+			if err := func() error {
+				s.BackupRetentionPolicy.Reset()
+				if err := s.BackupRetentionPolicy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupRetentionPolicy\"")
+			}
+		case "bucketDetails":
+			if err := func() error {
+				s.BucketDetails = make([]BackupVaultInternalUpdateV1betaBucketDetailsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem BackupVaultInternalUpdateV1betaBucketDetailsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.BucketDetails = append(s.BucketDetails, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bucketDetails\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultInternalUpdateV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultInternalUpdateV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultInternalUpdateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) encodeFields(e *jx.Encoder) {
+	{
+		if s.BucketName.Set {
+			e.FieldStart("bucketName")
+			s.BucketName.Encode(e)
+		}
+	}
+	{
+		if s.ServiceAccountName.Set {
+			e.FieldStart("serviceAccountName")
+			s.ServiceAccountName.Encode(e)
+		}
+	}
+	{
+		if s.VendorSubnetId.Set {
+			e.FieldStart("vendorSubnetId")
+			s.VendorSubnetId.Encode(e)
+		}
+	}
+	{
+		if s.TenantProjectNumber.Set {
+			e.FieldStart("tenantProjectNumber")
+			s.TenantProjectNumber.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBackupVaultInternalUpdateV1betaBucketDetailsItem = [4]string{
+	0: "bucketName",
+	1: "serviceAccountName",
+	2: "vendorSubnetId",
+	3: "tenantProjectNumber",
+}
+
+// Decode decodes BackupVaultInternalUpdateV1betaBucketDetailsItem from json.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultInternalUpdateV1betaBucketDetailsItem to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "bucketName":
+			if err := func() error {
+				s.BucketName.Reset()
+				if err := s.BucketName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bucketName\"")
+			}
+		case "serviceAccountName":
+			if err := func() error {
+				s.ServiceAccountName.Reset()
+				if err := s.ServiceAccountName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"serviceAccountName\"")
+			}
+		case "vendorSubnetId":
+			if err := func() error {
+				s.VendorSubnetId.Reset()
+				if err := s.VendorSubnetId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vendorSubnetId\"")
+			}
+		case "tenantProjectNumber":
+			if err := func() error {
+				s.TenantProjectNumber.Reset()
+				if err := s.TenantProjectNumber.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tenantProjectNumber\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BackupVaultInternalUpdateV1betaBucketDetailsItem")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *BackupVaultInternalV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)

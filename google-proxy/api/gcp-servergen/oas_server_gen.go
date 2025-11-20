@@ -455,7 +455,7 @@ type Handler interface {
 	// allows updating backup vault properties in the remote region's VCP database.
 	//
 	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
-	V1betaInternalUpdateBackupVault(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)
+	V1betaInternalUpdateBackupVault(ctx context.Context, req *BackupVaultInternalUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)
 	// V1betaInternalUpdateVolume implements v1beta_internalUpdateVolume operation.
 	//
 	// Update the volume (Internal endpoint).

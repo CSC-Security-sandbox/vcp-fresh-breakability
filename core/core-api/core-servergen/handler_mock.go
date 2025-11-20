@@ -21,6 +21,64 @@ func (_m *MockHandler) EXPECT() *MockHandler_Expecter {
 	return &MockHandler_Expecter{mock: &_m.Mock}
 }
 
+// GetHealth provides a mock function with given fields: ctx
+func (_m *MockHandler) GetHealth(ctx context.Context) (GetHealthRes, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetHealth")
+	}
+
+	var r0 GetHealthRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (GetHealthRes, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) GetHealthRes); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(GetHealthRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_GetHealth_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHealth'
+type MockHandler_GetHealth_Call struct {
+	*mock.Call
+}
+
+// GetHealth is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockHandler_Expecter) GetHealth(ctx interface{}) *MockHandler_GetHealth_Call {
+	return &MockHandler_GetHealth_Call{Call: _e.mock.On("GetHealth", ctx)}
+}
+
+func (_c *MockHandler_GetHealth_Call) Run(run func(ctx context.Context)) *MockHandler_GetHealth_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockHandler_GetHealth_Call) Return(_a0 GetHealthRes, _a1 error) *MockHandler_GetHealth_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_GetHealth_Call) RunAndReturn(run func(context.Context) (GetHealthRes, error)) *MockHandler_GetHealth_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewError provides a mock function with given fields: ctx, err
 func (_m *MockHandler) NewError(ctx context.Context, err error) *ErrorStatusCode {
 	ret := _m.Called(ctx, err)

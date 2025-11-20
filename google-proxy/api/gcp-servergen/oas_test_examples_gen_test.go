@@ -449,6 +449,30 @@ func TestBackupVaultCreateV1beta_EncodeDecode(t *testing.T) {
 	var typ2 BackupVaultCreateV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestBackupVaultInternalUpdateV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupVaultInternalUpdateV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupVaultInternalUpdateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBackupVaultInternalUpdateV1betaBucketDetailsItem_EncodeDecode(t *testing.T) {
+	var typ BackupVaultInternalUpdateV1betaBucketDetailsItem
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupVaultInternalUpdateV1betaBucketDetailsItem
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestBackupVaultInternalV1beta_EncodeDecode(t *testing.T) {
 	var typ BackupVaultInternalV1beta
 	typ.SetFake()

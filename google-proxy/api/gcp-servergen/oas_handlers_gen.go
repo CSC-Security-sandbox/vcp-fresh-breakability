@@ -11135,7 +11135,7 @@ func (s *Server) handleV1betaInternalUpdateBackupVaultRequest(args [3]string, ar
 		}
 
 		type (
-			Request  = *BackupVaultUpdateV1beta
+			Request  = *BackupVaultInternalUpdateV1beta
 			Params   = V1betaInternalUpdateBackupVaultParams
 			Response = V1betaInternalUpdateBackupVaultRes
 		)

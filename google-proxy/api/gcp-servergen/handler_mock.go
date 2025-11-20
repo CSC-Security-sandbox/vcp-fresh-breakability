@@ -4183,7 +4183,7 @@ func (_c *MockHandler_V1betaInternalUpdateBackup_Call) RunAndReturn(run func(con
 }
 
 // V1betaInternalUpdateBackupVault provides a mock function with given fields: ctx, req, params
-func (_m *MockHandler) V1betaInternalUpdateBackupVault(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error) {
+func (_m *MockHandler) V1betaInternalUpdateBackupVault(ctx context.Context, req *BackupVaultInternalUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error) {
 	ret := _m.Called(ctx, req, params)
 
 	if len(ret) == 0 {
@@ -4192,10 +4192,10 @@ func (_m *MockHandler) V1betaInternalUpdateBackupVault(ctx context.Context, req 
 
 	var r0 V1betaInternalUpdateBackupVaultRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUpdateV1beta, V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultInternalUpdateV1beta, V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)); ok {
 		return rf(ctx, req, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultUpdateV1beta, V1betaInternalUpdateBackupVaultParams) V1betaInternalUpdateBackupVaultRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultInternalUpdateV1beta, V1betaInternalUpdateBackupVaultParams) V1betaInternalUpdateBackupVaultRes); ok {
 		r0 = rf(ctx, req, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -4203,7 +4203,7 @@ func (_m *MockHandler) V1betaInternalUpdateBackupVault(ctx context.Context, req 
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *BackupVaultUpdateV1beta, V1betaInternalUpdateBackupVaultParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupVaultInternalUpdateV1beta, V1betaInternalUpdateBackupVaultParams) error); ok {
 		r1 = rf(ctx, req, params)
 	} else {
 		r1 = ret.Error(1)
@@ -4219,15 +4219,15 @@ type MockHandler_V1betaInternalUpdateBackupVault_Call struct {
 
 // V1betaInternalUpdateBackupVault is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req *BackupVaultUpdateV1beta
+//   - req *BackupVaultInternalUpdateV1beta
 //   - params V1betaInternalUpdateBackupVaultParams
 func (_e *MockHandler_Expecter) V1betaInternalUpdateBackupVault(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaInternalUpdateBackupVault_Call {
 	return &MockHandler_V1betaInternalUpdateBackupVault_Call{Call: _e.mock.On("V1betaInternalUpdateBackupVault", ctx, req, params)}
 }
 
-func (_c *MockHandler_V1betaInternalUpdateBackupVault_Call) Run(run func(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaInternalUpdateBackupVaultParams)) *MockHandler_V1betaInternalUpdateBackupVault_Call {
+func (_c *MockHandler_V1betaInternalUpdateBackupVault_Call) Run(run func(ctx context.Context, req *BackupVaultInternalUpdateV1beta, params V1betaInternalUpdateBackupVaultParams)) *MockHandler_V1betaInternalUpdateBackupVault_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*BackupVaultUpdateV1beta), args[2].(V1betaInternalUpdateBackupVaultParams))
+		run(args[0].(context.Context), args[1].(*BackupVaultInternalUpdateV1beta), args[2].(V1betaInternalUpdateBackupVaultParams))
 	})
 	return _c
 }
@@ -4237,7 +4237,7 @@ func (_c *MockHandler_V1betaInternalUpdateBackupVault_Call) Return(_a0 V1betaInt
 	return _c
 }
 
-func (_c *MockHandler_V1betaInternalUpdateBackupVault_Call) RunAndReturn(run func(context.Context, *BackupVaultUpdateV1beta, V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)) *MockHandler_V1betaInternalUpdateBackupVault_Call {
+func (_c *MockHandler_V1betaInternalUpdateBackupVault_Call) RunAndReturn(run func(context.Context, *BackupVaultInternalUpdateV1beta, V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)) *MockHandler_V1betaInternalUpdateBackupVault_Call {
 	_c.Call.Return(run)
 	return _c
 }

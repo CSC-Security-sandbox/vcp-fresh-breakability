@@ -40,8 +40,10 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 		desc := "test-descriptopn"
 		minEnforcedRetentionDuration := int64(30)
 		dstBVname := "cross-region-vault"
+		locationId := "us-central1"
 		bv := &models.BackupVaultV1beta{
 			ResourceID:      &reourceID,
+			SourceRegion:    &locationId,
 			BackupRegion:    &backupRegion,
 			BackupVaultType: &bvType,
 			Description:     &desc,
@@ -59,7 +61,6 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 			DestinationBackupVault: &dstBVname,
 		}
 
-		locationId := "us-central1"
 		expected := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{
 				UUID:      "uuid-123",
@@ -102,7 +103,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 			},
 			Name:                  "",
 			BackupRegionName:      nil,
-			SourceRegionName:      &locationId,
+			SourceRegionName:      nil,
 			LifeCycleState:        "",
 			LifeCycleStateDetails: "",
 			BackupVaultType:       "",

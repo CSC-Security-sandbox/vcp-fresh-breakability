@@ -439,10 +439,23 @@ func UpdateRemoteBackupVaultInVCP(ctx context.Context, params *common.BackupVaul
 	googleProxyClient := googleProxyClientGet(basePath, jwtToken, logger)
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 
-	updateBody := googleproxyclient.BackupVaultUpdateV1beta{}
+	updateBody := googleproxyclient.BackupVaultInternalUpdateV1beta{}
 
 	if params.Description != nil {
 		updateBody.Description = googleproxyclient.NewOptString(*params.Description)
+	}
+
+	if len(params.BucketDetails) > 0 {
+		bucketDetailsItems := make([]googleproxyclient.BackupVaultInternalUpdateV1betaBucketDetailsItem, 0, len(params.BucketDetails))
+		for _, bd := range params.BucketDetails {
+			bucketDetailsItems = append(bucketDetailsItems, googleproxyclient.BackupVaultInternalUpdateV1betaBucketDetailsItem{
+				BucketName:          googleproxyclient.NewOptString(bd.BucketName),
+				ServiceAccountName:  googleproxyclient.NewOptString(bd.ServiceAccountName),
+				VendorSubnetId:      googleproxyclient.NewOptString(bd.VendorSubnetID),
+				TenantProjectNumber: googleproxyclient.NewOptString(bd.TenantProjectNumber),
+			})
+		}
+		updateBody.BucketDetails = bucketDetailsItems
 	}
 
 	if params.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil ||
@@ -566,7 +579,7 @@ func UpdateRemoteBackupVaultInVCP(ctx context.Context, params *common.BackupVaul
 
 func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
 	var resourceID, backupVaultType string
-	var backupRegion, description *string
+	var sourceRegion, backupRegion, description *string
 	if bv.ResourceID != nil {
 		resourceID = *bv.ResourceID
 	}
@@ -578,6 +591,9 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 	}
 	if bv.Description != nil {
 		description = bv.Description
+	}
+	if bv.SourceRegion != nil {
+		sourceRegion = bv.SourceRegion
 	}
 	var minEnforcedRetentionDuration *int64
 	var isDaily, isWeekly, isMonthly, isAdhoc bool
@@ -606,7 +622,7 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 		},
 		Name:                       resourceID,
 		BackupRegionName:           backupRegion,
-		SourceRegionName:           &locationId,
+		SourceRegionName:           sourceRegion,
 		LifeCycleState:             bv.State,
 		LifeCycleStateDetails:      bv.StateDetails,
 		BackupVaultType:            backupVaultType,

@@ -1950,10 +1950,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SyncBucketDetailsError
 	s.env.RegisterActivity(updateActivity.GenerateResourceNamesForBackupVault)
 	s.env.RegisterActivity(updateActivity.CreateBucketForBackupVault)
 	s.env.RegisterActivity(updateActivity.UpdateBucketDetailsOfBackupVault)
-	s.env.RegisterActivity(updateActivity.UpdateRemoteBackupVaultDetailsInVCPForUpdate)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
 	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
 
 	// Mock activities - all succeed except SyncBucketDetails
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -1984,7 +1985,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SyncBucketDetailsError
 	}, nil)
 	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(nil, errors.New("failed to sync bucket details"))
 	s.env.OnActivity(updateActivity.UpdateBucketDetailsOfBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(updateActivity.UpdateRemoteBackupVaultDetailsInVCPForUpdate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "test-remote-backup-vault"},
+		Name:      "test-remote-backup-vault",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock SetupCrossRegionBackupPermissionsActivity - not called for non-cross-region backup vault
 	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)

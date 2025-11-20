@@ -2901,3 +2901,237 @@ func TestHydrateCreatedBackupVaults(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestDeleteBackupVaultInternal(t *testing.T) {
+	ctx := context.Background()
+
+	externalUUID := "external-backup-vault-uuid"
+	internalUUID := "internal-backup-vault-uuid"
+	ownerID := "owner-uuid"
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: ownerID},
+		Name:      "test-account",
+	}
+
+	remoteBV := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: internalUUID, ID: 1},
+		Name:            "test-backup-vault",
+		AccountID:       account.ID,
+		Account:         account,
+		AccountVendorID: "vendor-id",
+		RegionName:      "us-central1",
+		ExternalUUID:    &externalUUID,
+	}
+
+	t.Run("WhenSuccessfulDelete_ReturnsEmptyStringAndNoError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       ownerID,
+			Name:          "test-backup-vault",
+		}
+
+		// Mock GetAccount - successful
+		mockStorage.On("GetAccount", ctx, ownerID).Return(account, nil)
+
+		// Mock GetBackupVaultByExternalUUIDAndOwnerID - successful
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(remoteBV, nil)
+
+		// Mock DeleteBackupVaultInVCP - successful
+		mockStorage.On("DeleteBackupVaultInVCP", ctx, internalUUID).Return(remoteBV, nil)
+
+		// Act
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.Equal(tt, "", operationID)
+		assert.Equal(tt, internalUUID, params.BackupVaultID) // Verify UUID was updated
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetAccountFails_ReturnsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       ownerID,
+			Name:          "test-backup-vault",
+		}
+
+		expectedError := errors.New("account not found")
+
+		// Mock GetAccount - fails
+		mockStorage.On("GetAccount", ctx, ownerID).Return(nil, expectedError)
+
+		// Act
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		assert.Equal(tt, "", operationID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetBackupVaultByExternalUUIDAndOwnerIDFails_ReturnsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       ownerID,
+			Name:          "test-backup-vault",
+		}
+
+		expectedError := gorm.ErrRecordNotFound
+
+		// Mock GetAccount - successful
+		mockStorage.On("GetAccount", ctx, ownerID).Return(account, nil)
+
+		// Mock GetBackupVaultByExternalUUIDAndOwnerID - fails
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(nil, expectedError)
+
+		// Act
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		assert.Equal(tt, "", operationID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDeleteBackupVaultInVCPFails_ReturnsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       ownerID,
+			Name:          "test-backup-vault",
+		}
+
+		expectedError := errors.New("failed to delete backup vault in VCP")
+
+		// Mock GetAccount - successful
+		mockStorage.On("GetAccount", ctx, ownerID).Return(account, nil)
+
+		// Mock GetBackupVaultByExternalUUIDAndOwnerID - successful
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(remoteBV, nil)
+
+		// Mock DeleteBackupVaultInVCP - fails
+		mockStorage.On("DeleteBackupVaultInVCP", ctx, internalUUID).Return(nil, expectedError)
+
+		// Act
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		assert.Equal(tt, "", operationID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupVaultIDIsUpdatedInParams_VerifyParamsMutation", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       ownerID,
+			Name:          "test-backup-vault",
+		}
+
+		// Mock GetAccount - successful
+		mockStorage.On("GetAccount", ctx, ownerID).Return(account, nil)
+
+		// Mock GetBackupVaultByExternalUUIDAndOwnerID - successful
+		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(remoteBV, nil)
+
+		// Mock DeleteBackupVaultInVCP - successful
+		mockStorage.On("DeleteBackupVaultInVCP", ctx, internalUUID).Return(remoteBV, nil)
+
+		// Verify initial state
+		assert.Equal(tt, externalUUID, params.BackupVaultID)
+
+		// Act
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.Equal(tt, "", operationID)
+		// Verify the params.BackupVaultID was mutated to internal UUID
+		assert.Equal(tt, internalUUID, params.BackupVaultID)
+		assert.NotEqual(tt, externalUUID, params.BackupVaultID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetAccountReturnsNilAccount_ReturnsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       ownerID,
+			Name:          "test-backup-vault",
+		}
+
+		expectedError := errors.New("account is nil")
+
+		// Mock GetAccount - returns nil account
+		mockStorage.On("GetAccount", ctx, ownerID).Return(nil, expectedError)
+
+		// Act
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		assert.Equal(tt, "", operationID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDatabaseConnectionError_ReturnsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		params := &commonparams.BackupVaultParams{
+			BackupVaultID: externalUUID,
+			OwnerID:       ownerID,
+			Name:          "test-backup-vault",
+		}
+
+		expectedError := errors.New("database connection error")
+
+		// Mock GetAccount - database error
+		mockStorage.On("GetAccount", ctx, ownerID).Return(nil, expectedError)
+
+		// Act
+		operationID, err := orchestrator.DeleteBackupVaultInternal(ctx, params)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		assert.Equal(tt, "", operationID)
+		mockStorage.AssertExpectations(tt)
+	})
+}

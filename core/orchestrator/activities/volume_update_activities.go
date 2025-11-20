@@ -2,7 +2,6 @@ package activities
 
 import (
 	"context"
-
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -611,10 +610,6 @@ func (a *VolumeUpdateActivity) FindTenancyDetails(ctx context.Context, consumerV
 // CheckBackupVaultExistInVCP checks if a backup vault exists in the VCP
 func (a *VolumeUpdateActivity) CheckBackupVaultExistInVCP(ctx context.Context, volume *datamodel.Volume, region string) (*datamodel.BackupVault, error) {
 	return CheckBackupVaultExistsInVCP(ctx, a.SE, volume, region)
-}
-
-func (a *VolumeUpdateActivity) UpdateRemoteBackupVaultDetailsInVCPForUpdate(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails, backupVault *datamodel.BackupVault) error {
-	return UpdateRemoteBackupVaultDetailsInVCP(ctx, volume, bucketDetails, backupVault)
 }
 
 // CreateBucketForBackupVault creates a bucket in the specified region for the given resource name and tenancy details

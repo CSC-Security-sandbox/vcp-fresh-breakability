@@ -96,7 +96,6 @@ func (s *UnitTestSuite) SetupTest() {
 	s.env.RegisterActivity(volumeCreateActivity.GenerateResourceNames)
 	s.env.RegisterActivity(volumeCreateActivity.CreateBucket)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails)
-	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP)
 	s.env.RegisterActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity)
 	s.env.RegisterActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP)
 	s.env.RegisterActivity(volumeCreateActivity.CreateBackupPolicyFetchedFromSDE)
@@ -1357,6 +1356,77 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateBackupVaultWithBucketDet
 	s.env.OnActivity(volumeCreateActivity.GenerateResourceNames, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{BucketName: "bucket-1"}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.BucketDetails{BucketName: "bucket-1", ServiceAccountName: "sa-1", TenantProjectNumber: "tp-1", VendorSubnetID: "vendor1"}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update backup vault with bucket details"))
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	// UpdateJob is called through UpdateJobStatus activity, not directly on mock
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckOrCreateRemoteBackupVaultInVCPError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-id",
+		},
+		Account: &datamodel.Account{Name: "account-1"},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{RegionalTenantProject: "tenant-project"}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:      "test-backup-vault",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
+	s.env.OnActivity(volumeCreateActivity.GenerateResourceNames, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{BucketName: "bucket-1"}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.BucketDetails{BucketName: "bucket-1", ServiceAccountName: "sa-1", TenantProjectNumber: "tp-1", VendorSubnetID: "vendor1"}, nil)
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+		BucketName:          "bucket-1",
+		ServiceAccountName:  "sa-1",
+		TenantProjectNumber: "tp-1",
+		VendorSubnetID:      "vendor1",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to check or create remote backup vault in VCP"))
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
@@ -2706,7 +2776,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreat
 		TenantProjectNumber: "new-project-123",
 		VendorSubnetID:      "subnet-67890",
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
 	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
@@ -2717,7 +2789,6 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreat
 		SatisfiesPzi:        true,
 		SatisfiesPzs:        true,
 	}, nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock SetupCrossRegionBackupPermissionsActivity - not called for LOCAL backup vault type
 	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4072,11 +4143,12 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_BackupVaultWithEmptyBucketDeta
 	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
 	s.env.OnActivity(volumeCreateActivity.GenerateResourceNames, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.BucketDetails{BucketName: "new-bucket"}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
 	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(nil, errors.New("cloud service error - bucket sync failed"))
-	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock SetupCrossRegionBackupPermissionsActivity - not called for non-cross-region backup vault
 	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -4159,13 +4231,26 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WithSplitVolumeAndChildWorkflo
 	// Mock CheckForBucketResourceName to return empty bucket details to trigger bucket creation logic (lines 409-410)
 	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
 	s.env.OnActivity(volumeCreateActivity.GenerateResourceNames, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{}, nil)
-	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.BucketDetails{BucketName: "new-bucket"}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+		BucketName:          "new-bucket",
+		TenantProjectNumber: "test-project-123",
+		ServiceAccountName:  "test-sa",
+		VendorSubnetID:      "subnet-123",
+	}, nil)
 
 	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
-	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(nil, errors.New("tenant project number is required but not found in bucket details"))
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+		BucketName:          "new-bucket",
+		TenantProjectNumber: "test-project-123",
+		ServiceAccountName:  "test-sa",
+		VendorSubnetID:      "subnet-123",
+		SatisfiesPzi:        true,
+		SatisfiesPzs:        true,
+	}, nil)
 
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock SetupCrossRegionBackupPermissionsActivity - not called for non-cross-region backup vault
 	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -4425,11 +4510,9 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Success() {
 	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Mock the backup vault update activities
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	// This is the activity we're specifically testing
-	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP,
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock SetupCrossRegionBackupPermissionsActivity for cross-region backup vault
 	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity,
@@ -4509,11 +4592,8 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Error() {
 	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
 	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
-	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	// Make UpdateRemoteBackupVaultDetailsInVCP fail
-	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultDetailsInVCP,
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update remote backup vault"))
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update remote backup vault"))
 
 	// Mock cleanup activities that will be called due to error
 	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}

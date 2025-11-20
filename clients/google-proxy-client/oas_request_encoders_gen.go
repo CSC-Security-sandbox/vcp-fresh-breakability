@@ -466,7 +466,7 @@ func encodeV1betaInternalUpdateBackupRequest(
 }
 
 func encodeV1betaInternalUpdateBackupVaultRequest(
-	req *BackupVaultUpdateV1beta,
+	req *BackupVaultInternalUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

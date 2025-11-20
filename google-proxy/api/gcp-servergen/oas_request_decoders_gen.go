@@ -2276,7 +2276,7 @@ func (s *Server) decodeV1betaInternalUpdateBackupRequest(r *http.Request) (
 }
 
 func (s *Server) decodeV1betaInternalUpdateBackupVaultRequest(r *http.Request) (
-	req *BackupVaultUpdateV1beta,
+	req *BackupVaultInternalUpdateV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -2315,7 +2315,7 @@ func (s *Server) decodeV1betaInternalUpdateBackupVaultRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request BackupVaultUpdateV1beta
+		var request BackupVaultInternalUpdateV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err

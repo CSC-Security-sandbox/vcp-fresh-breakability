@@ -9,13 +9,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"gorm.io/gorm"
 )
 
@@ -2144,518 +2150,6 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 }
 
-func TestV1betaInternalCreateBackupVault_Success(t *testing.T) {
-	t.Run("WhenRequestBodyIsNil", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		expectedResponse := &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
-			Code:    400,
-			Message: "Request body is required",
-		}
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), nil, params)
-		assert.Error(tt, err)
-		assert.Equal(tt, "request body is required", err.Error())
-		assert.Equal(tt, expectedResponse, resp)
-	})
-
-	t.Run("WhenBackupVaultIdIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId: "", // Empty ID
-			ResourceId:    "test-backup-vault",
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		expectedResponse := &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
-			Code:    400,
-			Message: "BackupVaultId is required",
-		}
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.Error(tt, err)
-		assert.Equal(tt, "backupVaultId is required", err.Error())
-		assert.Equal(tt, expectedResponse, resp)
-	})
-
-	t.Run("WhenProjectNumberIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId: "test-backup-vault-uuid",
-			ResourceId:    "test-backup-vault",
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "", // Empty project number
-			LocationId:    "us-central1",
-		}
-
-		expectedResponse := &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
-			Code:    400,
-			Message: "ProjectNumber is required",
-		}
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.Error(tt, err)
-		assert.Equal(tt, "projectNumber is required", err.Error())
-		assert.Equal(tt, expectedResponse, resp)
-	})
-
-	t.Run("WhenCreateBackupVaultEntryFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId:   "test-backup-vault-uuid",
-			ResourceId:      "test-backup-vault",
-			AccountVendorId: "test-account-vendor-id",
-			LifeCycleState:  gcpgenserver.BackupVaultInternalV1betaLifeCycleStateREADY,
-			BackupVaultType: gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
-
-		expectedResponse := &gcpgenserver.V1betaInternalCreateBackupVaultInternalServerError{
-			Code:    500,
-			Message: "Failed to create BackupVault entry in VCP database",
-		}
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.Error(tt, err)
-		assert.Equal(tt, expectedResponse, resp)
-	})
-
-	t.Run("WhenCreateBackupVaultEntryReturnsConflict", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId:   "test-backup-vault-uuid",
-			ResourceId:      "test-backup-vault",
-			AccountVendorId: "test-account-vendor-id",
-			LifeCycleState:  gcpgenserver.BackupVaultInternalV1betaLifeCycleStateREADY,
-			BackupVaultType: gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		existingBackupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{
-				UUID: "test-backup-vault-uuid",
-			},
-			Name:            "test-backup-vault",
-			AccountVendorID: "test-account-vendor-id",
-			LifeCycleState:  "READY",
-			BackupVaultType: "CROSS_REGION",
-		}
-
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("backup vault already exists"))
-		mockOrchestrator.EXPECT().GetBackupVaultByExternalUUIDAndOwnerID(mock.Anything, "test-backup-vault-uuid", "test-project").Return(existingBackupVault, nil)
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.NoError(tt, err)
-
-		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
-		assert.True(tt, ok)
-		assert.Equal(tt, "test-backup-vault-uuid", result.BackupVaultId)
-		assert.Equal(tt, "test-backup-vault", result.ResourceId)
-		assert.Equal(tt, "test-account-vendor-id", result.AccountVendorId)
-	})
-
-	t.Run("WhenConflictButGetExistingBackupVaultFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId:   "test-backup-vault-uuid",
-			ResourceId:      "test-backup-vault",
-			AccountVendorId: "test-account-vendor-id",
-			LifeCycleState:  gcpgenserver.BackupVaultInternalV1betaLifeCycleStateREADY,
-			BackupVaultType: gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("backup vault already exists"))
-		mockOrchestrator.EXPECT().GetBackupVaultByExternalUUIDAndOwnerID(mock.Anything, "test-backup-vault-uuid", "test-project").Return(nil, errors.New("database connection error"))
-
-		expectedResponse := &gcpgenserver.V1betaInternalCreateBackupVaultInternalServerError{
-			Code:    500,
-			Message: "Failed to retrieve existing BackupVault",
-		}
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.Error(tt, err)
-		assert.Equal(tt, "database connection error", err.Error())
-		assert.Equal(tt, expectedResponse, resp)
-	})
-
-	t.Run("WhenSuccessfulCreation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		now := time.Now()
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId:         "test-backup-vault-uuid",
-			ResourceId:            "test-backup-vault",
-			AccountVendorId:       "test-account-vendor-id",
-			LifeCycleState:        gcpgenserver.BackupVaultInternalV1betaLifeCycleStateREADY,
-			BackupVaultType:       gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
-			Description:           gcpgenserver.NewOptString("Test backup vault"),
-			BackupRegion:          gcpgenserver.NewOptString("us-west1"),
-			SourceRegion:          gcpgenserver.NewOptString("us-central1"),
-			LifeCycleStateDetails: gcpgenserver.NewOptString("Ready for backup operations"),
-			CreatedAt:             gcpgenserver.NewOptDateTime(now),
-			UpdatedAt:             gcpgenserver.NewOptDateTime(now),
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		createdBackupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-vault-uuid",
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-			Name:                  "test-backup-vault",
-			AccountVendorID:       "test-account-vendor-id",
-			LifeCycleState:        "READY",
-			BackupVaultType:       "CROSS_REGION",
-			Description:           func() *string { s := "Test backup vault"; return &s }(),
-			BackupRegionName:      func() *string { s := "us-west1"; return &s }(),
-			SourceRegionName:      func() *string { s := "us-central1"; return &s }(),
-			LifeCycleStateDetails: "Ready for backup operations",
-		}
-
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.NoError(tt, err)
-
-		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
-		assert.True(tt, ok)
-		assert.Equal(tt, "test-backup-vault-uuid", result.BackupVaultId)
-		assert.Equal(tt, "test-backup-vault", result.ResourceId)
-		assert.Equal(tt, "test-account-vendor-id", result.AccountVendorId)
-		assert.Equal(tt, gcpgenserver.BackupVaultInternalV1betaLifeCycleStateREADY, result.LifeCycleState)
-		assert.Equal(tt, gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION, result.BackupVaultType)
-		assert.True(tt, result.Description.IsSet())
-		assert.Equal(tt, "Test backup vault", result.Description.Value)
-		assert.True(tt, result.BackupRegion.IsSet())
-		assert.Equal(tt, "us-west1", result.BackupRegion.Value)
-		assert.True(tt, result.SourceRegion.IsSet())
-		assert.Equal(tt, "us-central1", result.SourceRegion.Value)
-	})
-
-	t.Run("WhenSuccessfulCreationWithBucketDetails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		now := time.Now()
-		bucketDetail := gcpgenserver.BackupVaultInternalV1betaBucketDetailsItem{
-			BucketName:          gcpgenserver.NewOptString("test-bucket"),
-			ServiceAccountName:  gcpgenserver.NewOptString("test-service-account"),
-			VendorSubnetId:      gcpgenserver.NewOptString("test-subnet"),
-			TenantProjectNumber: gcpgenserver.NewOptString("test-tenant-project"),
-		}
-
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId:   "test-backup-vault-uuid",
-			ResourceId:      "test-backup-vault",
-			AccountVendorId: "test-account-vendor-id",
-			LifeCycleState:  gcpgenserver.BackupVaultInternalV1betaLifeCycleStateREADY,
-			BackupVaultType: gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
-			BucketDetails:   []gcpgenserver.BackupVaultInternalV1betaBucketDetailsItem{bucketDetail},
-			CreatedAt:       gcpgenserver.NewOptDateTime(now),
-			UpdatedAt:       gcpgenserver.NewOptDateTime(now),
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		createdBackupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-vault-uuid",
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-			Name:            "test-backup-vault",
-			AccountVendorID: "test-account-vendor-id",
-			LifeCycleState:  "READY",
-			BackupVaultType: "CROSS_REGION",
-			BucketDetails: []*datamodel.BucketDetails{
-				{
-					BucketName:          "test-bucket",
-					ServiceAccountName:  "test-service-account",
-					VendorSubnetID:      "test-subnet",
-					TenantProjectNumber: "test-tenant-project",
-				},
-			},
-		}
-
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.NoError(tt, err)
-
-		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
-		assert.True(tt, ok)
-		assert.Equal(tt, "test-backup-vault-uuid", result.BackupVaultId)
-		assert.Len(tt, result.BucketDetails, 1)
-		assert.Equal(tt, "test-bucket", result.BucketDetails[0].BucketName.Value)
-	})
-
-	t.Run("WhenSuccessfulCreationWithImmutableAttributes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		now := time.Now()
-		retentionDuration := 86400 // 1 day in seconds
-		immutableAttrs := gcpgenserver.BackupVaultInternalV1betaImmutableAttributes{
-			BackupMinimumEnforcedRetentionDuration: gcpgenserver.NewOptInt(retentionDuration),
-			IsDailyBackupImmutable:                 gcpgenserver.NewOptBool(true),
-			IsWeeklyBackupImmutable:                gcpgenserver.NewOptBool(true),
-			IsMonthlyBackupImmutable:               gcpgenserver.NewOptBool(false),
-			IsAdhocBackupImmutable:                 gcpgenserver.NewOptBool(false),
-		}
-
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId:       "test-backup-vault-uuid",
-			ResourceId:          "test-backup-vault",
-			AccountVendorId:     "test-account-vendor-id",
-			LifeCycleState:      gcpgenserver.BackupVaultInternalV1betaLifeCycleStateREADY,
-			BackupVaultType:     gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
-			ImmutableAttributes: gcpgenserver.NewOptBackupVaultInternalV1betaImmutableAttributes(immutableAttrs),
-			CreatedAt:           gcpgenserver.NewOptDateTime(now),
-			UpdatedAt:           gcpgenserver.NewOptDateTime(now),
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		retentionDurationInt64 := int64(retentionDuration)
-		createdBackupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-vault-uuid",
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-			Name:            "test-backup-vault",
-			AccountVendorID: "test-account-vendor-id",
-			LifeCycleState:  "READY",
-			BackupVaultType: "CROSS_REGION",
-			ImmutableAttributes: &datamodel.ImmutableAttributes{
-				BackupMinimumEnforcedRetentionDuration: &retentionDurationInt64,
-				IsDailyBackupImmutable:                 true,
-				IsWeeklyBackupImmutable:                true,
-				IsMonthlyBackupImmutable:               false,
-				IsAdhocBackupImmutable:                 false,
-			},
-		}
-
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.NoError(tt, err)
-
-		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
-		assert.True(tt, ok)
-		assert.Equal(tt, "test-backup-vault-uuid", result.BackupVaultId)
-		assert.True(tt, result.ImmutableAttributes.IsSet())
-
-		resultAttrs := result.ImmutableAttributes.Value
-		assert.True(tt, resultAttrs.BackupMinimumEnforcedRetentionDuration.IsSet())
-		assert.Equal(tt, retentionDuration, resultAttrs.BackupMinimumEnforcedRetentionDuration.Value)
-		assert.True(tt, resultAttrs.IsDailyBackupImmutable.Value)
-		assert.True(tt, resultAttrs.IsWeeklyBackupImmutable.Value)
-		assert.False(tt, resultAttrs.IsMonthlyBackupImmutable.Value)
-		assert.False(tt, resultAttrs.IsAdhocBackupImmutable.Value)
-	})
-
-	t.Run("WhenSuccessfulCreationWithAllOptionalFields", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		now := time.Now()
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId:              "test-backup-vault-uuid",
-			ResourceId:                 "test-backup-vault",
-			AccountVendorId:            "test-account-vendor-id",
-			LifeCycleState:             gcpgenserver.BackupVaultInternalV1betaLifeCycleStateREADY,
-			BackupVaultType:            gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
-			Description:                gcpgenserver.NewOptString("Complete test backup vault"),
-			BackupRegion:               gcpgenserver.NewOptString("us-west1"),
-			SourceRegion:               gcpgenserver.NewOptString("us-central1"),
-			LifeCycleStateDetails:      gcpgenserver.NewOptString("Fully operational"),
-			CrossRegionBackupVaultName: gcpgenserver.NewOptString("cross-region-backup-vault"),
-			ExternalUuid:               gcpgenserver.NewOptString("external-uuid-123"),
-			CreatedAt:                  gcpgenserver.NewOptDateTime(now),
-			UpdatedAt:                  gcpgenserver.NewOptDateTime(now),
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		createdBackupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-vault-uuid",
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-			Name:                       "test-backup-vault",
-			AccountVendorID:            "test-account-vendor-id",
-			LifeCycleState:             "READY",
-			BackupVaultType:            "CROSS_REGION",
-			Description:                func() *string { s := "Complete test backup vault"; return &s }(),
-			BackupRegionName:           func() *string { s := "us-west1"; return &s }(),
-			SourceRegionName:           func() *string { s := "us-central1"; return &s }(),
-			LifeCycleStateDetails:      "Fully operational",
-			CrossRegionBackupVaultName: func() *string { s := "cross-region-backup-vault"; return &s }(),
-			ExternalUUID:               func() *string { s := "external-uuid-123"; return &s }(),
-		}
-
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.NoError(tt, err)
-
-		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
-		assert.True(tt, ok)
-		assert.Equal(tt, "test-backup-vault-uuid", result.BackupVaultId)
-		assert.Equal(tt, "test-backup-vault", result.ResourceId)
-		assert.Equal(tt, "test-account-vendor-id", result.AccountVendorId)
-		assert.True(tt, result.Description.IsSet())
-		assert.Equal(tt, "Complete test backup vault", result.Description.Value)
-		assert.True(tt, result.CrossRegionBackupVaultName.IsSet())
-		assert.Equal(tt, "cross-region-backup-vault", result.CrossRegionBackupVaultName.Value)
-		assert.True(tt, result.ExternalUuid.IsSet())
-		assert.Equal(tt, "external-uuid-123", result.ExternalUuid.Value)
-		assert.True(tt, result.LifeCycleStateDetails.IsSet())
-		assert.Equal(tt, "Fully operational", result.LifeCycleStateDetails.Value)
-	})
-
-	t.Run("WhenSuccessfulCreationWithMultipleBucketDetails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		now := time.Now()
-		bucketDetails := []gcpgenserver.BackupVaultInternalV1betaBucketDetailsItem{
-			{
-				BucketName:          gcpgenserver.NewOptString("test-bucket-1"),
-				ServiceAccountName:  gcpgenserver.NewOptString("test-service-account-1"),
-				VendorSubnetId:      gcpgenserver.NewOptString("test-subnet-1"),
-				TenantProjectNumber: gcpgenserver.NewOptString("test-tenant-project-1"),
-			},
-			{
-				BucketName:          gcpgenserver.NewOptString("test-bucket-2"),
-				ServiceAccountName:  gcpgenserver.NewOptString("test-service-account-2"),
-				VendorSubnetId:      gcpgenserver.NewOptString("test-subnet-2"),
-				TenantProjectNumber: gcpgenserver.NewOptString("test-tenant-project-2"),
-			},
-		}
-
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId:   "test-backup-vault-uuid",
-			ResourceId:      "test-backup-vault",
-			AccountVendorId: "test-account-vendor-id",
-			LifeCycleState:  gcpgenserver.BackupVaultInternalV1betaLifeCycleStateREADY,
-			BackupVaultType: gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
-			BucketDetails:   bucketDetails,
-			CreatedAt:       gcpgenserver.NewOptDateTime(now),
-			UpdatedAt:       gcpgenserver.NewOptDateTime(now),
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		createdBackupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "test-backup-vault-uuid",
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-			Name:            "test-backup-vault",
-			AccountVendorID: "test-account-vendor-id",
-			LifeCycleState:  "READY",
-			BackupVaultType: "CROSS_REGION",
-			BucketDetails: []*datamodel.BucketDetails{
-				{
-					BucketName:          "test-bucket-1",
-					ServiceAccountName:  "test-service-account-1",
-					VendorSubnetID:      "test-subnet-1",
-					TenantProjectNumber: "test-tenant-project-1",
-				},
-				{
-					BucketName:          "test-bucket-2",
-					ServiceAccountName:  "test-service-account-2",
-					VendorSubnetID:      "test-subnet-2",
-					TenantProjectNumber: "test-tenant-project-2",
-				},
-			},
-		}
-
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.NoError(tt, err)
-
-		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
-		assert.True(tt, ok)
-		assert.Equal(tt, "test-backup-vault-uuid", result.BackupVaultId)
-		assert.Len(tt, result.BucketDetails, 2)
-		assert.Equal(tt, "test-bucket-1", result.BucketDetails[0].BucketName.Value)
-		assert.Equal(tt, "test-bucket-2", result.BucketDetails[1].BucketName.Value)
-	})
-}
-
 func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	t.Run("WhenBackupVaultNotFound", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -3205,7 +2699,7 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 		}()
 
 		validationErr := errors.NewUserInputValidationErr("BackupVault validation failed")
-		mockOrchestrator.EXPECT().DeleteBackupVaultInternal(mock.Anything, mock.Anything).Return(nil, "", validationErr)
+		mockOrchestrator.EXPECT().DeleteBackupVaultInternal(mock.Anything, mock.Anything).Return("", validationErr)
 
 		resp, err := handler.V1betaInternalDeleteBackupVault(context.Background(), params)
 		assert.NoError(tt, err)
@@ -3236,7 +2730,7 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 		}()
 
 		internalErr := errors.New("internal database error")
-		mockOrchestrator.EXPECT().DeleteBackupVaultInternal(mock.Anything, mock.Anything).Return(nil, "", internalErr)
+		mockOrchestrator.EXPECT().DeleteBackupVaultInternal(mock.Anything, mock.Anything).Return("", internalErr)
 
 		resp, err := handler.V1betaInternalDeleteBackupVault(context.Background(), params)
 		assert.NoError(tt, err)
@@ -3267,7 +2761,7 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 		}()
 
 		operationID := "operation-12345"
-		mockOrchestrator.EXPECT().DeleteBackupVaultInternal(mock.Anything, mock.Anything).Return(nil, operationID, nil)
+		mockOrchestrator.EXPECT().DeleteBackupVaultInternal(mock.Anything, mock.Anything).Return(operationID, nil)
 
 		resp, err := handler.V1betaInternalDeleteBackupVault(context.Background(), params)
 		assert.NoError(tt, err)
@@ -3299,7 +2793,7 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
 
-		mockOrchestrator.EXPECT().DeleteBackupVaultInternal(mock.Anything, mock.Anything).Return(nil, "", nil)
+		mockOrchestrator.EXPECT().DeleteBackupVaultInternal(mock.Anything, mock.Anything).Return("", nil)
 
 		resp, err := handler.V1betaInternalDeleteBackupVault(context.Background(), params)
 		assert.NoError(tt, err)
@@ -3340,7 +2834,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{}
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{}
 		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
 			ProjectNumber: "test-project",
 			LocationId:    "us-central1",
@@ -3363,7 +2857,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{}
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{}
 		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
 			ProjectNumber: "",
 			LocationId:    "us-central1",
@@ -3386,7 +2880,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
 			Description: gcpgenserver.NewOptString("Updated description"),
 		}
 		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
@@ -3420,7 +2914,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
 			Description: gcpgenserver.NewOptString("Updated description"),
 		}
 		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
@@ -3447,7 +2941,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
 			Description: gcpgenserver.NewOptString("Updated description"),
 		}
 		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
@@ -3474,7 +2968,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
 			Description: gcpgenserver.NewOptString("Updated description"),
 		}
 		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
@@ -3501,7 +2995,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
 			Description: gcpgenserver.NewOptString("Updated description"),
 		}
 		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
@@ -3538,7 +3032,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
 			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
 				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
 					BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
@@ -3590,7 +3084,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
 			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
 				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
 					DailyBackupImmutable: gcpgenserver.NewOptBool(true),
@@ -3633,7 +3127,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
 			Description: gcpgenserver.NewOptString("Complete update"),
 			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
 				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
@@ -3691,7 +3185,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		req := &gcpgenserver.BackupVaultUpdateV1beta{
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
 			Description: gcpgenserver.NewOptString("Sync update"),
 		}
 		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
@@ -3718,6 +3212,569 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 		assert.True(tt, result.Done.IsSet())
 		assert.True(tt, result.Done.Value)
 		assert.NotNil(tt, result.Response)
+	})
+
+	t.Run("WhenBackupRetentionPolicyIsSetButEmpty", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
+				gcpgenserver.BackupRetentionPolicyUpdateV1beta{},
+			),
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := ""
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.BackupVaultID == "test-backup-vault-id" &&
+				param.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration == nil &&
+				param.BackupRetentionPolicy.IsDailyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsWeeklyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsMonthlyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsAdhocBackupImmutable == nil
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.False(tt, result.Name.IsSet())
+		assert.True(tt, result.Done.IsSet())
+		assert.True(tt, result.Done.Value)
+		assert.NotNil(tt, result.Response)
+	})
+
+	t.Run("WhenOnlyBackupMinimumEnforcedRetentionDaysIsSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
+				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+					BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(60),
+				},
+			),
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := ""
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.BackupVaultID == "test-backup-vault-id" &&
+				param.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil &&
+				*param.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration == int64(60) &&
+				param.BackupRetentionPolicy.IsDailyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsWeeklyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsMonthlyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsAdhocBackupImmutable == nil
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.False(tt, result.Name.IsSet())
+		assert.True(tt, result.Done.IsSet())
+		assert.True(tt, result.Done.Value)
+		assert.NotNil(tt, result.Response)
+	})
+
+	t.Run("WhenOnlyWeeklyBackupImmutableIsSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
+				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+					WeeklyBackupImmutable: gcpgenserver.NewOptBool(true),
+				},
+			),
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := ""
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.BackupVaultID == "test-backup-vault-id" &&
+				param.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration == nil &&
+				param.BackupRetentionPolicy.IsDailyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsWeeklyBackupImmutable != nil &&
+				*param.BackupRetentionPolicy.IsWeeklyBackupImmutable == true &&
+				param.BackupRetentionPolicy.IsMonthlyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsAdhocBackupImmutable == nil
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.False(tt, result.Name.IsSet())
+		assert.True(tt, result.Done.IsSet())
+		assert.True(tt, result.Done.Value)
+		assert.NotNil(tt, result.Response)
+	})
+
+	t.Run("WhenOnlyMonthlyBackupImmutableIsSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
+				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+					MonthlyBackupImmutable: gcpgenserver.NewOptBool(false),
+				},
+			),
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := ""
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.BackupVaultID == "test-backup-vault-id" &&
+				param.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration == nil &&
+				param.BackupRetentionPolicy.IsDailyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsWeeklyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsMonthlyBackupImmutable != nil &&
+				*param.BackupRetentionPolicy.IsMonthlyBackupImmutable == false &&
+				param.BackupRetentionPolicy.IsAdhocBackupImmutable == nil
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.False(tt, result.Name.IsSet())
+		assert.True(tt, result.Done.IsSet())
+		assert.True(tt, result.Done.Value)
+		assert.NotNil(tt, result.Response)
+	})
+
+	t.Run("WhenOnlyManualBackupImmutableIsSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
+				gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+					ManualBackupImmutable: gcpgenserver.NewOptBool(true),
+				},
+			),
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := ""
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.BackupVaultID == "test-backup-vault-id" &&
+				param.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration == nil &&
+				param.BackupRetentionPolicy.IsDailyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsWeeklyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsMonthlyBackupImmutable == nil &&
+				param.BackupRetentionPolicy.IsAdhocBackupImmutable != nil &&
+				*param.BackupRetentionPolicy.IsAdhocBackupImmutable == true
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.False(tt, result.Name.IsSet())
+		assert.True(tt, result.Done.IsSet())
+		assert.True(tt, result.Done.Value)
+		assert.NotNil(tt, result.Response)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithBucketDetailsAllFields", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BucketDetails: []gcpgenserver.BackupVaultInternalUpdateV1betaBucketDetailsItem{
+				{
+					BucketName:          gcpgenserver.NewOptString("test-bucket-1"),
+					ServiceAccountName:  gcpgenserver.NewOptString("test-sa-1"),
+					VendorSubnetId:      gcpgenserver.NewOptString("subnet-123"),
+					TenantProjectNumber: gcpgenserver.NewOptString("project-456"),
+				},
+			},
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-bucket-123"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			if param.BucketDetails == nil || len(param.BucketDetails) != 1 {
+				return false
+			}
+			bucket := param.BucketDetails[0]
+			return bucket.BucketName == "test-bucket-1" &&
+				bucket.ServiceAccountName == "test-sa-1" &&
+				bucket.VendorSubnetID == "subnet-123" &&
+				bucket.TenantProjectNumber == "project-456"
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithBucketDetailsPartialFields", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BucketDetails: []gcpgenserver.BackupVaultInternalUpdateV1betaBucketDetailsItem{
+				{
+					BucketName:         gcpgenserver.NewOptString("test-bucket-2"),
+					ServiceAccountName: gcpgenserver.NewOptString("test-sa-2"),
+					// VendorSubnetId and TenantProjectNumber not set
+				},
+			},
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-bucket-456"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			if param.BucketDetails == nil || len(param.BucketDetails) != 1 {
+				return false
+			}
+			bucket := param.BucketDetails[0]
+			return bucket.BucketName == "test-bucket-2" &&
+				bucket.ServiceAccountName == "test-sa-2" &&
+				bucket.VendorSubnetID == "" &&
+				bucket.TenantProjectNumber == ""
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithMultipleBucketDetails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BucketDetails: []gcpgenserver.BackupVaultInternalUpdateV1betaBucketDetailsItem{
+				{
+					BucketName:          gcpgenserver.NewOptString("bucket-1"),
+					ServiceAccountName:  gcpgenserver.NewOptString("sa-1"),
+					VendorSubnetId:      gcpgenserver.NewOptString("subnet-1"),
+					TenantProjectNumber: gcpgenserver.NewOptString("project-1"),
+				},
+				{
+					BucketName:         gcpgenserver.NewOptString("bucket-2"),
+					ServiceAccountName: gcpgenserver.NewOptString("sa-2"),
+					// Only BucketName and ServiceAccountName set
+				},
+				{
+					BucketName:          gcpgenserver.NewOptString("bucket-3"),
+					VendorSubnetId:      gcpgenserver.NewOptString("subnet-3"),
+					TenantProjectNumber: gcpgenserver.NewOptString("project-3"),
+					// ServiceAccountName not set
+				},
+			},
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-multi-bucket"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			if param.BucketDetails == nil || len(param.BucketDetails) != 3 {
+				return false
+			}
+			bucket1 := param.BucketDetails[0]
+			bucket2 := param.BucketDetails[1]
+			bucket3 := param.BucketDetails[2]
+			return bucket1.BucketName == "bucket-1" &&
+				bucket1.ServiceAccountName == "sa-1" &&
+				bucket1.VendorSubnetID == "subnet-1" &&
+				bucket1.TenantProjectNumber == "project-1" &&
+				bucket2.BucketName == "bucket-2" &&
+				bucket2.ServiceAccountName == "sa-2" &&
+				bucket2.VendorSubnetID == "" &&
+				bucket2.TenantProjectNumber == "" &&
+				bucket3.BucketName == "bucket-3" &&
+				bucket3.ServiceAccountName == "" &&
+				bucket3.VendorSubnetID == "subnet-3" &&
+				bucket3.TenantProjectNumber == "project-3"
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithEmptyBucketDetails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BucketDetails: []gcpgenserver.BackupVaultInternalUpdateV1betaBucketDetailsItem{},
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-empty-bucket"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			// When BucketDetails is an empty array, the loop doesn't execute, so bucketDetails remains nil
+			return param.BucketDetails == nil
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithBucketDetailsAndOtherFields", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Updated with buckets"),
+			BucketDetails: []gcpgenserver.BackupVaultInternalUpdateV1betaBucketDetailsItem{
+				{
+					BucketName:          gcpgenserver.NewOptString("combined-bucket"),
+					ServiceAccountName:  gcpgenserver.NewOptString("combined-sa"),
+					VendorSubnetId:      gcpgenserver.NewOptString("combined-subnet"),
+					TenantProjectNumber: gcpgenserver.NewOptString("combined-project"),
+				},
+			},
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-combined"
+		description := "Updated with buckets"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+			Description:   &description,
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.Description != nil &&
+				*param.Description == "Updated with buckets" &&
+				param.BucketDetails != nil &&
+				len(param.BucketDetails) == 1 &&
+				param.BucketDetails[0].BucketName == "combined-bucket" &&
+				param.BucketDetails[0].ServiceAccountName == "combined-sa" &&
+				param.BucketDetails[0].VendorSubnetID == "combined-subnet" &&
+				param.BucketDetails[0].TenantProjectNumber == "combined-project"
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithBucketDetailsOnlyBucketName", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BucketDetails: []gcpgenserver.BackupVaultInternalUpdateV1betaBucketDetailsItem{
+				{
+					BucketName: gcpgenserver.NewOptString("bucket-only"),
+					// All other fields not set
+				},
+			},
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-bucket-only"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			if param.BucketDetails == nil || len(param.BucketDetails) != 1 {
+				return false
+			}
+			bucket := param.BucketDetails[0]
+			return bucket.BucketName == "bucket-only" &&
+				bucket.ServiceAccountName == "" &&
+				bucket.VendorSubnetID == "" &&
+				bucket.TenantProjectNumber == ""
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenSuccessfulUpdateWithoutBucketDetails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			Description: gcpgenserver.NewOptString("Update without buckets"),
+			// BucketDetails is nil (not set)
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-no-bucket"
+		description := "Update without buckets"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+			Description:   &description,
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			// BucketDetails should be nil when not provided in request
+			return param.Description != nil &&
+				*param.Description == "Update without buckets" &&
+				param.BucketDetails == nil
+		})).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
 	})
 }
 
@@ -4906,5 +4963,789 @@ func TestCreateInternalBackupParams(t *testing.T) {
 		result := createInternalBackupParams(req, params)
 
 		assert.Equal(tt, []string{"NFSV3", "NFSV4", "SMB", "ISCSI"}, result.Protocols)
+	})
+}
+
+func TestV1betaInternalCreateBackupVault(t *testing.T) {
+	t.Run("WhenRequestIsNil", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), nil, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "backupVaultId is required", err.Error())
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), result.Code)
+	})
+
+	t.Run("WhenBackupVaultIdIsEmpty", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "backupVaultId is required", err.Error())
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), result.Code)
+	})
+
+	t.Run("WhenProjectNumberIsEmpty", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "test-backup-vault-id",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "",
+			LocationId:    "us-central1",
+		}
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "projectNumber is required", err.Error())
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), result.Code)
+	})
+
+	t.Run("WhenLocationIdIsEmpty", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "test-backup-vault-id",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "",
+		}
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "locationId is required", err.Error())
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), result.Code)
+	})
+
+	t.Run("WhenCVPListBackupVaultsReturnsError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "test-backup-vault-id",
+			ResourceId:    "test-resource-id",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(nil, errors.New("CVP connection error"))
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "CVP connection error", err.Error())
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), result.Code)
+		assert.Contains(tt, result.Message, "Failed to list backup vaults from CVP")
+	})
+
+	t.Run("WhenCVPListBackupVaultsReturnsNotFoundErr", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "test-backup-vault-id",
+			ResourceId:    "test-resource-id",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(nil, errors.NewNotFoundErr("backup vaults", nil))
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), result.Code)
+		assert.Contains(tt, result.Message, "No backup vaults found in CVP")
+	})
+
+	t.Run("WhenCVPListBackupVaultsReturnsNilPayload", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "test-backup-vault-id",
+			ResourceId:    "test-resource-id",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client with nil payload
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: nil,
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), result.Code)
+		assert.Equal(tt, "No backup vaults found in CVP", result.Message)
+	})
+
+	t.Run("WhenBackupVaultNotFoundInCVP", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "test-backup-vault-id",
+			ResourceId:    "test-resource-id",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client with vaults that don't match
+		backupVaultType := "IN_REGION"
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     "other-vault-id",
+						ResourceID:        nillable.GetStringPtr("other-resource-id"),
+						BackupVaultType:   &backupVaultType,
+						SourceBackupVault: nillable.GetStringPtr("other-source"),
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), result.Code)
+		assert.Contains(tt, result.Message, "BackupVault test-backup-vault-id not found in CVP")
+	})
+
+	t.Run("WhenConvertToBackupVaultDataModelFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "test-backup-vault-id",
+			ResourceId:    "test-resource-id",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client with matching vault
+		backupVaultType := activities.CrossRegionBackupType
+		sourceBackupVault := "/projects/test-project/locations/us-west1/backupVaults/test-resource-id"
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     "test-backup-vault-id",
+						ResourceID:        nillable.GetStringPtr("test-resource-id"),
+						BackupVaultType:   &backupVaultType,
+						SourceBackupVault: &sourceBackupVault,
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Mock ConvertToBackupVaultDataModel to return error
+		originalConvertFunc := _convertToBackupVaultDataModel
+		defer func() { _convertToBackupVaultDataModel = originalConvertFunc }()
+		_convertToBackupVaultDataModel = func(cvpBackupVault *cvpmodels.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+			return nil, errors.New("conversion error")
+		}
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "conversion error", err.Error())
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), result.Code)
+		assert.Contains(tt, result.Message, "Failed to convert CVP BackupVault to internal model")
+	})
+
+	t.Run("WhenCreateBackupVaultEntryInVCPReturnsConflictErr", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId:     "test-backup-vault-id",
+			ResourceId:        "test-resource-id",
+			SourceBackupVault: gcpgenserver.NewOptString("source-vault-id"),
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client
+		backupVaultType := activities.CrossRegionBackupType
+		sourceBackupVault := "/projects/test-project/locations/us-west1/backupVaults/test-resource-id"
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     "test-backup-vault-id",
+						ResourceID:        nillable.GetStringPtr("test-resource-id"),
+						BackupVaultType:   &backupVaultType,
+						SourceBackupVault: &sourceBackupVault,
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Mock ConvertToBackupVaultDataModel
+		now := time.Now()
+		backupVaultDataModel := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-resource-id",
+			BackupVaultType: activities.CrossRegionBackupType,
+		}
+		originalConvertFunc := _convertToBackupVaultDataModel
+		defer func() { _convertToBackupVaultDataModel = originalConvertFunc }()
+		_convertToBackupVaultDataModel = func(cvpBackupVault *cvpmodels.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+			return backupVaultDataModel, nil
+		}
+
+		// Mock orchestrator to return conflict error
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("BackupVault already exists"))
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), result.Code)
+		assert.Equal(tt, "BackupVault already exists in VCP", result.Message)
+	})
+
+	t.Run("WhenCreateBackupVaultEntryInVCPReturnsOtherError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId:     "test-backup-vault-id",
+			ResourceId:        "test-resource-id",
+			SourceBackupVault: gcpgenserver.NewOptString("source-vault-id"),
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client
+		backupVaultType := activities.CrossRegionBackupType
+		sourceBackupVault := "/projects/test-project/locations/us-west1/backupVaults/test-resource-id"
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     "test-backup-vault-id",
+						ResourceID:        nillable.GetStringPtr("test-resource-id"),
+						BackupVaultType:   &backupVaultType,
+						SourceBackupVault: &sourceBackupVault,
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Mock ConvertToBackupVaultDataModel
+		now := time.Now()
+		backupVaultDataModel := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-resource-id",
+			BackupVaultType: activities.CrossRegionBackupType,
+		}
+		originalConvertFunc := _convertToBackupVaultDataModel
+		defer func() { _convertToBackupVaultDataModel = originalConvertFunc }()
+		_convertToBackupVaultDataModel = func(cvpBackupVault *cvpmodels.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+			return backupVaultDataModel, nil
+		}
+
+		// Mock orchestrator to return error
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "database error", err.Error())
+
+		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), result.Code)
+		assert.Equal(tt, "Failed to create BackupVault entry in VCP database", result.Message)
+	})
+
+	t.Run("WhenSuccessfulCreationWithoutBucketDetails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId:     "test-backup-vault-id",
+			ResourceId:        "test-resource-id",
+			SourceBackupVault: gcpgenserver.NewOptString("source-vault-id"),
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client
+		backupVaultType := activities.CrossRegionBackupType
+		sourceBackupVault := "/projects/test-project/locations/us-west1/backupVaults/test-resource-id"
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     "test-backup-vault-id",
+						ResourceID:        nillable.GetStringPtr("test-resource-id"),
+						BackupVaultType:   &backupVaultType,
+						SourceBackupVault: &sourceBackupVault,
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Mock ConvertToBackupVaultDataModel
+		now := time.Now()
+		backupVaultDataModel := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-resource-id",
+			BackupVaultType: activities.CrossRegionBackupType,
+		}
+		originalConvertFunc := _convertToBackupVaultDataModel
+		defer func() { _convertToBackupVaultDataModel = originalConvertFunc }()
+		_convertToBackupVaultDataModel = func(cvpBackupVault *cvpmodels.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+			return backupVaultDataModel, nil
+		}
+
+		// Mock orchestrator to return created backup vault
+		createdBackupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:                       "test-resource-id",
+			BackupVaultType:            activities.CrossRegionBackupType,
+			ExternalUUID:               nillable.GetStringPtr("test-backup-vault-id"),
+			CrossRegionBackupVaultName: nillable.GetStringPtr("source-vault-id"),
+		}
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "test-uuid", result.BackupVaultId)
+		assert.Equal(tt, "test-resource-id", result.ResourceId)
+		assert.Equal(tt, gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION, result.BackupVaultType)
+	})
+
+	t.Run("WhenSuccessfulCreationWithBucketDetails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId:     "test-backup-vault-id",
+			ResourceId:        "test-resource-id",
+			SourceBackupVault: gcpgenserver.NewOptString("source-vault-id"),
+			BucketDetails: []gcpgenserver.BackupVaultInternalV1betaBucketDetailsItem{
+				{
+					BucketName:          gcpgenserver.NewOptString("test-bucket"),
+					ServiceAccountName:  gcpgenserver.NewOptString("test-sa"),
+					VendorSubnetId:      gcpgenserver.NewOptString("test-subnet"),
+					TenantProjectNumber: gcpgenserver.NewOptString("test-tenant-project"),
+				},
+			},
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client
+		backupVaultType := activities.CrossRegionBackupType
+		sourceBackupVault := "/projects/test-project/locations/us-west1/backupVaults/test-resource-id"
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     "test-backup-vault-id",
+						ResourceID:        nillable.GetStringPtr("test-resource-id"),
+						BackupVaultType:   &backupVaultType,
+						SourceBackupVault: &sourceBackupVault,
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Mock ConvertToBackupVaultDataModel
+		now := time.Now()
+		backupVaultDataModel := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-resource-id",
+			BackupVaultType: activities.CrossRegionBackupType,
+		}
+		originalConvertFunc := _convertToBackupVaultDataModel
+		defer func() { _convertToBackupVaultDataModel = originalConvertFunc }()
+		_convertToBackupVaultDataModel = func(cvpBackupVault *cvpmodels.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+			return backupVaultDataModel, nil
+		}
+
+		// Mock orchestrator to return created backup vault with bucket details
+		createdBackupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:                       "test-resource-id",
+			BackupVaultType:            activities.CrossRegionBackupType,
+			ExternalUUID:               nillable.GetStringPtr("test-backup-vault-id"),
+			CrossRegionBackupVaultName: nillable.GetStringPtr("source-vault-id"),
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "test-sa",
+					VendorSubnetID:      "test-subnet",
+					TenantProjectNumber: "test-tenant-project",
+				},
+			},
+		}
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "test-uuid", result.BackupVaultId)
+		assert.Equal(tt, "test-resource-id", result.ResourceId)
+		assert.Equal(tt, 1, len(result.BucketDetails))
+		assert.Equal(tt, "test-bucket", result.BucketDetails[0].BucketName.Value)
+		assert.Equal(tt, "test-sa", result.BucketDetails[0].ServiceAccountName.Value)
+	})
+
+	t.Run("WhenSourceBackupVaultMatchesResourceId", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "test-backup-vault-id",
+			ResourceId:    "test-resource-id",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client with SourceBackupVault that ends with ResourceId
+		backupVaultType := activities.CrossRegionBackupType
+		sourceBackupVault := "/projects/test-project/locations/us-west1/backupVaults/test-resource-id"
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     "test-backup-vault-id",
+						ResourceID:        nillable.GetStringPtr("test-resource-id"),
+						BackupVaultType:   &backupVaultType,
+						SourceBackupVault: &sourceBackupVault,
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Mock ConvertToBackupVaultDataModel
+		now := time.Now()
+		backupVaultDataModel := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-resource-id",
+			BackupVaultType: activities.CrossRegionBackupType,
+		}
+		originalConvertFunc := _convertToBackupVaultDataModel
+		defer func() { _convertToBackupVaultDataModel = originalConvertFunc }()
+		_convertToBackupVaultDataModel = func(cvpBackupVault *cvpmodels.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+			return backupVaultDataModel, nil
+		}
+
+		// Mock orchestrator to return created backup vault
+		createdBackupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-resource-id",
+			BackupVaultType: activities.CrossRegionBackupType,
+			ExternalUUID:    nillable.GetStringPtr("test-backup-vault-id"),
+		}
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "test-uuid", result.BackupVaultId)
+		assert.Equal(tt, "test-resource-id", result.ResourceId)
+	})
+
+	t.Run("WhenBackupVaultTypeIsNilButSourceBackupVaultMatches", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId: "test-backup-vault-id",
+			ResourceId:    "test-resource-id",
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client with nil BackupVaultType but matching SourceBackupVault
+		sourceBackupVault := "/projects/test-project/locations/us-west1/backupVaults/test-resource-id"
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     "test-backup-vault-id",
+						ResourceID:        nillable.GetStringPtr("test-resource-id"),
+						BackupVaultType:   nil, // nil type should still match
+						SourceBackupVault: &sourceBackupVault,
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Mock ConvertToBackupVaultDataModel
+		now := time.Now()
+		backupVaultDataModel := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-resource-id",
+			BackupVaultType: activities.CrossRegionBackupType,
+		}
+		originalConvertFunc := _convertToBackupVaultDataModel
+		defer func() { _convertToBackupVaultDataModel = originalConvertFunc }()
+		_convertToBackupVaultDataModel = func(cvpBackupVault *cvpmodels.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+			return backupVaultDataModel, nil
+		}
+
+		// Mock orchestrator to return created backup vault
+		createdBackupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-resource-id",
+			BackupVaultType: activities.CrossRegionBackupType,
+			ExternalUUID:    nillable.GetStringPtr("test-backup-vault-id"),
+		}
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "test-uuid", result.BackupVaultId)
 	})
 }

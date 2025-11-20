@@ -69,19 +69,22 @@ func (o *Orchestrator) DeleteBackupVault(ctx context.Context, params *commonpara
 	return deleteBackupVault(ctx, o.storage, o.temporal, params)
 }
 
-func (o *Orchestrator) DeleteBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+func (o *Orchestrator) DeleteBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (string, error) {
 	se := o.storage
 	account, err := se.GetAccount(ctx, params.OwnerID)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 	RemoteBV, err := se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, params.BackupVaultID, account.ID)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 	params.BackupVaultID = RemoteBV.UUID
-	params.IsInternal = true
-	return deleteBackupVault(ctx, o.storage, o.temporal, params)
+	_, err = se.DeleteBackupVaultInVCP(ctx, RemoteBV.UUID)
+	if err != nil {
+		return "", err
+	}
+	return "", nil
 }
 
 func _deleteBackupVault(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
@@ -100,7 +103,7 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
 	}
 
-	if !params.IsInternal && dbBv.BackupVaultType == activities.CrossRegionBackupType && params.Region == *dbBv.BackupRegionName {
+	if dbBv.BackupVaultType == activities.CrossRegionBackupType && params.Region == *dbBv.BackupRegionName {
 		return nil, "", customerrors.NewUserInputValidationErr("backup vault cannot be deleted from the destination region")
 	}
 
@@ -536,8 +539,15 @@ func (o *Orchestrator) UpdateBackupVaultInternal(ctx context.Context, params *co
 		updatedBV.ImmutableAttributes = existingBV.ImmutableAttributes
 	}
 
+	if params.BucketDetails != nil && len(params.BucketDetails) > 0 {
+		updatedBV.BucketDetails = params.BucketDetails
+	} else {
+		updatedBV.BucketDetails = existingBV.BucketDetails
+	}
+
 	updatedBV.LifeCycleState = existingBV.LifeCycleState
 	updatedBV.LifeCycleStateDetails = existingBV.LifeCycleStateDetails
+	updatedBV.ExternalUUID = &params.BackupVaultID
 
 	resultBV, err := se.UpdateBackupVaultInVCP(ctx, updatedBV, existingBV)
 	if err != nil {
