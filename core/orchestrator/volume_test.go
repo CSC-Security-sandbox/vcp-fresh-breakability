@@ -5,6 +5,7 @@ import (
 	errors2 "errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -6967,6 +6969,137 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(t, err, "Failed to fetch updated volume")
 		assert.Equal(t, models.LifeCycleStateDeleting, updatedVolume.State)
 		assert.Equal(t, models.LifeCycleStateDeletingDetails, updatedVolume.StateDetails)
+	})
+
+	t.Run("WhenFlexCacheVolume", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 101, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 202, UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-central1/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test_volume",
+			AccountID:    account.ID,
+			Account:      account,
+			PoolID:       pool.ID,
+			Pool:         pool,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:         []string{utils.ProtocolNFSv3},
+				SnapReserve:       0,
+				SnapshotDirectory: true,
+			},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster",
+			},
+		}
+
+		originalAutoScaling := enableAutoPoolScaling
+		enableAutoPoolScaling = false
+		defer func() { enableAutoPoolScaling = originalAutoScaling }()
+
+		var workflowValidated bool
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temp client.Client, execCtx context.Context, options client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			workflowValidated = true
+			assert.Equal(tt, reflect.ValueOf(flexcache_workflows.DeleteFlexCacheVolumeWorkflow).Pointer(), reflect.ValueOf(wfFunction).Pointer())
+			assert.Len(tt, wfArgs, 1)
+			assert.Equal(tt, volume, wfArgs[0])
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		mm.EXPECT().validateDeleteVolumeParams(ctx, mockStorage, volume).Return(nil)
+		mm.EXPECT().checkAndCancelCreateWorkflowIfNeeded(ctx, mockStorage, temporal, volume).Return(nil)
+		mockStorage.EXPECT().GetVolume(ctx, volume.UUID).Return(volume, nil)
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			assert.Equal(tt, string(models.JobTypeFlexCacheDeleteVolume), job.Type)
+			assert.Equal(tt, string(models.JobsStateNEW), job.State)
+			assert.Equal(tt, volume.Name, job.ResourceName)
+			if assert.NotNil(tt, job.JobAttributes) {
+				assert.Equal(tt, volume.UUID, job.JobAttributes.ResourceUUID)
+			}
+			return true
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}, nil)
+		mockStorage.EXPECT().UpdateVolumeFields(ctx, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+			assert.Equal(tt, models.LifeCycleStateDeleting, fields["state"])
+			assert.Equal(tt, models.LifeCycleStateDeletingDetails, fields["state_details"])
+			return true
+		})).Return(nil)
+
+		resultVolume, jobID, err := deleteVolume(ctx, mockStorage, temporal, volume.UUID)
+		assert.NoError(tt, err, "deleteVolume should succeed for FlexCache volume")
+		assert.Equal(tt, "job-uuid", jobID)
+		assert.NotNil(tt, resultVolume)
+		assert.Equal(tt, models.LifeCycleStateDeleting, resultVolume.LifeCycleState)
+		assert.True(tt, workflowValidated, "expected flex cache delete workflow to be used")
+	})
+
+	t.Run("WhenFlexCacheVolumeCancelFails", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 101, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 202, UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-central1/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test_volume",
+			AccountID:    account.ID,
+			Account:      account,
+			PoolID:       pool.ID,
+			Pool:         pool,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:         []string{utils.ProtocolNFSv3},
+				SnapReserve:       0,
+				SnapshotDirectory: true,
+			},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster",
+			},
+		}
+
+		mm.EXPECT().validateDeleteVolumeParams(ctx, mockStorage, volume).Return(nil)
+		mm.EXPECT().checkAndCancelCreateWorkflowIfNeeded(ctx, mockStorage, temporal, volume).Return(fmt.Errorf("some error"))
+		mockStorage.EXPECT().GetVolume(ctx, volume.UUID).Return(volume, nil)
+
+		resultVolume, jobID, err := deleteVolume(ctx, mockStorage, temporal, volume.UUID)
+		assert.Error(tt, err)
+		assert.Nil(tt, resultVolume)
+		assert.Empty(tt, jobID)
 	})
 
 	t.Run("WhenUpdateVolumeFieldsFails", func(tt *testing.T) {

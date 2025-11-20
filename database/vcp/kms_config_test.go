@@ -327,7 +327,7 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 		kmsConfigUUID := "nonexistent-uuid"
 		result, err := store.GetJobByResourceUUID(context.Background(), kmsConfigUUID, "")
 
-		assert.ErrorContains(tt, err, "record not found")
+		assert.ErrorContains(tt, err, "Job not found")
 		assert.Nil(tt, result)
 	})
 

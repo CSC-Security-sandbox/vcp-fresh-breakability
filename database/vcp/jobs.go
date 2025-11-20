@@ -136,6 +136,23 @@ func (d *DataStoreRepository) GetJobsWithCondition(ctx context.Context, filter u
 	return jobs, nil
 }
 
+// GetJobByResourceUUID retrieves the job by its resource UUID
+func (d *DataStoreRepository) GetJobByResourceUUID(ctx context.Context, resourceUUID string, jobType string) (*datamodel.Job, error) {
+	job := &datamodel.Job{}
+	query := d.db.GORM().WithContext(ctx).Where("job_attributes ->> 'resource_uuid' = ?", resourceUUID)
+
+	// Add job type filter if provided
+	if jobType != "" {
+		query = query.Where("type = ?", jobType)
+	}
+
+	err := query.First(job).Error
+	if err != nil {
+		return nil, errors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "Job", nil)
+	}
+	return job, nil
+}
+
 func _getJobWithDetails(db *gorm.DB, query *datamodel.Job) (*datamodel.Job, error) {
 	job := &datamodel.Job{}
 	err := db.First(&job, query).Error
@@ -181,4 +198,15 @@ func (d *DataStoreRepository) CheckAndFetchDuplicateJobs(ctx context.Context, jo
 	}
 
 	return &job, nil
+}
+
+func (d *DataStoreRepository) CancelRunningJobsForResource(ctx context.Context, resourceUUID string) error {
+	db := d.db.GORM().WithContext(ctx)
+	err := db.Model(&datamodel.Job{}).
+		Where("job_attributes ->> 'resource_uuid' = ? AND state = ?", resourceUUID, models.JobsStatePROCESSING).
+		Update("state", string(models.JobsStateCANCELLED)).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
 }

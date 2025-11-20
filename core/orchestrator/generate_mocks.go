@@ -25,6 +25,7 @@ type monkeyMethods interface {
 	// Helper methods
 	getOrCreateAccount(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error)
 	validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error
+	validateDeleteVolumeParams(ctx context.Context, se database.Storage, volume *datamodel.Volume) error
 	workflowsExecuteWorkflowSequentially(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error
 	envIsLocalEnv() bool
 	isEstablishVolumePeeringNeeded(ctx context.Context, se database.Storage, params *common.EstablishVolumePeeringParams, dbVolume *datamodel.Volume) (string, error)
@@ -38,6 +39,7 @@ type monkeyMethods interface {
 	// FlexCache specific methods
 	createFlexCacheVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateVolumeParams) (*models.Volume, string, error)
 	establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*models.Volume, string, error)
+	checkAndCancelCreateWorkflowIfNeeded(ctx context.Context, se database.Storage, temporal client.Client, dbVolume *datamodel.Volume) error
 
 	// Volume replication methods
 	getAccountWithName(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error)

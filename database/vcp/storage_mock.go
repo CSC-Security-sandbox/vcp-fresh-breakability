@@ -569,6 +569,53 @@ func (_c *MockStorage_BatchUpdateVolumeTieringFields_Call) RunAndReturn(run func
 	return _c
 }
 
+// CancelRunningJobsForResource provides a mock function with given fields: ctx, resourceUUID
+func (_m *MockStorage) CancelRunningJobsForResource(ctx context.Context, resourceUUID string) error {
+	ret := _m.Called(ctx, resourceUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CancelRunningJobsForResource")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, resourceUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_CancelRunningJobsForResource_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CancelRunningJobsForResource'
+type MockStorage_CancelRunningJobsForResource_Call struct {
+	*mock.Call
+}
+
+// CancelRunningJobsForResource is a helper method to define mock.On call
+//   - ctx context.Context
+//   - resourceUUID string
+func (_e *MockStorage_Expecter) CancelRunningJobsForResource(ctx interface{}, resourceUUID interface{}) *MockStorage_CancelRunningJobsForResource_Call {
+	return &MockStorage_CancelRunningJobsForResource_Call{Call: _e.mock.On("CancelRunningJobsForResource", ctx, resourceUUID)}
+}
+
+func (_c *MockStorage_CancelRunningJobsForResource_Call) Run(run func(ctx context.Context, resourceUUID string)) *MockStorage_CancelRunningJobsForResource_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CancelRunningJobsForResource_Call) Return(_a0 error) *MockStorage_CancelRunningJobsForResource_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_CancelRunningJobsForResource_Call) RunAndReturn(run func(context.Context, string) error) *MockStorage_CancelRunningJobsForResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CheckAndFetchDuplicateJobs provides a mock function with given fields: ctx, jobType, correlationID
 func (_m *MockStorage) CheckAndFetchDuplicateJobs(ctx context.Context, jobType string, correlationID string) (*datamodel.Job, error) {
 	ret := _m.Called(ctx, jobType, correlationID)

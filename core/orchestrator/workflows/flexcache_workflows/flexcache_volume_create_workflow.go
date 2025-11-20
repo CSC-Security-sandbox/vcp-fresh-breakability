@@ -23,9 +23,11 @@ import (
 var (
 	clusterPeerTimeout  = env.GetDuration("CLUSTER_PEER_TIMEOUT", 60*time.Minute)
 	clusterPeerInterval = env.GetDuration("CLUSTER_PEER_INTERVAL", 15*time.Second)
+	forceEncryption     = env.GetBool("FLEXCACHE_FORCE_ENCRYPTION", false)
 
 	getClusterPeerTimeout  = _getClusterPeerTimeout
 	getClusterPeerInterval = _getClusterPeerInterval
+	shouldForceEncryption  = _shouldForceEncryption
 )
 
 func _getClusterPeerTimeout() time.Duration {
@@ -34,6 +36,10 @@ func _getClusterPeerTimeout() time.Duration {
 
 func _getClusterPeerInterval() time.Duration {
 	return clusterPeerInterval
+}
+
+func _shouldForceEncryption() bool {
+	return forceEncryption
 }
 
 type flexCacheCreateWorkflow struct {
@@ -385,6 +391,12 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}
 
+	// Update the volume to be "creating" state because the volume is actually being created in ONTAP now that peering has been established
+	// In the creating state we must wait for completion or an error before we can delete.
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeLifecycleStateActivity, &flexcacheResult, coremodels.LifeCycleStateCreating).Get(ctx, &flexcacheResult); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.CreateExportPolicyInOntap, &flexcacheResult.DBVolume, &flexcacheResult.Node).Get(ctx, nil); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -399,11 +411,13 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.VerifyVolumeEncryptionActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	if shouldForceEncryption() {
+		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.VerifyVolumeEncryptionActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
-	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeDetailsActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeLifecycleStateActivity, &flexcacheResult, coremodels.LifeCycleStateREADY).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 

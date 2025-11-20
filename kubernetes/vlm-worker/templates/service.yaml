@@ -1,7 +1,6 @@
 {{- range $mapping := $.Values.ontapVersionVlmImageMappings }}
     {{- $versionName := $mapping.ontapVersion }}
     {{- $version := ($versionName | lower | replace "." "-") }}
-
 apiVersion: v1
 kind: Service
 metadata:

@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
@@ -667,6 +668,139 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
 		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
 		assert.Equal(tt, volume.LifeCycleState, "PREPARING")
+	})
+}
+
+func TestCheckAndCancelCreateWorkflowIfNeeded(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		store := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			State:     models.LifeCycleStatePreparing,
+		}
+
+		job := &datamodel.Job{WorkflowID: "workflow-id"}
+
+		store.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		temporal.EXPECT().CancelWorkflow(ctx, job.WorkflowID, "").Return(nil)
+		store.EXPECT().CancelRunningJobsForResource(ctx, volume.UUID).Return(nil)
+
+		err := _checkAndCancelCreateWorkflowIfNeeded(ctx, store, temporal, volume)
+		assert.NoError(tt, err)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("CancelWorkflowError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		store := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			State:     models.LifeCycleStatePreparing,
+		}
+
+		job := &datamodel.Job{WorkflowID: "workflow-id"}
+
+		store.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		temporal.EXPECT().CancelWorkflow(ctx, job.WorkflowID, "").Return(assert.AnError)
+
+		err := _checkAndCancelCreateWorkflowIfNeeded(ctx, store, temporal, volume)
+		assert.Equal(tt, assert.AnError, err)
+		store.AssertNotCalled(tt, "CancelRunningJobsForResource", mock.Anything, mock.Anything)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeNotInPreparingState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		store := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			State:     models.LifeCycleStateAvailable,
+		}
+
+		err := _checkAndCancelCreateWorkflowIfNeeded(ctx, store, temporal, volume)
+		assert.NoError(tt, err)
+		store.AssertNotCalled(tt, "GetJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything)
+		temporal.AssertNotCalled(tt, "CancelWorkflow", mock.Anything, mock.Anything, mock.Anything)
+		store.AssertNotCalled(tt, "CancelRunningJobsForResource", mock.Anything, mock.Anything)
+	})
+
+	t.Run("CreateJobNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		store := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			State:     models.LifeCycleStatePreparing,
+		}
+
+		objectID := "job-id"
+		notFoundErr := vsaerrors.NewNotFoundErr("Job", &objectID)
+
+		store.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, notFoundErr)
+
+		err := _checkAndCancelCreateWorkflowIfNeeded(ctx, store, temporal, volume)
+		assert.NoError(tt, err)
+		temporal.AssertNotCalled(tt, "CancelWorkflow", mock.Anything, mock.Anything, mock.Anything)
+		store.AssertNotCalled(tt, "CancelRunningJobsForResource", mock.Anything, mock.Anything)
+	})
+
+	t.Run("GetJobByResourceUUID_OtherError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		store := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			State:     models.LifeCycleStatePreparing,
+		}
+
+		store.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(nil, assert.AnError)
+
+		err := _checkAndCancelCreateWorkflowIfNeeded(ctx, store, temporal, volume)
+		assert.Equal(tt, assert.AnError, err)
+		temporal.AssertNotCalled(tt, "CancelWorkflow", mock.Anything, mock.Anything, mock.Anything)
+		store.AssertNotCalled(tt, "CancelRunningJobsForResource", mock.Anything, mock.Anything)
+	})
+
+	t.Run("CancelRunningJobsForResource_Error", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		store := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			State:     models.LifeCycleStatePreparing,
+		}
+
+		job := &datamodel.Job{WorkflowID: "workflow-id"}
+
+		store.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheCreateVolume)).Return(job, nil)
+		temporal.EXPECT().CancelWorkflow(ctx, job.WorkflowID, "").Return(nil)
+		store.EXPECT().CancelRunningJobsForResource(ctx, volume.UUID).Return(assert.AnError)
+
+		err := _checkAndCancelCreateWorkflowIfNeeded(ctx, store, temporal, volume)
+		assert.Equal(tt, assert.AnError, err)
+		temporal.AssertExpectations(tt)
 	})
 }
 

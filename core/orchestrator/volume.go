@@ -35,24 +35,25 @@ import (
 )
 
 var (
-	numOfLvHAPairs                 = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
-	volumeRefreshIntervalMinutes   = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
-	maxThinClonesPerPool           = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
-	thinCloneGASupport             = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
-	minQuotaInBytesVolume          = utils.MinQuotaInBytesVolumeForVolume
-	maxQuotaInBytesVolume          = utils.MaxQuotaInBytesVolumeForVolume
-	createVolume                   = _createVolume
-	revertVolume                   = _revertVolume
-	splitCloneVolume               = _splitCloneVolume
-	validateCreateVolumeParams     = _validateCreateVolumeParams
-	validateSplitCloneVolumeParams = _validateSplitCloneVolumeParams
-	getIPAddressForVolume          = _getIPAddressForVolume
-	updateVolume                   = _updateVolume
-	deleteVolume                   = _deleteVolume
-	validateDeleteVolumeParams     = _validateDeleteVolumeParams
-	updateVolumeStatus             = _updateVolumeStatus
-	convertDatastoreVolumeToModel  = _convertDatastoreVolumeToModel
-	minPrimeNumberConfigAllowed    = 7
+	numOfLvHAPairs                       = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
+	volumeRefreshIntervalMinutes         = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
+	maxThinClonesPerPool                 = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
+	thinCloneGASupport                   = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+	minQuotaInBytesVolume                = utils.MinQuotaInBytesVolumeForVolume
+	maxQuotaInBytesVolume                = utils.MaxQuotaInBytesVolumeForVolume
+	createVolume                         = _createVolume
+	revertVolume                         = _revertVolume
+	splitCloneVolume                     = _splitCloneVolume
+	validateCreateVolumeParams           = _validateCreateVolumeParams
+	validateSplitCloneVolumeParams       = _validateSplitCloneVolumeParams
+	getIPAddressForVolume                = _getIPAddressForVolume
+	updateVolume                         = _updateVolume
+	deleteVolume                         = _deleteVolume
+	validateDeleteVolumeParams           = _validateDeleteVolumeParams
+	updateVolumeStatus                   = _updateVolumeStatus
+	convertDatastoreVolumeToModel        = _convertDatastoreVolumeToModel
+	checkAndCancelCreateWorkflowIfNeeded = _checkAndCancelCreateWorkflowIfNeeded
+	minPrimeNumberConfigAllowed          = 7
 
 	envIsLocalEnv                                   = env.IsLocalEnv
 	cvpCreateClient                                 = cvp.CreateClient
@@ -1547,6 +1548,12 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if volume.CacheParameters != nil {
 		job.Type = string(models.JobTypeFlexCacheDeleteVolume)
 		workflowFunc = flexcache_workflows.DeleteFlexCacheVolumeWorkflow
+
+		err = checkAndCancelCreateWorkflowIfNeeded(ctx, se, temporal, volume)
+		if err != nil {
+			logger.Error("Failed to check and cancel create flex cache volume workflow", "error", err)
+			return nil, "", err
+		}
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)

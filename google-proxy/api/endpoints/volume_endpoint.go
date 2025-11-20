@@ -320,6 +320,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 
 		reqCacheProperties, _ := req.Volume.CacheParameters.Get()
 		param.CacheParameters = &models.CacheParameters{
+			CacheState: cvpmodels.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED,
 			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
 			CacheStateDetails:     models.InitiatingClusterPeering,
 			PeerVolumeName:        reqCacheProperties.PeerVolumeName,

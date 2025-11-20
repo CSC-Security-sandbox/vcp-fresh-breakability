@@ -122,6 +122,7 @@ data:
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
   FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
+  FLEXCACHE_FORCE_ENCRYPTION: {{$.Values.workerConfig.flexcacheForceEncryption | quote }}
   VSA_IMAGE_NAME: {{$.Values.workerConfig.vsaImageName | quote }}
   VSA_FILES_IMAGE_NAME: {{$.Values.workerConfig.vsaFilesImageName | quote }}
   VSA_IMAGE_BUCKET: {{$.Values.workerConfig.vsaImageBucket | quote }}

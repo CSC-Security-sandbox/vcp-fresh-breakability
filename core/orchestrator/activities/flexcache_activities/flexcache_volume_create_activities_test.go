@@ -748,7 +748,7 @@ func TestFlexCacheVolumeCreateActivity_WaitForSVMPeeringActivity(t *testing.T) {
 	})
 }
 
-func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeDetailsActivity(t *testing.T) {
+func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeForVolumeCreation(t *testing.T) {
 	baseVolume := func() *datamodel.Volume {
 		return &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid-svm"},
@@ -756,56 +756,88 @@ func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeDetailsActivity(t *t
 			Svm:       &datamodel.Svm{Name: "local-svm"},
 			Account:   &datamodel.Account{Name: "account-name"},
 			CacheParameters: &datamodel.CacheParameters{
-				Command:               nillable.ToPointer("old command"),
-				CacheStateDetails:     "some prior detail",
-				CacheStateDetailsCode: coremodels.WaitingForClusterPeeringCode,
+				CacheState:         cvpModels.FlexCacheV1betaCacheStatePENDINGSVMPEERING,
+				PreviousCacheState: cvpModels.FlexCacheV1betaCacheStatePENDINGCLUSTERPEERING,
 			},
 			VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{}},
 		}
 	}
 
-	t.Run("Success", func(tt *testing.T) {
+	t.Run("SuccessWithCreating", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := &FlexCacheVolumeCreateActivity{SE: mockStorage}
 		ctx := context.Background()
 
 		vol := baseVolume()
-		svmPeer := &vsa.SvmPeer{UUID: "svm-peer-uuid", State: vsa.SvmPeerStatePeered}
 		volumeResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-volume-uuid"}}
 		result := &flexcache.CreateFlexCacheResult{
 			DBVolume:       vol,
-			SVMPeer:        svmPeer,
 			VolumeResponse: volumeResponse,
 		}
-
 		mockStorage.EXPECT().UpdateVolumeFields(ctx, vol.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
-			state, ok := updates["state"].(string)
-			stateDetails, ok2 := updates["state_details"].(string)
-			return ok && ok2 && state == "READY" && stateDetails == "Available for use"
+			return updates["state"] == coremodels.LifeCycleStateCreating && updates["state_details"] == coremodels.LifeCycleStateCreatingDetails
 		})).Return(nil).Once()
 
-		updated, err := activity.UpdateFlexCacheVolumeDetailsActivity(ctx, result)
+		updated, err := activity.UpdateFlexCacheVolumeLifecycleStateActivity(ctx, result, coremodels.LifeCycleStateCreating)
 		assert.NoError(tt, err)
-		assert.Nil(tt, updated.DBVolume.CacheParameters.Command)
+		assert.Equal(tt, updated.DBVolume.State, coremodels.LifeCycleStateCreating)
+
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("WhenUpdateVolumeFieldsFails", func(tt *testing.T) {
+	t.Run("SuccessWithReady", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := &FlexCacheVolumeCreateActivity{SE: mockStorage}
 		ctx := context.Background()
+
 		vol := baseVolume()
-		svmPeer := &vsa.SvmPeer{UUID: "svm-peer-uuid-2", State: string(vsa.SvmPeerStatePeered)}
 		volumeResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-volume-uuid"}}
 		result := &flexcache.CreateFlexCacheResult{
 			DBVolume:       vol,
-			SVMPeer:        svmPeer,
+			VolumeResponse: volumeResponse,
+		}
+		mockStorage.EXPECT().UpdateVolumeFields(ctx, vol.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			return updates["state"] == coremodels.LifeCycleStateREADY && updates["state_details"] == coremodels.LifeCycleStateAvailableDetails
+		})).Return(nil).Once()
+
+		updated, err := activity.UpdateFlexCacheVolumeLifecycleStateActivity(ctx, result, coremodels.LifeCycleStateREADY)
+		assert.NoError(tt, err)
+		assert.Equal(tt, updated.DBVolume.State, coremodels.LifeCycleStateREADY)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ErrorOnUpdateVolumeFields", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		vol := baseVolume()
+		volumeResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-volume-uuid"}}
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:       vol,
+			VolumeResponse: volumeResponse,
+		}
+		mockStorage.EXPECT().UpdateVolumeFields(ctx, vol.UUID, mock.Anything).Return(assert.AnError).Once()
+		updated, err := activity.UpdateFlexCacheVolumeLifecycleStateActivity(ctx, result, coremodels.LifeCycleStateREADY)
+		assert.Nil(tt, updated)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ErrorUnknownState", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		vol := baseVolume()
+		volumeResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "external-volume-uuid"}}
+		result := &flexcache.CreateFlexCacheResult{
+			DBVolume:       vol,
 			VolumeResponse: volumeResponse,
 		}
 
-		mockStorage.On("UpdateVolumeFields", ctx, vol.UUID, mock.Anything).Return(assert.AnError).Once()
-
-		updated, err := activity.UpdateFlexCacheVolumeDetailsActivity(ctx, result)
+		updated, err := activity.UpdateFlexCacheVolumeLifecycleStateActivity(ctx, result, "UNKNOWN_STATE")
 		assert.Nil(tt, updated)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)

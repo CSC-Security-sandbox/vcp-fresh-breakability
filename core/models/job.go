@@ -13,6 +13,7 @@ const (
 	JobsStateERROR                  JobState = "ERROR"
 	JobsStateDONE                   JobState = "DONE"
 	JobsStateWaitForTemporal        JobState = "WAIT_FOR_TEMPORAL"
+	JobsStateCANCELLED              JobState = "CANCELLED"
 	WaitForTemporalJobMaxRetryCount          = 5
 )
 

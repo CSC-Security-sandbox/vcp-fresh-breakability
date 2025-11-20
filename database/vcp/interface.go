@@ -127,6 +127,7 @@ type (
 		GetOngoingMigrateKmsConfigJob(ctx context.Context, accountId int64) (*datamodel.Job, error)
 		UpdateJobAttributes(ctx context.Context, jobUUID string, jobAttributes *datamodel.JobAttributes) error
 		CheckAndFetchDuplicateJobs(ctx context.Context, jobType string, correlationID string) (*datamodel.Job, error)
+		CancelRunningJobsForResource(ctx context.Context, resourceUUID string) error
 
 		GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error)
 		GetNodesByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error)

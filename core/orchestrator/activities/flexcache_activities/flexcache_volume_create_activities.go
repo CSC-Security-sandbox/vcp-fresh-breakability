@@ -291,19 +291,43 @@ func (a *FlexCacheVolumeCreateActivity) WaitForSVMPeeringActivity(ctx context.Co
 	return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("svm peer is not ready yet"))
 }
 
-func (a *FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeDetailsActivity(ctx context.Context, result *flexcache.CreateFlexCacheResult) (*flexcache.CreateFlexCacheResult, error) {
+// UpdateFlexCacheVolumeLifecycleStateActivity updates the volume lifecycle state and any cache-related fields based
+// on the provided targetState.
+//
+// Supported target states:
+//
+//	coremodels.LifeCycleStateCreating -> sets state to CREATING, clears peering command/passphrase, resets details
+//	coremodels.LifeCycleStateREADY    -> sets state to READY, marks cache state PEERED
+func (a *FlexCacheVolumeCreateActivity) UpdateFlexCacheVolumeLifecycleStateActivity(
+	ctx context.Context,
+	result *flexcache.CreateFlexCacheResult,
+	targetState string,
+) (*flexcache.CreateFlexCacheResult, error) {
 	volume := result.DBVolume
-	volume.CacheParameters.CacheStateDetailsCode = coremodels.DefaultCode
-	volume.CacheParameters.CacheStateDetails = ""
-	volume.CacheParameters.Command = nil
-	volume.CacheParameters.CommandExpiryTime = nil
-	volume.CacheParameters.Passphrase = nil
-	a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePEERED)
+
+	switch targetState {
+	case coremodels.LifeCycleStateCreating:
+		volume.State = coremodels.LifeCycleStateCreating
+		volume.StateDetails = coremodels.LifeCycleStateCreatingDetails
+		// Reset cache-specific transitional fields
+		volume.CacheParameters.CacheStateDetailsCode = coremodels.DefaultCode
+		volume.CacheParameters.CacheStateDetails = ""
+		volume.CacheParameters.Command = nil
+		volume.CacheParameters.CommandExpiryTime = nil
+		volume.CacheParameters.Passphrase = nil
+	case coremodels.LifeCycleStateREADY:
+		volume.State = coremodels.LifeCycleStateREADY
+		volume.StateDetails = coremodels.LifeCycleStateAvailableDetails
+		// Move cache state to PEERED when volume is READY
+		a.setCacheStates(result, cvpModels.FlexCacheV1betaCacheStatePEERED)
+	default:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("unsupported target lifecycle state: %s", targetState))
+	}
 
 	updates := map[string]interface{}{
 		"cache_parameters": volume.CacheParameters,
-		"state":            coremodels.LifeCycleStateREADY,
-		"state_details":    coremodels.LifeCycleStateAvailableDetails,
+		"state":            volume.State,
+		"state_details":    volume.StateDetails,
 	}
 	if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)

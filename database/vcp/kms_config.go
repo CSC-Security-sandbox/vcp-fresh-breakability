@@ -267,23 +267,6 @@ func _updateKmsConfigAttributes(db *gorm.DB, uuid string, attributes *datamodel.
 	return dbKmsConfig, nil
 }
 
-// GetJobByResourceUUID retrieves the job associated with a KMS configuration by its UUID
-func (d *DataStoreRepository) GetJobByResourceUUID(ctx context.Context, resourceUUID string, jobType string) (*datamodel.Job, error) {
-	job := &datamodel.Job{}
-	query := d.db.GORM().WithContext(ctx).Where("job_attributes ->> 'resource_uuid' = ?", resourceUUID)
-
-	// Add job type filter if provided
-	if jobType != "" {
-		query = query.Where("type = ?", jobType)
-	}
-
-	err := query.First(job).Error
-	if err != nil {
-		return nil, err
-	}
-	return job, nil
-}
-
 // UpdateKmsConfigDetails updates the KMS configuration details such as key full path and resource ID
 func (d *DataStoreRepository) UpdateKmsConfigDetails(ctx context.Context, uuid string, keyFullPath string, resourceID string) (*datamodel.KmsConfig, error) {
 	var updatedKmsConfig *datamodel.KmsConfig

@@ -897,3 +897,67 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 		assert.Equal(tt, string(string(models.JobTypeCreatePool)), duplicateJob.Type, "Expected pool job type")
 	})
 }
+
+func TestCancelRunningJobsForResource(t *testing.T) {
+	t.Run("WhenRunningJobsExistForResource", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create running jobs for the resource
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "job-1-uuid"},
+			ResourceName: "test-resource",
+			State:        string(models.JobsStateDONE),
+			Type:         string(models.JobTypeFlexCacheCreateVolume),
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "resource-uuid",
+			},
+		}
+		job2 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "job-2-uuid"},
+			ResourceName: "test-resource",
+			State:        string(models.JobsStatePROCESSING),
+			Type:         string(models.JobTypeFlexCacheInternalPeering),
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "resource-uuid",
+			},
+		}
+		_, err = store.CreateJob(context.Background(), job1)
+		assert.NoError(tt, err, "Failed to create job1: %v", err)
+		_, err = store.CreateJob(context.Background(), job2)
+		assert.NoError(tt, err, "Failed to create job2: %v", err)
+
+		// Cancel running jobs for the resource
+		err = store.CancelRunningJobsForResource(context.Background(), "resource-uuid")
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify jobs are cancelled
+		updatedJob1, err := store.GetJob(context.Background(), job1.UUID)
+		assert.NoError(tt, err, "Failed to get updated job1: %v", err)
+		assert.Equal(tt, string(models.JobsStateDONE), updatedJob1.State, "Expected job1 state to be DONE")
+
+		updatedJob2, err := store.GetJob(context.Background(), job2.UUID)
+		assert.NoError(tt, err, "Failed to get updated job2: %v", err)
+		assert.Equal(tt, string(models.JobsStateCANCELLED), updatedJob2.State, "Expected job2 state to be CANCELLED")
+	})
+
+	t.Run("WhenErrorOccursDuringUpdate", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		sqlDB, _ := db.DB()
+		err = sqlDB.Close()
+		assert.NoError(tt, err, "Failed to close test database")
+
+		// Attempt to cancel running jobs for a resource
+		err = store.CancelRunningJobsForResource(context.Background(), "non-existent-resource-uuid")
+		assert.Error(tt, err, "Expected an error due to no jobs found, got nil")
+	})
+}

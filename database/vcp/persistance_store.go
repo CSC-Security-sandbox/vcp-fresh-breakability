@@ -1352,6 +1352,10 @@ func (s *PersistenceStore) CheckAndFetchDuplicateJobs(ctx context.Context, jobTy
 	return s.dataStore.CheckAndFetchDuplicateJobs(ctx, jobType, correlationID)
 }
 
+func (s *PersistenceStore) CancelRunningJobsForResource(ctx context.Context, resourceUUID string) error {
+	return s.dataStore.CancelRunningJobsForResource(ctx, resourceUUID)
+}
+
 // Cluster Peering methods
 func (s *PersistenceStore) GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx context.Context, accountID int64, externalCluster string, poolID int64) (*datamodel.ClusterPeerings, error) {
 	return s.dataStore.GetClusterPeerByAccountIDExternalClusterAndPoolID(ctx, accountID, externalCluster, poolID)

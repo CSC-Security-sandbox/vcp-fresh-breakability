@@ -1368,6 +1368,21 @@ func (re *retryEngine) CheckAndFetchDuplicateJobs(ctx context.Context, jobType s
 	return var0, err
 }
 
+func (re *retryEngine) CancelRunningJobsForResource(ctx context.Context, resourceUUID string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.CancelRunningJobsForResource(ctx, resourceUUID)
+		if err != nil {
+			re.logError("CancelRunningJobsForResource", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
 	var var0 *datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {
