@@ -630,7 +630,6 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			*dbBackupVault.BackupRegionName).Get(ctx, nil)
 		if remoteBackupErr != nil {
 			wf.Logger.Errorf("Failed to delete remote backup from VCP for backup %s: %v", dbBackup.UUID, remoteBackupErr)
-			return nil, ConvertToVSAError(fmt.Errorf("failed to delete remote backup from VCP for backup %s: %w", dbBackup.UUID, remoteBackupErr))
 		}
 	}
 

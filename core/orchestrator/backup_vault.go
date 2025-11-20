@@ -9,12 +9,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -426,7 +424,7 @@ func (o *Orchestrator) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Conte
 }
 
 // CreateBackupVaultEntryInVCP creates a BackupVault entry directly in the VCP database for cross-region operations
-func (o *Orchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, params *commonparams.BackupVaultParams) (*datamodel.BackupVault, error) {
+func (o *Orchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	se := o.storage
 	logger := util.GetLogger(ctx)
 
@@ -440,29 +438,7 @@ func (o *Orchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *data
 		logger.Errorf("Failed to create cross-region backup vault entry in VCP: %v", err)
 		return nil, err
 	}
-
-	if hydrationEnabled {
-		err = hydrateCreatedBackupVaults(ctx, backupVault, params)
-		if err != nil {
-			logger.Errorf("Failed to hydrate created backup vault to CCFE: %v", err)
-			return nil, err
-		}
-	}
 	return backupVault, nil
-}
-
-func hydrateCreatedBackupVaults(ctx context.Context, backupVault *datamodel.BackupVault, params *commonparams.BackupVaultParams) error {
-	logger := util.GetLogger(ctx)
-	token, err := auth.GenerateCallbackToken(ctx)
-	if err != nil {
-		return err
-	}
-	requests := common.ConvertToGCPHydrateBackupVaultCreateRequests([]*datamodel.BackupVault{backupVault})
-	err = common.HydrateCreatedBackupVaults(ctx, logger, requests, backupVault.Name, *backupVault.BackupRegionName, params.OwnerID, token)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // GetBackupVaultByExternalUUIDAndOwnerID gets a BackupVault by external UUID directly from storage for cross-region operations

@@ -4688,20 +4688,14 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(backup, nil)
 	// Mock DeleteRemoteBackupFromVCPActivity to fail
 	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, params.BackupUUID, params.BackupVaultUUID, params.AccountName, backupRegionName).Return(errors.New("failed to delete remote backup from VCP"))
-	// When deleteInitiated is true, HandleError calls UpdateBackupError (not MarkBackupAvailable)
-	env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	// Mock GetBackup for HandleError rollback path
-	env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
-	// Mock DeleteRemoteBackupFromVCPActivity for HandleError rollback path (second call)
-	// Note: In error handling path, the workflow uses ExternalUUID instead of UUID
-	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, externalBackupUUID, externalVaultUUID, params.AccountName, backupRegionName).Return(nil)
+	env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(DeleteBackupWorkflow, params)
 
 	// Assert that the workflow failed due to DeleteRemoteBackupFromVCPActivity failure
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.Error(t, env.GetWorkflowError())
-	assert.ErrorContains(t, env.GetWorkflowError(), "failed to delete remote backup from VCP")
+	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }

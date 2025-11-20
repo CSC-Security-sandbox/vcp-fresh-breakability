@@ -5329,7 +5329,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 		}
 
 		// Mock orchestrator to return conflict error
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("BackupVault already exists"))
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("BackupVault already exists"))
 
 		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5399,7 +5399,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 		}
 
 		// Mock orchestrator to return error
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
 
 		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
 		assert.Error(tt, err)
@@ -5481,7 +5481,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 			ExternalUUID:               nillable.GetStringPtr("test-backup-vault-id"),
 			CrossRegionBackupVaultName: nillable.GetStringPtr("source-vault-id"),
 		}
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything).Return(createdBackupVault, nil)
 
 		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5579,7 +5579,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 				},
 			},
 		}
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything).Return(createdBackupVault, nil)
 
 		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5661,7 +5661,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 			BackupVaultType: activities.CrossRegionBackupType,
 			ExternalUUID:    nillable.GetStringPtr("test-backup-vault-id"),
 		}
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything).Return(createdBackupVault, nil)
 
 		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5739,7 +5739,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 			BackupVaultType: activities.CrossRegionBackupType,
 			ExternalUUID:    nillable.GetStringPtr("test-backup-vault-id"),
 		}
-		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything).Return(createdBackupVault, nil)
 
 		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)

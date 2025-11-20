@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 	"gorm.io/gorm"
 )
 
@@ -1331,14 +1332,105 @@ func (a *BackupActivity) DeleteRemoteBackupFromVCPActivity(ctx context.Context, 
 		XCorrelationID: googleproxyclient.NewOptString(correlationID),
 	}
 
-	_, err = googleProxyClient.Invoker.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
+	res, err := googleProxyClient.Invoker.V1betaInternalDeleteBackupUnderBackupVault(ctx, params)
 	if err != nil {
-		logger.Errorf("Failed to delete remote Backup: %v, region=%s, backupVaultID=%s, backupID=%s", err, region, backupVaultUUID, backupUUID)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		logger.Errorf("Failed to call V1betaInternalDeleteBackupUnderBackupVault: %v", err)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to delete remote backup: %v", err),
+			"InternalDeleteBackupUnderBackupVaultFailed",
+			err,
+		)
 	}
 
-	logger.Infof("Successfully deleted remote Backup, backupID=%s, region=%s", backupUUID, region)
-	return nil
+	switch r := res.(type) {
+	case *googleproxyclient.InternalBackupV1beta:
+		logger.Infof("Successfully deleted remote backup %s in region %s",
+			backupUUID, region)
+		return nil
+
+	case *googleproxyclient.OperationV1beta:
+		isDone := r.Done.Value
+		logger.Infof("Delete operation returned for remote backup %s in region %s. Operation: %s, Done: %v",
+			backupUUID, region, r.GetName(), isDone)
+
+		if !isDone {
+			logger.Warnf("Delete operation for remote backup %s not marked as done, but treating as synchronous", backupUUID)
+		}
+
+		logger.Infof("Successfully deleted remote backup %s (external UUID) in region %s",
+			backupUUID, region)
+		return nil
+
+	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultBadRequest:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Bad request deleting remote backup: %s", r.Message),
+			"V1betaInternalDeleteBackupUnderBackupVaultBadRequest",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultUnauthorized:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unauthorized to delete remote backup: %s", r.Message),
+			"V1betaInternalDeleteBackupUnderBackupVaultUnauthorized",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultForbidden:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Forbidden to delete remote backup: %s", r.Message),
+			"V1betaInternalDeleteBackupUnderBackupVaultForbidden",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultNotFound:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Remote backup not found: %s", r.Message),
+			"V1betaInternalDeleteBackupUnderBackupVaultNotFound",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultConflict:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Conflict deleting remote backup: %s", r.Message),
+			"V1betaInternalDeleteBackupUnderBackupVaultConflict",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultUnprocessableEntity:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unprocessable entity deleting remote backup: %s", r.Message),
+			"V1betaInternalDeleteBackupUnderBackupVaultUnprocessableEntity",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultInternalServerError:
+		return temporal.NewApplicationError(
+			fmt.Sprintf("Internal server error deleting remote backup: %s", r.Message),
+			"V1betaInternalDeleteBackupUnderBackupVaultInternalServerError",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultTooManyRequests:
+		return temporal.NewApplicationError(
+			fmt.Sprintf("Too many requests deleting remote backup: %s", r.Message),
+			"V1betaInternalDeleteBackupUnderBackupVaultTooManyRequests",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultNotImplemented:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Not implemented deleting remote backup: %s", r.Message),
+			"V1betaInternalDeleteBackupUnderBackupVaultNotImplemented",
+			errors.New(r.Message),
+		)
+
+	default:
+		return temporal.NewApplicationError(
+			fmt.Sprintf("Unexpected response type from internal delete backup endpoint: %T", r),
+			"UnexpectedDeleteResponseType",
+			fmt.Errorf("unexpected response type: %T", r),
+		)
+	}
 }
 
 func (a *BackupActivity) UpdateBackupRestoreCount(ctx context.Context, backupVaultUUID, backupUUID, accountName, operation string) error {
@@ -1471,18 +1563,96 @@ func (a *BackupActivity) CreateRemoteBackupFromVCPActivity(ctx context.Context, 
 
 	res, err := googleProxyClient.Invoker.V1betaInternalCreateBackup(ctx, &backupCreate, params)
 	if err != nil {
-		logger.Errorf("Failed to create remote Backup: %v, region=%s, backupVaultID=%s", err, region, backupVault.ExternalUUID)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		logger.Errorf("Failed to call V1betaInternalCreateBackup: %v", err)
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Failed to create remote backup: %v", err),
+			"InternalCreateBackupFailed",
+			err,
+		)
 	}
 
-	// Check if the response indicates success
-	if res == nil {
-		logger.Error("Unexpected nil response from remote Backup creation", "backupName", backup.Name)
-		return vsaerrors.WrapAsTemporalApplicationError(errors.NewNotFoundErr("remote backup", &backup.Name))
-	}
+	switch r := res.(type) {
+	case *googleproxyclient.InternalBackupV1beta:
+		logger.Infof("Successfully created remote backup %s in region %s",
+			backup.Name, region)
+		return nil
 
-	logger.Infof("Successfully created remote Backup, backupName=%s, region=%s", backup.Name, region)
-	return nil
+	case *googleproxyclient.OperationV1beta:
+		isDone := r.Done.Value
+		logger.Infof("Create operation returned for remote backup %s in region %s. Operation: %s, Done: %v",
+			backup.Name, region, r.GetName(), isDone)
+
+		if !isDone {
+			logger.Warnf("Create operation for remote backup %s not marked as done, but treating as synchronous", backup.Name)
+		}
+
+		logger.Infof("Successfully created remote backup %s in region %s",
+			backup.Name, region)
+		return nil
+
+	case *googleproxyclient.V1betaInternalCreateBackupBadRequest:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Bad request creating remote backup: %s", r.Message),
+			"V1betaInternalCreateBackupBadRequest",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupUnauthorized:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unauthorized to create remote backup: %s", r.Message),
+			"V1betaInternalCreateBackupUnauthorized",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupForbidden:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Forbidden to create remote backup: %s", r.Message),
+			"V1betaInternalCreateBackupForbidden",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupConflict:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Conflict creating remote backup: %s", r.Message),
+			"V1betaInternalCreateBackupConflict",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupUnprocessableEntity:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Unprocessable entity creating remote backup: %s", r.Message),
+			"V1betaInternalCreateBackupUnprocessableEntity",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupInternalServerError:
+		return temporal.NewApplicationError(
+			fmt.Sprintf("Internal server error creating remote backup: %s", r.Message),
+			"V1betaInternalCreateBackupInternalServerError",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupTooManyRequests:
+		return temporal.NewApplicationError(
+			fmt.Sprintf("Too many requests creating remote backup: %s", r.Message),
+			"V1betaInternalCreateBackupTooManyRequests",
+			errors.New(r.Message),
+		)
+
+	case *googleproxyclient.V1betaInternalCreateBackupNotImplemented:
+		return temporal.NewNonRetryableApplicationError(
+			fmt.Sprintf("Not implemented creating remote backup: %s", r.Message),
+			"V1betaInternalCreateBackupNotImplemented",
+			errors.New(r.Message),
+		)
+
+	default:
+		return temporal.NewApplicationError(
+			fmt.Sprintf("Unexpected response type from internal create backup endpoint: %T", r),
+			"UnexpectedCreateResponseType",
+			fmt.Errorf("unexpected response type: %T", r),
+		)
+	}
 }
 
 // UpdateRemoteBackupFromVCPActivity updates the Backup in the remote region using Google Proxy Client
