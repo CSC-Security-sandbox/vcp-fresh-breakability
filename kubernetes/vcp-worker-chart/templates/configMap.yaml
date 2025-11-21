@@ -100,6 +100,7 @@ data:
   CLOUD_DNS_CACHE_TTL: {{$.Values.workerConfig.cloudDnsCacheTtl | quote }}
   VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: {{$.Values.workerConfig.vsaLifecycleManagerQueuePrefix | quote }}
   ONTAP_VERSION_DETAILS: {{$.Values.workerConfig.ontapVersionDetails | quote }}
+  ONTAP_REST_ASYNC_POLL_TIMEOUT_MINUTES: {{$.Values.workerConfig.ontapRestAsyncPollTimeoutMinutes | quote }}
   ENFORCE_MIN_SP_CONFIG: {{$.Values.workerConfig.enforceMinSpConfig | quote }}
   MAX_NODES_PER_GROUP: {{$.Values.workerConfig.maxNodesPerGroup | quote }}
   MAX_NESTED_CLONE_LIMIT: {{$.Values.workerConfig.maxNestedCloneLimit | quote }}

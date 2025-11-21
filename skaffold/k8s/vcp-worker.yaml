@@ -46,6 +46,7 @@ data:
   OBJECT_STORE_AUTH_TYPE: "GCP_SA"
   GCP_HYDRATE_ENABLED: "true"
   GCP_HYDRATE_BATCH_SIZE: "10"
+  ONTAP_REST_ASYNC_POLL_TIMEOUT_MINUTES: "15"
   VMRS_CONFIG_PATH: "/config/vmrs_gcp.yaml"
   VLM_CONFIG_FILE_PATH: "/common/vsa_config/vlm-config.json"
   ERROR_FILE_PATH: "/app/errors.json"
