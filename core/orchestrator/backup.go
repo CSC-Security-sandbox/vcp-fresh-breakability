@@ -21,7 +21,6 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 )
 
@@ -110,7 +109,6 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 		return nil, "", err
 	}
-	workflowStarted := false
 	stateUpdated := false
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeCreateBackup),
@@ -184,14 +182,14 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	dbBackup.StateDetails = models.LifeCycleStateCreatingDetails
 
 	defer func() {
-		if err != nil && !workflowStarted {
-			// Only rollback if the state was successfully updated but workflow failed to start
+		if err != nil {
+			// Delete backup if workflow execution failed
 			// The workflow will handle its own error states
-			if stateUpdated {
-				dbBackup.State = models.LifeCycleStateError
-				dbBackup.StateDetails = err.Error()
-				if _, rollbackErr := se.UpdateBackupState(ctx, dbBackup); rollbackErr != nil {
-					logger.Error("Failed to make backup  state", "error", rollbackErr, "originalState", dbBackup.State, "backupUUID", dbBackup.UUID)
+			if stateUpdated && dbBackup != nil && dbBackup.UUID != "" {
+				if _, deleteErr := se.DeleteBackup(ctx, dbBackup.UUID); deleteErr != nil {
+					logger.Error("Failed to delete backup after workflow start failure", "error", deleteErr, "backupUUID", dbBackup.UUID)
+				} else {
+					logger.Infof("Deleted backup %s after workflow failed to start", dbBackup.UUID)
 				}
 			}
 
@@ -210,12 +208,12 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	stateUpdated = true
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		},
+
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.CreateBackupWorkflow,
 		params,
 		dbBackup,
@@ -223,10 +221,10 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		volume,
 	)
 	if err != nil {
-		logger.Error("Failed to start create backup workflow: ", "error", err)
+		logger.Error("Failed to start create backup workflow after retries: ", "error", err)
 		return nil, "", err
 	}
-	workflowStarted = true
+
 	return convertDatastoreBackupToModel(dbBackup), createdJob.UUID, nil
 }
 
@@ -256,7 +254,6 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	stateUpdated := false
-	workflowStarted := false
 	originalState := backup.State
 	originalStateDetails := backup.StateDetails
 
@@ -280,9 +277,9 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	defer func() {
-		if err != nil && !workflowStarted {
-			// Only rollback if the state was successfully updated but workflow failed to start
-			// The workflow will handle its own error states
+		if err != nil {
+			// Only rollback if the state was successfully updated but the workflow failed to start after all retry attempts.
+			// The workflow will handle its own error states during execution and retries.
 			if stateUpdated {
 				backup.State = originalState
 				backup.StateDetails = originalStateDetails
@@ -309,20 +306,18 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	backup.Description = params.Description
 
 	// Execute the workflow for updating the backup
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		},
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.UpdateBackupWorkflow,
 		backup,
 	)
 	if err != nil {
-		logger.Error("Failed to start update backup workflow: ", "error", err)
+		logger.Error("Failed to start update backup workflow after retries: ", "error", err)
 		return nil, "", err
 	}
-	workflowStarted = true
 	return convertDatastoreBackupToModel(backup), createdJob.UUID, nil
 }
 
@@ -542,7 +537,6 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 
 	originalState := backup.State
 	originalStateDetails := backup.StateDetails
-	workflowStarted := false
 	stateUpdated := false
 
 	backup.State = models.LifeCycleStateDeleting
@@ -563,9 +557,10 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	defer func() {
-		if err != nil && !workflowStarted {
-			// Only rollback if the state was successfully updated but workflow failed to start
-			// The workflow will handle its own error states
+		if err != nil {
+			// Only rollback if the state was successfully updated but workflow failed to start after all retry attempts.
+			// With WorkflowExecutor retry logic, this defer block may execute after multiple failed workflow start attempts.
+			// The workflow will handle its own error states.
 			if stateUpdated {
 				backup.State = originalState
 				backup.StateDetails = originalStateDetails
@@ -589,20 +584,18 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 	stateUpdated = true
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		},
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.DeleteBackupWorkflow,
 		params,
 	)
 	if err != nil {
-		logger.Error("Failed to start delete backup workflow: ", "error", err)
+		logger.Error("Failed to start delete backup workflow after retries: ", "error", err)
 		return nil, "", err
 	}
-	workflowStarted = true
 	return nil, createdJob.UUID, nil
 }
 

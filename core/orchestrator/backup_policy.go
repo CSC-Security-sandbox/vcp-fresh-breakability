@@ -16,8 +16,6 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/client"
 )
 
 const (
@@ -160,18 +158,17 @@ func (o *Orchestrator) UpdateBackupPolicy(ctx context.Context, params *commonpar
 		return nil, "", backupPolicyUpdateErr
 	}
 
-	_, workflowLaunchErr = o.temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		},
+	workflowExecutor := workflows.NewWorkflowExecutor(o.temporal, logger)
+	workflowLaunchErr = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.UpdateBackupPolicyWorkflow,
 		params,
 		dbBackupPolicy,
 	)
 	if workflowLaunchErr != nil {
-		logger.Errorf("Failed to launch workflow for backup policy update: %v", workflowLaunchErr)
+		logger.Errorf("Failed to launch workflow for backup policy update after retries: %v", workflowLaunchErr)
 		return nil, "", workflowLaunchErr
 	}
 	return convertDatastoreBackupPolicyToModel(updatingBackupPolicy), createdJob.UUID, nil
@@ -289,18 +286,17 @@ func (o *Orchestrator) DeleteBackupPolicy(ctx context.Context, params *commonpar
 		return nil, "", err
 	}
 
-	_, err = o.temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		},
+	workflowExecutor := workflows.NewWorkflowExecutor(o.temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.DeleteBackupPolicyWorkflow,
 		params,
 		updatedBackupPolicy,
 	)
 	if err != nil {
-		logger.Error("Failed to start delete backup policy workflow", "error", err)
+		logger.Error("Failed to start delete backup policy workflow after retries", "error", err)
 		return nil, "", err
 	}
 	return convertDatastoreBackupPolicyToModel(updatedBackupPolicy), createdJob.UUID, nil

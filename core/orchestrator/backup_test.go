@@ -3129,10 +3129,8 @@ func TestBackupCreationIntegration(t *testing.T) {
 			// Mock workflow execution failure
 			temporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed"))
 
-			// Mock error handling
-			store.On("UpdateBackupState", ctx, mock.MatchedBy(func(b *datamodel.Backup) bool {
-				return b.State == models.LifeCycleStateError
-			})).Return(backup, nil)
+			// Mock error handling - add DeleteBackup and UpdateJob mocks
+			store.On("DeleteBackup", ctx, backup.UUID).Return(backup, nil)
 			store.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil, nil)
 
 			// Act

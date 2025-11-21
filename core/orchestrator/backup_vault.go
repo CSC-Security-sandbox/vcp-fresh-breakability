@@ -16,7 +16,6 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 )
@@ -139,7 +138,6 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 	// Store original state for rollback
 	originalState := dbBv.LifeCycleState
 	originalStateDetails := dbBv.LifeCycleStateDetails
-	workflowStarted := false
 	stateUpdated := false
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -150,9 +148,8 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 
 	// Defer function to handle rollback on workflow startup failure only
 	defer func() {
-		if err != nil && !workflowStarted {
+		if err != nil {
 			// This condition is met: err != nil (workflow start failed)
-			// && !workflowStarted (true, since workflow didn't start)
 			// && stateUpdated (true, since state was successfully updated)
 
 			// Rollback the backup vault state to original state
@@ -177,21 +174,19 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 	}
 	stateUpdated = true
 
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		},
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.DeleteBackupVaultWorkflow,
 		params,
 		dbBV,
 	)
 	if err != nil {
-		logger.Error("Failed to start backup vault delete workflow: ", "error", err)
+		logger.Error("Failed to start backup vault delete workflow after retries: ", "error", err)
 		return nil, "", err
 	}
-	workflowStarted = true
 	return convertDatastoreBackupVaultToModel(dbBV), createdJob.UUID, nil
 }
 
@@ -231,7 +226,6 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 	// Store original state for rollback
 	originalState := dbBv.LifeCycleState
 	originalStateDetails := dbBv.LifeCycleStateDetails
-	workflowStarted := false
 	stateUpdated := false
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -242,7 +236,7 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 
 	// Defer function to handle rollback on workflow startup failure only
 	defer func() {
-		if err != nil && !workflowStarted {
+		if err != nil {
 			// Only rollback if the state was successfully updated but workflow failed to start
 			// The workflow will handle its own error states
 			if stateUpdated {
@@ -266,22 +260,19 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 	}
 	stateUpdated = true
 
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.UpdateBackupVaultWorkflow,
 		params,
 		dbBV,
 	)
 	if err != nil {
-		logger.Error("Failed to start backup vault update workflow: ", "error", err)
+		logger.Error("Failed to start backup vault update workflow after retries: ", "error", err)
 		return nil, "", err
 	}
-	workflowStarted = true
 	return convertDatastoreBackupVaultToModel(dbBV), createdJob.UUID, nil
 }
 
