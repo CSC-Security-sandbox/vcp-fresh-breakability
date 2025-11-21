@@ -22934,3 +22934,182 @@ func TestUpdateVolume_SMBShareSettings_Coverage(t *testing.T) {
 		assert.Nil(tt, dbVolume.VolumeAttributes.FileProperties)
 	})
 }
+
+// TestCreateVolume_IdempotencyJobTypeLookup tests the idempotency logic for volume creation
+// when a volume already exists in CREATING state, specifically testing the job type
+// determination for both regular and large capacity volumes
+func TestCreateVolume_IdempotencyJobTypeLookup(t *testing.T) {
+	// Helper function to create test data
+	createTestData := func(isLargeCapacity bool) (*datamodel.Account, *datamodel.PoolView, *datamodel.Volume) {
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		account.ID = 1
+
+		poolData := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			Account:       account,
+			LargeCapacity: isLargeCapacity,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+		poolData.ID = 1
+
+		pool := &datamodel.PoolView{
+			Pool: *poolData,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "existing-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    poolData.ID,
+			State:     models.LifeCycleStateCreating,
+			Pool:      poolData,
+			Account:   account,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFS"},
+			},
+		}
+
+		return account, pool, volume
+	}
+
+	t.Run("RegularVolume_FindsCorrectJobType", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		account, pool, existingVolume := createTestData(false)
+
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "job-uuid-123"},
+			Type:      string(models.JobTypeCreateVolume), // Regular volume job type
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			QuotaInBytes:  minQuotaInBytesVolume,
+			Protocols:     []string{"NFS"},
+			PoolID:        "test-pool-uuid",
+			LargeCapacity: false, // Regular volume request
+		}
+
+		// Mock expectations
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
+		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).Return(existingVolume, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, existingVolume.UUID, string(models.JobTypeCreateVolume)).Return(existingJob, nil)
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		// Execute
+		volume, jobUUID, err := createVolume(ctx, mockStorage, temporal, params)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "job-uuid-123", jobUUID)
+		assert.Equal(tt, "existing-volume-uuid", volume.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("LargeCapacityVolume_FindsCorrectJobType", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		account, pool, existingVolume := createTestData(true)
+
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "job-uuid-456"},
+			Type:      string(models.JobTypeCreateLargeVolume), // Large volume job type
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			QuotaInBytes:  utils.MinQuotaInBytesLargeVolume,
+			Protocols:     []string{"NFS"},
+			PoolID:        "test-pool-uuid",
+			LargeCapacity: true, // Large capacity volume request
+		}
+
+		// Mock expectations
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
+		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).Return(existingVolume, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, existingVolume.UUID, string(models.JobTypeCreateLargeVolume)).Return(existingJob, nil)
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		// Execute
+		volume, jobUUID, err := createVolume(ctx, mockStorage, temporal, params)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "job-uuid-456", jobUUID)
+		assert.Equal(tt, "existing-volume-uuid", volume.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("JobLookupFails_ReturnsVolumeWithEmptyJobUUID", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		account, pool, existingVolume := createTestData(false)
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			QuotaInBytes:  minQuotaInBytesVolume,
+			Protocols:     []string{"NFS"},
+			PoolID:        "test-pool-uuid",
+			LargeCapacity: false,
+		}
+
+		// Mock expectations - job lookup fails
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
+		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).Return(existingVolume, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, existingVolume.UUID, string(models.JobTypeCreateVolume)).Return(nil, errors2.New("job not found"))
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		// Execute
+		volume, jobUUID, err := createVolume(ctx, mockStorage, temporal, params)
+
+		// Assert - should return volume with empty job UUID (graceful degradation)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Empty(tt, jobUUID) // Empty job UUID indicates the API response will have incomplete operation URL
+		assert.Equal(tt, "existing-volume-uuid", volume.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+}

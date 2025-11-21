@@ -127,7 +127,14 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			if vol.Pool.UUID != pool.UUID {
 				return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume with resource_id '%s' already exists in the '%s' pool, which is different from the requested pool '%s'", params.Name, vol.Pool.Name, pool.Name))
 			}
-			job, jobErr := se.GetJobByResourceUUID(ctx, vol.UUID, string(models.JobTypeCreateVolume))
+
+			// Determine the correct job type based on whether it's a large capacity volume
+			jobType := string(models.JobTypeCreateVolume)
+			if params.LargeCapacity {
+				jobType = string(models.JobTypeCreateLargeVolume)
+			}
+
+			job, jobErr := se.GetJobByResourceUUID(ctx, vol.UUID, jobType)
 			if jobErr != nil {
 				logger.Error("Failed to fetch existing create volume job for volume in CREATING state", "error", jobErr)
 				return convertDatastoreVolumeToModel(vol, nil), "", nil
