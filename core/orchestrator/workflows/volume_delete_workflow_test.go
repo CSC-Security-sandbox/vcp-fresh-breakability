@@ -704,6 +704,392 @@ func TestVolumeDeleteTestSuite(t *testing.T) {
 	suite.Run(t, new(VolumeDeleteTestSuite))
 }
 
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_SmbTeardownFeatureFlagDisabled() {
+	// Save original value and ensure flag is disabled
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = false
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Mock activities - SMB teardown activities should NOT be called
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+
+	// Verify SMB teardown activities were NOT called
+	s.env.AssertNotCalled(s.T(), "DetermineSmbTeardownContext", mock.Anything, mock.Anything, mock.Anything)
+	s.env.AssertNotCalled(s.T(), "DeleteCifsServerIfUnused", mock.Anything, mock.Anything, mock.Anything)
+	s.env.AssertNotCalled(s.T(), "DeleteDnsRecordIfUnused", mock.Anything, mock.Anything, mock.Anything)
+	s.env.AssertNotCalled(s.T(), "GetSVM", mock.Anything, mock.Anything)
+	s.env.AssertNotCalled(s.T(), "UnsetSvmActiveDirectory", mock.Anything, mock.Anything)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_SmbTeardownFeatureFlagEnabled_ShouldDeleteTrue() {
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register child workflow
+	s.env.RegisterWorkflow(SmbTeardownWorkflow)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetSVM)
+	s.env.RegisterActivity(commonActivity.UnsetSvmActiveDirectory)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Create test SVM
+	testSvm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		PoolID:    1,
+	}
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	smbTeardownCtx := &activities.SmbTeardownContext{
+		ShouldDelete: true,
+		PoolID:       1,
+	}
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(smbTeardownCtx, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, int64(1)).Return(testSvm, nil)
+	s.env.OnActivity(commonActivity.UnsetSvmActiveDirectory, mock.Anything, testSvm).Return(testSvm, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+
+	// Verify SMB teardown activities were called
+	s.env.AssertCalled(s.T(), "DetermineSmbTeardownContext", mock.Anything, mock.Anything, mock.Anything)
+	s.env.AssertCalled(s.T(), "DeleteCifsServerIfUnused", mock.Anything, mock.Anything, mock.Anything)
+	s.env.AssertCalled(s.T(), "DeleteDnsRecordIfUnused", mock.Anything, mock.Anything, mock.Anything)
+	s.env.AssertCalled(s.T(), "GetSVM", mock.Anything, int64(1))
+	s.env.AssertCalled(s.T(), "UnsetSvmActiveDirectory", mock.Anything, testSvm)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_SmbTeardownFeatureFlagEnabled_ShouldDeleteFalse() {
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register child workflow
+	s.env.RegisterWorkflow(SmbTeardownWorkflow)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetSVM)
+	s.env.RegisterActivity(commonActivity.UnsetSvmActiveDirectory)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	smbTeardownCtx := &activities.SmbTeardownContext{
+		ShouldDelete: false,
+		PoolID:       1,
+	}
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(smbTeardownCtx, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+
+	// Verify SMB teardown activities were called
+	s.env.AssertCalled(s.T(), "DetermineSmbTeardownContext", mock.Anything, mock.Anything, mock.Anything)
+	s.env.AssertCalled(s.T(), "DeleteCifsServerIfUnused", mock.Anything, mock.Anything, mock.Anything)
+	s.env.AssertCalled(s.T(), "DeleteDnsRecordIfUnused", mock.Anything, mock.Anything, mock.Anything)
+	// But GetSVM and UnsetSvmActiveDirectory should NOT be called when ShouldDelete is false
+	s.env.AssertNotCalled(s.T(), "GetSVM", mock.Anything, mock.Anything)
+	s.env.AssertNotCalled(s.T(), "UnsetSvmActiveDirectory", mock.Anything, mock.Anything)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_SmbTeardownFeatureFlagEnabled_GetSvmFails() {
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register child workflow
+	s.env.RegisterWorkflow(SmbTeardownWorkflow)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetSVM)
+	s.env.RegisterActivity(commonActivity.UnsetSvmActiveDirectory)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	smbTeardownCtx := &activities.SmbTeardownContext{
+		ShouldDelete: true,
+		PoolID:       1,
+	}
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(smbTeardownCtx, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, int64(1)).Return(nil, errors.New("failed to get SVM"))
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+
+	// Verify GetSVM was called but UnsetSvmActiveDirectory was not
+	s.env.AssertCalled(s.T(), "GetSVM", mock.Anything, int64(1))
+	s.env.AssertNotCalled(s.T(), "UnsetSvmActiveDirectory", mock.Anything, mock.Anything)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_SmbTeardownFeatureFlagEnabled_UnsetSvmActiveDirectoryFails() {
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register child workflow
+	s.env.RegisterWorkflow(SmbTeardownWorkflow)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetSVM)
+	s.env.RegisterActivity(commonActivity.UnsetSvmActiveDirectory)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Create test SVM
+	testSvm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		PoolID:    1,
+	}
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	smbTeardownCtx := &activities.SmbTeardownContext{
+		ShouldDelete: true,
+		PoolID:       1,
+	}
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(smbTeardownCtx, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, int64(1)).Return(testSvm, nil)
+	s.env.OnActivity(commonActivity.UnsetSvmActiveDirectory, mock.Anything, testSvm).Return(nil, errors.New("failed to unset SVM Active Directory"))
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+
+	// Verify both GetSVM and UnsetSvmActiveDirectory were called
+	s.env.AssertCalled(s.T(), "GetSVM", mock.Anything, int64(1))
+	s.env.AssertCalled(s.T(), "UnsetSvmActiveDirectory", mock.Anything, testSvm)
+}
+
 func (s *VolumeDeleteTestSuite) Test_DeleteSnapmirrorInONTAPFails() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -1004,5 +1390,196 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBE
 	// Assert workflow completed with error
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeDeleteTestSuite) Test_SmbTeardownWorkflow_DetermineSmbTeardownContextError() {
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register child workflow
+	s.env.RegisterWorkflow(SmbTeardownWorkflow)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to determine SMB teardown context"))
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeDeleteTestSuite) Test_SmbTeardownWorkflow_DeleteCifsServerIfUnusedError() {
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register child workflow
+	s.env.RegisterWorkflow(SmbTeardownWorkflow)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	smbTeardownCtx := &activities.SmbTeardownContext{
+		ShouldDelete: true,
+		PoolID:       1,
+	}
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(smbTeardownCtx, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to delete CIFS server"))
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeDeleteTestSuite) Test_SmbTeardownWorkflow_DeleteDnsRecordIfUnusedError() {
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register child workflow
+	s.env.RegisterWorkflow(SmbTeardownWorkflow)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	smbTeardownCtx := &activities.SmbTeardownContext{
+		ShouldDelete: true,
+		PoolID:       1,
+	}
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(smbTeardownCtx, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to delete DNS record"))
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }

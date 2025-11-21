@@ -214,6 +214,22 @@ func (ca CommonActivities) UpdateSvmActiveDirectory(ctx context.Context, params 
 	return updatedSvm, nil
 }
 
+func (ca CommonActivities) UnsetSvmActiveDirectory(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	logger := util.GetLogger(ctx)
+	if svm == nil {
+		logger.Error("SVM not provided for UnsetSvmActiveDirectory activity")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("svm is nil"))
+	}
+
+	updatedSvm, err := ca.SE.UnsetSvmActiveDirectoryID(ctx, svm)
+	if err != nil {
+		logger.Error("Failed to unset SVM Active Directory", "svmUUID", svm.UUID, "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return updatedSvm, nil
+}
+
 func (ca CommonActivities) CreateFirewallRule(ctx context.Context, params CreateFirewallRuleParams) error {
 	logger := util.GetLogger(ctx)
 

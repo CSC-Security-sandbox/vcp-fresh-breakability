@@ -1527,6 +1527,22 @@ func (re *retryEngine) UpdateSvmActiveDirectoryID(ctx context.Context, svm *data
 	return var0, err
 }
 
+func (re *retryEngine) UnsetSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	var var0 *datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UnsetSvmActiveDirectoryID(ctx, svm)
+		if err != nil {
+			re.logError("UnsetSvmActiveDirectoryID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
 	var var0 []*datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {

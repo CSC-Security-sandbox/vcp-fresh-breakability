@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
@@ -529,6 +530,53 @@ func TestGetSvmsByPoolID_Persistence_Store(t *testing.T) {
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	_, err := store.GetSvmsByPoolID(ctx, 0)
 	assert.NoError(t, err)
+}
+
+func TestUnsetSvmActiveDirectoryID_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create account
+	acc := &datamodel.Account{Name: "test_account"}
+	createdAcc, err := store.CreateAccount(ctx, acc)
+	assert.NoError(t, err)
+
+	// Create pool directly in database
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1234},
+		Name:      "test_pool",
+		AccountID: createdAcc.ID,
+		Account:   createdAcc,
+		State:     models.LifeCycleStateREADY,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-central1-a",
+			IsRegionalHA: false,
+		},
+	}
+	err = store.DB().Create(pool).Error
+	assert.NoError(t, err)
+
+	// Create SVM with Active Directory ID
+	svm := &datamodel.Svm{
+		Name:      "test_svm",
+		AccountID: createdAcc.ID,
+		PoolID:    pool.ID,
+		ActiveDirectoryID: sql.NullInt64{
+			Int64: 1,
+			Valid: true,
+		},
+	}
+	createdSvm, err := store.CreateSVM(ctx, svm)
+	assert.NoError(t, err)
+	assert.True(t, createdSvm.ActiveDirectoryID.Valid)
+
+	// Unset Active Directory ID
+	updatedSvm, err := store.UnsetSvmActiveDirectoryID(ctx, createdSvm)
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedSvm)
+	assert.False(t, updatedSvm.ActiveDirectoryID.Valid)
 }
 
 // NODE

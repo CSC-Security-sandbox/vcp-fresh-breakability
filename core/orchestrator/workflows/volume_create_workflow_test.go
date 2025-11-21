@@ -1959,9 +1959,14 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_NFSv4() {
 	assert.IsType(s.T(), PostFileVolumeWorkflow, postWorkflow)
 }
 
-func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_SMB() {
-	// Test selectVolumeChildWorkflow with SMB protocol
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_SMB_WithFlagEnabled() {
+	// Test selectVolumeChildWorkflow with SMB protocol when enableSmb is true
 	protocols := []string{utils.ProtocolSMB}
+
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
@@ -1981,8 +1986,39 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_SMB() {
 	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), postWorkflow)
-	// Verify it returns a function that can be called
+	// Verify it returns PostFileVolumeWorkflowForSMB when flag is enabled
 	assert.IsType(s.T(), PostFileVolumeWorkflowForSMB, postWorkflow)
+}
+
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_SMB_WithFlagDisabled() {
+	// Test selectVolumeChildWorkflow with SMB protocol when enableSmb is false
+	protocols := []string{utils.ProtocolSMB}
+
+	// Save original value and disable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = false
+
+	// Enable file protocols for testing with allowlisted accounts
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	// Test pre phase
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), preWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
+	// Test post phase
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), postWorkflow)
+	// Verify it returns PostFileVolumeWorkflow when flag is disabled
+	assert.IsType(s.T(), PostFileVolumeWorkflow, postWorkflow)
 }
 
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_FileProtocolsDisabled() {

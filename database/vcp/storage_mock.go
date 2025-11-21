@@ -12485,6 +12485,65 @@ func (_c *MockStorage_UnDeleteSnapshot_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// UnsetSvmActiveDirectoryID provides a mock function with given fields: ctx, svm
+func (_m *MockStorage) UnsetSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	ret := _m.Called(ctx, svm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnsetSvmActiveDirectoryID")
+	}
+
+	var r0 *datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)); ok {
+		return rf(ctx, svm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm) *datamodel.Svm); ok {
+		r0 = rf(ctx, svm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Svm) error); ok {
+		r1 = rf(ctx, svm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UnsetSvmActiveDirectoryID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnsetSvmActiveDirectoryID'
+type MockStorage_UnsetSvmActiveDirectoryID_Call struct {
+	*mock.Call
+}
+
+// UnsetSvmActiveDirectoryID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svm *datamodel.Svm
+func (_e *MockStorage_Expecter) UnsetSvmActiveDirectoryID(ctx interface{}, svm interface{}) *MockStorage_UnsetSvmActiveDirectoryID_Call {
+	return &MockStorage_UnsetSvmActiveDirectoryID_Call{Call: _e.mock.On("UnsetSvmActiveDirectoryID", ctx, svm)}
+}
+
+func (_c *MockStorage_UnsetSvmActiveDirectoryID_Call) Run(run func(ctx context.Context, svm *datamodel.Svm)) *MockStorage_UnsetSvmActiveDirectoryID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Svm))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UnsetSvmActiveDirectoryID_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockStorage_UnsetSvmActiveDirectoryID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UnsetSvmActiveDirectoryID_Call) RunAndReturn(run func(context.Context, *datamodel.Svm) (*datamodel.Svm, error)) *MockStorage_UnsetSvmActiveDirectoryID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateAccountStateForHandleResource provides a mock function with given fields: ctx, accountUUID, newState
 func (_m *MockStorage) UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error {
 	ret := _m.Called(ctx, accountUUID, newState)

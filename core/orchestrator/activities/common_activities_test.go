@@ -2075,3 +2075,53 @@ func TestCommonActivities_GetPoolBySvmPoolId(t *testing.T) {
 	assert.Nil(t, result2)
 	mockStorage2.AssertExpectations(t)
 }
+
+func TestCommonActivities_UnsetSvmActiveDirectory_NilSVM(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := CommonActivities{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	result, err := activity.UnsetSvmActiveDirectory(ctx, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "svm is nil")
+}
+
+func TestCommonActivities_UnsetSvmActiveDirectory_Error(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := CommonActivities{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		PoolID:    1,
+	}
+	mockStorage.On("UnsetSvmActiveDirectoryID", ctx, svm).Return(nil, errors.New("database error"))
+
+	result, err := activity.UnsetSvmActiveDirectory(ctx, svm)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCommonActivities_UnsetSvmActiveDirectory_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := CommonActivities{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		PoolID:    1,
+	}
+	updatedSvm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		PoolID:    1,
+	}
+	mockStorage.On("UnsetSvmActiveDirectoryID", ctx, svm).Return(updatedSvm, nil)
+
+	result, err := activity.UnsetSvmActiveDirectory(ctx, svm)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, updatedSvm, result)
+	mockStorage.AssertExpectations(t)
+}

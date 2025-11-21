@@ -223,6 +223,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(workflows.UpdateVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.RevertVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.SmbTeardownWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.CreateSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.AcceptClusterPeerWorkflow)

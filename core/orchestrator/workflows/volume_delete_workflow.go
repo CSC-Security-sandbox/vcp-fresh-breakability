@@ -19,6 +19,7 @@ import (
 
 var (
 	volumeDeleteJobsRetryMaxAttempts = env.GetInt("REPLICATION_JOBS_RETRY_MAX_ATTEMPTS", 10)
+	enableSmb                        = env.GetBool("ENABLE_SMB", false)
 )
 
 type volumeDeleteWorkflow struct {
@@ -99,6 +100,64 @@ func shouldUpdateVolumeStateToError(err error) bool {
 
 	// For all other errors, update the volume state to error
 	return true
+}
+
+// SmbTeardownWorkflow consolidates all SMB teardown activities into a single workflow.
+// It determines the SMB teardown context, deletes CIFS server and DNS records if unused,
+// and unsets SVM Active Directory if needed.
+func SmbTeardownWorkflow(ctx workflow.Context, volume *datamodel.Volume, node *models.Node) error {
+	deleteActivity := &activities.VolumeDeleteActivity{}
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+	options := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, options)
+
+	var smbTeardownCtx *activities.SmbTeardownContext
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DetermineSmbTeardownContext, &volume, &node).Get(ctx, &smbTeardownCtx)
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+	if smbTeardownCtx == nil {
+		smbTeardownCtx = &activities.SmbTeardownContext{}
+	}
+
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteCifsServerIfUnused, smbTeardownCtx, &node).Get(ctx, nil)
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteDnsRecordIfUnused, smbTeardownCtx, &node).Get(ctx, nil)
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	if smbTeardownCtx.ShouldDelete {
+		var dbSvm *datamodel.Svm
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetSVM, smbTeardownCtx.PoolID).Get(ctx, &dbSvm)
+		if err != nil {
+			return ConvertToVSAError(err)
+		}
+		if dbSvm != nil {
+			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.UnsetSvmActiveDirectory, dbSvm).Get(ctx, nil)
+			if err != nil {
+				return ConvertToVSAError(err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
@@ -191,23 +250,11 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
-	var smbTeardownCtx *activities.SmbTeardownContext
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DetermineSmbTeardownContext, &volume, &node).Get(ctx, &smbTeardownCtx)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	if smbTeardownCtx == nil {
-		smbTeardownCtx = &activities.SmbTeardownContext{}
-	}
-
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteCifsServerIfUnused, smbTeardownCtx, &node).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteDnsRecordIfUnused, smbTeardownCtx, &node).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
+	if enableSmb {
+		err = workflow.ExecuteChildWorkflow(ctx, SmbTeardownWorkflow, volume, node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolume, &volume).Get(ctx, nil)

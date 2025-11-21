@@ -111,6 +111,7 @@ workerConfig:
   immutableBackupEnabled: "false"
   crossRegionBackupEnabled: "false"
   restoreVolumeBufferEnabled: "false"
+  enableSmb: "false"
   vsaDeployedDnsName: "au-se1.vsa"
   vsaManagedZone: "au-se1-vsa"
   vsaSecretCacheCleanupIntervalHours: 24

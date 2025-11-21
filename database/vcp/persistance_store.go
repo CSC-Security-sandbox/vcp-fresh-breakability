@@ -691,6 +691,10 @@ func (s *PersistenceStore) UpdateSvmActiveDirectoryID(ctx context.Context, svm *
 	return s.dataStore.UpdateSvmActiveDirectoryID(ctx, svm, activeDirectoryID)
 }
 
+func (s *PersistenceStore) UnsetSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
+	return s.dataStore.UnsetSvmActiveDirectoryID(ctx, svm)
+}
+
 func (s *PersistenceStore) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
 	return s.dataStore.CreateLif(ctx, lif)
 }

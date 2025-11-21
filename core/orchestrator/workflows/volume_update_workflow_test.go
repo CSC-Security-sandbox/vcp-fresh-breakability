@@ -4190,6 +4190,11 @@ func Test_updateOrAddBlockDevice(t *testing.T) {
 }
 
 func TestUpdateSMBShareSettings_WorkflowIntegration(t *testing.T) {
+	originalEnableSmb := enableSmb
+	enableSmb = true
+	defer func() {
+		enableSmb = originalEnableSmb
+	}()
 	t.Run("Calls UpdateSMBShareSettings activity for SMB volumes", func(tt *testing.T) {
 		// This test verifies that the volume update workflow correctly calls
 		// the UpdateSMBShareSettings activity when SMB share settings are provided
@@ -4266,4 +4271,72 @@ func TestUpdateSMBShareSettings_WorkflowIntegration(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "not found")
 	})
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateSMBShareSettings_WithFlagEnabled() {
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	backupActivity := activities.BackupActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.GetVolumeFromONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(updateActivity.UpdateSMBShareSettings)
+	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateSMBShareSettings, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateBackupMetadataIfExistsActivity, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"SMB"},
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath: "/test_share",
+			},
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		SMBShareSettings: []string{"browsable", "encrypt_data"},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	// Verify UpdateSMBShareSettings was called with volume, params, and node (3 arguments after context)
+	s.env.AssertCalled(s.T(), "UpdateSMBShareSettings", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }

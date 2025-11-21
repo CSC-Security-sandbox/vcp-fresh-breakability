@@ -83,7 +83,7 @@ func selectVolumeChildWorkflow(protocols []string, phase, accountName string) (i
 		case PhasePre:
 			return PreFileVolumeWorkflow, nil
 		case PhasePost:
-			if utils.IsSMBProtocols(protocols) {
+			if utils.IsSMBProtocols(protocols) && enableSmb {
 				return PostFileVolumeWorkflowForSMB, nil
 			}
 			return PostFileVolumeWorkflow, nil

@@ -724,3 +724,120 @@ func TestListSvmsWithAccountId(t *testing.T) {
 		assert.Nil(tt, svms)
 	})
 }
+
+func TestUnsetSvmActiveDirectoryID(t *testing.T) {
+	t.Run("WhenSvmActiveDirectoryIsUnsetSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1234},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateREADY,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			ActiveDirectoryID: sql.NullInt64{
+				Int64: 1,
+				Valid: true,
+			},
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		updatedSvm, err := store.UnsetSvmActiveDirectoryID(context.Background(), svm)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedSvm)
+		assert.False(tt, updatedSvm.ActiveDirectoryID.Valid)
+
+		// Verify in database
+		verifySvm := &datamodel.Svm{}
+		err = store.db.GORM().First(verifySvm, "uuid = ?", svm.UUID).Error
+		assert.NoError(tt, err)
+		assert.False(tt, verifySvm.ActiveDirectoryID.Valid)
+	})
+
+	t.Run("WhenTransactionStartFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Close the database connection to simulate transaction start failure
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		assert.NoError(tt, sqlDB.Close())
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+		}
+
+		updatedSvm, err := store.UnsetSvmActiveDirectoryID(context.Background(), svm)
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedSvm)
+	})
+
+	t.Run("WhenSaveFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1234},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateREADY,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		// Drop the table to simulate save failure
+		err = store.db.GORM().Exec("DROP TABLE svms").Error
+		assert.NoError(tt, err)
+
+		updatedSvm, err := store.UnsetSvmActiveDirectoryID(context.Background(), svm)
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedSvm)
+		var vcpErr *vsaerrors.CustomError
+		assert.True(tt, errors.As(err, &vcpErr))
+	})
+}
