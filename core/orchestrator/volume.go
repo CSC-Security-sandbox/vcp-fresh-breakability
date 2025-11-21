@@ -35,6 +35,7 @@ import (
 )
 
 var (
+	minCVSizeInBytes                     = env.GetUint64("MIN_CONSTITUENT_VOLUME_SIZE_BYTES", 100*bytesPerGB)
 	numOfLvHAPairs                       = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
 	volumeRefreshIntervalMinutes         = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
 	maxThinClonesPerPool                 = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
@@ -1036,6 +1037,13 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			finalMaxCVs := (numOfLvHAPairs * maxConstituentVolumesPerAggregate) - 1
 			if int64(params.LargeVolumeConstituentCount) > finalMaxCVs {
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(finalMaxCVs)))
+			}
+
+			// validate that each constituent volume size is at least 100 GB
+			cvSizeInBytes := params.QuotaInBytes / uint64(params.LargeVolumeConstituentCount)
+			if cvSizeInBytes < minCVSizeInBytes {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent volume size cannot be less than %s. Current CV size is %s with %d constituent volumes",
+					utils.FmtUint64Bytes(minCVSizeInBytes), utils.FmtUint64Bytes(cvSizeInBytes), params.LargeVolumeConstituentCount))
 			}
 		}
 

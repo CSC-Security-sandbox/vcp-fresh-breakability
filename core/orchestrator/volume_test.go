@@ -1032,6 +1032,137 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		assert.EqualError(tt, err, fmt.Sprintf("Large Volume constituent count cannot be greater than %d", int32(2993)))
 	})
 
+	t.Run("ConstituentVolumeSizeBelowMinimum100GB", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(50 * 1024 * 1024 * 1024 * 1024), // 50TB
+			LargeCapacity: true,
+			VLMConfig:     "{\"deployment\": {\"vsa_instance_type\": \"c3-standard-8-lssd\"}}",
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create nodes (required for validation)
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-1-uuid"},
+			Name:            "test_node_1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-2-uuid"},
+			Name:            "test_node_2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for nodes (required for validation)
+		lif1 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-1-uuid"},
+			Name:      "test_lif_1",
+			AccountID: account.ID,
+			NodeID:    node1.ID,
+		}
+
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-2-uuid"},
+			Name:      "test_lif_2",
+			AccountID: account.ID,
+			NodeID:    node2.ID,
+		}
+
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
+		}
+
+		// Test with 12TiB volume and 8 constituent volumes = 50GB per CV (below 100GB minimum)
+		params := &common.CreateVolumeParams{
+			AccountName:                 "test_account",
+			Name:                        "test-volume",
+			PoolID:                      pool.UUID,
+			QuotaInBytes:                12 * utils.TiBInBytes, // 12TiB
+			Protocols:                   []string{utils.ProtocolNFSv3},
+			Network:                     "test-network",
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: 240, // 12TiB / 240 = 51GB per CV (below 100GB minimum)
+			CreationToken:               "test-creation-token",
+			FileProperties:              &models.FileProperties{},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "Constituent volume size cannot be less than 100GiB")
+		assert.ErrorContains(tt, err, "Current CV size is 54975581388B with 240 constituent volumes")
+	})
+
 	t.Run("LargeCapacityQuotaTooSmall", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 

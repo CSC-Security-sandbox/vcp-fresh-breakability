@@ -74,6 +74,7 @@ hardDeleteResources: true
 scheduleHardDelete: false
 createCommonResourcesInVCP: true
 numberOfHaPairsLargeCapacity: 6
+minConstituentVolumeSizeInBytes: 107374182400
 secretManagerProjectId: "402007546452"
 autoPoolScalingLimits:
   c3-standard-4-lssd:

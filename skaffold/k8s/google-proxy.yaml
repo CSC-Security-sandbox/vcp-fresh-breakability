@@ -88,3 +88,5 @@ spec:
               value: ""
             - name: NUMBER_OF_HA_PAIRS_LARGE_CAPACITY
               value: "6"
+            - name: MIN_CONSTITUENT_VOLUME_SIZE_BYTES
+              value: "107374182400"
