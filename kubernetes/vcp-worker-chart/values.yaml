@@ -111,6 +111,7 @@ workerConfig:
   immutableBackupEnabled: "false"
   crossRegionBackupEnabled: "false"
   restoreVolumeBufferEnabled: "false"
+  enableLdap: "false"
   enableSmb: "false"
   vsaDeployedDnsName: "au-se1.vsa"
   vsaManagedZone: "au-se1-vsa"

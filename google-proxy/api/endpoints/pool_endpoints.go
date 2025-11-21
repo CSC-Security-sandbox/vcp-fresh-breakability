@@ -33,6 +33,7 @@ var (
 	regionalPoolEnabled        = env.GetBool("REGIONAL_SUPPORT_ENABLED", false)
 	minCustomThroughput        = utils.MinCustomThroughput
 	getAndSyncKmsConfigForPool = _getAndSyncKmsConfigForPool
+	enableLdap                 = env.GetBool("ENABLE_LDAP", false)
 )
 
 const (
@@ -977,6 +978,13 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 		return &gcpgenserver.Error{
 			Code:    http.StatusBadRequest,
 			Message: "Active Directory configuration is required when LDAP is enabled",
+		}
+	}
+
+	if req.LdapEnabled.IsSet() && req.LdapEnabled.Value && !enableLdap {
+		return &gcpgenserver.Error{
+			Code:    http.StatusBadRequest,
+			Message: "LDAP is not currently supported for Unified Flex Storage Pool",
 		}
 	}
 

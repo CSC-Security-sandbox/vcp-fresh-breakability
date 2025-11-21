@@ -94,6 +94,7 @@ data:
   AUTO_POOL_SCALING_LIMITS:  {{ index .Values "autoPoolScalingLimits" | toJson | quote }}
   NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{ index .Values "numberOfHaPairsLargeCapacity" | quote }}
   MIN_CONSTITUENT_VOLUME_SIZE_BYTES: {{ index .Values "minConstituentVolumeSizeInBytes" | quote }}
+  ENABLE_LDAP: "{{ index .Values "enableLdap" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

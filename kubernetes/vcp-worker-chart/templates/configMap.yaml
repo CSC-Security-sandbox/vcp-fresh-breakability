@@ -119,6 +119,7 @@ data:
   CROSS_REGION_BACKUP_ENABLED: {{$.Values.workerConfig.crossRegionBackupEnabled | quote }}
   THIN_CLONE_GA_SUPPORT: {{$.Values.workerConfig.thinCloneGASupport | quote }}
   RESTORE_VOLUME_BUFFER_ENABLED: {{$.Values.workerConfig.restoreVolumeBufferEnabled | quote }}
+  ENABLE_LDAP: {{$.Values.workerConfig.enableLdap | quote }}
   ENABLE_SMB: {{$.Values.workerConfig.enableSmb | quote }}
   PROBER_PROJECT_LIST: {{$.Values.workerConfig.proberProjectList | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
