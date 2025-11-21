@@ -1640,6 +1640,66 @@ func TestRevertVolume(t *testing.T) {
 	})
 }
 
+func TestDeleteVolume_WhenVolumeNotFound_ThenReturnNil(t *testing.T) {
+	// Test to cover line 133: return nil when error contains "entry not found"
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeUUID := "testUUID"
+	volumeName := "testVolume"
+
+	// Mock VolumeGet to return error indicating volume not found
+	mockStorage.On("VolumeGet", mock.Anything).Return(nil, errors.New("entry not found"))
+
+	err := rc.DeleteVolume(volumeUUID, volumeName)
+
+	// Should return nil when volume not found (line 133)
+	assert.NoError(t, err)
+	assert.Nil(t, err)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestDeleteVolume_WhenUUIDAndNameParametersEmpty_ThenReturnNil(t *testing.T) {
+	// Test to cover line 133: return nil when error contains "UUID and Name parameters cannot be empty when querying for a volume"
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeUUID := "testUUID"
+	volumeName := "testVolume"
+
+	// Mock VolumeGet to return error indicating UUID and Name parameters cannot be empty
+	mockStorage.On("VolumeGet", mock.Anything).Return(nil, errors.New("UUID and Name parameters cannot be empty when querying for a volume"))
+
+	err := rc.DeleteVolume(volumeUUID, volumeName)
+
+	// Should return nil when UUID and Name parameters cannot be empty (line 133)
+	assert.NoError(t, err)
+	assert.Nil(t, err)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestDeleteVolume_WhenVolumeDoesNotExist_ThenReturnNil(t *testing.T) {
 	// Test to cover line 96: return nil when volume doesn't exist
 	mockStorage := new(ontaprest.MockStorageClient)

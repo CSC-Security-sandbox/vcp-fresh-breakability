@@ -130,7 +130,7 @@ func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
 		},
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "entry doesn't exist") || strings.Contains(err.Error(), "entry not found") {
+		if strings.Contains(err.Error(), "entry doesn't exist") || strings.Contains(err.Error(), "entry not found") || strings.Contains(err.Error(), "UUID and Name parameters cannot be empty when querying for a volume") {
 			return nil
 		}
 		return err
