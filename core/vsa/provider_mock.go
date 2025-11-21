@@ -2500,6 +2500,65 @@ func (_c *MockProvider_GetAggregates_Call) RunAndReturn(run func() ([]*Aggregate
 	return _c
 }
 
+// GetCIFSService provides a mock function with given fields: svmName, externalSVMUUID
+func (_m *MockProvider) GetCIFSService(svmName string, externalSVMUUID string) (*ontap_rest.CifsService, error) {
+	ret := _m.Called(svmName, externalSVMUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCIFSService")
+	}
+
+	var r0 *ontap_rest.CifsService
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (*ontap_rest.CifsService, error)); ok {
+		return rf(svmName, externalSVMUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) *ontap_rest.CifsService); ok {
+		r0 = rf(svmName, externalSVMUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ontap_rest.CifsService)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(svmName, externalSVMUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetCIFSService_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCIFSService'
+type MockProvider_GetCIFSService_Call struct {
+	*mock.Call
+}
+
+// GetCIFSService is a helper method to define mock.On call
+//   - svmName string
+//   - externalSVMUUID string
+func (_e *MockProvider_Expecter) GetCIFSService(svmName interface{}, externalSVMUUID interface{}) *MockProvider_GetCIFSService_Call {
+	return &MockProvider_GetCIFSService_Call{Call: _e.mock.On("GetCIFSService", svmName, externalSVMUUID)}
+}
+
+func (_c *MockProvider_GetCIFSService_Call) Run(run func(svmName string, externalSVMUUID string)) *MockProvider_GetCIFSService_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetCIFSService_Call) Return(_a0 *ontap_rest.CifsService, _a1 error) *MockProvider_GetCIFSService_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetCIFSService_Call) RunAndReturn(run func(string, string) (*ontap_rest.CifsService, error)) *MockProvider_GetCIFSService_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetClusterHealthStatus provides a mock function with no fields
 func (_m *MockProvider) GetClusterHealthStatus() (*ClusterHealthStatusResponse, error) {
 	ret := _m.Called()
@@ -5947,6 +6006,55 @@ func (_c *MockProvider_UnmountVolume_Call) Return(_a0 *OntapAsyncResponse, _a1 e
 }
 
 func (_c *MockProvider_UnmountVolume_Call) RunAndReturn(run func(string) (*OntapAsyncResponse, error)) *MockProvider_UnmountVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateActiveDirectoryCredentials provides a mock function with given fields: params, cifs, svmName, svmExternalUUID
+func (_m *MockProvider) UpdateActiveDirectoryCredentials(params UpdateActiveDirectoryCredentialsParams, cifs ontap_rest.CifsService, svmName string, svmExternalUUID string) error {
+	ret := _m.Called(params, cifs, svmName, svmExternalUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateActiveDirectoryCredentials")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(UpdateActiveDirectoryCredentialsParams, ontap_rest.CifsService, string, string) error); ok {
+		r0 = rf(params, cifs, svmName, svmExternalUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateActiveDirectoryCredentials_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateActiveDirectoryCredentials'
+type MockProvider_UpdateActiveDirectoryCredentials_Call struct {
+	*mock.Call
+}
+
+// UpdateActiveDirectoryCredentials is a helper method to define mock.On call
+//   - params UpdateActiveDirectoryCredentialsParams
+//   - cifs ontap_rest.CifsService
+//   - svmName string
+//   - svmExternalUUID string
+func (_e *MockProvider_Expecter) UpdateActiveDirectoryCredentials(params interface{}, cifs interface{}, svmName interface{}, svmExternalUUID interface{}) *MockProvider_UpdateActiveDirectoryCredentials_Call {
+	return &MockProvider_UpdateActiveDirectoryCredentials_Call{Call: _e.mock.On("UpdateActiveDirectoryCredentials", params, cifs, svmName, svmExternalUUID)}
+}
+
+func (_c *MockProvider_UpdateActiveDirectoryCredentials_Call) Run(run func(params UpdateActiveDirectoryCredentialsParams, cifs ontap_rest.CifsService, svmName string, svmExternalUUID string)) *MockProvider_UpdateActiveDirectoryCredentials_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(UpdateActiveDirectoryCredentialsParams), args[1].(ontap_rest.CifsService), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateActiveDirectoryCredentials_Call) Return(_a0 error) *MockProvider_UpdateActiveDirectoryCredentials_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateActiveDirectoryCredentials_Call) RunAndReturn(run func(UpdateActiveDirectoryCredentialsParams, ontap_rest.CifsService, string, string) error) *MockProvider_UpdateActiveDirectoryCredentials_Call {
 	_c.Call.Return(run)
 	return _c
 }

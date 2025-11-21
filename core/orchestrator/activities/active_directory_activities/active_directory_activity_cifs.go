@@ -101,6 +101,19 @@ func (a ActiveDirectoryActivity) CreateOrModifyADDNS(ctx context.Context, node *
 	return nil
 }
 
+func (a ActiveDirectoryActivity) GetCifsService(ctx context.Context, node *models.Node, svmName, externalSVMUUID string) (*ontapRest.CifsService, error) {
+	ontapProvider, err := getOntapRestProvider(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	cifs, err := ontapProvider.GetCIFSService(svmName, externalSVMUUID)
+	if err != nil {
+		return nil, err
+	}
+	return cifs, nil
+}
+
 // GetOrCreateCifsService gets an existing CIFS service or creates one if it doesn't exist
 // Returns information about the service state
 func (a ActiveDirectoryActivity) GetOrCreateCifsService(ctx context.Context, node *models.Node, ad *vsa.ActiveDirectory, svmName, externalSVMUUID string) (*GetOrCreateCifsServiceResult, error) {

@@ -7786,6 +7786,65 @@ func (_c *MockDataStore_GetPool_Call) RunAndReturn(run func(context.Context, str
 	return _c
 }
 
+// GetPoolByID provides a mock function with given fields: ctx, poolID
+func (_m *MockDataStore) GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPoolByID")
+	}
+
+	var r0 *datamodel.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*datamodel.Pool, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *datamodel.Pool); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetPoolByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPoolByID'
+type MockDataStore_GetPoolByID_Call struct {
+	*mock.Call
+}
+
+// GetPoolByID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+func (_e *MockDataStore_Expecter) GetPoolByID(ctx interface{}, poolID interface{}) *MockDataStore_GetPoolByID_Call {
+	return &MockDataStore_GetPoolByID_Call{Call: _e.mock.On("GetPoolByID", ctx, poolID)}
+}
+
+func (_c *MockDataStore_GetPoolByID_Call) Run(run func(ctx context.Context, poolID int64)) *MockDataStore_GetPoolByID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolByID_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockDataStore_GetPoolByID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolByID_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.Pool, error)) *MockDataStore_GetPoolByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetPoolByName provides a mock function with given fields: ctx, conditions
 func (_m *MockDataStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, conditions)

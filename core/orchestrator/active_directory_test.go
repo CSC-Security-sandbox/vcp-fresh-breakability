@@ -1586,6 +1586,12 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(adRecord, nil)
 	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
 
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		return nil
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
+
 	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
 	assert.NoError(t, err)
@@ -1594,6 +1600,72 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 	assert.Equal(t, models.LifeCycleStateUpdating, ad.State)
 	assert.Equal(t, models.LifeCycleStateUpdatingDetails, ad.StateDetails)
 	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateActiveDirectory_DomainUpdateNotAllowed(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		Domain:            nillable.GetStringPtr("new-domain.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	existingAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		Username:  "admin@test.local",
+		Domain:    "test.local",
+		DNS:       "10.0.0.1",
+		NetBIOS:   "TEST",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	// Mock to return parsed region and zone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	// Restore original function after test
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	// Mock _getActiveDirectory
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+		return existingAD, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	// Mock getOrCreateAccount
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	// Mock checkIfDomainUpdateAllowed to return error
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		return customerrors.NewUserInputValidationErr("domain update not allowed: active directory has associated volumes")
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "domain update not allowed")
 }
 
 func TestUpdateActiveDirectory_ValidationError(t *testing.T) {
@@ -1752,6 +1824,12 @@ func TestUpdateActiveDirectory_JobCreationFailed(t *testing.T) {
 	}
 	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		return nil
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
+
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
 	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
@@ -1814,6 +1892,12 @@ func TestUpdateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	}
 	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		return nil
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
+
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
 	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
@@ -1872,6 +1956,12 @@ func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 		return account, nil
 	}
 	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		return nil
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
 
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
@@ -1952,6 +2042,12 @@ func TestUpdateActiveDirectory_ADRecordNotFoundInDB(t *testing.T) {
 		return account, nil
 	}
 	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		return nil
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
 
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
@@ -2402,4 +2498,107 @@ func TestOrchestrator_DeleteActiveDirectory_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "delete error")
 	assert.Empty(t, jobUUID)
+}
+
+// Test functions for _checkIfDomainUpdateAllowed
+func Test_checkIfDomainUpdateAllowed_Success_NoSVMs(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	ad := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{ID: 123},
+		AdName:    "test-ad",
+		Domain:    "test.example.com",
+	}
+
+	// Mock GetSVMsUsingActiveDirectory to return empty list
+	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(123)).Return([]*datamodel.Svm{}, nil)
+
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_checkIfDomainUpdateAllowed_Error_SVMsInUse(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	ad := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{ID: 123},
+		AdName:    "test-ad",
+		Domain:    "test.example.com",
+	}
+
+	svms := []*datamodel.Svm{
+		{BaseModel: datamodel.BaseModel{ID: 1, UUID: "svm-uuid-1"}},
+		{BaseModel: datamodel.BaseModel{ID: 2, UUID: "svm-uuid-2"}},
+	}
+
+	// Mock GetSVMsUsingActiveDirectory to return SVMs
+	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(123)).Return(svms, nil)
+
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Active Directory domain cannot be updated while it is in use")
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_checkIfDomainUpdateAllowed_Error_DatabaseError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	ad := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{ID: 123},
+		AdName:    "test-ad",
+		Domain:    "test.example.com",
+	}
+
+	// Mock GetSVMsUsingActiveDirectory to return error
+	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(123)).Return(nil, errors.New("database connection error"))
+
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "database connection error")
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_checkIfDomainUpdateAllowed_Success_SingleSVMInUse(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	ad := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{ID: 456},
+		AdName:    "prod-ad",
+		Domain:    "prod.example.com",
+	}
+
+	svms := []*datamodel.Svm{
+		{BaseModel: datamodel.BaseModel{ID: 10, UUID: "svm-uuid-10"}},
+	}
+
+	// Mock GetSVMsUsingActiveDirectory to return single SVM
+	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(456)).Return(svms, nil)
+
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Active Directory domain cannot be updated while it is in use")
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_checkIfDomainUpdateAllowed_Error_NilActiveDirectory(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	// Mock GetSVMsUsingActiveDirectory to handle zero ID
+	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(0)).Return(nil, errors.New("invalid active directory ID"))
+
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, &models.ActiveDirectory{})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid active directory ID")
+	mockStorage.AssertExpectations(t)
 }

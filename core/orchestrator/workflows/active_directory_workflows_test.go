@@ -1,15 +1,20 @@
 package workflows
 
 import (
+	"fmt"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -563,50 +568,58 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 	})
 }
 
+// TestUpdateActiveDirectoryWorkflow tests the UpdateActiveDirectoryWorkflow function
 func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 	t.Run("VcpSuccess", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
-		mockStorage := database.NewMockStorage(t)
-
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logger": encodedValue,
-			},
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
 
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad",
+			Domain: "example.com",
+		}
 
 		params := &common.UpdateActiveDirectoryParams{
-			AccountId: "123",
-			Domain:    &[]string{"updated.example.com"}[0],
-			DNS:       &[]string{"8.8.4.4"}[0],
-		}
-		adRecord := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{
-				ID:   1,
-				UUID: "test-ad-uuid-update-123",
-			},
-			State: "available",
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		originalHost := cvp.CVP_HOST
-		cvp.CVP_HOST = ""
-		defer func() { cvp.CVP_HOST = originalHost }()
+		// Mock Setup will be called by the workflow
+		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(nil)
 
-		env.OnActivity("PushUpdatesDownstreamActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryUpdateWorkflow{}
+			runResult, runErr = wf.Run(ctx, params, oldAd)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
 
-		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, adRecord)
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryUpdateWorkflow{}
+			runResult, runErr = wf.Run(ctx, params, oldAd)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
 
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Nil(t, runErr)
+		assert.Nil(t, runResult)
 		env.AssertExpectations(t)
 	})
 
@@ -624,6 +637,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -656,9 +670,9 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
 		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(nil)
 		env.OnActivity("MarkVcpAdToUpdatingActivity", mock.Anything, params, adRecord).Return(nil)
-		env.OnActivity("PushUpdatesDownstreamActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil)
 
 		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, adRecord)
 
@@ -667,239 +681,183 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 
-	t.Run("SdeUpdateFailure", func(t *testing.T) {
+	t.Run("Failure_SetupError", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
-		mockStorage := database.NewMockStorage(t)
-
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logger": encodedValue,
-			},
-		}
-		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
-
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		params := &common.UpdateActiveDirectoryParams{
-			AccountId: "789",
-		}
-		adRecord := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{
-				ID:   3,
-				UUID: "test-ad-uuid-update-fail-789",
-			},
-			State: "available",
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		originalHost := cvp.CVP_HOST
-		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad",
+			Domain: "example.com",
+		}
 
-		expectedError := vsaerrors.New("SDE update failed")
-		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params, adRecord).Return(expectedError)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
 
-		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, adRecord)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
 	})
 
-	t.Run("SdePollingFailure", func(t *testing.T) {
+	t.Run("Failure_SdeUpdateError", func(t *testing.T) {
+		originalCvpHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "sde.example.com"
+		defer func() { cvp.CVP_HOST = originalCvpHost }()
+
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
-		mockStorage := database.NewMockStorage(t)
-
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logger": encodedValue,
-			},
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&activities.CommonActivities{})
 
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad-sde-error",
+			Domain: "example.com",
+		}
 
 		params := &common.UpdateActiveDirectoryParams{
-			AccountId: "999",
-		}
-		adRecord := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{
-				ID:   4,
-				UUID: "test-ad-uuid-poll-fail-999",
-			},
-			State: "available",
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		originalHost := cvp.CVP_HOST
-		cvp.CVP_HOST = cvpHost
-		defer func() { cvp.CVP_HOST = originalHost }()
+		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(nil, vsaerrors.New("SDE update failed"))
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_SdePollingError", func(t *testing.T) {
+		originalCvpHost := cvp.CVP_HOST
+		cvp.CVP_HOST = "sde.example.com"
+		defer func() { cvp.CVP_HOST = originalCvpHost }()
+
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&activities.CommonActivities{})
+
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad-poll-error",
+			Domain: "example.com",
+		}
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
+		}
 
 		sdeResult := &cvpModels.OperationV1beta{
-			Name: "update-ad-operation-fail",
+			Name: "operations/op-123",
 		}
-		expectedError := vsaerrors.New("Polling failed")
 
-		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params, adRecord).Return(sdeResult)
-		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(expectedError)
+		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
+		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(vsaerrors.New("polling failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, adRecord)
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
 	})
 
-	t.Run("VcpUpdateFailure", func(t *testing.T) {
+	t.Run("Failure_VcpUpdateError", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
-		mockStorage := database.NewMockStorage(t)
-
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logger": encodedValue,
-			},
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		env.RegisterActivity(&activities.CommonActivities{})
 
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad-vcp-error",
+			Domain: "example.com",
+		}
 
 		params := &common.UpdateActiveDirectoryParams{
-			AccountId: "111",
-		}
-		adRecord := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{
-				ID:   5,
-				UUID: "test-ad-uuid-vcp-fail-111",
-			},
-			State: "available",
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		originalHost := cvp.CVP_HOST
-		cvp.CVP_HOST = ""
-		defer func() { cvp.CVP_HOST = originalHost }()
-
-		expectedError := vsaerrors.New("VCP update failed")
-		env.OnActivity("PushUpdatesDownstreamActivity", mock.Anything, mock.Anything, mock.Anything).Return(expectedError)
-		env.OnActivity("MarkVcpAdToErrorActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(vsaerrors.New("VCP update failed"))
+		env.OnActivity("MarkVcpAdToErrorActivity", mock.Anything, params, oldAd).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, adRecord)
-	})
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
 
-	t.Run("SetupFailure", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		mockStorage := database.NewMockStorage(t)
-
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logger": encodedValue,
-			},
-		}
-		env.SetHeader(mockHeader)
-
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
-
-		// Pass invalid params to cause setup failure
-		invalidParams := &common.UpdateActiveDirectoryParams{}
-		adRecord := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{
-				ID:   6,
-				UUID: "test-ad-uuid-setup-fail",
-			},
-			State: "available",
-		}
-
-		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, invalidParams, adRecord)
-	})
-
-	t.Run("UpdateJobStatusFailure", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		mockStorage := database.NewMockStorage(t)
-
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logger": encodedValue,
-			},
-		}
-		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
-
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
-
-		params := &common.UpdateActiveDirectoryParams{
-			AccountId: "222",
-		}
-		adRecord := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{
-				ID:   7,
-				UUID: "test-ad-uuid-job-fail",
-			},
-			State: "available",
-		}
-
-		originalHost := cvp.CVP_HOST
-		cvp.CVP_HOST = ""
-		defer func() { cvp.CVP_HOST = originalHost }()
-
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("job status update failed"))
-
-		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, adRecord)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
 	})
 }
 
+// TestActiveDirectoryUpdateWorkflow_Setup tests the Setup method
 func TestActiveDirectoryUpdateWorkflow_Setup(t *testing.T) {
 	t.Run("SuccessfulSetup", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logger": encodedValue,
-			},
-		}
-		env.SetHeader(mockHeader)
 
 		params := &common.UpdateActiveDirectoryParams{
-			AccountId: "123",
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		var setupErr error
-		var wf *ActiveDirectoryUpdateWorkflow
+		wf := &ActiveDirectoryUpdateWorkflow{}
+
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
-			wf = &ActiveDirectoryUpdateWorkflow{}
-			setupErr = wf.Setup(ctx, params)
-			return setupErr
+			return wf.Setup(ctx, params)
 		})
 
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
-			wf = &ActiveDirectoryUpdateWorkflow{}
-			setupErr = wf.Setup(ctx, params)
-			return setupErr
+			return wf.Setup(ctx, params)
 		})
 
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, setupErr)
 		assert.NoError(t, env.GetWorkflowError())
+		assert.NotEmpty(t, wf.ID)
+		assert.Equal(t, "test-account", wf.CustomerID)
 		assert.Equal(t, WorkflowStatusCreated, wf.Status)
-		assert.Equal(t, "123", wf.CustomerID)
-		assert.Equal(t, "default-test-workflow-id", wf.ID)
+		assert.NotNil(t, wf.Logger)
 	})
 
 	t.Run("QueryHandlerTest", func(t *testing.T) {
@@ -914,12 +872,13 @@ func TestActiveDirectoryUpdateWorkflow_Setup(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 
-		params := &common.UpdateActiveDirectoryParams{
-			AccountId: "456",
+		params := &common.CreateActiveDirectoryParams{
+			AccountId:  "456",
+			ResourceId: "test-ad-query",
 		}
 
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
-			wf := &ActiveDirectoryUpdateWorkflow{}
+			wf := &ActiveDirectoryCreateWorkflow{}
 			err := wf.Setup(ctx, params)
 			if err != nil {
 				return err
@@ -929,7 +888,7 @@ func TestActiveDirectoryUpdateWorkflow_Setup(t *testing.T) {
 		})
 
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
-			wf := &ActiveDirectoryUpdateWorkflow{}
+			wf := &ActiveDirectoryCreateWorkflow{}
 			err := wf.Setup(ctx, params)
 			if err != nil {
 				return err
@@ -953,62 +912,58 @@ func TestActiveDirectoryUpdateWorkflow_Setup(t *testing.T) {
 	})
 }
 
+// TestActiveDirectoryUpdateWorkflow_Run tests the Run method
 func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
-	t.Run("SuccessfulVcpRun", func(t *testing.T) {
+	t.Run("SuccessfulVcpOnlyRun", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logger": encodedValue,
-			},
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
 
-		originalHost := cvp.CVP_HOST
-		cvp.CVP_HOST = ""
-		defer func() { cvp.CVP_HOST = originalHost }()
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad",
+			Domain: "example.com",
+		}
 
 		params := &common.UpdateActiveDirectoryParams{
-			AccountId: "123",
-		}
-		adRecord := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{
-				ID:   1,
-				UUID: "test-uuid-run",
-			},
-			State: "available",
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		env.OnActivity("PushUpdatesDownstreamActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(nil)
 
-		var runResult interface{}
-		var runErr *vsaerrors.CustomError
+		wf := &ActiveDirectoryUpdateWorkflow{}
+		var result interface{}
+		var err *vsaerrors.CustomError
+
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
-			wf := &ActiveDirectoryUpdateWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, adRecord)
-			if runErr != nil {
-				return runErr
+			result, err = wf.Run(ctx, params, oldAd)
+			if err != nil {
+				return err
 			}
 			return nil
 		})
 
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
-			wf := &ActiveDirectoryUpdateWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, adRecord)
-			if runErr != nil {
-				return runErr
+			result, err = wf.Run(ctx, params, oldAd)
+			if err != nil {
+				return err
 			}
 			return nil
 		})
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
-		assert.Nil(t, runErr)
-		assert.Nil(t, runResult)
+		assert.Nil(t, err)
+		assert.Nil(t, result)
 		env.AssertExpectations(t)
 	})
 
@@ -1024,6 +979,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
@@ -1052,8 +1008,8 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
 		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(nil)
 		env.OnActivity("MarkVcpAdToUpdatingActivity", mock.Anything, params, adRecord).Return(nil)
-		env.OnActivity("PushUpdatesDownstreamActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil)
 
 		var runResult interface{}
 		var runErr *vsaerrors.CustomError
@@ -1094,6 +1050,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = ""
@@ -1111,7 +1068,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		}
 
 		activityError := vsaerrors.New("VCP update execution failed")
-		env.OnActivity("PushUpdatesDownstreamActivity", mock.Anything, mock.Anything, mock.Anything).Return(activityError)
+		env.OnActivity("GetSvmsForAd", mock.Anything, mock.Anything).Return(nil, activityError)
 		env.OnActivity("MarkVcpAdToErrorActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		var runResult interface{}
@@ -1201,6 +1158,485 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		assert.Error(t, env.GetWorkflowError())
 		assert.NotNil(t, runErr)
 		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+}
+
+// TestPushAdUpdatesToSVMWorkflow tests the PushAdUpdatesToSVMWorkflow function
+func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
+	t.Run("SuccessfulWithNoSvms", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad-no-svms",
+			Domain: "example.com",
+		}
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
+		}
+
+		changeId := "change-id-123"
+
+		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
+
+		var result error
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			result = PushAdUpdatesToSVMWorkflow(ctx, oldAd, params, changeId)
+			return result
+		})
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PushAdUpdatesToSVMWorkflow(ctx, oldAd, params, changeId)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, result)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SuccessfulWithSingleSvm", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&activities.CommonActivities{})
+
+		oldAd := models.ActiveDirectory{
+			AdName: "test-ad-single",
+			Domain: "example.com",
+		}
+
+		params := common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
+		}
+
+		changeId := "change-id-single"
+
+		svms := []*datamodel.Svm{
+			{
+				Name:   "svm-1",
+				PoolID: int64(1),
+				SvmDetails: &datamodel.SvmDetails{
+					ExternalUUID: "svm-uuid-1",
+				},
+			},
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID: int64(1),
+			},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: int64(1),
+				},
+				EndpointAddress: "10.0.0.1",
+			},
+		}
+
+		cifs := ontapRest.CifsService{
+			CifsService: ontapmodels.CifsService{
+				Name: nillable.GetStringPtr("cifs-1"),
+			},
+		}
+
+		updateParams := vsa.UpdateActiveDirectoryCredentialsParams{
+			NewCredentials: &vsa.ActiveDirectory{
+				Password: "new-password",
+			},
+		}
+
+		env.OnActivity("GetSvmsForAd", mock.Anything, &oldAd).Return(svms, nil)
+		env.OnActivity("GenerateUpdateAdCredentialsParams", mock.Anything, oldAd, params).Return(&updateParams, nil)
+		env.OnActivity("GetPoolBySvmPoolId", mock.Anything, int64(1)).Return(pool, nil)
+		env.OnActivity("GetNode", mock.Anything, int64(1)).Return(nodes, nil)
+		env.OnActivity("GetCifsService", mock.Anything, mock.Anything, "svm-1", "svm-uuid-1").Return(&cifs, nil)
+		env.OnActivity("UpdateAdCredentialsForSvm", mock.Anything, mock.Anything, updateParams, "svm-1", "svm-uuid-1", cifs).Return(nil)
+		env.OnActivity("PropagateAdChangeIdToPool", mock.Anything, pool, changeId).Return(nil)
+
+		var result error
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			result = PushAdUpdatesToSVMWorkflow(ctx, &oldAd, &params, changeId)
+			return result
+		})
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PushAdUpdatesToSVMWorkflow(ctx, &oldAd, &params, changeId)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, result)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SuccessfulWithMultipleSvmBatches", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&activities.CommonActivities{})
+
+		oldAd := models.ActiveDirectory{
+			AdName: "test-ad-batches",
+			Domain: "example.com",
+		}
+
+		params := common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
+		}
+
+		changeId := "change-id-batches"
+
+		// Create 15 SVMs to test batching (2 batches)
+		svms := make([]*datamodel.Svm, 15)
+		for i := 0; i < 15; i++ {
+			svms[i] = &datamodel.Svm{
+				Name:   fmt.Sprintf("svm-%d", i+1),
+				PoolID: int64(1),
+				SvmDetails: &datamodel.SvmDetails{
+					ExternalUUID: fmt.Sprintf("svm-uuid-%d", i+1),
+				},
+			}
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID: int64(1),
+			},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: int64(1),
+				},
+				EndpointAddress: "10.0.0.1",
+			},
+		}
+
+		cifs := ontapRest.CifsService{
+			CifsService: ontapmodels.CifsService{
+				Name: nillable.GetStringPtr("cifs-test"),
+			},
+		}
+
+		updateParams := vsa.UpdateActiveDirectoryCredentialsParams{
+			NewCredentials: &vsa.ActiveDirectory{
+				Password: "new-password",
+			},
+		}
+
+		env.OnActivity("GetSvmsForAd", mock.Anything, &oldAd).Return(svms, nil)
+		env.OnActivity("GenerateUpdateAdCredentialsParams", mock.Anything, oldAd, params).Return(&updateParams, nil).Once()
+
+		// Setup mocks for all 15 SVMs
+		for i := 0; i < 15; i++ {
+			svmName := fmt.Sprintf("svm-%d", i+1)
+			svmUUID := fmt.Sprintf("svm-uuid-%d", i+1)
+			env.OnActivity("GetPoolBySvmPoolId", mock.Anything, int64(1)).Return(pool, nil).Once()
+			env.OnActivity("GetNode", mock.Anything, int64(1)).Return(nodes, nil).Once()
+			env.OnActivity("GetCifsService", mock.Anything, mock.Anything, svmName, svmUUID).Return(&cifs, nil).Once()
+			env.OnActivity("UpdateAdCredentialsForSvm", mock.Anything, mock.Anything, updateParams, svmName, svmUUID, cifs).Return(nil).Once()
+			env.OnActivity("PropagateAdChangeIdToPool", mock.Anything, pool, changeId).Return(nil).Once()
+		}
+
+		var result error
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			result = PushAdUpdatesToSVMWorkflow(ctx, &oldAd, &params, changeId)
+			return result
+		})
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PushAdUpdatesToSVMWorkflow(ctx, &oldAd, &params, changeId)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, result)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_NilActiveDirectory", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
+		}
+
+		changeId := "change-id-nil"
+
+		var result error
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			result = PushAdUpdatesToSVMWorkflow(ctx, nil, params, changeId)
+			return result
+		})
+
+		env.ExecuteWorkflow(PushAdUpdatesToSVMWorkflow, nil, params, changeId)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "Active Directory is nil")
+	})
+
+	t.Run("Failure_GetSvmsForAdError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad-get-error",
+			Domain: "example.com",
+		}
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
+		}
+
+		changeId := "change-id-get-error"
+
+		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return(nil, vsaerrors.New("failed to get SVMs"))
+
+		var result error
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			result = PushAdUpdatesToSVMWorkflow(ctx, oldAd, params, changeId)
+			return result
+		})
+
+		env.ExecuteWorkflow(PushAdUpdatesToSVMWorkflow, oldAd, params, changeId)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "failed to get SVMs")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_UpdateAdCredentialsError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&activities.CommonActivities{})
+
+		oldAd := models.ActiveDirectory{
+			AdName: "test-ad-update-error",
+			Domain: "example.com",
+		}
+
+		params := common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
+		}
+
+		changeId := "change-id-update-error"
+
+		svms := []*datamodel.Svm{
+			{
+				Name:   "svm-error",
+				PoolID: int64(1),
+				SvmDetails: &datamodel.SvmDetails{
+					ExternalUUID: "svm-uuid-error",
+				},
+			},
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID: int64(1),
+			},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: int64(1),
+				},
+				EndpointAddress: "10.0.0.1",
+			},
+		}
+
+		cifs := ontapRest.CifsService{
+			CifsService: ontapmodels.CifsService{
+				Name: nillable.GetStringPtr("cifs-error"),
+			},
+		}
+
+		updateParams := vsa.UpdateActiveDirectoryCredentialsParams{
+			NewCredentials: &vsa.ActiveDirectory{
+				Password: "new-password",
+			},
+		}
+
+		env.OnActivity("GetSvmsForAd", mock.Anything, &oldAd).Return(svms, nil)
+		env.OnActivity("GenerateUpdateAdCredentialsParams", mock.Anything, oldAd, params).Return(&updateParams, nil)
+		env.OnActivity("GetPoolBySvmPoolId", mock.Anything, int64(1)).Return(pool, nil)
+		env.OnActivity("GetNode", mock.Anything, int64(1)).Return(nodes, nil)
+		env.OnActivity("GetCifsService", mock.Anything, mock.Anything, "svm-error", "svm-uuid-error").Return(&cifs, nil)
+		env.OnActivity("UpdateAdCredentialsForSvm", mock.Anything, mock.Anything, updateParams, "svm-error", "svm-uuid-error", cifs).Return(vsaerrors.New("failed to update AD credentials"))
+
+		var result error
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			result = PushAdUpdatesToSVMWorkflow(ctx, &oldAd, &params, changeId)
+			return result
+		})
+
+		env.ExecuteWorkflow(PushAdUpdatesToSVMWorkflow, &oldAd, &params, changeId)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "failed to update AD credentials")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_PropagateChangeIdError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&activities.CommonActivities{})
+
+		oldAd := models.ActiveDirectory{
+			AdName: "test-ad-propagate-error",
+			Domain: "example.com",
+		}
+
+		params := common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+			Password:          nillable.GetStringPtr("new-password"),
+		}
+
+		changeId := "change-id-propagate-error"
+
+		svms := []*datamodel.Svm{
+			{
+				Name:   "svm-propagate",
+				PoolID: int64(1),
+				SvmDetails: &datamodel.SvmDetails{
+					ExternalUUID: "svm-uuid-propagate",
+				},
+			},
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID: int64(1),
+			},
+			DeploymentName: "test-deployment",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: int64(1),
+				},
+				EndpointAddress: "10.0.0.1",
+			},
+		}
+
+		cifs := ontapRest.CifsService{
+			CifsService: ontapmodels.CifsService{
+				Name: nillable.GetStringPtr("cifs-propagate"),
+			},
+		}
+
+		updateParams := vsa.UpdateActiveDirectoryCredentialsParams{
+			NewCredentials: &vsa.ActiveDirectory{
+				Password: "new-password",
+			},
+		}
+
+		env.OnActivity("GetSvmsForAd", mock.Anything, &oldAd).Return(svms, nil)
+		env.OnActivity("GenerateUpdateAdCredentialsParams", mock.Anything, oldAd, params).Return(&updateParams, nil)
+		env.OnActivity("GetPoolBySvmPoolId", mock.Anything, int64(1)).Return(pool, nil)
+		env.OnActivity("GetNode", mock.Anything, int64(1)).Return(nodes, nil)
+		env.OnActivity("GetCifsService", mock.Anything, mock.Anything, "svm-propagate", "svm-uuid-propagate").Return(&cifs, nil)
+		env.OnActivity("UpdateAdCredentialsForSvm", mock.Anything, mock.Anything, updateParams, "svm-propagate", "svm-uuid-propagate", cifs).Return(nil)
+		env.OnActivity("PropagateAdChangeIdToPool", mock.Anything, pool, changeId).Return(vsaerrors.New("failed to propagate change ID"))
+		var result error
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			result = PushAdUpdatesToSVMWorkflow(ctx, &oldAd, &params, changeId)
+			return result
+		})
+
+		env.ExecuteWorkflow(PushAdUpdatesToSVMWorkflow, &oldAd, &params, changeId)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "failed to propagate change ID")
 		env.AssertExpectations(t)
 	})
 }

@@ -3055,3 +3055,48 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		assert.Equal(tt, true, updatedPool.AutoTieringConfig.TieringPaused)
 	})
 }
+
+// Unit tests for GetPoolByID
+func TestDataStoreRepository_GetPoolByID(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	require.NoError(t, err)
+
+	// Create test account and pool
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	require.NoError(t, store.db.Create(account).Error())
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 42, UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, Account: account}
+	require.NoError(t, store.db.Create(pool).Error())
+
+	t.Run("ReturnsPoolWhenExists", func(tt *testing.T) {
+		result, err := store.GetPoolByID(context.Background(), pool.ID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, pool.ID, result.ID)
+		assert.Equal(tt, pool.UUID, result.UUID)
+	})
+
+	t.Run("ReturnsNotFoundErrorWhenPoolDoesNotExist", func(tt *testing.T) {
+		result, err := store.GetPoolByID(context.Background(), 9999)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		gdb, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
+		require.NoError(tt, err)
+		wrapper := gormwrapper.New(gdb)
+		store := NewDataStoreRepository(wrapper)
+
+		mock.ExpectQuery("SELECT .* FROM \"pools\" WHERE id = .*").WillReturnError(errors.New("db error"))
+		result, err := store.GetPoolByID(context.Background(), 123)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+}

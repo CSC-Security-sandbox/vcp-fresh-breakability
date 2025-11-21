@@ -1716,3 +1716,46 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecrypti
 		// Verify that DecryptPassword was not called by not setting up mock
 	})
 }
+
+func TestPropagateAdChangeIdToPool_Success(t *testing.T) {
+	storage := &database.MockStorage{}
+	activity := ActiveDirectoryActivity{SE: storage}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}}
+	adChangeId := "change-id"
+
+	storage.On("UpdatePoolFields", mock.Anything, pool.UUID, mock.Anything).Return(nil)
+
+	err := activity.PropagateAdChangeIdToPool(context.Background(), pool, adChangeId)
+	assert.NoError(t, err)
+	assert.Equal(t, adChangeId, pool.ActiveDirectoryChangeId)
+	storage.AssertExpectations(t)
+}
+
+func TestPropagateAdChangeIdToPool_NilPool(t *testing.T) {
+	activity := ActiveDirectoryActivity{}
+	err := activity.PropagateAdChangeIdToPool(context.Background(), nil, "change-id")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "pool is nil")
+}
+
+func TestPropagateAdChangeIdToPool_EmptyChangeId(t *testing.T) {
+	activity := ActiveDirectoryActivity{}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}}
+	err := activity.PropagateAdChangeIdToPool(context.Background(), pool, "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "adChangeId is empty")
+}
+
+func TestPropagateAdChangeIdToPool_UpdateError(t *testing.T) {
+	storage := &database.MockStorage{}
+	activity := ActiveDirectoryActivity{SE: storage}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}}
+	adChangeId := "change-id"
+
+	storage.On("UpdatePoolFields", mock.Anything, pool.UUID, mock.Anything).Return(errors.New("db error"))
+
+	err := activity.PropagateAdChangeIdToPool(context.Background(), pool, adChangeId)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
+	storage.AssertExpectations(t)
+}

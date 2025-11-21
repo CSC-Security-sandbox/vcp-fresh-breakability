@@ -16,7 +16,7 @@ type pageable interface {
 	[]*models.Job | []*Schedule | []*models.BroadcastDomain | []*IPInterface | []*IPServicePolicy |
 		[]*models.NetworkRoute | []*Aggregate | []*models.Disk | []*Snapshot | []*models.SnapshotPolicy |
 		[]*Volume | []*Job | []*Svm | []*Node | []*BroadcastDomain |
-		[]*SvmPeer | []*QosPolicy | []string | []*Igroup | []*Lun | []*ExportPolicy
+		[]*SvmPeer | []*QosPolicy | []string | []*Igroup | []*Lun | []*ExportPolicy | []*CifsGroup
 }
 
 type ontapPaginationFunc[T pageable] func(next string) (T, string, error)

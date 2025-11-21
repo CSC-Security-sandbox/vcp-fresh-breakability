@@ -164,6 +164,18 @@ func (ca CommonActivities) GetSVM(ctx context.Context, poolID int64) (*datamodel
 	return svm, nil
 }
 
+// GetPoolBySvmPoolId retrieves the Pool associated with the given pool ID from SVM.
+func (ca CommonActivities) GetPoolBySvmPoolId(ctx context.Context, poolID int64) (*datamodel.Pool, error) {
+	se := ca.SE
+
+	pool, err := se.GetPoolByID(ctx, poolID)
+	if err != nil || pool == nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return pool, nil
+}
+
 func (ca CommonActivities) UpdateSvmActiveDirectory(ctx context.Context, params UpdateSvmActiveDirectoryParams) (*datamodel.Svm, error) {
 	logger := util.GetLogger(ctx)
 	if params.Svm == nil {

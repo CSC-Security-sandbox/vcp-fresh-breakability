@@ -5582,3 +5582,34 @@ func TestDeleteClusterPeeringRow_Persistence_Store(t *testing.T) {
 		}
 	})
 }
+
+func TestPersistenceStore_GetPoolByID(t *testing.T) {
+	db, err := SetupInMemoryDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := &PersistenceStore{
+		db:        wrapper,
+		dataStore: retryEngine{dataStore: NewDataStoreRepository(wrapper)},
+	}
+
+	// Create a pool
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 101,
+			UUID: "pool-uuid-101",
+		},
+	}
+	err = db.Create(pool).Error
+	assert.NoError(t, err)
+
+	// Should retrieve the pool by ID
+	result, err := store.GetPoolByID(context.Background(), 101)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, pool.ID, result.ID)
+	assert.Equal(t, pool.UUID, result.UUID)
+
+	// Should return nil for non-existent pool
+	result, err = store.GetPoolByID(context.Background(), 999)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}

@@ -134,12 +134,14 @@ type Provider interface {
 	GetRole(params GetRoleParams) (*Role, error)
 	GetRoleCollection(params GetRoleCollectionParams) ([]*Role, error)
 	ModifyRolePrivilege(params ModifyRolePrivilegeParams) error
+	GetCIFSService(svmName, externalSVMUUID string) (*ontapRest.CifsService, error)
 	EnsureCIFSShare(params ConfigActiveDirectoryParams) (string, error)
 	EnsureCifsServerNamePostFix(client ontapRest.RESTClient, ad *ActiveDirectory, svmName string) error
 	CreateAndSetupCIFSServer(client ontapRest.RESTClient, ad *ActiveDirectory, externalSVMUUID, svmName string) (string, error)
 	IsDDNSEnabled(client ontapRest.RESTClient, svmUUID string) bool
 	CifsShareCollectionGet(svmUUID, shareName string, fields []string) ([]string, error)
 	UpdateCIFSServer(svmUUID, shareName string, shareProperties []string) error
+	UpdateActiveDirectoryCredentials(params UpdateActiveDirectoryCredentialsParams, cifs ontapRest.CifsService, svmName, svmExternalUUID string) error
 }
 
 type OntapRestProvider struct {

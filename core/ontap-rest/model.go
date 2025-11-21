@@ -4268,15 +4268,48 @@ func cifsServiceModifyParamsToONTAP(params *CifsServiceModifyParams) *nas.CifsSe
 		return otParams
 	}
 
-	cifsInfo := &models.CifsService{}
+	var cifsSecurity *models.CifsServiceSecurity
+	if params.TLSEnabled != nil || params.EncryptDCConnections != nil || params.SessionSecurityForAdLdap != nil || params.AesEncryptionEnabled != nil || params.SmbEncryption != nil || params.CompatibilityLevel != nil || params.RestrictAnonymous != nil {
+		cifsSecurity = &models.CifsServiceSecurity{
+			UseStartTLS:          params.TLSEnabled,
+			EncryptDcConnection:  params.EncryptDCConnections,
+			SessionSecurity:      params.SessionSecurityForAdLdap,
+			KdcEncryption:        params.AesEncryptionEnabled,
+			SmbEncryption:        params.SmbEncryption,
+			LmCompatibilityLevel: params.CompatibilityLevel,
+			RestrictAnonymous:    params.RestrictAnonymous,
+		}
+	}
 
-	if params.Enabled != nil {
-		cifsInfo.Enabled = params.Enabled
+	var adDomain *models.AdDomain
+	if params.Username != nil || params.Password != nil || params.Site != nil {
+		adDomain = &models.AdDomain{
+			User:        params.Username,
+			Password:    params.Password,
+			DefaultSite: params.Site,
+		}
 	}
-	if params.SvmUUID != nil {
-		otParams.SetSvmUUID(*params.SvmUUID)
+
+	var cifsOptions *models.CifsServiceOptions
+	if params.CopyOffload != nil || params.Multichannel != nil || params.DacEnabled != nil {
+		cifsOptions = &models.CifsServiceOptions{
+			CopyOffload:  params.CopyOffload,
+			Multichannel: params.Multichannel,
+			DacEnabled:   params.DacEnabled,
+		}
 	}
-	otParams.SetInfo(cifsInfo)
+
+	info := &models.CifsService{
+		Name:     params.Name,
+		Enabled:  params.Enabled,
+		Security: cifsSecurity,
+		AdDomain: adDomain,
+		Options:  cifsOptions,
+	}
+
+	otParams.SetSvmUUID(*params.SvmUUID)
+	otParams.SetInfo(info)
+	otParams.WithReturnTimeout(&returnTimeout)
 	return otParams
 }
 
@@ -4500,4 +4533,26 @@ func (s *SnapmirrorRelationship) TransferState() string {
 		return ""
 	}
 	return *s.Transfer.State
+}
+
+func ldapModifyParamsToONTAP(params *LdapModifyParams) *name_services.LdapModifyParams {
+	skipConfigValidation := false
+	otParams := name_services.NewLdapModifyParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetSvmUUID(params.SvmUUID)
+	otParams.SetInfo(
+		&models.LdapService{
+			SkipConfigValidation:                &skipConfigValidation,
+			UserDn:                              params.UserDn,
+			GroupDn:                             params.GroupDn,
+			BaseDn:                              params.BaseDN,
+			GroupMembershipFilter:               params.GroupMembershipFilter,
+			LdapServiceInlinePreferredAdServers: params.PreferredServersForLdapClient,
+			UseStartTLS:                         params.TLSEnabled,
+			Schema:                              params.Schema,
+			LdapServiceInlineServers:            params.LdapServers,
+		})
+	return otParams
 }

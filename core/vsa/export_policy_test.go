@@ -138,6 +138,49 @@ func (m *MockNASClient) CifsShareCollectionGet(params *ontapRest.CifsShareCollec
 	return args.Get(0).(*ontapRest.CifsShareGetResponse), args.Error(1)
 }
 
+func (m *MockNASClient) DomainControllersSrvLookupGet(params *ontapRest.SrvLookupParams) ([]string, error) {
+	args := m.Called(params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockNASClient) CifsDomainPreferredDCDelete(params *ontapRest.CifsDomainPreferredDCDeleteParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsDomainPreferredDCCreate(params *ontapRest.CifsDomainPreferredDCCreateParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsServiceCollectionGetGroups(params *ontapRest.CifsServiceCollectionGetGroupsParams, ucbf ontapRest.UserCallbackFunc[[]*ontapRest.CifsGroup]) error {
+	args := m.Called(params, ucbf)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsServiceRemoveMembers(params *ontapRest.CifsServiceModifyGroupMembersParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsServiceCollectionGetPrivilegedMembers(params *ontapRest.CifsServiceCollectionGetPrivilegedMembersParams, ucbf ontapRest.UserCallbackFunc[[]string]) error {
+	args := m.Called(params, ucbf)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) CifsServiceRemoveSecurityPrivilege(params *ontapRest.CifsServiceModifySecurityPrivilegeParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) NfsModify(params *ontapRest.NfsModifyParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
 // MockRESTClientForNAS extends the existing MockRESTClient to include NAS
 type MockRESTClientForNAS struct {
 	ontapRest.MockRESTClient

@@ -344,6 +344,98 @@ func (_c *MockNameServicesClient_LdapGet_Call) RunAndReturn(run func(*LdapGetPar
 	return _c
 }
 
+// LdapModify provides a mock function with given fields: params
+func (_m *MockNameServicesClient) LdapModify(params *LdapModifyParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LdapModify")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*LdapModifyParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNameServicesClient_LdapModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LdapModify'
+type MockNameServicesClient_LdapModify_Call struct {
+	*mock.Call
+}
+
+// LdapModify is a helper method to define mock.On call
+//   - params *LdapModifyParams
+func (_e *MockNameServicesClient_Expecter) LdapModify(params interface{}) *MockNameServicesClient_LdapModify_Call {
+	return &MockNameServicesClient_LdapModify_Call{Call: _e.mock.On("LdapModify", params)}
+}
+
+func (_c *MockNameServicesClient_LdapModify_Call) Run(run func(params *LdapModifyParams)) *MockNameServicesClient_LdapModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LdapModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapModify_Call) Return(_a0 error) *MockNameServicesClient_LdapModify_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapModify_Call) RunAndReturn(run func(*LdapModifyParams) error) *MockNameServicesClient_LdapModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LdapModifyPreferredAdServers provides a mock function with given fields: params
+func (_m *MockNameServicesClient) LdapModifyPreferredAdServers(params *LdapModifyParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LdapModifyPreferredAdServers")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*LdapModifyParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNameServicesClient_LdapModifyPreferredAdServers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LdapModifyPreferredAdServers'
+type MockNameServicesClient_LdapModifyPreferredAdServers_Call struct {
+	*mock.Call
+}
+
+// LdapModifyPreferredAdServers is a helper method to define mock.On call
+//   - params *LdapModifyParams
+func (_e *MockNameServicesClient_Expecter) LdapModifyPreferredAdServers(params interface{}) *MockNameServicesClient_LdapModifyPreferredAdServers_Call {
+	return &MockNameServicesClient_LdapModifyPreferredAdServers_Call{Call: _e.mock.On("LdapModifyPreferredAdServers", params)}
+}
+
+func (_c *MockNameServicesClient_LdapModifyPreferredAdServers_Call) Run(run func(params *LdapModifyParams)) *MockNameServicesClient_LdapModifyPreferredAdServers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*LdapModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapModifyPreferredAdServers_Call) Return(_a0 error) *MockNameServicesClient_LdapModifyPreferredAdServers_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNameServicesClient_LdapModifyPreferredAdServers_Call) RunAndReturn(run func(*LdapModifyParams) error) *MockNameServicesClient_LdapModifyPreferredAdServers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // LdapSchemaCreate provides a mock function with given fields: params
 func (_m *MockNameServicesClient) LdapSchemaCreate(params *LdapSchemaCreateParams) error {
 	ret := _m.Called(params)

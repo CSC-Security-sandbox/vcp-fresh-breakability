@@ -2,6 +2,7 @@ package ontap_rest
 
 import (
 	"errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/go-openapi/runtime"
@@ -9,12 +10,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	nas "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/n_a_s"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	priv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
+	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 )
 
 // mockNASClient implements the nas.ClientService interface for testing
 type mockNASClient struct {
-	err      error
-	response interface{}
+	err       error
+	response  interface{}
+	responses []interface{} // For pagination tests that need multiple responses
+	callCount int
 }
 
 // Implement only the methods we need for testing
@@ -143,11 +148,17 @@ func (m *mockNASClient) CifsDomainModify(params *nas.CifsDomainModifyParams, aut
 }
 
 func (m *mockNASClient) CifsDomainPreferredDcCreate(params *nas.CifsDomainPreferredDcCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsDomainPreferredDcCreateCreated, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &nas.CifsDomainPreferredDcCreateCreated{}, nil
 }
 
 func (m *mockNASClient) CifsDomainPreferredDcDelete(params *nas.CifsDomainPreferredDcDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsDomainPreferredDcDeleteOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &nas.CifsDomainPreferredDcDeleteOK{}, nil
 }
 
 func (m *mockNASClient) CifsServiceDelete(params *nas.CifsServiceDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsServiceDeleteOK, *nas.CifsServiceDeleteAccepted, error) {
@@ -237,11 +248,30 @@ func (m *mockNASClient) KerberosRealmModify(params *nas.KerberosRealmModifyParam
 }
 
 func (m *mockNASClient) LocalCifsGroupCollectionGet(params *nas.LocalCifsGroupCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.LocalCifsGroupCollectionGetOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	// Support multiple responses for pagination tests
+	if len(m.responses) > 0 {
+		if m.callCount < len(m.responses) {
+			resp := m.responses[m.callCount]
+			m.callCount++
+			if r, ok := resp.(*nas.LocalCifsGroupCollectionGetOK); ok {
+				return r, nil
+			}
+		}
+	}
+	if resp, ok := m.response.(*nas.LocalCifsGroupCollectionGetOK); ok {
+		return resp, nil
+	}
+	return &nas.LocalCifsGroupCollectionGetOK{}, nil
 }
 
 func (m *mockNASClient) LocalCifsGroupMembersBulkDelete(params *nas.LocalCifsGroupMembersBulkDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.LocalCifsGroupMembersBulkDeleteOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &nas.LocalCifsGroupMembersBulkDeleteOK{}, nil
 }
 
 func (m *mockNASClient) LocalCifsGroupMembersCollectionGet(params *nas.LocalCifsGroupMembersCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.LocalCifsGroupMembersCollectionGetOK, error) {
@@ -264,7 +294,13 @@ func (m *mockNASClient) NfsClientsGet(params *nas.NfsClientsGetParams, authInfo 
 }
 
 func (m *mockNASClient) UserGroupPrivilegesCollectionGet(params *nas.UserGroupPrivilegesCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.UserGroupPrivilegesCollectionGetOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	if resp, ok := m.response.(*nas.UserGroupPrivilegesCollectionGetOK); ok {
+		return resp, nil
+	}
+	return &nas.UserGroupPrivilegesCollectionGetOK{}, nil
 }
 
 func (m *mockNASClient) UserGroupPrivilegesCreate(params *nas.UserGroupPrivilegesCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.UserGroupPrivilegesCreateCreated, error) {
@@ -275,7 +311,10 @@ func (m *mockNASClient) UserGroupPrivilegesCreate(params *nas.UserGroupPrivilege
 }
 
 func (m *mockNASClient) UserGroupPrivilegesModify(params *nas.UserGroupPrivilegesModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.UserGroupPrivilegesModifyOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &nas.UserGroupPrivilegesModifyOK{}, nil
 }
 
 func (m *mockNASClient) SetTransport(transport runtime.ClientTransport) {
@@ -521,14 +560,18 @@ func TestCifsServiceModify(t *testing.T) {
 	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
 		api := &mockNASClient{err: errors.New("api error")}
 		client := &nasClient{api: api}
-		err := client.CifsServiceModify(&CifsServiceModifyParams{})
+		err := client.CifsServiceModify(&CifsServiceModifyParams{
+			SvmUUID: nillable.GetStringPtr("test-uuid"),
+		})
 		assert.EqualError(tt, err, "api error")
 	})
 
 	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
 		api := &mockNASClient{}
 		client := &nasClient{api: api}
-		err := client.CifsServiceModify(&CifsServiceModifyParams{})
+		err := client.CifsServiceModify(&CifsServiceModifyParams{
+			SvmUUID: nillable.GetStringPtr("test-uuid"),
+		})
 		assert.NoError(tt, err)
 	})
 }
@@ -960,5 +1003,462 @@ func Test_convertCifsShareFromREST(t *testing.T) {
 		result := _convertCifsShareFromREST(share)
 		assert.NotNil(tt, result)
 		assert.Empty(tt, result.ShareProperties)
+	})
+}
+
+// mockPrivClient implements the priv.ClientService interface for testing
+type mockPrivClient struct {
+	err      error
+	response interface{}
+}
+
+func (m *mockPrivClient) GetGroupIDsList(params *priv.GetGroupIDsListParams, opts ...priv.ClientOption) (*priv.GetGroupIDsListOK, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) AntiRansomwareSuspectDelete(params *priv.AntiRansomwareSuspectDeleteParams, opts ...priv.ClientOption) (*priv.AntiRansomwareSuspectDeleteOK, *priv.AntiRansomwareSuspectDeleteAccepted, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) AzureKeyVaultCreate(params *priv.AzureKeyVaultCreateParams, opts ...priv.ClientOption) (*priv.AzureKeyVaultCreateCreated, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) AzureKeyVaultDelete(params *priv.AzureKeyVaultDeleteParams, opts ...priv.ClientOption) (*priv.AzureKeyVaultDeleteOK, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) AzureKeyVaultGet(params *priv.AzureKeyVaultGetParams, opts ...priv.ClientOption) (*priv.AzureKeyVaultGetOK, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) AzureKeyVaultModify(params *priv.AzureKeyVaultModifyParams, opts ...priv.ClientOption) (*priv.AzureKeyVaultModifyOK, *priv.AzureKeyVaultModifyAccepted, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) AzureUpdateConfig(params *priv.AzureUpdateConfigParams, opts ...priv.ClientOption) (*priv.AzureUpdateConfigOK, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) CifsCheck(params *priv.CifsCheckParams, opts ...priv.ClientOption) (*priv.CifsCheckOK, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) CliExecute(params *priv.CliExecuteParams, opts ...priv.ClientOption) (*priv.CliExecuteOK, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) ClusterPeerCreate(params *priv.ClusterPeerCreateParams, opts ...priv.ClientOption) (*priv.ClusterPeerCreateCreated, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) GcpKmsGet(params *priv.GcpKmsGetParams, opts ...priv.ClientOption) (*priv.GcpKmsGetOK, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) NetworkPing(params *priv.NetworkPingParams, opts ...priv.ClientOption) (*priv.NetworkPingOK, *priv.NetworkPingAccepted, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) SetTransport(transport runtime.ClientTransport) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockPrivClient) SrvLookup(params *priv.SrvLookupParams, opts ...priv.ClientOption) (*priv.SrvLookupOK, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if resp, ok := m.response.(*priv.SrvLookupOK); ok {
+		return resp, nil
+	}
+	return &priv.SrvLookupOK{}, nil
+}
+
+func TestDomainControllersSrvLookupGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		apiPriv := &mockPrivClient{err: errors.New("api error")}
+		client := &nasClient{apiPriv: apiPriv}
+		params := &SrvLookupParams{
+			LookupString: "test-lookup",
+			SVMName:      "test-svm",
+		}
+		result, err := client.DomainControllersSrvLookupGet(params)
+		assert.EqualError(tt, err, "api error")
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenValidOutput_ThenReturnIPList", func(tt *testing.T) {
+		cliOutput := "Got 2 Ip Addresses\n10.193.224.112\n10.193.215.176\n"
+		resp := &priv.SrvLookupOK{
+			Payload: &privmodels.SrvLookupResponse{
+				CliOutput: cliOutput,
+			},
+		}
+		apiPriv := &mockPrivClient{response: resp}
+		client := &nasClient{apiPriv: apiPriv}
+		params := &SrvLookupParams{
+			LookupString: "test-lookup",
+			SVMName:      "test-svm",
+		}
+		result, err := client.DomainControllersSrvLookupGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, 2, len(result))
+		assert.Equal(tt, "10.193.224.112", result[0])
+		assert.Equal(tt, "10.193.215.176", result[1])
+	})
+}
+
+func TestCifsDomainPreferredDCDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		params := &CifsDomainPreferredDCDeleteParams{
+			SvmUUID:  "test-uuid",
+			ServerIP: stringPtr("10.0.0.1"),
+			Fqdn:     stringPtr("test.domain.com"),
+		}
+		err := client.CifsDomainPreferredDCDelete(params)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		params := &CifsDomainPreferredDCDeleteParams{
+			SvmUUID:  "test-uuid",
+			ServerIP: stringPtr("10.0.0.1"),
+			Fqdn:     stringPtr("test.domain.com"),
+		}
+		err := client.CifsDomainPreferredDCDelete(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenParamsNil_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		err := client.CifsDomainPreferredDCDelete(nil)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestCifsDomainPreferredDCCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		fqdn := "test.domain.com"
+		serverIP := "10.0.0.1"
+		params := &CifsDomainPreferredDCCreateParams{
+			SvmUUID: "test-uuid",
+			CifsDomainPreferredDC: &CifsDomainPreferredDC{
+				Fqdn:     &fqdn,
+				ServerIP: &serverIP,
+			},
+		}
+		err := client.CifsDomainPreferredDCCreate(params)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		fqdn := "test.domain.com"
+		serverIP := "10.0.0.1"
+		params := &CifsDomainPreferredDCCreateParams{
+			SvmUUID: "test-uuid",
+			CifsDomainPreferredDC: &CifsDomainPreferredDC{
+				Fqdn:     &fqdn,
+				ServerIP: &serverIP,
+			},
+		}
+		err := client.CifsDomainPreferredDCCreate(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenParamsNil_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		err := client.CifsDomainPreferredDCCreate(nil)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestCifsServiceCollectionGetGroups(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		params := &CifsServiceCollectionGetGroupsParams{
+			SvmUUID: "test-uuid",
+		}
+		callback := func(groups []*CifsGroup) error {
+			return nil
+		}
+		err := client.CifsServiceCollectionGetGroups(params, callback)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenProcessGroups", func(tt *testing.T) {
+		groupName1 := "group1"
+		groupSid1 := "S-1-1-1"
+		memberName1 := "domain\\user1"
+		groupName2 := "group2"
+		groupSid2 := "S-1-1-2"
+		memberName2 := "domain\\user2"
+
+		resp := &nas.LocalCifsGroupCollectionGetOK{
+			Payload: &models.LocalCifsGroupResponse{
+				LocalCifsGroupResponseInlineRecords: []*models.LocalCifsGroup{
+					{
+						Name: &groupName1,
+						Sid:  &groupSid1,
+						LocalCifsGroupInlineMembers: []*models.LocalCifsGroupInlineMembersInlineArrayItem{
+							{Name: &memberName1},
+						},
+					},
+					{
+						Name: &groupName2,
+						Sid:  &groupSid2,
+						LocalCifsGroupInlineMembers: []*models.LocalCifsGroupInlineMembersInlineArrayItem{
+							{Name: &memberName2},
+						},
+					},
+				},
+			},
+		}
+		api := &mockNASClient{response: resp}
+		client := &nasClient{api: api}
+		params := &CifsServiceCollectionGetGroupsParams{
+			SvmUUID: "test-uuid",
+		}
+		var receivedGroups []*CifsGroup
+		callback := func(groups []*CifsGroup) error {
+			receivedGroups = append(receivedGroups, groups...)
+			return nil
+		}
+		err := client.CifsServiceCollectionGetGroups(params, callback)
+		assert.NoError(tt, err)
+		assert.Equal(tt, 2, len(receivedGroups))
+		assert.Equal(tt, groupName1, receivedGroups[0].Name)
+		assert.Equal(tt, groupSid1, receivedGroups[0].Sid)
+		assert.Equal(tt, 1, len(receivedGroups[0].Members))
+		assert.Equal(tt, "user1", receivedGroups[0].Members[0])
+	})
+
+	t.Run("WhenPagination_ThenHandleNextLink", func(tt *testing.T) {
+		groupName := "group1"
+		groupSid := "S-1-1-1"
+		memberName := "domain\\user1"
+		nextHref := "http://next-page"
+
+		// First response with next link
+		firstResp := &nas.LocalCifsGroupCollectionGetOK{
+			Payload: &models.LocalCifsGroupResponse{
+				LocalCifsGroupResponseInlineRecords: []*models.LocalCifsGroup{
+					{
+						Name: &groupName,
+						Sid:  &groupSid,
+						LocalCifsGroupInlineMembers: []*models.LocalCifsGroupInlineMembersInlineArrayItem{
+							{Name: &memberName},
+						},
+					},
+				},
+				Links: &models.LocalCifsGroupResponseInlineLinks{
+					Next: &models.Href{Href: &nextHref},
+				},
+			},
+		}
+		// Second response without next link (end of pagination)
+		secondResp := &nas.LocalCifsGroupCollectionGetOK{
+			Payload: &models.LocalCifsGroupResponse{
+				LocalCifsGroupResponseInlineRecords: []*models.LocalCifsGroup{},
+			},
+		}
+
+		// Use responses array for pagination
+		api := &mockNASClient{
+			responses: []interface{}{firstResp, secondResp},
+		}
+
+		client := &nasClient{api: api}
+		params := &CifsServiceCollectionGetGroupsParams{
+			SvmUUID: "test-uuid",
+		}
+		receivedGroups := 0
+		callback := func(groups []*CifsGroup) error {
+			receivedGroups += len(groups)
+			return nil
+		}
+		err := client.CifsServiceCollectionGetGroups(params, callback)
+		assert.NoError(tt, err)
+		assert.Equal(tt, 2, api.callCount, "Should make exactly 2 API calls for pagination")
+		assert.Equal(tt, 1, receivedGroups, "Should receive 1 group from pagination")
+	})
+}
+
+func TestCifsServiceRemoveMembers(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		params := &CifsServiceModifyGroupMembersParams{
+			Sid:     "test-sid",
+			Members: []string{"user1", "user2"},
+			SvmUUID: "test-uuid",
+		}
+		err := client.CifsServiceRemoveMembers(params)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		params := &CifsServiceModifyGroupMembersParams{
+			Sid:     "test-sid",
+			Members: []string{"user1"},
+			SvmUUID: "test-uuid",
+		}
+		err := client.CifsServiceRemoveMembers(params)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestCifsServiceCollectionGetPrivilegedMembers(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		params := &CifsServiceCollectionGetPrivilegedMembersParams{
+			SvmUUID: "test-uuid",
+		}
+		callback := func(members []string) error {
+			return nil
+		}
+		err := client.CifsServiceCollectionGetPrivilegedMembers(params, callback)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenProcessMembers", func(tt *testing.T) {
+		memberName1 := "domain\\user1"
+		memberName2 := "domain\\user2"
+		resp := &nas.UserGroupPrivilegesCollectionGetOK{
+			Payload: &models.UserGroupPrivilegesResponse{
+				UserGroupPrivilegesResponseInlineRecords: []*models.UserGroupPrivileges{
+					{Name: &memberName1},
+					{Name: &memberName2},
+				},
+			},
+		}
+		api := &mockNASClient{response: resp}
+		client := &nasClient{api: api}
+		params := &CifsServiceCollectionGetPrivilegedMembersParams{
+			SvmUUID: "test-uuid",
+		}
+		var receivedMembers []string
+		callback := func(members []string) error {
+			receivedMembers = append(receivedMembers, members...)
+			return nil
+		}
+		err := client.CifsServiceCollectionGetPrivilegedMembers(params, callback)
+		assert.NoError(tt, err)
+		assert.Equal(tt, 2, len(receivedMembers))
+		assert.Equal(tt, "user1", receivedMembers[0])
+		assert.Equal(tt, "user2", receivedMembers[1])
+	})
+}
+
+func TestCifsServiceRemoveSecurityPrivilege(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		params := &CifsServiceModifySecurityPrivilegeParams{
+			Member:  "test-user",
+			SvmUUID: "test-uuid",
+		}
+		err := client.CifsServiceRemoveSecurityPrivilege(params)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		params := &CifsServiceModifySecurityPrivilegeParams{
+			Member:  "test-user",
+			SvmUUID: "test-uuid",
+		}
+		err := client.CifsServiceRemoveSecurityPrivilege(params)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestNfsModify(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		params := &NfsModifyParams{
+			SvmUUID: "test-uuid",
+		}
+		err := client.NfsModify(params)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		params := &NfsModifyParams{
+			SvmUUID: "test-uuid",
+		}
+		err := client.NfsModify(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenAllParamsSet_ThenSetAllFields", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		v4IDDomain := "test-domain"
+		showmountEnabled := true
+		rquotaEnabled := true
+		allowLocalNFSUsersWithLdap := true
+		extendedGroupsLimit := int64(100)
+		enabled := true
+		v3Enabled := true
+		v40Enabled := true
+		v41Enabled := true
+		vstorageEnabled := true
+		fileSessionIoGroupingCount := int64(10)
+
+		params := &NfsModifyParams{
+			SvmUUID:                    "test-uuid",
+			V4IDDomain:                 &v4IDDomain,
+			ShowmountEnabled:           &showmountEnabled,
+			RquotaEnabled:              &rquotaEnabled,
+			AllowLocalNFSUsersWithLdap: &allowLocalNFSUsersWithLdap,
+			ExtendedGroupsLimit:        &extendedGroupsLimit,
+			Enabled:                    &enabled,
+			V3Enabled:                  &v3Enabled,
+			V40Enabled:                 &v40Enabled,
+			V41Enabled:                 &v41Enabled,
+			VstorageEnabled:            &vstorageEnabled,
+			FileSessionIoGroupingCount: &fileSessionIoGroupingCount,
+		}
+		err := client.NfsModify(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenParamsNil_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		err := client.NfsModify(nil)
+		assert.NoError(tt, err)
 	})
 }

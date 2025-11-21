@@ -72,3 +72,19 @@ func (rc *OntapRestProvider) ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolic
 
 	return nil
 }
+
+func (rc *OntapRestProvider) GetSVM(params GetSvmParams) (*ontapRest.Svm, error) {
+	// Create the SVM
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	svm, err := client.SVM().SvmGet(&ontapRest.SvmGetParams{
+		SvmName: params.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return svm, nil
+}

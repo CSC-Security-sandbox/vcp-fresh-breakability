@@ -81,10 +81,7 @@ var isDDNSEnabled = _isDDNSEnabled
 
 func _isDDNSEnabled(traceLog log.Logger, client ontapRest.RESTClient, svmUUID string) bool {
 	traceLog.Info("Get DNS to check the status of DDNS")
-	dns, err := client.NameServices().DNSGet(&ontapRest.DNSGetParams{
-		BaseParams: ontapRest.BaseParams{Fields: []string{"dynamic_dns"}},
-		SvmUUID:    svmUUID,
-	})
+	dns, err := getDns(client, svmUUID)
 	if err != nil {
 		traceLog.Error("Failed to get DNS details", "error", err, "svmUUID", svmUUID)
 		return true
@@ -94,6 +91,13 @@ func _isDDNSEnabled(traceLog log.Logger, client ontapRest.RESTClient, svmUUID st
 	}
 	traceLog.Debugf("dns.DynamicDNS.Enable:[%v]", *dns.DynamicDNS.Enabled)
 	return *dns.DynamicDNS.Enabled
+}
+
+func getDns(client ontapRest.RESTClient, svmUUID string) (*ontapRest.DNS, error) {
+	return client.NameServices().DNSGet(&ontapRest.DNSGetParams{
+		BaseParams: ontapRest.BaseParams{Fields: []string{"dynamic_dns"}},
+		SvmUUID:    svmUUID,
+	})
 }
 
 var createJunctionPathForCifsShare = _createJunctionPathForCifsShare
@@ -400,6 +404,7 @@ func _createCIFSServer(tracelog log.Logger, api ontapRest.RESTClient, svmUUID, s
 	password := nillable.ToPointer(string(ad.Password))
 
 	tracelog.Info("starting the nasc.CifsServiceCreate")
+
 	_, job, err := nasc.CifsServiceCreate(&ontapRest.CifsServiceCreateParams{
 		SvmName:            &svmName,
 		Name:               &name,

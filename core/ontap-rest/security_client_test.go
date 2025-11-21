@@ -661,3 +661,64 @@ func TestServerRootCACertificateDelete(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 }
+
+// ServerRootCACertificateCollectionGet invokes pkg/ontap-rest/client/security/Client.ServerRootCACertificateCollectionGet
+func TestServerRootCACertificateCollectionGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateCollectionGet(&ServerRootCAGetCollectionParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenPayloadIsNil_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateCollectionGetOK{
+			Payload: nil,
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateCollectionGet(&ServerRootCAGetCollectionParams{})
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenRecordsIsEmpty_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateCollectionGetOK{
+			Payload: &models.SecurityCertificateResponse{
+				NumRecords:                               nillable.ToPointer(int64(0)),
+				SecurityCertificateResponseInlineRecords: []*models.SecurityCertificate{},
+			},
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateCollectionGet(&ServerRootCAGetCollectionParams{})
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenRecordsExist_ThenReturnCertificates", func(tt *testing.T) {
+		cert1Name := "cert1"
+		cert2Name := "cert2"
+		cert1 := &models.SecurityCertificate{Name: &cert1Name}
+		cert2 := &models.SecurityCertificate{Name: &cert2Name}
+		transport := &mockTransport{response: &security.SecurityCertificateCollectionGetOK{
+			Payload: &models.SecurityCertificateResponse{
+				NumRecords: nillable.ToPointer(int64(2)),
+				SecurityCertificateResponseInlineRecords: []*models.SecurityCertificate{
+					cert1,
+					cert2,
+				},
+			},
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.ServerRootCACertificateCollectionGet(&ServerRootCAGetCollectionParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Len(tt, response, 2)
+		assert.Equal(tt, cert1, &response[0].SecurityCertificate)
+		assert.Equal(tt, cert2, &response[1].SecurityCertificate)
+	})
+}

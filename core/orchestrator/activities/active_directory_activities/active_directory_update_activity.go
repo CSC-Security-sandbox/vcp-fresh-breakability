@@ -3,8 +3,6 @@ package active_directory_activities
 import (
 	"context"
 	"fmt"
-	"strconv"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
@@ -13,8 +11,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -104,12 +104,13 @@ func (a ActiveDirectoryUpdateActivity) UpdateVcpActiveDirectory(ctx context.Cont
 		return errors.New("Could not fetch related Account for Active Directory update")
 	}
 
-	olAdVcpDbRecord, err := a.SE.GetActiveDirectoryByNameAndAccountID(ctx, oldAd.AdName, account.ID)
+	// Fetch again to ensure working with current record
+	oldDbAd, err := a.SE.GetActiveDirectoryByNameAndAccountID(ctx, oldAd.AdName, account.ID)
 	if err != nil {
 		Logger.Errorf("Failed to fetch Active Directory by name and account ID: %v", err)
 		return errors.New("Could not fetch Active Directory from VCP database")
 	}
-	if olAdVcpDbRecord == nil {
+	if oldDbAd == nil {
 		Logger.Info("Active Directory from SDE not found in VCP, skipping VCP update.")
 		return nil
 	}
@@ -122,15 +123,15 @@ func (a ActiveDirectoryUpdateActivity) UpdateVcpActiveDirectory(ctx context.Cont
 			return decryptErr
 		}
 
-		passwordErr := updatePasswordSecret(ctx, *decryptedPassword, olAdVcpDbRecord.CredentialPath)
+		passwordErr := updatePasswordSecret(ctx, *decryptedPassword, oldDbAd.CredentialPath)
 		if passwordErr != nil {
 			return passwordErr
 		}
-		updatedAd.CredentialPath = olAdVcpDbRecord.CredentialPath
+		updatedAd.CredentialPath = oldDbAd.CredentialPath
 	}
 
 	updatedAd.ChangeId = changeId
-	updatedAd.ID = olAdVcpDbRecord.ID
+	updatedAd.ID = oldDbAd.ID
 	_, err = a.SE.UpdateActiveDirectory(ctx, updatedAd)
 	if err != nil {
 		return err
@@ -243,29 +244,6 @@ func (a ActiveDirectoryUpdateActivity) PollSdeUpdateActivity(ctx context.Context
 
 	logger.Debugf("Operation %s not yet finished, will retry", operationUUID)
 	return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSDEJobNotFinished, errors.New("job not finished")))
-}
-
-func (a ActiveDirectoryUpdateActivity) PushUpdatesDownstreamActivity(ctx context.Context, oldAd *models.ActiveDirectory, changeId string) error {
-	Logger := util.GetLogger(ctx)
-
-	pools, err := a.SE.GetPoolsByActiveDirectoryId(ctx, strconv.FormatInt(oldAd.ID, 10))
-	if err != nil {
-		Logger.Warnf("Failed to fetch pools for Active Directory %s: %v", oldAd.AdName, err)
-		return err
-	}
-
-	// Update pools with the new AD change ID
-	for _, pool := range pools {
-		pool.ActiveDirectoryChangeId = changeId
-		if err := a.SE.UpdatePoolFields(ctx, pool.UUID, map[string]interface{}{"active_directory_change_id": changeId}); err != nil {
-			Logger.Warnf("Failed to update pool %s with new AD change ID: %v", pool.UUID, err)
-			return err
-		}
-	}
-
-	// TODO: Code to push updates to downstream systems like SVMs
-
-	return nil
 }
 
 func (a ActiveDirectoryUpdateActivity) UpdateSdeActiveDirectory(ctx context.Context, params *common.UpdateActiveDirectoryParams) (*cvpModels.OperationV1beta, error) {
@@ -464,5 +442,39 @@ func _updatePasswordSecret(ctx context.Context, password string, secretID string
 
 	logger.Info("Successfully updated secret with new version", "secretID", secretID)
 
+	return nil
+}
+
+func (a ActiveDirectoryActivity) UpdateAdCredentialsForSvm(ctx context.Context, node *models.Node, params vsa.UpdateActiveDirectoryCredentialsParams, svmName, externalSVMUUID string, cifs ontapRest.CifsService) error {
+	logger := util.GetLogger(ctx)
+	ontapProvider, err := getOntapRestProvider(ctx, node)
+	if err != nil {
+		logger.Error("failed to get ONTAP client", "error", err.Error())
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	err = ontapProvider.UpdateActiveDirectoryCredentials(params, cifs, svmName, externalSVMUUID)
+	if err != nil {
+		logger.Error("failed to update CIFS service credentials", "error", err.Error())
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}
+
+func (a ActiveDirectoryActivity) PropagateAdChangeIdToPool(ctx context.Context, pool *datamodel.Pool, adChangeId string) error {
+	logger := util.GetLogger(ctx)
+	if pool == nil {
+		logger.Error("pool is nil, cannot propagate AD change ID")
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("pool is nil, cannot propagate AD change ID"))
+	}
+	if adChangeId == "" {
+		logger.Error("adChangeId is empty")
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("adChangeId is empty"))
+	}
+	pool.ActiveDirectoryChangeId = adChangeId
+	if err := a.SE.UpdatePoolFields(ctx, pool.UUID, map[string]interface{}{"active_directory_change_id": adChangeId}); err != nil {
+		logger.Errorf("Failed to update pool %s with new AD change ID: %v", pool.UUID, err)
+		return err
+	}
 	return nil
 }

@@ -216,6 +216,22 @@ func (re *retryEngine) GetPoolByUUID(ctx context.Context, poolUUID string) (*dat
 	return var0, err
 }
 
+func (re *retryEngine) GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error) {
+	var var0 *datamodel.Pool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetPoolByID(ctx, poolID)
+		if err != nil {
+			re.logError("GetPoolByID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListPools(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.PoolView, error) {
 	var var0 []*datamodel.PoolView
 	err := retry.Do(func(attempt int) (bool, error) {

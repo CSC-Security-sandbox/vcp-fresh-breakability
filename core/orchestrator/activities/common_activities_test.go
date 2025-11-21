@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"testing"
 	"time"
 
@@ -2030,4 +2031,47 @@ func TestCommonActivities_ILBHealthCheckFirewall_WithEmptyOperation(t *testing.T
 	}
 	err := activity.ILBHealthCheckFirewall(ctx, params)
 	assert.NoError(t, err)
+}
+
+// Unit tests for GetSVM and GetPoolBySvmPoolId
+func TestCommonActivities_GetSVM(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := CommonActivities{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), "logger", struct{}{})
+
+	svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}}
+	mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+	result, err := activity.GetSVM(ctx, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, svm, result)
+	mockStorage.AssertExpectations(t)
+
+	mockStorage2 := database.NewMockStorage(t)
+	activity2 := CommonActivities{SE: mockStorage2}
+	mockStorage2.On("GetSvmForPoolID", ctx, int64(2)).Return(nil, errors2.New("db error"))
+	result2, err2 := activity2.GetSVM(ctx, 2)
+	assert.Error(t, err2)
+	assert.Nil(t, result2)
+	mockStorage2.AssertExpectations(t)
+}
+
+func TestCommonActivities_GetPoolBySvmPoolId(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := CommonActivities{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), "logger", struct{}{})
+
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}}
+	mockStorage.On("GetPoolByID", ctx, int64(1)).Return(pool, nil)
+	result, err := activity.GetPoolBySvmPoolId(ctx, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, pool, result)
+	mockStorage.AssertExpectations(t)
+
+	mockStorage2 := database.NewMockStorage(t)
+	activity2 := CommonActivities{SE: mockStorage2}
+	mockStorage2.On("GetPoolByID", ctx, int64(2)).Return(nil, errors2.New("db error"))
+	result2, err2 := activity2.GetPoolBySvmPoolId(ctx, 2)
+	assert.Error(t, err2)
+	assert.Nil(t, result2)
+	mockStorage2.AssertExpectations(t)
 }

@@ -2,14 +2,17 @@ package workflows
 
 import (
 	"fmt"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -491,10 +494,9 @@ func (wf *ActiveDirectoryUpdateWorkflow) handleVcpUpdate(
 	// Change ID to be populated both at AD table and pool table
 	vcpActiveDirectoryChangeId := utils.RandomUUID()
 
-	// Push updates to pool and SVMs first
-	logger.Info("Pushing updates to pool and SVMs before VCP update")
-	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.PushUpdatesDownstreamActivity, oldAd, vcpActiveDirectoryChangeId).Get(ctx, nil)
-
+	// Push updates to pool and SVMs first using a separate workflow
+	logger.Info("Pushing updates to pool and SVMs before VCP DB AD update")
+	err = PushAdUpdatesToSVMWorkflow(ctx, oldAd, params, vcpActiveDirectoryChangeId)
 	if err != nil {
 		logger.Errorf("Failed to push Active Directory updates to pool and SVMs: %v", err)
 		return err
@@ -509,5 +511,110 @@ func (wf *ActiveDirectoryUpdateWorkflow) handleVcpUpdate(
 		return err
 	}
 
+	return nil
+}
+
+func PushAdUpdatesToSVMWorkflow(ctx workflow.Context, oldAd *models.ActiveDirectory, params *common.UpdateActiveDirectoryParams, adChangeId string) error {
+	log := util.GetLogger(ctx)
+	activeDirectoryActivity := &active_directory_activities.ActiveDirectoryActivity{}
+
+	// Validate inputs
+	if oldAd == nil {
+		log.Error("Active Directory is nil in PushAdUpdatesToSVMWorkflow")
+		return vsaerrors.New("Active Directory is nil")
+	}
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	// Set activity options
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	// Step 1: Fetch SMVs associated with the Active Directory
+	var svms []*datamodel.Svm
+	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GetSvmsForAd, oldAd).Get(ctx, &svms)
+	if err != nil {
+		log.Errorf("Failed to fetch svms for Active Directory %s: %v", oldAd.AdName, err)
+		return err
+	}
+
+	// Step 2: Process SVMs in batches of 10
+	if len(svms) == 0 {
+		log.Info("No SVMs found for Active Directory, skipping downstream updates")
+		return nil
+	}
+
+	// Step 3: Generate update parameters
+	var updateAdCredentialsForSvmParams *vsa.UpdateActiveDirectoryCredentialsParams
+	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GenerateUpdateAdCredentialsParams, oldAd, params).Get(ctx, &updateAdCredentialsForSvmParams)
+	if err != nil {
+		log.Error("Failed to get active directory during PushAdUpdatesToSVMWorkflow with error: ", err)
+		return ConvertToVSAError(err)
+	}
+
+	log.Infof("Processing %d SVMs in batches of 10", len(svms))
+	batchSize := 10
+	for i := 0; i < len(svms); i += batchSize {
+		end := i + batchSize
+		if end > len(svms) {
+			end = len(svms)
+		}
+
+		svmBatch := svms[i:end]
+		log.Infof("Processing SVM batch %d-%d", i+1, end)
+
+		// Process each pool in the current batch
+		for _, svm := range svmBatch {
+			// Fetch Pool
+			var pool datamodel.Pool
+			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetPoolBySvmPoolId, svm.PoolID).Get(ctx, &pool)
+			if err != nil {
+				return ConvertToVSAError(err)
+			}
+
+			// Step 3.1: Fetch Node details for this pool
+			var dbNodes []*datamodel.Node
+			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
+			if err != nil {
+				return ConvertToVSAError(err)
+			}
+
+			node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes,
+				Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID,
+				DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID,
+				AuthType: pool.PoolCredentials.AuthType})
+
+			var cifs ontapRest.CifsService
+			err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GetCifsService, node, svm.Name, svm.SvmDetails.ExternalUUID).Get(ctx, &cifs)
+			if err != nil {
+				return ConvertToVSAError(err)
+			}
+
+			// Step 3.2: Update AD credentials for this SVM
+			err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.UpdateAdCredentialsForSvm, node, updateAdCredentialsForSvmParams, svm.Name, svm.SvmDetails.ExternalUUID, cifs).Get(ctx, nil)
+			if err != nil {
+				return ConvertToVSAError(err)
+			}
+
+			// Step 3.3: Propagate Change ID to Pool
+			err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.PropagateAdChangeIdToPool, pool, adChangeId).Get(ctx, nil)
+			if err != nil {
+				return ConvertToVSAError(err)
+			}
+		}
+	}
+
+	log.Info("Successfully pushed Active Directory updates to all pools and SVMs")
 	return nil
 }

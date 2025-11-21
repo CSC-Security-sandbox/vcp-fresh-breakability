@@ -1,8 +1,12 @@
 package ontap_rest
 
 import (
+	"strings"
+
 	nas "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/n_a_s"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	priv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
+	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -30,6 +34,14 @@ type NASClient interface { // generate:mock
 	CifsShareCreate(params *CifsShareCreateParams) error
 	CifsShareModify(params *CifsShareModifyParams) error
 	CifsShareCollectionGet(params *CifsShareCollectionGetParams) (*CifsShareGetResponse, error)
+	DomainControllersSrvLookupGet(params *SrvLookupParams) ([]string, error)
+	CifsDomainPreferredDCDelete(params *CifsDomainPreferredDCDeleteParams) error
+	CifsDomainPreferredDCCreate(params *CifsDomainPreferredDCCreateParams) error
+	CifsServiceCollectionGetGroups(params *CifsServiceCollectionGetGroupsParams, ucbf UserCallbackFunc[[]*CifsGroup]) error
+	CifsServiceRemoveMembers(params *CifsServiceModifyGroupMembersParams) error
+	CifsServiceCollectionGetPrivilegedMembers(params *CifsServiceCollectionGetPrivilegedMembersParams, ucbf UserCallbackFunc[[]string]) error
+	CifsServiceRemoveSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error
+	NfsModify(params *NfsModifyParams) error
 }
 
 var (
@@ -39,8 +51,9 @@ var (
 )
 
 type nasClient struct {
-	api    nas.ClientService
-	poller Poller
+	api     nas.ClientService
+	apiPriv priv.ClientService
+	poller  Poller
 }
 
 // ExportPolicyCreate invokes clients/ontap-rest/client/n_a_s/Client.ExportPolicyCreate to create an export policy
@@ -298,4 +311,219 @@ func _convertCifsShareFromREST(resp *models.CifsShare) *CifsShareGetResponse {
 func (tnc *nasClient) CifsShareModify(params *CifsShareModifyParams) error {
 	_, err := tnc.api.CifsShareModify(cifsShareModifyParamsToONTAP(params), nil)
 	return err
+}
+
+// DomainControllersSrvLookupGet invokes pkg/ontap-rest/diag/secd/dns/srv-lookup
+func (tnc *nasClient) DomainControllersSrvLookupGet(params *SrvLookupParams) ([]string, error) {
+	response, err := tnc.apiPriv.SrvLookup(srvLookupParamsToONTAP(params))
+	if err != nil {
+		return nil, err
+	}
+	// Sample output: "Got 2 Ip Addresses\n10.193.224.112\n10.193.215.176\n"
+	cliOutput := nillable.FromPointer(&response.Payload.CliOutput)
+	var domainControllerIPList []string
+	if cliOutput != "" {
+		domainControllerIPList = strings.Split(cliOutput, "\n")
+		domainControllerIPList = domainControllerIPList[1 : len(domainControllerIPList)-1]
+	}
+	return domainControllerIPList, err
+}
+
+func srvLookupParamsToONTAP(params *SrvLookupParams) *priv.SrvLookupParams {
+	otParams := priv.NewSrvLookupParams()
+	if params == nil {
+		return otParams
+	}
+
+	srvLookupRequestBody := &privmodels.SrvLookup{
+		LookupString: params.LookupString,
+		LookupType:   params.LookupType,
+		Vserver:      params.SVMName,
+	}
+
+	otParams.SetBody(srvLookupRequestBody)
+	return otParams
+}
+
+// CifsDomainPreferredDCDelete invokes pkg/ontap-rest/client/nas/Client.CifsDomainPreferredDcDelete
+func (nc *nasClient) CifsDomainPreferredDCDelete(params *CifsDomainPreferredDCDeleteParams) error {
+	_, err := nc.api.CifsDomainPreferredDcDelete(cifsDomainPreferredDCDeleteParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func cifsDomainPreferredDCDeleteParamsToONTAP(params *CifsDomainPreferredDCDeleteParams) *nas.CifsDomainPreferredDcDeleteParams {
+	otParams := nas.NewCifsDomainPreferredDcDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetSvmUUID(params.SvmUUID)
+	otParams.SetServerIP(nillable.FromPointer(params.ServerIP))
+	otParams.SetFqdn(nillable.FromPointer(params.Fqdn))
+	return otParams
+}
+
+// CifsDomainPreferredDCCreate invokes pkg/ontap-rest/client/nas/Client.CifsDomainPreferredDcCreate
+func (nc *nasClient) CifsDomainPreferredDCCreate(params *CifsDomainPreferredDCCreateParams) error {
+	_, err := nc.api.CifsDomainPreferredDcCreate(cifsDomainPreferredDCCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func cifsDomainPreferredDCCreateParamsToONTAP(params *CifsDomainPreferredDCCreateParams) *nas.CifsDomainPreferredDcCreateParams {
+	otParams := nas.NewCifsDomainPreferredDcCreateParams()
+	if params == nil {
+		return otParams
+	}
+	info := models.CifsDomainPreferredDc{
+		Fqdn:     nillable.FromPointer(params.CifsDomainPreferredDC).Fqdn,
+		ServerIP: nillable.FromPointer(params.CifsDomainPreferredDC).ServerIP,
+	}
+
+	otParams.SetReturnRecords(nillable.ToStringPtr(params.ReturnRecords))
+	otParams.SetSvmUUID(params.SvmUUID)
+	otParams.SkipConfigValidation = nillable.ToStringPtr(params.SkipConfigValidation)
+	otParams.SetInfo(&info)
+	return otParams
+}
+
+var paginateCifsServiceCollectionGetGroups = _paginate[[]*CifsGroup]
+
+// CifsServiceCollectionGetGroups paginates all CIFS groups (for this svm)
+func (nc *nasClient) CifsServiceCollectionGetGroups(params *CifsServiceCollectionGetGroupsParams, ucbf UserCallbackFunc[[]*CifsGroup]) error {
+	otParams := nas.NewLocalCifsGroupCollectionGetParams().WithFields(params.Fields).WithSvmUUID(&params.SvmUUID).WithSid(params.Sid).WithMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+
+	return paginateCifsServiceCollectionGetGroups(func(next string) ([]*CifsGroup, string, error) {
+		otParams.SetContext(setNext(otParams.Context, next))
+
+		rsp, err := nc.api.LocalCifsGroupCollectionGet(otParams, nil)
+		if err != nil {
+			return nil, "", err
+		}
+
+		resp := make([]*CifsGroup, len(rsp.Payload.LocalCifsGroupResponseInlineRecords))
+		for i, group := range rsp.Payload.LocalCifsGroupResponseInlineRecords {
+			resp[i] = &CifsGroup{Name: *group.Name, Sid: *group.Sid, Members: make([]string, len(group.LocalCifsGroupInlineMembers))}
+			for j, member := range group.LocalCifsGroupInlineMembers {
+				resp[i].Members[j] = strings.Split(*member.Name, `\`)[1]
+			}
+		}
+
+		if rsp.Payload.Links != nil && rsp.Payload.Links.Next != nil {
+			return resp, nillable.FromPointer(rsp.Payload.Links.Next.Href), nil
+		}
+
+		return resp, "", nil
+	}, ucbf)
+}
+
+// CifsServiceRemoveMembers removes CIFS users from a group
+func (nc *nasClient) CifsServiceRemoveMembers(params *CifsServiceModifyGroupMembersParams) error {
+	lcgp := make([]*models.LocalCifsGroupMembersInlineRecordsInlineArrayItem, len(params.Members))
+	for i, member := range params.Members {
+		lcgp[i] = &models.LocalCifsGroupMembersInlineRecordsInlineArrayItem{Name: nillable.ToPointer(member)}
+	}
+
+	_, err := nc.api.LocalCifsGroupMembersBulkDelete(nas.NewLocalCifsGroupMembersBulkDeleteParams().WithSvmUUID(params.SvmUUID).WithLocalCifsGroupSid(params.Sid).WithInfo(
+		&models.LocalCifsGroupMembers{
+			LocalCifsGroupMembersInlineRecords: lcgp,
+		}), nil)
+	return err
+}
+
+var (
+	paginateCifsServiceCollectionGetMembers = _paginate[[]string]
+)
+
+// CifsServiceCollectionGetPrivilegedMembers fetches all privileged CIFS users
+func (nc *nasClient) CifsServiceCollectionGetPrivilegedMembers(params *CifsServiceCollectionGetPrivilegedMembersParams, ucbf UserCallbackFunc[[]string]) error {
+	otParams := nas.NewUserGroupPrivilegesCollectionGetParams().WithFields(params.Fields).WithPrivileges(cifsUserSeSecurityPrivilege).WithMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+
+	return paginateCifsServiceCollectionGetMembers(func(next string) ([]string, string, error) {
+		otParams.SetContext(setNext(otParams.Context, next))
+
+		rsp, err := nc.api.UserGroupPrivilegesCollectionGet(otParams, nil)
+		if err != nil {
+			return nil, "", err
+		}
+
+		resp := make([]string, len(rsp.Payload.UserGroupPrivilegesResponseInlineRecords))
+		for i, member := range rsp.Payload.UserGroupPrivilegesResponseInlineRecords {
+			splitUser := strings.Split(*member.Name, `\`)
+			// MD: we have not inserted properly, if this statement is false
+			if len(splitUser) == 2 {
+				resp[i] = splitUser[1]
+			}
+		}
+
+		if rsp.Payload.Links != nil && rsp.Payload.Links.Next != nil {
+			return resp, nillable.FromPointer(rsp.Payload.Links.Next.Href), nil
+		}
+
+		return resp, "", nil
+	}, ucbf)
+}
+
+// CifsServiceRemoveSecurityPrivilege removes privileges from a CIFS user
+func (tnc *nasClient) CifsServiceRemoveSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error {
+	_, err := tnc.api.UserGroupPrivilegesModify(nas.NewUserGroupPrivilegesModifyParams().WithSvmUUID(params.SvmUUID).WithName(params.Member).WithInfo(&models.UserGroupPrivileges{
+		Privileges: []*string{},
+	}), nil)
+	return err
+}
+
+// NfsModify invokes pkg/ontap-rest/client/nas/Client.NfsModify
+func (nc *nasClient) NfsModify(params *NfsModifyParams) error {
+	_, err := nc.api.NfsModify(nfsModifyParamsToONTAP(params), nil)
+	return err
+}
+
+func nfsModifyParamsToONTAP(params *NfsModifyParams) *nas.NfsModifyParams {
+	otParams := nas.NewNfsModifyParams()
+	if params == nil {
+		return otParams
+	}
+	info := &models.NfsService{
+		ShowmountEnabled: params.ShowmountEnabled,
+		Protocol:         &models.NfsServiceInlineProtocol{},
+		Enabled:          params.Enabled,
+	}
+	if params.V4IDDomain != nil {
+		info.Protocol.V4IDDomain = params.V4IDDomain
+	}
+	if params.AllowLocalNFSUsersWithLdap != nil {
+		info.AuthSysExtendedGroupsEnabled = params.AllowLocalNFSUsersWithLdap
+	}
+	if params.ExtendedGroupsLimit != nil {
+		info.ExtendedGroupsLimit = params.ExtendedGroupsLimit
+	}
+	if params.V3Enabled != nil {
+		info.Protocol.V3Enabled = params.V3Enabled
+	}
+	if params.V40Enabled != nil {
+		info.Protocol.V40Enabled = params.V40Enabled
+	}
+	if params.V41Enabled != nil {
+		info.Protocol.V41Enabled = params.V41Enabled
+	}
+	if params.RquotaEnabled != nil {
+		info.RquotaEnabled = params.RquotaEnabled
+	}
+	if params.VstorageEnabled != nil {
+		info.VstorageEnabled = params.VstorageEnabled
+	}
+	if params.FileSessionIoGroupingCount != nil {
+		info.FileSessionIoGroupingCount = params.FileSessionIoGroupingCount
+	}
+
+	otParams.SetInfo(info)
+	otParams.SetSvmUUID(params.SvmUUID)
+
+	return otParams
 }

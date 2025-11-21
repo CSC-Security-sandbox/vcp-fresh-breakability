@@ -740,6 +740,64 @@ func (_c *MockSecurityClient_SecurityLogForwardingGet_Call) RunAndReturn(run fun
 	return _c
 }
 
+// ServerRootCACertificateCollectionGet provides a mock function with given fields: params
+func (_m *MockSecurityClient) ServerRootCACertificateCollectionGet(params *ServerRootCAGetCollectionParams) ([]*ServerRootCACertificate, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ServerRootCACertificateCollectionGet")
+	}
+
+	var r0 []*ServerRootCACertificate
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*ServerRootCAGetCollectionParams) ([]*ServerRootCACertificate, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*ServerRootCAGetCollectionParams) []*ServerRootCACertificate); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*ServerRootCACertificate)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*ServerRootCAGetCollectionParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_ServerRootCACertificateCollectionGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ServerRootCACertificateCollectionGet'
+type MockSecurityClient_ServerRootCACertificateCollectionGet_Call struct {
+	*mock.Call
+}
+
+// ServerRootCACertificateCollectionGet is a helper method to define mock.On call
+//   - params *ServerRootCAGetCollectionParams
+func (_e *MockSecurityClient_Expecter) ServerRootCACertificateCollectionGet(params interface{}) *MockSecurityClient_ServerRootCACertificateCollectionGet_Call {
+	return &MockSecurityClient_ServerRootCACertificateCollectionGet_Call{Call: _e.mock.On("ServerRootCACertificateCollectionGet", params)}
+}
+
+func (_c *MockSecurityClient_ServerRootCACertificateCollectionGet_Call) Run(run func(params *ServerRootCAGetCollectionParams)) *MockSecurityClient_ServerRootCACertificateCollectionGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*ServerRootCAGetCollectionParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_ServerRootCACertificateCollectionGet_Call) Return(_a0 []*ServerRootCACertificate, _a1 error) *MockSecurityClient_ServerRootCACertificateCollectionGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_ServerRootCACertificateCollectionGet_Call) RunAndReturn(run func(*ServerRootCAGetCollectionParams) ([]*ServerRootCACertificate, error)) *MockSecurityClient_ServerRootCACertificateCollectionGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ServerRootCACertificateDelete provides a mock function with given fields: params
 func (_m *MockSecurityClient) ServerRootCACertificateDelete(params *ServerRootCADeleteParams) error {
 	ret := _m.Called(params)

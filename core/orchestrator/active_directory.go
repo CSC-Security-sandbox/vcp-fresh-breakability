@@ -32,6 +32,7 @@ var (
 	listActiveDirectories        = _listActiveDirectories
 	getMultipleActiveDirectories = _getMultipleActiveDirectories
 	deleteActiveDirectory        = _deleteActiveDirectory
+	checkIfDomainUpdateAllowed   = _checkIfDomainUpdateAllowed
 )
 
 const (
@@ -445,6 +446,14 @@ func _updateActiveDirectory(
 		return nil, "", err
 	}
 
+	if params.Domain != nil && *params.Domain != ad.Domain {
+		// Check if domain update is allowed
+		err = checkIfDomainUpdateAllowed(ctx, se, ad)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeUpdateActiveDirectory),
 		State:         string(models.JobsStateNEW),
@@ -501,6 +510,23 @@ func _updateActiveDirectory(
 	ad.State = models.LifeCycleStateUpdating
 	ad.StateDetails = models.LifeCycleStateUpdatingDetails
 	return ad, createdJob.UUID, nil
+}
+
+func _checkIfDomainUpdateAllowed(ctx context.Context, se database.Storage, oldAd *models.ActiveDirectory) error {
+	logger := util.GetLogger(ctx)
+
+	svms, err := se.GetSVMsUsingActiveDirectory(ctx, oldAd.ID)
+	if err != nil {
+		logger.Error("Failed to check SVMs using Active Directory", "error", err, "active_directory_id", oldAd.ID)
+		return err
+	}
+
+	if len(svms) > 0 {
+		logger.Errorf("Active Directory is in use by %d SVM(s)", len(svms))
+		return customerrors.NewBadRequestErr("Active Directory domain cannot be updated while it is in use")
+	}
+
+	return nil
 }
 
 // _deleteActiveDirectory orchestrates the deletion of an Active Directory resource.

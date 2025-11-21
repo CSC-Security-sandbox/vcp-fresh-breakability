@@ -3,6 +3,7 @@ package ontap_rest
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/name_services"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	overide "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/overrideModels"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -17,6 +18,8 @@ type NameServicesClient interface { // generate:mock
 	LdapGet(params *LdapGetParams) (*LdapService, error)
 	LdapSchemaCreate(params *LdapSchemaCreateParams) error
 	LdapSchemaModify(params *LdapSchemaModifyParams) error
+	LdapModify(params *LdapModifyParams) error
+	LdapModifyPreferredAdServers(params *LdapModifyParams) error
 }
 
 type nameServicesClient struct {
@@ -92,5 +95,23 @@ func (nsc *nameServicesClient) LdapSchemaCreate(params *LdapSchemaCreateParams) 
 // LdapSchemaModify invokes pkg/ontap-rest/client/name_services/Client.LdapSchemaModify
 func (nsc *nameServicesClient) LdapSchemaModify(params *LdapSchemaModifyParams) error {
 	_, err := (*nsc.api).LdapSchemaModify(ldapSchemaModifyParamsToONTAP(params), nil)
+	return err
+}
+
+// LdapModify invokes pkg/ontap-rest/client/name_services/Client.LdapModify
+func (nsc *nameServicesClient) LdapModify(params *LdapModifyParams) error {
+	_, err := (*nsc.api).LdapModify(ldapModifyParamsToONTAP(params), nil)
+	return err
+}
+
+// LdapModifyPreferredAdServers invokes pkg/ontap-rest/priv/client/operations/Client.LdapModify with a custom request writer to override 'LdapServiceInlinePreferredAdServers' field
+func (nsc *nameServicesClient) LdapModifyPreferredAdServers(params *LdapModifyParams) error {
+	lsm := overide.LdapServiceModified{}
+	ldapModifyParams := ldapModifyParamsToONTAP(params)
+	clientRequestWriter, err := lsm.SetClientRequestWriterForLdapPreferredAdServer(ldapModifyParams)
+	if err != nil {
+		return err
+	}
+	_, err = (*nsc.api).LdapModify(ldapModifyParams, nil, clientRequestWriter)
 	return err
 }

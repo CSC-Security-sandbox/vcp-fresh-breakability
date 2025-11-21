@@ -111,6 +111,19 @@ func (d *DataStoreRepository) GetPoolByUUID(ctx context.Context, poolUUID string
 	return &pool, nil
 }
 
+func (d *DataStoreRepository) GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error) {
+	var pool datamodel.Pool
+	err := d.db.GORM().WithContext(ctx).Where("id = ?", poolID).First(&pool).Error
+	if err != nil {
+		poolIDStr := fmt.Sprintf("%d", poolID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("Pool", &poolIDStr)
+		}
+		return nil, err
+	}
+	return &pool, nil
+}
+
 func (d *DataStoreRepository) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

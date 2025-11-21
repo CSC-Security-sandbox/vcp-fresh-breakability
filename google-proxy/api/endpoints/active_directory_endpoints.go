@@ -522,7 +522,7 @@ func (h Handler) V1betaUpdateActiveDirectory(ctx context.Context, req *gcpgenser
 	ad, jobUUID, err := h.Orchestrator.UpdateActiveDirectory(ctx, param)
 
 	if err != nil {
-		if errors.IsUserInputValidationErr(err) {
+		if errors.IsUserInputValidationErr(err) || errors.IsBadRequestErr(err) {
 			return &gcpgenserver.V1betaUpdateActiveDirectoryBadRequest{
 				Code:    http.StatusBadRequest,
 				Message: err.Error(),

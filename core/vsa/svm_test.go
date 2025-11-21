@@ -361,3 +361,60 @@ func TestModifySVMWithQoSPolicy(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 	})
 }
+
+func TestGetSVM(t *testing.T) {
+	params := GetSvmParams{Name: "testSVM"}
+
+	t.Run("WhenSVMGetSucceeds_ThenReturnSVM", func(tt *testing.T) {
+		mockSVM := new(ontaprest.MockSVMClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SVM").Return(mockSVM)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		expectedSvm := &ontaprest.Svm{}
+		mockSVM.On("SvmGet", &ontaprest.SvmGetParams{SvmName: "testSVM"}).Return(expectedSvm, nil)
+
+		resp, err := rc.GetSVM(params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedSvm, resp)
+		mockSVM.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetOntapClientFails_ThenReturnError", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client error")
+		}
+		rc := &OntapRestProvider{}
+		resp, err := rc.GetSVM(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, "client error", err.Error())
+	})
+
+	t.Run("WhenSvmGetFails_ThenReturnError", func(tt *testing.T) {
+		mockSVM := new(ontaprest.MockSVMClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SVM").Return(mockSVM)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+		mockSVM.On("SvmGet", &ontaprest.SvmGetParams{SvmName: "testSVM"}).Return(nil, errors.New("svm get error"))
+		resp, err := rc.GetSVM(params)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, "svm get error", err.Error())
+		mockSVM.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}

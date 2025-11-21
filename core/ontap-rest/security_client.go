@@ -24,6 +24,7 @@ type SecurityClient interface { // generate:mock
 	ServerRootCACertificateGet(params *ServerRootCAGetParams) (*ServerRootCACertificate, error)
 	ServerRootCACertificateInstall(params *ServerRootCAInstallParams) (*ServerRootCACertificate, error)
 	ServerRootCACertificateDelete(params *ServerRootCADeleteParams) error
+	ServerRootCACertificateCollectionGet(params *ServerRootCAGetCollectionParams) ([]*ServerRootCACertificate, error)
 }
 
 type securityClient struct {
@@ -250,4 +251,22 @@ func (sc *securityClient) securityCertificateCreate(otParams *security.SecurityC
 func (sc *securityClient) ServerRootCACertificateDelete(params *ServerRootCADeleteParams) error {
 	_, err := (*sc.api).SecurityCertificateDeleteCollection(serverRootCADeleteParamsToONTAPCollectionDelete(params), nil)
 	return err
+}
+
+// ServerRootCACertificateCollectionGet invokes pkg/ontap-rest/client/security/Client.ServerRootCACertificateCollectionGet
+func (sc *securityClient) ServerRootCACertificateCollectionGet(params *ServerRootCAGetCollectionParams) ([]*ServerRootCACertificate, error) {
+	return sc.securityCertificateCollectionGet(serverRootCAGetCollectionParamsToONTAP(params))
+}
+
+func serverRootCAGetCollectionParamsToONTAP(params *ServerRootCAGetCollectionParams) *security.SecurityCertificateCollectionGetParams {
+	otParams := security.NewSecurityCertificateCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetSvmName(params.SvmName)
+	otParams.SetType(params.CertificateType)
+	if params.Name != nil {
+		otParams.SetName(params.Name)
+	}
+	return otParams
 }

@@ -35,6 +35,10 @@ type CreateSvmParams struct {
 	Protocols Protocols
 }
 
+type GetSvmParams struct {
+	Name string
+}
+
 type Protocols struct {
 	EnableIscsi bool
 }
@@ -399,6 +403,11 @@ type CIFSServer struct {
 	SVMName           string
 	ServerNamePostfix string
 	HasLdapConfig     bool
+}
+
+type UpdateActiveDirectoryCredentialsParams struct {
+	NewCredentials *ActiveDirectory
+	OldCredentials *ActiveDirectory
 }
 
 type ExportRule struct {

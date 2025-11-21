@@ -1928,6 +1928,7 @@ func TestCifsServiceModifyParamsToONTAP(t *testing.T) {
 		otParams := cifsServiceModifyParamsToONTAP(nil)
 		assert.NotNil(tt, otParams)
 	})
+
 	t.Run("WhenParamsSet", func(tt *testing.T) {
 		params := &CifsServiceModifyParams{
 			SvmUUID: nillable.ToPointer("test-svm-uuid"),
@@ -1937,6 +1938,173 @@ func TestCifsServiceModifyParamsToONTAP(t *testing.T) {
 		otParams := cifsServiceModifyParamsToONTAP(params)
 		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
 		assert.False(tt, *otParams.Info.Enabled)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &CifsServiceModifyParams{
+			SvmUUID: nillable.ToPointer("test-svm-uuid"),
+			Enabled: nillable.ToPointer(false),
+		}
+
+		otParams := cifsServiceModifyParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.NotNil(tt, otParams.Info)
+		assert.False(tt, *otParams.Info.Enabled)
+	})
+
+	t.Run("WhenAuthenticationFieldsSet", func(tt *testing.T) {
+		username := "admin-user"
+		password := "secure-password"
+		site := "site-location"
+		params := &CifsServiceModifyParams{
+			SvmUUID:  nillable.ToPointer("test-svm-uuid"),
+			Username: &username,
+			Password: &password,
+			Site:     &site,
+		}
+
+		otParams := cifsServiceModifyParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.AdDomain)
+		assert.Equal(tt, &username, otParams.Info.AdDomain.User)
+		assert.Equal(tt, &password, otParams.Info.AdDomain.Password)
+		assert.Equal(tt, &site, otParams.Info.AdDomain.DefaultSite)
+	})
+
+	t.Run("WhenEncryptionFieldsSet", func(tt *testing.T) {
+		aesEncrypt := true
+		dcEncrypt := true
+		params := &CifsServiceModifyParams{
+			SvmUUID:              nillable.ToPointer("test-svm-uuid"),
+			AesEncryptionEnabled: &aesEncrypt,
+			EncryptDCConnections: &dcEncrypt,
+		}
+
+		otParams := cifsServiceModifyParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.Security)
+		assert.True(tt, *otParams.Info.Security.EncryptDcConnection)
+	})
+
+	t.Run("WhenAllAuthAndEncryptionFieldsSet", func(tt *testing.T) {
+		username := "admin-user"
+		password := "secure-password"
+		site := "site-location"
+		aesEncrypt := true
+		dcEncrypt := false
+		params := &CifsServiceModifyParams{
+			SvmUUID:              nillable.ToPointer("test-svm-uuid"),
+			Username:             &username,
+			Password:             &password,
+			Site:                 &site,
+			AesEncryptionEnabled: &aesEncrypt,
+			EncryptDCConnections: &dcEncrypt,
+			Enabled:              nillable.ToPointer(true),
+		}
+
+		otParams := cifsServiceModifyParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.NotNil(tt, otParams.Info)
+		assert.True(tt, *otParams.Info.Enabled)
+		assert.NotNil(tt, otParams.Info.AdDomain)
+		assert.Equal(tt, &username, otParams.Info.AdDomain.User)
+		assert.Equal(tt, &password, otParams.Info.AdDomain.Password)
+		assert.Equal(tt, &site, otParams.Info.AdDomain.DefaultSite)
+		assert.NotNil(tt, otParams.Info.Security)
+		assert.False(tt, *otParams.Info.Security.EncryptDcConnection)
+	})
+
+	t.Run("WhenOnlyEnabledFieldSet", func(tt *testing.T) {
+		params := &CifsServiceModifyParams{
+			SvmUUID: nillable.ToPointer("svm-uuid-3"),
+			Enabled: nillable.ToPointer(true),
+		}
+
+		otParams := cifsServiceModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "svm-uuid-3", otParams.SvmUUID)
+		assert.True(tt, *otParams.Info.Enabled)
+		assert.Nil(tt, otParams.Info.AdDomain)
+		assert.Nil(tt, otParams.Info.ClientCertificate)
+	})
+}
+
+func TestLdapModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		result := ldapModifyParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+		assert.Nil(tt, result.Info)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &LdapModifyParams{
+			SvmUUID:                       "test-svm-uuid",
+			UserDn:                        strPtr("cn=users,dc=example,dc=com"),
+			GroupDn:                       strPtr("cn=groups,dc=example,dc=com"),
+			BaseDN:                        strPtr("dc=example,dc=com"),
+			GroupMembershipFilter:         strPtr("(memberOf=*)"),
+			PreferredServersForLdapClient: []*string{strPtr("ldap1.example.com"), strPtr("ldap2.example.com")},
+			TLSEnabled:                    nillable.ToPointer(true),
+			Schema:                        strPtr("AD"),
+			LdapServers:                   []*string{strPtr("ldap.example.com")},
+		}
+
+		result := ldapModifyParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-svm-uuid", result.SvmUUID)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.SkipConfigValidation)
+		assert.False(tt, *result.Info.SkipConfigValidation)
+		assert.Equal(tt, params.UserDn, result.Info.UserDn)
+		assert.Equal(tt, params.GroupDn, result.Info.GroupDn)
+		assert.Equal(tt, params.BaseDN, result.Info.BaseDn)
+		assert.Equal(tt, params.GroupMembershipFilter, result.Info.GroupMembershipFilter)
+		assert.Equal(tt, params.PreferredServersForLdapClient, result.Info.LdapServiceInlinePreferredAdServers)
+		assert.Equal(tt, params.TLSEnabled, result.Info.UseStartTLS)
+		assert.Equal(tt, params.Schema, result.Info.Schema)
+		assert.Equal(tt, params.LdapServers, result.Info.LdapServiceInlineServers)
+	})
+
+	t.Run("WhenParamsSetWithMinimalFields", func(tt *testing.T) {
+		params := &LdapModifyParams{
+			SvmUUID: "minimal-svm-uuid",
+			BaseDN:  strPtr("dc=minimal,dc=com"),
+		}
+
+		result := ldapModifyParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "minimal-svm-uuid", result.SvmUUID)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.SkipConfigValidation)
+		assert.False(tt, *result.Info.SkipConfigValidation)
+		assert.Equal(tt, params.BaseDN, result.Info.BaseDn)
+		assert.Nil(tt, result.Info.UserDn)
+		assert.Nil(tt, result.Info.GroupDn)
+		assert.Nil(tt, result.Info.UseStartTLS)
+	})
+
+	t.Run("WhenParamsSetWithEmptySlices", func(tt *testing.T) {
+		params := &LdapModifyParams{
+			SvmUUID:                       "test-svm-uuid",
+			BaseDN:                        strPtr("dc=test,dc=com"),
+			PreferredServersForLdapClient: []*string{},
+			LdapServers:                   []*string{},
+		}
+
+		result := ldapModifyParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-svm-uuid", result.SvmUUID)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.LdapServiceInlinePreferredAdServers)
+		assert.Empty(tt, result.Info.LdapServiceInlinePreferredAdServers)
+		assert.NotNil(tt, result.Info.LdapServiceInlineServers)
+		assert.Empty(tt, result.Info.LdapServiceInlineServers)
 	})
 }
 
