@@ -3,6 +3,7 @@ package googlePusher
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strings"
 	"sync"
@@ -67,14 +68,21 @@ type GoogleMetricsClient struct {
 	nameAndKeyLabelOfMetric map[metadata.CombinedKeyResourceTypeMeasuredType]common.Triple
 	logger                  log.Logger
 	config                  *common.TelemetryConfig
+	mockMode                bool
 }
 
 func NewGoogleMetricsClient(ctx context.Context, rootURL string, config *common.TelemetryConfig) *GoogleMetricsClient {
+	mockMode := env.GetBool("MOCK_GOOGLE_METRICS", false)
+	logger := util.GetLogger(ctx)
+	if mockMode {
+		logger.Info("GoogleMetricsClient initialized in MOCK mode - metrics will not be sent to Google")
+	}
 	return &GoogleMetricsClient{
 		rootURL:                 rootURL,
 		nameAndKeyLabelOfMetric: common.CreateMetricsMappingMap(),
-		logger:                  util.GetLogger(ctx),
+		logger:                  logger,
 		config:                  config,
+		mockMode:                mockMode,
 	}
 }
 
@@ -154,10 +162,15 @@ func (client *GoogleMetricsClient) reportOperationList(ctx context.Context, oper
 
 			logger.Debugf("For service: %s; Google Metrics Operation list is %v", client.config.PusherServiceName, spew.Sdump(operationList))
 
-			serviceControl, err := createServiceControlClient(client.config.PusherServiceProject, client.rootURL, logger)
-			if err != nil {
-				logger.Errorf("Could not create Service Control Client: %v", err)
-				return
+			var serviceControl *servicecontrol.Service
+			var err error
+			// Only create service control client if not in mock mode
+			if !client.mockMode {
+				serviceControl, err = createServiceControlClient(client.config.PusherServiceProject, client.rootURL, logger)
+				if err != nil {
+					logger.Errorf("Could not create Service Control Client: %v", err)
+					return
+				}
 			}
 			response, err := client.reportOperation(operationList, serviceControl, logger)
 			if err != nil {
@@ -566,6 +579,70 @@ func (client *GoogleMetricsClient) reportOperation(operationBatchList []*Operati
 	req := &servicecontrol.ReportRequest{
 		Operations: serviceControlOperations,
 	}
+
+	// If mock mode is enabled, simulate API call with latency distribution and error rate
+	if client.mockMode {
+		// Initialize random source with current time for better randomness
+		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+		// Simulate network latency: 90% under 200ms (100-200ms), 10% between 200-400ms
+		var latency time.Duration
+		if rng.Float64() < 0.9 {
+			// 90% of requests: 100ms to 200ms
+			latency = time.Duration(100+rng.Intn(500)) * time.Millisecond
+		} else {
+			// 10% of requests: 200ms to 400ms
+			latency = time.Duration(500+rng.Intn(1000)) * time.Millisecond
+		}
+		time.Sleep(latency)
+
+		logger.Infof("MOCK MODE: Simulating report of %d operations to Google Service Control API (latency: %v)",
+			len(serviceControlOperations), latency)
+
+		// Simulate 1% error rate with different HTTP errors
+		var reportErrors []*servicecontrol.ReportError
+		// List of possible HTTP error codes for variety
+		errorCodes := []int64{400, 401, 403, 404, 429, 500, 502, 503, 504}
+		errorMessages := map[int64]string{
+			400: "MOCK MODE: Simulated bad request error",
+			401: "MOCK MODE: Simulated unauthorized error",
+			403: "MOCK MODE: Simulated forbidden error",
+			404: "MOCK MODE: Simulated not found error",
+			429: "MOCK MODE: Simulated rate limit exceeded error",
+			500: "MOCK MODE: Simulated internal server error",
+			502: "MOCK MODE: Simulated bad gateway error",
+			503: "MOCK MODE: Simulated service unavailable error",
+			504: "MOCK MODE: Simulated gateway timeout error",
+		}
+
+		for _, op := range operationBatchList {
+			// 1% chance of error
+			if rng.Float64() < 0.01 {
+				// Randomly select an error code
+				errorCode := errorCodes[rng.Intn(len(errorCodes))]
+				errorMessage := errorMessages[errorCode]
+
+				logger.Warnf("MOCK MODE: Simulating %d error for operation: OperationId=%s, OperationName=%s",
+					errorCode, op.OperationId, op.OperationName)
+				reportErrors = append(reportErrors, &servicecontrol.ReportError{
+					OperationId: op.OperationId,
+					Status: &servicecontrol.Status{
+						Code:    errorCode,
+						Message: errorMessage,
+					},
+				})
+			} else {
+				logger.Debugf("MOCK MODE: Successfully simulated operation: OperationId=%s, OperationName=%s, ConsumerId=%s, MetricValueSets=%d",
+					op.OperationId, op.OperationName, op.ConsumerId, len(op.MetricValueSets))
+			}
+		}
+
+		// Return mock response with simulated errors
+		return &servicecontrol.ReportResponse{
+			ReportErrors: reportErrors,
+		}, nil
+	}
+
 	logger.Info("Reporting operation to service control")
 	report := serviceControl.Services.Report(client.config.PusherServiceName, req)
 	return report.Do()

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"net/http/pprof" // Enable pprof endpoints for performance profiling
 	"os"
 	"os/signal"
 	"syscall"
@@ -116,6 +117,25 @@ func main() {
 	mux.Use(log.LoggingMiddleware)
 	mux.Mount("/", http.Handler(gcpServer))
 	mux.Handle("/metrics", promhttp.Handler())
+
+	// Enable pprof endpoints if ENABLE_PPROF is set
+	pprofEnabled := env.GetBool("ENABLE_PPROF", false)
+	if pprofEnabled {
+		logger.Info("Enabling pprof endpoints at /debug/pprof/")
+		mux.Route("/debug/pprof", func(r chi.Router) {
+			r.HandleFunc("/", pprof.Index)
+			r.HandleFunc("/cmdline", pprof.Cmdline)
+			r.HandleFunc("/profile", pprof.Profile)
+			r.HandleFunc("/symbol", pprof.Symbol)
+			r.HandleFunc("/trace", pprof.Trace)
+			r.HandleFunc("/goroutine", pprof.Handler("goroutine").ServeHTTP)
+			r.HandleFunc("/heap", pprof.Handler("heap").ServeHTTP)
+			r.HandleFunc("/allocs", pprof.Handler("allocs").ServeHTTP)
+			r.HandleFunc("/block", pprof.Handler("block").ServeHTTP)
+			r.HandleFunc("/mutex", pprof.Handler("mutex").ServeHTTP)
+			r.HandleFunc("/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
+		})
+	}
 
 	cfg := common.LoadConfig()
 	telemetryConfig := metricscommon.LoadConfig()

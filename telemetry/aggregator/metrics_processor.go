@@ -74,6 +74,7 @@ func NewBillingProvider(db database2.Storage, vcpDB database.Storage, config *co
 
 // ProcessBillingMetrics processes raw metrics from cvt_metrics table and aggregates them
 func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregationEndTime time.Time) error {
+	startTime := time.Now()
 	logger := util.GetLogger(ctx)
 	var aggregatedRecords []datamodel2.AggregatedUsage
 	aggregationStartTime := aggregationEndTime.Add(-1 * time.Hour)
@@ -152,6 +153,10 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 			logger.Errorf("Failed to deliver aggregated metrics: %v", err)
 		}
 	}
+
+	elapsed := time.Since(startTime)
+	logger.Infof("ProcessBillingMetrics completed successfully in %v (%.2f seconds). Processed %d aggregated records",
+		elapsed, elapsed.Seconds(), len(aggregatedRecords))
 
 	return nil
 }

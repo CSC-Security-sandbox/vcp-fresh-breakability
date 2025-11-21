@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  telemetry-profiling:
+    build:
+      context: .
+      dockerfile: Dockerfile.profiling
+    container_name: telemetry-profiling
+    image: telemetry-profiling:latest
+    # Use extra_hosts to enable host.docker.internal on Linux
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Mount profiles directory to persist data
+      - ./profiles:/profiles
+      # Mount environment file (required for database connections)
+      - ./tel_local.env:/workspace/tel_local.env:ro
+      # Mount GCP service account key (optional, for GCS upload)
+      # Uncomment and set path to your key file:
+      # - ./gcp-key.json:/gcp-key.json:ro
+    environment:
+      # GCS Configuration (required for upload)
+      - GCS_BUCKET=${GCS_BUCKET:-}
+      - GCS_PREFIX=${GCS_PREFIX:-profiles/}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/gcp-key.json}
+      
+      # Profiling Configuration
+      # PROFILE_DURATION: CPU profile duration (should be long enough to capture metrics processing)
+      - PROFILE_DURATION=${PROFILE_DURATION:-120}
+      - TRACE_DURATION=${TRACE_DURATION:-10}
+      - METRICS_SERVER_PORT=${METRICS_SERVER_PORT:-8080}
+      - METRICS_PORT=${METRICS_PORT:-${METRICS_SERVER_PORT:-8080}}
+      - PPROF_PORT=6060
+      - PROFILE_DIR=/profiles
+      
+      # Telemetry Configuration
+      - ENABLE_PPROF=true
+      - MOCK_GOOGLE_METRICS=true
+      # Database host override (for Docker container to access host database)
+      # Set to host.docker.internal for Mac/Windows, or host IP for Linux
+      - DOCKER_HOST_IP=${DOCKER_HOST_IP:-host.docker.internal}
+      # Override database hosts if not explicitly set (script will handle this)
+      # The script will automatically override DB_HOST and METRICS_DB_HOST
+      # if they are localhost/127.0.0.1 when DOCKER_HOST_IP is set
+      # Trigger usage metrics collection after service starts
+      - TRIGGER_USAGE_METRICS=${TRIGGER_USAGE_METRICS:-true}
+      - CORRELATION_ID=${CORRELATION_ID:-}
+      # Generate metrics for past hour using existing resources
+      # Set to false to skip metrics generation if volume creation fails
+      - GENERATE_METRICS=${GENERATE_METRICS:-false}
+    ports:
+      - "${METRICS_PORT:-8080}:${METRICS_PORT:-8080}"  # Telemetry service
+      - "6060:6060"  # pprof web UI
+    restart: "no"
+    # Remove container after it exits
+    # Set to "always" if you want to keep it running
+    # restart: "always"
+

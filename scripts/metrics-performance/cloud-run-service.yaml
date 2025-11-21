@@ -1,0 +1,50 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: telemetry-profiling
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "1"
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/timeout: "3600s"
+        run.googleapis.com/memory: "4Gi"
+        run.googleapis.com/cpu: "2"
+    spec:
+      containerConcurrency: 1
+      timeoutSeconds: 3600
+      serviceAccountName: telemetry-profiling-sa@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+      - image: gcr.io/PROJECT_ID/telemetry-profiling:latest
+        ports:
+        - name: http1
+          containerPort: 8080
+        env:
+        - name: METRICS_PORT
+          value: "8080"
+        - name: PROFILE_DIR
+          value: "/profiles"
+        - name: ENABLE_PPROF
+          value: "true"
+        - name: MOCK_GOOGLE_METRICS
+          value: "true"
+        - name: GCS_BUCKET
+          value: "YOUR_GCS_BUCKET_NAME"
+        - name: GCS_PREFIX
+          value: "profiles/"
+        - name: UPLOAD_TO_GCS
+          value: "true"
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "2"
+            memory: 4Gi
+      restartPolicy: Never
+

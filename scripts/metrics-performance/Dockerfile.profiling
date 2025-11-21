@@ -1,0 +1,115 @@
+# Dockerfile for Telemetry Profiling Tool
+# This image includes Go, gcloud CLI, and tools to run profiling and upload to GCS
+# Built for linux/amd64 platform for Cloud Run compatibility
+
+# syntax=docker/dockerfile:1
+FROM --platform=linux/amd64 golang:1.24-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache \
+    git \
+    make \
+    curl \
+    bash \
+    ca-certificates
+
+# Set working directory
+WORKDIR /build
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build telemetry binary with debug symbols
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath=false \
+    -gcflags="all=-N -l" \
+    -o /app/telemetry \
+    ./telemetry/main.go
+
+# Build generate_hydrated_metrics tool
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath=false \
+    -gcflags="all=-N -l" \
+    -o /app/generate_hydrated_metrics \
+    ./tools/mock-resource-generator/generate_hydrated_metrics.go
+
+# Final stage - explicitly set platform for Cloud Run
+FROM --platform=linux/amd64 golang:1.24-alpine
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    bash \
+    curl \
+    ca-certificates \
+    git \
+    openssh-client \
+    python3 \
+    py3-pip \
+    iputils \
+    iproute2 \
+    util-linux \
+    coreutils \
+    net-tools \
+    procps
+
+# Install Google Cloud SDK (non-interactive)
+# Download and install gcloud SDK
+ENV CLOUDSDK_INSTALL_DIR=/usr/local
+RUN curl -sSL https://sdk.cloud.google.com > /tmp/gcloud-install.sh && \
+    bash /tmp/gcloud-install.sh --disable-prompts --install-dir=/usr/local && \
+    rm /tmp/gcloud-install.sh
+ENV PATH $PATH:/usr/local/google-cloud-sdk/bin
+
+# Install gsutil dependencies
+RUN pip3 install --upgrade pip && \
+    pip3 install crcmod gsutil || true
+
+# Ensure gsutil is available (it comes with gcloud SDK)
+RUN /usr/local/google-cloud-sdk/bin/gcloud components install gsutil --quiet || \
+    (echo "gsutil already installed or installation skipped" && true)
+
+# Copy binaries from builder
+COPY --from=builder /app/telemetry /usr/local/bin/telemetry
+COPY --from=builder /app/generate_hydrated_metrics /usr/local/bin/generate_hydrated_metrics
+
+# Copy profiling scripts
+COPY scripts/metrics-performance/automated_profile.sh /usr/local/bin/automated_profile.sh
+COPY scripts/metrics-performance/start_telemetry_with_profiling.sh /usr/local/bin/start_telemetry_with_profiling.sh
+COPY scripts/metrics-performance/run_profiling_and_upload.sh /usr/local/bin/run_profiling_and_upload.sh
+COPY scripts/metrics-performance/upload_profiles_to_gcs.sh /usr/local/bin/upload_profiles_to_gcs.sh
+
+# Make scripts executable
+RUN chmod +x /usr/local/bin/*.sh
+
+# Create profiles directory
+RUN mkdir -p /profiles
+
+# Set working directory
+WORKDIR /workspace
+
+# Environment variables
+ENV METRICS_SERVER_PORT=8080
+ENV METRICS_PORT=8080
+ENV PPROF_PORT=6060
+ENV PROFILE_DIR=/profiles
+ENV ENABLE_PPROF=true
+ENV MOCK_GOOGLE_METRICS=true
+ENV ENV_FILE=/workspace/tel_local.env
+ENV DOCKER_HOST_IP=host.docker.internal
+# GCS Configuration
+ENV GCS_BUCKET=""
+ENV GCS_PREFIX=profiles/
+ENV UPLOAD_TO_GCS=true
+
+# Expose ports
+EXPOSE 8080 6060
+
+# Default command - use automated_profile.sh
+CMD ["/usr/local/bin/automated_profile.sh"]
+

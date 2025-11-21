@@ -1141,26 +1141,38 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 		}
 
 		// Create mock VSA provider
-		mockProvider := new(vsa.MockProvider)
+		mockProvider := vsa.NewMockProvider(t)
 
-		// Mock REST client creation
+		// Mock REST client creation - called once per pool (2 pools = 2 times)
 		mockRESTClient := ontapRest.NewMockRESTClient(t)
-		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil).Times(2)
 
-		// Mock nodes for TriggerTakeoverCheck
+		// Mock nodes for TriggerTakeoverCheck - called once per pool (2 pools = 2 times)
 		vsaNodes := []*vsa.Node{
 			{ExternalUUID: "node-1"},
 			{ExternalUUID: "node-2"},
 		}
-		mockProvider.On("GetNodesWithClient", mock.Anything).Return(vsaNodes, nil)
-		mockProvider.On("TriggerTakeoverCheckWithClient", "node-1", mock.Anything).Return(true, nil)
-		mockProvider.On("TriggerTakeoverCheckWithClient", "node-2", mock.Anything).Return(true, nil)
+		mockProvider.On("GetNodesWithClient", mock.Anything).Return(vsaNodes, nil).Times(2)
 
-		mockProvider.On("GetClusterHealthStatusWithClient", mock.Anything).Return(clusterHealthResponse, nil)
+		// Mock TriggerTakeoverCheckWithClient - called for each node in each pool
+		// Since TriggerTakeoverCheckUnit returns early on first success, we can't guarantee all calls
+		// Each pool has 2 nodes, so we expect at least 2 calls total (one per pool, first node succeeds)
+		// But could be up to 4 calls if both nodes are checked before early return
+		// Set up expectations that allow for multiple calls to either node (both pools might call the same node)
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node-1", mock.Anything).Return(true, nil).Maybe()
+		mockProvider.On("TriggerTakeoverCheckWithClient", "node-2", mock.Anything).Return(true, nil).Maybe()
 
-		mockStorage.On("GetPool", mock.Anything, mock.Anything, mock.Anything).Return(poolView, nil)
-		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.Anything).Return(pools, nil)
-		mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return(nodes, nil)
+		// Mock GetClusterHealthStatusWithClient - called once per pool (2 pools = 2 times)
+		mockProvider.On("GetClusterHealthStatusWithClient", mock.Anything).Return(clusterHealthResponse, nil).Times(2)
+
+		// Mock storage calls
+		// GetPool is called:
+		//   - Once per pool in GetVSAProviderUnit (2 pools = 2 calls)
+		//   - Once per pool in updatePoolState via updatePoolToReadyState (2 pools = 2 calls)
+		//   Total: 4 calls
+		mockStorage.On("GetPool", mock.Anything, mock.Anything, mock.Anything).Return(poolView, nil).Times(4)
+		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.Anything).Return(pools, nil).Once()
+		mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return(nodes, nil).Times(2)
 		// Note: UpdatePoolFields expectation removed as pool is already READY and no state change should occur due to optimization
 
 		// Patch hyperscaler.GetProviderByNodeWithFastConnection to return mock provider
@@ -1175,7 +1187,25 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 
 		// Assert
 		mockStorage.AssertExpectations(t)
-		mockProvider.AssertExpectations(t)
+
+		// Verify call counts for methods that should be called exactly 2 times (once per pool)
+		mockProvider.AssertNumberOfCalls(t, "CreateRESTClient", 2)
+		mockProvider.AssertNumberOfCalls(t, "GetNodesWithClient", 2)
+		mockProvider.AssertNumberOfCalls(t, "GetClusterHealthStatusWithClient", 2)
+
+		// For TriggerTakeoverCheckWithClient, verify at least 2 calls were made (one per pool)
+		// The exact distribution depends on timing since the function returns early on first success
+		// We use Maybe() for the expectations, so we verify the count manually
+		triggerCalls := 0
+		for _, call := range mockProvider.Calls {
+			if call.Method == "TriggerTakeoverCheckWithClient" {
+				triggerCalls++
+			}
+		}
+		assert.GreaterOrEqual(t, triggerCalls, 2, "Expected at least 2 calls to TriggerTakeoverCheckWithClient (one per pool)")
+
+		// Don't use AssertExpectations on mockProvider since TriggerTakeoverCheckWithClient uses Maybe()
+		// which makes strict assertion unreliable
 	})
 
 	t.Run("SyncVSAClusterHealth with ListPoolUUIDs error", func(t *testing.T) {

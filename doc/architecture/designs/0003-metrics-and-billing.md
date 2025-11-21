@@ -2,74 +2,180 @@
 
 ## 1. Overview
 
-The Telemetry Component is a critical microservice within the VSA (Volume Service Architecture) Control Plane that handles the collection, processing, aggregation, and delivery of performance and usage metrics for Google Cloud NetApp Volumes (GCNV) resources. It serves as the central hub for monitoring and billing operations, ensuring accurate metric reporting to Google Cloud's billing and monitoring systems.
+The Telemetry Component is a critical microservice within the VSA (Virtual Storage Appliance) Control Plane that handles the collection, processing, aggregation, and delivery of performance and usage metrics for Google Cloud NetApp Volumes (GCNV) resources. It serves as the central hub for monitoring and billing operations, ensuring accurate metric reporting to Google Cloud's billing and monitoring systems.
+
+This document is part of a series of design documents covering the Telemetry System architecture and implementation. For comprehensive understanding, refer to the following related documents:
+
+| Document | Title | Description |
+|----------|-------|-------------|
+| [0014-telemetry-performance-test-design.md](./0014-telemetry-performance-test-design.md) | Telemetry Performance Testing Design | Performance testing framework, profiling strategies, and AI-powered analysis workflow |
+| [0016-harvest-collector-system.md](./0016-harvest-collector-system.md) | Harvest-Based Collector System Design | Real-time metrics collection infrastructure using NetApp Harvest for ONTAP cluster monitoring |
+| [0017-telemetry-deployer-design.md](./0017-telemetry-deployer-design.md) | Telemetry Deployer Design | Automated deployment tool for telemetry services as Google Cloud Run services with Cloud Scheduler integration |
+| [0018-telemetry-low-level-design.md](./0018-telemetry-low-level-design.md) | Telemetry System Low-Level Design | Detailed implementation specifications including database schemas, job queue, aggregation algorithms, and security |
+
 
 ## 2. Architecture
 
 ### 2.1 High-Level Architecture
 
+```mermaid
+graph TB
+    subgraph CP["Control Plane Subsystem"]
+        direction TB
+        Scheduler[Cloud Scheduler<br/>Hourly Triggers]
+        API[API Endpoints<br/>REST API Server]
+        Workers[Worker Orchestrator<br/>Job Management]
+        Temporal[Temporal Workflows<br/>Harvest Registration]
+        
+        Scheduler -->|OIDC Auth| API
+        Temporal -->|Creates Jobs| Workers
+        API -->|Creates Jobs| Workers
+    end
+    
+    subgraph RT["Real-time Collection Subsystem"]
+        direction TB
+        ONTAP[ONTAP Clusters<br/>Storage Nodes]
+        HarvestPollers[Harvest Pollers<br/>PM2 Managed]
+        HarvestFarm[Harvest Farm Service<br/>Port 3000]
+        PollerManager[Poller Manager<br/>Lifecycle Control]
+        OpenTel[OpenTelemetry Collector<br/>Metrics Processing]
+        Prometheus[Prometheus<br/>Service Discovery]
+        
+        ONTAP -->|Metrics| HarvestPollers
+        HarvestPollers -->|Exports| HarvestFarm
+        HarvestFarm -->|Manages| PollerManager
+        PollerManager -->|Config| OpenTel
+        OpenTel -->|Scrapes| Prometheus
+    end
+    
+    subgraph BP["Batch Processing Pipeline Subsystem"]
+        direction TB
+        
+        subgraph JQ["Job Queue Subsystem"]
+            JobQueue[(PostgreSQL<br/>Job Queue)]
+            PerfWorkers[Performance Workers<br/>10 workers]
+            UsageWorkers[Usage Workers<br/>1 worker]
+            CollWorkers[Collection Workers<br/>10 workers]
+            BizWorkers[BizOps Workers<br/>10 workers]
+            
+            JobQueue -->|FOR UPDATE<br/>SKIP LOCKED| PerfWorkers
+            JobQueue -->|FOR UPDATE<br/>SKIP LOCKED| UsageWorkers
+            JobQueue -->|FOR UPDATE<br/>SKIP LOCKED| CollWorkers
+            JobQueue -->|FOR UPDATE<br/>SKIP LOCKED| BizWorkers
+        end
+        
+        subgraph COL["Collector Subsystem"]
+            VolumeCol[Volume Collector]
+            PoolCol[Pool Collector]
+            BackupCol[Backup Collector]
+            ReplCol[Replication Collector]
+            GoogleProv[Google Provider<br/>Monitoring API]
+        end
+        
+        subgraph PROC["Processor Subsystem"]
+            PerfProc[Performance Processor]
+            UsageProc[Usage Processor]
+            CollProc[Collection Processor]
+            BizProc[BizOps Processor]
+        end
+        
+        subgraph AGG["Aggregator Subsystem"]
+            BillingProv[Billing Provider]
+            JobDefs[Job Definitions]
+            AggFuncs[Aggregation Functions]
+            DistLock[Distributed Lock]
+        end
+        
+        subgraph SINK["Sink Subsystem"]
+            PerfSink[Performance Sink]
+            UsageSink[Usage Sink]
+            BizSink[BizOps Sink]
+        end
+        
+        subgraph DATA["Data Stores"]
+            HydratedMetrics[(Hydrated Metrics<br/>Table)]
+            AggregatedUsage[(Aggregated Usage<br/>Table)]
+        end
+        
+        %% Internal flows
+        PerfWorkers -->|Triggers| PerfProc
+        UsageWorkers -->|Triggers| UsageProc
+        CollWorkers -->|Triggers| CollProc
+        BizWorkers -->|Triggers| BizProc
+        
+        VolumeCol -->|Raw Metrics| PerfProc
+        PoolCol -->|Raw Metrics| PerfProc
+        BackupCol -->|Raw Metrics| PerfProc
+        ReplCol -->|Raw Metrics| CollProc
+        GoogleProv -->|Raw Metrics| CollProc
+        
+        PerfProc -->|Writes| HydratedMetrics
+        CollProc -->|Writes| HydratedMetrics
+        UsageProc -->|Triggers| BillingProv
+        
+        BillingProv -->|Reads| HydratedMetrics
+        BillingProv -->|Writes| AggregatedUsage
+        
+        PerfProc -->|Sends| PerfSink
+        BillingProv -->|Sends via| UsageSink
+        BizProc -->|Sends| BizSink
+        UsageSink -->|Reads| AggregatedUsage
+    end
+    
+    subgraph DS["Data Sources Subsystem"]
+        direction TB
+        VCPDB[(VCP Database<br/>Pools/Volumes/Backups<br/>Replications)]
+        MetricsDB[(Metrics Database<br/>Telemetry DB)]
+        GoogleAPIs[Google Cloud APIs<br/>Monitoring API<br/>Service Control]
+    end
+    
+    subgraph OUT["Output Destinations Subsystem"]
+        direction LR
+        GCMonitoring[Google Cloud Monitoring<br/>Performance Metrics]
+        GCBilling[Google Cloud Billing<br/>Service Control API]
+        GCS[Google Cloud Storage<br/>BizOps Reports]
+    end
+    
+    %% Control Plane integrations
+    Workers -->|Enqueues Jobs| JobQueue
+    
+    %% Collector integrations
+    VolumeCol -->|Queries| VCPDB
+    PoolCol -->|Queries| VCPDB
+    BackupCol -->|Queries| VCPDB
+    ReplCol -->|Queries| VCPDB
+    GoogleProv -->|API Calls| GoogleAPIs
+    
+    %% Processor integrations
+    PerfProc -->|Reads/Writes| MetricsDB
+    CollProc -->|Reads/Writes| MetricsDB
+    UsageProc -->|Reads/Writes| MetricsDB
+    BizProc -->|Reads| MetricsDB
+    
+    %% Aggregator integrations
+    BillingProv -->|Reads Resource Data| VCPDB
+    BillingProv -->|Reads/Writes| MetricsDB
+    
+    %% Sink integrations
+    PerfSink -->|Pushes Metrics| GCMonitoring
+    UsageSink -->|Pushes Billing| GCBilling
+    BizSink -->|Uploads Reports| GCS
+    
+    %% Real-time integrations
+    Prometheus -->|Exports Metrics| GCMonitoring
+    
+    %% Temporal integrations
+    Temporal -->|Registers Nodes| HarvestFarm
+    
+    style CP fill:#e1f5ff
+    style RT fill:#fff4e1
+    style BP fill:#e8f5e9
+    style DS fill:#f3e5f5
+    style OUT fill:#ffe0b2
+    style JQ fill:#c8e6c9
+    style DATA fill:#fff9c4
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           Telemetry & Monitoring System                        │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────────────────────────┤
-│  │                        Control Plane Layer                                 │
-│  ├─────────────────────────────────────────────────────────────────────────────┤
-│  │ ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-│  │ │   API       │  │ Scheduler   │  │   Workers   │  │   Temporal  │        │
-│  │ │ Endpoints   │  │ (Cloud      │  │  (Queues)   │  │ Workflows   │        │
-│  │ │             │  │ Scheduler)  │  │             │  │             │        │
-│  │ └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘        │
-│  │         │                │                │                │               │
-│  │         └────────────────┼────────────────┼────────────────┘               │
-│  │                          │                │                                │
-│  └─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────────────────────────┤
-│  │                     Collection & Processing Layer                          │
-│  ├─────────────────────────────────────────────────────────────────────────────┤
-│  │ ┌─────────────────────────────────────────┐ ┌─────────────────────────────┐│
-│  │ │          Batch Collection Pipeline      │ │    Real-time Collection     ││
-│  │ │ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌───│ │ ┌─────────────────────────┐ ││
-│  │ │ │Collector│→│Processor│→│Aggreg-  │→│Sink│ │ │     Harvest Farm        │ ││
-│  │ │ │         │ │         │ │ator     │ │   │ │ │ ┌─────────┐ ┌─────────┐ │ ││
-│  │ │ └─────────┘ └─────────┘ └─────────┘ └───│ │ │ │ Poller  │ │OpenTel  │ │ ││
-│  │ └─────────────────────────────────────────┘ │ │ │ Manager │ │Collector│ │ ││
-│  │                     │                       │ │ └─────────┘ └─────────┘ │ ││
-│  │                     ▼                       │ │           │             │ ││
-│  │           ┌─────────────────┐               │ │           ▼             │ ││
-│  │           │  Google Cloud   │◄──────────────┘ │ ┌─────────────────────┐ │ ││
-│  │           │   Monitoring    │                 │ │   Prometheus        │ │ ││
-│  │           └─────────────────┘                 │ │   Targets           │ │ ││
-│  │                     │                         │ └─────────────────────┘ │ ││
-│  │                     ▼                         └─────────────────────────┘ ││
-│  │           ┌─────────────────┐                                             ││
-│  │           │  Google Cloud   │                                             ││
-│  │           │    Billing      │                                             ││
-│  │           └─────────────────┘                                             ││
-│  └─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────────────────────────┤
-│  │                            Data Sources Layer                              │
-│  ├─────────────────────────────────────────────────────────────────────────────┤
-│  │ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────┐│
-│  │ │ VCP Database│ │ Metrics DB  │ │ Google APIs │ │    ONTAP Clusters       ││
-│  │ │             │ │             │ │             │ │ ┌─────┐ ┌─────┐ ┌─────┐ ││
-│  │ │   Pools     │ │  Hydrated   │ │  Cloud      │ │ │Node1│ │Node2│ │...  │ ││
-│  │ │   Volumes   │ │  Metrics    │ │ Monitoring  │ │ │     │ │     │ │     │ ││
-│  │ │   Backups   │ │ Aggregated  │ │   APIs      │ │ └─────┘ └─────┘ └─────┘ ││
-│  │ │             │ │   Usage     │ │             │ │      ▲       ▲       ▲   ││
-│  │ └─────────────┘ └─────────────┘ └─────────────┘ └──────┼───────┼───────┼───┘│
-│  └────────────────────────────────────────────────────────┼───────┼───────┼────┤
-│                                                            │       │       │    │
-│                                ┌───────────────────────────┘       │       │    │
-│                                │ ┌─────────────────────────────────┘       │    │
-│                                │ │ ┌───────────────────────────────────────┘    │
-│                                ▼ ▼ ▼                                            │
-│                        ┌─────────────────┐                                     │
-│                        │ Harvest Pollers │                                     │
-│                        │ (REST/Perf APIs)│                                     │
-│                        └─────────────────┘                                     │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+
 
 ### 2.2 Component Interactions
 
@@ -90,13 +196,17 @@ The telemetry system operates through a pipeline architecture where each compone
 #### Endpoints
 - `POST /v1/performance` - Triggers performance metrics collection
 - `POST /v1/usage` - Triggers usage metrics aggregation and billing
+- `POST /v1/generateReport` - Triggers BizOps report generation
 - `GET /metrics` - Prometheus metrics endpoint
+- `GET /debug/pprof/*` - Performance profiling endpoints (when `ENABLE_PPROF=true`)
 
 #### Features
-- RESTful API design using OpenAPI 3.0 specification
+- RESTful API design using OpenAPI 3.0 specification (generated via `ogen`)
 - Asynchronous processing (returns 202 Accepted)
 - Cloud Scheduler integration via OIDC authentication
 - Built-in logging and error handling
+- Correlation ID support for request tracing
+- Automatic correlation ID generation if not provided
 
 ### 3.2 Collector Module
 
@@ -107,31 +217,70 @@ The telemetry system operates through a pipeline architecture where each compone
 
 ##### 3.2.1 Pool Collector
 - **File**: `pool_collector.go`
-- **Function**: Collects storage pool performance metrics
-- **Data Sources**: VCP database, ONTAP REST APIs
-- **Metrics**: Capacity, IOPS, throughput, latency
+- **Function**: Collects storage pool performance metrics from VCP database
+- **Data Sources**: VCP database
+- **Metrics Collected**:
+  - `PoolAllocatedSize`: Total allocated size of the pool (in bytes)
+  - `AllocatedUsed`: Quota/used size of the pool (in bytes)
+  - `PoolTotalThroughputMibps`: Total throughput capacity (billable = total - 64 MiB/s base)
+  - `PoolTotalIops`: Total IOPS capacity (billable = total - 16 * throughput)
+- **Features**: 
+  - Supports both zonal (`VolumePool`) and regional HA (`VolumePoolRegionalHA`) pool types
+  - Generates metadata map for use by volume collector
 
 ##### 3.2.2 Volume Collector
 - **File**: `volume_collector.go`
-- **Function**: Collects volume-level metrics
-- **Integration**: Google Cloud Monitoring API
-- **Metrics**: Volume performance, capacity utilization
+- **Function**: Collects volume-level metrics from VCP database
+- **Data Sources**: VCP database
+- **Metrics Collected** (from VCP database):
+  - `BackupEnabledVolumeAllocatedSize`: Allocated size for volumes with backups (only when `ENABLE_BACKUP_BILLING_METRICS=true`)
+  - `VolumeAllocatedThroughput`: Allocated throughput per volume (uses volume throughput if set, otherwise falls back to pool throughput)
+- **Filters**: Only processes volumes with `BackupChainBytes > 0` for backup billing metrics
+- **Note**: Additional volume metrics (read ops, write ops, latency, etc.) are collected from Google Cloud Monitoring API via `google_volume_metrics.go` (see Volume Replication Collector section)
 
 ##### 3.2.3 Backup Collector
-- **Function**: Collects backup-related metrics
-- **Metrics**: Backup size, frequency, success rates
+- **File**: `backup_collector.go`
+- **Function**: Collects backup logical size metrics from VCP database
+- **Data Sources**: VCP database
+- **Metrics Collected**:
+  - `BackupLogicalSize`: Latest logical backup size (in bytes) for each backup
+- **Features**:
+  - Uses pagination to fetch all backups efficiently
+  - Only processes backups in `available` state
+  - Billing is based on the volume (not the backup itself)
 
-#### 3.2.4 Harvest Farm Integration
-- **Purpose**: Manages ONTAP node registration for real-time metrics collection
-- **Components**: Harvest Farm service, OpenTelemetry Collector, Prometheus endpoints
-- **Function**: Collects real-time performance metrics directly from ONTAP clusters
+##### 3.2.4 Volume Replication Collector
+- **File**: `google_volume_metrics.go` (handled within volume metrics collection)
+- **Function**: Collects volume replication and additional volume metrics from Google Cloud Monitoring
+- **Data Sources**: Google Cloud Monitoring API
+- **Metrics Collected** (from Google Cloud Monitoring):
+  - **Volume Replication**:
+    - `XregionReplicationTotalTransferBytes`: Cross-region replication total transfer bytes (used for billing)
+    - Replication health, lag time, transfer duration, transfer size
+    - Replication schedule and progress
+  - **Volume Performance** (when `ENABLE_VOLUME_METRICS=true`):
+    - Volume read/write operations, latency, throughput
+    - Volume capacity utilization
+- **Special Handling**: 
+  - Resource type: `VolumeReplicationRelationship` for replication metrics
+  - Uses `relationship_id` from metric labels as resource name for replication
+  - Collected asynchronously per tenant project via job queue (`CollectionQueue`)
+  - Batch enqueues collection jobs for all tenant projects
+  - Metadata (replication name, schedule, type, source/destination locations) fetched from VCP database during aggregation
+  - Supports both zonal (`Volume`) and regional HA (`VolumeRegionalHA`) volume types
 
 #### Data Flow
-```
-VCP Database → Pool Metrics
-ONTAP APIs → Volume Metrics  → Raw Metrics → Hydrated Metrics
-Google APIs → Backup Metrics
-Harvest Farm → ONTAP Real-time Metrics → OpenTelemetry → Google Cloud Monitoring
+
+```mermaid
+graph LR
+    VCPDB[(VCP Database)] -->|Pool Metrics| RawMetrics[Raw Metrics]
+    VCPDB -->|Backup Metrics| RawMetrics
+    GoogleAPIs[Google Cloud Monitoring API] -->|Volume Metrics| RawMetrics
+    GoogleAPIs -->|Replication Metrics| RawMetrics
+    RawMetrics --> Hydrated[Hydrated Metrics]
+    
+    HarvestFarm[Harvest Farm] -->|ONTAP Real-time Metrics| OpenTel[OpenTelemetry]
+    OpenTel --> GCMonitoring[Google Cloud Monitoring]
 ```
 
 ### 3.3 Processor Module
@@ -142,51 +291,523 @@ Harvest Farm → ONTAP Real-time Metrics → OpenTelemetry → Google Cloud Moni
 #### Key Functions
 
 ##### 3.3.1 ProcessPerformanceMetrics()
-- Collects pool, volume, and backup metrics
-- Hydrates raw data with metadata
-- Stores processed metrics in telemetry database
-- Delivers metrics to performance sink
+
+**Purpose**: Orchestrates the collection, processing, storage, and delivery of performance metrics from multiple sources.
+
+**Execution Flow**:
+
+1. **Immediate Response (Non-blocking)**:
+   - Returns immediately (202 Accepted) to avoid blocking the API caller
+   - All processing happens asynchronously in background goroutines
+
+2. **Primary Metrics Collection (Background Goroutine #1)**:
+   - **Timestamp Generation**: Creates a truncated timestamp (minute precision) for all metrics
+   - **Correlation ID Propagation**: Preserves correlation ID from request context for tracing
+   - **Collection**:
+     - **Pool Metrics**: Calls `collector.GetPoolMetrics()` to fetch all pools from VCP database
+       - Collects: `PoolAllocatedSize`, `AllocatedUsed`, `PoolTotalThroughputMibps`, `PoolTotalIops`
+       - Generates pool metadata map for use by volume collector
+     - **Backup Metrics** (if `ENABLE_BACKUP_METRICS` or `ENABLE_BACKUP_BILLING_METRICS` enabled):
+       - Calls `collector.GetBackupMetrics()` with pagination
+       - Collects: `BackupLogicalSize` for all available backups
+     - **Volume Metrics**: Calls `collector.GetVolumeMetrics()` 
+       - Uses pool metadata map to determine zonal vs regional HA volumes
+       - Collects: `BackupEnabledVolumeAllocatedSize` (if backup billing enabled), `VolumeAllocatedThroughput`
+       - Filters volumes with `BackupChainBytes > 0` for backup billing
+
+3. **Data Separation**:
+   - **For Database Storage** (`allHydratedMetricsDataModel`):
+     - Pool metrics (always stored)
+     - Backup metrics (if `ENABLE_BACKUP_BILLING_METRICS=true`)
+     - Volume metrics (if `ENABLE_BACKUP_BILLING_METRICS=true`)
+   - **For Performance Sink** (`allHydratedMetrics`):
+     - Pool metrics (for monitoring)
+     - Volume allocated throughput metrics (for monitoring)
+     - Backup metrics (if `ENABLE_BACKUP_METRICS=true`)
+
+4. **Database Storage**:
+   - Uses `CreateHydratedMetricsBatch()` with configurable batch size (`PUSH_BATCH_SIZE`, default 1000)
+   - Batch inserts for efficiency
+   - Stores in `hydrated_metrics` table for later aggregation
+
+5. **Raw Volume Metrics Collection (Background Goroutine #2)**:
+   - **Conditional Execution**: Only runs if `ENABLE_VOLUME_METRICS=true`
+   - **Time Window Refresh**: Updates the time window for Google Cloud Monitoring API queries
+   - **Per-Project Collection**: 
+     - Gets list of all tenant projects from VCP database
+     - Batch enqueues `CollectMetrics` jobs to `CollectionQueue` for each project
+     - Each job processes one project's volume metrics asynchronously
+   - **Metrics Collected**: Volume read/write ops, latency, throughput, replication transfer bytes, etc.
+
+**Error Handling**:
+- Errors in background goroutines are logged but don't affect API response
+- Partial failures (e.g., backup collection fails) stop the entire batch
+- Database and sink errors are logged with correlation ID for tracing
+
+**Performance Characteristics**:
+- Non-blocking API response (< 100ms typically)
+- Parallel execution of database collection and raw metrics collection
+- Configurable batch sizes for database operations
 
 ##### 3.3.2 ProcessUsageMetrics()
-- Triggers billing aggregation
-- Processes hourly usage data
-- Handles retry logic for failed submissions
+
+**Purpose**: Triggers billing aggregation to process hourly usage data and deliver to Google Cloud Billing.
+
+**Execution Flow**:
+
+1. **Time Window Calculation (15-minute offset)**:
+   - **Problem Solved**: If aggregation runs at 1:45, it needs data from 12:45-1:45, but the 1:45 sample may not be hydrated yet
+   - **Solution**: Uses `aggregationEndTime = now - 15 minutes`
+   - **Example**: If triggered at 1:45, aggregates 12:30-1:30 (ensuring 1:30 sample is complete)
+   - **Aggregation Window**: `aggregationStartTime = aggregationEndTime - 1 hour`
+
+2. **Distributed Locking**:
+   - Attempts to acquire PostgreSQL advisory lock (`pg_try_advisory_lock`)
+   - **Lock Key**: `0x42494C4C494E47` ("BILLING" in hex)
+   - **Behavior**:
+     - If lock acquired: Proceeds with aggregation
+     - If lock held by another pod: Skips execution, logs and returns (no error)
+     - Ensures only one aggregator instance runs across all pods
+   - **Lock Release**: Automatically released via `defer` when function exits
+
+3. **Resource Data Fetching**:
+   - Fetches metadata from VCP database for aggregation window:
+     - **Pools**: Labels, account info, deployment names (with pagination)
+     - **Volumes**: Labels, account info, pool relationships (with pagination)
+     - **Backups**: Labels, account info, vault relationships (if backup billing enabled)
+     - **Volume Replications**: Labels, replication attributes, source/destination locations (if replication billing enabled)
+   - Uses configurable page size (`POOL_VOLUME_LABEL_PAGE_SIZE`, default 5000)
+   - Handles partial failures gracefully (continues if one resource type fails)
+
+4. **Retry Failed Records**:
+   - Fetches previously failed records (`getUnsentGoogleUsages`)
+   - Retries records with `attempt < MAX_GOOGLE_BILLING_PUSH_RETRY` (default 5)
+   - Includes retry records in final delivery batch
+
+5. **Per Job Definition Processing**:
+   - Iterates through `DefaultAggregationJobDefinitions` (one per resource/measurement type combination)
+   - **For Each Job Definition**:
+     - **Counter/Integral Aggregation**: Fetches all records from window + latest record from previous period (for delta calculation)
+     - **Other Aggregations**: Fetches only records from current window
+     - **Grouping**: Groups metrics by `ResourceKey` (ResourceType, ResourceName, DeploymentName, ConsumerID)
+     - **Per-Resource Processing**:
+       - Applies aggregation function (Integral, Counter, Sum)
+       - Enriches with resource metadata (labels, account info, replication details)
+       - Creates `AggregatedUsage` records
+       - Handles errors per resource (logs and continues)
+
+6. **Batch Database Save**:
+   - Saves all aggregated records using `CreateAggregatedUsageBatch()`
+   - Uses configurable batch size (`PUSH_BATCH_SIZE`, default 1000)
+   - Records Prometheus metrics for records saved and quantities aggregated
+
+7. **Delivery to Google Cloud Billing**:
+   - Delivers all aggregated records (new + retries) to Service Control API
+   - Uses `usageSink.DeliverMetrics()` with batch processing
+   - **Batch Size**: Configurable via `OPERATION_BATCH_SIZE` (default 200)
+   - **Validation**: Filters invalid records (missing project ID/number)
+   - **Retry Logic**: Configurable max retries (`MAX_GOOGLE_BILLING_PUSH_RETRY`)
+   - Records Prometheus metrics for records sent and quantities sent
+
+8. **Metrics Recording**:
+   - Records aggregation success/failure with duration
+   - Records lock attempts (acquired/skipped/failed)
+   - Records resource data fetched counts
+   - Records hydrated metrics fetched counts
+   - Records records saved, quantities aggregated (by resource/measured/aggregation type)
+   - Records records sent, quantities sent (by resource/measured/aggregation type)
+   - Records retry counts, skip counts, batch sizes
+
+**Error Handling**:
+- Lock acquisition failures return error (prevents duplicate execution)
+- Resource data fetch failures are logged but aggregation continues
+- Per-resource processing errors are logged and skipped (continues with other resources)
+- Database save failures return error (prevents data loss)
+- Delivery failures are logged, records marked for retry
+
+**Performance Characteristics**:
+- Typically completes in 30-120 seconds depending on data volume
+- Processes thousands of records efficiently using batching
+- Parallel resource data fetching (pools, volumes, backups, replications)
 
 ##### 3.3.3 CollectMetrics()
-- Project-specific metric collection
-- Asynchronous processing for volume metrics
-- Batch processing for efficiency
+
+**Purpose**: Collects volume and replication metrics from Google Cloud Monitoring API for a specific tenant project.
+
+**Execution Flow**:
+
+1. **Invocation**:
+   - Called asynchronously via job queue (`CollectionQueue`)
+   - One job per tenant project
+   - Triggered by `ProcessPerformanceMetrics()` when `ENABLE_VOLUME_METRICS=true`
+
+2. **Project-Specific Collection**:
+   - **Input**: `projectId` (tenant project ID) and `timestamp`
+   - **API Query**: Queries Google Cloud Monitoring API for the project
+   - **Time Window**: Uses provider's configured time window (typically last 5 minutes)
+   - **Metrics Queried**: Based on `metricList.yaml` configuration:
+     - Volume metrics: read ops, write ops, latency, throughput, capacity
+     - Replication metrics: `snapmirror_total_transfer_bytes` (mapped to `XregionReplicationTotalTransferBytes`)
+
+3. **Metric Processing**:
+   - Iterates through configured metrics in `VolumeMetrics` list
+   - For each metric:
+     - Builds filter: `metric.type="<resourceType>/<metric>" AND resource.type="k8s_cluster"` (or `generic_task` in dev)
+     - Queries with pagination (`PAGE_SIZE`, default 1000)
+     - Extracts time series data points
+     - Maps to `HydratedMetrics` data model
+     - **Special Handling**:
+       - Regional HA volumes: Detects `is_regional_ha=true` label, sets `ResourceType=VolumeRegionalHA`
+       - Replication: Uses `relationship_id` as resource name, sets `ResourceType=VolumeReplicationRelationship`
+
+4. **Database Storage**:
+   - Stores collected metrics using `CreateHydratedMetricsBatch()`
+   - Uses configurable batch size (`PUSH_BATCH_SIZE`, default 1000)
+   - Metrics stored in `hydrated_metrics` table for later aggregation
+
+5. **Correlation ID Propagation**:
+   - Preserves correlation ID from parent job for request tracing
+   - All logs include correlation ID for debugging
+
+**Error Handling**:
+- API errors (e.g., project not found) are logged and returned
+- Individual metric failures are logged but collection continues
+- Database save failures return error (job will be retried)
+
+**Performance Characteristics**:
+- Processes one project at a time (parallelism via multiple workers)
+- Typical execution: 5-30 seconds per project
+- Handles projects with thousands of volumes efficiently
+
+##### 3.3.4 ProcessBizOps()
+
+**Purpose**: Generates business operations reports by aggregating billing data and writing to configured sink.
+
+**Execution Flow**:
+
+1. **Parameter Validation**:
+   - Validates `BizOpsReportParams`:
+     - `StartDate`: Start of report period
+     - `EndDate`: End of report period
+     - `TimeZone`: Timezone for report (e.g., "America/New_York")
+     - `SinkType`: Sink type (GCS or Terminal)
+
+2. **Sink Validation**:
+   - Validates that requested sink type is available
+   - Returns error if sink not configured
+
+3. **Account Information Fetching**:
+   - Fetches all enabled accounts from VCP database
+   - Uses pagination (`BIZOPS_ACCOUNT_PAGINATION_LIMIT`, default 1000)
+   - Includes account metadata for report generation
+
+4. **Parallel Processing Setup**:
+   - Creates `io.Pipe()` for streaming data between aggregation and sink
+   - **Goroutine #1 (Aggregation)**:
+     - Calls `AggregateBizOpsReport()` to generate report data
+     - Reads from VCP and Metrics databases
+     - Aggregates data by account, region, resource type
+     - Writes CSV data to pipe writer
+   - **Goroutine #2 (Sink)**:
+     - Reads CSV data from pipe reader
+     - Writes to configured sink (GCS bucket or terminal)
+     - Handles file naming, date formatting, timezone conversion
+
+5. **Report Generation**:
+   - **Data Sources**:
+     - `aggregated_usage` table: Billing records
+     - VCP database: Account information, resource metadata
+   - **Aggregation**:
+     - Groups by account, region, resource type, measured type
+     - Sums quantities for report period
+     - Applies continent mapping for region grouping
+   - **Output Format**: CSV with columns:
+     - Account, Region, Resource Type, Measured Type, Quantity, etc.
+
+6. **Sink Delivery**:
+   - **GCS Sink**: 
+     - Uploads CSV file to Google Cloud Storage bucket
+     - File naming: `bizops-report-<date>-<timezone>.csv`
+     - Handles authentication via service account
+   - **Terminal Sink** (testing):
+     - Prints CSV data to stdout
+     - Useful for local testing and debugging
+
+7. **Error Handling**:
+   - Uses error channel to collect errors from both goroutines
+   - Waits for both goroutines to complete
+   - Returns combined error if any occurred
+
+**Error Handling**:
+- Sink validation failures return error immediately
+- Account fetch failures return error
+- Aggregation errors are logged and returned
+- Sink write errors are logged and returned
+- Pipe errors are handled gracefully
+
+**Performance Characteristics**:
+- Streaming processing (doesn't load entire report into memory)
+- Parallel aggregation and sink writing
+- Typical execution: 30-300 seconds depending on data volume and report period
+- Handles reports spanning months of data efficiently
 
 #### Processing Pipeline
-```
-Raw Data → Validation → Enrichment → Storage → Delivery
+
+```mermaid
+graph LR
+    RawData[Raw Data] --> Validation[Validation]
+    Validation --> Enrichment[Enrichment]
+    Enrichment --> Storage[Storage]
+    Storage --> Delivery[Delivery]
 ```
 
 ### 3.4 Aggregator Module
 
 **Files**: `telemetry/aggregator/`
-**Purpose**: Aggregates raw metrics for billing and reporting purposes
+**Purpose**: Aggregates raw metrics from `hydrated_metrics` table into billing-ready `aggregated_usage` records and delivers them to Google Cloud Billing.
 
 #### Key Components
 
 ##### 3.4.1 BillingProvider
-- **File**: `metrics_processor.go`
-- **Function**: Processes billing metrics with configurable job definitions
-- **Features**:
-  - Resource grouping by unique identifiers
-  - Time-based aggregation windows
-  - Retry mechanism for failed submissions
-  - Support for multiple measurement types
+
+**File**: `metrics_processor.go`  
+**Function**: `ProcessBillingMetrics()` - Orchestrates the complete billing aggregation pipeline
+
+**Core Architecture**:
+
+1. **Distributed Locking Mechanism**:
+   - **Lock Type**: PostgreSQL advisory lock (`pg_try_advisory_lock`)
+   - **Lock Key**: `0x42494C4C494E47` ("BILLING" in hex)
+   - **Purpose**: Ensures only one aggregator instance runs across all pods in a distributed deployment
+   - **Behavior**:
+     - Non-blocking: Returns immediately if lock is held by another instance
+     - Automatic release: Lock released via `defer` when function exits
+     - Graceful fallback: For non-PostgreSQL databases (e.g., SQLite in tests), skips locking
+   - **Lock States**: `acquired`, `skipped`, `failed` (tracked via Prometheus metrics)
+
+2. **Resource Key Structure**:
+   ```go
+   type ResourceKey struct {
+       ResourceType   metadata.ResourceType  // e.g., Volume, Pool, Backup
+       ResourceName   string                  // e.g., "volume-123"
+       DeploymentName string                  // e.g., "deployment-abc"
+       ConsumerID     string                  // Account name
+   }
+   ```
+   - **Uniqueness**: Combination of these four fields uniquely identifies a billable resource
+   - **Grouping**: Metrics are grouped by `ResourceKey` before aggregation
+   - **Purpose**: Ensures correct billing attribution (same resource, same customer, same deployment)
+
+3. **Resource Data Collection**:
+   - **Purpose**: Fetches metadata (labels, account info, replication details) from VCP database
+   - **Timing**: Fetched at start of each aggregation cycle for the aggregation window
+   - **Data Sources**:
+     - **Pools**: Labels, account info, deployment names (with pagination, `POOL_VOLUME_LABEL_PAGE_SIZE`)
+     - **Volumes**: Labels, account info, pool relationships (with pagination)
+     - **Backups**: Labels, account info, vault relationships (if `ENABLE_BACKUP_BILLING_METRICS=true`)
+     - **Volume Replications**: Labels, replication attributes, source/destination locations (if `ENABLE_REPLICATION_BILLING_METRICS=true`)
+   - **Pagination**: Uses configurable page size (default 5000) to handle large datasets
+   - **Error Handling**: Partial failures are logged but aggregation continues (graceful degradation)
+
+4. **Metrics Fetching Strategy**:
+   - **Per Job Definition**: Iterates through `DefaultAggregationJobDefinitions` (one per resource/measurement type)
+   - **Fetch Strategies**:
+     - **Counter/Integral Aggregation**: 
+       - Fetches all records from aggregation window
+       - **Plus**: Latest record from previous period (looks back 2 hours, filters to latest before window start)
+       - **Reason**: Need previous value to calculate delta/integral
+     - **Other Aggregations** (Sum, First):
+       - Fetches only records from current aggregation window
+   - **Filtering**: Uses time range, resource type, and measured type filters
+   - **Sorting**: Database sorts by timestamp for efficient processing
+
+5. **Resource Grouping**:
+   - **Function**: `groupMetricsByResource()`
+   - **Process**: Groups fetched metrics by `ResourceKey` (ResourceType, ResourceName, DeploymentName, ConsumerID)
+   - **Output**: Map of `ResourceKey` → `[]HydratedMetrics`
+   - **Purpose**: Enables per-resource aggregation (each resource gets its own aggregated record)
+
+6. **Per-Resource Aggregation**:
+   - **Function**: `processMetricsWithJobDef()`
+   - **Process**:
+     1. Applies aggregation function based on `JobType` (Integral, Counter, Sum, First)
+     2. Retrieves resource metadata from `ResourceCollection`
+     3. Enriches aggregated record with:
+        - Billing labels (from resource metadata, limited to `GOOGLE_BILLING_LABELS_MAX_ENTRIES`)
+        - Account information
+        - Resource UUID
+        - Replication details (for VolumeReplicationRelationship)
+     4. Creates `AggregatedUsage` record with:
+        - Aggregation window (start/end times)
+        - Aggregated quantity
+        - Resource metadata
+        - SKU (for billable metrics)
+        - State tracking (for retry logic)
+   - **Error Handling**: Per-resource errors are logged and skipped (continues with other resources)
+
+7. **Batch Database Save**:
+   - Saves all aggregated records using `CreateAggregatedUsageBatch()`
+   - **Batch Size**: Configurable via `PUSH_BATCH_SIZE` (default 1000)
+   - **Table**: `aggregated_usage`
+   - **Purpose**: Persists aggregated records for delivery and retry logic
+
+8. **Retry Mechanism**:
+   - Fetches previously failed records (`getUnsentGoogleUsages`)
+   - **Criteria**: Records with `attempt < MAX_GOOGLE_BILLING_PUSH_RETRY` (default 5)
+   - **Inclusion**: Retry records are included in delivery batch
+   - **Tracking**: Each record tracks attempt count and error messages
+
+9. **Delivery to Google Cloud Billing**:
+   - Delivers all records (new + retries) via `usageSink.DeliverMetrics()`
+   - **Batch Processing**: Uses `OPERATION_BATCH_SIZE` (default 200) for Service Control API
+   - **Validation**: Filters invalid records (missing project ID/number)
+   - **Success Tracking**: Updates record state on successful delivery
+   - **Failure Handling**: Marks records for retry on failure
+
+10. **Comprehensive Metrics**:
+    - Emits Prometheus metrics for all operations (see `telemetry/aggregator/METRICS.md`)
+    - Tracks: aggregation success/failure, records saved, quantities aggregated, records sent, lock attempts, etc.
+    - Enables observability and anomaly detection
 
 ##### 3.4.2 Job Definitions
-- Configurable aggregation rules
-- Resource type and measurement type mapping
-- Time window specifications
-- Aggregation functions (sum, average, max, etc.)
+
+**File**: `common/job_definition.go`  
+**Purpose**: Defines aggregation rules for each resource/measurement type combination
+
+**Structure**:
+```go
+type AggregationJobDefinition struct {
+    MeasuredType    metadata.MeasuredType  // What is being measured
+    ResourceType    metadata.ResourceType  // What resource is being measured
+    AggregationType JobType                // How to aggregate (Integral, Counter, Sum, First)
+    IsBillable      bool                   // Whether this metric is billable
+    SKU             string                  // SKU for billing (if billable)
+}
+```
+
+**Job Definition Map**:
+- **Key**: `CombinedKeyResourceTypeMeasuredType` (ResourceType + MeasuredType)
+- **Value**: `AggregationJobDefinition`
+- **Location**: `DefaultAggregationJobDefinitions` map
+
+**Example Job Definitions**:
+
+1. **Volume Allocated Size** (Non-billable):
+   - ResourceType: `Volume` or `VolumeRegionalHA`
+   - MeasuredType: `AllocatedSize`
+   - AggregationType: `IntegralAggregation`
+   - IsBillable: `false`
+   - **Purpose**: Tracks capacity usage over time (for reporting)
+
+2. **Replication Transfer Bytes** (Billable):
+   - ResourceType: `VolumeReplicationRelationship`
+   - MeasuredType: `XregionReplicationTotalTransferBytes`
+   - AggregationType: `CounterAggregation`
+   - IsBillable: `true`
+   - SKU: `/ReplicationBytesTransferred`
+   - **Purpose**: Bills for cross-region replication data transfer
+
+3. **Backup Logical Size** (Billable):
+   - ResourceType: `Backup`
+   - MeasuredType: `BackupLogicalSize`
+   - AggregationType: `IntegralAggregation`
+   - IsBillable: `true`
+   - SKU: `/BackupStorageKbBillable`
+   - **Purpose**: Bills for backup storage capacity over time
+
+4. **Pool Metrics** (Non-billable):
+   - ResourceType: `VolumePool` or `VolumePoolRegionalHA`
+   - MeasuredTypes: `PoolAllocatedSize`, `AllocatedUsed`, `PoolTotalThroughputMibps`, `PoolTotalIops`
+   - AggregationType: `IntegralAggregation`
+   - IsBillable: `false`
+   - **Purpose**: Tracks pool capacity and performance metrics
+
+**Aggregation Types**:
+
+1. **Integral Aggregation** (`IntegralAggregation`):
+   - **Purpose**: Calculates area under the curve (capacity × time)
+   - **Formula**: `Σ(quantity[i] × duration[i-1 to i] in hours)`
+   - **Use Cases**: 
+     - Capacity metrics (allocated size, logical size)
+     - Throughput/IOPS over time
+   - **Example**: If a volume has 100GB allocated for 0.5 hours, integral = 50 GB-hours
+   - **Implementation**: Sorts by timestamp, calculates duration between consecutive points, multiplies quantity by duration
+
+2. **Counter Aggregation** (`CounterAggregation`):
+   - **Purpose**: Calculates delta for monotonic counters
+   - **Formula**: `Σ(max(0, quantity[i] - quantity[i-1]))` with reset handling
+   - **Reset Detection**: If quantity decreases and new value < 25% of previous, assumes counter reset
+   - **Use Cases**:
+     - Replication transfer bytes (monotonic counter)
+     - Network transfer bytes
+   - **Example**: Counter goes 100 → 150 → 200, delta = 100
+   - **Implementation**: Handles counter resets gracefully, skips anomalous dips
+
+3. **Sum Aggregation** (`SumAggregation`):
+   - **Purpose**: Sums all values in the window
+   - **Formula**: `Σ(quantity[i])`
+   - **Use Cases**: Cumulative values that should be summed
+   - **Example**: Sum of 10, 20, 30 = 60
+
+4. **First Aggregation** (`FirstAggregation`):
+   - **Purpose**: Returns the first value in the window
+   - **Formula**: `quantity[0]` (after sorting by timestamp)
+   - **Use Cases**: Initial state values
+   - **Example**: First value in sorted list
+
+**Time Window Specifications**:
+- **Standard Window**: 1 hour (`aggregationEndTime - 1 hour` to `aggregationEndTime`)
+- **Offset**: 15 minutes from current time (to ensure data completeness)
+- **Example**: If triggered at 1:45, aggregates 12:30-1:30
 
 #### Aggregation Flow
-```
-HydratedMetrics → Resource Grouping → Time Windowing → Aggregation → AggregatedUsage
+
+**Detailed Process Flow**:
+
+```mermaid
+graph TD
+    Start[ProcessBillingMetrics Called] --> Lock{Acquire Advisory Lock}
+    Lock -->|Acquired| FetchResource[Fetch Resource Data from VCP DB]
+    Lock -->|Held by Another| Skip[Skip Execution, Return]
+    Lock -->|Failed| Error[Return Error]
+    
+    FetchResource --> FetchRetry[Fetch Retry Records]
+    FetchRetry --> LoopStart[For Each Job Definition]
+    
+    LoopStart --> FetchMetrics{Fetch Metrics}
+    FetchMetrics -->|Counter/Integral| FetchExtended[Fetch Window + Previous Period]
+    FetchMetrics -->|Other| FetchWindow[Fetch Current Window Only]
+    
+    FetchExtended --> Group[Group Metrics by ResourceKey]
+    FetchWindow --> Group
+    
+    Group --> ProcessResource[For Each Resource Group]
+    ProcessResource --> ApplyFunc{Apply Aggregation Function}
+    
+    ApplyFunc -->|Integral| CalcIntegral[Calculate Integral]
+    ApplyFunc -->|Counter| CalcCounter[Calculate Counter Delta]
+    ApplyFunc -->|Sum| CalcSum[Calculate Sum]
+    ApplyFunc -->|First| GetFirst[Get First Value]
+    
+    CalcIntegral --> Enrich[Enrich with Resource Metadata]
+    CalcCounter --> Enrich
+    CalcSum --> Enrich
+    GetFirst --> Enrich
+    
+    Enrich --> CreateRecord[Create AggregatedUsage Record]
+    CreateRecord --> NextResource{More Resources?}
+    NextResource -->|Yes| ProcessResource
+    NextResource -->|No| NextJob{More Job Definitions?}
+    
+    NextJob -->|Yes| LoopStart
+    NextJob -->|No| BatchSave[Batch Save to Database]
+    
+    BatchSave --> Combine[Combine New + Retry Records]
+    Combine --> Deliver[Deliver to Service Control API]
+    Deliver --> UpdateState[Update Record States]
+    UpdateState --> RecordMetrics[Record Prometheus Metrics]
+    RecordMetrics --> ReleaseLock[Release Advisory Lock]
+    ReleaseLock --> End[Complete]
 ```
 
 ### 3.5 Sink Module
@@ -200,88 +821,271 @@ HydratedMetrics → Resource Grouping → Time Windowing → Aggregation → Agg
 - **Format**: Cloud Monitoring time series
 
 #### Usage Sink (GoogleUsageSink)
-- **Target**: Google Cloud Billing
+- **Target**: Google Cloud Billing (Service Control API)
 - **Data**: Aggregated usage for billing
 - **Features**:
-  - Batch processing for efficiency
-  - Validation and filtering
-  - Error handling and retry logic
-  - Billing label management
+  - Batch processing for efficiency (configurable `OPERATION_BATCH_SIZE`, default 200)
+  - Validation and filtering (skips records with missing project ID/number)
+  - Error handling and retry logic (configurable `MAX_GOOGLE_BILLING_PUSH_RETRY`, default 5)
+  - Billing label management (max 64 labels per record, configurable via `GOOGLE_BILLING_LABELS_MAX_ENTRIES`)
+  - Returns count of successfully sent records
+
+#### BizOps Sink
+- **Files**: `telemetry/bizops/sink/`
+- **Targets**: Google Cloud Storage (GCS) or Terminal (for testing)
+- **Data**: Business operations reports
+- **Features**:
+  - Multiple sink implementations (GCS, Terminal)
+  - Report generation with configurable time ranges and timezones
+  - CSV format output
 
 ## 4. Data Models
 
 ### 4.1 HydratedMetrics
+
+**File**: `telemetry/datamodel/telemetry_models.go`  
+**Purpose**: Stores raw metrics collected from various sources before aggregation. This is the intermediate data model that contains individual metric data points.
+
+**Database Table**: `hydrated_metrics`
+
+**Complete Structure**:
 ```go
 type HydratedMetrics struct {
-    ID              int64
-    MetricTimestamp time.Time
-    MeasuredType    metadata.MeasuredType
-    ResourceType    metadata.ResourceType
-    Quantity        float64
-    ResourceName    string
-    ConsumerID      string
-    Location        string
-    Metadata        []byte
-    DeploymentName  string
+    ID              int64                 // Primary key, auto-increment
+    MetricTimestamp time.Time             // Timestamp when metric was collected (indexed)
+    MeasuredType    metadata.MeasuredType // Type of measurement (e.g., AllocatedSize, BackupLogicalSize) (indexed)
+    ResourceType    metadata.ResourceType // Type of resource (e.g., Volume, Pool, Backup) (indexed)
+    Quantity        float64               // Metric value (e.g., bytes, IOPS, throughput)
+    ResourceName    string                // Name of the resource (e.g., "volume-123") (indexed)
+    ConsumerID      string                // Account/customer identifier (indexed)
+    Location        string                // Geographic location/region (e.g., "us-west1") (indexed)
+    Metadata        []byte                // Additional metadata in JSONB format
+    DeploymentName  string                // Deployment identifier (indexed)
 }
 ```
 
+**Indexes**: 
+- Composite indexes on `(resource_type, measured_type)` for efficient aggregation queries
+- Indexes on `metric_timestamp` for time-range queries
+- Indexes on `resource_name`, `consumer_id`, `location`, `deployment_name` for filtering
+
+**Usage**:
+- Populated by collectors (Pool, Volume, Backup, Volume Replication)
+- Stored in batches for efficiency
+- Queried by aggregator for time-windowed aggregation
+- Source data for generating `AggregatedUsage` records
+
 ### 4.2 AggregatedUsage
+
+**File**: `telemetry/datamodel/telemetry_models.go`  
+**Purpose**: Stores aggregated billing records ready for delivery to Google Cloud Billing. Contains enriched data with resource metadata and billing information.
+
+**Database Table**: `aggregated_usage`
+
+**Complete Structure**:
 ```go
 type AggregatedUsage struct {
-    ID                     int64
-    VendorCustomerID       *string
-    AggregationEnd         time.Time
-    AggregationStart       time.Time
-    MeasuredType           metadata.MeasuredType
-    Quantity               float64
-    ResourceName           *string
-    ResourceType           metadata.ResourceType
-    AggregationType        string
-    State                  TrackingState
-    // ... additional billing fields
+    // Primary Key
+    ID                     int64                 // Primary key, auto-increment
+    
+    // Resource Identification
+    ResourceUUID           string                // UUID of the resource (indexed)
+    ResourceName           *string               // Name of the resource (indexed)
+    ResourceType           metadata.ResourceType // Type of resource (indexed)
+    AccountID              string                // Account ID (indexed)
+    VendorCustomerID       *string               // Customer identifier for billing (indexed)
+    
+    // Aggregation Window
+    AggregationStart       time.Time             // Start of aggregation window (indexed)
+    AggregationEnd         time.Time             // End of aggregation window (indexed)
+    
+    // Metric Information
+    MeasuredType           metadata.MeasuredType // Type of measurement (indexed)
+    Quantity               float64               // Aggregated quantity (in MiB for most metrics)
+    AggregationType        string                // Aggregation method used (IntegralAggregation, CounterAggregation, etc.)
+    LastCounterValue       *float64              // Last counter value (for counter metrics)
+    
+    // Geographic Information
+    RegionName             *string               // Primary region (indexed)
+    SourceRegion           *string               // Source region (for replication)
+    DestinationRegion      *string               // Destination region (for replication/backup)
+    
+    // Billing Metadata
+    BillingLabels          *string               // JSONB string of billing labels (max 64 labels)
+    IsBillable             bool                  // Whether this metric is billable
+    ServiceLevel           string                // Service level (e.g., "1", "2", "3" for replication schedules)
+    
+    // Replication-Specific Fields
+    ReplicationDstVolumeID *string               // Destination volume UUID for replication
+    ReplicationType        string                // Type of replication (e.g., "async", "sync")
+    
+    // Volume-Specific Fields
+    VolumeStyle            string                // Volume style/type
+    DoubleEncryption       *bool                 // Whether double encryption is enabled
+    
+    // State Tracking
+    State                  TrackingState         // Current state (Unsubmitted, Submitted, Error, Ignored, Invalid)
+    ErrorCount             int32                 // Number of delivery attempts that failed
+    ErrorMessage           *string               // Last error message (if any)
+    Submission             *string               // JSONB string of submission details
+    
+    // Metadata
+    IsUnified              bool                  // Whether this is a unified service type
+    CreatedAt              time.Time             // Record creation timestamp
+    UpdatedAt              time.Time             // Record last update timestamp
 }
 ```
+
+
+**TrackingState Enum**:
+```go
+type TrackingState int32
+
+const (
+    Unsubmitted TrackingState = iota  // Not yet submitted to Google Cloud Billing
+    Submitted                          // Successfully submitted
+    Error                              // Submission failed (will retry)
+    Ignored                            // Record ignored (not billable or invalid)
+    Invalid                            // Record is invalid and won't be retried
+)
+```
+
+**Indexes**:
+- Composite indexes on `(resource_type, measured_type)` for efficient queries
+- Indexes on `aggregation_start`, `aggregation_end` for time-range queries
+- Indexes on `state`, `is_billable` for retry logic queries
+- Indexes on `resource_uuid`, `account_id`, `vendor_customer_id`, `region_name` for filtering
+
+**Usage**:
+- Created by aggregator from `HydratedMetrics`
+- Stored in database for persistence and retry logic
+- Delivered to Google Cloud Billing via Service Control API
+- State tracked for retry mechanism (up to `MAX_GOOGLE_BILLING_PUSH_RETRY` attempts)
+
+### 4.3 Job
+
+**File**: `telemetry/datamodel/telemetry_models.go`  
+**Purpose**: Represents a job in the PostgreSQL-based job queue system.
+
+**Database Table**: `jobs`
+
+**Structure**:
+```go
+type Job struct {
+    ID          int64     // Primary key, auto-increment
+    TypeName    string    // Job type identifier (e.g., "ProcessPerformanceMetrics")
+    Status      string    // Job status: "new", "processing", "finished", "failed"
+    Queue       string    // Queue name: "performance", "usage", "collection", "bizops"
+    Data        string    // JSON-encoded job payload
+    Error       string    // Error message (if failed)
+    Attempt     int32     // Number of execution attempts (max 3)
+    CreatedAt   time.Time // When job was created
+    StartedAt   time.Time // When job execution started
+    FinishedAt  time.Time // When job execution completed
+    ScheduledAt time.Time // When job should be executed (for delayed jobs)
+}
+```
+
+**Indexes**:
+- Composite index on `(queue, status)` for efficient job dequeueing
+- Index on `scheduled_at` for scheduled job queries
+- Index on `type_name` for job type filtering
+
 
 ## 5. Queue System
 
 ### 5.1 Queue Types
-- **PerformanceQueue**: Handles performance metric processing
-- **UsageQueue**: Manages billing aggregation jobs
-- **CollectionQueue**: Processes metric collection tasks
+- **PerformanceQueue** (`"performance"`): Handles performance metric processing
+- **UsageQueue** (`"usage"`): Manages billing aggregation jobs
+- **CollectionQueue** (`"collection"`): Processes metric collection tasks (per-project volume metrics)
+- **BizOpsReportQueue** (`"bizops"`): Handles BizOps report generation
 
 ### 5.2 Worker Architecture
-- Multiple workers per queue type
-- Configurable worker count via `telemetryConfig.NumWorkers`
+- Multiple workers per queue type (configurable independently)
+- Configurable worker counts:
+  - `NUM_WORKERS_PERFORMANCE` (default: 10)
+  - `NUM_WORKERS_USAGE` (default: 1)
+  - `NUM_WORKERS_COLLECTION` (default: 10)
+  - `NUM_WORKERS_BIZOPS` (default: 10)
 - Background job processing with PostgreSQL-based queue
-- Automatic retry and error handling
+- Automatic retry and error handling (max 3 retries)
+- Thread-safe job type registry using `sync.RWMutex`
+- Job status tracking: `new` → `processing` → `finished` or `failed`
 
 ### 5.3 Job Processing
 ```go
 // Performance metrics job
-&jobs.ProcessPerformanceMetrics{}
+&jobs.ProcessPerformanceMetrics{
+    Data: "{}",
+    CorrelationID: "uuid-string", // Optional, for request tracing
+}
 
 // Usage metrics job  
-&jobs.ProcessUsageMetrics{}
+&jobs.ProcessUsageMetrics{
+    Data: "{}",
+    CorrelationID: "uuid-string",
+}
 
-// Collection job
-&jobs.CollectMetrics{}
+// Collection job (per-project)
+&jobs.CollectMetrics{
+    Data: `{"project_id": "project-id", "timestamp": "2024-01-01T00:00:00Z"}`,
+    CorrelationID: "uuid-string",
+}
+
+// BizOps report job
+&jobs.BizOpsReport{
+    Data: `{"start_date": "...", "end_date": "...", "timezone": "..."}`,
+    CorrelationID: "uuid-string",
+}
 ```
+
+### 5.4 Job Queue Features
+- **Batch Enqueue**: `EnqueueBatch()` for efficient bulk job submission
+- **Scheduled Jobs**: `EnqueueAt()` for delayed execution
+- **Distributed Locking**: Uses `FOR UPDATE SKIP LOCKED` to prevent multiple workers from picking the same job
+- **Status Management**: Jobs transition through states: `new` → `processing` → `finished`/`failed`
+- **Polling**: Configurable polling interval (default: 1 second)
 
 ## 6. Configuration
 
 ### 6.1 Telemetry Configuration
 - **File**: `telemetry/common/config.go`
 - **Environment Variables**:
-  - `ENABLE_VOLUME_METRICS`: Feature flag for volume metrics
-  - `ENABLE_BACKUP_METRICS`: Feature flag for backup metrics
-  - `PUSH_BATCH_SIZE`: Batch size for database operations
-  - `NUM_WORKERS`: Number of background workers
+  - **Feature Flags**:
+    - `ENABLE_VOLUME_METRICS`: Enable volume metrics collection from Google Cloud Monitoring (default: false)
+    - `ENABLE_BACKUP_METRICS`: Enable backup metrics for performance monitoring (default: false)
+    - `ENABLE_BACKUP_BILLING_METRICS`: Enable backup metrics for billing aggregation (default: false)
+    - `ENABLE_REPLICATION_BILLING_METRICS`: Enable replication metrics for billing (default: false)
+    - `ENABLE_BATCH_USAGE_UPDATES`: Enable batch updates for aggregated usage records (default: false)
+  - **Performance**:
+    - `PUSH_BATCH_SIZE`: Batch size for database operations (default: 1000)
+    - `OPERATION_BATCH_SIZE`: Batch size for Service Control API operations (default: 200)
+    - `PAGE_SIZE`: Page size for Google Cloud Monitoring API pagination (default: 1000)
+    - `POOL_VOLUME_LABEL_PAGE_SIZE`: Page size for fetching pool/volume labels (default: 5000)
+    - `RESULT_UPDATE_BATCH_SIZE`: Batch size for updating aggregated usage results (default: 100)
+  - **Workers**:
+    - `NUM_WORKERS_PERFORMANCE`: Number of performance metric workers (default: 10)
+    - `NUM_WORKERS_USAGE`: Number of usage/billing workers (default: 1)
+    - `NUM_WORKERS_COLLECTION`: Number of collection workers (default: 10)
+    - `NUM_WORKERS_BIZOPS`: Number of BizOps report workers (default: 10)
+  - **Service Configuration**:
+    - `ROOT_URL`: Service Control API root URL (default: "https://servicecontrol.googleapis.com")
+    - `PUSHER_SERVICE_NAME`: Service name for billing (default: "autopush-netapp.sandbox.googleapis.com")
+    - `PUSHER_SERVICE_PROJECT`: GCP project for billing (default: "netapp-au-se1-autopush-sde-tst")
+    - `LOCAL_REGION`: Local region name
+    - `ENVIRONMENT`: Environment name (default: "dev")
+  - **Billing**:
+    - `MAX_GOOGLE_BILLING_PUSH_RETRY`: Max retries for billing submissions (default: 5)
+    - `GOOGLE_BILLING_LABELS_MAX_ENTRIES`: Max labels per billing record (default: 64)
+  - **Debugging**:
+    - `ENABLE_PPROF`: Enable pprof endpoints at `/debug/pprof/` (default: false)
+    - `RUN_MIGRATION_ON_START`: Run database migrations on startup (default: false)
 
 ### 6.2 Database Configuration
-- **VCP Database**: Core application data
-- **Metrics Database**: Telemetry-specific data storage
-- **Connection Pooling**: Configurable pool sizes and timeouts
+- **VCP Database**: Core application data (pools, volumes, backups, accounts)
+- **Metrics Database**: Telemetry-specific data storage (hydrated_metrics, aggregated_usage, jobs)
+- **Connection Pooling**: Configurable pool sizes and timeouts (via common database connection utilities)
+- **Separate Connections**: VCP and Metrics databases use separate connection pools
 
 ## 7. Scheduling and Automation
 
@@ -305,13 +1109,27 @@ type AggregatedUsage struct {
 
 ### 8.1 Metrics Exposure
 - **Prometheus Endpoint**: `/metrics`
-- **Custom Metrics**: Processing times, error rates, queue depths
+- **Custom Metrics**: 
+  - Aggregator metrics (see `telemetry/aggregator/METRICS.md`):
+    - Aggregation status (success/failure/skipped)
+    - Records saved, quantity aggregated (by resource type, measured type, aggregation type)
+    - Records sent to ServiceControl, quantity sent (by resource type, measured type, aggregation type)
+    - Lock attempts (acquired/skipped/failed)
+    - Records retried, skipped, hydrated metrics fetched
+    - Resource data fetched (by resource type)
+    - Batch sizes, aggregation duration
+  - Processing times, error rates, queue depths
 - **Health Checks**: Database connectivity, external API availability
+- **Performance Profiling**: pprof endpoints available when `ENABLE_PPROF=true`
 
-### 8.1 Logging
+### 8.2 Logging
 - **Structured Logging**: JSON format with correlation IDs
 - **Log Levels**: Debug, Info, Warn, Error
-- **Context Propagation**: Request tracing across components
+- **Context Propagation**: Request tracing across components via correlation IDs
+- **Correlation ID Flow**: 
+  - Generated at API entry point if not provided
+  - Propagated through job queue to background workers
+  - Included in all log entries for request tracing
 
 ### 8.3 Error Handling
 - **Graceful Degradation**: Continue processing on partial failures
@@ -346,388 +1164,388 @@ type AggregatedUsage struct {
 ## 11. Data Flow Diagrams
 
 ### 11.1 Performance Metrics Flow
-```
-Cloud Scheduler → API Endpoint → Queue → Worker → Collector → Processor → Sink → Google Cloud Monitoring
-                                                     ↓
-                                                 Database
+
+This sequence diagram shows the complete flow of performance metrics from Cloud Scheduler trigger to Google Cloud Monitoring delivery.
+
+```mermaid
+sequenceDiagram
+    participant Scheduler as Cloud Scheduler
+    participant API as API Endpoint<br/>(/v1/performance)
+    participant Queue as Job Queue<br/>(Performance Queue)
+    participant Worker as Worker
+    participant Processor as Metrics Processor
+    participant Collector as Collector
+    participant DB as Database<br/>(hydrated_metrics)
+    participant Sink as Performance Sink<br/>(GoogleSink)
+    participant GCM as Google Cloud<br/>Monitoring
+    
+    Note over Scheduler,GCM: Performance Metrics Collection & Delivery Flow
+    
+    Scheduler->>API: HTTP POST (trigger)
+    activate API
+    API->>API: Generate/Extract Correlation ID
+    API->>Queue: Enqueue ProcessPerformanceMetrics Job
+    activate Queue
+    Queue-->>API: Job Enqueued
+    deactivate Queue
+    API-->>Scheduler: 202 Accepted (non-blocking)
+    deactivate API
+    
+    Note over Worker,Processor: Background Processing (Async)
+    
+    Worker->>Queue: Dequeue Job (FOR UPDATE SKIP LOCKED)
+    activate Worker
+    Queue-->>Worker: Job Retrieved
+    Worker->>Worker: Update Status: "processing"
+    Worker->>Processor: ProcessPerformanceMetrics(ctx)
+    activate Processor
+    
+    Note over Processor: Main Collection Goroutine
+    
+    Processor->>Processor: Create Async Context<br/>(with Correlation ID)
+    Processor->>Collector: collectAndProcessMetrics()
+    activate Collector
+    
+    Collector->>Collector: GetPoolMetrics()<br/>(from VCP DB)
+    Collector->>Collector: GetBackupMetrics()<br/>(if enabled, with pagination)
+    Collector->>Collector: GetVolumeMetrics()<br/>(from VCP DB)
+    
+    Collector-->>Processor: allHydratedMetricsDataModel<br/>allHydratedMetrics
+    deactivate Collector
+    
+    Processor->>DB: CreateHydratedMetricsBatch()<br/>(batch insert, configurable size)
+    activate DB
+    DB-->>Processor: Metrics Stored
+    deactivate DB
+    
+    Processor->>Sink: DeliverMetrics(allHydratedMetrics)
+    activate Sink
+    Sink->>Sink: FilterAndConvertToGoogleMetrics()<br/>(validate & convert)
+    Sink->>GCM: ReportMetrics()<br/>(async, with goroutines)
+    activate GCM
+    GCM-->>Sink: Response
+    deactivate GCM
+    Sink-->>Processor: Valid Metrics Count
+    deactivate Sink
+    
+    Processor-->>Worker: Complete (async goroutine)
+    deactivate Processor
+    
+    Note over Worker: Raw Volume Metrics (if enabled)
+    
+    alt EnableVolumeMetrics = true
+        Processor->>Processor: processRawMetrics()<br/>(separate goroutine)
+        activate Processor
+        Processor->>Collector: CollectProjectMetrics()<br/>(per project, via CollectionQueue)
+        Processor->>DB: CreateHydratedMetricsBatch()<br/>(raw volume metrics)
+        Processor-->>Processor: Complete
+        deactivate Processor
+    end
+    
+    Worker->>Worker: Update Status: "finished"
+    Worker-->>Queue: Job Complete
+    deactivate Worker
 ```
 
-### 11.2 Usage Metrics Flow
+**Key Points**:
+- **Non-blocking API**: Returns 202 Accepted immediately, all processing happens asynchronously
+- **Correlation ID**: Propagated through entire flow for request tracing
+- **Batch Processing**: Metrics stored in configurable batches (default 1000)
+- **Parallel Execution**: Main collection and raw volume metrics run in separate goroutines
+- **Error Handling**: Errors logged but don't affect API response
+- **Database Storage**: All metrics stored in `hydrated_metrics` table for later aggregation
+- **Sink Delivery**: Metrics delivered to Google Cloud Monitoring asynchronously
+
+### 11.2 Usage Metrics Flow (Billing Aggregation)
+
+This sequence diagram shows the complete flow of usage metrics from Cloud Scheduler trigger through aggregation to Google Cloud Billing delivery.
+
+```mermaid
+sequenceDiagram
+    participant Scheduler as Cloud Scheduler
+    participant API as API Endpoint<br/>(/v1/usage)
+    participant Queue as Job Queue<br/>(Usage Queue)
+    participant Worker as Worker
+    participant Processor as Metrics Processor
+    participant Aggregator as Billing Provider<br/>(Aggregator)
+    participant DB as Database<br/>(PostgreSQL)
+    participant UsageSink as Usage Sink<br/>(GoogleUsageSink)
+    participant SC as Google Service<br/>Control API
+    
+    Note over Scheduler,SC: Billing Aggregation & Delivery Flow
+    
+    Scheduler->>+API: HTTP POST (trigger)
+    API->>API: Generate/Extract Correlation ID
+    API->>+Queue: Enqueue ProcessUsageMetrics Job
+    Queue-->>-API: Job Enqueued
+    API-->>-Scheduler: 202 Accepted
+    
+    Worker->>+Queue: Dequeue Job (FOR UPDATE SKIP LOCKED)
+    Queue-->>-Worker: Job Retrieved
+    activate Worker
+    Worker->>Worker: Update Status: "processing"
+    Worker->>+Processor: ProcessUsageMetrics(ctx)
+    
+    Note over Processor: Calculate Aggregation Window<br/>(endTime = now - 15min)
+    
+    Processor->>+Aggregator: ProcessBillingMetrics(aggregationEndTime)
+    
+    Note over Aggregator: Distributed Locking
+    
+    Aggregator->>+DB: pg_try_advisory_lock(BILLING_KEY)
+    DB-->>-Aggregator: Lock Result
+    
+    alt Lock Acquired
+        Note over Aggregator: Lock Acquired - Continue Processing
+        
+        Note over Aggregator: Resource Data Collection
+        
+        Aggregator->>+DB: fetchResourceData()<br/>(pools, volumes, backups, replications)
+        Note over DB: Parallel fetching with pagination<br/>(POOL_VOLUME_LABEL_PAGE_SIZE)
+        DB-->>-Aggregator: ResourceCollection<br/>(metadata, labels, account info)
+        
+        Note over Aggregator: Retry Record Fetching
+        
+        Aggregator->>+DB: getUnsentGoogleUsages()<br/>(error_count < MAX_RETRY)
+        DB-->>-Aggregator: Failed Records (for retry)
+        
+        Note over Aggregator: Job Definition Loop<br/>(per resource/measurement type)
+        
+        loop For each AggregationJobDefinition
+            Aggregator->>Aggregator: Determine Fetch Strategy<br/>(Counter/Integral vs Others)
+            
+            alt Counter/Integral Aggregation
+                Aggregator->>+DB: Fetch metrics from window<br/>+ Latest before window
+                DB-->>-Aggregator: Metrics + Previous Value
+            else Sum/First Aggregation
+                Aggregator->>+DB: Fetch metrics from window only
+                DB-->>-Aggregator: Metrics
+            end
+            
+            Aggregator->>Aggregator: groupMetricsByResource()<br/>(by ResourceKey)
+            
+            loop For each Resource
+                Aggregator->>Aggregator: processMetricsWithJobDef()<br/>- Apply aggregation function<br/>- Get resource metadata<br/>- Enrich with labels<br/>- Create AggregatedUsage
+                Aggregator->>Aggregator: Append to aggregatedRecords
+            end
+        end
+        
+        Note over Aggregator: Batch Save to Database
+        
+        Aggregator->>+DB: CreateAggregatedUsageBatch()<br/>(batch size: PUSH_BATCH_SIZE)
+        DB-->>-Aggregator: Records Saved
+        
+        Aggregator->>Aggregator: RecordRecordsSaved()<br/>RecordQuantityAggregated()
+        
+        Note over Aggregator: Delivery to Google Cloud Billing
+        
+        Aggregator->>+UsageSink: DeliverMetrics(aggregatedRecords)
+        
+        UsageSink->>UsageSink: filterValidUsage()<br/>(validate project ID/number)
+        UsageSink->>UsageSink: completeRecords()<br/>(convert units, validate)
+        
+        UsageSink->>UsageSink: processGcpUnifiedMetrics()<br/>(batch size: OPERATION_BATCH_SIZE)
+        
+        loop For each batch
+            UsageSink->>+SC: ReportUsage()<br/>(Service Control API)
+            SC-->>UsageSink: Response
+            deactivate SC
+            alt Success
+                UsageSink->>+DB: Update State: "Submitted"
+                DB-->>-UsageSink: Updated
+            else Failure
+                UsageSink->>+DB: Update State: "Error"<br/>Increment ErrorCount
+                DB-->>-UsageSink: Updated
+            end
+        end
+        
+        UsageSink-->>-Aggregator: Sent Count
+        
+        Aggregator->>Aggregator: RecordRecordsSentToServiceControl()<br/>RecordQuantitySentToServiceControl()
+        
+        Note over Aggregator: Release Lock
+        
+        Aggregator->>+DB: pg_advisory_unlock(BILLING_KEY)
+        DB-->>-Aggregator: Lock Released
+        
+        Aggregator->>Aggregator: RecordAggregationSuccess()<br/>(or RecordAggregationFailure())
+        
+    else Lock Not Acquired
+        Note over Aggregator: Lock Failed (another instance running)
+        Aggregator->>Aggregator: RecordAggregationSkipped()
+    end
+    
+    Aggregator-->>-Processor: Complete
+    Processor-->>-Worker: Complete
+    
+    Worker->>Worker: Update Status: "finished"
+    Worker-->>Queue: Job Complete
+    deactivate Worker
 ```
-Cloud Scheduler → API Endpoint → Queue → Worker → Aggregator → Usage Sink → Google Cloud Billing
-                                                     ↓
-                                                 Database
+
+**Key Points**:
+- **Distributed Locking**: PostgreSQL advisory lock ensures only one aggregator instance runs across all pods
+- **15-Minute Offset**: Aggregation window ends 15 minutes before current time to avoid missing samples
+- **Resource Data Fetching**: Metadata fetched at start of cycle with pagination for large datasets
+- **Retry Logic**: Previously failed records are included in delivery batch (up to MAX_RETRY attempts)
+- **Job Definition Loop**: Processes each resource/measurement type combination separately
+- **Fetch Strategies**: Counter/Integral aggregations fetch previous value for delta calculation
+- **Resource Grouping**: Metrics grouped by ResourceKey (ResourceType, ResourceName, DeploymentName, ConsumerID)
+- **Batch Processing**: Both database saves and Service Control API calls use configurable batch sizes
+- **State Management**: Records track state (Unsubmitted → Submitted/Error) for retry mechanism
+- **Metrics Recording**: Comprehensive Prometheus metrics emitted for observability
+
+### 11.3 BizOps Report Generation Flow
+
+This sequence diagram shows the complete flow of BizOps report generation from API request through data aggregation to sink delivery (GCS or Terminal).
+
+```mermaid
+sequenceDiagram
+    participant Client as Client/API Caller
+    participant API as API Endpoint<br/>(/v1/generate-report)
+    participant Queue as Job Queue<br/>(BizOps Queue)
+    participant Worker as Worker
+    participant Processor as Metrics Processor
+    participant BizOpsProvider as BizOps Provider
+    participant VCPDB as VCP Database
+    participant MetricsDB as Metrics Database<br/>(PostgreSQL)
+    participant Pipe as io.Pipe<br/>(Reader/Writer)
+    participant Sink as BizOps Sink<br/>(GCS/Terminal)
+    
+    Note over Client,Sink: BizOps Report Generation Flow
+    
+    Client->>API: HTTP POST (with params:<br/>startDate, timezone, sinkType)
+    activate API
+    API->>API: Parse & Validate Parameters<br/>(timezone: UTC/PST, default dates)
+    API->>Queue: Enqueue BizOpsReport Job
+    activate Queue
+    Queue-->>API: Job Enqueued
+    deactivate Queue
+    API-->>Client: 202 Accepted
+    deactivate API
+    
+    Worker->>Queue: Dequeue Job (FOR UPDATE SKIP LOCKED)
+    activate Worker
+    Queue-->>Worker: Job Retrieved
+    Worker->>Worker: Update Status: "processing"
+    Worker->>Processor: ProcessBizOps(ctx, params)
+    activate Processor
+    
+    Processor->>BizOpsProvider: ProcessBizOps(ctx, logger, params)
+    activate BizOpsProvider
+    
+    Note over BizOpsProvider: Validate Sink Type<br/>(GCS or Terminal)
+    
+    BizOpsProvider->>BizOpsProvider: validateAndGetSink(sinkType)
+    
+    Note over BizOpsProvider: Fetch Account Information
+    
+    loop Paginated Account Fetching
+        BizOpsProvider->>VCPDB: GetAccounts(pagination)<br/>(BIZOPS_ACCOUNT_PAGINATION_LIMIT)
+        activate VCPDB
+        VCPDB-->>BizOpsProvider: Accounts (with state)
+        deactivate VCPDB
+        BizOpsProvider->>BizOpsProvider: prepareAccountInfo()<br/>(convert to AccountInfo format)
+    end
+    
+    BizOpsProvider->>BizOpsProvider: GetContinentMap()<br/>(from GOOGLE_CONTINENTS env)
+    
+    Note over BizOpsProvider: Create Pipe for Streaming
+    
+    BizOpsProvider->>Pipe: io.Pipe()
+    activate Pipe
+    Note over Pipe: Creates Reader/Writer pair<br/>for streaming data
+    
+    Note over BizOpsProvider: Prepare Aggregation Parameters
+    
+    BizOpsProvider->>BizOpsProvider: Create BizOpsAggregateParams<br/>(accountsInfo, continentMap,<br/>region, dateRange, writer)
+    
+    Note over BizOpsProvider: Prepare Sink Parameters
+    
+    BizOpsProvider->>BizOpsProvider: Create BizopsSinkParams<br/>(reader, region, date, timezone)
+    
+    Note over BizOpsProvider: Parallel Processing (2 Goroutines)
+    
+    par Aggregation Goroutine
+        BizOpsProvider->>MetricsDB: AggregateUsageForBizOps(ctx, params)
+        activate MetricsDB
+        Note over MetricsDB: Query aggregated_usage table<br/>Group by account, region, resource type<br/>Calculate totals per account
+        MetricsDB->>Pipe: Write CSV data (streaming)
+        activate Pipe
+        Note over Pipe: CSV format:<br/>Account, Region, Resource Type,<br/>Quantity, etc.
+        Pipe-->>MetricsDB: Write Complete
+        deactivate Pipe
+        MetricsDB-->>BizOpsProvider: Aggregation Complete
+        deactivate MetricsDB
+    and Sink Ingestion Goroutine
+        BizOpsProvider->>Sink: Ingest(ctx, sinkParams)
+        activate Sink
+        Sink->>Pipe: Read CSV data (streaming)
+        activate Pipe
+        Note over Pipe: Streams data as it's written
+        Pipe-->>Sink: CSV Rows
+        alt Sink Type: GCS
+            Sink->>Sink: Upload to GCS bucket<br/>(with region/date path)
+            Note over Sink: File: bizops-report-{region}-{date}.csv
+        else Sink Type: Terminal
+            Sink->>Sink: Write to stdout/terminal
+        end
+        Pipe-->>Sink: EOF (end of stream)
+        deactivate Pipe
+        Sink-->>BizOpsProvider: Ingestion Complete
+        deactivate Sink
+    end
+    
+    Note over BizOpsProvider: Wait for Both Goroutines
+    
+    BizOpsProvider->>BizOpsProvider: Wait for error channel<br/>(collect errors from both goroutines)
+    
+    BizOpsProvider->>BizOpsProvider: Close pipe reader/writer
+    
+    deactivate Pipe
+    
+    alt Success
+        BizOpsProvider-->>Processor: Complete (no errors)
+    else Error
+        BizOpsProvider-->>Processor: Error (from aggregation or sink)
+    end
+    deactivate BizOpsProvider
+    
+    Processor-->>Worker: Complete
+    deactivate Processor
+    
+    Worker->>Worker: Update Status: "finished"
+    Worker-->>Queue: Job Complete
+    deactivate Worker
 ```
+
+**Key Points**:
+- **Non-blocking API**: Returns 202 Accepted immediately, processing happens asynchronously
+- **Parameter Validation**: Validates timezone (UTC/PST), sets default dates if not provided
+- **Account Fetching**: Paginated fetching of all accounts from VCP database with state information
+- **Streaming Architecture**: Uses `io.Pipe()` for efficient streaming of large datasets without loading into memory
+- **Parallel Processing**: Two goroutines run concurrently:
+  - **Aggregation Goroutine**: Queries database and writes CSV to pipe
+  - **Sink Goroutine**: Reads from pipe and writes to destination (GCS or Terminal)
+- **Error Handling**: Both goroutines report errors via channel, all errors collected and returned
+- **Sink Types**: Supports GCS (uploads to bucket) and Terminal (writes to stdout)
+- **CSV Format**: Report includes account, region, resource type, quantities, and other aggregated metrics
+- **Resource Efficient**: Streaming approach handles large datasets without memory issues
 
 ## 12. Low-Level Design Details
 
-### 12.1 Database Schema Design
+For detailed low-level design specifications, including complete database schemas, job queue implementation details, aggregation algorithms, performance optimizations, and security mechanisms, please refer to the dedicated [Low-Level Design Document](./0018-telemetry-low-level-design.md).
 
-#### 12.1.1 Jobs Table
-```sql
-CREATE TABLE jobs (
-    id BIGSERIAL PRIMARY KEY,
-    type_name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'new',
-    queue TEXT NOT NULL,
-    data TEXT NOT NULL,
-    error TEXT,
-    attempt INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    started_at TIMESTAMP,
-    finished_at TIMESTAMP,
-    scheduled_at TIMESTAMP
-);
-
--- Indexes for performance
-CREATE INDEX idx_jobs_queue_status ON jobs(queue, status);
-CREATE INDEX idx_jobs_scheduled_at ON jobs(scheduled_at);
-CREATE INDEX idx_jobs_type_name ON jobs(type_name);
-```
-
-#### 12.1.2 HydratedMetrics Table
-```sql
-CREATE TABLE hydrated_metrics (
-    id BIGSERIAL PRIMARY KEY,
-    metric_timestamp TIMESTAMP NOT NULL,
-    measured_type VARCHAR(100) NOT NULL,
-    resource_type VARCHAR(100) NOT NULL,
-    quantity DOUBLE PRECISION NOT NULL,
-    resource_name VARCHAR(255),
-    consumer_id VARCHAR(255),
-    location VARCHAR(255),
-    metadata JSONB,
-    deployment_name VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes for efficient querying
-CREATE INDEX idx_hydrated_metrics_timestamp ON hydrated_metrics(metric_timestamp);
-CREATE INDEX idx_hydrated_metrics_resource_measured ON hydrated_metrics(resource_type, measured_type);
-CREATE INDEX idx_hydrated_metrics_consumer ON hydrated_metrics(consumer_id);
-```
-
-#### 12.1.3 AggregatedUsage Table
-```sql
-CREATE TABLE aggregated_usage (
-    id BIGSERIAL PRIMARY KEY,
-    vendor_customer_id VARCHAR(255),
-    aggregation_end TIMESTAMP NOT NULL,
-    aggregation_start TIMESTAMP NOT NULL,
-    measured_type VARCHAR(100) NOT NULL,
-    quantity DOUBLE PRECISION NOT NULL,
-    resource_name VARCHAR(255),
-    resource_type VARCHAR(100) NOT NULL,
-    aggregation_type VARCHAR(100) NOT NULL,
-    last_counter_value DOUBLE PRECISION,
-    state INTEGER DEFAULT 0,
-    error_count INTEGER DEFAULT 0,
-    error_message TEXT,
-    is_billable BOOLEAN DEFAULT false,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### 12.2 Job Queue Implementation
-
-#### 12.2.1 Queue Architecture
-The PostgreSQL-based job queue provides:
-
-```go
-type JobQueue struct {
-    db           *sql.DB
-    processor    interface{}
-    mutex        sync.Mutex
-    typeRegistry map[string]reflect.Type
-}
-```
-
-**Key Features:**
-- **SKIP LOCKED**: Prevents worker conflicts using PostgreSQL's SKIP LOCKED
-- **Type Registry**: Dynamic job type registration using reflection
-- **Transactional Safety**: All operations wrapped in database transactions
-- **Retry Logic**: Automatic retry with configurable max attempts (3)
-
-#### 12.2.2 Job Processing Flow
-```go
-// 1. Enqueue Job
-func (j *JobQueue) Enqueue(ctx context.Context, job Job, queue string) error {
-    typeName := j.typeName(job)
-    data, _ := json.Marshal(job)
-    
-    _, err = j.db.ExecContext(ctx,
-        `INSERT INTO jobs (type_name, status, queue, data) VALUES ($1, $2, $3, $4)`,
-        typeName, JOB_STATUS_SCHEDULED, queue, data)
-    return err
-}
-
-// 2. Dequeue and Process
-func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
-    // Update job status atomically using FOR UPDATE SKIP LOCKED
-    sqlStmt := `
-        UPDATE jobs SET status = $1, started_at = clock_timestamp(), attempt = attempt + 1
-        WHERE id IN (
-            SELECT id FROM jobs j
-            WHERE (j.status = $2 or (j.status = $3 and j.attempt < $4))
-            AND j.queue = any($5)
-            AND j.type_name = any($6) 
-            ORDER BY j.scheduled_at, j.created_at
-            FOR UPDATE SKIP LOCKED LIMIT 1
-        )
-        RETURNING id, type_name, data, attempt`
-    
-    // Execute job using reflection-based type loading
-    loadedJob, _ := jobType.Load(job.Data)
-    err = loadedJob.Perform(j.processor, int32(job.Attempt))
-}
-```
-
-### 12.3 Metric Collection Implementation
-
-#### 12.3.1 Google Cloud Monitoring Integration
-```go
-type GoogleVolumeMetricsProvider struct {
-    client               MonitoringClient
-    tenantProjectProvider TenantProjectProvider
-    metrics              []MetricDefinition
-    startTime            time.Time
-    endTime              time.Time
-    jobQueue             *utils.JobQueue
-}
-
-func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string) ([]datamodel.HydratedMetrics, error) {
-    projectName := fmt.Sprintf("projects/%s", projectID)
-    
-    for _, metric := range g.metrics {
-        filter := fmt.Sprintf(`metric.type="%s/%s"`, metric.ResourceType, metric.Metric)
-        req := &monitoringpb.ListTimeSeriesRequest{
-            Name:   projectName,
-            Filter: filter,
-            Interval: &monitoringpb.TimeInterval{
-                StartTime: timestamppb.New(g.startTime),
-                EndTime:   timestamppb.New(g.endTime),
-            },
-            View:     monitoringpb.ListTimeSeriesRequest_FULL,
-            PageSize: 100,
-        }
-        
-        it := g.client.ListTimeSeries(ctx, req)
-        // Process time series data and create HydratedMetrics
-    }
-}
-```
-
-#### 12.3.2 Value Extraction and Type Handling
-```go
-func extractValue(Value *monitoringpb.TypedValue) float64 {
-    switch v := Value.Value.(type) {
-    case *monitoringpb.TypedValue_DoubleValue:
-        return v.DoubleValue
-    case *monitoringpb.TypedValue_Int64Value:
-        return float64(v.Int64Value)
-    case *monitoringpb.TypedValue_BoolValue:
-        if v.BoolValue {
-            return 1.0
-        }
-        return 0.0
-    default:
-        return 0
-    }
-}
-```
-
-### 12.4 Aggregation Engine
-
-#### 12.4.1 Job Definition System
-```go
-type AggregationJobDefinition struct {
-    MeasuredType    metadata.MeasuredType
-    ResourceType    metadata.ResourceType
-    AggregationType JobType
-    IsBillable      bool
-    SKU             string
-}
-
-var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasuredType]AggregationJobDefinition{
-    {ResourceType: metadata.Volume, MeasuredType: metadata.AllocatedSize}: {
-        AggregationType: IntegralAggregation,
-        IsBillable:      false,
-    },
-    {ResourceType: metadata.VolumeReplicationRelationship, MeasuredType: metadata.XregionReplicationTotalTransferBytes}: {
-        AggregationType: CounterAggregation,
-        IsBillable:      true,
-        SKU:             "/ReplicationBytesTransferred",
-    },
-}
-```
-
-#### 12.4.2 Aggregation Functions
-
-**Integral Aggregation** (for capacity over time):
-```go
-func Integral(metrics []datamodel.HydratedMetrics) float64 {
-    // Sort by timestamp
-    sort.Slice(metrics, func(i, j int) bool {
-        return metrics[i].MetricTimestamp.Before(metrics[j].MetricTimestamp)
-    })
-    
-    var integral float64
-    for i := 1; i < len(metrics); i++ {
-        duration := metrics[i].MetricTimestamp.Sub(metrics[i-1].MetricTimestamp).Hours()
-        integral += metrics[i].Quantity * duration
-    }
-    return integral
-}
-```
-
-**Counter Aggregation** (for monotonic counters with reset handling):
-```go
-func CounterDelta(metrics []datamodel.HydratedMetrics) float64 {
-    var aggregate float64
-    var lastMetric *datamodel.HydratedMetrics
-    
-    for _, metric := range metrics {
-        if lastMetric == nil {
-            lastMetric = &metric
-            continue
-        }
-        
-        quantity := metric.Quantity - lastMetric.Quantity
-        
-        // Handle counter reset (value decreases)
-        if quantity < 0 {
-            // If current < 25% of previous, assume reset
-            if metric.Quantity < lastMetric.Quantity*0.25 {
-                quantity = metric.Quantity
-            } else {
-                continue // Skip anomalous data point
-            }
-        }
-        
-        aggregate += quantity
-        lastMetric = &metric
-    }
-    return aggregate
-}
-```
-
-### 12.5 Error Handling and Resilience
-
-#### 12.5.1 Retry Mechanisms
-```go
-const (
-    JOB_STATUS_SCHEDULED = "new"
-    JOB_STATUS_FINISHED  = "finished"
-    JOB_STATUS_FAILED    = "failed"
-    MAX_RETRY = 3
-)
-
-// Jobs are retried up to MAX_RETRY times
-// Failed jobs are marked with error details for debugging
-```
-
-#### 12.5.2 Graceful Degradation
-- **Partial Failures**: Continue processing other metrics when individual collections fail
-- **Data Validation**: Skip invalid data points while logging warnings
-- **Circuit Breaking**: Temporary failures don't stop the entire pipeline
-
-### 12.6 Performance Optimizations
-
-#### 12.6.1 Batch Processing
-```go
-// Configurable batch sizes for database operations
-config.PushBatchSize = 1000 // Default batch size
-
-func (db *Storage) CreateHydratedMetricsBatch(ctx context.Context, metrics []datamodel.HydratedMetrics, batchSize int) error {
-    for i := 0; i < len(metrics); i += batchSize {
-        end := i + batchSize
-        if end > len(metrics) {
-            end = len(metrics)
-        }
-        batch := metrics[i:end]
-        // Insert batch
-    }
-}
-```
-
-#### 12.6.2 Connection Management
-```go
-// Database connection pooling configuration
-DB_MAX_OPEN_CONNS = 25
-DB_MAX_IDLE_CONNS = 25
-DB_CONN_MAX_LIFETIME = "1h"
-```
-
-#### 12.6.3 Async Processing
-```go
-// Volume metrics collection runs asynchronously
-go func(ctx context.Context) {
-    asyncCtx := context.WithValue(context.Background(), 
-        middleware.CorrelationContextKey, 
-        ctx.Value(middleware.CorrelationContextKey))
-    mp.processRawMetrics(asyncCtx)
-}(ctx)
-```
-
-### 12.7 Security Implementation
-
-#### 12.7.1 OIDC Authentication Flow
-```go
-// Cloud Scheduler uses OIDC tokens for service authentication
-job := &cloudscheduler.Job{
-    HttpTarget: &cloudscheduler.HttpTarget{
-        Uri:        config.ServiceURL,
-        HttpMethod: "POST",
-        OidcToken: &cloudscheduler.OidcToken{
-            ServiceAccountEmail: config.ServiceAccountName,
-            Audience:            config.ServiceURL,
-        },
-    },
-}
-```
-
-#### 12.7.2 Network Security
-- **VPC-native**: Cloud Run services deployed in private subnets
-- **Service Accounts**: Least-privilege access to Google Cloud APIs
-- **TLS**: All external communications encrypted
-
-### 12.8 Monitoring and Telemetry
-
-#### 12.8.1 Custom Metrics
-```go
-// Prometheus metrics exposed at /metrics endpoint
-var (
-    jobsProcessed = prometheus.NewCounterVec(
-        prometheus.CounterOpts{
-            Name: "telemetry_jobs_processed_total",
-            Help: "Total number of jobs processed",
-        },
-        []string{"queue", "status"},
-    )
-    
-    processingDuration = prometheus.NewHistogramVec(
-        prometheus.HistogramOpts{
-            Name: "telemetry_processing_duration_seconds",
-            Help: "Time spent processing metrics",
-        },
-        []string{"operation"},
-    )
-)
-```
-
-#### 12.8.2 Structured Logging
-```go
-// Correlation ID propagation for request tracing
-ctx := context.WithValue(context.Background(), 
-    middleware.CorrelationContextKey, 
-    uuid.NewString())
-
-logger.Infof("Processing metrics", 
-    "correlation_id", ctx.Value(middleware.CorrelationContextKey),
-    "operation", "performance_collection",
-    "metrics_count", len(metrics))
-```
+**Key Topics Covered in Low-Level Design Document**:
+- Complete database schema definitions with all fields and indexes
+- Detailed job queue implementation with distributed locking
+- Aggregation function algorithms (Integral, Counter, Sum, First)
+- Metric collection implementation details
+- Error handling and retry mechanisms
+- Performance optimization strategies
+- Security implementation specifics
+- Monitoring and telemetry setup
+- Troubleshooting guide and diagnostic queries
 
 ## 13. Future Enhancements
 
@@ -742,327 +1560,3 @@ logger.Infof("Processing metrics",
 - **Documentation**: API documentation improvements
 - **Performance**: Query optimization and indexing
 - **Monitoring**: Enhanced observability and alerting
-
-## 14. Harvest Farm System
-
-### 14.1 Overview
-
-The Harvest Farm is a specialized component that manages the registration and unregistration of ONTAP nodes for real-time metrics collection. It acts as a bridge between the VSA Control Plane and ONTAP clusters, enabling continuous monitoring and performance data collection.
-
-### 14.2 Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Harvest Farm System                         │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
-│  │   Harvest   │  │   OpenTel   │  │ Prometheus  │             │
-│  │   Farm      │  │ Collector   │  │ Scraper     │             │
-│  │  Service    │  │             │  │             │             │
-│  └─────────────┘  └─────────────┘  └─────────────┘             │
-│         │                │                │                    │
-│         └────────────────┼────────────────┘                    │
-│                          │                                     │
-│  ┌─────────────────────────────────────────────────────────────┤
-│  │                ONTAP Clusters                               │
-│  ├─────────────────────────────────────────────────────────────┤
-│  │ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐             │
-│  │ │   Node 1    │ │   Node 2    │ │   Node N    │             │
-│  │ │  (Poller)   │ │  (Poller)   │ │  (Poller)   │             │
-│  │ └─────────────┘ └─────────────┘ └─────────────┘             │
-│  └─────────────────────────────────────────────────────────────┘
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 14.3 Node Registration Process
-
-#### 14.3.1 Registration Workflow
-The registration process is orchestrated by Temporal workflows:
-
-```go
-type RegisterNodeToHarvestFarmWorkflowInput struct {
-    PoolID            int64
-    MaxNodesPerGroup  int
-    CustomerProjectID string
-    TenantProjectID   string
-    PoolUUID          string
-    AccountID         int64
-    DeploymentName    string
-}
-```
-
-#### 14.3.2 Registration Steps
-
-**Step 1: Node Assignment**
-```go
-// Assigns two nodes to two different node groups for redundancy
-nodeMappings, err := a.SE.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
-    Node1:            nodes[0],
-    Node2:            nodes[1],
-    MaxNodesPerGroup: input.MaxNodesPerGroup,
-    CustomerProject:  input.CustomerProjectID,
-    TenantProject:    input.TenantProjectID,
-    DeploymentName:   input.DeploymentName,
-})
-```
-
-**Step 2: Kubernetes Lease Management**
-```go
-// Creates Kubernetes leases for high availability
-leaseName := leasePrefix + nodeGroup.UUID
-if err := createKubernetesLease(ctx, vcpLeaseNameSpace, leaseName); err != nil {
-    return err
-}
-nodeGroup.LeaseName = leaseName
-```
-
-**Step 3: Configuration Template Rendering**
-```go
-// Renders Harvest configuration from template
-tmplStr, err := renderFunc(mapping.HarvestConfig)
-if err != nil {
-    return errors.New("template render failed: " + err.Error())
-}
-```
-
-**Step 4: Configuration Upload**
-```go
-// Uploads configuration to Harvest Farm service
-resp, err := uploadYAMLFile(ctx, UploadYAMLFileInput{
-    URL:       input.UploadURL,
-    YAML:      tmplStr,
-    LeaseName: leaseName,
-    NodeID:    mapping.NodeID,
-})
-```
-
-#### 14.3.3 Harvest Configuration Template
-
-The Harvest configuration defines how to connect to and collect metrics from ONTAP nodes:
-
-```yaml
-# Harvest Configuration File
-Exporters:
-  prometheus:
-    exporter: Prometheus
-    local_http_addr: 0.0.0.0
-    port: {{.PORT}}
-  service_control:
-    exporter: ServiceControl
-    url: {{.SERVICE_CONTROL_URL}}
-    service_name: {{.SERVICE_NAME}}
-    mappings:
-      volume:
-        - source: "capacity"
-          target: "netapp.googleapis.com/volume/allocated_bytes"
-        - source: "read_ops"
-          target: "netapp.googleapis.com/volume/operation_count"
-          labels:
-            type: "read"
-        - source: "read_latency"
-          target: "netapp.googleapis.com/volume/average_latency"
-          labels:
-            method: "read"
-
-Pollers:
-  {{.POLLER_NAME}}:
-    datacenter: {{.DATACENTER}}
-    addr: {{.NODE_IP}}
-    auth_style: {{.AUTH_STYLE}}
-    username: {{.USERNAME}}
-    password: {{.PASSWORD}}
-    labels:
-      - project: {{.PROJECT}}
-      - tenant_project: {{.TENANT_PROJECT}}
-      - deployment_name: {{.DEPLOYMENT_NAME}}
-    use_insecure_tls: true
-    exporters:
-      - service_control
-      - prometheus
-```
-
-### 14.4 Node Unregistration Process
-
-#### 14.4.1 Unregistration Workflow
-```go
-type unRegisterNodeFromHarvestFarmParams struct {
-    PoolID            int64
-    CustomerProjectID string
-    TenantProjectID   string
-}
-```
-
-#### 14.4.2 Unregistration Steps
-
-**Step 1: Validate and Get Nodes**
-```go
-// Gets nodes in deleted state that need to be unregistered
-err = workflow.ExecuteActivity(ctx, unRegisterActivity.ValidateAndGetNodes, activityParams).Get(ctx, &dbNodes)
-```
-
-**Step 2: Get Node Group Mappings**
-```go
-// Retrieves node-to-group mappings that are not soft deleted
-err = workflow.ExecuteActivity(ctx, unRegisterActivity.GetNodeGroupMapping, activityParams).Get(ctx, &nodeGroupMap)
-```
-
-**Step 3: Delete Pollers from Harvest**
-```go
-// Removes pollers from Harvest Farm service
-deletePollerRestResponse = func(ctx context.Context, url string) (*http.Response, error) {
-    req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
-    if err != nil {
-        return nil, err
-    }
-    client := &http.Client{}
-    return client.Do(req)
-}
-```
-
-**Step 4: Clean Up Kubernetes Leases**
-```go
-// Removes Kubernetes leases for the unregistered nodes
-deleteKubernetesLease = utils.DeleteKubernetesLease
-```
-
-### 14.5 OpenTelemetry Integration
-
-#### 14.5.1 Collection Pipeline
-The Harvest Farm uses OpenTelemetry Collector to process and forward metrics:
-
-```yaml
-receivers:
-  prometheus:
-    config:
-      scrape_configs:
-        - job_name: 'otel-collector'
-          scrape_interval: 300s
-          http_sd_configs:
-            - url: http://localhost:3000/pollers/prometheus-targets
-              refresh_interval: 30s
-
-processors:
-  batch:
-  groupbyattrs:
-    keys:
-      - tenant_project
-  transform:
-    error_mode: ignore
-    metric_statements:
-      - set(resource.attributes["gcp.project.id"], resource.attributes["tenant_project"])
-      - delete_key(resource.attributes, "tenant_project")
-
-exporters:
-  googlecloud:
-    project: "netapp-au-se1-autopush-sde-tst"
-    metric:
-      prefix: custom.googleapis.com
-      skip_create_descriptor: true
-    sending_queue:
-      enabled: true
-      queue_size: 40000
-```
-
-#### 14.5.2 Service Discovery
-- **Dynamic Targets**: Harvest Farm provides Prometheus targets via HTTP service discovery
-- **Auto-scaling**: New pollers are automatically discovered and added to collection
-- **Health Monitoring**: Failed pollers are automatically removed from targets
-
-### 14.6 High Availability and Resilience
-
-#### 14.6.1 Node Group Strategy
-- **Redundancy**: Two nodes assigned to different groups for fault tolerance
-- **Load Balancing**: Distributes collection load across multiple pollers
-- **Failover**: Automatic failover between nodes in the same group
-
-#### 14.6.2 Kubernetes Lease Management
-```go
-// Lease-based coordination prevents conflicts
-const leasePrefix = "harvest-"
-vcpLeaseNameSpace = env.GetString("LEASE_NAMESPACE", "vcp")
-
-// RBAC permissions for lease management
-rules:
-  - apiGroups: ["coordination.k8s.io"]
-    resources: ["leases"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-```
-
-#### 14.6.3 Error Handling
-- **Non-retryable Errors**: Configuration errors that require manual intervention
-- **Retryable Errors**: Temporary network or service issues
-- **Graceful Degradation**: Continue with available nodes if some fail
-
-### 14.7 Security and Authentication
-
-#### 14.7.1 ONTAP Authentication
-```go
-// Supports multiple authentication methods
-mapping.HarvestConfig.AUTH_TYPE = pool.PoolCredentials.AuthType
-mapping.HarvestConfig.SECRET_ID = pool.PoolCredentials.SecretID
-mapping.HarvestConfig.SECRET_PROJECT = env.SecretManagerProjectID
-
-// Fallback to password-based auth
-if !smHarvestAuthEnabled && credentials != nil {
-    mapping.HarvestConfig.PASSWORD = strconv.Quote(credentials.AdminPassword)
-}
-```
-
-#### 14.7.2 TLS and Network Security
-- **Insecure TLS**: Disabled for internal ONTAP connections
-- **Service Accounts**: Kubernetes service accounts for API access
-- **Network Policies**: Restricted network access between components
-
-### 14.8 Monitoring and Observability
-
-#### 14.8.1 Harvest Farm Metrics
-- **Poller Health**: Active/inactive poller status
-- **Collection Rates**: Metrics collection frequency and success rates
-- **Error Rates**: Failed collections and authentication errors
-
-#### 14.8.2 Integration with Telemetry
-- **Real-time Data**: Supplements batch collection with real-time metrics
-- **Data Correlation**: Links Harvest metrics with VCP database records
-- **Unified Reporting**: Combines real-time and historical data for comprehensive analytics
-
-### 14.9 Data Models
-
-#### 14.9.1 Node Group Assignment
-```go
-type NodeGroupAssignmentParams struct {
-    Node1            *Node
-    Node2            *Node
-    MaxNodesPerGroup int
-    CustomerProject  string
-    TenantProject    string
-    DeploymentName   string
-}
-```
-
-#### 14.9.2 Harvest Configuration
-```go
-type HarvestConfig struct {
-    POLLER_NAME      string
-    DATACENTER       string
-    NODE_IP          string
-    AUTH_STYLE       string
-    USERNAME         string
-    PASSWORD         string
-    AUTH_TYPE        string
-    SECRET_ID        string
-    SECRET_PROJECT   string
-    PROJECT          string
-    TENANT_PROJECT   string
-    DEPLOYMENT_NAME  string
-    LEASE_NAME       string
-    PORT             string
-}
-```
-
-### 13.3 Scalability Roadmap
-- **Horizontal Partitioning**: Shard metrics by time or tenant
-- **Read Replicas**: Separate read/write workloads
-- **Caching Layer**: Redis for frequently accessed metadata
-- **Stream Processing**: Apache Kafka for real-time metrics
-
----
