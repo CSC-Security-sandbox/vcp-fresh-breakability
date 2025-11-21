@@ -47,6 +47,9 @@ var (
 	fetchJwk                    = _fetchJwk
 	jwkClientGet                = _jwkClientGet
 	validateIssuerAndAudience   = _validateIssuerAndAudience
+
+	authSkipExactPaths  = []string{"/health", "/metrics", "/v1/expertMode"}
+	authSkipPrefixPaths = []string{"/v1/expertMode/"}
 )
 
 type googleClaims struct {
@@ -79,12 +82,25 @@ func (ar *authenticationResponderGCP) WriteResponse(rw http.ResponseWriter, prod
 	}
 }
 
+func shouldSkipAuthPath(path string) bool {
+	for _, exactPath := range authSkipExactPaths {
+		if path == exactPath {
+			return true
+		}
+	}
+	for _, prefixPath := range authSkipPrefixPaths {
+		if strings.HasPrefix(path, prefixPath) {
+			return true
+		}
+	}
+	return false
+}
+
 // AuthMiddleware returns a middleware handler that can be parameterized by skipProjectNumberValidation.
 func AuthMiddleware(skipProjectNumberValidation bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Skip authentication for the /health endpoint
-			if r.URL.Path == "/health" || r.URL.Path == "/metrics" {
+			if shouldSkipAuthPath(r.URL.Path) {
 				next.ServeHTTP(w, r)
 				return
 			}

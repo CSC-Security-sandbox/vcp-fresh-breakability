@@ -836,3 +836,121 @@ func (body *bodyReadCloser) Close() error {
 	body.closed = true
 	return nil
 }
+
+func TestAuthMiddleware_BypassForExpertMode(t *testing.T) {
+	called := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{
+			name: "expert mode root path",
+			path: "/v1/expertMode",
+		},
+		{
+			name: "expert mode with trailing slash",
+			path: "/v1/expertMode/",
+		},
+		{
+			name: "expert mode with sub-path",
+			path: "/v1/expertMode/test",
+		},
+		{
+			name: "expert mode with nested path",
+			path: "/v1/expertMode/projects/123/locations/us-east1/volumes",
+		},
+		{
+			name: "expert mode with query parameters",
+			path: "/v1/expertMode/test?param=value",
+		},
+		{
+			name: "expert mode with multiple path segments",
+			path: "/v1/expertMode/api/v1/resource/123/action",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called = false
+			req := httptest.NewRequest("GET", tt.path, nil)
+			rr := httptest.NewRecorder()
+			handler := AuthMiddleware(true)(next)
+			handler.ServeHTTP(rr, req)
+			assert.True(t, called, "Handler should be called for %s", tt.path)
+			assert.Equal(t, http.StatusOK, rr.Code, "Status code should be OK for %s", tt.path)
+		})
+	}
+}
+
+func TestAuthMiddleware_DoesNotBypassForNonExpertModePaths(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{
+			name: "v1 path without expertMode",
+			path: "/v1/api",
+		},
+		{
+			name: "v1beta path",
+			path: "/v1beta/projects/123",
+		},
+		{
+			name: "path containing expertMode but not as prefix",
+			path: "/api/expertMode",
+		},
+		{
+			name: "path with expertMode in middle",
+			path: "/v1/api/expertMode/test",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("Expected panic for %s but none occurred", tt.path)
+				}
+			}()
+
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+
+			req := httptest.NewRequest("GET", tt.path, nil)
+			rr := httptest.NewRecorder()
+			handler := AuthMiddleware(true)(next)
+			handler.ServeHTTP(rr, req)
+			t.Errorf("Handler should not return normally for %s", tt.path)
+		})
+	}
+}
+
+func TestShouldSkipAuthPath(t *testing.T) {
+	t.Run("exact path match", func(tt *testing.T) {
+		assert.True(tt, shouldSkipAuthPath("/health"))
+		assert.True(tt, shouldSkipAuthPath("/metrics"))
+		assert.True(tt, shouldSkipAuthPath("/v1/expertMode"))
+		assert.False(tt, shouldSkipAuthPath("/api"))
+	})
+
+	t.Run("prefix path match", func(tt *testing.T) {
+		assert.True(tt, shouldSkipAuthPath("/v1/expertMode/"))
+		assert.True(tt, shouldSkipAuthPath("/v1/expertMode/test"))
+		assert.True(tt, shouldSkipAuthPath("/v1/expertMode/projects/123"))
+		assert.False(tt, shouldSkipAuthPath("/v1/api"))
+		assert.False(tt, shouldSkipAuthPath("/api/expertMode"))
+	})
+
+	t.Run("case sensitive matching", func(tt *testing.T) {
+		assert.False(tt, shouldSkipAuthPath("/Health"))
+		assert.True(tt, shouldSkipAuthPath("/health"))
+		assert.False(tt, shouldSkipAuthPath("/v1/ExpertMode/test"))
+		assert.True(tt, shouldSkipAuthPath("/v1/expertMode/test"))
+	})
+}

@@ -3,18 +3,48 @@
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
-  name: allow-to-core
+  name: allow-ontap-proxy-expert-mode
   annotations:
-    kubernetes.io/description: "Authorization policy for core to allow access to core API's"
+    kubernetes.io/description: "Authorization policy to allow ontap-proxy to access /v1/expertMode endpoints"
   labels:
     app: {{ .Chart.Name }}
 spec:
   action: ALLOW
-  rules:
-    - {}
   selector:
     matchLabels:
       app: {{ .Chart.Name }}
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/ontap-proxy/sa/ontap-proxy"
+      to:
+        - operation:
+            paths: ["/v1/expertMode/*"]
+            methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-vsa-harvest-otel-replications
+  annotations:
+    kubernetes.io/description: "Authorization policy to allow vsa-harvest-otel to access /v1/getMultipleReplicationsByExternalUUID endpoint"
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/vcp/sa/gcnv-harvest-sa"
+      to:
+        - operation:
+            paths: ["/v1/getMultipleReplicationsByExternalUUID"]
+            methods: ["GET"]
 ---
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication

@@ -220,6 +220,51 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
+				case 'e': // Prefix: "expertMode/pools/"
+
+					if l := len("expertMode/pools/"); len(elem) >= l && elem[0:l] == "expertMode/pools/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "poolId"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/credentials"
+
+						if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "GET":
+								s.handleV1GetOntapCredentialsRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "GET")
+							}
+
+							return
+						}
+
+					}
+
 				case 'g': // Prefix: "getMultipleReplicationsByExternalUUID"
 
 					if l := len("getMultipleReplicationsByExternalUUID"); len(elem) >= l && elem[0:l] == "getMultipleReplicationsByExternalUUID" {
@@ -324,15 +369,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						}
 
 						// Param: "poolId"
-						// Match until "/"
+						// Leaf parameter, slashes are prohibited
 						idx := strings.IndexByte(elem, '/')
-						if idx < 0 {
-							idx = len(elem)
+						if idx >= 0 {
+							break
 						}
-						args[0] = elem[:idx]
-						elem = elem[idx:]
+						args[0] = elem
+						elem = ""
 
 						if len(elem) == 0 {
+							// Leaf node.
 							switch r.Method {
 							case "DELETE":
 								s.handleV1DeletePoolRequest([1]string{
@@ -351,30 +397,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							}
 
 							return
-						}
-						switch elem[0] {
-						case '/': // Prefix: "/credentials"
-
-							if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch r.Method {
-								case "GET":
-									s.handleV1GetOntapCredentialsRequest([1]string{
-										args[0],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET")
-								}
-
-								return
-							}
-
 						}
 
 					}
@@ -644,6 +666,53 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					}
 
+				case 'e': // Prefix: "expertMode/pools/"
+
+					if l := len("expertMode/pools/"); len(elem) >= l && elem[0:l] == "expertMode/pools/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "poolId"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/credentials"
+
+						if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "GET":
+								r.name = V1GetOntapCredentialsOperation
+								r.summary = "Get ONTAP credentials"
+								r.operationID = "v1_getOntapCredentials"
+								r.pathPattern = "/v1/expertMode/pools/{poolId}/credentials"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
+					}
+
 				case 'g': // Prefix: "getMultipleReplicationsByExternalUUID"
 
 					if l := len("getMultipleReplicationsByExternalUUID"); len(elem) >= l && elem[0:l] == "getMultipleReplicationsByExternalUUID" {
@@ -774,15 +843,16 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						}
 
 						// Param: "poolId"
-						// Match until "/"
+						// Leaf parameter, slashes are prohibited
 						idx := strings.IndexByte(elem, '/')
-						if idx < 0 {
-							idx = len(elem)
+						if idx >= 0 {
+							break
 						}
-						args[0] = elem[:idx]
-						elem = elem[idx:]
+						args[0] = elem
+						elem = ""
 
 						if len(elem) == 0 {
+							// Leaf node.
 							switch method {
 							case "DELETE":
 								r.name = V1DeletePoolOperation
@@ -811,32 +881,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							default:
 								return
 							}
-						}
-						switch elem[0] {
-						case '/': // Prefix: "/credentials"
-
-							if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
-								elem = elem[l:]
-							} else {
-								break
-							}
-
-							if len(elem) == 0 {
-								// Leaf node.
-								switch method {
-								case "GET":
-									r.name = V1GetOntapCredentialsOperation
-									r.summary = "Get ONTAP credentials"
-									r.operationID = "v1_getOntapCredentials"
-									r.pathPattern = "/v1/pools/{poolId}/credentials"
-									r.args = args
-									r.count = 1
-									return r, true
-								default:
-									return
-								}
-							}
-
 						}
 
 					}

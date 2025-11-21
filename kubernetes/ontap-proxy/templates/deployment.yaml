@@ -49,5 +49,3 @@ spec:
           envFrom:
             - configMapRef:
                 name: ontap-proxy-service-env-config
-            - secretRef:
-                name: ontap-proxy-service-env-secret

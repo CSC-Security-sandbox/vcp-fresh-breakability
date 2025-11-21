@@ -206,6 +206,10 @@ func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 	mux := chi.NewRouter()
 	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
+	// AuthMiddleware will skip JWT authentication for:
+	// - /health and /metrics endpoints
+	// - /v1/expertMode/... endpoints (rely on Istio mTLS and AuthorizationPolicies)
+	// All other routes (e.g., /v1beta/projects/...) will require JWT authentication
 	mux.Use(auth.AuthMiddleware(true)) // true = skip project number validation
 	mux.Use(log.RecoverMiddleware)
 	mux.Mount("/", handler)

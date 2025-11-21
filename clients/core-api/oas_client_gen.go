@@ -70,7 +70,7 @@ type Invoker interface {
 	//
 	// Returns the credentials of the specified account name.
 	//
-	// GET /v1/pools/{poolId}/credentials
+	// GET /v1/expertMode/pools/{poolId}/credentials
 	V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error)
 	// V1GetPool invokes v1_getPool operation.
 	//
@@ -592,7 +592,7 @@ func (c *Client) sendV1GetMultipleReplicationsByExternalUUID(ctx context.Context
 //
 // Returns the credentials of the specified account name.
 //
-// GET /v1/pools/{poolId}/credentials
+// GET /v1/expertMode/pools/{poolId}/credentials
 func (c *Client) V1GetOntapCredentials(ctx context.Context, params V1GetOntapCredentialsParams) (V1GetOntapCredentialsRes, error) {
 	res, err := c.sendV1GetOntapCredentials(ctx, params)
 	return res, err
@@ -602,7 +602,7 @@ func (c *Client) sendV1GetOntapCredentials(ctx context.Context, params V1GetOnta
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [3]string
-	pathParts[0] = "/v1/pools/"
+	pathParts[0] = "/v1/expertMode/pools/"
 	{
 		// Encode "poolId" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
