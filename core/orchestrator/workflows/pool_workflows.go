@@ -1433,6 +1433,9 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
 			vlmConfig.Deployment.Images.VSAImageName = vsaFilesImageName
 			vlmConfig.Deployment.Images.MediatorImageName = filesMediatorImage
+			if pool.LargeCapacity {
+				vlmConfig.Deployment.DeploymentConfigFlags.EnableNfsV364BitIdentifier = "true"
+			}
 		}
 	}
 	createVSAClusterDeploymentRequest.VLMConfig = vlmConfig

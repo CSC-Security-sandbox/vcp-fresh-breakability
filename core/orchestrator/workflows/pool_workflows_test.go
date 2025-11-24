@@ -9307,6 +9307,55 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 		assert.Equal(t, "mediator-zone", req.VLMConfig.Deployment.Zone.MediatorZone)
 	})
 
+	t.Run("FileProtocolSupported_LargeCapacityEnablesNfs64BitIdentifier", func(t *testing.T) {
+		testAccountID := "test-account-999"
+		originalFileProtocolSupported := utils.FileProtocolSupported
+		defer func() {
+			utils.FileProtocolSupported = originalFileProtocolSupported
+		}()
+		utils.FileProtocolSupported = true
+		utils.SetFileProtocolAllowlistedAccountsForTesting(testAccountID)
+
+		vlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				Labels: make(map[string]string),
+				DevFlags: vlm.DevFlags{
+					EnableIlbSupport: false,
+				},
+				DeploymentConfigFlags: vlm.DeploymentConfigFlags{},
+				Images: vlm.ImageConfig{
+					VSAImageName:      "default-vsa-image",
+					MediatorImageName: "default-mediator-image",
+				},
+			},
+		}
+		ontapCreds := vlm.OntapCredentials{}
+		pool := &datamodel.Pool{
+			Name: "large-capacity-pool",
+			BaseModel: datamodel.BaseModel{
+				UUID: "large-capacity-pool-uuid",
+			},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				Name: testAccountID,
+			},
+			LargeCapacity: true,
+		}
+		resolvedLocationInfo := &common.LocationInfo{
+			PrimaryZone:   "zone-1",
+			SecondaryZone: "zone-2",
+			MediatorZone:  "mediator-zone",
+		}
+
+		req := &vlm.CreateVSAClusterDeploymentRequest{}
+		prepareCreateVSAClusterDeploymentRequest(req, vlmConfig, ontapCreds, pool, resolvedLocationInfo)
+
+		assert.Equal(t, "true", req.VLMConfig.Deployment.DeploymentConfigFlags.EnableNfsV364BitIdentifier,
+			"EnableNfsV364BitIdentifier should be set when large capacity pools support file protocol")
+	})
+
 	// Test case 2: When file protocol is not supported, the function should use default images
 	// (vsaImageName and mediatorImage) and keep ILB support disabled. This is the standard
 	// configuration for accounts that don't require file protocol support.
