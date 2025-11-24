@@ -277,6 +277,35 @@ func TestFlexCacheVolumeDeleteActivity_DeleteSVMPeeringInOntapActivity(t *testin
 		assert.Nil(tt, resp)
 	})
 
+	t.Run("SVMPeerNotFound", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		provider := vsa.NewMockProvider(tt)
+		storage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: storage}
+		ctx := context.Background()
+
+		vol := baseVolume()
+		vol.CacheParameters = &datamodel.CacheParameters{PeerSvmName: "peer-svm-missing"}
+		res := &flexcache.DeleteFlexCacheResult{DBVolume: vol, Node: createNode()}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(provider, nil)
+
+		notFoundErr := customerrors.NewNotFoundErr("svm peer", nil)
+		provider.EXPECT().
+			GetSVMPeer(&vol.Svm.Name, &vol.CacheParameters.PeerSvmName).
+			Return(nil, notFoundErr)
+
+		logger.EXPECT().
+			Debugf("SVM peer not found for svm=%s peer_svm=%s, skipping delete", vol.Svm.Name, vol.CacheParameters.PeerSvmName)
+
+		out, err := activity.DeleteSVMPeeringInOntapActivity(ctx, res)
+		assert.NoError(tt, err)
+		assert.Equal(tt, res, out)
+		storage.AssertExpectations(tt)
+	})
+
 	t.Run("WhenDeleteSVMPeerFails", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)

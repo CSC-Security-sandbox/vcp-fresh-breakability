@@ -81,6 +81,10 @@ func (a FlexCacheVolumeDeleteActivity) DeleteSVMPeeringInOntapActivity(ctx conte
 
 	svmPeer, err := provider.GetSVMPeer(&volume.Svm.Name, &volume.CacheParameters.PeerSvmName)
 	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger.Debugf("SVM peer not found for svm=%s peer_svm=%s, skipping delete", volume.Svm.Name, volume.CacheParameters.PeerSvmName)
+			return result, nil
+		}
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
