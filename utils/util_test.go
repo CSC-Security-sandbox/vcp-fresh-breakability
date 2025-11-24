@@ -3437,3 +3437,139 @@ func TestComparePointerStringSlices(t *testing.T) {
 	assert.False(t, ComparePointerStringSlices(s1, s3))
 	assert.False(t, ComparePointerStringSlices(s1[:1], s2))
 }
+
+func TestEnableMultiAD_DefaultValue(t *testing.T) {
+	// Test that EnableMultiAD is read from environment with correct default
+	// Save original environment
+	originalValue := os.Getenv("ENABLE_MULTI_AD")
+	defer func() {
+		if originalValue != "" {
+			_ = os.Setenv("ENABLE_MULTI_AD", originalValue)
+		} else {
+			_ = os.Unsetenv("ENABLE_MULTI_AD")
+		}
+	}()
+
+	// Test default value (false)
+	require.NoError(t, os.Unsetenv("ENABLE_MULTI_AD"))
+	value := env.GetBool("ENABLE_MULTI_AD", false)
+	assert.False(t, value, "Default value should be false")
+
+	// Test true value
+	require.NoError(t, os.Setenv("ENABLE_MULTI_AD", "true"))
+	value = env.GetBool("ENABLE_MULTI_AD", false)
+	assert.True(t, value, "Value should be true when env is set to 'true'")
+
+	// Test false value explicitly
+	require.NoError(t, os.Setenv("ENABLE_MULTI_AD", "false"))
+	value = env.GetBool("ENABLE_MULTI_AD", false)
+	assert.False(t, value, "Value should be false when env is set to 'false'")
+}
+
+func TestMaxNumberOfADPerAccount_DefaultValue(t *testing.T) {
+	// Test that MaxNumberOfADPerAccount is read from environment with correct default
+	// Save original environment
+	originalValue := os.Getenv("MAX_NUMBER_OF_AD_PER_ACCOUNT")
+	defer func() {
+		if originalValue != "" {
+			_ = os.Setenv("MAX_NUMBER_OF_AD_PER_ACCOUNT", originalValue)
+		} else {
+			_ = os.Unsetenv("MAX_NUMBER_OF_AD_PER_ACCOUNT")
+		}
+	}()
+
+	// Test default value (5)
+	require.NoError(t, os.Unsetenv("MAX_NUMBER_OF_AD_PER_ACCOUNT"))
+	value := env.GetInt("MAX_NUMBER_OF_AD_PER_ACCOUNT", 5)
+	assert.Equal(t, 5, value, "Default value should be 5")
+
+	// Test custom value
+	require.NoError(t, os.Setenv("MAX_NUMBER_OF_AD_PER_ACCOUNT", "10"))
+	value = env.GetInt("MAX_NUMBER_OF_AD_PER_ACCOUNT", 5)
+	assert.Equal(t, 10, value, "Value should be 10 when env is set to '10'")
+
+	// Test another custom value
+	require.NoError(t, os.Setenv("MAX_NUMBER_OF_AD_PER_ACCOUNT", "1"))
+	value = env.GetInt("MAX_NUMBER_OF_AD_PER_ACCOUNT", 5)
+	assert.Equal(t, 1, value, "Value should be 1 when env is set to '1'")
+}
+
+func TestMultiADEnvironmentVariables_Integration(t *testing.T) {
+	// Integration test to verify both environment variables work together
+	originalEnableMultiAD := os.Getenv("ENABLE_MULTI_AD")
+	originalMaxNumberOfAD := os.Getenv("MAX_NUMBER_OF_AD_PER_ACCOUNT")
+	defer func() {
+		if originalEnableMultiAD != "" {
+			_ = os.Setenv("ENABLE_MULTI_AD", originalEnableMultiAD)
+		} else {
+			_ = os.Unsetenv("ENABLE_MULTI_AD")
+		}
+		if originalMaxNumberOfAD != "" {
+			_ = os.Setenv("MAX_NUMBER_OF_AD_PER_ACCOUNT", originalMaxNumberOfAD)
+		} else {
+			_ = os.Unsetenv("MAX_NUMBER_OF_AD_PER_ACCOUNT")
+		}
+	}()
+
+	tests := []struct {
+		name              string
+		enableMultiAD     string
+		maxNumberOfAD     string
+		expectedEnable    bool
+		expectedMaxNumber int
+	}{
+		{
+			name:              "Multi-AD disabled with default max",
+			enableMultiAD:     "false",
+			maxNumberOfAD:     "",
+			expectedEnable:    false,
+			expectedMaxNumber: 5,
+		},
+		{
+			name:              "Multi-AD enabled with custom max",
+			enableMultiAD:     "true",
+			maxNumberOfAD:     "10",
+			expectedEnable:    true,
+			expectedMaxNumber: 10,
+		},
+		{
+			name:              "Multi-AD enabled with max 1",
+			enableMultiAD:     "true",
+			maxNumberOfAD:     "1",
+			expectedEnable:    true,
+			expectedMaxNumber: 1,
+		},
+		{
+			name:              "Default values",
+			enableMultiAD:     "",
+			maxNumberOfAD:     "",
+			expectedEnable:    false,
+			expectedMaxNumber: 5,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variables
+			if tt.enableMultiAD != "" {
+				require.NoError(t, os.Setenv("ENABLE_MULTI_AD", tt.enableMultiAD))
+			} else {
+				require.NoError(t, os.Unsetenv("ENABLE_MULTI_AD"))
+			}
+
+			if tt.maxNumberOfAD != "" {
+				require.NoError(t, os.Setenv("MAX_NUMBER_OF_AD_PER_ACCOUNT", tt.maxNumberOfAD))
+			} else {
+				require.NoError(t, os.Unsetenv("MAX_NUMBER_OF_AD_PER_ACCOUNT"))
+			}
+
+			// Read values
+			enableValue := env.GetBool("ENABLE_MULTI_AD", false)
+			maxValue := env.GetInt("MAX_NUMBER_OF_AD_PER_ACCOUNT", 5)
+
+			// Assertions
+			assert.Equal(t, tt.expectedEnable, enableValue, "EnableMultiAD should match expected value")
+			assert.Equal(t, tt.expectedMaxNumber, maxValue, "MaxNumberOfADPerAccount should match expected value")
+		})
+	}
+}

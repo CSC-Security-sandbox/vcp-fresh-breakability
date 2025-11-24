@@ -95,6 +95,8 @@ data:
   NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{ index .Values "numberOfHaPairsLargeCapacity" | quote }}
   MIN_CONSTITUENT_VOLUME_SIZE_BYTES: {{ index .Values "minConstituentVolumeSizeInBytes" | quote }}
   ENABLE_LDAP: "{{ index .Values "enableLdap" }}"
+  ENABLE_MULTI_AD: "{{ index .Values "enableMultiAd" }}"
+  MAX_NUMBER_OF_AD_PER_ACCOUNT: "{{ index .Values "maxNumberOfAdPerAccount" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

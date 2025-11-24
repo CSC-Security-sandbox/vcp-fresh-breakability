@@ -27,10 +27,13 @@ import (
 )
 
 func TestCreateActiveDirectory_Success(t *testing.T) {
+	// Setup test context and mocks
 	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 	mockTemporal := mocks.NewClient(t)
 
+	// Test data setup
+	accountID := int64(123)
 	params := &common.CreateActiveDirectoryParams{
 		ResourceId:         "test-ad",
 		AccountId:          "123",
@@ -50,7 +53,6 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 		SecurityOperators:  []string{"security-user"},
 	}
 
-	accountID := int64(123)
 	account := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{ID: accountID},
 		Name:      "test-account",
@@ -72,6 +74,11 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 			KdcIP:              params.KdcIP,
 			KdcHostname:        params.KdcHostname,
 			AesEncryption:      params.AesEncryption,
+			AdUsers: map[string][]string{
+				utils.ActiveDirectorySeSecurityPrivilege:         params.SecurityOperators,
+				utils.ActiveDirectoryGroupBuiltInBackupOperators: params.BackupOperators,
+				utils.ActiveDirectoryGroupBuiltInAdministrators:  params.Administrators,
+			},
 		},
 	}
 
@@ -82,27 +89,15 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 		State:      string(models.JobsStateNEW),
 	}
 
-	// Save original function
+	// Mock external dependencies
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-
-	// Mock to return parsed region and zone
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 		return "us-central1", "us-central1-a", nil
 	}
-	// Restore original function after test
 	defer func() {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 	}()
 
-	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
-	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
-		return ad.AdName == params.ResourceId
-	})).Return(adRecord, nil)
-	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
-		return j.Type == string(models.JobTypeCreateActiveDirectory)
-	})).Return(job, nil)
-
-	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
 		return nil
@@ -119,15 +114,71 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 	cvp.CVP_HOST = ""
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
 
+	// Configure multi-AD settings for test
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
+
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
+	// Setup storage mocks
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("CreateAccount", mock.Anything, mock.MatchedBy(func(acc *datamodel.Account) bool {
+		return acc.Name == "123"
+	})).Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, accountID).Return([]*datamodel.ActiveDirectory{}, nil)
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		return ad.AdName == params.ResourceId &&
+			ad.AccountId == accountID &&
+			ad.ActiveDirectoryAttributes.OrganizationalUnit == params.OrganizationalUnit
+	})).Return(adRecord, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
+		return j.Type == string(models.JobTypeCreateActiveDirectory) &&
+			j.ResourceName == params.ResourceId &&
+			j.AccountID.Int64 == accountID
+	})).Return(job, nil)
+
+	// Execute the function under test
 	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
-	assert.NoError(t, err)
-	assert.NotNil(t, ad)
-	assert.Equal(t, "job-uuid-123", jobUUID)
-	assert.Equal(t, adRecord.UUID, ad.UUID)
-	assert.Equal(t, params.ResourceId, ad.AdName)
-	assert.Equal(t, params.Username, ad.Username)
-	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
+	// Assertions
+	assert.NoError(t, err, "CreateActiveDirectory should succeed without errors")
+	assert.NotNil(t, ad, "ActiveDirectory should be returned")
+	assert.Equal(t, "job-uuid-123", jobUUID, "Job UUID should match")
+	assert.Equal(t, adRecord.UUID, ad.UUID, "AD UUID should match")
+	assert.Equal(t, params.ResourceId, ad.AdName, "AD name should match")
+	assert.Equal(t, params.Username, ad.Username, "Username should match")
+	assert.Equal(t, params.Domain, ad.Domain, "Domain should match")
+	assert.Equal(t, params.DNS, ad.DNS, "DNS should match")
+	assert.Equal(t, params.NetBIOS, ad.NetBIOS, "NetBIOS should match")
+	assert.Equal(t, models.LifeCycleStateCreating, ad.State, "State should be Creating")
+	assert.NotNil(t, ad.ActiveDirectoryAttributes, "ActiveDirectoryAttributes should not be nil")
+	assert.Equal(t, params.OrganizationalUnit, ad.ActiveDirectoryAttributes.OrganizationalUnit, "OrganizationalUnit should match")
+	assert.Equal(t, params.Site, ad.ActiveDirectoryAttributes.Site, "Site should match")
+	assert.Equal(t, params.KdcIP, ad.ActiveDirectoryAttributes.KdcIP, "KdcIP should match")
+	assert.Equal(t, params.KdcHostname, ad.ActiveDirectoryAttributes.KdcHostname, "KdcHostname should match")
+	assert.Equal(t, params.AesEncryption, ad.ActiveDirectoryAttributes.AesEncryption, "AesEncryption should match")
+	assert.Equal(t, params.BackupOperators, ad.ActiveDirectoryAttributes.BackupOperators, "BackupOperators should match")
+	assert.Equal(t, params.Administrators, ad.ActiveDirectoryAttributes.Administrators, "Administrators should match")
+	assert.Equal(t, params.SecurityOperators, ad.ActiveDirectoryAttributes.SecurityOperators, "SecurityOperators should match")
+
+	// Verify all mock expectations were met
+	mockStorage.AssertExpectations(t)
 }
 
 func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
@@ -172,12 +223,28 @@ func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 	}()
 
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
 	accountID := int64(123)
 	account := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{ID: accountID},
 		Name:      "test-account",
 	}
-	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("CreateAccount", mock.Anything, mock.MatchedBy(func(acc *datamodel.Account) bool {
+		return acc.Name == "123"
+	})).Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, accountID).Return([]*datamodel.ActiveDirectory{}, nil)
 
 	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
 		return j.Type == string(models.JobTypeCreateActiveDirectory)
@@ -204,6 +271,18 @@ func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 		cvp.CVP_HOST = originalCVPHost
 		utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
 	}()
+
+	// Save and restore original values for multi-AD settings
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	// Set default values for the test (multi-AD disabled, max 1)
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
 
 	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -305,6 +384,18 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 	}()
 
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
@@ -322,6 +413,7 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 		Return(nil, errors.New("account not found")).Maybe()
 	mockStorage.On("CreateAccount", mock.Anything, mock.Anything).
 		Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, accountID).Return([]*datamodel.ActiveDirectory{}, nil)
 
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
 		return ad.AdName == params.ResourceId
@@ -333,6 +425,18 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	// Save and restore original values for multi-AD settings
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	// Set default values for the test (multi-AD disabled, max 1)
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
 
 	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -390,6 +494,18 @@ func TestCreateActiveDirectory_DefaultOrganizationalUnit(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 	}()
 
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
 	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
 	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
@@ -397,7 +513,11 @@ func TestCreateActiveDirectory_DefaultOrganizationalUnit(t *testing.T) {
 	}
 	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
-	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("CreateAccount", mock.Anything, mock.MatchedBy(func(acc *datamodel.Account) bool {
+		return acc.Name == "123"
+	})).Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, accountID).Return([]*datamodel.ActiveDirectory{}, nil)
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
 		return ad.ActiveDirectoryAttributes.OrganizationalUnit == DefaultOrganizationalUnit
 	})).Return(adRecord, nil)
@@ -412,6 +532,18 @@ func TestCreateActiveDirectory_DefaultOrganizationalUnit(t *testing.T) {
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	// Save and restore original values for multi-AD settings
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	// Set default values for the test (multi-AD disabled, max 1)
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
 
 	ad, _, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -453,7 +585,23 @@ func TestCreateActiveDirectory_JobCreationFailed(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 	}()
 
-	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("CreateAccount", mock.Anything, mock.MatchedBy(func(acc *datamodel.Account) bool {
+		return acc.Name == "123"
+	})).Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, int64(123)).Return([]*datamodel.ActiveDirectory{}, nil)
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).
 		Return(nil, errors.New("database error"))
@@ -467,6 +615,18 @@ func TestCreateActiveDirectory_JobCreationFailed(t *testing.T) {
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	// Save and restore original values for multi-AD settings
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	// Set default values for the test (multi-AD disabled, max 1)
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
 
 	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -514,7 +674,23 @@ func TestCreateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 	}()
 
-	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("CreateAccount", mock.Anything, mock.MatchedBy(func(acc *datamodel.Account) bool {
+		return acc.Name == "123"
+	})).Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, int64(123)).Return([]*datamodel.ActiveDirectory{}, nil)
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(job, nil)
 	mockStorage.On("UpdateJob", mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).
@@ -536,6 +712,18 @@ func TestCreateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	// Save and restore original values for multi-AD settings
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	// Set default values for the test (multi-AD disabled, max 1)
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
 
 	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -573,7 +761,23 @@ func TestCreateActiveDirectory_DatabaseRecordCreationFailed(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 	}()
 
-	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("CreateAccount", mock.Anything, mock.MatchedBy(func(acc *datamodel.Account) bool {
+		return acc.Name == "123"
+	})).Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, int64(123)).Return([]*datamodel.ActiveDirectory{}, nil)
 	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).
 		Return(nil, errors.New("database insert failed"))
 
@@ -586,6 +790,18 @@ func TestCreateActiveDirectory_DatabaseRecordCreationFailed(t *testing.T) {
 	originalCVPHost := cvp.CVP_HOST
 	cvp.CVP_HOST = ""
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	// Save and restore original values for multi-AD settings
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	// Set default values for the test (multi-AD disabled, max 1)
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
 
 	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
 
@@ -2601,4 +2817,686 @@ func Test_checkIfDomainUpdateAllowed_Error_NilActiveDirectory(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid active directory ID")
 	mockStorage.AssertExpectations(t)
+}
+
+// Tests for validateMultiADConstraints function
+
+func Test_validateMultiADConstraints_NoExistingADs_Success(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	// Mock ListActiveDirectories to return empty list
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return([]*datamodel.ActiveDirectory{}, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.NoError(t, err)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_OneExistingAD_MaxIsOne_ShouldFail(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	existingADs := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1},
+			AdName:    "existing-ad",
+			AccountId: accountID,
+		},
+	}
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), MultiADNotAllowedError)
+	var validationErr *customerrors.UserInputValidationErr
+	assert.True(t, errors.As(err, &validationErr))
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_OneExistingAD_MaxIsTwo_Success(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	existingADs := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1},
+			AdName:    "existing-ad",
+			AccountId: accountID,
+		},
+	}
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = true
+	utils.MaxNumberOfADPerAccount = 2
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.NoError(t, err)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_TwoExistingADs_MultiADDisabled_ShouldFail(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	existingADs := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1},
+			AdName:    "existing-ad-1",
+			AccountId: accountID,
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-2", ID: 2},
+			AdName:    "existing-ad-2",
+			AccountId: accountID,
+		},
+	}
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 5
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), MultiADNotAllowedError)
+	var validationErr *customerrors.UserInputValidationErr
+	assert.True(t, errors.As(err, &validationErr))
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_TwoExistingADs_MultiADEnabled_MaxIsOne_ShouldFail(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	existingADs := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1},
+			AdName:    "existing-ad-1",
+			AccountId: accountID,
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-2", ID: 2},
+			AdName:    "existing-ad-2",
+			AccountId: accountID,
+		},
+	}
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = true
+	utils.MaxNumberOfADPerAccount = 1
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), MaxADLimitReachedForAccountError)
+	var conflictErr *customerrors.ConflictErr
+	assert.True(t, errors.As(err, &conflictErr))
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_TwoExistingADs_MultiADEnabled_MaxIsFive_Success(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	existingADs := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1},
+			AdName:    "existing-ad-1",
+			AccountId: accountID,
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-2", ID: 2},
+			AdName:    "existing-ad-2",
+			AccountId: accountID,
+		},
+	}
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = true
+	utils.MaxNumberOfADPerAccount = 5
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.NoError(t, err)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_OneExistingAD_MaxLimitReached_ShouldFail(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	// Create 1 existing AD when max is 1 (at the max limit)
+	existingADs := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1}, AdName: "ad-1", AccountId: accountID},
+	}
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), MultiADNotAllowedError)
+	var validationErr *customerrors.UserInputValidationErr
+	assert.True(t, errors.As(err, &validationErr))
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_MultipleExistingADs_Success(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	// Create 5 existing ADs when max is 10 (below max limit)
+	existingADs := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1}, AdName: "ad-1", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-2", ID: 2}, AdName: "ad-2", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-3", ID: 3}, AdName: "ad-3", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-4", ID: 4}, AdName: "ad-4", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-5", ID: 5}, AdName: "ad-5", AccountId: accountID},
+	}
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = true
+	utils.MaxNumberOfADPerAccount = 10
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.NoError(t, err)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_FourExistingADs_MaxIsFive_Success(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	// Create 4 existing ADs (below max limit, so 4 + 1 = 5 <= 5 is OK)
+	existingADs := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1}, AdName: "ad-1", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-2", ID: 2}, AdName: "ad-2", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-3", ID: 3}, AdName: "ad-3", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-4", ID: 4}, AdName: "ad-4", AccountId: accountID},
+	}
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = true
+	utils.MaxNumberOfADPerAccount = 5
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.NoError(t, err)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_FiveExistingADs_MaxIsFive_ShouldFail(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	// Create 5 existing ADs (at max limit, so 5 + 1 = 6 > 5 should fail)
+	existingADs := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1}, AdName: "ad-1", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-2", ID: 2}, AdName: "ad-2", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-3", ID: 3}, AdName: "ad-3", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-4", ID: 4}, AdName: "ad-4", AccountId: accountID},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-5", ID: 5}, AdName: "ad-5", AccountId: accountID},
+	}
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = true
+	utils.MaxNumberOfADPerAccount = 5
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), MaxADLimitReachedForAccountError)
+	var conflictErr *customerrors.ConflictErr
+	assert.True(t, errors.As(err, &conflictErr))
+	mockSe.AssertExpectations(t)
+}
+
+func Test_validateMultiADConstraints_ListActiveDirectoriesError_ShouldFail(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	accountID := int64(123)
+
+	mockSe.On("ListActiveDirectories", mock.Anything, accountID).Return(nil, errors.New("database connection error"))
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+	}()
+
+	utils.EnableMultiAD = true
+	utils.MaxNumberOfADPerAccount = 5
+
+	err := validateMultiADConstraints(ctx, mockSe, accountID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "database connection error")
+	mockSe.AssertExpectations(t)
+}
+
+// Integration tests for CreateActiveDirectory with multi-AD validation
+
+func TestCreateActiveDirectory_MultiADDisabled_SecondADShouldFail(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId:         "test-ad-2",
+		AccountId:          "123",
+		LocationId:         "local",
+		Username:           "admin@test.local",
+		Password:           "SecurePass123!",
+		Domain:             "test.local",
+		DNS:                "10.0.0.1",
+		NetBIOS:            "TEST",
+		OrganizationalUnit: "CN=Computers",
+	}
+
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
+	}
+
+	// Existing AD
+	existingADs := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1},
+			AdName:    "existing-ad",
+			AccountId: accountID,
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-2", ID: 2},
+			AdName:    "existing-ad-2",
+			AccountId: accountID,
+		},
+	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	originalCVPHost := cvp.CVP_HOST
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+		cvp.CVP_HOST = originalCVPHost
+	}()
+
+	utils.EnableMultiAD = false
+	utils.MaxNumberOfADPerAccount = 1
+	cvp.CVP_HOST = ""
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("CreateAccount", mock.Anything, mock.MatchedBy(func(acc *datamodel.Account) bool {
+		return acc.Name == "123"
+	})).Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), MultiADNotAllowedError)
+	var validationErr *customerrors.UserInputValidationErr
+	assert.True(t, errors.As(err, &validationErr))
+}
+
+func TestCreateActiveDirectory_MaxADLimitReached_ShouldFail(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId:         "test-ad-new",
+		AccountId:          "123",
+		LocationId:         "local",
+		Username:           "admin@test.local",
+		Password:           "SecurePass123!",
+		Domain:             "test.local",
+		DNS:                "10.0.0.1",
+		NetBIOS:            "TEST",
+		OrganizationalUnit: "CN=Computers",
+	}
+
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
+	}
+
+	// Existing AD (at the limit)
+	existingADs := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1},
+			AdName:    "existing-ad",
+			AccountId: accountID,
+		},
+	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	originalCVPHost := cvp.CVP_HOST
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+		cvp.CVP_HOST = originalCVPHost
+	}()
+
+	utils.EnableMultiAD = true
+	utils.MaxNumberOfADPerAccount = 1
+	cvp.CVP_HOST = ""
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("CreateAccount", mock.Anything, mock.MatchedBy(func(acc *datamodel.Account) bool {
+		return acc.Name == "123"
+	})).Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), MaxADLimitReachedForAccountError)
+	var conflictErr *customerrors.ConflictErr
+	assert.True(t, errors.As(err, &conflictErr))
+}
+
+func TestCreateActiveDirectory_MultiADEnabled_WithinLimit_Success(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.CreateActiveDirectoryParams{
+		ResourceId:         "test-ad-3",
+		AccountId:          "123",
+		LocationId:         "local",
+		Username:           "admin@test.local",
+		Password:           "SecurePass123!",
+		Domain:             "test.local",
+		DNS:                "10.0.0.1",
+		NetBIOS:            "TEST",
+		OrganizationalUnit: "CN=Computers",
+		Site:               "Default-First-Site",
+		KdcIP:              "10.0.0.2",
+		KdcHostname:        "kdc.test.local",
+		AesEncryption:      true,
+		BackupOperators:    []string{"backup-user"},
+		Administrators:     []string{"admin-user"},
+		SecurityOperators:  []string{"security-user"},
+	}
+
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
+	}
+
+	// Existing ADs (2 ADs, limit is 5)
+	existingADs := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1", ID: 1},
+			AdName:    "existing-ad-1",
+			AccountId: accountID,
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-2", ID: 2},
+			AdName:    "existing-ad-2",
+			AccountId: accountID,
+		},
+	}
+
+	adRecord := &datamodel.ActiveDirectory{
+		BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
+		AdName:         params.ResourceId,
+		Username:       params.Username,
+		Domain:         params.Domain,
+		DNS:            params.DNS,
+		NetBIOS:        params.NetBIOS,
+		CredentialPath: "secret-path",
+		AccountId:      accountID,
+		State:          models.LifeCycleStateCreating,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			OrganizationalUnit: params.OrganizationalUnit,
+			Site:               params.Site,
+			KdcIP:              params.KdcIP,
+			KdcHostname:        params.KdcHostname,
+			AesEncryption:      params.AesEncryption,
+		},
+	}
+
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-123",
+		Type:       string(models.JobTypeCreateActiveDirectory),
+		State:      string(models.JobsStateNEW),
+	}
+
+	// Save original function
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+
+	// Save and restore account-related functions to prevent state pollution from other tests
+	// Restore to original implementations, not whatever was modified by previous tests
+	defer func() {
+		getOrCreateAccount = _getOrCreateAccount
+		getAccountWithName = _getAccountWithName
+		createAccount = _createAccount
+	}()
+	// Ensure we start with original implementations
+	getOrCreateAccount = _getOrCreateAccount
+	getAccountWithName = _getAccountWithName
+	createAccount = _createAccount
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return nil
+	}
+	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	originalStorePassword := adHelper.StorePasswordSecret
+	adHelper.StorePasswordSecret = func(ctx context.Context, password string, secretID string) error {
+		return nil
+	}
+	defer func() { adHelper.StorePasswordSecret = originalStorePassword }()
+
+	// Save and restore original values
+	originalEnableMultiAD := utils.EnableMultiAD
+	originalMaxNumberOfADPerAccount := utils.MaxNumberOfADPerAccount
+	originalCVPHost := cvp.CVP_HOST
+	defer func() {
+		utils.EnableMultiAD = originalEnableMultiAD
+		utils.MaxNumberOfADPerAccount = originalMaxNumberOfADPerAccount
+		cvp.CVP_HOST = originalCVPHost
+	}()
+
+	utils.EnableMultiAD = true
+	utils.MaxNumberOfADPerAccount = 5
+	cvp.CVP_HOST = ""
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("CreateAccount", mock.Anything, mock.MatchedBy(func(acc *datamodel.Account) bool {
+		return acc.Name == "123"
+	})).Return(account, nil).Maybe()
+	mockStorage.On("ListActiveDirectories", mock.Anything, accountID).Return(existingADs, nil)
+	mockStorage.On("CreateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		return ad.AdName == params.ResourceId
+	})).Return(adRecord, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
+		return j.Type == string(models.JobTypeCreateActiveDirectory)
+	})).Return(job, nil)
+
+	ad, jobUUID, err := _createActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.Equal(t, "job-uuid-123", jobUUID)
+	assert.Equal(t, adRecord.UUID, ad.UUID)
+	assert.Equal(t, params.ResourceId, ad.AdName)
+	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
 }

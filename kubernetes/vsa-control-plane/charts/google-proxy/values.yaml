@@ -77,6 +77,8 @@ numberOfHaPairsLargeCapacity: 6
 minConstituentVolumeSizeInBytes: 107374182400
 secretManagerProjectId: "402007546452"
 enableLdap: false
+enableMultiAd: true
+maxNumberOfAdPerAccount: 5
 autoPoolScalingLimits:
   c3-standard-4-lssd:
     min_volume_count: 1

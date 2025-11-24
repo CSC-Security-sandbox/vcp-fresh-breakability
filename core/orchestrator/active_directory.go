@@ -33,10 +33,13 @@ var (
 	getMultipleActiveDirectories = _getMultipleActiveDirectories
 	deleteActiveDirectory        = _deleteActiveDirectory
 	checkIfDomainUpdateAllowed   = _checkIfDomainUpdateAllowed
+	validateMultiADConstraints   = _validateMultiADConstraints
 )
 
 const (
-	DefaultOrganizationalUnit = "CN=Computers"
+	DefaultOrganizationalUnit        = "CN=Computers"
+	MultiADNotAllowedError           = "Multiple Active Directories are not allowed."
+	MaxADLimitReachedForAccountError = "Maximum Active Directory limit reached for this account."
 )
 
 // _createActiveDirectory orchestrates the creation of an Active Directory resource.
@@ -73,6 +76,11 @@ func _createActiveDirectory(
 
 	if params.OrganizationalUnit == "" {
 		params.OrganizationalUnit = DefaultOrganizationalUnit
+	}
+
+	err = validateMultiADConstraints(ctx, se, account.ID)
+	if err != nil {
+		return nil, "", err
 	}
 
 	var adRecord *datamodel.ActiveDirectory
@@ -625,4 +633,33 @@ func (o *Orchestrator) DeleteActiveDirectory(ctx context.Context, params *common
 		return "", err
 	}
 	return jobUUID, nil
+}
+
+func _validateMultiADConstraints(ctx context.Context, se database.Storage, accountID int64) error {
+	logger := util.GetLogger(ctx)
+	ads, err := se.ListActiveDirectories(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	maxADsPerAccount := utils.MaxNumberOfADPerAccount
+	multiADEnabled := utils.EnableMultiAD
+
+	// If multi-AD is disabled, only allow creation if no ADs exist (len(ads) == 0)
+	// This ensures that after creation, there will be exactly 1 AD total (including the one being created)
+	if !multiADEnabled {
+		if len(ads) > 0 {
+			logger.Error(MultiADNotAllowedError)
+			return customerrors.NewUserInputValidationErr(MultiADNotAllowedError)
+		}
+		return nil
+	}
+
+	// If multi-AD is enabled, check if adding one more AD would exceed the limit
+	// We check len(ads) < maxADsPerAccount because after creation, len(ads) + 1 <= maxADsPerAccount
+	// This ensures the total number of ADs (existing + the one being created) does not exceed maxADsPerAccount
+	if len(ads) >= maxADsPerAccount {
+		logger.Error(MaxADLimitReachedForAccountError)
+		return customerrors.NewConflictErr(MaxADLimitReachedForAccountError)
+	}
+	return nil
 }
