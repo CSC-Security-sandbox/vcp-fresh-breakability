@@ -2475,16 +2475,35 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 	var backupVault *datamodel.BackupVault
 
 	if params.BackupPath != "" {
-		// Get backup by path (existing logic)
 		components := strings.Split(params.BackupPath, "/")
-		backupVaultName := components[BackupVaultNameIndex]
-		backupName := components[BackupNameIndex]
 
-		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
-		if err != nil {
-			return "", err
+		// Ensure there are enough components to avoid out of range errors
+		if len(components) < MaxBackupPathComponents {
+			return "", customerrors.NewUserInputValidationErr("Backup path is not in correct format")
 		}
 
+		backupRegion := components[LocationIdIndex]
+		// Get the volume's region from its pool
+		volumeRegion, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
+		if err != nil {
+			logger.Error("Failed to get location from vendor ID: ", "error", err)
+			return "", err
+		}
+		backupVaultName := components[BackupVaultNameIndex]
+		if backupRegion != volumeRegion {
+			backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, backupVaultName, account.ID)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
+			if err != nil {
+				return "", err
+			}
+		}
+
+		backupName := components[BackupNameIndex]
+		// TODO: restore SDE Backup to VCP - need to fetch the details from sde db and store it will bucket details in case if the record is not found in VCP DB
 		backup, err = se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
 		if err != nil {
 			return "", err
