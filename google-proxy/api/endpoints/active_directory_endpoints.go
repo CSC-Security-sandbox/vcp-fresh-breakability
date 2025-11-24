@@ -175,24 +175,6 @@ func convertOrchestratorActiveDirectoryToV1Beta(ad *vcpModels.ActiveDirectory) g
 		details = "Active Directory is ready"
 	}
 
-	// Initialize empty slices if nil
-	backupOperators := make([]string, 0)
-	securityOperators := make([]string, 0)
-	administrators := make([]string, 0)
-
-	// Extract attributes if available
-	if ad.ActiveDirectoryAttributes != nil {
-		if ad.ActiveDirectoryAttributes.BackupOperators != nil {
-			backupOperators = ad.ActiveDirectoryAttributes.BackupOperators
-		}
-		if ad.ActiveDirectoryAttributes.SecurityOperators != nil {
-			securityOperators = ad.ActiveDirectoryAttributes.SecurityOperators
-		}
-		if ad.ActiveDirectoryAttributes.Administrators != nil {
-			administrators = ad.ActiveDirectoryAttributes.Administrators
-		}
-	}
-
 	adResponse := gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryId:           gcpgenserver.NewOptString(ad.UUID),
 		ResourceId:                  ad.AdName,
@@ -205,10 +187,41 @@ func convertOrchestratorActiveDirectoryToV1Beta(ad *vcpModels.ActiveDirectory) g
 		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(details),
 		CreatedAt:                   gcpgenserver.NewOptDateTime(ad.CreatedAt),
 		UpdatedAt:                   gcpgenserver.NewOptDateTime(ad.UpdatedAt),
-		SecurityOperators:           securityOperators,
-		BackupOperators:             backupOperators,
-		Administrators:              administrators,
 	}
+
+	// Extract attributes if available
+	if ad.ActiveDirectoryAttributes != nil {
+		if ad.ActiveDirectoryAttributes.BackupOperators != nil {
+			adResponse.BackupOperators = ad.ActiveDirectoryAttributes.BackupOperators
+		} else {
+			adResponse.BackupOperators = make([]string, 0)
+		}
+		if ad.ActiveDirectoryAttributes.SecurityOperators != nil {
+			adResponse.SecurityOperators = ad.ActiveDirectoryAttributes.SecurityOperators
+		} else {
+			adResponse.SecurityOperators = make([]string, 0)
+		}
+		if ad.ActiveDirectoryAttributes.Administrators != nil {
+			adResponse.Administrators = ad.ActiveDirectoryAttributes.Administrators
+		} else {
+			adResponse.Administrators = make([]string, 0)
+		}
+		adResponse.AesEncryption = gcpgenserver.NewOptBool(ad.ActiveDirectoryAttributes.AesEncryption)
+		adResponse.AllowLocalNFSUsersWithLdap = gcpgenserver.NewOptBool(ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap)
+		adResponse.EncryptDCConnections = gcpgenserver.NewOptBool(ad.ActiveDirectoryAttributes.EncryptDCConnections)
+		adResponse.LdapSigning = gcpgenserver.NewOptBool(ad.ActiveDirectoryAttributes.LdapSigning)
+		adResponse.OrganizationalUnit = gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.OrganizationalUnit)
+		adResponse.Site = gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.Site)
+		adResponse.KdcIP = gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.KdcIP)
+		adResponse.KdcHostname = gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.KdcHostname)
+		adResponse.Description = gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.Description)
+	} else {
+		// Initialize empty slices if attributes are nil
+		adResponse.BackupOperators = make([]string, 0)
+		adResponse.SecurityOperators = make([]string, 0)
+		adResponse.Administrators = make([]string, 0)
+	}
+
 	if ad.DeletedAt != nil {
 		adResponse.DeletedAt = gcpgenserver.NewOptDateTime(*ad.DeletedAt)
 	}

@@ -1180,7 +1180,7 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 
 		mockOrchestrator.AssertExpectations(t)
 	})
-	
+
 	t.Run("WhenUpdateActiveDirectoryOnlyRequiredFields", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -2042,9 +2042,18 @@ func TestConvertOrchestratorActiveDirectoryToV1Beta(t *testing.T) {
 			State:        "READY",
 			StateDetails: "Ready",
 			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
-				SecurityOperators: []string{"sec1", "sec2"},
-				BackupOperators:   []string{"backup1"},
-				Administrators:    []string{"admin1", "admin2"},
+				SecurityOperators:          []string{"sec1", "sec2"},
+				BackupOperators:            []string{"backup1"},
+				Administrators:             []string{"admin1", "admin2"},
+				AesEncryption:              true,
+				AllowLocalNFSUsersWithLdap: true,
+				EncryptDCConnections:       true,
+				LdapSigning:                true,
+				OrganizationalUnit:         "",
+				Site:                       "example",
+				KdcIP:                      "10.0.0.0",
+				KdcHostname:                "",
+				Description:                "",
 			},
 		}
 
@@ -2108,6 +2117,119 @@ func TestConvertOrchestratorActiveDirectoryToV1Beta(t *testing.T) {
 			result := convertOrchestratorActiveDirectoryToV1Beta(ad)
 			assert.Equal(t, tt.expectedState, result.ActiveDirectoryState.Value, "Failed for state: %s", tt.inputState)
 		}
+	})
+
+	// Positive Test Cases
+	t.Run("Positive_AllFieldsPopulated", func(t *testing.T) {
+		ad := &vcpModels.ActiveDirectory{
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				SecurityOperators:          []string{"sec1"},
+				BackupOperators:            []string{"bak1"},
+				Administrators:             []string{"adm1"},
+				AesEncryption:              true,
+				AllowLocalNFSUsersWithLdap: true,
+				EncryptDCConnections:       true,
+				LdapSigning:                true,
+				OrganizationalUnit:         "OU=Test",
+				Site:                       "TestSite",
+				KdcIP:                      "1.2.3.4",
+				KdcHostname:                "kdc.test.com",
+				Description:                "Test Description",
+			},
+		}
+		result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+		assert.Equal(t, []string{"sec1"}, result.SecurityOperators)
+		assert.Equal(t, []string{"bak1"}, result.BackupOperators)
+		assert.Equal(t, []string{"adm1"}, result.Administrators)
+		assert.True(t, result.AesEncryption.Value)
+		assert.True(t, result.AllowLocalNFSUsersWithLdap.Value)
+		assert.True(t, result.EncryptDCConnections.Value)
+		assert.True(t, result.LdapSigning.Value)
+		assert.Equal(t, "OU=Test", result.OrganizationalUnit.Value)
+		assert.Equal(t, "TestSite", result.Site.Value)
+		assert.Equal(t, "1.2.3.4", result.KdcIP.Value)
+		assert.Equal(t, "kdc.test.com", result.KdcHostname.Value)
+		assert.Equal(t, "Test Description", result.Description.Value)
+	})
+
+	t.Run("Positive_OptionalFieldsEmpty", func(t *testing.T) {
+		ad := &vcpModels.ActiveDirectory{
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				SecurityOperators: []string{},
+				BackupOperators:   []string{},
+				Administrators:    []string{},
+			},
+		}
+		result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+		assert.Empty(t, result.SecurityOperators)
+		assert.Empty(t, result.BackupOperators)
+		assert.Empty(t, result.Administrators)
+		assert.False(t, result.AesEncryption.Value)
+		assert.False(t, result.AllowLocalNFSUsersWithLdap.Value)
+		assert.False(t, result.EncryptDCConnections.Value)
+		assert.False(t, result.LdapSigning.Value)
+		assert.Empty(t, result.OrganizationalUnit.Value)
+		assert.Empty(t, result.Site.Value)
+		assert.Empty(t, result.KdcIP.Value)
+		assert.Empty(t, result.KdcHostname.Value)
+		assert.Empty(t, result.Description.Value)
+	})
+
+	t.Run("Positive_MultipleOperatorsAndAdmins", func(t *testing.T) {
+		ad := &vcpModels.ActiveDirectory{
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				SecurityOperators: []string{"sec1", "sec2"},
+				BackupOperators:   []string{"bak1", "bak2"},
+				Administrators:    []string{"adm1", "adm2"},
+			},
+		}
+		result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+		assert.Equal(t, []string{"sec1", "sec2"}, result.SecurityOperators)
+		assert.Equal(t, []string{"bak1", "bak2"}, result.BackupOperators)
+		assert.Equal(t, []string{"adm1", "adm2"}, result.Administrators)
+	})
+
+	// Negative Test-cases
+	t.Run("Negative_NilSlices", func(t *testing.T) {
+		ad := &vcpModels.ActiveDirectory{
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				SecurityOperators: nil,
+				BackupOperators:   nil,
+				Administrators:    nil,
+			},
+		}
+		result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+		assert.NotNil(t, result.SecurityOperators)
+		assert.Empty(t, result.SecurityOperators)
+		assert.NotNil(t, result.BackupOperators)
+		assert.Empty(t, result.BackupOperators)
+		assert.NotNil(t, result.Administrators)
+		assert.Empty(t, result.Administrators)
+	})
+
+	t.Run("Negative_WhitespaceAndSpecialChars", func(t *testing.T) {
+		ad := &vcpModels.ActiveDirectory{
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{
+				OrganizationalUnit: " OU=Test ",
+				Site:               " Test Site ",
+				Description:        " \tTest\nDescription ",
+			},
+		}
+		result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+		assert.Equal(t, " OU=Test ", result.OrganizationalUnit.Value)
+		assert.Equal(t, " Test Site ", result.Site.Value)
+		assert.Equal(t, " \tTest\nDescription ", result.Description.Value)
+	})
+
+	t.Run("Negative_BooleanDefaults", func(t *testing.T) {
+		ad := &vcpModels.ActiveDirectory{
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{},
+		}
+		result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+		assert.False(t, result.AesEncryption.Value)
+		assert.False(t, result.AllowLocalNFSUsersWithLdap.Value)
+		assert.False(t, result.EncryptDCConnections.Value)
+		assert.False(t, result.LdapSigning.Value)
 	})
 }
 
