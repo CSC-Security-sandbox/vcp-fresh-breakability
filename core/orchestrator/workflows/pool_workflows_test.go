@@ -1712,6 +1712,196 @@ func TestReleasePSCEndpointWorkflow_Success(t *testing.T) {
 	assert.NoError(t, env.GetWorkflowError())
 }
 
+func TestReleasePSCEndpointWorkflow_NoTPAttachedToPool(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	Region = "australia-southeast1"
+	defer func() {
+		Region = envs.GetString("LOCAL_REGION", "australia-southeast1")
+	}()
+
+	pool := datamodel.Pool{
+		ClusterDetails: datamodel.ClusterDetails{},
+		Network:        "test-network",
+		Account:        &datamodel.Account{Name: "test-account"},
+	}
+
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.PSCActivity{})
+
+	env.ExecuteWorkflow(ReleasePSCEndpointWorkflow, &pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	// No error, only logging.
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestReleasePSCEndpointWorkflow_PoolIsNil(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+
+	env.ExecuteWorkflow(ReleasePSCEndpointWorkflow, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Equal(t, env.GetWorkflowError(), nil)
+}
+
+func TestReleasePSCEndpointWorkflow_FetchTenantProjectSuccess(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	pool := datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+		},
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+		Network: "test-network",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "",
+		},
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	poolActivity := &activities.PoolActivity{}
+	pscActivity := &activities.PSCActivity{}
+
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PSCActivity{})
+
+	defer func() {
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+
+	mockOperationName := "op-1"
+	mockOperations := make([]common.Operations, 0)
+	mockOperations = append(mockOperations, common.Operations{
+		OperationName:      mockOperationName,
+		OperationType:      "vpc",
+		IsDone:             false,
+		IsRegionalResource: true,
+		Project:            "fetched-tenant-project",
+	})
+
+	// Mock FindTenancyProject to return a tenant project
+	env.OnActivity(poolActivity.FindTenancyProject, mock.Anything, mock.Anything).Return("fetched-tenant-project", nil)
+	env.OnActivity(pscActivity.DeleteForwardingRule, mock.Anything, mock.Anything).Return(&mockOperations, nil)
+	env.OnActivity(pscActivity.DeleteAddress, mock.Anything, mock.Anything).Return(&mockOperations, nil)
+
+	env.ExecuteWorkflow(ReleasePSCEndpointWorkflow, &pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestReleasePSCEndpointWorkflow_FetchTenantProjectFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	pool := datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+		},
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+		Network: "test-network",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "",
+		},
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	poolActivity := &activities.PoolActivity{}
+
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	// Mock FindTenancyProject to return an error
+	env.OnActivity(poolActivity.FindTenancyProject, mock.Anything, mock.Anything).Return("", errors.New("failed to find tenancy project"))
+
+	env.ExecuteWorkflow(ReleasePSCEndpointWorkflow, &pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Nil(t, env.GetWorkflowError())
+}
+
+func TestReleasePSCEndpointWorkflow_DeleteForwardingRuleFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	pool := datamodel.Pool{
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "tenant-project",
+		},
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	pscActivity := &activities.PSCActivity{}
+
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock DeleteForwardingRule to return an error
+	env.OnActivity(pscActivity.DeleteForwardingRule, mock.Anything, mock.Anything).Return(nil, errors.New("failed to delete forwarding rule"))
+
+	env.ExecuteWorkflow(ReleasePSCEndpointWorkflow, &pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
 func TestConfigurePSCEndpointWorkflow_Success(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestWorkflowEnvironment()

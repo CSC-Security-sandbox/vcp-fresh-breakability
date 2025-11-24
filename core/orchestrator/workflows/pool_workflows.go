@@ -31,6 +31,7 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+	logger "golang.org/x/exp/slog"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -52,6 +53,7 @@ var (
 	maxNodesPerGroup                                     = env.GetInt("MAX_NODES_PER_GROUP", 200)
 	enableMetrics                                        = env.GetBool("ENABLE_METRICS", false)
 	enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
+	Region                                               = env.GetString("LOCAL_REGION", "")
 
 	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "x-9-17-1p1-gcnv")
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1p1")
@@ -1539,10 +1541,26 @@ func ReleasePSCEndpointWorkflow(ctx workflow.Context, pool *datamodel.Pool) erro
 	pscActivity := &activities.PSCActivity{}
 	setupPscCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
 
-	if pool == nil || pool.ClusterDetails.RegionalTenantProject == "" {
+	if pool == nil {
+		logger.Warn("pool is nil, unable to release PSC Endpoint")
+		return nil
+	}
+	if pool.ClusterDetails.RegionalTenantProject == "" {
 		logger := util.GetLogger(ctx)
-		logger.Errorf("Regional tenant project is not set for pool: %+v, unable to release PSC Endpoint.", pool)
-		return vsaerror.Errorf("Regional tenant project is not set for pool: %+v, unable to release PSC Endpoint.", pool)
+		logger.Warnf("Regional tenant project is not set for pool: %s, fetching tenanct project number", pool.UUID)
+
+		tenantProjectNumber := new(string)
+		params := &common.CreatePoolParams{
+			AccountName:    pool.Account.Name,
+			VendorSubNetID: pool.Network,
+			Region:         Region,
+		}
+		err = workflow.ExecuteActivity(ctx, poolActivity.FindTenancyProject, params).Get(ctx, tenantProjectNumber)
+		if err != nil {
+			logger.Warnf("Failed to fetch tenancy project number for pool: %s, error: %v", pool.UUID, err)
+			return nil
+		}
+		pool.ClusterDetails.RegionalTenantProject = *tenantProjectNumber
 	}
 	deleteForwardingRuleOperation := make([]common.Operations, 0)
 	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.DeleteForwardingRule, pool).Get(setupPscCtx, &deleteForwardingRuleOperation)
