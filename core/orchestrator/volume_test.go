@@ -2938,13 +2938,13 @@ func TestCreateVolume(t *testing.T) {
 		bv := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
 			Name:      "bv1",
-			AccountID: 0,
+			AccountID: account.ID,
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
 				BackupMinimumEnforcedRetentionDuration: &minEnforcedRetentionDuration,
 			},
 		}
 
-		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "463811e7-9760-acf5-9bdb-020073ca3333"}, Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating"}
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "463811e7-9760-acf5-9bdb-020073ca3333"}, Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating", BackupVaultID: bv.ID, BackupVault: bv}
 
 		err = store.DB().Create(bv).Error
 		if err != nil {
@@ -2980,6 +2980,7 @@ func TestCreateVolume(t *testing.T) {
 
 		dbAccount := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
+				ID:   account.ID,
 				UUID: "test-uuid",
 			},
 			Name: "test_account",
@@ -3092,13 +3093,13 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel:                  datamodel.BaseModel{UUID: "backup-vault-uuid"},
 			Name:                       "bv1",
 			AccountID:                  account.ID,
-			CrossRegionBackupVaultName: &backupPath,
+			CrossRegionBackupVaultName: nillable.ToPointer("projects/project123/locations/different_region/backupVaults/bv1"),
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
 				BackupMinimumEnforcedRetentionDuration: &minEnforcedRetentionDuration,
 			},
 		}
 
-		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "463811e7-9760-acf5-9bdb-020073ca3333"}, Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating", BackupVaultID: bv.ID, SizeInBytes: int64(10 * 1024 * 1024 * 1024)}
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "463811e7-9760-acf5-9bdb-020073ca3333"}, Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating", BackupVaultID: bv.ID, BackupVault: bv, SizeInBytes: int64(10 * 1024 * 1024 * 1024)}
 
 		err = store.DB().Create(bv).Error
 		if err != nil {
@@ -3251,7 +3252,7 @@ func TestCreateVolume(t *testing.T) {
 			},
 		}
 
-		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "463811e7-9760-acf5-9bdb-020073ca3333"}, Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating", BackupVaultID: bv.ID, SizeInBytes: int64(10 * 1024 * 1024 * 1024)}
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "463811e7-9760-acf5-9bdb-020073ca3333"}, Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating", BackupVaultID: bv.ID, BackupVault: bv, SizeInBytes: int64(10 * 1024 * 1024 * 1024)}
 
 		err = store.DB().Create(bv).Error
 		if err != nil {

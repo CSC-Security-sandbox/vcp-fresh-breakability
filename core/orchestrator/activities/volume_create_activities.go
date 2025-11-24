@@ -852,6 +852,12 @@ func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context
 
 func UpdateRemoteBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, sourceBV *datamodel.BackupVault, remoteBV *datamodel.BackupVault, bucketDetails *common.BucketDetails) error {
 	logger := util.GetLogger(ctx)
+	if sourceBV.BackupVaultType != CrossRegionBackupType ||
+		sourceBV.SourceRegionName == nil || sourceBV.BackupRegionName == nil ||
+		*sourceBV.SourceRegionName == *sourceBV.BackupRegionName {
+		return nil
+	}
+
 	newBucketDetail := &datamodel.BucketDetails{
 		BucketName:          bucketDetails.BucketName,
 		ServiceAccountName:  bucketDetails.ServiceAccountName,
@@ -1635,6 +1641,13 @@ func (a VolumeCreateActivity) DeleteRolesForServiceAccountInBackupTenantProject(
 // DeleteObjectStoreForCrossVPC deletes object store if the target pool and backup are in different tenant projects
 func (a VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, targetPool *datamodel.Pool, backup *datamodel.Backup, node *models.Node, name string) (*vsa.OntapAsyncResponse, error) {
 	log := util.GetLogger(ctx)
+
+	// TODO - Ideally the Cloud Target should be deleted post-restoration. However, due to errors related to
+	//  dangling snapmirror relationships, this validation is skipped for cross-region backup restores
+	if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == CrossRegionBackupType {
+		log.Infof("Skipping DeleteObjectStoreForCrossVPC for cross-region backup restore")
+		return nil, nil
+	}
 	targetPoolTenantProject, err := GetPoolTenantProject(targetPool)
 	if err != nil {
 		log.Errorf("Failed to get target pool tenant project: %v", err)

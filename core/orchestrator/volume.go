@@ -360,7 +360,10 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 		backupRegion := components[LocationIdIndex]
 		if backupRegion != params.Region {
-			backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, params.BackupPath, account.ID)
+			// Extract backup vault path: projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultName}
+			// This is the first 6 components (indices 0-5) of the full backup path
+			backupVaultName := strings.Join(components[:6], "/")
+			backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, backupVaultName, account.ID)
 			if err != nil {
 				return nil, "", err
 			}

@@ -171,13 +171,17 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	rollbackManager := common.NewRollbackManager()
+
+	var incrementErr error
 	defer func() {
 		// Decrement backup restore count after the workflow is complete
-		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
-			backupActivitiesContext.BackupWorkflowInit.BackupVault.UUID,
-			backupActivitiesContext.BackupWorkflowInit.Backup.UUID,
-			backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name, activities.BackupRestoreCountDecrement).Get(ctx, nil)
-		log.Errorf("Failed to revert backup restore count: %v", err)
+		if incrementErr == nil {
+			decrementErr := workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
+				backupActivitiesContext.BackupWorkflowInit.BackupVault.UUID,
+				backupActivitiesContext.BackupWorkflowInit.Backup.UUID,
+				backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name, activities.BackupRestoreCountDecrement).Get(ctx, nil)
+			log.Errorf("Failed to revert backup restore count: %v", decrementErr)
+		}
 
 		// just a placeholder for rollback manager cleanup
 		if err != nil && workflow.IsContinueAsNewError(err) {
@@ -199,13 +203,13 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			"transferStatus", backupActivitiesContext.TransferStatus)
 	} else {
 		// Increment restore count to indicate that a volume restoration is in-progress for the backup
-		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
+		incrementErr = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
 			backupActivitiesContext.BackupWorkflowInit.BackupVault.UUID,
 			backupActivitiesContext.BackupWorkflowInit.Backup.UUID,
 			backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name, activities.BackupRestoreCountIncrement).Get(ctx, nil)
-		if err != nil {
-			log.Errorf("Failed to update backup restore count: %v", err)
-			return nil, ConvertToVSAError(err)
+		if incrementErr != nil {
+			log.Errorf("Failed to update backup restore count: %v", incrementErr)
+			return nil, ConvertToVSAError(incrementErr)
 		}
 
 		// Execute VPC pool restoration activity to handle cross-project permissions

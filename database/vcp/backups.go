@@ -30,7 +30,7 @@ const (
 )
 
 func (d *DataStoreRepository) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
-	return getBackupVaultByNameAndBackupVaultID(d.db.GORM().WithContext(ctx), &datamodel.Backup{Name: backupName})
+	return getBackupVaultByNameAndBackupVaultID(d.db.GORM().WithContext(ctx), &datamodel.Backup{Name: backupName, BackupVaultID: backupVaultID})
 }
 
 func _getBackupVaultByNameAndBackupVaultID(db *gorm.DB, query *datamodel.Backup) (*datamodel.Backup, error) {

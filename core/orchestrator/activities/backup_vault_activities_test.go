@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/temporal"
 )
 
@@ -103,7 +104,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 			},
 			Name:                  "",
 			BackupRegionName:      nil,
-			SourceRegionName:      nil,
+			SourceRegionName:      nillable.ToPointer("us-central1"),
 			LifeCycleState:        "",
 			LifeCycleStateDetails: "",
 			BackupVaultType:       "",

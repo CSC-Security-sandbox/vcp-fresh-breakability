@@ -5165,6 +5165,39 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		assert.Nil(t, result)
 		mockProvider.AssertExpectations(t)
 	})
+
+	t.Run("WhenCrossRegionBackupType_ThenSkipAndReturnNil", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BackupVaultType: activities.CrossRegionBackupType,
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						TenantProjectNumber: "backup-project",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+
+		// Act
+		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		// Verify that GetProviderByNode is not called (early return)
+		// This ensures the function returns early without processing further
+	})
 }
 
 func TestFinaliseRestoredVolume_Success(t *testing.T) {
@@ -7131,6 +7164,130 @@ func TestCheckOrCreateRemoteBackupVaultInVCP(t *testing.T) {
 func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
+	t.Run("EarlyReturn_NonCrossRegionBackupType", func(t *testing.T) {
+		// Arrange
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				VendorSubnetID: "subnet-123",
+			},
+		}
+		backupRegion := "us-west1"
+		sourceBV := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  "STANDARD", // Not CrossRegionBackupType
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
+		}
+		remoteBV := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupRegionName: &backupRegion,
+			BucketDetails:    []*datamodel.BucketDetails{},
+		}
+		bucketDetails := &common.BucketDetails{
+			BucketName: "new-bucket",
+		}
+
+		// Act
+		err := activities.UpdateRemoteBackupVaultWithBucketDetails(ctx, volume, sourceBV, remoteBV, bucketDetails)
+
+		// Assert
+		assert.NoError(t, err) // Should return early without any processing
+	})
+
+	t.Run("EarlyReturn_SourceRegionNameIsNil", func(t *testing.T) {
+		// Arrange
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				VendorSubnetID: "subnet-123",
+			},
+		}
+		backupRegion := "us-west1"
+		sourceBV := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nil, // Nil source region
+			BackupRegionName: nillable.ToPointer("us-east4"),
+		}
+		remoteBV := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupRegionName: &backupRegion,
+			BucketDetails:    []*datamodel.BucketDetails{},
+		}
+		bucketDetails := &common.BucketDetails{
+			BucketName: "new-bucket",
+		}
+
+		// Act
+		err := activities.UpdateRemoteBackupVaultWithBucketDetails(ctx, volume, sourceBV, remoteBV, bucketDetails)
+
+		// Assert
+		assert.NoError(t, err) // Should return early without any processing
+	})
+
+	t.Run("EarlyReturn_BackupRegionNameIsNil", func(t *testing.T) {
+		// Arrange
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				VendorSubnetID: "subnet-123",
+			},
+		}
+		backupRegion := "us-west1"
+		sourceBV := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nil, // Nil backup region
+		}
+		remoteBV := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupRegionName: &backupRegion,
+			BucketDetails:    []*datamodel.BucketDetails{},
+		}
+		bucketDetails := &common.BucketDetails{
+			BucketName: "new-bucket",
+		}
+
+		// Act
+		err := activities.UpdateRemoteBackupVaultWithBucketDetails(ctx, volume, sourceBV, remoteBV, bucketDetails)
+
+		// Assert
+		assert.NoError(t, err) // Should return early without any processing
+	})
+
+	t.Run("EarlyReturn_SourceAndBackupRegionsAreSame", func(t *testing.T) {
+		// Arrange
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				VendorSubnetID: "subnet-123",
+			},
+		}
+		sameRegion := "us-central1"
+		sourceBV := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-central1"), // Same as source region
+		}
+		remoteBV := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupRegionName: &sameRegion,
+			BucketDetails:    []*datamodel.BucketDetails{},
+		}
+		bucketDetails := &common.BucketDetails{
+			BucketName: "new-bucket",
+		}
+
+		// Act
+		err := activities.UpdateRemoteBackupVaultWithBucketDetails(ctx, volume, sourceBV, remoteBV, bucketDetails)
+
+		// Assert
+		assert.NoError(t, err) // Should return early without any processing
+	})
+
 	t.Run("Success_UpdateSucceeds", func(t *testing.T) {
 		// Arrange
 		volume := &datamodel.Volume{
@@ -7148,6 +7305,9 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 					VendorSubnetID: "subnet-456",
 				},
 			},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7241,7 +7401,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7279,7 +7442,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7333,7 +7499,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7389,7 +7558,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7445,7 +7617,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7501,7 +7676,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7557,7 +7735,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7613,7 +7794,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7669,7 +7853,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7725,7 +7912,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
@@ -7779,7 +7969,10 @@ func TestUpdateRemoteBackupVaultWithBucketDetails(t *testing.T) {
 		}
 		backupRegion := "us-west1"
 		sourceBV := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},
+			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer("us-central1"),
+			BackupRegionName: nillable.ToPointer("us-east4"),
 		}
 		remoteBV := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-bv-uuid"},

@@ -16,6 +16,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 )
@@ -592,9 +593,16 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 	if bv.Description != nil && *bv.Description != "" {
 		description = bv.Description
 	}
+
+	// SourceRegion and BackupRegion are 'nil' in SDE for IN_REGION backup vaults. They're set only for CROSS_REGION backup vaults.
 	if bv.SourceRegion != nil {
+		// CROSS_REGION Backup Vault
 		sourceRegion = bv.SourceRegion
+	} else {
+		// IN_REGION Backup Vault
+		sourceRegion = nillable.ToPointer(locationId)
 	}
+
 	var minEnforcedRetentionDuration *int64
 	var isDaily, isWeekly, isMonthly, isAdhoc bool
 	if bv.BackupRetentionPolicy != nil {
