@@ -451,9 +451,10 @@ func TestSnapmirrorRelationshipTransferCreate(t *testing.T) {
 	snapmirrorUUID := "test-uuid"
 	snapshotName := "test-snapshot"
 	expectedParams := &ontapRest.SnapmirrorRelationshipTransferCreateParams{
-		UUID:         snapmirrorUUID,
-		SnapshotName: snapshotName,
-		AccessToken:  nil,
+		UUID:             snapmirrorUUID,
+		SnapshotName:     snapshotName,
+		AccessToken:      nil,
+		CleanUpOnFailure: true,
 	}
 
 	t.Run("success", func(t *testing.T) {

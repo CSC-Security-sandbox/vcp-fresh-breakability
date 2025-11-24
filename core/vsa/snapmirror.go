@@ -74,7 +74,7 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipTransferCreate(snapmirrorUUID
 	if err != nil {
 		return err
 	}
-	err = client.Snapmirror().SnapmirrorRelationshipTransferCreate(&ontapRest.SnapmirrorRelationshipTransferCreateParams{UUID: snapmirrorUUID, SnapshotName: snapshotName, AccessToken: smcToken})
+	err = client.Snapmirror().SnapmirrorRelationshipTransferCreate(&ontapRest.SnapmirrorRelationshipTransferCreateParams{UUID: snapmirrorUUID, SnapshotName: snapshotName, AccessToken: smcToken, CleanUpOnFailure: true})
 	if err != nil {
 		return err
 	}
