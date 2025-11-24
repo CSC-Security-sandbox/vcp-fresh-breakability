@@ -168,18 +168,26 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 				UUID: "job-uuid-123",
 			},
 		}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-123",
+			},
+		}
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(&datamodel.VolumeReplication{}, nil)
-
+		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(replicationDb, nil)
 		// Mock the UpdateJob call that should happen in the defer block
 		mockStorage.On("UpdateJob", ctx, "job-uuid-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
+		// Mock the DeleteVolumeReplication call that should happen in the defer block
+		mockStorage.On("DeleteVolumeReplication", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
+			return repl != nil
+		})).Return(replicationDb, nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 		_, _, err := _createVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
 
-		// Verify that UpdateJob was called to mark the job as ERROR
+		// Verify that UpdateJob and DeleteVolumeReplication were called
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -215,18 +223,27 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 				UUID: "job-uuid-123",
 			},
 		}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-123",
+			},
+		}
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
-		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(&datamodel.VolumeReplication{}, nil)
+		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(replicationDb, nil)
 
 		// Mock the UpdateJob call to fail (this tests the error handling in the defer block)
 		mockStorage.On("UpdateJob", ctx, "job-uuid-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
+		// Mock the DeleteVolumeReplication call that should happen in the defer block
+		mockStorage.On("DeleteVolumeReplication", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
+			return repl != nil
+		})).Return(replicationDb, nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 		_, _, err := _createVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
 
-		// Verify that UpdateJob was called even though it failed
+		// Verify that UpdateJob and DeleteVolumeReplication were called
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
@@ -3842,10 +3859,14 @@ func TestResumeReplicationInternal(t *testing.T) {
 		}
 		expectedError := errors.New("failed to execute workflow")
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplicationId).Return(replicationDb, nil)
-		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil).Once() // For setting to UPDATING
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, expectedError.Error()).Return(nil)
+		// Mock the UpdateVolumeReplicationStates call to set state to ERROR
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
+			return repl.State == models.LifeCycleStateError && repl.StateDetails == expectedError.Error()
+		})).Return(nil)
 
 		_, _, err := _resumeReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplicationId, accountName, false)
 		assert.NotNil(tt, err)
@@ -5004,6 +5025,10 @@ func TestStopReplicationInternal(t *testing.T) {
 
 		// Mock the UpdateJob call that should happen in the defer block
 		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
+		// Mock the UpdateVolumeReplicationStates call to set state to ERROR
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
+			return repl.State == models.LifeCycleStateError && repl.StateDetails == expectedError.Error()
+		})).Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 		_, _, err := _stopReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplicationId, accountName, false)
@@ -5011,6 +5036,7 @@ func TestStopReplicationInternal(t *testing.T) {
 		assert.Equal(tt, "failed to execute workflow", err.Error())
 
 		// Verify that UpdateJob was called to mark the job as ERROR
+		// Verify that UpdateVolumeReplicationStates was called to revert state to READY
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
@@ -7573,10 +7599,14 @@ func TestReverseReplicationInternal(t *testing.T) {
 
 		expectedError := errors.New("workflow execution failed")
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplicationId).Return(replicationDb, nil)
-		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.AnythingOfType("*datamodel.VolumeReplication")).Return(nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.AnythingOfType("*datamodel.VolumeReplication")).Return(nil).Once() // For setting to UPDATING
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
 		mockTemporal.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedError)
 		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, expectedError.Error()).Return(nil)
+		// Mock the UpdateVolumeReplicationStates call to set state to ERROR
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
+			return repl.State == models.LifeCycleStateError && repl.StateDetails == expectedError.Error()
+		})).Return(nil)
 
 		_, _, err := reverseReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplicationId, accountName)
 

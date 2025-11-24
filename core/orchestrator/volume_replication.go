@@ -126,6 +126,10 @@ func _createVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
+			_, deleteError := se.DeleteVolumeReplication(ctx, replicationDb)
+			if deleteError != nil {
+				logger.Error("Failed to delete volume replication after creation job failed", "volume_repl_id", replicationDb.UUID, "error", deleteError)
+			}
 		}
 	}()
 
@@ -276,6 +280,12 @@ func _stopReplicationInternal(ctx context.Context, se database.Storage, temporal
 		if err != nil {
 			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+			// Set replication state to ERROR if workflow fails to start
+			replicationDb.State = models.LifeCycleStateError
+			replicationDb.StateDetails = err.Error()
+			if stateErr := se.UpdateVolumeReplicationStates(ctx, replicationDb); stateErr != nil {
+				logger.Error("Failed to set replication state to ERROR", "replicationUUID", replicationDb.UUID, "error", stateErr)
 			}
 		}
 	}()
@@ -1467,6 +1477,12 @@ func _resumeReplicationInternal(ctx context.Context, se database.Storage, tempor
 			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
 			}
+			// Set replication state to ERROR if workflow fails to start
+			replicationDb.State = models.LifeCycleStateError
+			replicationDb.StateDetails = err.Error()
+			if stateErr := se.UpdateVolumeReplicationStates(ctx, replicationDb); stateErr != nil {
+				logger.Error("Failed to set replication state to ERROR", "replicationUUID", replicationDb.UUID, "error", stateErr)
+			}
 		}
 	}()
 
@@ -1872,6 +1888,12 @@ func _reverseReplicationInternal(ctx context.Context, se database.Storage, tempo
 		if err != nil {
 			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
 				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+			// Set replication state to ERROR if workflow fails to start
+			replicationDb.State = models.LifeCycleStateError
+			replicationDb.StateDetails = err.Error()
+			if stateErr := se.UpdateVolumeReplicationStates(ctx, replicationDb); stateErr != nil {
+				logger.Error("Failed to set replication state to ERROR", "replicationUUID", replicationDb.UUID, "error", stateErr)
 			}
 		}
 	}()

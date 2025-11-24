@@ -70,6 +70,7 @@ func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, arg
 	params := args[0].(*common.CreateVolumeReplicationInternalParams)
 	replication := args[1].(*datamodel.VolumeReplication)
 	replicationActivity := &replicationActivities.InternalVolumeReplicationActivity{}
+	replicationCreateActivity := &replicationActivities.VolumeReplicationCreateActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -85,6 +86,20 @@ func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, arg
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	log := util.GetLogger(ctx)
+
+	// Defer function to mark the database entry in error state if any error occurs
+	defer func() {
+		if err != nil {
+			// On panic, mark volume replication in error state
+			replication.State = models.LifeCycleStateError
+			replication.StateDetails = err.Error()
+			err2 := workflow.ExecuteActivity(ctx, replicationCreateActivity.UpdateReplicationState, *replication).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			}
+		}
+	}()
 
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, replication.Volume.PoolID).Get(ctx, &dbNodes)

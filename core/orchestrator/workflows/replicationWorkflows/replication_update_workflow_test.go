@@ -65,4 +65,44 @@ func TestUpdateReplicationWorkflow(t *testing.T) {
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
 	})
+
+	t.Run("TestUpdateReplicationWorkflow_DeferCase_UpdateReplicationState", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		updateReplicationActivity := replicationActivities.VolumeReplicationUpdateActivity{SE: mockStorage}
+		replicationCommonActivity := replicationActivities.VolumeReplicationCreateActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(updateReplicationActivity.GetSrcBasePathUpdate)
+		env.RegisterActivity(replicationCommonActivity.UpdateReplicationState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.UpdateReplicationParams{}
+
+		event := &replication.UpdateReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{},
+			},
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSrcBasePathUpdate", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("UpdateReplicationState", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(UpdateVolumeReplicationWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+	})
 }

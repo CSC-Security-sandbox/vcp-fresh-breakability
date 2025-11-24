@@ -67,6 +67,7 @@ func (wf *ReplicationUpdateWorkflow) Setup(ctx workflow.Context, input interface
 func (wf *ReplicationUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	event := args[0].(*replication.UpdateReplicationEvent)
 	replicationActivity := &replicationActivities.VolumeReplicationUpdateActivity{}
+	replicationCommonActivity := &replicationActivities.VolumeReplicationCreateActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -93,6 +94,21 @@ func (wf *ReplicationUpdateWorkflow) Run(ctx workflow.Context, args ...interface
 		Event:            event,
 		DbVolReplication: event.ReplicationModel,
 	}
+
+	log := util.GetLogger(ctx)
+	dbReplication := event.ReplicationModel
+	// Defer function to mark the database entry in error state if any error occurs
+	defer func() {
+		if err != nil {
+			// On panic, mark volume replication in error state
+			dbReplication.State = models.LifeCycleStateError
+			dbReplication.StateDetails = err.Error()
+			err2 := workflow.ExecuteActivity(ctx, replicationCommonActivity.UpdateReplicationState, *dbReplication).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			}
+		}
+	}()
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathUpdate, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
