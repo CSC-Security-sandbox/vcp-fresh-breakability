@@ -1550,21 +1550,33 @@ func (_c *MockStorageClient_VolumeCreate_Call) RunAndReturn(run func(*VolumeCrea
 }
 
 // VolumeDelete provides a mock function with given fields: params
-func (_m *MockStorageClient) VolumeDelete(params *VolumeDeleteParams) error {
+func (_m *MockStorageClient) VolumeDelete(params *VolumeDeleteParams) (*JobAccepted, error) {
 	ret := _m.Called(params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for VolumeDelete")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*VolumeDeleteParams) error); ok {
+	var r0 *JobAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeDeleteParams) (*JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeDeleteParams) *JobAccepted); ok {
 		r0 = rf(params)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobAccepted)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(*VolumeDeleteParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockStorageClient_VolumeDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VolumeDelete'
@@ -1585,12 +1597,12 @@ func (_c *MockStorageClient_VolumeDelete_Call) Run(run func(params *VolumeDelete
 	return _c
 }
 
-func (_c *MockStorageClient_VolumeDelete_Call) Return(_a0 error) *MockStorageClient_VolumeDelete_Call {
-	_c.Call.Return(_a0)
+func (_c *MockStorageClient_VolumeDelete_Call) Return(_a0 *JobAccepted, _a1 error) *MockStorageClient_VolumeDelete_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockStorageClient_VolumeDelete_Call) RunAndReturn(run func(*VolumeDeleteParams) error) *MockStorageClient_VolumeDelete_Call {
+func (_c *MockStorageClient_VolumeDelete_Call) RunAndReturn(run func(*VolumeDeleteParams) (*JobAccepted, error)) *MockStorageClient_VolumeDelete_Call {
 	_c.Call.Return(run)
 	return _c
 }

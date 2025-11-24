@@ -481,8 +481,46 @@ func TestDeleteVolume_Success(t *testing.T) {
 	// The Clone and Snapmirror fields are nil by default, which means no clones or snapmirror protection
 	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
 
-	// Mock VolumeDelete to succeed
-	mockStorage.On("VolumeDelete", mock.Anything).Return(nil)
+	// Mock VolumeDelete to succeed (synchronous - no job returned)
+	mockStorage.On("VolumeDelete", mock.Anything).Return(nil, nil)
+
+	err := rc.DeleteVolume(volumeUUID, volumeName)
+
+	assert.NoError(t, err)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestDeleteVolume_Success_Async(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeUUID := "testUUID"
+	volumeName := "testVolume"
+
+	// Mock VolumeGet to return a volume with no clones or split state
+	mockVolume := &ontaprest.Volume{
+		Volume: models.Volume{
+			UUID: &volumeUUID,
+			Name: &volumeName,
+		},
+	}
+	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+	// Mock VolumeDelete to return a job (async deletion)
+	mockJob := &ontaprest.JobAccepted{JobUUID: "job-uuid-123"}
+	mockStorage.On("VolumeDelete", mock.Anything).Return(mockJob, nil)
+	mockClient.On("Poll", "job-uuid-123").Return(nil)
 
 	err := rc.DeleteVolume(volumeUUID, volumeName)
 
@@ -518,7 +556,7 @@ func TestDeleteVolume_Error(t *testing.T) {
 	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
 
 	// Mock VolumeDelete to fail
-	mockStorage.On("VolumeDelete", mock.Anything).Return(errors.New("deletion error"))
+	mockStorage.On("VolumeDelete", mock.Anything).Return(nil, errors.New("deletion error"))
 
 	err := rc.DeleteVolume(volumeUUID, volumeName)
 

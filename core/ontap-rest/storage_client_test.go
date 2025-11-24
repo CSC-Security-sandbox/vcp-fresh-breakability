@@ -58,7 +58,8 @@ func TestVolumeDelete(t *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		err := client.VolumeDelete(&VolumeDeleteParams{UUID: "someUUID"})
+		job, err := client.VolumeDelete(&VolumeDeleteParams{UUID: "someUUID"})
+		assert.Nil(tt, job)
 		assert.EqualError(tt, err, transport.err.Error())
 	})
 
@@ -66,25 +67,58 @@ func TestVolumeDelete(t *testing.T) {
 		transport := &mockTransport{response: &storage.VolumeDeleteCollectionOK{}}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		err := client.VolumeDelete(&VolumeDeleteParams{})
+		job, err := client.VolumeDelete(&VolumeDeleteParams{})
+		assert.Nil(tt, job)
 		assert.Error(tt, err)
 		assert.EqualError(tt, err, "no name filter provided for VolumeDeleteCollection")
 	})
 
-	t.Run("WhenVolumeUUIDIsPassed_ThenSuccessfullyDeleteVolume", func(tt *testing.T) {
+	t.Run("WhenVolumeUUIDIsPassed_ThenSuccessfullyDeleteVolume_Synchronous", func(tt *testing.T) {
 		transport := &mockTransport{response: &storage.VolumeDeleteOK{}}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		err := client.VolumeDelete(&VolumeDeleteParams{UUID: "someUUID"})
+		job, err := client.VolumeDelete(&VolumeDeleteParams{UUID: "someUUID"})
+		assert.Nil(tt, job) // Synchronous deletion, no job returned
 		assert.NoError(tt, err)
 	})
 
-	t.Run("WhenVolumeNameIsPassed_ThenSuccessfullyDeleteVolume", func(tt *testing.T) {
+	t.Run("WhenVolumeUUIDIsPassed_ThenSuccessfullyDeleteVolume_Async", func(tt *testing.T) {
+		jobUUID := "job-uuid-123"
+		transport := &mockTransport{response: &storage.VolumeDeleteAccepted{
+			Payload: &models.VolumeJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		job, err := client.VolumeDelete(&VolumeDeleteParams{UUID: "someUUID"})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, jobUUID, job.JobUUID)
+	})
+
+	t.Run("WhenVolumeNameIsPassed_ThenSuccessfullyDeleteVolume_Synchronous", func(tt *testing.T) {
 		transport := &mockTransport{response: &storage.VolumeDeleteCollectionOK{}}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		err := client.VolumeDelete(&VolumeDeleteParams{Name: "volumeName"})
+		job, err := client.VolumeDelete(&VolumeDeleteParams{Name: "volumeName"})
+		assert.Nil(tt, job) // Synchronous deletion, no job returned
 		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenVolumeNameIsPassed_ThenSuccessfullyDeleteVolume_Async", func(tt *testing.T) {
+		jobUUID := "job-uuid-456"
+		transport := &mockTransport{response: &storage.VolumeDeleteCollectionAccepted{
+			Payload: &models.VolumeJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		job, err := client.VolumeDelete(&VolumeDeleteParams{Name: "volumeName"})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, jobUUID, job.JobUUID)
 	})
 }
 

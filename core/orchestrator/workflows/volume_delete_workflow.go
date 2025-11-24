@@ -214,6 +214,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror in ontap: %w", err))
 	}
 
+	// DeleteVolume polls the job internally, so we just wait for the activity to complete
 	err = workflow.ExecuteActivity(ctx1, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx1, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)

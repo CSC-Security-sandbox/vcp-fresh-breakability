@@ -36,7 +36,7 @@ type StorageClient interface {
 	FlexCacheVolumeModify(params *FlexcacheModifyParams) (bool, *JobAccepted, error)
 	VolumeCreate(params *VolumeCreateParams) (*Volume, *JobAccepted, error)
 	FlexCacheVolumeCreate(params *FlexCacheVolumeCreateParams) (*Flexcache, *JobAccepted, error)
-	VolumeDelete(params *VolumeDeleteParams) error
+	VolumeDelete(params *VolumeDeleteParams) (*JobAccepted, error)
 	VolumeMount(params *VolumeMountParams) (*JobAccepted, error)
 	VolumeUnmount(params *VolumeUnmountParams) (*JobAccepted, error)
 	FlexCacheVolumeDelete(params *FlexCacheVolumeDeleteParams) (*JobAccepted, error)
@@ -458,18 +458,44 @@ func (sc *storageClient) VolumeCreate(params *VolumeCreateParams) (*Volume, *Job
 }
 
 // VolumeDelete invokes pkg/ontap-rest/client/storage/Client.VolumeDelete to delete Volume
-func (sc *storageClient) VolumeDelete(params *VolumeDeleteParams) error {
+func (sc *storageClient) VolumeDelete(params *VolumeDeleteParams) (*JobAccepted, error) {
 	if params.UUID != "" {
-		_, _, err := sc.api.VolumeDelete(volumeDeleteParamsToONTAP(params), nil)
-		return err
+		deleted, accepted, err := sc.api.VolumeDelete(volumeDeleteParamsToONTAP(params), nil)
+		if err != nil {
+			return nil, err
+		}
+
+		if accepted != nil {
+			return &JobAccepted{
+				JobUUID: string(*accepted.Payload.Job.UUID),
+			}, nil
+		}
+
+		if deleted != nil {
+			return nil, nil
+		}
 	}
 
 	if params.Name == "" {
-		return errors.New("no name filter provided for VolumeDeleteCollection")
+		return nil, errors.New("no name filter provided for VolumeDeleteCollection")
 	}
 
-	_, _, err := sc.api.VolumeDeleteCollection(volumeDeleteParamsToONTAPCollectionDelete(params), nil)
-	return err
+	collectionDeleted, collectionAccepted, err := sc.api.VolumeDeleteCollection(volumeDeleteParamsToONTAPCollectionDelete(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if collectionAccepted != nil {
+		return &JobAccepted{
+			JobUUID: string(*collectionAccepted.Payload.Job.UUID),
+		}, nil
+	}
+
+	if collectionDeleted != nil {
+		return nil, nil
+	}
+
+	return nil, errors.New("unexpected response from server while deleting volume")
 }
 
 // VolumeUnmount invokes pkg/ontap-rest/client/storage/Client.VolumeModify to unmount a volume

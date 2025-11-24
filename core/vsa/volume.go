@@ -115,7 +115,8 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 	return volRes, nil
 }
 
-// DeleteVolume creates a volume by calling the ONTAP REST Client
+// DeleteVolume deletes a volume by calling the ONTAP REST Client
+// It polls the job internally if the deletion is async, similar to CreateVolume
 func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
@@ -145,13 +146,20 @@ func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
 	}
 
 	// If all checks pass, proceed with volume deletion
-	err = client.Storage().VolumeDelete(&ontapRest.VolumeDeleteParams{
+	job, err := client.Storage().VolumeDelete(&ontapRest.VolumeDeleteParams{
 		UUID: volumeUUID,
 		Name: volumeName,
 	})
 
 	if err != nil {
 		return err
+	}
+
+	// Poll the job if it exists
+	if job != nil {
+		if err = client.Poll(job.JobUUID); err != nil {
+			return err
+		}
 	}
 
 	return nil
