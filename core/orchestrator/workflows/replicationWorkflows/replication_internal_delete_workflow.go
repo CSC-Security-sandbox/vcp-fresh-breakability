@@ -113,11 +113,6 @@ func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, arg
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
-
-		err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetailsForDelete, replication).Get(ctx, nil)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
 	} else {
 		err = workflow.ExecuteActivity(ctx, replicationActivity.CleanupReplicationAfterReverse, replication, node).Get(ctx, &replicationDeleteResponse)
 		if err != nil {

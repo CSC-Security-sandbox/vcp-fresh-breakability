@@ -321,6 +321,42 @@ func convertToInternalV1betaVolumeReplication(volumeReplication *models.VolumeRe
 	}
 }
 
+func (h Handler) V1betaInternalUpdateState(ctx context.Context, req *gcpgenserver.VolumeReplicationUpdateStateInternalV1beta, params gcpgenserver.V1betaInternalUpdateStateParams) (gcpgenserver.V1betaInternalUpdateStateRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	// Convert the request to internal parameters for updating volume replication attributes
+	updateParams := models.UpdateVolumeReplicationStateParams{
+		ProjectNumber:       params.ProjectNumber,
+		LocationId:          params.LocationId,
+		VolumeReplicationId: params.VolumeReplicationId,
+		State:               req.State.Value,
+		StateDetails:        req.StateDetails.Value,
+	}
+
+	// Call the orchestrator to update volume replication attributes
+	volumeReplication, err := h.Orchestrator.UpdateVolumeReplicationState(ctx, updateParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalUpdateStateBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to update volume replication attributes", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateStateInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, err
+	}
+
+	res := &gcpgenserver.VolumeReplicationUpdateStateInternalV1beta{
+		State:        gcpgenserver.NewOptString(volumeReplication.State),
+		StateDetails: gcpgenserver.NewOptString(volumeReplication.StateDetails),
+	}
+	return res, nil
+}
+
 func prepareCreateVolumeReplicationInternalParams(req *gcpgenserver.VolumeReplicationCreateInternalV1beta, params gcpgenserver.V1betaInternalCreateVolumeReplicationParams) *commonparams.CreateVolumeReplicationInternalParams {
 	volRepParams := &models.VolumeReplication{
 		Name:        req.Name.Value,

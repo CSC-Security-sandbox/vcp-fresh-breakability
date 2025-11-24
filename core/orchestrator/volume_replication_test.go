@@ -3961,6 +3961,9 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 			Name:      "test-replication",
 			AccountID: 1,
 			State:     models.LifeCycleStateDeleting,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "src",
+			},
 		}
 		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(dbVolumeReplication, nil)
 
@@ -3981,6 +3984,9 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 			Name:      "test-replication",
 			AccountID: 1,
 			State:     models.LifeCycleStateREADY,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "src",
+			},
 			Volume: &datamodel.Volume{
 				Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 			},
@@ -4005,6 +4011,9 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 			Name:      "test-replication",
 			AccountID: 1,
 			State:     models.LifeCycleStateREADY,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "src",
+			},
 			Volume: &datamodel.Volume{
 				Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 			},
@@ -4031,6 +4040,9 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 			Name:      "test-replication",
 			AccountID: 1,
 			State:     models.LifeCycleStateREADY,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "src",
+			},
 			Volume: &datamodel.Volume{
 				Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
 			},

@@ -10138,6 +10138,78 @@ func (s *V1betaInternalUpdateBackupVaultUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaInternalUpdateStateBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateStateBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateStateConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateStateConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateStateForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateStateForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateStateInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateStateInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateStateMethodNotAllowed) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateStateMethodNotAllowed(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateStateNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateStateNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateStateUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateStateUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalUpdateStateUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalUpdateStateUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaInternalUpdateVolumeBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -13133,6 +13205,20 @@ func (s *VolumeReplicationUpdateInternalV1betaLabels) SetFake() {
 // SetFake set fake values.
 func (s *VolumeReplicationUpdateInternalV1betaReplicationSchedule) SetFake() {
 	*s = VolumeReplicationUpdateInternalV1betaReplicationSchedule10minutely
+}
+
+// SetFake set fake values.
+func (s *VolumeReplicationUpdateStateInternalV1beta) SetFake() {
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

@@ -95,36 +95,6 @@ func TestDeleteVolumeReplicationInternal(t *testing.T) {
 	})
 }
 
-func TestUpdateVolumeReplicationDetailsForDelete(t *testing.T) {
-	t.Run("WhenDeleteSucceeds", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := InternalVolumeReplicationDeleteActivity{
-			SE: mockStorage,
-		}
-		ctx := context.Background()
-		replication := &datamodel.VolumeReplication{}
-		mockStorage.On("DeleteVolumeReplication", ctx, replication).Return(replication, nil)
-		err := activity.UpdateVolumeReplicationDetailsForDelete(ctx, replication)
-		assert.NoError(t, err)
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("WhenDeleteFails", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := InternalVolumeReplicationDeleteActivity{
-			SE: mockStorage,
-		}
-		ctx := context.Background()
-		replication := &datamodel.VolumeReplication{}
-		mockStorage.On("DeleteVolumeReplication", ctx, replication).Return(nil, errors.New("database error"))
-		var customErr *vsaerrors.CustomError
-		err := activity.UpdateVolumeReplicationDetailsForDelete(ctx, replication)
-		assert.True(t, vsaerrors.As(err, &customErr))
-		assert.Equal(t, "database error", customErr.OriginalErr.Error())
-		mockStorage.AssertExpectations(t)
-	})
-}
-
 func TestUpdateReplicationStateInDB(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := InternalVolumeReplicationDeleteActivity{

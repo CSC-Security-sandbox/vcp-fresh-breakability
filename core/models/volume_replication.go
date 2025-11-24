@@ -135,6 +135,14 @@ type UpdateVolumeReplicationAttributesParams struct {
 	VolumeReplicationInternal *gcpgenserver.VolumeReplicationInternalV1beta
 }
 
+type UpdateVolumeReplicationStateParams struct {
+	ProjectNumber       string
+	LocationId          string
+	VolumeReplicationId string
+	State               string
+	StateDetails        string
+}
+
 type HybridReplicationStatus string
 
 var (

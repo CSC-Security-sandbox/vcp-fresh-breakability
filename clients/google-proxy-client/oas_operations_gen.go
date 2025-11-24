@@ -77,6 +77,7 @@ const (
 	V1betaInternalStopVolumeReplicationOperation             OperationName = "V1betaInternalStopVolumeReplication"
 	V1betaInternalUpdateBackupOperation                      OperationName = "V1betaInternalUpdateBackup"
 	V1betaInternalUpdateBackupVaultOperation                 OperationName = "V1betaInternalUpdateBackupVault"
+	V1betaInternalUpdateStateOperation                       OperationName = "V1betaInternalUpdateState"
 	V1betaInternalUpdateVolumeOperation                      OperationName = "V1betaInternalUpdateVolume"
 	V1betaInternalUpdateVolumeReplicationOperation           OperationName = "V1betaInternalUpdateVolumeReplication"
 	V1betaInternalUpdateVolumeReplicationAttributesOperation OperationName = "V1betaInternalUpdateVolumeReplicationAttributes"

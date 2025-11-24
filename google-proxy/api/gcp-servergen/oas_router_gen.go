@@ -678,28 +678,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													return
 												}
 
-											case 'u': // Prefix: "updateVolumeReplicationAttributes"
+											case 'u': // Prefix: "update"
 
-												if l := len("updateVolumeReplicationAttributes"); len(elem) >= l && elem[0:l] == "updateVolumeReplicationAttributes" {
+												if l := len("update"); len(elem) >= l && elem[0:l] == "update" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
 												if len(elem) == 0 {
-													// Leaf node.
-													switch r.Method {
-													case "POST":
-														s.handleV1betaInternalUpdateVolumeReplicationAttributesRequest([3]string{
-															args[0],
-															args[1],
-															args[2],
-														}, elemIsEscaped, w, r)
-													default:
-														s.notAllowed(w, r, "POST")
+													break
+												}
+												switch elem[0] {
+												case 'S': // Prefix: "State"
+
+													if l := len("State"); len(elem) >= l && elem[0:l] == "State" {
+														elem = elem[l:]
+													} else {
+														break
 													}
 
-													return
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "POST":
+															s.handleV1betaInternalUpdateStateRequest([3]string{
+																args[0],
+																args[1],
+																args[2],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "POST")
+														}
+
+														return
+													}
+
+												case 'V': // Prefix: "VolumeReplicationAttributes"
+
+													if l := len("VolumeReplicationAttributes"); len(elem) >= l && elem[0:l] == "VolumeReplicationAttributes" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "POST":
+															s.handleV1betaInternalUpdateVolumeReplicationAttributesRequest([3]string{
+																args[0],
+																args[1],
+																args[2],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "POST")
+														}
+
+														return
+													}
+
 												}
 
 											}
@@ -3199,28 +3237,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													}
 												}
 
-											case 'u': // Prefix: "updateVolumeReplicationAttributes"
+											case 'u': // Prefix: "update"
 
-												if l := len("updateVolumeReplicationAttributes"); len(elem) >= l && elem[0:l] == "updateVolumeReplicationAttributes" {
+												if l := len("update"); len(elem) >= l && elem[0:l] == "update" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
 												if len(elem) == 0 {
-													// Leaf node.
-													switch method {
-													case "POST":
-														r.name = V1betaInternalUpdateVolumeReplicationAttributesOperation
-														r.summary = "Update volume replication attributes"
-														r.operationID = "v1beta_internalUpdateVolumeReplicationAttributes"
-														r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateVolumeReplicationAttributes"
-														r.args = args
-														r.count = 3
-														return r, true
-													default:
-														return
+													break
+												}
+												switch elem[0] {
+												case 'S': // Prefix: "State"
+
+													if l := len("State"); len(elem) >= l && elem[0:l] == "State" {
+														elem = elem[l:]
+													} else {
+														break
 													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "POST":
+															r.name = V1betaInternalUpdateStateOperation
+															r.summary = "Update replication state & state details of particular replication"
+															r.operationID = "v1beta_internalUpdateState"
+															r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateState"
+															r.args = args
+															r.count = 3
+															return r, true
+														default:
+															return
+														}
+													}
+
+												case 'V': // Prefix: "VolumeReplicationAttributes"
+
+													if l := len("VolumeReplicationAttributes"); len(elem) >= l && elem[0:l] == "VolumeReplicationAttributes" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "POST":
+															r.name = V1betaInternalUpdateVolumeReplicationAttributesOperation
+															r.summary = "Update volume replication attributes"
+															r.operationID = "v1beta_internalUpdateVolumeReplicationAttributes"
+															r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateVolumeReplicationAttributes"
+															r.args = args
+															r.count = 3
+															return r, true
+														default:
+															return
+														}
+													}
+
 												}
 
 											}

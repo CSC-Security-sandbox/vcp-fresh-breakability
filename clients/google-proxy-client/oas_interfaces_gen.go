@@ -285,6 +285,10 @@ type V1betaInternalUpdateBackupVaultRes interface {
 	v1betaInternalUpdateBackupVaultRes()
 }
 
+type V1betaInternalUpdateStateRes interface {
+	v1betaInternalUpdateStateRes()
+}
+
 type V1betaInternalUpdateVolumeReplicationAttributesRes interface {
 	v1betaInternalUpdateVolumeReplicationAttributesRes()
 }

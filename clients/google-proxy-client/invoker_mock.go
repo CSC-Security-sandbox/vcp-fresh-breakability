@@ -4242,6 +4242,66 @@ func (_c *MockInvoker_V1betaInternalUpdateBackupVault_Call) RunAndReturn(run fun
 	return _c
 }
 
+// V1betaInternalUpdateState provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaInternalUpdateState(ctx context.Context, request *VolumeReplicationUpdateStateInternalV1beta, params V1betaInternalUpdateStateParams) (V1betaInternalUpdateStateRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalUpdateState")
+	}
+
+	var r0 V1betaInternalUpdateStateRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplicationUpdateStateInternalV1beta, V1betaInternalUpdateStateParams) (V1betaInternalUpdateStateRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplicationUpdateStateInternalV1beta, V1betaInternalUpdateStateParams) V1betaInternalUpdateStateRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalUpdateStateRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeReplicationUpdateStateInternalV1beta, V1betaInternalUpdateStateParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaInternalUpdateState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalUpdateState'
+type MockInvoker_V1betaInternalUpdateState_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalUpdateState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *VolumeReplicationUpdateStateInternalV1beta
+//   - params V1betaInternalUpdateStateParams
+func (_e *MockInvoker_Expecter) V1betaInternalUpdateState(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaInternalUpdateState_Call {
+	return &MockInvoker_V1betaInternalUpdateState_Call{Call: _e.mock.On("V1betaInternalUpdateState", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaInternalUpdateState_Call) Run(run func(ctx context.Context, request *VolumeReplicationUpdateStateInternalV1beta, params V1betaInternalUpdateStateParams)) *MockInvoker_V1betaInternalUpdateState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeReplicationUpdateStateInternalV1beta), args[2].(V1betaInternalUpdateStateParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaInternalUpdateState_Call) Return(_a0 V1betaInternalUpdateStateRes, _a1 error) *MockInvoker_V1betaInternalUpdateState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaInternalUpdateState_Call) RunAndReturn(run func(context.Context, *VolumeReplicationUpdateStateInternalV1beta, V1betaInternalUpdateStateParams) (V1betaInternalUpdateStateRes, error)) *MockInvoker_V1betaInternalUpdateState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaInternalUpdateVolume provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1betaInternalUpdateVolume(ctx context.Context, request *VolumeUpdateV1beta, params V1betaInternalUpdateVolumeParams) (V1betaInternalUpdateVolumeRes, error) {
 	ret := _m.Called(ctx, request, params)

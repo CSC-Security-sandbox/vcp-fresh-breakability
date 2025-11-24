@@ -36,7 +36,6 @@ func TestDeleteInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(internalVolumeCreateReplicationActivity.DeleteVolumeReplication)
-		env.RegisterActivity(internalVolumeCreateReplicationActivity.UpdateVolumeReplicationDetailsForDelete)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		account := &datamodel.Account{
@@ -82,7 +81,6 @@ func TestDeleteInternalVolumeReplicationWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("DeleteVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
-		env.OnActivity("UpdateVolumeReplicationDetailsForDelete", mock.Anything, mock.Anything).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(DeleteInternalVolumeReplicationWorkflow, replicationDb, false)
 
@@ -110,7 +108,6 @@ func TestDeleteInternalVolumeReplicationWorkflowFailure(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(internalVolumeCreateReplicationActivity.DeleteVolumeReplication)
-		env.RegisterActivity(internalVolumeCreateReplicationActivity.UpdateVolumeReplicationDetailsForDelete)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		account := &datamodel.Account{

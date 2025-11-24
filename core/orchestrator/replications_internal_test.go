@@ -581,3 +581,152 @@ func TestUpdateVolumeReplicationAttributes(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestUpdateVolumeReplicationState(t *testing.T) {
+	t.Run("WhenGetAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		params := models.UpdateVolumeReplicationStateParams{
+			ProjectNumber:       "project-123",
+			LocationId:          "us-central1-a",
+			VolumeReplicationId: "replication-123",
+		}
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		defer func() { getAccountWithName = _getAccountWithName }()
+
+		_, err := updateVolumeReplicationState(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "account not found", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-account",
+		}
+
+		params := models.UpdateVolumeReplicationStateParams{
+			ProjectNumber:       "project-123",
+			LocationId:          "us-central1-a",
+			VolumeReplicationId: "replication-123",
+			State:               models.LifeCycleStateError,
+			StateDetails:        "error details",
+		}
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = _getAccountWithName }()
+
+		mockStorage.On("GetVolumeReplication", ctx, "replication-123").Return(nil, errors.New("replication not found"))
+
+		_, err := updateVolumeReplicationState(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "replication not found", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateVolumeReplicationStatesFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-account",
+		}
+
+		dbVolumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			AccountID: account.ID,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "src",
+			},
+		}
+
+		params := models.UpdateVolumeReplicationStateParams{
+			ProjectNumber:       "project-123",
+			LocationId:          "us-central1-a",
+			VolumeReplicationId: "replication-123",
+			State:               models.LifeCycleStateError,
+			StateDetails:        "error details",
+		}
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = _getAccountWithName }()
+
+		mockStorage.On("GetVolumeReplication", ctx, "replication-123").Return(dbVolumeReplication, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.AnythingOfType("*datamodel.VolumeReplication")).Return(errors.New("failed to update state"))
+
+		_, err := updateVolumeReplicationState(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "failed to update state", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-account",
+		}
+
+		dbVolumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "src",
+			},
+		}
+
+		params := models.UpdateVolumeReplicationStateParams{
+			ProjectNumber:       "project-123",
+			LocationId:          "us-central1-a",
+			VolumeReplicationId: "replication-123",
+			State:               models.LifeCycleStateError,
+			StateDetails:        "error details",
+		}
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = _getAccountWithName }()
+
+		mockStorage.On("GetVolumeReplication", ctx, "replication-123").Return(dbVolumeReplication, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.AnythingOfType("*datamodel.VolumeReplication")).Return(nil)
+
+		result, err := updateVolumeReplicationState(ctx, mockStorage, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "replication-123", result.UUID)
+		assert.Equal(tt, models.LifeCycleStateError, result.State)
+		assert.Equal(tt, "error details", result.StateDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+}

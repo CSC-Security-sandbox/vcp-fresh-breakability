@@ -270,6 +270,7 @@ const (
 	ErrHydrateVolumeReplicationCreate                                                        = 6216
 	ErrBreakReplicationStateTransferring                                                     = 6217
 	ErrDeleteVolumeReplication                                                               = 6218
+	ErrGoogleProxyUpdateReplicationState                                                     = 6219
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

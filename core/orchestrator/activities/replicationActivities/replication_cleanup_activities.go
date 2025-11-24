@@ -176,6 +176,43 @@ func (a *CleanupVolumeReplicationActivity) DescribeRemoteJobForCleanup(ctx conte
 	return nil
 }
 
+func (a *CleanupVolumeReplicationActivity) UpdateReplicationOnDestinationToErrorStateForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Release ReplicationOn Destination")
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+	updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
+		State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
+		StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+	}
+	updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
+		ProjectNumber:       *result.DstProjectNumber,
+		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.CorrelationID),
+	}
+	res, err := googleProxyClient.Invoker.V1betaInternalUpdateState(ctx, &updateRequest, updateParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, err)
+	}
+	switch r := res.(type) {
+	case *googleproxyclient.VolumeReplicationUpdateStateInternalV1beta:
+		return result, nil
+	case *googleproxyclient.V1betaInternalUpdateStateBadRequest:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateStateInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateStateUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateStateForbidden:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateStateNotFound:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	default:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New("unknown response type"))
+	}
+}
+
 func (a *CleanupVolumeReplicationActivity) StopReplicationOnDestinationForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("StopReplicationOnDestinationForCleanup")
@@ -215,7 +252,7 @@ func (a *CleanupVolumeReplicationActivity) StopReplicationOnDestinationForCleanu
 	}
 }
 
-func (a *CleanupVolumeReplicationActivity) ReleaseReplicationOnSourceForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+func (a *CleanupVolumeReplicationActivity) UpdateReplicationRecordOnSourceForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("ReleaseReplicationOnSourceForCleanup")
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.SrcBasePath, *result.SrcJwtToken, logger)
@@ -223,6 +260,41 @@ func (a *CleanupVolumeReplicationActivity) ReleaseReplicationOnSourceForCleanup(
 		ProjectNumber:       *result.SrcProjectNumber,
 		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
 		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.CorrelationID),
+	}
+	res, err := googleProxyClient.Invoker.V1betaInternalReleaseVolumeReplication(ctx, *releaseReplicationParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, err)
+	}
+
+	switch r := res.(type) {
+	case *googleproxyclient.OperationV1beta:
+		result.JobId = strings.Split(r.Name.Value, "/")[7]
+		return result, nil
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationBadRequest:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationForbidden:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationNotFound:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	default:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New("unknown response type"))
+	}
+}
+
+func (a *CleanupVolumeReplicationActivity) UpdateReplicationRecordOnDestinationForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Release Replication On Destination")
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+	releaseReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
+		ProjectNumber:       *result.DstProjectNumber,
+		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
 		XCorrelationID:      googleproxyclient.NewOptString(*result.CorrelationID),
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalReleaseVolumeReplication(ctx, *releaseReplicationParams)

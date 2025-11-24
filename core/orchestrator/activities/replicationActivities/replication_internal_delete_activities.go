@@ -69,14 +69,6 @@ func (a *InternalVolumeReplicationDeleteActivity) CleanupReplicationAfterReverse
 	return res, nil
 }
 
-func (a *InternalVolumeReplicationDeleteActivity) UpdateVolumeReplicationDetailsForDelete(ctx context.Context, replication *datamodel.VolumeReplication) error {
-	se := a.SE
-	if _, err := se.DeleteVolumeReplication(ctx, replication); err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
-	}
-	return nil
-}
-
 func prepareDeleteVolumeReplicationParamsVSA(volumeReplication *datamodel.VolumeReplication) *vsa.DeleteVolumeReplicationParams {
 	params := false
 	replication := &vsa.VolumeReplication{

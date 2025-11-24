@@ -3660,6 +3660,7 @@ func (*ErrorStatusCode) v1betaInternalReverseVolumeReplicationRes()          {}
 func (*ErrorStatusCode) v1betaInternalStopVolumeReplicationRes()             {}
 func (*ErrorStatusCode) v1betaInternalUpdateBackupRes()                      {}
 func (*ErrorStatusCode) v1betaInternalUpdateBackupVaultRes()                 {}
+func (*ErrorStatusCode) v1betaInternalUpdateStateRes()                       {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeRes()                      {}
@@ -20222,6 +20223,38 @@ type V1betaInternalUpdateBackupVaultUnprocessableEntity Error
 
 func (*V1betaInternalUpdateBackupVaultUnprocessableEntity) v1betaInternalUpdateBackupVaultRes() {}
 
+type V1betaInternalUpdateStateBadRequest Error
+
+func (*V1betaInternalUpdateStateBadRequest) v1betaInternalUpdateStateRes() {}
+
+type V1betaInternalUpdateStateConflict Error
+
+func (*V1betaInternalUpdateStateConflict) v1betaInternalUpdateStateRes() {}
+
+type V1betaInternalUpdateStateForbidden Error
+
+func (*V1betaInternalUpdateStateForbidden) v1betaInternalUpdateStateRes() {}
+
+type V1betaInternalUpdateStateInternalServerError Error
+
+func (*V1betaInternalUpdateStateInternalServerError) v1betaInternalUpdateStateRes() {}
+
+type V1betaInternalUpdateStateMethodNotAllowed Error
+
+func (*V1betaInternalUpdateStateMethodNotAllowed) v1betaInternalUpdateStateRes() {}
+
+type V1betaInternalUpdateStateNotFound Error
+
+func (*V1betaInternalUpdateStateNotFound) v1betaInternalUpdateStateRes() {}
+
+type V1betaInternalUpdateStateUnauthorized Error
+
+func (*V1betaInternalUpdateStateUnauthorized) v1betaInternalUpdateStateRes() {}
+
+type V1betaInternalUpdateStateUnprocessableEntity Error
+
+func (*V1betaInternalUpdateStateUnprocessableEntity) v1betaInternalUpdateStateRes() {}
+
 type V1betaInternalUpdateVolumeBadRequest Error
 
 func (*V1betaInternalUpdateVolumeBadRequest) v1betaInternalUpdateVolumeRes() {}
@@ -23690,6 +23723,36 @@ func (s *VolumeReplicationUpdateInternalV1betaReplicationSchedule) UnmarshalText
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// Ref: #/components/schemas/VolumeReplicationUpdateStateInternal_v1beta
+type VolumeReplicationUpdateStateInternalV1beta struct {
+	// State of the replication.
+	State OptString `json:"state"`
+	// State Details of the replication.
+	StateDetails OptString `json:"stateDetails"`
+}
+
+// GetState returns the value of State.
+func (s *VolumeReplicationUpdateStateInternalV1beta) GetState() OptString {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *VolumeReplicationUpdateStateInternalV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// SetState sets the value of State.
+func (s *VolumeReplicationUpdateStateInternalV1beta) SetState(val OptString) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *VolumeReplicationUpdateStateInternalV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+func (*VolumeReplicationUpdateStateInternalV1beta) v1betaInternalUpdateStateRes() {}
 
 // Ref: #/components/schemas/VolumeRevert_v1beta
 type VolumeRevertV1beta struct {

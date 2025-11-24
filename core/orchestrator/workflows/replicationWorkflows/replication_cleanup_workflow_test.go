@@ -12,7 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -44,12 +44,14 @@ func TestReplicationCleanupWorkflow(t *testing.T) {
 		env.RegisterActivity(resumeReplicationActivity.StopReplicationOnDestinationForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DescribeRemoteJobForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DeleteReplicationOnDestinationForCleanup)
-		env.RegisterActivity(resumeReplicationActivity.ReleaseReplicationOnSourceForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationRecordOnSourceForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DescribeSourceJobForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DeHydrateDestinationVolumeReplicationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationRecordOnDestinationForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.GetDestinationVolumeForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DeleteVolumeOnDestinationForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DeHydrateDestinationVolumeForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationOnDestinationToErrorStateForCleanup)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		params := &commonparams.DeleteReplicationParams{}
@@ -79,9 +81,10 @@ func TestReplicationCleanupWorkflow(t *testing.T) {
 		env.OnActivity("GetReplicationOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DescribeRemoteJobForCleanup", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteReplicationOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
-		env.OnActivity("ReleaseReplicationOnSourceForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationRecordOnSourceForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DescribeSourceJobForCleanup", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeHydrateDestinationVolumeReplicationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationRecordOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("GetDestinationVolumeForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DeleteVolumeOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DeHydrateDestinationVolumeForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
@@ -117,12 +120,14 @@ func TestReplicationCleanupWorkflowWhenError(t *testing.T) {
 		env.RegisterActivity(resumeReplicationActivity.StopReplicationOnDestinationForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DescribeRemoteJobForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DeleteReplicationOnDestinationForCleanup)
-		env.RegisterActivity(resumeReplicationActivity.ReleaseReplicationOnSourceForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationRecordOnSourceForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DescribeSourceJobForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DeHydrateDestinationVolumeReplicationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationRecordOnDestinationForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.GetDestinationVolumeForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DeleteVolumeOnDestinationForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DeHydrateDestinationVolumeForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationOnDestinationToErrorStateForCleanup)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		params := &commonparams.DeleteReplicationParams{}

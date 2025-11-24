@@ -7149,6 +7149,65 @@ func (_c *MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call) RunAndRe
 	return _c
 }
 
+// UpdateVolumeReplicationState provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateVolumeReplicationState(ctx context.Context, params models.UpdateVolumeReplicationStateParams) (*models.VolumeReplication, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumeReplicationState")
+	}
+
+	var r0 *models.VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, models.UpdateVolumeReplicationStateParams) (*models.VolumeReplication, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, models.UpdateVolumeReplicationStateParams) *models.VolumeReplication); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, models.UpdateVolumeReplicationStateParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_UpdateVolumeReplicationState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumeReplicationState'
+type MockOrchestratorFactory_UpdateVolumeReplicationState_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumeReplicationState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params models.UpdateVolumeReplicationStateParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateVolumeReplicationState(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateVolumeReplicationState_Call {
+	return &MockOrchestratorFactory_UpdateVolumeReplicationState_Call{Call: _e.mock.On("UpdateVolumeReplicationState", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumeReplicationState_Call) Run(run func(ctx context.Context, params models.UpdateVolumeReplicationStateParams)) *MockOrchestratorFactory_UpdateVolumeReplicationState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(models.UpdateVolumeReplicationStateParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumeReplicationState_Call) Return(_a0 *models.VolumeReplication, _a1 error) *MockOrchestratorFactory_UpdateVolumeReplicationState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumeReplicationState_Call) RunAndReturn(run func(context.Context, models.UpdateVolumeReplicationStateParams) (*models.VolumeReplication, error)) *MockOrchestratorFactory_UpdateVolumeReplicationState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateVolumeV2 provides a mock function with given fields: ctx, param
 func (_m *MockOrchestratorFactory) UpdateVolumeV2(ctx context.Context, param *common.UpdateVolumeParams) (*models.Volume, string, error) {
 	ret := _m.Called(ctx, param)

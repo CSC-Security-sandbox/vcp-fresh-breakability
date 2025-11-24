@@ -836,6 +836,17 @@ type V1betaInternalUpdateBackupVaultParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaInternalUpdateStateParams is parameters of v1beta_internalUpdateState operation.
+type V1betaInternalUpdateStateParams struct {
+	VolumeReplicationId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaInternalUpdateVolumeParams is parameters of v1beta_internalUpdateVolume operation.
 type V1betaInternalUpdateVolumeParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

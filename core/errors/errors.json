@@ -1427,6 +1427,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "6219": {
+    "description": "Failed to update volume replication state on dst",
+    "message": "Failed to update volume replication state on",
+    "retriable": false,
+    "http_code": 500
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

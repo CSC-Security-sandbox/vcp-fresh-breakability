@@ -456,6 +456,12 @@ type Handler interface {
 	//
 	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
 	V1betaInternalUpdateBackupVault(ctx context.Context, req *BackupVaultInternalUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)
+	// V1betaInternalUpdateState implements v1beta_internalUpdateState operation.
+	//
+	// Update replication state & state details of particular replication.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateState
+	V1betaInternalUpdateState(ctx context.Context, req *VolumeReplicationUpdateStateInternalV1beta, params V1betaInternalUpdateStateParams) (V1betaInternalUpdateStateRes, error)
 	// V1betaInternalUpdateVolume implements v1beta_internalUpdateVolume operation.
 	//
 	// Update the volume (Internal endpoint).

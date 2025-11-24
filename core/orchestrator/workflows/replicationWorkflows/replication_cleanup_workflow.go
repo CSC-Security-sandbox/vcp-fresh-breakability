@@ -67,6 +67,7 @@ func (wf *replicationCleanupWorkflow) Setup(ctx workflow.Context, input interfac
 }
 
 func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+	log := util.GetLogger(ctx)
 	event := args[0].(*replication.DeleteReplicationEvent)
 	replicationActivity := &replicationActivities.CleanupVolumeReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
@@ -94,7 +95,14 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		Event:            event,
 		CorrelationID:    event.CommonReplicationEventParams.XCorrelationID,
 	}
-
+	defer func() {
+		if err != nil {
+			err2 := workflow.ExecuteActivity(ctx1, replicationActivity.UpdateReplicationOnDestinationToErrorStateForCleanup, &replicationResult).Get(ctx, &replicationResult)
+			if err2 != nil {
+				log.Errorf("Failed to update volume replication state in DB to error: %v", err2)
+			}
+		}
+	}()
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathCleanup, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -144,7 +152,14 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		}
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.ReleaseReplicationOnSourceForCleanup, &replicationResult).Get(ctx, &replicationResult)
+	if replicationResult.DstReplication != nil {
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeHydrateDestinationVolumeReplicationForCleanup, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
+
+	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationRecordOnSourceForCleanup, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -155,7 +170,12 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 	}
 
 	if replicationResult.DstReplication != nil {
-		err = workflow.ExecuteActivity(ctx, replicationActivity.DeHydrateDestinationVolumeReplicationForCleanup, &replicationResult).Get(ctx, &replicationResult)
+		err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationRecordOnDestinationForCleanup, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobForCleanup, &replicationResult).Get(ctx, nil)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}

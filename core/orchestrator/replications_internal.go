@@ -240,3 +240,40 @@ func updateVolumeReplicationAttributes(ctx context.Context, se database.Storage,
 
 	return convertDatastoreOperationToModel(createdJob), nil
 }
+
+func (o *Orchestrator) UpdateVolumeReplicationState(ctx context.Context, params models.UpdateVolumeReplicationStateParams) (*models.VolumeReplication, error) {
+	return updateVolumeReplicationState(ctx, o.storage, params)
+}
+
+func updateVolumeReplicationState(ctx context.Context, se database.Storage, params models.UpdateVolumeReplicationStateParams) (*models.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getAccountWithName(ctx, se, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Failed to get account", "error", err)
+		return nil, err
+	}
+	volumeReplicationId := params.VolumeReplicationId
+	volReplication, err := se.GetVolumeReplication(ctx, volumeReplicationId)
+	if err != nil {
+		logger.Error("Failed to get volume replication from database", "error", err, "replicationId", volumeReplicationId)
+		return nil, err
+	}
+
+	volReplication.Account = &datamodel.Account{
+		Name: account.Name,
+	}
+
+	logger.Infof("Updating volume replication state in the database: state=%s, stateDetails=%s",
+		params.State, params.StateDetails)
+
+	volReplication.State = params.State
+	volReplication.StateDetails = params.StateDetails
+
+	err = se.UpdateVolumeReplicationStates(ctx, volReplication)
+	if err != nil {
+		logger.Error("Failed to update volume replication states in database", "error", err)
+		return nil, err
+	}
+
+	return convertDataStoreReplicationToModel(volReplication), nil
+}

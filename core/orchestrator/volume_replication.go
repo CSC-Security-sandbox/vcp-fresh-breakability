@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -1003,10 +1004,12 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 			return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}
 	}
-	if dbVolumeReplication.State == models.LifeCycleStateCreating ||
-		dbVolumeReplication.State == models.LifeCycleStateUpdating ||
-		dbVolumeReplication.State == models.LifeCycleStateDeleting {
-		return nil, nil, errors.New("Error releasing volume Replication - Volume replication is already transitioning between states")
+	if dbVolumeReplication.ReplicationAttributes.EndpointType == cvpmodels.VolumeReplicationCVPV1betaEndpointTypeSrc {
+		if dbVolumeReplication.State == models.LifeCycleStateCreating ||
+			dbVolumeReplication.State == models.LifeCycleStateUpdating ||
+			dbVolumeReplication.State == models.LifeCycleStateDeleting {
+			return nil, nil, errors.New("Error releasing volume Replication - Volume replication is already transitioning between states")
+		}
 	}
 
 	job := &datamodel.Job{
@@ -1027,11 +1030,13 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 		return nil, nil, err
 	}
 
-	dbVolumeReplication.State = models.LifeCycleStateDeleting
-	dbVolumeReplication.StateDetails = models.LifeCycleStateDeletingDetails
+	if dbVolumeReplication.ReplicationAttributes.EndpointType == cvpmodels.VolumeReplicationCVPV1betaEndpointTypeSrc {
+		dbVolumeReplication.State = models.LifeCycleStateDeleting
+		dbVolumeReplication.StateDetails = models.LifeCycleStateDeletingDetails
 
-	if err = se.UpdateVolumeReplicationStates(ctx, dbVolumeReplication); err != nil {
-		return nil, nil, err
+		if err = se.UpdateVolumeReplicationStates(ctx, dbVolumeReplication); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// Defer statement to mark job as errored if workflow fails to start

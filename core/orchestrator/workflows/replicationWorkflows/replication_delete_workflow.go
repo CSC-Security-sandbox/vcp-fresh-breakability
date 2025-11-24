@@ -69,6 +69,7 @@ func (wf *replicationDeleteWorkflow) Setup(ctx workflow.Context, input interface
 }
 
 func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+	log := util.GetLogger(ctx)
 	event := args[0].(*replication.DeleteReplicationEvent)
 	replicationActivity := &replicationActivities.DeleteVolumeReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
@@ -97,6 +98,15 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		Event:            event,
 		CorrelationID:    event.CommonReplicationEventParams.XCorrelationID,
 	}
+
+	defer func() {
+		if err != nil {
+			err2 := workflow.ExecuteActivity(ctx1, replicationActivity.UpdateReplicationOnDestinationToErrorState, &replicationResult).Get(ctx, &replicationResult)
+			if err2 != nil {
+				log.Errorf("Failed to update volume replication state in DB to error: %v", err2)
+			}
+		}
+	}()
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathDelete, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
@@ -133,17 +143,7 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.ReleaseReplicationOnSource, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeSourceJobForDelete, &replicationResult).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DeleteSnapmirrorSnapshotsOnDestination, &replicationResult).Get(ctx, &replicationResult)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteSnapmirrorSnapshotsOnDestination, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -153,7 +153,7 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DeleteSnapmirrorSnapshotsOnSource, &replicationResult).Get(ctx, &replicationResult)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteSnapmirrorSnapshotsOnSource, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -164,6 +164,26 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.DeHydrateDestinationVolumeReplication, &replicationResult).Get(ctx, &replicationResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationRecordOnSource, &replicationResult).Get(ctx, &replicationResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeSourceJobForDelete, &replicationResult).Get(ctx, nil)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationRecordOnDestination, &replicationResult).Get(ctx, &replicationResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobForDelete, &replicationResult).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

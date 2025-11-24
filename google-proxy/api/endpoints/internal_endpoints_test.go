@@ -5761,3 +5761,86 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 		assert.Equal(tt, "test-uuid", result.BackupVaultId)
 	})
 }
+
+func TestV1betaInternalUpdateState(t *testing.T) {
+	t.Run("WhenNotFoundError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		notFoundErr := errors.NewNotFoundErr("volume replication", nil)
+		mockOrchestrator.EXPECT().UpdateVolumeReplicationState(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationStateParams")).Return(nil, notFoundErr)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		req := &gcpgenserver.VolumeReplicationUpdateStateInternalV1beta{
+			State:        gcpgenserver.NewOptString(models.LifeCycleStateError),
+			StateDetails: gcpgenserver.NewOptString("error details"),
+		}
+		params := gcpgenserver.V1betaInternalUpdateStateParams{
+			ProjectNumber:       "project-123",
+			LocationId:          "us-central1",
+			VolumeReplicationId: "replication-123",
+		}
+		response, err := handler.V1betaInternalUpdateState(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalUpdateStateBadRequest{}, response)
+		badRequestResp := response.(*gcpgenserver.V1betaInternalUpdateStateBadRequest)
+		assert.Equal(tt, float64(400), badRequestResp.Code)
+		assert.Contains(tt, badRequestResp.Message, "volume replication")
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		internalErr := errors.New("database connection failed")
+		mockOrchestrator.EXPECT().UpdateVolumeReplicationState(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationStateParams")).Return(nil, internalErr)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		req := &gcpgenserver.VolumeReplicationUpdateStateInternalV1beta{
+			State:        gcpgenserver.NewOptString(models.LifeCycleStateError),
+			StateDetails: gcpgenserver.NewOptString("error details"),
+		}
+		params := gcpgenserver.V1betaInternalUpdateStateParams{
+			ProjectNumber:       "project-456",
+			LocationId:          "europe-west1",
+			VolumeReplicationId: "replication-456",
+		}
+		response, err := handler.V1betaInternalUpdateState(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "database connection failed", err.Error())
+		assert.IsType(tt, &gcpgenserver.V1betaInternalUpdateStateInternalServerError{}, response)
+		internalServerResp := response.(*gcpgenserver.V1betaInternalUpdateStateInternalServerError)
+		assert.Equal(tt, float64(500), internalServerResp.Code)
+		assert.Equal(tt, "Internal server error", internalServerResp.Message)
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		volumeReplication := &models.VolumeReplication{
+			BaseModel: models.BaseModel{
+				UUID: "replication-789",
+			},
+			State:        models.LifeCycleStateError,
+			StateDetails: "deletion error details",
+		}
+		mockOrchestrator.EXPECT().UpdateVolumeReplicationState(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationStateParams")).Return(volumeReplication, nil)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		req := &gcpgenserver.VolumeReplicationUpdateStateInternalV1beta{
+			State:        gcpgenserver.NewOptString(models.LifeCycleStateError),
+			StateDetails: gcpgenserver.NewOptString("error details"),
+		}
+		params := gcpgenserver.V1betaInternalUpdateStateParams{
+			ProjectNumber:       "project-789",
+			LocationId:          "asia-southeast1",
+			VolumeReplicationId: "replication-789",
+		}
+		response, err := handler.V1betaInternalUpdateState(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.IsType(tt, &gcpgenserver.VolumeReplicationUpdateStateInternalV1beta{}, response)
+		updateStateResp := response.(*gcpgenserver.VolumeReplicationUpdateStateInternalV1beta)
+		assert.True(tt, updateStateResp.State.IsSet())
+		assert.Equal(tt, models.LifeCycleStateError, updateStateResp.State.Value)
+		assert.True(tt, updateStateResp.StateDetails.IsSet())
+		assert.Equal(tt, "deletion error details", updateStateResp.StateDetails.Value)
+	})
+}

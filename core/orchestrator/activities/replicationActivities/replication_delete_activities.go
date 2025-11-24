@@ -186,7 +186,7 @@ func (a *DeleteVolumeReplicationActivity) DeHydrateDestinationVolume(ctx context
 	return result, nil
 }
 
-func (a *DeleteVolumeReplicationActivity) ReleaseReplicationOnSource(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+func (a *DeleteVolumeReplicationActivity) UpdateReplicationRecordOnSource(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("Release ReplicationOn Source")
 
@@ -218,6 +218,78 @@ func (a *DeleteVolumeReplicationActivity) ReleaseReplicationOnSource(ctx context
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
 	default:
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New("unknown response type"))
+	}
+}
+
+func (a *DeleteVolumeReplicationActivity) UpdateReplicationRecordOnDestination(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Release ReplicationOn Destination")
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+	releaseReplicationParams := &googleproxyclient.V1betaInternalReleaseVolumeReplicationParams{
+		ProjectNumber:       *result.DstProjectNumber,
+		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.CorrelationID),
+	}
+	res, err := googleProxyClient.Invoker.V1betaInternalReleaseVolumeReplication(ctx, *releaseReplicationParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, err)
+	}
+
+	switch r := res.(type) {
+	case *googleproxyclient.OperationV1beta:
+		result.JobId = strings.Split(r.Name.Value, "/")[7]
+		return result, nil
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationBadRequest:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationForbidden:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalReleaseVolumeReplicationNotFound:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New(r.Message))
+	default:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, errors.New("unknown response type"))
+	}
+}
+
+func (a *DeleteVolumeReplicationActivity) UpdateReplicationOnDestinationToErrorState(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Release ReplicationOn Destination")
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+	updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
+		State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
+		StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+	}
+	updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
+		ProjectNumber:       *result.DstProjectNumber,
+		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.CorrelationID),
+	}
+	res, err := googleProxyClient.Invoker.V1betaInternalUpdateState(ctx, &updateRequest, updateParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, err)
+	}
+	switch r := res.(type) {
+	case *googleproxyclient.VolumeReplicationUpdateStateInternalV1beta:
+		return result, nil
+	case *googleproxyclient.V1betaInternalUpdateStateBadRequest:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateStateInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateStateUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateStateForbidden:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalUpdateStateNotFound:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
+	default:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New("unknown response type"))
 	}
 }
 

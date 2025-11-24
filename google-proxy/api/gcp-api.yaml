@@ -5573,6 +5573,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateState:
+    post:
+      operationId: v1beta_internalUpdateState
+      summary: Update replication state & state details of particular replication
+      description: Update replication state & state details of particular replication
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/volumeReplicationIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to update volume replication state.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeReplicationUpdateStateInternal_v1beta'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationUpdateStateInternal_v1beta'
+              example:
+                application/json:
+                  done: true
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/internal/projects/{projectNumber}/locations/{locationId}/clusterPeer:
     post:
       operationId: v1beta_internalAcceptClusterPeer
@@ -7043,6 +7096,20 @@ components:
             All characters must use UTF-8 encoding, and international characters are allowed.
             Must start with a lowercase letter or international character.
           example: { "some-key": "some-value", "some-key2": "some-value2" }
+    VolumeReplicationUpdateStateInternal_v1beta:
+      title: VolumeReplicationUpdateStateInternal
+      type: object
+      properties:
+        state:
+          title: state
+          type: string
+          description: state of the replication
+          example: My replication description
+        stateDetails:
+          title: stateDetails
+          type: string
+          description: state Details of the replication
+          example: My replication description
     ClusterPeer_v1:
       title: ClusterPeer
       type: object

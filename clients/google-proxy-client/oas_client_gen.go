@@ -469,6 +469,12 @@ type Invoker interface {
 	//
 	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
 	V1betaInternalUpdateBackupVault(ctx context.Context, request *BackupVaultInternalUpdateV1beta, params V1betaInternalUpdateBackupVaultParams) (V1betaInternalUpdateBackupVaultRes, error)
+	// V1betaInternalUpdateState invokes v1beta_internalUpdateState operation.
+	//
+	// Update replication state & state details of particular replication.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateState
+	V1betaInternalUpdateState(ctx context.Context, request *VolumeReplicationUpdateStateInternalV1beta, params V1betaInternalUpdateStateParams) (V1betaInternalUpdateStateRes, error)
 	// V1betaInternalUpdateVolume invokes v1beta_internalUpdateVolume operation.
 	//
 	// Update the volume (Internal endpoint).
@@ -8757,6 +8763,118 @@ func (c *Client) sendV1betaInternalUpdateBackupVault(ctx context.Context, reques
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaInternalUpdateBackupVaultResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaInternalUpdateState invokes v1beta_internalUpdateState operation.
+//
+// Update replication state & state details of particular replication.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateState
+func (c *Client) V1betaInternalUpdateState(ctx context.Context, request *VolumeReplicationUpdateStateInternalV1beta, params V1betaInternalUpdateStateParams) (V1betaInternalUpdateStateRes, error) {
+	res, err := c.sendV1betaInternalUpdateState(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaInternalUpdateState(ctx context.Context, request *VolumeReplicationUpdateStateInternalV1beta, params V1betaInternalUpdateStateParams) (res V1betaInternalUpdateStateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumeReplication/"
+	{
+		// Encode "volumeReplicationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeReplicationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeReplicationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/updateState"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaInternalUpdateStateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaInternalUpdateStateResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

@@ -674,6 +674,15 @@ func (UnimplementedHandler) V1betaInternalUpdateBackupVault(ctx context.Context,
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalUpdateState implements v1beta_internalUpdateState operation.
+//
+// Update replication state & state details of particular replication.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/updateState
+func (UnimplementedHandler) V1betaInternalUpdateState(ctx context.Context, req *VolumeReplicationUpdateStateInternalV1beta, params V1betaInternalUpdateStateParams) (r V1betaInternalUpdateStateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalUpdateVolume implements v1beta_internalUpdateVolume operation.
 //
 // Update the volume (Internal endpoint).
