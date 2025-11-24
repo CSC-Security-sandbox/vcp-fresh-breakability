@@ -2,6 +2,7 @@ package backgroundactivities
 
 import (
 	"context"
+	"fmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -41,13 +42,13 @@ func (a *VolumeBackupSyncActivity) getObjectStoreEndpointInfo(ctx context.Contex
 	}
 
 	// Prepare node provider input
+	if volumeBackup.Volume.Pool.PoolCredentials == nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool credentials not found for pool %d", volumeBackup.Volume.PoolID)))
+	}
 	nodeProviderInput := hyperscaler.NodeProviderInput{
 		Nodes:          dbNodes,
-		Password:       volumeBackup.Volume.Pool.PoolCredentials.Password,
-		SecretID:       volumeBackup.Volume.Pool.PoolCredentials.SecretID,
 		DeploymentName: volumeBackup.Volume.Pool.DeploymentName,
-		CertificateID:  volumeBackup.Volume.Pool.PoolCredentials.CertificateID,
-		AuthType:       volumeBackup.Volume.Pool.PoolCredentials.AuthType,
+		OntapCredentials: volumeBackup.Volume.Pool.PoolCredentials,
 	}
 
 	node := hyperscaler.CreateNodeForProvider(nodeProviderInput)

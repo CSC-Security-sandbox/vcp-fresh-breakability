@@ -4045,8 +4045,8 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 				AuthType:      env.USER_CERTIFICATE,
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, certID string) error {
-			assert.Equal(t, "cert-id", certID)
+		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
+			assert.Equal(t, "cert-id", poolCredentials.CertificateID)
 			return nil
 		}
 		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
@@ -4066,8 +4066,8 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 				AuthType:      env.USER_CERTIFICATE,
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, certID string) error {
-			assert.Equal(t, "cert-id", certID)
+		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
+			assert.Equal(t, "cert-id", poolCredentials.CertificateID)
 			return nil
 		}
 		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
@@ -4087,7 +4087,7 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 				AuthType:      env.USER_CERTIFICATE,
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, certID string) error {
+		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			return errors.New("revoke error")
 		}
 		err := activity.DeleteOnTapCredentials(ctx, pool)
@@ -4188,7 +4188,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				AuthType:      env.USER_CERTIFICATE,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
 			return &hyperscaler3.CustomCertificateResponse{
 				Certificate: &hyperscaler3.CustomCertificate{
 					SubjectCommonName:   "CN",
@@ -4223,7 +4223,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				AuthType:      env.USER_CERTIFICATE,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
 			return &hyperscaler3.CustomCertificateResponse{
 				Certificate: &hyperscaler3.CustomCertificate{
 					SubjectCommonName:   "CN",
@@ -4252,7 +4252,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				AuthType:      env.USER_CERTIFICATE,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
@@ -4561,13 +4561,13 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 		hyperscaler2.GeneratePasswordForVSACluster = originalGeneratePassword
 	}()
 
-	mockGCPService := &google.GcpServices{}
+	mockGCPService := &google.GcpServices{Ctx: ctx}
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 		return mockGCPService, nil
 	}
 
 	// Mock certificate generation
-	hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificateResponse, error) {
+	hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
 		return &hyperscaler3.CustomCertificateResponse{
 			Certificate: &hyperscaler3.CustomCertificate{
 				SubjectCommonName:   "test-cn",
@@ -4787,6 +4787,10 @@ func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 			ThroughputMibps: 1000,
 			Iops:            5000,
 		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD,
+			Password:  "test-password",
+		},
 	}
 	svm := &datamodel.Svm{
 		BaseModel: datamodel.BaseModel{ID: 1},
@@ -4796,7 +4800,10 @@ func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 		},
 	}
 	node := &coremodel.Node{
-		Name: "test-node",
+		Name:                      "test-node",
+		EndpointAddress:           "1.2.3.4",
+		AuthType:                  env.USERNAME_PWD,
+		EndpointAddressesToHostNameMap: make(map[string]string),
 	}
 
 	t.Run("WhenQoSPolicyDoesNotExist_ThenCreateAndApply", func(tt *testing.T) {
@@ -5135,13 +5142,20 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 			ThroughputMibps: 1000, // Current throughput (will be compared against)
 			Iops:            5000, // Current IOPS (will be compared against)
 		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: env.USERNAME_PWD,
+			Password:  "test-password",
+		},
 	}
 	updateParams := &commonparams.UpdatePoolParams{
 		TotalThroughputMibps: 2000,                            // New throughput requirement
 		TotalIops:            nillable.ToPointer(int64(6000)), // New IOPS requirement
 	}
 	node := &coremodel.Node{
-		Name: "test-node",
+		Name:                      "test-node",
+		EndpointAddress:           "1.2.3.4",
+		AuthType:                  env.USERNAME_PWD,
+		EndpointAddressesToHostNameMap: make(map[string]string),
 	}
 
 	t.Run("WhenQoSPolicyNeedsUpdate_ThenUpdateAndApply", func(tt *testing.T) {
@@ -8152,7 +8166,7 @@ func TestFetchOnTapCredentials_WithUserCertificate_Success(t *testing.T) {
 		hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate
 		hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
 	}()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return &coremodel.Certificate{
 			CommonName:               "CN",
 			SignedCertificate:        "cert",
@@ -8186,7 +8200,7 @@ func TestFetchOnTapCredentials_WithUserCertificate_CertificateError(t *testing.T
 	}
 	originalGetCertificate := hyperscaler2.GetCertificateFromCacheOrSecretManager
 	defer func() { hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate }()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return nil, errors.New("certificate error")
 	}
 
@@ -8213,7 +8227,7 @@ func TestFetchOnTapCredentials_WithUserCertificate_SecretError(t *testing.T) {
 		hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate
 		hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
 	}()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return &coremodel.Certificate{
 			CommonName:               "CN",
 			SignedCertificate:        "cert",
@@ -10605,7 +10619,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
 			return &hyperscaler3.CustomCertificateResponse{
 				Certificate: &hyperscaler3.CustomCertificate{
 					SubjectCommonName:   "CN",
@@ -10650,7 +10664,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, certificateID, clusterName, username string) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
 		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
@@ -10769,8 +10783,8 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, certID string) error {
-			assert.Equal(t, "cert-id", certID)
+		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
+			assert.Equal(t, "cert-id", poolCredentials.CertificateID)
 			return nil
 		}
 		err := activity.DeleteExpertModeCredentials(ctx, pool)
@@ -10799,7 +10813,7 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, certID string) error {
+		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			return errors.New("revoke error")
 		}
 		err := activity.DeleteExpertModeCredentials(ctx, pool)
@@ -10908,7 +10922,7 @@ func TestFetchExpertModeCredentials_WithUserCertificate_Success(t *testing.T) {
 	defer func() {
 		hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate
 	}()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return &coremodel.Certificate{
 			CommonName:               "CN",
 			SignedCertificate:        "cert",
@@ -10943,7 +10957,7 @@ func TestFetchExpertModeCredentials_WithUserCertificate_CertificateError(t *test
 	}
 	originalGetCertificate := hyperscaler2.GetCertificateFromCacheOrSecretManager
 	defer func() { hyperscaler2.GetCertificateFromCacheOrSecretManager = originalGetCertificate }()
-	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+	hyperscaler2.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*coremodel.Certificate, error) {
 		return nil, errors.New("certificate error")
 	}
 

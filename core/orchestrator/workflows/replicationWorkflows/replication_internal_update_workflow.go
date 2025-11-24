@@ -1,6 +1,7 @@
 package replicationWorkflows
 
 import (
+	"fmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -93,13 +94,14 @@ func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, arg
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if replication.Volume.Pool.PoolCredentials == nil {
+		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool credentials not found for pool %d", replication.Volume.PoolID)))
+	}
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
 		Nodes:          dbNodes,
-		Password:       replication.Volume.Pool.PoolCredentials.Password,
-		SecretID:       replication.Volume.Pool.PoolCredentials.SecretID,
-		CertificateID:  replication.Volume.Pool.PoolCredentials.CertificateID,
 		DeploymentName: replication.Volume.Pool.DeploymentName,
-		AuthType:       replication.Volume.Pool.PoolCredentials.AuthType})
+		OntapCredentials: replication.Volume.Pool.PoolCredentials,
+	})
 
 	var replicationUpdateResponse *vsa.VolumeReplication
 	err = workflow.ExecuteActivity(ctx, replicationUpdateActivity.UpdateVolumeReplicationOntap, params, node, replication.ReplicationAttributes.ExternalUUID).Get(ctx, &replicationUpdateResponse)

@@ -221,7 +221,11 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			return nil, ConvertToVSAError(err)
 		}
 
-		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.Password, SecretID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.SecretID, DeploymentName: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.DeploymentName, CertificateID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.CertificateID, AuthType: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.AuthType})
+		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+			Nodes:            dbNodes,
+			DeploymentName:   backupActivitiesContext.BackupWorkflowInit.Volume.Pool.DeploymentName,
+			OntapCredentials: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials,
+		})
 		backupActivitiesContext.Node = node
 
 		objStore := &common.CloudTarget{}

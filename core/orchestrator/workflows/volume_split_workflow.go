@@ -107,7 +107,11 @@ func (wf *volumeSplitWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 		return nil, ConvertToVSAError(err)
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   volume.Pool.DeploymentName,
+		OntapCredentials: volume.Pool.PoolCredentials,
+	})
 
 	err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.InitiateSplitForVolume, &volume, &node, nil).Get(ctx, nil)
 	if err != nil {

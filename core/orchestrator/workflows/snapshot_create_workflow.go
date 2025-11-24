@@ -106,7 +106,11 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 		return nil, ConvertToVSAError(err)
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbSnapshot.Volume.Pool.PoolCredentials.Password, SecretID: dbSnapshot.Volume.Pool.PoolCredentials.SecretID, DeploymentName: dbSnapshot.Volume.Pool.DeploymentName, CertificateID: dbSnapshot.Volume.Pool.PoolCredentials.CertificateID, AuthType: dbSnapshot.Volume.Pool.PoolCredentials.AuthType})
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   dbSnapshot.Volume.Pool.DeploymentName,
+		OntapCredentials: dbSnapshot.Volume.Pool.PoolCredentials,
+	})
 
 	var snapshotCreateResponse *vsa.SnapshotProviderResponse
 	defer func() {

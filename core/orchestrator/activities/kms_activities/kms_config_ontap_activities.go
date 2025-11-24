@@ -151,14 +151,12 @@ func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:          nodes,
-		Password:       pool.PoolCredentials.Password,
-		SecretID:       pool.PoolCredentials.SecretID,
-		CertificateID:  pool.PoolCredentials.CertificateID,
-		DeploymentName: pool.DeploymentName,
-		AuthType:       pool.PoolCredentials.AuthType,
+		Nodes:            nodes,
+		DeploymentName:   pool.DeploymentName,
+		OntapCredentials: pool.PoolCredentials,
 	})
 
+	// Node now contains CA fields from PoolCredentials, so we can use GetProviderByNode directly
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)

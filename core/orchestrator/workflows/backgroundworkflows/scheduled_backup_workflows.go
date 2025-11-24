@@ -383,12 +383,9 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		}
 
 		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-			Nodes:          dbNodes,
-			Password:       volume.Pool.PoolCredentials.Password,
-			SecretID:       volume.Pool.PoolCredentials.SecretID,
-			DeploymentName: volume.Pool.DeploymentName,
-			CertificateID:  volume.Pool.PoolCredentials.CertificateID,
-			AuthType:       volume.Pool.PoolCredentials.AuthType,
+			Nodes:            dbNodes,
+			DeploymentName:   volume.Pool.DeploymentName,
+			OntapCredentials: volume.Pool.PoolCredentials,
 		})
 
 		scheduledBackupContext.Node = node
@@ -689,13 +686,10 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:          dbNodes,
-		Password:       volume.Pool.PoolCredentials.Password,
-		SecretID:       volume.Pool.PoolCredentials.SecretID,
-		DeploymentName: volume.Pool.DeploymentName,
-		CertificateID:  volume.Pool.PoolCredentials.CertificateID,
-		AuthType:       volume.Pool.PoolCredentials.AuthType},
-	)
+		Nodes:           dbNodes,
+		DeploymentName:  volume.Pool.DeploymentName,
+		OntapCredentials: volume.Pool.PoolCredentials,
+	})
 
 	var objectStoreName string
 	err = workflow.ExecuteActivity(ctx, backupActivities.GetObjStoreNameActivity, backupVault, volume).Get(ctx, &objectStoreName)

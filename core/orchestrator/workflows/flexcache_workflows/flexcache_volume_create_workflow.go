@@ -231,12 +231,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	flexcacheResult.Node = hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:          dbNodes,
-		Password:       dbVolume.Pool.PoolCredentials.Password,
-		SecretID:       dbVolume.Pool.PoolCredentials.SecretID,
-		DeploymentName: dbVolume.Pool.DeploymentName,
-		CertificateID:  dbVolume.Pool.PoolCredentials.CertificateID,
-		AuthType:       dbVolume.Pool.PoolCredentials.AuthType,
+		Nodes:            dbNodes,
+		DeploymentName:   dbVolume.Pool.DeploymentName,
+		OntapCredentials: dbVolume.Pool.PoolCredentials,
 	})
 
 	// Fetch cluster peering row from DB if exists

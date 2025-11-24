@@ -271,12 +271,9 @@ func AutoTieringPauseResumeWorkflow(ctx workflow.Context, poolIdentifier databas
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:          dbNodes,
-		Password:       pool.PoolCredentials.Password,
-		SecretID:       pool.PoolCredentials.SecretID,
-		DeploymentName: pool.DeploymentName,
-		CertificateID:  pool.PoolCredentials.CertificateID,
-		AuthType:       pool.PoolCredentials.AuthType,
+		Nodes:           dbNodes,
+		DeploymentName:  pool.DeploymentName,
+		OntapCredentials: pool.PoolCredentials,
 	})
 
 	tieringFullnessThreshold := aggregateTieringFullnessThresholdDefault

@@ -45,7 +45,11 @@ func (a *UpdateVolumeReplicationAttributesActivity) GetSnapmirrorDetailsFromOnta
 		return nil, errors.NewVCPError(errors.ErrVSAClusterNodeNotFound, err)
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: nodes, Password: volReplication.Volume.Pool.PoolCredentials.Password, SecretID: volReplication.Volume.Pool.PoolCredentials.SecretID, CertificateID: volReplication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: volReplication.Volume.Pool.DeploymentName, AuthType: volReplication.Volume.Pool.PoolCredentials.AuthType})
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            nodes,
+		DeploymentName:   volReplication.Volume.Pool.DeploymentName,
+		OntapCredentials: volReplication.Volume.Pool.PoolCredentials,
+	})
 
 	// Get provider for the source node
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)

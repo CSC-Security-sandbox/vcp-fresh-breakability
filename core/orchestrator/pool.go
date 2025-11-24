@@ -190,6 +190,11 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			CertificateID: fmt.Sprintf("%s-cert", poolObj.DeploymentName),
 			Password:      "",
 			AuthType:      env.USER_CERTIFICATE,
+
+			// Certificate-related configuration (stored from environment variables during pool creation)
+			// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
+			// Note: Region and VCPAdmin remain as environment variables
+			CaURI: env.BuildCaURI(env.CaPoolDeployedProjectID, env.CaPoolName, env.CaName),
 		}
 	case env.USERNAME_PWD_SEC_MGR:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
@@ -884,6 +889,7 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID stri
 				Password:       expertModeCredential.Password,
 				AuthType:       expertModeCredential.AuthType,
 				OntapEndpoints: endpointMappings,
+				CaURI:          pool.PoolCredentials.GetCaURIWithFallback(),
 			}, nil
 		}
 	}

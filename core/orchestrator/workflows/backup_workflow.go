@@ -197,7 +197,11 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 			return nil, ConvertToVSAError(err)
 		}
 
-		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.Password, SecretID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.SecretID, DeploymentName: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.DeploymentName, CertificateID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.CertificateID, AuthType: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.AuthType})
+		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+			Nodes:            dbNodes,
+			DeploymentName:   backupActivitiesContext.BackupWorkflowInit.Volume.Pool.DeploymentName,
+			OntapCredentials: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials,
+		})
 		backupActivitiesContext.Node = node
 		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SourceVolumeZone = backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolAttributes.PrimaryZone
 		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.IsRegionalHA = backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolAttributes.IsRegionalHA
@@ -513,7 +517,11 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		node = hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
+		node = hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+			Nodes:            dbNodes,
+			DeploymentName:   volume.Pool.DeploymentName,
+			OntapCredentials: volume.Pool.PoolCredentials,
+		})
 
 		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, volume).Get(ctx, &smSourcePath)
 		if err != nil {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	ontapproxymodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -33,9 +33,9 @@ func CertificateMiddleware() func(http.Handler) http.Handler {
 			}
 
 			switch authData.AuthType {
-			case models.USER_CERTIFICATE:
+			case ontapproxymodels.USER_CERTIFICATE:
 				if authData.CertificateID != "" && authData.Certificate == nil {
-					certificate, err := getCertificateFromSecretManager(r.Context(), authData.CertificateID, logger)
+					certificate, err := getCertificateFromSecretManager(r.Context(), authData, logger)
 					if err != nil {
 						logger.ErrorContext(r.Context(), "Failed to fetch certificate from secret manager", "error", err, "certificateID", authData.CertificateID)
 						http.Error(w, "Failed to fetch certificate", http.StatusInternalServerError)
@@ -58,7 +58,7 @@ func CertificateMiddleware() func(http.Handler) http.Handler {
 						"cacheKey", cacheKey)
 				}
 
-			case models.USERNAME_PWD_SEC_MGR:
+			case ontapproxymodels.USERNAME_PWD_SEC_MGR:
 				if authData.SecretID != "" && authData.Password == "" {
 					password, err := getPasswordFromSecretManager(r.Context(), authData.SecretID, logger)
 					if err != nil {
@@ -81,7 +81,7 @@ func CertificateMiddleware() func(http.Handler) http.Handler {
 						"cacheKey", cacheKey)
 				}
 
-			case models.USERNAME_PWD:
+			case ontapproxymodels.USERNAME_PWD:
 				logger.InfoContext(r.Context(), "Using basic username/password authentication",
 					"poolID", authData.PoolID,
 					"cacheKey", cacheKey)
@@ -96,7 +96,51 @@ func CertificateMiddleware() func(http.Handler) http.Handler {
 	}
 }
 
-func getCertificateFromSecretManager(ctx context.Context, certificateID string, logger log.Logger) (*models.Certificate, error) {
+// parseCaURIFromAuthData parses CaURI from AuthData and returns CA components with fallback to env vars
+func parseCaURIFromAuthData(authData *ontapproxymodels.AuthData, logger log.Logger) (caName, caPoolName, caPoolDeployedProjectID string) {
+	certificateID := ""
+	if authData != nil {
+		certificateID = authData.CertificateID
+	}
+	
+	if authData == nil || authData.CaURI == "" {
+		logger.DebugContext(context.Background(), "Using environment variables for CA config", "certificateID", certificateID)
+		return env.CaName, env.CaPoolName, env.CaPoolDeployedProjectID
+	}
+	
+	caPoolDeployedProjectID, caPoolName, caName = env.ParseCaURI(authData.CaURI)
+	
+	if caPoolDeployedProjectID == "" {
+		caPoolDeployedProjectID = env.CaPoolDeployedProjectID
+		logger.DebugContext(context.Background(), "Using environment variable for caPoolDeployedProjectID", "certificateID", certificateID)
+	} else {
+		logger.DebugContext(context.Background(), "Using pool credential for caPoolDeployedProjectID", "certificateID", certificateID, "caPoolDeployedProjectID", caPoolDeployedProjectID)
+	}
+	
+	if caPoolName == "" {
+		caPoolName = env.CaPoolName
+		logger.DebugContext(context.Background(), "Using environment variable for caPoolName", "certificateID", certificateID)
+	} else {
+		logger.DebugContext(context.Background(), "Using pool credential for caPoolName", "certificateID", certificateID, "caPoolName", caPoolName)
+	}
+	
+	if caName == "" {
+		caName = env.CaName
+	}
+	
+	return caName, caPoolName, caPoolDeployedProjectID
+}
+
+func getCertificateFromSecretManager(ctx context.Context, authData *ontapproxymodels.AuthData, logger log.Logger) (*ontapproxymodels.Certificate, error) {
+	if authData == nil {
+		return nil, fmt.Errorf("authData is nil")
+	}
+	
+	certificateID := authData.CertificateID
+	if certificateID == "" {
+		return nil, fmt.Errorf("certificateID is empty in authData")
+	}
+	
 	logger.InfoContext(ctx, "Getting certificate from secret manager", "certificateID", certificateID)
 
 	gcpService, err := hyperscaler.GetGCPService(ctx)
@@ -105,12 +149,17 @@ func getCertificateFromSecretManager(ctx context.Context, certificateID string, 
 		return nil, fmt.Errorf("failed to get GCP service: %w", err)
 	}
 
+	// Parse CA URI from authData, fallback to environment variables if not set
+	_, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+	region := env.Region
+
 	certificateResponse, err := hyperscaler.GetCertificateAndPrivateKeyByID(
 		gcpService,
-		env.CaPoolDeployedProjectID,
+		caPoolDeployedProjectID,
 		env.SecretManagerProjectID,
-		env.Region,
-		env.CaPoolName,
+		region,
+		caPoolName,
 		certificateID,
 	)
 	if err != nil {
@@ -118,7 +167,7 @@ func getCertificateFromSecretManager(ctx context.Context, certificateID string, 
 		return nil, fmt.Errorf("failed to get certificate and private key: %w", err)
 	}
 
-	cert := &models.Certificate{
+	cert := &ontapproxymodels.Certificate{
 		SignedCertificate:        certificateResponse.Certificate.PemCertificate,
 		PrivateKey:               certificateResponse.Secret.SecretVersion.Value,
 		CommonName:               certificateResponse.Certificate.SubjectCommonName,

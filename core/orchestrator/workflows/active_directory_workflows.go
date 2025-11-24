@@ -590,10 +590,11 @@ func PushAdUpdatesToSVMWorkflow(ctx workflow.Context, oldAd *models.ActiveDirect
 				return ConvertToVSAError(err)
 			}
 
-			node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes,
-				Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID,
-				DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID,
-				AuthType: pool.PoolCredentials.AuthType})
+			node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+				Nodes:            dbNodes,
+				DeploymentName:   pool.DeploymentName,
+				OntapCredentials: pool.PoolCredentials,
+			})
 
 			var cifs ontapRest.CifsService
 			err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GetCifsService, node, svm.Name, svm.SvmDetails.ExternalUUID).Get(ctx, &cifs)

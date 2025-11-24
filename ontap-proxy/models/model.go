@@ -22,16 +22,18 @@ type Certificate struct {
 }
 
 type AuthData struct {
-	AuthType       int
-	SecretID       string
-	CertificateID  string
-	Password       string
-	Username       string
-	PoolID         string
-	AccountName    string
-	UserName       string
-	Certificate    *Certificate
-	OntapEndpoints []OntapEndpoint
+	AuthType                 int
+	SecretID                 string
+	CertificateID            string
+	Password                 string
+	Username                 string
+	PoolID                   string
+	AccountName              string
+	UserName                 string
+	Certificate              *Certificate
+	OntapEndpoints           []OntapEndpoint
+	// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
+	CaURI                    string
 }
 
 type OntapEndpoint struct {

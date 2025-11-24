@@ -508,6 +508,11 @@ func (s *OntapCredentialsV1) SetFake() {
 			}
 		}
 	}
+	{
+		{
+			s.CaURI.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

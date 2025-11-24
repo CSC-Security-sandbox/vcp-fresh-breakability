@@ -25,12 +25,19 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+// GetProviderByNode creates a VSA provider using CA fields from Node struct (with env var fallback)
 var GetProviderByNode = _getProviderByNode
-var GetProviderByNodeWithFastConnection = _getProviderByNodeWithFastConnection
 
 func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 	if node.AuthType == env.USER_CERTIFICATE {
-		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, node.CertificateID)
+		// Create PoolCredentials from Node's CA URI for certificate retrieval
+		poolCredentials := &datamodel.PoolCredentials{
+			CaURI:        node.GetCaURIWithFallback(),
+			CertificateID: node.CertificateID,
+		}
+
+		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, poolCredentials)
+
 		if err != nil {
 			util.GetLogger(ctx).Errorf("Failed to get certificate for node %s: %v", node.Name, err)
 			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
@@ -74,9 +81,19 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 	}), nil
 }
 
+// GetProviderByNodeWithFastConnection creates a VSA provider with fast connection using CA fields from Node struct
+var GetProviderByNodeWithFastConnection = _getProviderByNodeWithFastConnection
+
 func _getProviderByNodeWithFastConnection(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 	if node.AuthType == env.USER_CERTIFICATE {
-		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, node.CertificateID)
+		// Create PoolCredentials from Node's CA URI for certificate retrieval
+		poolCredentials := &datamodel.PoolCredentials{
+			CaURI:        node.GetCaURIWithFallback(),
+			CertificateID: node.CertificateID,
+		}
+
+		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, poolCredentials)
+
 		if err != nil {
 			util.GetLogger(ctx).Errorf("Failed to get certificate for node %s: %v", node.Name, err)
 			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
@@ -155,10 +172,11 @@ var GetCertificateAndSecret = _getCertificateAndSecret
 var DeleteCertificateAndSecret = _deleteCertificateAndSecret
 
 // _generateAndCreateCertificateForVSACluster generates a CSR and creates a certificate in GCP Certificate Authority Service.
-func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, certificateID, clusterName, username string) (*hyperscalermodels.CustomCertificateResponse, error) {
+func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscalermodels.CustomCertificateResponse, error) {
 	logger := gcpService.GetLogger()
+	certificateID := poolCredentials.CertificateID
 	// Get Both Certificate and Secret
-	certificate, secret, err := GetCertificateAndSecret(gcpService, certificateID)
+	certificate, secret, err := _getCertificateAndSecret(gcpService, poolCredentials)
 	if err != nil {
 		logger.Errorf("Failed to get Certificate and Secret for certificateID: %s, err: %v", certificateID, err)
 		return nil, err
@@ -180,15 +198,15 @@ func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, certi
 	}
 
 	// Delete the certificate and Secret if any exist
-	err = DeleteCertificateAndSecret(gcpService, certificateID, certificate, secret)
+	err = _deleteCertificateAndSecret(gcpService, certificate, secret, poolCredentials)
 	if err != nil {
-		logger.Errorf("Failed to delete certificate and privake key for certificateID: %s, err: %v", certificateID, err)
+		logger.Errorf("Failed to delete certificate and private key for certificateID: %s, err: %v", certificateID, err)
 		return nil, err
 	}
 
 	// If certificate and secret are nil so create a CSR and request new certificate in CAS and store the private key in secret manager
 	logger.Debugf("Generating and creating certificate for cluster: %s with certificateID: %s", clusterName, certificateID)
-	certificate, secret, err = CreateCertificateInCASAndPrivateKeyInSM(gcpService, certificateID, clusterName, username)
+	certificate, secret, err = _createCertificateInCASAndPrivateKeyInSM(gcpService, certificateID, clusterName, username, poolCredentials)
 	if err != nil {
 		logger.Errorf("Failed to create certificate and store private key for cluster: %s with certificateID: %s", clusterName, certificateID)
 		return nil, err
@@ -209,20 +227,27 @@ func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, certi
 	}, nil
 }
 
-func _deleteCertificateAndSecret(gcpService GoogleServices, certificateID string, certificate *hyperscalermodels.CustomCertificate, secret *hyperscalermodels.CustomSecret) error {
+func _deleteCertificateAndSecret(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate, secret *hyperscalermodels.CustomSecret, poolCredentials *datamodel.PoolCredentials) error {
 	logger := gcpService.GetLogger()
+	certificateID := poolCredentials.CertificateID
 	if certificate != nil {
+		// Use environment variables for Region (always from env)
+		region := env.Region
+
+		// Parse CA URI from poolCredentials, fallback to environment variables
+		caPoolDeployedProjectID, caPoolName, _ := poolCredentials.ParseCaURIWithFallback()
+
 		certObject := &hyperscalermodels.CustomCertificate{
-			CertOwningEntity: env.CaPoolDeployedProjectID,
-			Region:           env.Region,
-			CaGroupName:      env.CaPoolName,
+			CertOwningEntity: caPoolDeployedProjectID,
+			Region:           region,
+			CaGroupName:      caPoolName,
 			CertificateID:    certificateID,
 		}
 
 		// delete the certificate from CAS
 		_, err := gcpService.RevokeCertificate(certObject)
 		if err != nil {
-			logger.Errorf("Failed to revoke certificate for projectID: %s, region: %s and certificateID: %s", env.CaPoolDeployedProjectID, env.Region, certificateID)
+			logger.Errorf("Failed to revoke certificate for projectID: %s, region: %s and certificateID: %s", caPoolDeployedProjectID, region, certificateID)
 			return err
 		}
 	}
@@ -238,9 +263,17 @@ func _deleteCertificateAndSecret(gcpService GoogleServices, certificateID string
 	return nil
 }
 
-func _getCertificateAndSecret(gcpService GoogleServices, certificateID string) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
+func _getCertificateAndSecret(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
-	cert, getErr := gcpService.GetCertificate(env.CaPoolDeployedProjectID, env.Region, env.CaPoolName, certificateID)
+	certificateID := poolCredentials.CertificateID
+
+	// Use environment variables for Region (always from env)
+	region := env.Region
+
+	// Parse CA URI from poolCredentials, fallback to environment variables
+	caPoolDeployedProjectID, caPoolName, _ := poolCredentials.ParseCaURIWithFallback()
+
+	cert, getErr := gcpService.GetCertificate(caPoolDeployedProjectID, region, caPoolName, certificateID)
 	if getErr != nil {
 		logger.Errorf("Failed to get certificate for certificateID: %s, err: %v", certificateID, getErr)
 		return nil, nil, getErr
@@ -253,17 +286,24 @@ func _getCertificateAndSecret(gcpService GoogleServices, certificateID string) (
 	return cert, secret, nil
 }
 
-func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certificateID string, clusterName, username string) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
+func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certificateID string, clusterName string, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
+
+	// Use environment variables for Region (always from env)
+	region := env.Region
+
+	// Parse CA URI from poolCredentials, fallback to environment variables
+	caPoolDeployedProjectID, caPoolName, caName := poolCredentials.ParseCaURIWithFallback()
+
 	domains := fmt.Sprintf("*.%s.%s", clusterName, env.VsaDeployedDnsName)
 	certObj := &hyperscalermodels.CustomCertificateParam{
-		Region:           env.Region,
+		Region:           region,
 		CertificateID:    certificateID,
-		CaPoolName:       env.CaPoolName,
-		CaName:           env.CaName,
+		CaPoolName:       caPoolName,
+		CaName:           caName,
 		CommonName:       username,
 		Domains:          []string{domains},
-		CertOwningEntity: env.CaPoolDeployedProjectID,
+		CertOwningEntity: caPoolDeployedProjectID,
 	}
 	// Generate CSR
 	csrDER, key, err := GenerateCSR(certObj.CommonName, certObj.Domains)
@@ -421,7 +461,8 @@ func _deletePasswordFromSecretManagerAndCache(gcpService GoogleServices, secretI
 }
 
 // _getCertificateFromCacheOrSecretManager retrieves the certificate from cache or GCP Certificate and Secret Manager.
-func _getCertificateFromCacheOrSecretManager(ctx context.Context, certificateID string) (*models.Certificate, error) {
+func _getCertificateFromCacheOrSecretManager(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+	certificateID := poolCredentials.CertificateID
 	certCache, exist := common.GetCertAuthCache(certificateID)
 	// If not found in cache, fetch from GCP Certificate and Secret Manager
 	if !exist || certCache.Certificate == nil {
@@ -429,7 +470,14 @@ func _getCertificateFromCacheOrSecretManager(ctx context.Context, certificateID 
 		if err != nil {
 			return nil, err
 		}
-		certificateResponse, err := GetCertificateAndPrivateKeyByID(gcpService, env.CaPoolDeployedProjectID, env.SecretManagerProjectID, env.Region, env.CaPoolName, certificateID)
+
+		// Use environment variables for Region (always from env)
+		region := env.Region
+
+		// Parse CA URI from poolCredentials, fallback to environment variables
+		caPoolDeployedProjectID, caPoolName, _ := poolCredentials.ParseCaURIWithFallback()
+
+		certificateResponse, err := GetCertificateAndPrivateKeyByID(gcpService, caPoolDeployedProjectID, env.SecretManagerProjectID, region, caPoolName, certificateID)
 		if err != nil {
 			return nil, err
 		}
@@ -483,18 +531,19 @@ func _deleteCloudDNSRecord(gcpService GoogleServices, recordName string) error {
 	return nil
 }
 
-func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService GoogleServices, certificateID string) error {
+func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 	logger := gcpService.GetLogger()
-	certificate, secret, err := GetCertificateAndSecret(gcpService, certificateID)
+	certificateID := poolCredentials.CertificateID
+	certificate, secret, err := GetCertificateAndSecret(gcpService, poolCredentials)
 	if err != nil {
 		logger.Errorf("Failed to get Certificate and Secret for certificateID: %s, err: %v", certificateID, err)
 		return err
 	}
 
 	// Delete the certificate and Secret if any exist
-	err = DeleteCertificateAndSecret(gcpService, certificateID, certificate, secret)
+	err = DeleteCertificateAndSecret(gcpService, certificate, secret, poolCredentials)
 	if err != nil {
-		logger.Errorf("Failed to delete certificate and privake key for certificateID: %s, err: %v", certificateID, err)
+		logger.Errorf("Failed to delete certificate and private key for certificateID: %s, err: %v", certificateID, err)
 		return err
 	}
 
@@ -614,8 +663,18 @@ var CreateNodeForProvider = _createNodeForProvider
 
 // _createNodeForProvider creates a node for a given provider using the provided information.
 func _createNodeForProvider(inp NodeProviderInput) *models.Node {
+	if inp.OntapCredentials == nil {
+		// This should not happen in practice, but handle gracefully
+		return &models.Node{
+			DeploymentName: inp.DeploymentName,
+		}
+	}
+
+	// Populate CA URI from OntapCredentials, fall back to environment variables if not set
+	caURI := inp.OntapCredentials.GetCaURIWithFallback()
+
 	endpointAddressToHostNameMap := make(map[string]string)
-	if inp.AuthType == env.USER_CERTIFICATE {
+	if inp.OntapCredentials.AuthType == env.USER_CERTIFICATE {
 		for _, node := range inp.Nodes {
 			if node.EndpointAddress != "" {
 				endpointAddressToHostNameMap[node.EndpointAddress] = node.HostDNSName
@@ -624,9 +683,10 @@ func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 		return &models.Node{
 			EndpointAddressesToHostNameMap: endpointAddressToHostNameMap,
 			DeploymentName:                 inp.DeploymentName,
-			CertificateID:                  inp.CertificateID,
-			SecretID:                       inp.SecretID,
-			AuthType:                       inp.AuthType,
+			CertificateID:                  inp.OntapCredentials.CertificateID,
+			SecretID:                       inp.OntapCredentials.SecretID,
+			AuthType:                       inp.OntapCredentials.AuthType,
+			CaURI:                          caURI,
 		}
 	}
 
@@ -638,20 +698,19 @@ func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 
 	return &models.Node{
 		EndpointAddressesToHostNameMap: endpointAddressToHostNameMap,
-		Password:                       inp.Password,
+		Password:                       inp.OntapCredentials.Password,
 		DeploymentName:                 inp.DeploymentName,
-		SecretID:                       inp.SecretID,
-		AuthType:                       inp.AuthType,
+		SecretID:                       inp.OntapCredentials.SecretID,
+		AuthType:                       inp.OntapCredentials.AuthType,
+		CaURI:                          caURI,
 	}
 }
 
 type NodeProviderInput struct {
 	Nodes          []*datamodel.Node
-	Password       string
-	SecretID       string
-	CertificateID  string
 	DeploymentName string
-	AuthType       int
+	// Required: OntapCredentials from database (contains Password, SecretID, CertificateID, AuthType, and CA fields with env var fallback)
+	OntapCredentials *datamodel.PoolCredentials
 }
 
 // PrepareOperationID constructs a GCP operation ID from the provided project number, location ID, and job ID.

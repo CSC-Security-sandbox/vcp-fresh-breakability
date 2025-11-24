@@ -13,6 +13,60 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// BuildCaURI builds a ca_uri string from individual CA components.
+// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
+// Uses environment variables as fallback for empty values.
+func BuildCaURI(caPoolDeployedProjectID, caPoolName, caName string) string {
+	// Use env vars as fallback for empty values
+	if caPoolDeployedProjectID == "" {
+		caPoolDeployedProjectID = CaPoolDeployedProjectID
+	}
+	if caPoolName == "" {
+		caPoolName = CaPoolName
+	}
+	if caName == "" {
+		caName = CaName
+	}
+	// If all values are still empty after fallback, return empty string
+	if caPoolDeployedProjectID == "" && caPoolName == "" && caName == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s/%s", caPoolDeployedProjectID, caPoolName, caName)
+}
+
+// ParseCaURI parses a ca_uri string into individual CA components.
+// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
+// Returns empty strings if caURI is empty or invalid.
+func ParseCaURI(caURI string) (caPoolDeployedProjectID, caPoolName, caName string) {
+	if caURI == "" {
+		// Fallback to environment variables
+		return CaPoolDeployedProjectID, CaPoolName, CaName
+	}
+	
+	parts := strings.Split(caURI, "/")
+	if len(parts) != 3 {
+		// Invalid format, fallback to environment variables
+		return CaPoolDeployedProjectID, CaPoolName, CaName
+	}
+	
+	caPoolDeployedProjectID = parts[0]
+	caPoolName = parts[1]
+	caName = parts[2]
+	
+	// Fallback to environment variables for empty parts
+	if caPoolDeployedProjectID == "" {
+		caPoolDeployedProjectID = CaPoolDeployedProjectID
+	}
+	if caPoolName == "" {
+		caPoolName = CaPoolName
+	}
+	if caName == "" {
+		caName = CaName
+	}
+	
+	return caPoolDeployedProjectID, caPoolName, caName
+}
+
 const (
 	Admin    = "admin"
 	LocalEnv = "local"

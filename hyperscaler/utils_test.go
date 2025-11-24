@@ -89,11 +89,13 @@ func TestCreateNodeForProvider(t *testing.T) {
 						HostDNSName:     "host2.example.com",
 					},
 				},
-				Password:       "password123",
-				SecretID:       "secret-id",
-				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       env.USER_CERTIFICATE,
+				OntapCredentials: &datamodel.PoolCredentials{
+					Password:      "password123",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      env.USER_CERTIFICATE,
+				},
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{
@@ -119,11 +121,13 @@ func TestCreateNodeForProvider(t *testing.T) {
 						HostDNSName:     "host2.example.com",
 					},
 				},
-				Password:       "password123",
-				SecretID:       "secret-id",
-				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       env.USER_CERTIFICATE,
+				OntapCredentials: &datamodel.PoolCredentials{
+					Password:      "password123",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      env.USER_CERTIFICATE,
+				},
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{
@@ -139,11 +143,13 @@ func TestCreateNodeForProvider(t *testing.T) {
 			name: "USER_CERTIFICATE auth type with no nodes",
 			input: NodeProviderInput{
 				Nodes:          []*datamodel.Node{},
-				Password:       "password123",
-				SecretID:       "secret-id",
-				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       env.USER_CERTIFICATE,
+				OntapCredentials: &datamodel.PoolCredentials{
+					Password:      "password123",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      env.USER_CERTIFICATE,
+				},
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{},
@@ -166,11 +172,13 @@ func TestCreateNodeForProvider(t *testing.T) {
 						HostDNSName:     "host2.example.com",
 					},
 				},
-				Password:       "password123",
-				SecretID:       "secret-id",
-				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       1, // Not USER_CERTIFICATE
+				OntapCredentials: &datamodel.PoolCredentials{
+					Password:      "password123",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      1, // Not USER_CERTIFICATE
+				},
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{
@@ -196,11 +204,13 @@ func TestCreateNodeForProvider(t *testing.T) {
 						HostDNSName:     "host2.example.com",
 					},
 				},
-				Password:       "password123",
-				SecretID:       "secret-id",
-				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       1, // Not USER_CERTIFICATE
+				OntapCredentials: &datamodel.PoolCredentials{
+					Password:      "password123",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      1, // Not USER_CERTIFICATE
+				},
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{
@@ -216,11 +226,13 @@ func TestCreateNodeForProvider(t *testing.T) {
 			name: "Non-USER_CERTIFICATE auth type with no nodes",
 			input: NodeProviderInput{
 				Nodes:          []*datamodel.Node{},
-				Password:       "password123",
-				SecretID:       "secret-id",
-				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       1, // Not USER_CERTIFICATE
+				OntapCredentials: &datamodel.PoolCredentials{
+					Password:      "password123",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      1, // Not USER_CERTIFICATE
+				},
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{},
@@ -239,11 +251,13 @@ func TestCreateNodeForProvider(t *testing.T) {
 						HostDNSName:     "host1.example.com",
 					},
 				},
-				Password:       "password123",
-				SecretID:       "secret-id",
-				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       0,
+				OntapCredentials: &datamodel.PoolCredentials{
+					Password:      "password123",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      0,
+				},
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{
@@ -260,7 +274,22 @@ func TestCreateNodeForProvider(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := CreateNodeForProvider(tt.input)
-			assert.Equal(t, tt.expectedResult, result)
+			// Compare basic fields
+			assert.Equal(t, tt.expectedResult.EndpointAddressesToHostNameMap, result.EndpointAddressesToHostNameMap)
+			assert.Equal(t, tt.expectedResult.DeploymentName, result.DeploymentName)
+			assert.Equal(t, tt.expectedResult.CertificateID, result.CertificateID)
+			assert.Equal(t, tt.expectedResult.SecretID, result.SecretID)
+			assert.Equal(t, tt.expectedResult.Password, result.Password)
+			assert.Equal(t, tt.expectedResult.AuthType, result.AuthType)
+			// CaURI should be populated (either from OntapCredentials or env vars)
+			// If OntapCredentials has CaURI, it should be used; otherwise env vars are used
+			if tt.input.OntapCredentials != nil {
+				if tt.input.OntapCredentials.CaURI != "" {
+					assert.Equal(t, tt.input.OntapCredentials.CaURI, result.CaURI)
+				}
+				// If CaURI is not provided in OntapCredentials, it will fall back to env vars
+				// We don't check those here as env vars may vary by environment
+			}
 		})
 	}
 }
@@ -320,26 +349,28 @@ func TestCreateNodeForProviderVariable(t *testing.T) {
 				HostDNSName:     "host1.example.com",
 			},
 		},
-		Password:       "password123",
-		SecretID:       "secret-id",
-		CertificateID:  "cert-id",
 		DeploymentName: "test-deployment",
-		AuthType:       env.USER_CERTIFICATE,
+		OntapCredentials: &datamodel.PoolCredentials{
+			Password:      "password123",
+			SecretID:      "secret-id",
+			CertificateID: "cert-id",
+			AuthType:      env.USER_CERTIFICATE,
+		},
 	}
 
 	result := CreateNodeForProvider(input)
 
-	expectedResult := &models.Node{
-		EndpointAddressesToHostNameMap: map[string]string{
-			"10.0.0.1": "host1.example.com",
-		},
-		DeploymentName: "test-deployment",
-		CertificateID:  "cert-id",
-		SecretID:       "secret-id",
-		AuthType:       env.USER_CERTIFICATE,
-	}
-
-	assert.Equal(t, expectedResult, result)
+	// Verify basic fields
+	assert.Equal(t, "test-deployment", result.DeploymentName)
+	assert.Equal(t, "cert-id", result.CertificateID)
+	assert.Equal(t, "secret-id", result.SecretID)
+	assert.Equal(t, env.USER_CERTIFICATE, result.AuthType)
+	assert.Equal(t, map[string]string{
+		"10.0.0.1": "host1.example.com",
+	}, result.EndpointAddressesToHostNameMap)
+	// CA fields should be populated (from env vars since not provided in input)
+	// Note: CA fields will be set from env vars, but we don't check exact values
+	// as they may vary by environment. The new dedicated tests verify CA field behavior.
 }
 
 func TestNodeProviderInput_Struct(t *testing.T) {
@@ -351,17 +382,196 @@ func TestNodeProviderInput_Struct(t *testing.T) {
 				HostDNSName:     "host1.example.com",
 			},
 		},
-		Password:       "password123",
-		SecretID:       "secret-id",
-		CertificateID:  "cert-id",
 		DeploymentName: "test-deployment",
-		AuthType:       env.USER_CERTIFICATE,
+		OntapCredentials: &datamodel.PoolCredentials{
+			Password:      "password123",
+			SecretID:      "secret-id",
+			CertificateID: "cert-id",
+			AuthType:      env.USER_CERTIFICATE,
+		},
 	}
 
 	assert.NotNil(t, input.Nodes)
-	assert.Equal(t, "password123", input.Password)
-	assert.Equal(t, "secret-id", input.SecretID)
-	assert.Equal(t, "cert-id", input.CertificateID)
+	assert.NotNil(t, input.OntapCredentials)
+	assert.Equal(t, "password123", input.OntapCredentials.Password)
+	assert.Equal(t, "secret-id", input.OntapCredentials.SecretID)
+	assert.Equal(t, "cert-id", input.OntapCredentials.CertificateID)
 	assert.Equal(t, "test-deployment", input.DeploymentName)
-	assert.Equal(t, env.USER_CERTIFICATE, input.AuthType)
+	assert.Equal(t, env.USER_CERTIFICATE, input.OntapCredentials.AuthType)
+}
+
+func TestCreateNodeForProvider_CAFieldsFromOntapCredentials(t *testing.T) {
+	// Test that CA fields are populated from OntapCredentials when provided
+	input := NodeProviderInput{
+		Nodes: []*datamodel.Node{
+			{
+				EndpointAddress: "10.0.0.1",
+				HostDNSName:     "host1.example.com",
+			},
+		},
+		DeploymentName: "test-deployment",
+		OntapCredentials: &datamodel.PoolCredentials{
+			CertificateID: "cert-id",
+			SecretID:      "secret-id",
+			AuthType:      env.USER_CERTIFICATE,
+			CaURI:         "test-ca-pool-deployed-project-id/test-ca-pool-name/test-ca-name",
+		},
+	}
+
+	result := CreateNodeForProvider(input)
+
+	assert.NotNil(t, result)
+	assert.Equal(t, "test-ca-pool-deployed-project-id/test-ca-pool-name/test-ca-name", result.CaURI)
+}
+
+func TestCreateNodeForProvider_CAFieldsFallbackToEnvVars(t *testing.T) {
+	// Save original env values
+	originalCaName := env.CaName
+	originalCaPoolName := env.CaPoolName
+	originalCaPoolDeployedProjectID := env.CaPoolDeployedProjectID
+
+	// Set test env values
+	env.CaName = "env-ca-name"
+	env.CaPoolName = "env-ca-pool-name"
+	env.CaPoolDeployedProjectID = "env-ca-pool-deployed-project-id"
+
+	defer func() {
+		// Restore original env values
+		env.CaName = originalCaName
+		env.CaPoolName = originalCaPoolName
+		env.CaPoolDeployedProjectID = originalCaPoolDeployedProjectID
+	}()
+
+	// Test that CA fields fall back to environment variables when not provided in OntapCredentials
+	input := NodeProviderInput{
+		Nodes: []*datamodel.Node{
+			{
+				EndpointAddress: "10.0.0.1",
+				HostDNSName:     "host1.example.com",
+			},
+		},
+		DeploymentName: "test-deployment",
+		OntapCredentials: &datamodel.PoolCredentials{
+			CertificateID: "cert-id",
+			SecretID:      "secret-id",
+			AuthType:      env.USER_CERTIFICATE,
+			// CA fields are empty, should fall back to env vars
+		},
+	}
+
+	result := CreateNodeForProvider(input)
+
+	assert.NotNil(t, result)
+	// When CaURI is empty, it should fall back to env vars and build CaURI from them
+	expectedCaURI := "env-ca-pool-deployed-project-id/env-ca-pool-name/env-ca-name"
+	assert.Equal(t, expectedCaURI, result.CaURI)
+}
+
+func TestCreateNodeForProvider_CAFieldsPartialFallback(t *testing.T) {
+	// Save original env values
+	originalCaName := env.CaName
+	originalCaPoolName := env.CaPoolName
+	originalCaPoolDeployedProjectID := env.CaPoolDeployedProjectID
+
+	// Set test env values
+	env.CaName = "env-ca-name"
+	env.CaPoolName = "env-ca-pool-name"
+	env.CaPoolDeployedProjectID = "env-ca-pool-deployed-project-id"
+
+	defer func() {
+		// Restore original env values
+		env.CaName = originalCaName
+		env.CaPoolName = originalCaPoolName
+		env.CaPoolDeployedProjectID = originalCaPoolDeployedProjectID
+	}()
+
+	// Test that CA fields use provided values when available, and fall back to env vars for missing ones
+	input := NodeProviderInput{
+		Nodes: []*datamodel.Node{
+			{
+				EndpointAddress: "10.0.0.1",
+				HostDNSName:     "host1.example.com",
+			},
+		},
+		DeploymentName: "test-deployment",
+		OntapCredentials: &datamodel.PoolCredentials{
+			CertificateID: "cert-id",
+			SecretID:      "secret-id",
+			AuthType:      env.USER_CERTIFICATE,
+			// CaURI is empty, should fall back to env vars and build CaURI from them
+		},
+	}
+
+	result := CreateNodeForProvider(input)
+
+	assert.NotNil(t, result)
+	// When CaURI is empty, it should fall back to env vars and build CaURI from them
+	expectedCaURI := "env-ca-pool-deployed-project-id/env-ca-pool-name/env-ca-name"
+	assert.Equal(t, expectedCaURI, result.CaURI)
+}
+
+func TestCreateNodeForProvider_NilOntapCredentials(t *testing.T) {
+	// Test that function handles nil OntapCredentials gracefully
+	input := NodeProviderInput{
+		Nodes: []*datamodel.Node{
+			{
+				EndpointAddress: "10.0.0.1",
+				HostDNSName:     "host1.example.com",
+			},
+		},
+		DeploymentName:   "test-deployment",
+		OntapCredentials: nil,
+	}
+
+	result := CreateNodeForProvider(input)
+
+	assert.NotNil(t, result)
+	assert.Equal(t, "test-deployment", result.DeploymentName)
+	// Other fields should be empty/zero values
+	assert.Equal(t, "", result.CertificateID)
+	assert.Equal(t, "", result.Password)
+	assert.Equal(t, 0, result.AuthType)
+}
+
+func TestCreateNodeForProvider_CAFieldsForNonCertificateAuth(t *testing.T) {
+	// Save original env values
+	originalCaName := env.CaName
+	originalCaPoolName := env.CaPoolName
+	originalCaPoolDeployedProjectID := env.CaPoolDeployedProjectID
+
+	// Set test env values
+	env.CaName = "env-ca-name"
+	env.CaPoolName = "env-ca-pool-name"
+	env.CaPoolDeployedProjectID = "env-ca-pool-deployed-project-id"
+
+	defer func() {
+		// Restore original env values
+		env.CaName = originalCaName
+		env.CaPoolName = originalCaPoolName
+		env.CaPoolDeployedProjectID = originalCaPoolDeployedProjectID
+	}()
+
+	// Test that CA fields are populated even for non-certificate auth types
+	input := NodeProviderInput{
+		Nodes: []*datamodel.Node{
+			{
+				EndpointAddress: "10.0.0.1",
+				HostDNSName:     "host1.example.com",
+			},
+		},
+		DeploymentName: "test-deployment",
+		OntapCredentials: &datamodel.PoolCredentials{
+			Password:  "password123",
+			SecretID:   "secret-id",
+			AuthType:   env.USERNAME_PWD,
+			CaURI:      "test-ca-pool-deployed-project-id/test-ca-pool-name/test-ca-name",
+		},
+	}
+
+	result := CreateNodeForProvider(input)
+
+	assert.NotNil(t, result)
+	assert.Equal(t, "test-ca-pool-deployed-project-id/test-ca-pool-name/test-ca-name", result.CaURI)
+	assert.Equal(t, "password123", result.Password)
+	assert.Equal(t, env.USERNAME_PWD, result.AuthType)
 }

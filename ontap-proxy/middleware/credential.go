@@ -72,15 +72,16 @@ func fetchAndCacheCredentials(ctx context.Context, poolDetails *models.PoolDetai
 	}
 
 	authData := &models.AuthData{
-		AuthType:       credentials.AuthType.Value,
-		SecretID:       getStringValue(credentials.SecretID),
-		CertificateID:  getStringValue(credentials.CertificateID),
-		Password:       getStringValue(credentials.Password),
-		Username:       poolDetails.UserName,
-		PoolID:         poolDetails.PoolID,
-		AccountName:    poolDetails.AccountName,
-		UserName:       poolDetails.UserName,
-		OntapEndpoints: convertOntapEndpoints(credentials.OntapEndpoints),
+		AuthType:                credentials.AuthType.Value,
+		SecretID:                getStringValue(credentials.SecretID),
+		CertificateID:           getStringValue(credentials.CertificateID),
+		Password:                getStringValue(credentials.Password),
+		Username:                poolDetails.UserName,
+		PoolID:                  poolDetails.PoolID,
+		AccountName:             poolDetails.AccountName,
+		UserName:                poolDetails.UserName,
+		OntapEndpoints:          convertOntapEndpoints(credentials.OntapEndpoints),
+		CaURI:                   getStringValue(credentials.CaURI),
 	}
 
 	cache.AddToAuthDataCache(cacheKey, authData)

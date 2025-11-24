@@ -1012,3 +1012,61 @@ func TestAccountMetadata_ScanInterface(t *testing.T) {
 		assert.False(tt, am.VolumeRefreshWorkflowLastCompletionAt.IsZero())
 	})
 }
+
+func TestPoolCredentials_GetCaURIWithFallback(t *testing.T) {
+	t.Run("WhenPoolCredentialsIsNil_ShouldReturnEnvFallback", func(t *testing.T) {
+		var pc *PoolCredentials = nil
+		result := pc.GetCaURIWithFallback()
+		// Should return result from env.BuildCaURI("", "", "")
+		assert.NotNil(t, result)
+	})
+
+	t.Run("WhenCaURIIsEmpty_ShouldReturnEnvFallback", func(t *testing.T) {
+		pc := &PoolCredentials{
+			CaURI: "",
+		}
+		result := pc.GetCaURIWithFallback()
+		// Should return result from env.BuildCaURI("", "", "")
+		assert.NotNil(t, result)
+	})
+
+	t.Run("WhenCaURIHasValue_ShouldReturnCaURI", func(t *testing.T) {
+		pc := &PoolCredentials{
+			CaURI: "project-123/pool-456/ca-789",
+		}
+		result := pc.GetCaURIWithFallback()
+		assert.Equal(t, "project-123/pool-456/ca-789", result)
+	})
+}
+
+func TestPoolCredentials_ParseCaURIWithFallback(t *testing.T) {
+	t.Run("WhenPoolCredentialsIsNil_ShouldReturnEnvFallback", func(t *testing.T) {
+		var pc *PoolCredentials = nil
+		projectID, poolName, caName := pc.ParseCaURIWithFallback()
+		// Should return env vars directly
+		assert.NotNil(t, projectID)
+		assert.NotNil(t, poolName)
+		assert.NotNil(t, caName)
+	})
+
+	t.Run("WhenCaURIIsEmpty_ShouldReturnEnvFallback", func(t *testing.T) {
+		pc := &PoolCredentials{
+			CaURI: "",
+		}
+		projectID, poolName, caName := pc.ParseCaURIWithFallback()
+		// Should return env vars directly
+		assert.NotNil(t, projectID)
+		assert.NotNil(t, poolName)
+		assert.NotNil(t, caName)
+	})
+
+	t.Run("WhenCaURIHasValue_ShouldParseCaURI", func(t *testing.T) {
+		pc := &PoolCredentials{
+			CaURI: "project-123/pool-456/ca-789",
+		}
+		projectID, poolName, caName := pc.ParseCaURIWithFallback()
+		assert.Equal(t, "project-123", projectID)
+		assert.Equal(t, "pool-456", poolName)
+		assert.Equal(t, "ca-789", caName)
+	})
+}

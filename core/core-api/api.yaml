@@ -1893,6 +1893,11 @@ components:
               dns: "host1.example.com"
             - ip: "10.0.0.2"
               dns: "host2.example.com"
+        ca_uri:
+          title: ca_uri
+          type: string
+          description: The certificate authority URI in format ca_pool_deployed_project_id/ca_pool_name/ca_name (only for USER_CERTIFICATE auth type)
+          example: "163019662857/au-se1-vsa-pool-npd/vsa-intermediate-au-se1"
     ontapEndpoint:
       title: ontapEndpoint
       type: object

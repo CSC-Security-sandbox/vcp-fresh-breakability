@@ -2,6 +2,7 @@ package coreapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
@@ -37,9 +38,20 @@ func FetchCredentials(ctx context.Context, poolDetails *models.PoolDetails, jwtT
 
 	switch resp := response.(type) {
 	case *coreapi.OntapCredentialsV1:
+		// Marshal the full response to JSON for logging
+		respJSON, err := json.Marshal(resp)
+		respJSONStr := ""
+		if err != nil {
+			respJSONStr = fmt.Sprintf("<error marshaling response: %v>", err)
+		} else {
+			respJSONStr = string(respJSON)
+		}
+
 		logger.InfoContext(ctx, "Successfully validated pool and got credentials",
 			"poolID", poolDetails.PoolID,
-			"authType", resp.AuthType.Value)
+			"authType", resp.AuthType.Value,
+			"caURI", getStringValue(resp.CaURI),
+			"fullResponse", respJSONStr)
 		return resp, nil
 
 	case *coreapi.V1GetOntapCredentialsNotFound:
@@ -66,4 +78,12 @@ func FetchCredentials(ctx context.Context, poolDetails *models.PoolDetails, jwtT
 		logger.ErrorContext(ctx, "Unexpected response from Core API", "responseType", fmt.Sprintf("%T", resp), "poolID", poolDetails.PoolID)
 		return nil, fmt.Errorf("unexpected response from Core API")
 	}
+}
+
+// getStringValue safely extracts string value from OptString, returning empty string if not set
+func getStringValue(opt coreapi.OptString) string {
+	if opt.IsSet() {
+		return opt.Value
+	}
+	return ""
 }

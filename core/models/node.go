@@ -1,5 +1,9 @@
 package models
 
+import (
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+)
+
 // Node represents a single Node resource
 type Node struct {
 	Name                           string
@@ -15,4 +19,23 @@ type Node struct {
 	State                          string
 	DeploymentName                 string
 	AuthType                       int
+	// Certificate-related configuration (from database with env var fallback)
+	// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
+	CaURI string `json:"ca_uri,omitempty"`
+}
+
+// GetCaURIWithFallback gets ca_uri from Node, falling back to environment variables if not set.
+func (n *Node) GetCaURIWithFallback() string {
+	if n == nil || n.CaURI == "" {
+		return env.BuildCaURI("", "", "")
+	}
+	return n.CaURI
+}
+
+// ParseCaURIWithFallback parses ca_uri from Node, falling back to environment variables if not set.
+func (n *Node) ParseCaURIWithFallback() (caPoolDeployedProjectID, caPoolName, caName string) {
+	if n == nil || n.CaURI == "" {
+		return env.CaPoolDeployedProjectID, env.CaPoolName, env.CaName
+	}
+	return env.ParseCaURI(n.CaURI)
 }

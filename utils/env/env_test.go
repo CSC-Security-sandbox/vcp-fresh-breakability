@@ -2235,3 +2235,183 @@ func TestGetDuration(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildCaURI(t *testing.T) {
+	// Save original env vars
+	originalProjectID := CaPoolDeployedProjectID
+	originalPoolName := CaPoolName
+	originalCaName := CaName
+
+	defer func() {
+		CaPoolDeployedProjectID = originalProjectID
+		CaPoolName = originalPoolName
+		CaName = originalCaName
+	}()
+
+	t.Run("WhenAllParametersAreEmpty_ShouldUseEnvVars", func(t *testing.T) {
+		// Set env vars
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		result := BuildCaURI("", "", "")
+		expected := "env-project/env-pool/env-ca"
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("WhenProjectIDIsEmpty_ShouldFallbackToEnvVar", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		result := BuildCaURI("", "provided-pool", "provided-ca")
+		expected := "env-project/provided-pool/provided-ca"
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("WhenPoolNameIsEmpty_ShouldFallbackToEnvVar", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		result := BuildCaURI("provided-project", "", "provided-ca")
+		expected := "provided-project/env-pool/provided-ca"
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("WhenCaNameIsEmpty_ShouldFallbackToEnvVar", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		result := BuildCaURI("provided-project", "provided-pool", "")
+		expected := "provided-project/provided-pool/env-ca"
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("WhenAllParametersAreProvided_ShouldUseProvidedValues", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		result := BuildCaURI("provided-project", "provided-pool", "provided-ca")
+		expected := "provided-project/provided-pool/provided-ca"
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("WhenAllValuesAreEmptyAfterFallback_ShouldReturnEmptyString", func(t *testing.T) {
+		CaPoolDeployedProjectID = ""
+		CaPoolName = ""
+		CaName = ""
+
+		result := BuildCaURI("", "", "")
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("WhenPartialValuesAreEmptyAfterFallback_ShouldBuildWithAvailableValues", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = ""
+		CaName = "env-ca"
+
+		result := BuildCaURI("", "", "")
+		expected := "env-project//env-ca"
+		assert.Equal(t, expected, result)
+	})
+}
+
+func TestParseCaURI(t *testing.T) {
+	// Save original env vars
+	originalProjectID := CaPoolDeployedProjectID
+	originalPoolName := CaPoolName
+	originalCaName := CaName
+
+	defer func() {
+		CaPoolDeployedProjectID = originalProjectID
+		CaPoolName = originalPoolName
+		CaName = originalCaName
+	}()
+
+	t.Run("WhenCaURIIsEmpty_ShouldReturnEnvVars", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		projectID, poolName, caName := ParseCaURI("")
+		assert.Equal(t, "env-project", projectID)
+		assert.Equal(t, "env-pool", poolName)
+		assert.Equal(t, "env-ca", caName)
+	})
+
+	t.Run("WhenCaURIHasInvalidFormat_ShouldReturnEnvVars", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		// Test with 2 parts
+		projectID, poolName, caName := ParseCaURI("project/pool")
+		assert.Equal(t, "env-project", projectID)
+		assert.Equal(t, "env-pool", poolName)
+		assert.Equal(t, "env-ca", caName)
+
+		// Test with 4 parts
+		projectID, poolName, caName = ParseCaURI("project/pool/ca/extra")
+		assert.Equal(t, "env-project", projectID)
+		assert.Equal(t, "env-pool", poolName)
+		assert.Equal(t, "env-ca", caName)
+	})
+
+	t.Run("WhenCaURIHasValidFormat_ShouldParseCorrectly", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		projectID, poolName, caName := ParseCaURI("provided-project/provided-pool/provided-ca")
+		assert.Equal(t, "provided-project", projectID)
+		assert.Equal(t, "provided-pool", poolName)
+		assert.Equal(t, "provided-ca", caName)
+	})
+
+	t.Run("WhenCaURIHasEmptyProjectID_ShouldFallbackToEnvVar", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		projectID, poolName, caName := ParseCaURI("/provided-pool/provided-ca")
+		assert.Equal(t, "env-project", projectID)
+		assert.Equal(t, "provided-pool", poolName)
+		assert.Equal(t, "provided-ca", caName)
+	})
+
+	t.Run("WhenCaURIHasEmptyPoolName_ShouldFallbackToEnvVar", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		projectID, poolName, caName := ParseCaURI("provided-project//provided-ca")
+		assert.Equal(t, "provided-project", projectID)
+		assert.Equal(t, "env-pool", poolName)
+		assert.Equal(t, "provided-ca", caName)
+	})
+
+	t.Run("WhenCaURIHasEmptyCaName_ShouldFallbackToEnvVar", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		projectID, poolName, caName := ParseCaURI("provided-project/provided-pool/")
+		assert.Equal(t, "provided-project", projectID)
+		assert.Equal(t, "provided-pool", poolName)
+		assert.Equal(t, "env-ca", caName)
+	})
+
+	t.Run("WhenCaURIHasAllNonEmptyParts_ShouldUseAllValues", func(t *testing.T) {
+		CaPoolDeployedProjectID = "env-project"
+		CaPoolName = "env-pool"
+		CaName = "env-ca"
+
+		projectID, poolName, caName := ParseCaURI("provided-project/provided-pool/provided-ca")
+		assert.Equal(t, "provided-project", projectID)
+		assert.Equal(t, "provided-pool", poolName)
+		assert.Equal(t, "provided-ca", caName)
+	})
+}

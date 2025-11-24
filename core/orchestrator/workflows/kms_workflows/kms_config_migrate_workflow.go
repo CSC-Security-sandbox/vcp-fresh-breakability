@@ -278,7 +278,11 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 			continue
 		}
 
-		nodeForPool := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
+		nodeForPool := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+			Nodes:            dbNodes,
+			DeploymentName:   pool.DeploymentName,
+			OntapCredentials: pool.PoolCredentials,
+		})
 		if len(nodeForPool.EndpointAddressesToHostNameMap) == 0 {
 			poolMigrationFailed = true
 			errMsgNode := fmt.Sprintf("Node belonging to pool-id %s selected for CMEK migration does not have Endpoint Address", strconv.Itoa(int(pool.ID)))

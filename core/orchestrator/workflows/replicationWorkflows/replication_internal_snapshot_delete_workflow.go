@@ -96,7 +96,11 @@ func (wf *internalSnapshotDeleteWorkflow) Run(ctx workflow.Context, args ...inte
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: params.Nodes, Password: params.Volume.Pool.PoolCredentials.Password, SecretID: params.Volume.Pool.PoolCredentials.SecretID, CertificateID: params.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: params.Volume.Pool.DeploymentName, AuthType: params.Volume.Pool.PoolCredentials.AuthType})
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            params.Nodes,
+		DeploymentName:   params.Volume.Pool.DeploymentName,
+		OntapCredentials: params.Volume.Pool.PoolCredentials,
+	})
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.ListSnapshotInONTAP, &params, &node).Get(ctx, &params)
 	if err != nil {

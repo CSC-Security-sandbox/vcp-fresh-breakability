@@ -13,6 +13,7 @@ import (
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -294,11 +295,16 @@ func TestGetCertificateFromSecretManager(t *testing.T) {
 
 		logger := &log.MockLogger{}
 		logger.On("InfoContext", mock.Anything, "Getting certificate from secret manager", "certificateID", "test-cert-id").Return()
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolDeployedProjectID", "certificateID", "test-cert-id", "caPoolDeployedProjectID", "test-project-id").Return()
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolName", "certificateID", "test-cert-id", "caPoolName", "test-pool-name").Return()
 		logger.On("InfoContext", mock.Anything, "Successfully retrieved certificate from secret manager", "certificateID", "test-cert-id").Return()
 
-		certificateID := "test-cert-id"
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+			CaURI:         "test-project-id/test-pool-name/test-ca-name",
+		}
 
-		cert, err := getCertificateFromSecretManager(context.Background(), certificateID, logger)
+		cert, err := getCertificateFromSecretManager(context.Background(), authData, logger)
 
 		assert.NoError(t, err, "Should not return error when GCP service succeeds")
 		assert.NotNil(t, cert, "Certificate should not be nil")
@@ -321,9 +327,11 @@ func TestGetCertificateFromSecretManager(t *testing.T) {
 		logger.On("InfoContext", mock.Anything, "Getting certificate from secret manager", "certificateID", "test-cert-id").Return()
 		logger.On("ErrorContext", mock.Anything, "Failed to get GCP service", "error", assert.AnError, "certificateID", "test-cert-id").Return()
 
-		certificateID := "test-cert-id"
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+		}
 
-		cert, err := getCertificateFromSecretManager(context.Background(), certificateID, logger)
+		cert, err := getCertificateFromSecretManager(context.Background(), authData, logger)
 
 		assert.Error(t, err, "Should return error when GCP service fails")
 		assert.Nil(t, cert, "Certificate should be nil")
@@ -343,11 +351,14 @@ func TestGetCertificateFromSecretManager(t *testing.T) {
 
 		logger := &log.MockLogger{}
 		logger.On("InfoContext", mock.Anything, "Getting certificate from secret manager", "certificateID", "test-cert-id").Return()
+		logger.On("DebugContext", mock.Anything, "Using environment variables for CA config", "certificateID", "test-cert-id").Return()
 		logger.On("ErrorContext", mock.Anything, "Failed to get certificate and private key", "error", assert.AnError, "certificateID", "test-cert-id").Return()
 
-		certificateID := "test-cert-id"
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+		}
 
-		cert, err := getCertificateFromSecretManager(context.Background(), certificateID, logger)
+		cert, err := getCertificateFromSecretManager(context.Background(), authData, logger)
 
 		assert.Error(t, err, "Should return error when GetCertificateAndPrivateKeyByID fails")
 		assert.Nil(t, cert, "Certificate should be nil")
@@ -483,5 +494,229 @@ func TestCertificateMiddleware_EdgeCases(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 		assert.Contains(t, w.Body.String(), "Authentication data not available in cache")
+	})
+}
+
+func TestParseCaURIFromAuthData(t *testing.T) {
+	// Save original env values
+	originalCaName := env.CaName
+	originalCaPoolName := env.CaPoolName
+	originalCaPoolDeployedProjectID := env.CaPoolDeployedProjectID
+	defer func() {
+		env.CaName = originalCaName
+		env.CaPoolName = originalCaPoolName
+		env.CaPoolDeployedProjectID = originalCaPoolDeployedProjectID
+	}()
+
+	// Set test environment variables
+	env.CaName = "env-ca-name"
+	env.CaPoolName = "env-ca-pool-name"
+	env.CaPoolDeployedProjectID = "env-project-id"
+
+	t.Run("WhenAuthDataIsNil_ShouldUseEnvVars", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		logger.On("DebugContext", mock.Anything, "Using environment variables for CA config", "certificateID", "").Return()
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(nil, logger)
+
+		assert.Equal(t, "env-ca-name", caName)
+		assert.Equal(t, "env-ca-pool-name", caPoolName)
+		assert.Equal(t, "env-project-id", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+
+	t.Run("WhenCaURIIsEmpty_ShouldUseEnvVars", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		logger.On("DebugContext", mock.Anything, "Using environment variables for CA config", "certificateID", "test-cert-id").Return()
+
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+			CaURI:         "",
+		}
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+		assert.Equal(t, "env-ca-name", caName)
+		assert.Equal(t, "env-ca-pool-name", caPoolName)
+		assert.Equal(t, "env-project-id", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+
+	t.Run("WhenCaURIIsValid_ShouldParseCorrectly", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolDeployedProjectID", "certificateID", "test-cert-id", "caPoolDeployedProjectID", "test-project-id").Return()
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolName", "certificateID", "test-cert-id", "caPoolName", "test-pool-name").Return()
+
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+			CaURI:         "test-project-id/test-pool-name/test-ca-name",
+		}
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+		assert.Equal(t, "test-ca-name", caName)
+		assert.Equal(t, "test-pool-name", caPoolName)
+		assert.Equal(t, "test-project-id", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+
+	t.Run("WhenCaURIHasEmptyProjectID_ShouldFallbackToEnvVar", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		// ParseCaURI already applies env var fallback, so parseCaURIFromAuthData receives non-empty value
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolDeployedProjectID", "certificateID", "test-cert-id", "caPoolDeployedProjectID", "env-project-id").Return()
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolName", "certificateID", "test-cert-id", "caPoolName", "test-pool-name").Return()
+
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+			CaURI:         "/test-pool-name/test-ca-name",
+		}
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+		assert.Equal(t, "test-ca-name", caName)
+		assert.Equal(t, "test-pool-name", caPoolName)
+		assert.Equal(t, "env-project-id", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+
+	t.Run("WhenCaURIHasEmptyPoolName_ShouldFallbackToEnvVar", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolDeployedProjectID", "certificateID", "test-cert-id", "caPoolDeployedProjectID", "test-project-id").Return()
+		// ParseCaURI already applies env var fallback, so parseCaURIFromAuthData receives non-empty value
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolName", "certificateID", "test-cert-id", "caPoolName", "env-ca-pool-name").Return()
+
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+			CaURI:         "test-project-id//test-ca-name",
+		}
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+		assert.Equal(t, "test-ca-name", caName)
+		assert.Equal(t, "env-ca-pool-name", caPoolName)
+		assert.Equal(t, "test-project-id", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+
+	t.Run("WhenCaURIHasEmptyCaName_ShouldFallbackToEnvVar", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolDeployedProjectID", "certificateID", "test-cert-id", "caPoolDeployedProjectID", "test-project-id").Return()
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolName", "certificateID", "test-cert-id", "caPoolName", "test-pool-name").Return()
+
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+			CaURI:         "test-project-id/test-pool-name/",
+		}
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+		// Line 129: caName is empty, should fallback to env.CaName
+		assert.Equal(t, "env-ca-name", caName)
+		assert.Equal(t, "test-pool-name", caPoolName)
+		assert.Equal(t, "test-project-id", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+
+	t.Run("WhenCaURIHasAllNonEmptyParts_ShouldUseAllPoolCredentials", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		// Test lines 115-116: else branch when caPoolDeployedProjectID is NOT empty
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolDeployedProjectID", "certificateID", "test-cert-id", "caPoolDeployedProjectID", "project-123").Return()
+		// Test lines 122-123: else branch when caPoolName is NOT empty
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolName", "certificateID", "test-cert-id", "caPoolName", "pool-456").Return()
+
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+			CaURI:         "project-123/pool-456/ca-789",
+		}
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+		// All parts should be from CaURI, not env vars
+		assert.Equal(t, "ca-789", caName)
+		assert.Equal(t, "pool-456", caPoolName)
+		assert.Equal(t, "project-123", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+
+	t.Run("WhenCaURIHasInvalidFormat_ShouldFallbackToEnvVars", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		// When ParseCaURI gets invalid format, it returns env vars, so parseCaURIFromAuthData receives non-empty values
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolDeployedProjectID", "certificateID", "test-cert-id", "caPoolDeployedProjectID", "env-project-id").Return()
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolName", "certificateID", "test-cert-id", "caPoolName", "env-ca-pool-name").Return()
+
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+			CaURI:         "invalid-format", // Invalid format - not 3 parts
+		}
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+		// ParseCaURI will return env vars for invalid format
+		assert.Equal(t, "env-ca-name", caName)
+		assert.Equal(t, "env-ca-pool-name", caPoolName)
+		assert.Equal(t, "env-project-id", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+
+	t.Run("WhenCaURIHasAllEmptyParts_ShouldUseEnvVars", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		// ParseCaURI already applies env var fallback, so parseCaURIFromAuthData receives non-empty values
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolDeployedProjectID", "certificateID", "test-cert-id", "caPoolDeployedProjectID", "env-project-id").Return()
+		logger.On("DebugContext", mock.Anything, "Using pool credential for caPoolName", "certificateID", "test-cert-id", "caPoolName", "env-ca-pool-name").Return()
+
+		authData := &models.AuthData{
+			CertificateID: "test-cert-id",
+			CaURI:         "///", // All parts empty
+		}
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+		assert.Equal(t, "env-ca-name", caName)
+		assert.Equal(t, "env-ca-pool-name", caPoolName)
+		assert.Equal(t, "env-project-id", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+
+	t.Run("WhenAuthDataHasNoCertificateID_ShouldStillWork", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		logger.On("DebugContext", mock.Anything, "Using environment variables for CA config", "certificateID", "").Return()
+
+		authData := &models.AuthData{
+			CaURI: "",
+		}
+
+		caName, caPoolName, caPoolDeployedProjectID := parseCaURIFromAuthData(authData, logger)
+
+		assert.Equal(t, "env-ca-name", caName)
+		assert.Equal(t, "env-ca-pool-name", caPoolName)
+		assert.Equal(t, "env-project-id", caPoolDeployedProjectID)
+		logger.AssertExpectations(t)
+	})
+}
+
+func TestGetCertificateFromSecretManager_ErrorCases(t *testing.T) {
+	t.Run("WhenAuthDataIsNil_ShouldReturnError", func(t *testing.T) {
+		logger := &log.MockLogger{}
+
+		cert, err := getCertificateFromSecretManager(context.Background(), nil, logger)
+
+		assert.Error(t, err, "Should return error when authData is nil")
+		assert.Nil(t, cert, "Certificate should be nil")
+		assert.Contains(t, err.Error(), "authData is nil", "Error should contain expected message")
+	})
+
+	t.Run("WhenCertificateIDIsEmpty_ShouldReturnError", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		logger.On("InfoContext", mock.Anything, "Getting certificate from secret manager", "certificateID", "").Return()
+
+		authData := &models.AuthData{
+			CertificateID: "", // Empty certificate ID
+		}
+
+		cert, err := getCertificateFromSecretManager(context.Background(), authData, logger)
+
+		assert.Error(t, err, "Should return error when certificateID is empty")
+		assert.Nil(t, cert, "Certificate should be nil")
+		assert.Contains(t, err.Error(), "certificateID is empty in authData", "Error should contain expected message")
 	})
 }

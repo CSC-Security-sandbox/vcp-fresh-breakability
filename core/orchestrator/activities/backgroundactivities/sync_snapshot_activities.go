@@ -320,12 +320,9 @@ func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:          nodes,
-		Password:       pool.PoolCredentials.Password,
-		SecretID:       pool.PoolCredentials.SecretID,
-		CertificateID:  pool.PoolCredentials.CertificateID,
-		DeploymentName: pool.DeploymentName,
-		AuthType:       pool.PoolCredentials.AuthType,
+		Nodes:            nodes,
+		DeploymentName:   pool.DeploymentName,
+		OntapCredentials: pool.PoolCredentials,
 	})
 
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
@@ -355,12 +352,9 @@ func _getOntapRestProviderForPoolFastConn(ctx context.Context, se database.Stora
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:          nodes,
-		Password:       pool.PoolCredentials.Password,
-		SecretID:       pool.PoolCredentials.SecretID,
-		CertificateID:  pool.PoolCredentials.CertificateID,
-		DeploymentName: pool.DeploymentName,
-		AuthType:       pool.PoolCredentials.AuthType,
+		Nodes:           nodes,
+		DeploymentName:   pool.DeploymentName,
+		OntapCredentials: pool.PoolCredentials,
 	})
 
 	provider, err := hyperscaler.GetProviderByNodeWithFastConnection(ctx, node)

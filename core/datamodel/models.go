@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"gorm.io/gorm"
 )
 
@@ -105,6 +106,11 @@ type PoolCredentials struct {
 	CertificateID string `json:"certificate_id"`
 	Password      string `json:"password"`
 	AuthType      int    `json:"auth_type"`
+
+	// Certificate-related configuration (stored from environment variables during pool creation)
+	// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
+	// Note: Region and VCPAdmin remain as environment variables
+	CaURI string `json:"ca_uri,omitempty"`
 }
 
 type AssetMetadata struct {
@@ -246,6 +252,22 @@ func (pc *PoolCredentials) Scan(value interface{}) error {
 // Value implements the Valuer interface for PoolCredentials
 func (pc PoolCredentials) Value() (driver.Value, error) {
 	return json.Marshal(pc)
+}
+
+// GetCaURIWithFallback gets ca_uri from PoolCredentials, falling back to environment variables if not set.
+func (pc *PoolCredentials) GetCaURIWithFallback() string {
+	if pc == nil || pc.CaURI == "" {
+		return env.BuildCaURI("", "", "")
+	}
+	return pc.CaURI
+}
+
+// ParseCaURIWithFallback parses ca_uri from PoolCredentials, falling back to environment variables if not set.
+func (pc *PoolCredentials) ParseCaURIWithFallback() (caPoolDeployedProjectID, caPoolName, caName string) {
+	if pc == nil || pc.CaURI == "" {
+		return env.CaPoolDeployedProjectID, env.CaPoolName, env.CaName
+	}
+	return env.ParseCaURI(pc.CaURI)
 }
 
 // Scan implements the Scanner interface for AssetMetadata

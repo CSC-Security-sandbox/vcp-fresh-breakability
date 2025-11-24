@@ -62,7 +62,11 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 			continue
 		}
 
-		provider, getErr := hyperscaler.GetProviderByNode(ctx, hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: nodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType}))
+		provider, getErr := hyperscaler.GetProviderByNode(ctx, hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+			Nodes:            nodes,
+			DeploymentName:   volume.Pool.DeploymentName,
+			OntapCredentials: volume.Pool.PoolCredentials,
+		}))
 		if getErr != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(getErr)
 		}

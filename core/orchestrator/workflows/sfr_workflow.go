@@ -381,12 +381,9 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:          dbNodes,
-		Password:       volume.Pool.PoolCredentials.Password,
-		SecretID:       volume.Pool.PoolCredentials.SecretID,
-		DeploymentName: volume.Pool.DeploymentName,
-		CertificateID:  volume.Pool.PoolCredentials.CertificateID,
-		AuthType:       volume.Pool.PoolCredentials.AuthType,
+		Nodes:            dbNodes,
+		DeploymentName:   volume.Pool.DeploymentName,
+		OntapCredentials: volume.Pool.PoolCredentials,
 	})
 
 	var objStoreName string

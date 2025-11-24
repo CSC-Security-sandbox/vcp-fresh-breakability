@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 const (
@@ -160,4 +162,22 @@ type UserCredentials struct {
 	Password       string          `json:"password"`
 	AuthType       int             `json:"auth_type"`
 	OntapEndpoints []OntapEndpoint `json:"ontap_endpoints"`
+	// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
+	CaURI          string          `json:"ca_uri,omitempty"`
+}
+
+// GetCaURIWithFallback gets ca_uri from UserCredentials, falling back to environment variables if not set.
+func (uc *UserCredentials) GetCaURIWithFallback() string {
+	if uc == nil || uc.CaURI == "" {
+		return env.BuildCaURI("", "", "")
+	}
+	return uc.CaURI
+}
+
+// ParseCaURIWithFallback parses ca_uri from UserCredentials, falling back to environment variables if not set.
+func (uc *UserCredentials) ParseCaURIWithFallback() (caPoolDeployedProjectID, caPoolName, caName string) {
+	if uc == nil || uc.CaURI == "" {
+		return env.CaPoolDeployedProjectID, env.CaPoolName, env.CaName
+	}
+	return env.ParseCaURI(uc.CaURI)
 }

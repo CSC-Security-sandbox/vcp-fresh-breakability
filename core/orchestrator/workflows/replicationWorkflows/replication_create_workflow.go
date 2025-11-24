@@ -147,7 +147,11 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	srcNode := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: replicationResult.Event.SourcePool.PoolCredentials.Password, SecretID: replicationResult.Event.SourcePool.PoolCredentials.SecretID, CertificateID: replicationResult.Event.SourcePool.PoolCredentials.CertificateID, DeploymentName: replicationResult.Event.SourcePool.DeploymentName, AuthType: replicationResult.Event.SourcePool.PoolCredentials.AuthType})
+	srcNode := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   replicationResult.Event.SourcePool.DeploymentName,
+		OntapCredentials: replicationResult.Event.SourcePool.PoolCredentials,
+	})
 
 	replicationResult.SrcNode = srcNode
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSourceInterclusterLifs, &replicationResult).Get(ctx, &replicationResult)

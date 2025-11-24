@@ -711,7 +711,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
-		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.PoolCredentials.CertificateID, clusterName, username)
+		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, clusterName, username, pool.PoolCredentials)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -742,7 +742,14 @@ func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *da
 	switch pool.ExpertModeCredentials.ExpertModeCredential[0].AuthType {
 	case env.USER_CERTIFICATE:
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
-		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID, clusterName, username)
+		expertPoolCredentials := &datamodel.PoolCredentials{
+			CertificateID: pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID,
+		}
+		// Use pool's CaURI if available, otherwise it will fallback to env vars
+		if pool.PoolCredentials != nil {
+			expertPoolCredentials.CaURI = pool.PoolCredentials.CaURI
+		}
+		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, clusterName, username, expertPoolCredentials)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -777,7 +784,7 @@ func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamod
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
 		// Revoke the certificates and delete the private key from secret manager and cache then fallthrough to delete the password from secret manager and cache
-		err = hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, pool.PoolCredentials.CertificateID)
+		err = hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, pool.PoolCredentials)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -804,7 +811,14 @@ func (j *PoolActivity) DeleteExpertModeCredentials(ctx context.Context, pool *da
 	switch pool.ExpertModeCredentials.ExpertModeCredential[0].AuthType {
 	case env.USER_CERTIFICATE:
 		// Revoke the certificates and delete the private key from secret manager and cache then fallthrough to delete the password from secret manager and cache
-		err = hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID)
+		// Create PoolCredentials from ExpertModeCredential, using pool's PoolCredentials for CaURI if available
+		expertPoolCredentials := &datamodel.PoolCredentials{
+			CertificateID: pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID,
+		}
+		if pool.PoolCredentials != nil {
+			expertPoolCredentials.CaURI = pool.PoolCredentials.CaURI
+		}
+		err = hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, expertPoolCredentials)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1039,7 +1053,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	logger := util.GetLogger(ctx)
 	logger.Info("Creating QoS policy and applying to SVM", "svmName", svm.Name, "poolName", pool.Name)
 
-	// Get the provider for the node
+	// Get the provider for the node - CA fields are already in the node struct from CreateNodeForProvider()
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -1127,7 +1141,7 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	logger := util.GetLogger(ctx)
 	logger.Info("Modifying QoS policy and applying to SVM", "poolName", pool.Name)
 
-	// Get the provider for the node
+	// Get the provider for the node - CA fields are already in the node struct from CreateNodeForProvider()
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -1611,6 +1625,12 @@ func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.P
 }
 
 func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMConfig, deploymentConfig vlm.DeploymentConfig, pool *datamodel.Pool, deploymentName string, hostMap map[string]string) (*datamodel.Node, error) {
+	// Build CA URI from pool credentials
+	caURI := env.BuildCaURI("", "", "")
+	if pool.PoolCredentials != nil {
+		caURI = pool.PoolCredentials.GetCaURIWithFallback()
+	}
+
 	node := &models.Node{
 		Name:                           vmConfig.HostName,
 		EndpointAddress:                vmConfig.SystemLIFs[vlm.LIFTypeNodeMgmt].IP,
@@ -1622,6 +1642,7 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		SecretID:                       pool.PoolCredentials.SecretID,
 		Password:                       pool.PoolCredentials.Password,
 		AuthType:                       pool.PoolCredentials.AuthType,
+		CaURI:                          caURI,
 	}
 
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
@@ -2387,7 +2408,7 @@ func fetchOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.Onta
 	credentials := &vlm.OntapCredentials{}
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
-		certificate, err := hyperscaler2.GetCertificateFromCacheOrSecretManager(ctx, pool.PoolCredentials.CertificateID)
+		certificate, err := hyperscaler2.GetCertificateFromCacheOrSecretManager(ctx, pool.PoolCredentials)
 		if err != nil {
 			return nil, err
 		}
@@ -2415,7 +2436,14 @@ func fetchExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm
 	}
 	switch pool.ExpertModeCredentials.ExpertModeCredential[0].AuthType {
 	case env.USER_CERTIFICATE:
-		certificate, err := hyperscaler2.GetCertificateFromCacheOrSecretManager(ctx, pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID)
+		// Create PoolCredentials from ExpertModeCredential, using pool's PoolCredentials for CaURI if available
+		expertPoolCredentials := &datamodel.PoolCredentials{
+			CertificateID: pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID,
+		}
+		if pool.PoolCredentials != nil {
+			expertPoolCredentials.CaURI = pool.PoolCredentials.CaURI
+		}
+		certificate, err := hyperscaler2.GetCertificateFromCacheOrSecretManager(ctx, expertPoolCredentials)
 		if err != nil {
 			return nil, err
 		}

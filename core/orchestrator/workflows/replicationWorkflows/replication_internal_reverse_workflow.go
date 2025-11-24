@@ -107,7 +107,11 @@ func (wf *internalVolumeReplicationReverseWorkflow) Run(ctx workflow.Context, ar
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: replication.Volume.Pool.PoolCredentials.Password, SecretID: replication.Volume.Pool.PoolCredentials.SecretID, CertificateID: replication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: replication.Volume.Pool.DeploymentName, AuthType: replication.Volume.Pool.PoolCredentials.AuthType})
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   replication.Volume.Pool.DeploymentName,
+		OntapCredentials: replication.Volume.Pool.PoolCredentials,
+	})
 
 	var replicationCreateResponse *vsa.VolumeReplication
 	volumeExternalUUID := replication.Volume.VolumeAttributes.ExternalUUID

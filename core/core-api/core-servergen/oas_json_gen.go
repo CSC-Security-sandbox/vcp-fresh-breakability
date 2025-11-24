@@ -2580,14 +2580,21 @@ func (s *OntapCredentialsV1) encodeFields(e *jx.Encoder) {
 			e.ArrEnd()
 		}
 	}
+	{
+		if s.CaURI.Set {
+			e.FieldStart("ca_uri")
+			s.CaURI.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfOntapCredentialsV1 = [5]string{
+var jsonFieldsNameOfOntapCredentialsV1 = [6]string{
 	0: "secret_id",
 	1: "certificate_id",
 	2: "password",
 	3: "auth_type",
 	4: "ontapEndpoints",
+	5: "ca_uri",
 }
 
 // Decode decodes OntapCredentialsV1 from json.
@@ -2654,6 +2661,16 @@ func (s *OntapCredentialsV1) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ontapEndpoints\"")
+			}
+		case "ca_uri":
+			if err := func() error {
+				s.CaURI.Reset()
+				if err := s.CaURI.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ca_uri\"")
 			}
 		default:
 			return d.Skip()

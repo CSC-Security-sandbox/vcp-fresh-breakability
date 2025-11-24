@@ -92,7 +92,11 @@ func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 		return nil, ConvertToVSAError(err)
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   pool.DeploymentName,
+		OntapCredentials: pool.PoolCredentials,
+	})
 
 	clusterPeer := &common.ClusterPeerParams{}
 	err = workflow.ExecuteActivity(ctx, clusterPeerActivity.AcceptClusterPeer, params, node).Get(ctx, &clusterPeer)
@@ -567,12 +571,9 @@ func (wf *clusterUpgradeWorkflow) updateOntapVersionAfterUpgrade(ctx workflow.Co
 
 	// Create node for provider
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:          dbNodes,
-		Password:       upgradeContext.Pool.PoolCredentials.Password,
-		SecretID:       upgradeContext.Pool.PoolCredentials.SecretID,
-		DeploymentName: upgradeContext.Pool.DeploymentName,
-		CertificateID:  upgradeContext.Pool.PoolCredentials.CertificateID,
-		AuthType:       upgradeContext.Pool.PoolCredentials.AuthType,
+		Nodes:           dbNodes,
+		DeploymentName:  upgradeContext.Pool.DeploymentName,
+		OntapCredentials: upgradeContext.Pool.PoolCredentials,
 	})
 
 	// Get ONTAP version
