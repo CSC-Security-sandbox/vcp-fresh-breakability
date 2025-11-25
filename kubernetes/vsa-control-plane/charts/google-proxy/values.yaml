@@ -70,6 +70,9 @@ volumeRefreshIntervalMinutes: "5"
 thinCloneGASupport: false
 maxThinClonesPerPool: 100
 enableAutoPoolScaling: true
+snapshotAPISyncMode: true
+syncSnapshotOntapJobPollTimeoutMilliseconds: 40000
+syncSnapshotOntapJobPollIntervalMilliseconds: 2000
 hardDeleteResources: true
 scheduleHardDelete: false
 createCommonResourcesInVCP: true

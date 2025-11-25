@@ -79,6 +79,13 @@ type Config struct {
 	UpdateBackupSchedules bool
 
 	EnableBackgroundTask bool
+
+	// Snapshot creation mode: true for sync, false for async (default: false/async)
+	SnapshotAPISyncMode bool
+
+	// Synchronous snapshot creation ONTAP job polling configuration
+	SyncSnapshotOntapJobPollTimeoutSeconds  int // Timeout in seconds for polling ONTAP job during sync snapshot creation (default: 40)
+	SyncSnapshotOntapJobPollIntervalSeconds int // Interval in seconds between polling attempts for ONTAP job during sync snapshot creation (default: 2)
 }
 
 func LoadConfig() *Config {
@@ -110,6 +117,9 @@ func LoadConfig() *Config {
 	refreshAdminJobSpecs := env.GetBool("REFRESH_ADMIN_JOB_SPECS", true)
 	updateBackupSchedules := env.GetBool("UPDATE_BACKUP_SCHEDULES", true)
 	enableBackgroundTask := env.GetBool("ENABLE_BACKGROUND_TASKS", true)
+	snapshotAPISyncMode := env.GetBool("SNAPSHOT_API_SYNC_MODE", false)
+	syncSnapshotOntapJobPollTimeoutSeconds := env.GetInt("SYNC_SNAPSHOT_ONTAP_JOB_POLL_TIMEOUT_SECONDS", 40)
+	syncSnapshotOntapJobPollIntervalSeconds := env.GetInt("SYNC_SNAPSHOT_ONTAP_JOB_POLL_INTERVAL_SECONDS", 2)
 
 	metricsDBType := env.GetString("METRICS_DB_TYPE", "postgres")
 	metricsDBHost := env.GetString("METRICS_DB_HOST", "")
@@ -144,33 +154,36 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		GCPPort:               gcpPort,
-		GCPHost:               gcpHost,
-		CorePort:              corePort,
-		CoreHost:              coreHost,
-		ReadTimeout:           readTimeout,
-		WriteTimeout:          writeTimeout,
-		IdleTimeout:           idleTimeout,
-		ReadHeaderTimeout:     readHeaderTimeout,
-		RunMigrationOnStart:   runMigrationOnStart,
-		DBType:                dbType,
-		DBHost:                dbHost,
-		DBPort:                dbPort,
-		DBUser:                dbUser,
-		DBPassword:            dbPassword,
-		DBName:                dbName,
-		DBSSLMode:             dbSSLMode,
-		DBTimeZone:            location,
-		DBMaxOpenConns:        dbMaxOpenConns,
-		DBMaxIdleConns:        dbMaxIdleConns,
-		DBConnMaxLifetime:     dbConnMaxLifetime,
-		DBAdminUser:           dbAdminUser,
-		DBAdminPassword:       dbAdminPassword,
-		MSIEnabled:            msiEnabled,
-		MSIDBUser:             dbMSIUser,
-		RefreshAdminJobSpecs:  refreshAdminJobSpecs,
-		UpdateBackupSchedules: updateBackupSchedules,
-		EnableBackgroundTask:  enableBackgroundTask,
+		GCPPort:                                 gcpPort,
+		GCPHost:                                 gcpHost,
+		CorePort:                                corePort,
+		CoreHost:                                coreHost,
+		ReadTimeout:                             readTimeout,
+		WriteTimeout:                            writeTimeout,
+		IdleTimeout:                             idleTimeout,
+		ReadHeaderTimeout:                       readHeaderTimeout,
+		RunMigrationOnStart:                     runMigrationOnStart,
+		DBType:                                  dbType,
+		DBHost:                                  dbHost,
+		DBPort:                                  dbPort,
+		DBUser:                                  dbUser,
+		DBPassword:                              dbPassword,
+		DBName:                                  dbName,
+		DBSSLMode:                               dbSSLMode,
+		DBTimeZone:                              location,
+		DBMaxOpenConns:                          dbMaxOpenConns,
+		DBMaxIdleConns:                          dbMaxIdleConns,
+		DBConnMaxLifetime:                       dbConnMaxLifetime,
+		DBAdminUser:                             dbAdminUser,
+		DBAdminPassword:                         dbAdminPassword,
+		MSIEnabled:                              msiEnabled,
+		MSIDBUser:                               dbMSIUser,
+		RefreshAdminJobSpecs:                    refreshAdminJobSpecs,
+		UpdateBackupSchedules:                   updateBackupSchedules,
+		EnableBackgroundTask:                    enableBackgroundTask,
+		SnapshotAPISyncMode:                     snapshotAPISyncMode,
+		SyncSnapshotOntapJobPollTimeoutSeconds:  syncSnapshotOntapJobPollTimeoutSeconds,
+		SyncSnapshotOntapJobPollIntervalSeconds: syncSnapshotOntapJobPollIntervalSeconds,
 
 		MetricsDBType:            metricsDBType,
 		MetricsDBHost:            metricsDBHost,

@@ -3,23 +3,32 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
+	"gorm.io/gorm"
 )
 
 const (
@@ -193,6 +202,13 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
+	// Check feature flag to determine sync or async mode
+	snapshotAPISyncMode := env.GetBool("SNAPSHOT_API_SYNC_MODE", false)
+	if snapshotAPISyncMode {
+		return createSnapshotSync(ctx, se, job, dbSnapshot, params, logger)
+	}
+
+	// Async mode - use workflow
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 	err = workflowExecutor.ExecuteWorkflowWithRetry(
 		ctx,
@@ -296,6 +312,212 @@ func (o *Orchestrator) GetMultipleSnapshots(ctx context.Context, volumeUuid stri
 		modelSnapshots[i] = ConvertDatastoreSnapshotToModel(snapshot)
 	}
 	return modelSnapshots, nil
+}
+
+// createSnapshotSync creates snapshot synchronously without using workflow
+func createSnapshotSync(ctx context.Context, se database.Storage, job *datamodel.Job, dbSnapshot *datamodel.Snapshot, params *common.CreateSnapshotParams, logger log.Logger) (*models.Snapshot, string, error) {
+	logger.Infof("Starting snapshot sync for volume %s", params.VolumeID)
+
+	// Update job status to PROCESSING
+	err := se.UpdateJob(ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "")
+	if err != nil {
+		logger.Errorf("Failed to update job status to PROCESSING: %v", err)
+		return nil, "", err
+	}
+
+	var errorMsg string
+
+	// Defer to handle error logging and job status update (only if PROCESSING update succeeded)
+	defer func() {
+		if err != nil {
+			logger.Errorf("%s: %v", errorMsg, err)
+			if updateErr := se.UpdateJob(ctx, job.UUID, string(models.JobsStateERROR), 0, err.Error()); updateErr != nil {
+				logger.Errorf("Failed to update job status to ERROR: %v", updateErr)
+			}
+		}
+	}()
+
+	// Store original description and set job UUID in description for ONTAP
+	snapshotDescription := dbSnapshot.Description
+	dbSnapshot.Description = job.UUID
+
+	// Get provider using fast connection
+	provider, err := backgroundactivities.GetOntapRestProviderForPoolFastConn(ctx, se, dbSnapshot.Volume.Pool)
+	if err != nil {
+		errorMsg = "Failed to get ONTAP REST provider"
+		return nil, "", err
+	}
+
+	// Create snapshot synchronously with direct polling
+	snapshotCreateResponse, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, logger)
+	if err != nil {
+		errorMsg = "Failed to create snapshot in ONTAP"
+		return nil, "", err
+	}
+
+	// Restore original description
+	dbSnapshot.Description = snapshotDescription
+
+	// Update snapshot details in database
+	if snapshotCreateResponse != nil {
+		dbSnapshot.State = models.LifeCycleStateREADY
+		dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+		dbSnapshot.SnapshotAttributes.SizeInBytes = snapshotCreateResponse.SizeInBytes
+		dbSnapshot.SnapshotAttributes.ExternalUUID = snapshotCreateResponse.ExternalUUID
+		dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = snapshotCreateResponse.LogicalSizeInBytes
+	} else {
+		now := time.Now()
+		dbSnapshot.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
+		dbSnapshot.State = models.LifeCycleStateError
+		dbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
+	}
+
+	// Update both snapshot and job in a single transaction for better performance
+	var updatedSnapshot *datamodel.Snapshot
+	err = se.WithTransaction(ctx, func(tx utils2.Transaction) error {
+		txDB := tx.GORM().WithContext(ctx)
+
+		// Update snapshot
+		dbSnapshotFromDB := &datamodel.Snapshot{}
+		err := txDB.Preload("Account").Preload("Volume").
+			First(dbSnapshotFromDB, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: dbSnapshot.UUID}}).Error
+		if err != nil {
+			if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+				return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, customerrors.NewNotFoundErr("snapshot", &dbSnapshot.UUID))
+			}
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		}
+
+		err = txDB.Model(&dbSnapshotFromDB).Updates(datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				DeletedAt: dbSnapshot.DeletedAt,
+				UpdatedAt: time.Now(),
+			},
+			Name:               dbSnapshot.Name,
+			Description:        dbSnapshot.Description,
+			SnapshotAttributes: dbSnapshot.SnapshotAttributes,
+			State:              dbSnapshot.State,
+			StateDetails:       dbSnapshot.StateDetails,
+		}).Error
+		if err != nil {
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+		updatedSnapshot = dbSnapshotFromDB
+
+		// Update job status to DONE
+		jobFromDB := &datamodel.Job{}
+		err = txDB.First(jobFromDB, &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: job.UUID}}).Error
+		if err != nil {
+			if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+				return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, customerrors.NewNotFoundErr("job", &job.UUID))
+			}
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		}
+
+		jobFromDB.UpdatedAt = time.Now()
+		jobFromDB.State = string(models.JobsStateDONE)
+		jobFromDB.TrackingID = 0
+		jobFromDB.ErrorDetails = ""
+		if err = txDB.Updates(jobFromDB).Error; err != nil {
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		errorMsg = "Failed to update snapshot and job in transaction"
+		return nil, "", err
+	}
+
+	dataStoreSnap := ConvertDatastoreSnapshotToModel(updatedSnapshot)
+	return dataStoreSnap, job.UUID, nil
+}
+
+// createSnapshotSyncWithDirectPolling creates snapshot and polls job directly without workflow
+func createSnapshotSyncWithDirectPolling(ctx context.Context, provider vsa.Provider, dbSnapshot *datamodel.Snapshot, logger log.Logger) (*vsa.SnapshotProviderResponse, error) {
+	// Get the REST client from provider
+	ontapProvider, ok := provider.(*vsa.OntapRestProvider)
+	if !ok {
+		return nil, fmt.Errorf("provider is not OntapRestProvider")
+	}
+
+	client, err := ontapProvider.CreateRESTClient()
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrONTAPClientCreationError, err)
+	}
+
+	// Create snapshot in ONTAP
+	snapshot, job, err := client.Storage().SnapshotCreate(&ontapRest.SnapshotCreateParams{
+		VolumeUUID: dbSnapshot.Volume.VolumeAttributes.ExternalUUID,
+		Name:       dbSnapshot.Name,
+		Comment:    nillable.ToPointer(dbSnapshot.Description),
+	})
+	if err != nil {
+		if customerrors.IsConflictErr(err) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreateSnapshotConflict, err)
+		}
+		if !customerrors.IsNotFoundErr(err) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, customerrors.NewNotFoundErr("Volume", nil))
+	}
+
+	// If snapshot UUID is nil, or size/logical_size is missing, we need to poll for the job to complete
+	if snapshot == nil || snapshot.UUID == nil || snapshot.Size == nil || snapshot.LogicalSize == nil {
+		if job != nil {
+			// Get polling timeout and interval from environment variables (in milliseconds)
+			pollTimeoutMilliseconds := env.GetInt("SYNC_SNAPSHOT_ONTAP_JOB_POLL_TIMEOUT_MILLISECONDS", 40000)
+			pollIntervalMilliseconds := env.GetInt("SYNC_SNAPSHOT_ONTAP_JOB_POLL_INTERVAL_MILLISECONDS", 2000)
+			err = ontapRest.PollOntapJobDirectly(ctx, client, job.JobUUID, time.Duration(pollTimeoutMilliseconds)*time.Millisecond, time.Duration(pollIntervalMilliseconds)*time.Millisecond, logger)
+			if err != nil {
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+			}
+			// After polling completes, get snapshot details using the resource UUID from job
+			snapshotUUID := job.ResourceUUID
+			if snapshotUUID == "" {
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, customerrors.NewBadRequestErr("invalid Snapshot create response from API: job resource UUID is empty after polling"))
+			}
+			// Get snapshot details
+			snapshot, err = client.Storage().SnapshotGet(&ontapRest.SnapshotGetParams{
+				BaseParams: ontapRest.BaseParams{Fields: []string{
+					"size",
+					"logical_size",
+				}},
+				UUID:       snapshotUUID,
+				VolumeUUID: dbSnapshot.Volume.VolumeAttributes.ExternalUUID,
+			})
+			if err != nil {
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+			}
+		} else {
+			// If snapshot is missing Size or LogicalSize but no job is provided, we can't poll to get the details
+			if snapshot != nil && snapshot.UUID != nil && (snapshot.Size == nil || snapshot.LogicalSize == nil) {
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, customerrors.NewBadRequestErr("invalid Snapshot create response from API: snapshot size or logical_size is missing and no job provided for polling"))
+			}
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, customerrors.NewBadRequestErr("invalid Snapshot create response from API: snapshot is nil and no job provided"))
+		}
+	}
+
+	// Validate the Snapshot response
+	if snapshot == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, customerrors.NewBadRequestErr("invalid Snapshot create response from API: snapshot is nil"))
+	}
+	if snapshot.Name == nil || snapshot.UUID == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, customerrors.NewBadRequestErr("invalid Snapshot create response from API: missing required fields"))
+	}
+	if snapshot.Size == nil || snapshot.LogicalSize == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, customerrors.NewBadRequestErr("invalid Snapshot create response from API: missing size or logical_size"))
+	}
+
+	return &vsa.SnapshotProviderResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         *snapshot.Name,
+			ExternalUUID: *snapshot.UUID,
+		},
+		SizeInBytes:        *snapshot.Size,
+		LogicalSizeInBytes: *snapshot.LogicalSize,
+	}, nil
 }
 
 func (o *Orchestrator) UpdateSnapshot(ctx context.Context, params *common.UpdateSnapshotParams) (*models.Snapshot, string, error) {

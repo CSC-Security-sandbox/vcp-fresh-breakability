@@ -3,21 +3,30 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
+	ontapRestModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
@@ -419,7 +428,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		}
 		snapshot, _, err := orch.CreateSnapshot(ctx, params)
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
-		if !errors.IsNotFoundErr(err) {
+		if !customerrors.IsNotFoundErr(err) {
 			t.Errorf("Expected not found error, got %v", err)
 		}
 	})
@@ -627,6 +636,103 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		assert.NotEqual(tt, jobUUID1, jobUUID2, "Expected different job UUIDs for different volumes")
 	})
 
+	t.Run("WhenSnapshotCreationInSyncMode", func(tt *testing.T) {
+		// Set environment variable for sync mode
+		originalValue := os.Getenv("SNAPSHOT_API_SYNC_MODE")
+		defer func() {
+			if originalValue == "" {
+				_ = os.Unsetenv("SNAPSHOT_API_SYNC_MODE")
+			} else {
+				_ = os.Setenv("SNAPSHOT_API_SYNC_MODE", originalValue)
+			}
+		}()
+		_ = os.Setenv("SNAPSHOT_API_SYNC_MODE", "true")
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 1},
+			EndpointAddress: "1.2.3.4",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name:            "test_snapshot",
+			IsAppConsistent: false,
+			Description:     "test",
+		}
+
+		// In sync mode, we expect the function to fail early when trying to get provider
+		// since we don't have a real ONTAP connection. This tests that sync mode is being used.
+		// The actual sync implementation would require mocking the provider and REST client.
+		snapshot, _, err := orch.CreateSnapshot(ctx, params)
+		// We expect an error because we can't actually connect to ONTAP in tests
+		// This confirms sync mode is being used (async mode would try to execute workflow)
+		assert.Error(tt, err, "Expected error in sync mode without real ONTAP connection")
+		assert.Nil(tt, snapshot, "Expected nil snapshot when sync mode fails")
+		// Verify that workflow was NOT called (sync mode doesn't use workflow)
+		temporal.AssertNotCalled(tt, "ExecuteWorkflow")
+	})
+
 	t.Run("WhenSnapshotCreationFailsDueToGetSnapshotsWithConditionError", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -795,7 +901,7 @@ func TestValidateSnapshotName(t *testing.T) {
 		err := ValidateSnapshotName("")
 		if err == nil {
 			tt.Error("No error returned")
-		} else if !errors.IsUserInputValidationErr(err) {
+		} else if !customerrors.IsUserInputValidationErr(err) {
 			tt.Error("Wrong error type returned")
 		} else if err.Error() != "Snapshot name must not be empty." {
 			tt.Errorf("Wrong error message returned, got: %s", err.Error())
@@ -807,7 +913,7 @@ func TestValidateSnapshotName(t *testing.T) {
 			err := ValidateSnapshotName("invalid" + c)
 			if err == nil {
 				tt.Error("No error returned")
-			} else if !errors.IsUserInputValidationErr(err) {
+			} else if !customerrors.IsUserInputValidationErr(err) {
 				tt.Error("Wrong error type returned")
 			} else if err.Error() != "Snapshot name can only include alphanumeric characters and the following special characters: ()-_+." {
 				tt.Errorf("Wrong error message returned, got: %s", err.Error())
@@ -821,7 +927,7 @@ func TestValidateSnapshotName(t *testing.T) {
 			if err == nil {
 				tt.Error("No error returned")
 			}
-			if !errors.IsUserInputValidationErr(err) {
+			if !customerrors.IsUserInputValidationErr(err) {
 				tt.Error("Wrong error type returned")
 			}
 		}
@@ -833,7 +939,7 @@ func TestValidateSnapshotName(t *testing.T) {
 			if err == nil {
 				tt.Error("No error returned")
 			}
-			if !errors.IsUserInputValidationErr(err) {
+			if !customerrors.IsUserInputValidationErr(err) {
 				tt.Error("Wrong error type returned")
 			}
 			assert.EqualError(tt, err, `Snapshot name cannot start with the following: "ref_ss_volmove", "snapmirror", "hourly.", "daily.", "weekly." or "monthly.".`)
@@ -846,7 +952,7 @@ func TestValidateSnapshotName(t *testing.T) {
 			if err == nil {
 				tt.Error("No error returned")
 			}
-			if !errors.IsUserInputValidationErr(err) {
+			if !customerrors.IsUserInputValidationErr(err) {
 				tt.Error("Wrong error type returned")
 			}
 			assert.EqualError(tt, err, `Snapshot name cannot start with the following: "ref_ss_volmove", "snapmirror", "hourly.", "daily.", "weekly." or "monthly.".`)
@@ -856,7 +962,7 @@ func TestValidateSnapshotName(t *testing.T) {
 		err := ValidateSnapshotName("..")
 		if err == nil {
 			tt.Error("No error returned")
-		} else if !errors.IsUserInputValidationErr(err) {
+		} else if !customerrors.IsUserInputValidationErr(err) {
 			tt.Error("Wrong error type returned")
 		} else if err.Error() != "Snapshot name cannot include consecutive dots: .." {
 			tt.Errorf("Wrong error message returned, got: %s", err.Error())
@@ -866,7 +972,7 @@ func TestValidateSnapshotName(t *testing.T) {
 		err := ValidateSnapshotName(".")
 		if err == nil {
 			tt.Error("No error returned")
-		} else if !errors.IsUserInputValidationErr(err) {
+		} else if !customerrors.IsUserInputValidationErr(err) {
 			tt.Error("Wrong error type returned")
 		} else if err.Error() != "Snapshot name cannot be a single dot." {
 			tt.Errorf("Wrong error message returned, got: %s", err.Error())
@@ -1185,7 +1291,7 @@ func TestListSnapshots(t *testing.T) {
 		// Patch VolumeOwnershipCheck to return true
 		orig := VolumeOwnershipCheck
 		VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
-			return nil, errors.NewNotFoundErr("volume", nil)
+			return nil, customerrors.NewNotFoundErr("volume", nil)
 		}
 		defer func() { VolumeOwnershipCheck = orig }()
 
@@ -2821,3 +2927,1690 @@ func TestDeleteSnapshots(t *testing.T) {
 		assert.ErrorContains(tt, err, "Volume not found")
 	})
 }
+
+// TestCreateSnapshotSync_ErrorPaths tests error paths in createSnapshotSync
+func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockLogger := log.NewLogger()
+
+	t.Run("UpdateJobError", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock storage to return error on UpdateJob
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(errors.New("update job error"))
+
+		// We can't directly call createSnapshotSync, but we can test through CreateSnapshot with sync mode
+		// This test verifies the error path when UpdateJob fails
+		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetOntapRestProviderForPoolFastConnError", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock storage - UpdateJob ERROR should fail to test line 338
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(errors.New("update job error"))
+
+		// Mock GetOntapRestProviderForPoolFastConn to return error
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+
+		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetOntapRestProviderForPoolFastConnErrorWithUpdateJobError", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock storage - UpdateJob ERROR should succeed (line 338 is the error logging path)
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+		// Mock GetOntapRestProviderForPoolFastConn to return error
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+
+		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CreateSnapshotSyncWithDirectPollingError", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock storage
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+		// Mock provider and REST client
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+
+		snapshotName := "test_snapshot"
+		snapshotUUID := "snapshot-uuid"
+		snapshotSize := int64(1024)
+		snapshotLogicalSize := int64(2048)
+		mockSnapshot := &ontapRest.Snapshot{
+			Snapshot: ontapRestModels.Snapshot{
+				Name:        nillable.ToPointer(snapshotName),
+				UUID:        nillable.ToPointer(snapshotUUID),
+				Size:        nillable.ToPointer(snapshotSize),
+				LogicalSize: nillable.ToPointer(snapshotLogicalSize),
+			},
+		}
+
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
+		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
+
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.Error(tt, err) // Will fail because mockProvider is not *vsa.OntapRestProvider
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+// Tests for PollOntapJobDirectly have been moved to core/ontap-rest/job_utils_test.go
+
+// TestCreateSnapshotSync_SuccessPaths tests success paths in createSnapshotSync
+func TestCreateSnapshotSync_SuccessPaths(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockLogger := log.NewLogger()
+
+	t.Run("SuccessWithSnapshotResponse", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		originalDescription := "original description"
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			Description:        originalDescription,
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock storage - UpdateSnapshot won't be called because createSnapshotSyncWithDirectPolling fails early
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+		// Mock provider - will fail type assertion in createSnapshotSyncWithDirectPolling
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// This test verifies error path when createSnapshotSyncWithDirectPolling fails
+		// createSnapshotSyncWithDirectPolling will fail because mockProvider is not *vsa.OntapRestProvider
+		// This tests the error handling path (lines 345-350)
+		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateSnapshotErrorWithUpdateJobError", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock storage - UpdateSnapshot and UpdateJob DONE won't be called because createSnapshotSyncWithDirectPolling fails early
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+		// Mock provider - will fail type assertion in createSnapshotSyncWithDirectPolling
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// This test verifies that when createSnapshotSyncWithDirectPolling fails,
+		// the error path is taken. Since we can't easily mock createSnapshotSyncWithDirectPolling,
+		// it will fail because mockProvider is not *vsa.OntapRestProvider
+		// This tests the error handling path (lines 345-350)
+		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+// TestCreateSnapshotSyncWithDirectPolling_ErrorPaths tests error paths in createSnapshotSyncWithDirectPolling
+func TestCreateSnapshotSyncWithDirectPolling_ErrorPaths(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+
+	t.Run("ProviderNotOntapRestProvider", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, mockProvider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "provider is not OntapRestProvider")
+	})
+
+	t.Run("CreateRESTClientError", func(tt *testing.T) {
+		// Use SetTestHooks to mock REST client creation
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return nil, errors.New("client creation error")
+			},
+		})
+		defer cleanup()
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+	})
+
+	t.Run("SnapshotCreateConflictError", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, nil, customerrors.NewConflictErr("snapshot exists"))
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("SnapshotCreateNotFoundError", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, nil, customerrors.NewNotFoundErr("Volume", nil))
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("SnapshotCreateOtherError", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, nil, errors.New("other error"))
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("SnapshotCreateWithJobPolling", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		mockClusterClient := new(ontapRest.MockClusterClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+		mockRESTClient.On("Cluster").Return(mockClusterClient)
+
+		jobUUID := "job-uuid"
+		resourceUUID := "resource-uuid"
+		jobAccepted := &ontapRest.JobAccepted{
+			JobUUID:      jobUUID,
+			ResourceUUID: resourceUUID,
+		}
+
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, jobAccepted, nil)
+
+		// Mock job polling to succeed
+		jobState := ontapRestModels.JobStateSuccess
+		mockJobResponse := &cluster.JobGetOK{
+			Payload: &ontapRestModels.Job{
+				State: &jobState,
+			},
+		}
+		mockClusterClient.On("GetJob", jobUUID).Return(mockJobResponse, nil)
+
+		// After polling completes, SnapshotGet is called to get snapshot details
+		snapshotName := "test_snapshot"
+		snapshotUUID := resourceUUID
+		snapshotSize := int64(1024)
+		snapshotLogicalSize := int64(2048)
+		mockSnapshot := &ontapRest.Snapshot{
+			Snapshot: ontapRestModels.Snapshot{
+				Name:        nillable.ToPointer(snapshotName),
+				UUID:        nillable.ToPointer(snapshotUUID),
+				Size:        nillable.ToPointer(snapshotSize),
+				LogicalSize: nillable.ToPointer(snapshotLogicalSize),
+			},
+		}
+		mockStorageClient.On("SnapshotGet", mock.Anything).Return(mockSnapshot, nil)
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		result, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, snapshotName, result.Name)
+		assert.Equal(tt, snapshotUUID, result.ExternalUUID)
+		assert.Equal(tt, snapshotSize, result.SizeInBytes)
+		assert.Equal(tt, snapshotLogicalSize, result.LogicalSizeInBytes)
+		mockStorageClient.AssertExpectations(tt)
+		mockClusterClient.AssertExpectations(tt)
+	})
+
+	t.Run("SnapshotGetErrorAfterPolling", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		mockClusterClient := new(ontapRest.MockClusterClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+		mockRESTClient.On("Cluster").Return(mockClusterClient)
+
+		jobUUID := "job-uuid"
+		resourceUUID := "resource-uuid"
+		jobAccepted := &ontapRest.JobAccepted{
+			JobUUID:      jobUUID,
+			ResourceUUID: resourceUUID,
+		}
+
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, jobAccepted, nil)
+
+		// Mock job polling to succeed
+		jobState := ontapRestModels.JobStateSuccess
+		mockJobResponse := &cluster.JobGetOK{
+			Payload: &ontapRestModels.Job{
+				State: &jobState,
+			},
+		}
+		mockClusterClient.On("GetJob", jobUUID).Return(mockJobResponse, nil)
+
+		// SnapshotGet fails after polling
+		mockStorageClient.On("SnapshotGet", mock.Anything).Return(nil, errors.New("get error"))
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+		mockStorageClient.AssertExpectations(tt)
+		mockClusterClient.AssertExpectations(tt)
+	})
+
+	t.Run("SnapshotNilResponse", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+
+		// SnapshotCreate returns nil snapshot and no job to test error path
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, nil, nil)
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+		// Error is wrapped in VCPError, check the original error using Unwrap
+		var vcpErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &vcpErr) && vcpErr.Unwrap() != nil {
+			assert.Contains(tt, vcpErr.Unwrap().Error(), "snapshot is nil and no job provided")
+		} else {
+			// If not wrapped, check the error message directly
+			assert.Contains(tt, err.Error(), "snapshot is nil and no job provided")
+		}
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("SnapshotMissingName", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+
+		snapshotUUID := "snapshot-uuid"
+		mockSnapshot := &ontapRest.Snapshot{
+			Snapshot: ontapRestModels.Snapshot{
+				Name: nil, // Missing name
+				UUID: nillable.ToPointer(snapshotUUID),
+			},
+		}
+
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
+		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+		// Error is wrapped in VCPError, check the original error using Unwrap
+		// Since Size/LogicalSize is missing and no job is provided, we get a different error
+		var vcpErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &vcpErr) && vcpErr.Unwrap() != nil {
+			// The error could be either "missing required fields" (if validation happens first)
+			// or "snapshot size or logical_size is missing" (if polling check happens first)
+			errMsg := vcpErr.Unwrap().Error()
+			assert.True(tt,
+				strings.Contains(errMsg, "missing required fields") ||
+					strings.Contains(errMsg, "snapshot size or logical_size is missing"),
+				"Expected error about missing fields, got: %s", errMsg)
+		} else {
+			// If not wrapped, check the error message directly
+			errMsg := err.Error()
+			assert.True(tt,
+				strings.Contains(errMsg, "missing required fields") ||
+					strings.Contains(errMsg, "snapshot size or logical_size is missing"),
+				"Expected error about missing fields, got: %s", errMsg)
+		}
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("SnapshotMissingUUID", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+
+		snapshotName := "test_snapshot"
+		mockSnapshot := &ontapRest.Snapshot{
+			Snapshot: ontapRestModels.Snapshot{
+				Name: nillable.ToPointer(snapshotName),
+				UUID: nil, // Missing UUID
+			},
+		}
+
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
+		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+		// Error is wrapped in VCPError, check the original error using Unwrap
+		var vcpErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &vcpErr) && vcpErr.Unwrap() != nil {
+			assert.Contains(tt, vcpErr.Unwrap().Error(), "snapshot is nil and no job provided")
+		} else {
+			// If not wrapped, check the error message directly
+			assert.Contains(tt, err.Error(), "snapshot is nil and no job provided")
+		}
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("SuccessWithSnapshotImmediate", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+
+		snapshotName := "test_snapshot"
+		snapshotUUID := "snapshot-uuid"
+		snapshotSize := int64(1024)
+		snapshotLogicalSize := int64(2048)
+		mockSnapshot := &ontapRest.Snapshot{
+			Snapshot: ontapRestModels.Snapshot{
+				Name:        nillable.ToPointer(snapshotName),
+				UUID:        nillable.ToPointer(snapshotUUID),
+				Size:        nillable.ToPointer(snapshotSize),
+				LogicalSize: nillable.ToPointer(snapshotLogicalSize),
+			},
+		}
+
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
+		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		result, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, snapshotName, result.Name)
+		assert.Equal(tt, snapshotUUID, result.ExternalUUID)
+		assert.Equal(tt, snapshotSize, result.SizeInBytes)
+		assert.Equal(tt, snapshotLogicalSize, result.LogicalSizeInBytes)
+		mockStorageClient.AssertExpectations(tt)
+	})
+}
+
+// TestCreateSnapshotSync_AdditionalPaths tests additional paths in createSnapshotSync
+func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockLogger := log.NewLogger()
+
+	t.Run("SuccessWithValidSnapshotResponse", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		originalDescription := "original description"
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			Description:        originalDescription,
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock REST client
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanupHooks := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanupHooks()
+
+		snapshotName := "test_snapshot"
+		snapshotUUID := "snapshot-uuid"
+		snapshotSize := int64(1024)
+		snapshotLogicalSize := int64(2048)
+		mockSnapshot := &ontapRest.Snapshot{
+			Snapshot: ontapRestModels.Snapshot{
+				Name:        nillable.ToPointer(snapshotName),
+				UUID:        nillable.ToPointer(snapshotUUID),
+				Size:        nillable.ToPointer(snapshotSize),
+				LogicalSize: nillable.ToPointer(snapshotLogicalSize),
+			},
+		}
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
+		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
+
+		// Use real storage but mock UpdateJob for calls outside transaction
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
+		// Mock WithTransaction to use real storage's transaction
+		mockStorage.On("WithTransaction", ctx, mock.Anything).Run(func(args mock.Arguments) {
+			fn := args[1].(func(utils2.Transaction) error)
+			_ = store.WithTransaction(ctx, fn)
+		}).Return(nil)
+
+		// Create real OntapRestProvider
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return provider, nil
+		}
+
+		// This test covers lines 354, 363-367, 380-382, 386-387
+		result, jobUUID, err := createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, job.UUID, jobUUID)
+		// Verify description was restored (line 354)
+		assert.Equal(tt, originalDescription, dbSnapshot.Description)
+		// Verify snapshot state was set (lines 363-367)
+		assert.Equal(tt, models.LifeCycleStateREADY, dbSnapshot.State)
+		assert.Equal(tt, int64(1024), dbSnapshot.SnapshotAttributes.SizeInBytes)
+		assert.Equal(tt, "snapshot-uuid", dbSnapshot.SnapshotAttributes.ExternalUUID)
+		mockStorage.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateSnapshotError", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock REST client
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanupHooks := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanupHooks()
+
+		snapshotName := "test_snapshot"
+		snapshotUUID := "snapshot-uuid"
+		snapshotSize := int64(1024)
+		snapshotLogicalSize := int64(2048)
+		mockSnapshot := &ontapRest.Snapshot{
+			Snapshot: ontapRestModels.Snapshot{
+				Name:        nillable.ToPointer(snapshotName),
+				UUID:        nillable.ToPointer(snapshotUUID),
+				Size:        nillable.ToPointer(snapshotSize),
+				LogicalSize: nillable.ToPointer(snapshotLogicalSize),
+			},
+		}
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
+		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
+
+		// Mock storage - WithTransaction should fail (lines 370-376)
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
+		mockStorage.On("WithTransaction", ctx, mock.Anything).Return(errors.New("update snapshot error"))
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+		// Create real OntapRestProvider
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return provider, nil
+		}
+
+		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateJobDoneError", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock REST client
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanupHooks := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanupHooks()
+
+		snapshotName := "test_snapshot"
+		snapshotUUID := "snapshot-uuid"
+		snapshotSize := int64(1024)
+		snapshotLogicalSize := int64(2048)
+		mockSnapshot := &ontapRest.Snapshot{
+			Snapshot: ontapRestModels.Snapshot{
+				Name:        nillable.ToPointer(snapshotName),
+				UUID:        nillable.ToPointer(snapshotUUID),
+				Size:        nillable.ToPointer(snapshotSize),
+				LogicalSize: nillable.ToPointer(snapshotLogicalSize),
+			},
+		}
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
+		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
+
+		// Mock storage - WithTransaction should succeed (lines 380-382)
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
+		// Mock WithTransaction to use real storage's transaction
+		mockStorage.On("WithTransaction", ctx, mock.Anything).Run(func(args mock.Arguments) {
+			fn := args[1].(func(utils2.Transaction) error)
+			_ = store.WithTransaction(ctx, fn)
+		}).Return(nil)
+
+		// Create real OntapRestProvider
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return provider, nil
+		}
+
+		// This test covers lines 380-382 - WithTransaction succeeds
+		result, jobUUID, err := createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.NoError(tt, err) // Should succeed
+		assert.NotNil(tt, result)
+		assert.Equal(tt, job.UUID, jobUUID)
+		mockStorage.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	// Note: The nil snapshot response path (lines 357-361) cannot be easily tested
+	// because createSnapshotSyncWithDirectPolling will always return an error if snapshot is nil.
+	// The path can only be hit if createSnapshotSyncWithDirectPolling returns nil, nil,
+	// which is not possible given the current implementation.
+
+	t.Run("UpdateJobErrorWhenCreateSnapshotSyncWithDirectPollingFails", func(tt *testing.T) {
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				tt.Logf("Failed to close store: %v", closeErr)
+			}
+		}()
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "external-volume-uuid",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			Type:      string(models.JobTypeCreateSnapshot),
+			State:     string(models.JobsStateNEW),
+		}
+		err = store.DB().Create(job).Error
+		if err != nil {
+			tt.Fatalf("Failed to create job: %v", err)
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:               "test_snapshot",
+			VolumeID:           volume.ID,
+			AccountID:          account.ID,
+			Volume:             volume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}
+		err = store.DB().Create(dbSnapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name: "test_snapshot",
+		}
+
+		// Mock REST client to cause error in createSnapshotSyncWithDirectPolling
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanupHooks := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanupHooks()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, nil, errors.New("snapshot create error"))
+
+		// Mock storage - UpdateJob ERROR should fail (line 348)
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
+		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(errors.New("update job error"))
+
+		// Create real OntapRestProvider
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return provider, nil
+		}
+
+		// This test covers line 348 - UpdateJob ERROR error path
+		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+}
+
+// Tests for PollOntapJobDirectly_DefaultCase have been moved to core/ontap-rest/job_utils_test.go

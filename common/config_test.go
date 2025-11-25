@@ -250,3 +250,100 @@ func TestLoadConfig_MetricsDBEnvVars(t *testing.T) {
 	_ = os.Unsetenv("METRICS_DB_MAX_IDLE_CONNS")
 	_ = os.Unsetenv("METRICS_DB_CONN_MAX_LIFETIME")
 }
+
+func TestLoadConfig_SnapshotAPISyncMode(t *testing.T) {
+	t.Run("DefaultValueIsAsync", func(t *testing.T) {
+		_ = os.Setenv("LOCAL_REGION", "us-central1")
+		defer func() {
+			_ = os.Unsetenv("LOCAL_REGION")
+			_ = os.Unsetenv("SNAPSHOT_API_SYNC_MODE")
+		}()
+
+		cfg := LoadConfig()
+		assert.NotNil(t, cfg)
+		assert.Equal(t, false, cfg.SnapshotAPISyncMode)
+	})
+
+	t.Run("SyncModeWhenEnvVarSet", func(t *testing.T) {
+		_ = os.Setenv("LOCAL_REGION", "us-central1")
+		_ = os.Setenv("SNAPSHOT_API_SYNC_MODE", "true")
+		defer func() {
+			_ = os.Unsetenv("LOCAL_REGION")
+			_ = os.Unsetenv("SNAPSHOT_API_SYNC_MODE")
+		}()
+
+		cfg := LoadConfig()
+		assert.NotNil(t, cfg)
+		assert.Equal(t, true, cfg.SnapshotAPISyncMode)
+	})
+
+	t.Run("AsyncModeWhenEnvVarSet", func(t *testing.T) {
+		_ = os.Setenv("LOCAL_REGION", "us-central1")
+		_ = os.Setenv("SNAPSHOT_API_SYNC_MODE", "false")
+		defer func() {
+			_ = os.Unsetenv("LOCAL_REGION")
+			_ = os.Unsetenv("SNAPSHOT_API_SYNC_MODE")
+		}()
+
+		cfg := LoadConfig()
+		assert.NotNil(t, cfg)
+		assert.Equal(t, false, cfg.SnapshotAPISyncMode)
+	})
+}
+
+func TestLoadConfig_InvalidTimezone(t *testing.T) {
+	t.Run("InvalidDBTimezone", func(t *testing.T) {
+		_ = os.Setenv("LOCAL_REGION", "us-central1")
+		_ = os.Setenv("DB_TIMEZONE", "Invalid/Timezone")
+		defer func() {
+			_ = os.Unsetenv("LOCAL_REGION")
+			_ = os.Unsetenv("DB_TIMEZONE")
+		}()
+
+		cfg := LoadConfig()
+		assert.Nil(t, cfg) // Should return nil on invalid timezone
+	})
+
+	t.Run("InvalidMetricsDBTimezone", func(t *testing.T) {
+		_ = os.Setenv("LOCAL_REGION", "us-central1")
+		_ = os.Setenv("METRICS_DB_TIMEZONE", "Invalid/Timezone")
+		defer func() {
+			_ = os.Unsetenv("LOCAL_REGION")
+			_ = os.Unsetenv("METRICS_DB_TIMEZONE")
+		}()
+
+		cfg := LoadConfig()
+		assert.Nil(t, cfg) // Should return nil on invalid metrics DB timezone
+	})
+}
+
+func TestParseDuration(t *testing.T) {
+	t.Run("ValidDuration", func(t *testing.T) {
+		duration := parseDuration("30s")
+		assert.Equal(t, 30*time.Second, duration)
+	})
+
+	t.Run("InvalidDuration", func(t *testing.T) {
+		duration := parseDuration("invalid")
+		assert.Equal(t, time.Duration(0), duration) // Should return 0 on error
+	})
+
+	t.Run("EmptyDuration", func(t *testing.T) {
+		duration := parseDuration("")
+		assert.Equal(t, time.Duration(0), duration) // Should return 0 on error
+	})
+}
+
+func TestLoadTelemetryConfig(t *testing.T) {
+	_ = os.Setenv("LOCAL_REGION", "us-central1")
+	defer func() {
+		_ = os.Unsetenv("LOCAL_REGION")
+	}()
+
+	cfg := LoadTelemetryConfig()
+	assert.NotNil(t, cfg)
+	// LoadTelemetryConfig should return the same as LoadConfig
+	cfg2 := LoadConfig()
+	assert.NotNil(t, cfg2)
+	assert.Equal(t, cfg.GCPPort, cfg2.GCPPort)
+}
