@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
@@ -556,7 +557,7 @@ func deployCloudScheduler(ctx context.Context, config *DeploymentConfig) error {
 		Name:        jobName,
 		Description: fmt.Sprintf("Scheduled trigger for %s Cloud Run service", config.ServiceName),
 		Schedule:    config.SchedulerCron,
-		TimeZone:    "UTC",
+		TimeZone:    "Etc/UTC",
 		HttpTarget: &cloudscheduler.HttpTarget{
 			Uri:        config.ServiceURL,
 			HttpMethod: "POST",
@@ -575,6 +576,11 @@ func deployCloudScheduler(ctx context.Context, config *DeploymentConfig) error {
 			MaxBackoffDuration: "60s",
 			MaxDoublings:       3,
 		},
+	}
+
+	if config.ServiceName == "bizops" {
+		// For Bizops add body to the scheduler job
+		job.HttpTarget.Body = base64.StdEncoding.EncodeToString([]byte(`{"sinkType":"gcs","timeZone":"PST"}`))
 	}
 
 	// Check if job already exists
