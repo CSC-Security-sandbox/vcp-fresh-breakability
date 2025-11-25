@@ -365,6 +365,40 @@ func Test_getSecretVersion(t *testing.T) {
 			tt.Errorf("Unexpected operation: %+v", secretName)
 		}
 	})
+	t.Run("WhenGetSecretNotFound", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		url := fmt.Sprintf("/v1/projects/%s/secrets/%s/versions/latest:access", projectId, secretName)
+		resp := &hyperscaler.CustomSecret{Name: secretName}
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url && req.Method == http.MethodGet {
+				response, _ := json.Marshal(&resp)
+				rw.WriteHeader(http.StatusNotFound)
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := secretmanager.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				secretManagerService: svc,
+			},
+			Ctx:                               ctx,
+			Logger:                            util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+		secret, err := _getSecretVersion(gService, projectId, secretName, LatestVersion)
+		if err != nil && secret != nil {
+			tt.Error("Expected an error but got nothing")
+		}
+	})
 }
 
 func Test_addSecretVersion(t *testing.T) {

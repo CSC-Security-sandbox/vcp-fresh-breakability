@@ -1128,6 +1128,9 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
 			return &hyperscaler3.CustomCertificate{CertificateID: certificateID}, nil
 		}
+		CreatePrivateKeyInSecretManager = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate, k *rsa.PrivateKey) (*hyperscaler3.CustomSecret, error) {
+			return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"}}, nil
+		}
 		CreateCertificateInCAS = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate) (*hyperscaler3.CustomCertificate, error) {
 			return nil, fmt.Errorf("cas error")
 		}
@@ -1156,9 +1159,6 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 		}
 		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
 			return &hyperscaler3.CustomCertificate{CertificateID: certificateID}, nil
-		}
-		CreateCertificateInCAS = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate) (*hyperscaler3.CustomCertificate, error) {
-			return cert, nil
 		}
 		CreatePrivateKeyInSecretManager = func(gcpService GoogleServices, cert *hyperscaler3.CustomCertificate, k *rsa.PrivateKey) (*hyperscaler3.CustomSecret, error) {
 			return nil, fmt.Errorf("sm error")

@@ -323,17 +323,17 @@ func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certifi
 		return nil, nil, err
 	}
 
-	// Create the Certificate in CAS
-	cert, err := CreateCertificateInCAS(gcpService, customCertificate)
-	if err != nil {
-		logger.Errorf("failed to create Certificate in CAS and private key in SM for projectID: %s, certificateId : %s, err : %v", certObj.CertOwningEntity, certObj.CertificateID, err)
-		return nil, nil, err
-	}
-
 	// Create the private key in Secret Manager
 	secret, err := CreatePrivateKeyInSecretManager(gcpService, customCertificate, key)
 	if err != nil {
 		logger.Errorf("failed to create private key in Secret Manager for projectID: %s, certificateId : %s, err : %v", env.SecretManagerProjectID, certObj.CertificateID, err)
+		return nil, nil, err
+	}
+
+	// Create the Certificate in CAS
+	cert, err := CreateCertificateInCAS(gcpService, customCertificate)
+	if err != nil {
+		logger.Errorf("failed to create Certificate in CAS for projectID: %s, certificateId : %s, err : %v", certObj.CertOwningEntity, certObj.CertificateID, err)
 		return nil, nil, err
 	}
 	return cert, secret, nil
@@ -342,7 +342,7 @@ func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certifi
 // _createCertificateInCAS creates a certificate in GCP Certificate Authority Service and stores the private key in Secret Manager.
 func _createCertificateInCAS(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate) (*hyperscalermodels.CustomCertificate, error) {
 	logger := gcpService.GetLogger()
-	logger.Debugf("Creating certificate in CAS and private key in SM for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
+	logger.Debugf("Creating certificate in CAS for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
 	var cert *hyperscalermodels.CustomCertificate
 	// Create the Certificate
 	cert, err := gcpService.CreateCertificate(certificate)

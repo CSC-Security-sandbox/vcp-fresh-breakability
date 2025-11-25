@@ -102,7 +102,7 @@ func (gcpService *GcpServices) GetSecretWithCustomVersion(projectID, secretID st
 
 // DeleteSecret deletes a secret from the secret manager. Reference: https://cloud.google.com/secret-manager/docs/reference/rest/v1beta1/projects.secrets/delete
 func (gcpService *GcpServices) DeleteSecret(projectID, secretID string) error {
-	gcpService.Logger.Debug(fmt.Sprintf("Calling GetSecretWithLatestVersion for project id : %s, secretID : %s", projectID, secretID))
+	gcpService.Logger.Debug(fmt.Sprintf("Calling DeleteSecret for project id : %s, secretID : %s", projectID, secretID))
 	name := fmt.Sprintf("projects/%s/secrets/%s", projectID, secretID)
 	_, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.Delete(name).Context(gcpService.Ctx).Do()
 	if err != nil {
@@ -143,7 +143,7 @@ func _getSecretVersion(gcpService *GcpServices, projectID, secretName, versionID
 	secretVersion, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.Versions.Access(name).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("GetSecretVersion failed for secret : %s, err : %s", name, err.Error())
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+		return nil, googleResourceNotFoundCheck(err)
 	}
 
 	gcpService.Logger.Debug(fmt.Sprintf("GetSecretVersion success with response :  %s", name))
