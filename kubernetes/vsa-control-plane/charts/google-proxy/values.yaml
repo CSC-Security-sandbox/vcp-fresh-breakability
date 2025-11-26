@@ -73,6 +73,14 @@ enableAutoPoolScaling: true
 snapshotAPISyncMode: true
 syncSnapshotOntapJobPollTimeoutMilliseconds: 40000
 syncSnapshotOntapJobPollIntervalMilliseconds: 2000
+caName: "20250718-pn6-boa"
+caPoolName: "vsa-pool-ca"
+caPoolDeployedProjectId: "266893635349"
+vsaDeployedDnsName: "au-se1.vsa"
+vsaManagedZone: "au-se1-vsa"
+privateKeyBits: 4096
+vsaSecretCacheCleanupIntervalHours: 24
+vsaSecretAuthCacheExpirationHours: 24
 hardDeleteResources: true
 scheduleHardDelete: false
 createCommonResourcesInVCP: true

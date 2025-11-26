@@ -96,6 +96,14 @@ data:
   SNAPSHOT_API_SYNC_MODE: {{index .Values "snapshotAPISyncMode" | toString | quote}}
   SYNC_SNAPSHOT_ONTAP_JOB_POLL_TIMEOUT_MILLISECONDS: {{ index .Values "syncSnapshotOntapJobPollTimeoutMilliseconds" | quote }}
   SYNC_SNAPSHOT_ONTAP_JOB_POLL_INTERVAL_MILLISECONDS: {{ index .Values "syncSnapshotOntapJobPollIntervalMilliseconds" | quote }}
+  CA_POOL_NAME: {{ index .Values "caPoolName" | quote }}
+  CA_NAME: {{ index .Values "caName" | quote }}
+  CA_POOL_DEPLOYED_PROJECT_ID: {{ index .Values "caPoolDeployedProjectId" | quote }}
+  VSA_DEPLOYED_DNS_NAME: {{ index .Values "vsaDeployedDnsName" | quote }}
+  VSA_MANAGED_ZONE: {{ index .Values "vsaManagedZone" | quote }}
+  VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: {{ index .Values "vsaSecretCacheCleanupIntervalHours" | quote }}
+  VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: {{ index .Values "vsaSecretAuthCacheExpirationHours" | quote }}
+  PRIVATE_KEY_BITS: {{ index .Values "privateKeyBits" | quote }}
   MIN_CONSTITUENT_VOLUME_SIZE_BYTES: {{ index .Values "minConstituentVolumeSizeInBytes" | quote }}
   ENABLE_LDAP: "{{ index .Values "enableLdap" }}"
   ENABLE_MULTI_AD: "{{ index .Values "enableMultiAd" }}"
