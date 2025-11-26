@@ -4432,6 +4432,164 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
 		assert.False(tt, result.CacheConfig.IsSet())
 	})
+	t.Run("WhenCachePrePopulateStateSet", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:  "test-peer-volume",
+			PeerClusterName: "test-peer-cluster",
+			PeerSvmName:     "test-peer-svm",
+			PeerIPAddresses: []string{"1.1.1.1"},
+			CacheConfig: &models.CacheConfig{
+				WritebackEnabled:      nillable.ToPointer(true),
+				CachePrePopulateState: "COMPLETE",
+			},
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.True(tt, result.CacheConfig.IsSet())
+		assert.True(tt, result.CacheConfig.Value.CachePrePopulateState.IsSet())
+		assert.Equal(tt, gcpgenserver.FlexCacheConfigV1betaCachePrePopulateState("COMPLETE"), result.CacheConfig.Value.CachePrePopulateState.Value)
+	})
+	t.Run("WhenAllCacheConfigFieldsSet", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:  "test-peer-volume",
+			PeerClusterName: "test-peer-cluster",
+			PeerSvmName:     "test-peer-svm",
+			PeerIPAddresses: []string{"192.168.1.1"},
+			CacheConfig: &models.CacheConfig{
+				WritebackEnabled:        nillable.ToPointer(true),
+				AtimeScrubEnabled:       nillable.ToPointer(false),
+				AtimeScrubDays:          nillable.ToPointer(int16(7)),
+				CifsChangeNotifyEnabled: nillable.ToPointer(true),
+				CachePrePopulateState:   "IN_PROGRESS",
+				CachePrePopulate: &models.CachePrePopulate{
+					PathList:        []string{"/path1", "/path2"},
+					ExcludePathList: []string{"/exclude1"},
+					Recursion:       nillable.ToPointer(true),
+				},
+			},
+			CacheState:            "READY",
+			CacheStateDetails:     "Available",
+			CacheStateDetailsCode: 0,
+			Passphrase:            nillable.ToPointer("my-passphrase"),
+			PeeringCommand:        "peer-command",
+			PeerExpiryTime:        nillable.ToPointer(time.Date(2025, 12, 31, 23, 59, 59, 0, time.UTC)),
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.Equal(tt, "test-peer-cluster", result.PeerClusterName)
+		assert.Equal(tt, "test-peer-svm", result.PeerSvmName)
+		assert.Equal(tt, []string{"192.168.1.1"}, result.PeerIpAddresses)
+		assert.True(tt, result.Command.IsSet())
+		assert.Equal(tt, "peer-command", result.Command.Value)
+		assert.True(tt, result.StateDetails.IsSet())
+		assert.Equal(tt, "Available", result.StateDetails.Value)
+		assert.True(tt, result.Passphrase.IsSet())
+		assert.Equal(tt, "my-passphrase", result.Passphrase.Value)
+		assert.True(tt, result.PeeringCommandExpiryTime.IsSet())
+
+		assert.True(tt, result.CacheConfig.IsSet())
+		cacheConfig := result.CacheConfig.Value
+
+		assert.True(tt, cacheConfig.WritebackEnabled.IsSet())
+		assert.True(tt, cacheConfig.WritebackEnabled.Value)
+
+		assert.True(tt, cacheConfig.AtimeScrubEnabled.IsSet())
+		assert.False(tt, cacheConfig.AtimeScrubEnabled.Value)
+
+		assert.True(tt, cacheConfig.AtimeScrubDays.IsSet())
+		assert.Equal(tt, int16(7), cacheConfig.AtimeScrubDays.Value)
+
+		assert.True(tt, cacheConfig.CifsChangeNotifyEnabled.IsSet())
+		assert.True(tt, cacheConfig.CifsChangeNotifyEnabled.Value)
+
+		assert.True(tt, cacheConfig.CachePrePopulateState.IsSet())
+		assert.Equal(tt, gcpgenserver.FlexCacheConfigV1betaCachePrePopulateState("IN_PROGRESS"), cacheConfig.CachePrePopulateState.Value)
+
+		assert.True(tt, cacheConfig.CachePrePopulate.IsSet())
+		prePopulate := cacheConfig.CachePrePopulate.Value
+		assert.True(tt, prePopulate.PathList.IsSet())
+		assert.Equal(tt, []string{"/path1", "/path2"}, prePopulate.PathList.Value)
+		assert.True(tt, prePopulate.ExcludePathList.IsSet())
+		assert.Equal(tt, []string{"/exclude1"}, prePopulate.ExcludePathList.Value)
+		assert.True(tt, prePopulate.Recursion.IsSet())
+		assert.True(tt, prePopulate.Recursion.Value)
+	})
+
+	t.Run("WhenOptionalFieldsNotSet", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:  "test-peer-volume",
+			PeerClusterName: "test-peer-cluster",
+			PeerSvmName:     "test-peer-svm",
+			PeerIPAddresses: []string{"1.1.1.1"},
+			CacheState:      "PENDING",
+			CacheConfig: &models.CacheConfig{
+				WritebackEnabled: nillable.ToPointer(false),
+			},
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.False(tt, result.Command.IsSet())
+		assert.False(tt, result.StateDetails.IsSet())
+		assert.False(tt, result.StateDetailsCode.IsSet())
+		assert.False(tt, result.Passphrase.IsSet())
+		assert.False(tt, result.PeeringCommandExpiryTime.IsSet())
+	})
+
+	t.Run("WhenCachePrePopulateStateEmpty", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:  "test-peer-volume",
+			PeerClusterName: "test-peer-cluster",
+			PeerSvmName:     "test-peer-svm",
+			PeerIPAddresses: []string{"1.1.1.1"},
+			CacheConfig: &models.CacheConfig{
+				WritebackEnabled:      nillable.ToPointer(true),
+				CachePrePopulateState: "",
+			},
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.True(tt, result.CacheConfig.IsSet())
+		assert.False(tt, result.CacheConfig.Value.CachePrePopulateState.IsSet())
+	})
+
+	t.Run("WhenCacheConfigHasNilPointers", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:  "test-peer-volume",
+			PeerClusterName: "test-peer-cluster",
+			PeerSvmName:     "test-peer-svm",
+			PeerIPAddresses: []string{"1.1.1.1"},
+			CacheConfig: &models.CacheConfig{
+				WritebackEnabled:        nil,
+				AtimeScrubEnabled:       nil,
+				AtimeScrubDays:          nil,
+				CifsChangeNotifyEnabled: nil,
+			},
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.True(tt, result.CacheConfig.IsSet())
+		cacheConfig := result.CacheConfig.Value
+
+		assert.True(tt, cacheConfig.WritebackEnabled.IsSet())
+		assert.False(tt, cacheConfig.WritebackEnabled.Value)
+
+		assert.True(tt, cacheConfig.AtimeScrubEnabled.IsSet())
+		assert.False(tt, cacheConfig.AtimeScrubEnabled.Value)
+
+		assert.True(tt, cacheConfig.AtimeScrubDays.IsSet())
+		assert.Equal(tt, int16(0), cacheConfig.AtimeScrubDays.Value)
+
+		assert.True(tt, cacheConfig.CifsChangeNotifyEnabled.IsSet())
+		assert.False(tt, cacheConfig.CifsChangeNotifyEnabled.Value)
+	})
 }
 
 func TestV1betaCreateVolume(t *testing.T) {

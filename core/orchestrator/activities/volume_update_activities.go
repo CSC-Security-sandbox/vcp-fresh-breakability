@@ -366,7 +366,6 @@ func _hostGroupsUpdateDiffForVolume(existingIGroups []string, newIGroups []strin
 // UpdateVolumeInDB updates the volume in the database with the new parameters
 func (a *VolumeUpdateActivity) UpdateVolumeInDB(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams) error {
 	logger := util.GetLogger(ctx)
-
 	updatedFields, err := prepareFieldsForUpdate(ctx, a.SE, volume, params)
 	if err != nil {
 		logger.Errorf("Failed to prepareFieldsForUpdate for the volume %s in the database: %v", volume.UUID, err)

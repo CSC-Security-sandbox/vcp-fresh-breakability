@@ -133,14 +133,18 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateFlexCacheVolumeI
 		State:          "online",
 	}, nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(updateFlexCacheActivity.UpdateFlexCacheVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.OnActivity(updateFlexCacheActivity.UpdateFlexCacheVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*vsa.OntapAsyncResponse)(nil), nil)
+
 	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
 	prevIsUpdateFlexCacheRequired := isUpdateFlexCacheRequired
 	isUpdateFlexCacheRequired = func(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
 		return true
 	}
 	defer func() { isUpdateFlexCacheRequired = prevIsUpdateFlexCacheRequired }()
+
 	// Execute workflow
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
@@ -249,7 +253,6 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_No_UpdateFlexCacheVolu
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
@@ -4027,40 +4030,6 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		assert.False(t, isUpdateFlexCacheRequired(baseExisting, params))
 	})
 
-	t.Run("AddPrePopulateWhenNoneExists", func(t *testing.T) {
-		existing := &datamodel.Volume{
-			CacheParameters: &datamodel.CacheParameters{
-				CacheConfig: &datamodel.CacheConfig{
-					// PrePopulate nil
-				},
-			},
-		}
-		params := &common.UpdateVolumeParams{
-			CacheParameters: &models.CacheParameters{
-				CacheConfig: &models.CacheConfig{
-					CachePrePopulate: &models.CachePrePopulate{
-						PathList:  []string{"p1"},
-						Recursion: boolPtr(true),
-					},
-				},
-			},
-		}
-		assert.True(t, isUpdateFlexCacheRequired(existing, params))
-	})
-
-	t.Run("PrePopulateRecursionChanged", func(t *testing.T) {
-		params := &common.UpdateVolumeParams{
-			CacheParameters: &models.CacheParameters{
-				CacheConfig: &models.CacheConfig{
-					CachePrePopulate: &models.CachePrePopulate{
-						Recursion: boolPtr(true), // existing false
-					},
-				},
-			},
-		}
-		assert.True(t, isUpdateFlexCacheRequired(baseExisting, params))
-	})
-
 	t.Run("PrePopulatePathListOrderIgnored_NoChange", func(t *testing.T) {
 		params := &common.UpdateVolumeParams{
 			CacheParameters: &models.CacheParameters{
@@ -4072,45 +4041,6 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 			},
 		}
 		assert.False(t, isUpdateFlexCacheRequired(baseExisting, params))
-	})
-
-	t.Run("PrePopulatePathListDifferent", func(t *testing.T) {
-		params := &common.UpdateVolumeParams{
-			CacheParameters: &models.CacheParameters{
-				CacheConfig: &models.CacheConfig{
-					CachePrePopulate: &models.CachePrePopulate{
-						PathList: []string{"a", "c"},
-					},
-				},
-			},
-		}
-		assert.True(t, isUpdateFlexCacheRequired(baseExisting, params))
-	})
-
-	t.Run("PrePopulateExplicitClearPathList", func(t *testing.T) {
-		params := &common.UpdateVolumeParams{
-			CacheParameters: &models.CacheParameters{
-				CacheConfig: &models.CacheConfig{
-					CachePrePopulate: &models.CachePrePopulate{
-						PathList: []string{}, // explicit clear
-					},
-				},
-			},
-		}
-		assert.True(t, isUpdateFlexCacheRequired(baseExisting, params))
-	})
-
-	t.Run("PrePopulateExcludePathListChanged", func(t *testing.T) {
-		params := &common.UpdateVolumeParams{
-			CacheParameters: &models.CacheParameters{
-				CacheConfig: &models.CacheConfig{
-					CachePrePopulate: &models.CachePrePopulate{
-						ExcludePathList: []string{"y"},
-					},
-				},
-			},
-		}
-		assert.True(t, isUpdateFlexCacheRequired(baseExisting, params))
 	})
 
 	t.Run("PrePopulateDuplicatesIgnored_NoChange", func(t *testing.T) {
@@ -4126,6 +4056,418 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 		}
 		assert.False(t, isUpdateFlexCacheRequired(baseExisting, params))
 	})
+}
+
+func Test_isUpdateFlexCachePrepopulateRequired(t *testing.T) {
+	tests := []struct {
+		name           string
+		existingVolume *datamodel.Volume
+		params         *common.UpdateVolumeParams
+		want           bool
+	}{
+		{
+			name:           "flexCache disabled globally",
+			existingVolume: &datamodel.Volume{},
+			params:         &common.UpdateVolumeParams{},
+			want:           false,
+		},
+		{
+			name:           "nil params",
+			existingVolume: &datamodel.Volume{},
+			params:         nil,
+			want:           false,
+		},
+		{
+			name:           "nil CacheParameters in params",
+			existingVolume: &datamodel.Volume{},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: nil,
+			},
+			want: false,
+		},
+		{
+			name:           "nil CacheConfig in params",
+			existingVolume: &datamodel.Volume{},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: nil,
+				},
+			},
+			want: false,
+		},
+		{
+			name:           "nil existingVolume",
+			existingVolume: nil,
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "nil CacheParameters in existingVolume",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: nil,
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "adding CachePrePopulate when existing CacheConfig is nil",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: nil,
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							PathList: []string{"/path1"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "adding CachePrePopulate when existing PrePopulate is nil",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: nil,
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							PathList: []string{"/path1"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "nil CachePrePopulate in params - no change required",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							PathList: []string{"/path1"},
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: nil,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "PathList changed - different paths",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							PathList: []string{"/path1", "/path2"},
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							PathList: []string{"/path1", "/path3"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "PathList changed - different count",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							PathList: []string{"/path1"},
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							PathList: []string{"/path1", "/path2"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "PathList unchanged - same paths, different order",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							PathList: []string{"/path1", "/path2"},
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							PathList: []string{"/path2", "/path1"},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "PathList nil in params - no change",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							PathList: []string{"/path1"},
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							PathList: nil,
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "PathList empty in params, existing has paths - change required",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							PathList: []string{"/path1"},
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							PathList: []string{},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "ExcludePathList changed",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							ExcludePathList: []string{"/exclude1"},
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							ExcludePathList: []string{"/exclude2"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "ExcludePathList unchanged",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							ExcludePathList: []string{"/exclude1", "/exclude2"},
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							ExcludePathList: []string{"/exclude2", "/exclude1"},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Recursion changed from false to true",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							Recursion: boolPtr(false),
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							Recursion: boolPtr(true),
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Recursion unchanged",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							Recursion: boolPtr(true),
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							Recursion: boolPtr(true),
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Recursion nil in params - no change",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							Recursion: boolPtr(true),
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							Recursion: nil,
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Multiple fields changed",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							PathList:        []string{"/path1"},
+							ExcludePathList: []string{"/exclude1"},
+							Recursion:       boolPtr(false),
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							PathList:        []string{"/path2"},
+							ExcludePathList: []string{"/exclude2"},
+							Recursion:       boolPtr(true),
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "All fields unchanged",
+			existingVolume: &datamodel.Volume{
+				CacheParameters: &datamodel.CacheParameters{
+					CacheConfig: &datamodel.CacheConfig{
+						CachePrePopulate: &datamodel.CachePrePopulate{
+							PathList:        []string{"/path1", "/path2"},
+							ExcludePathList: []string{"/exclude1"},
+							Recursion:       boolPtr(true),
+						},
+					},
+				},
+			},
+			params: &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						CachePrePopulate: &models.CachePrePopulate{
+							PathList:        []string{"/path2", "/path1"},
+							ExcludePathList: []string{"/exclude1"},
+							Recursion:       boolPtr(true),
+						},
+					},
+				},
+			},
+			want: false,
+		},
+	}
+
+	// Save original flexCacheEnabled value and restore after tests
+	originalFlexCacheEnabled := flexCacheEnabled
+	defer func() { flexCacheEnabled = originalFlexCacheEnabled }()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Enable flexCache for all tests except the first one
+			if tt.name == "flexCache disabled globally" {
+				flexCacheEnabled = false
+			} else {
+				flexCacheEnabled = true
+			}
+
+			got := _isUpdateFlexCachePrepopulateRequired(tt.existingVolume, tt.params)
+			if got != tt.want {
+				t.Errorf("_isUpdateFlexCachePrepopulateRequired() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 func Test_updateOrAddBlockDevice(t *testing.T) {
@@ -4338,5 +4680,380 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateSMBShareSettings
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	// Verify UpdateSMBShareSettings was called with volume, params, and node (3 arguments after context)
 	s.env.AssertCalled(s.T(), "UpdateSMBShareSettings", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_FlexCachePrepopulate_Success_SynchronousCompletion() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	flexCacheUpdateActivity := flexcache_activities.FlexCacheVolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(flexCacheUpdateActivity.UpdatePrepopulateState)
+	s.env.RegisterActivity(flexCacheUpdateActivity.StartFlexCachePrepopulate)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.OnActivity(flexCacheUpdateActivity.UpdatePrepopulateState, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(flexCacheUpdateActivity.StartFlexCachePrepopulate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil) // Empty string = synchronous
+
+	prevIsUpdateFlexCachePrepopulateRequired := isUpdateFlexCachePrepopulateRequired
+	isUpdateFlexCachePrepopulateRequired = func(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
+		return true
+	}
+	defer func() { isUpdateFlexCachePrepopulateRequired = prevIsUpdateFlexCachePrepopulateRequired }()
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-123"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+		CacheParameters: &datamodel.CacheParameters{
+			CacheConfig: &datamodel.CacheConfig{},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 2000,
+		CacheParameters: &models.CacheParameters{
+			CacheConfig: &models.CacheConfig{
+				CachePrePopulate: &models.CachePrePopulate{
+					PathList:  []string{"/data1"},
+					Recursion: boolPtr(true),
+				},
+			},
+		},
+	}
+
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_FlexCachePrepopulate_Success_AsyncWithJobCreation() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	flexCacheUpdateActivity := flexcache_activities.FlexCacheVolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(flexCacheUpdateActivity.UpdatePrepopulateState)
+	s.env.RegisterActivity(flexCacheUpdateActivity.StartFlexCachePrepopulate)
+	s.env.RegisterActivity(flexCacheUpdateActivity.CreatePrepopulateJob)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	ontapJobUUID := "ontap-job-uuid-789"
+	createdJobUUID := "created-job-uuid-456"
+	s.env.OnActivity(flexCacheUpdateActivity.UpdatePrepopulateState, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(flexCacheUpdateActivity.StartFlexCachePrepopulate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ontapJobUUID, nil)
+	s.env.OnActivity(flexCacheUpdateActivity.CreatePrepopulateJob, mock.Anything, mock.Anything, ontapJobUUID).Return(createdJobUUID, nil)
+
+	prevIsUpdateFlexCachePrepopulateRequired := isUpdateFlexCachePrepopulateRequired
+	isUpdateFlexCachePrepopulateRequired = func(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
+		return true
+	}
+	defer func() { isUpdateFlexCachePrepopulateRequired = prevIsUpdateFlexCachePrepopulateRequired }()
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-123"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+		CacheParameters: &datamodel.CacheParameters{
+			CacheConfig: &datamodel.CacheConfig{},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 2000,
+		CacheParameters: &models.CacheParameters{
+			CacheConfig: &models.CacheConfig{
+				CachePrePopulate: &models.CachePrePopulate{
+					PathList:  []string{"/data1", "/data2"},
+					Recursion: boolPtr(true),
+				},
+			},
+		},
+	}
+
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateFlexCacheVolumeInONTAP_WithAsyncJob_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	updateFlexCacheActivity := flexcache_activities.FlexCacheVolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(updateActivity.GetVolumeFromONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateFlexCacheActivity.UpdateFlexCacheVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	asyncResponse := &vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}
+	s.env.OnActivity(updateFlexCacheActivity.UpdateFlexCacheVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(asyncResponse, nil)
+
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "test-job-uuid", mock.Anything).Return(&vsa.OntapJob{
+		State: "success",
+		UUID:  "test-job-uuid",
+	}, nil)
+
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	prevIsUpdateFlexCacheRequired := isUpdateFlexCacheRequired
+	isUpdateFlexCacheRequired = func(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
+		return true
+	}
+	defer func() { isUpdateFlexCacheRequired = prevIsUpdateFlexCacheRequired }()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+	}
+	atimeScrubEnabled := true
+	atimeScrubDays := int16(5)
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 2000,
+		CacheParameters: &models.CacheParameters{
+			CacheConfig: &models.CacheConfig{
+				AtimeScrubEnabled: &atimeScrubEnabled,
+				AtimeScrubDays:    &atimeScrubDays,
+			},
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_FlexCachePrepopulate_StartPrepopulateFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	flexCacheUpdateActivity := flexcache_activities.FlexCacheVolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(flexCacheUpdateActivity.UpdatePrepopulateState)
+	s.env.RegisterActivity(flexCacheUpdateActivity.StartFlexCachePrepopulate)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.OnActivity(flexCacheUpdateActivity.UpdatePrepopulateState, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(flexCacheUpdateActivity.StartFlexCachePrepopulate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("ONTAP error starting prepopulate"))
+
+	prevIsUpdateFlexCachePrepopulateRequired := isUpdateFlexCachePrepopulateRequired
+	isUpdateFlexCachePrepopulateRequired = func(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
+		return true
+	}
+	defer func() { isUpdateFlexCachePrepopulateRequired = prevIsUpdateFlexCachePrepopulateRequired }()
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-123"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+		CacheParameters: &datamodel.CacheParameters{
+			CacheConfig: &datamodel.CacheConfig{},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 2000,
+		CacheParameters: &models.CacheParameters{
+			CacheConfig: &models.CacheConfig{
+				CachePrePopulate: &models.CachePrePopulate{
+					PathList: []string{"/data1"},
+				},
+			},
+		},
+	}
+
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_FlexCachePrepopulate_CreatePrepopulateJobFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	flexCacheUpdateActivity := flexcache_activities.FlexCacheVolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(flexCacheUpdateActivity.UpdatePrepopulateState)
+	s.env.RegisterActivity(flexCacheUpdateActivity.StartFlexCachePrepopulate)
+	s.env.RegisterActivity(flexCacheUpdateActivity.CreatePrepopulateJob)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	ontapJobUUID := "ontap-job-uuid-789"
+	s.env.OnActivity(flexCacheUpdateActivity.UpdatePrepopulateState, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(flexCacheUpdateActivity.StartFlexCachePrepopulate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ontapJobUUID, nil)
+	s.env.OnActivity(flexCacheUpdateActivity.CreatePrepopulateJob, mock.Anything, mock.Anything, ontapJobUUID).Return("", errors.New("failed to create job record"))
+
+	prevIsUpdateFlexCachePrepopulateRequired := isUpdateFlexCachePrepopulateRequired
+	isUpdateFlexCachePrepopulateRequired = func(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
+		return true
+	}
+	defer func() { isUpdateFlexCachePrepopulateRequired = prevIsUpdateFlexCachePrepopulateRequired }()
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-123"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+		CacheParameters: &datamodel.CacheParameters{
+			CacheConfig: &datamodel.CacheConfig{},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 2000,
+		CacheParameters: &models.CacheParameters{
+			CacheConfig: &models.CacheConfig{
+				CachePrePopulate: &models.CachePrePopulate{
+					PathList: []string{"/data1"},
+				},
+			},
+		},
+	}
+
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }

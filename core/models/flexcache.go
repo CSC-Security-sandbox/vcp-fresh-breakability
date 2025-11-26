@@ -13,7 +13,7 @@ type CacheConfig struct {
 	CifsChangeNotifyEnabled *bool  `json:"cifsChangeNotifyEnabled"`
 	WritebackEnabled        *bool  `json:"writebackEnabled"`
 
-	CachePrePopulate      *CachePrePopulate `json:"cachePrePopulate"`
+	CachePrePopulate      *CachePrePopulate `json:"cachePrePopulate,omitempty"`
 	CachePrePopulateState string            `json:"cachePrePopulateState,omitempty"`
 }
 type CacheParameters struct {

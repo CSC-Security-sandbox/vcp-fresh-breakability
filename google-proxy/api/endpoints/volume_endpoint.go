@@ -951,6 +951,10 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				param.CacheParameters = &models.CacheParameters{}
 			}
 			param.CacheParameters.CacheConfig = &models.CacheConfig{}
+			param.CacheParameters.PeerVolumeName = reqCacheProperties.PeerVolumeName
+			param.CacheParameters.PeerClusterName = reqCacheProperties.PeerClusterName
+			param.CacheParameters.PeerSvmName = reqCacheProperties.PeerSvmName
+			param.CacheParameters.PeerIPAddresses = reqCacheProperties.PeerIpAddresses
 
 			if cacheConfig.WritebackEnabled.IsSet() {
 				param.CacheParameters.CacheConfig.WritebackEnabled = &cacheConfig.WritebackEnabled.Value
@@ -976,6 +980,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				if prePopulate.ExcludePathList.IsSet() {
 					param.CacheParameters.CacheConfig.CachePrePopulate.ExcludePathList = prePopulate.ExcludePathList.Value
 				}
+
 				if prePopulate.Recursion.IsSet() {
 					param.CacheParameters.CacheConfig.CachePrePopulate.Recursion = &prePopulate.Recursion.Value
 				}
@@ -2005,12 +2010,6 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 				cacheConfigV1beta.CifsChangeNotifyEnabled = gcpgenserver.NewOptNilBool(*in.CacheParameters.CacheConfig.CifsChangeNotifyEnabled)
 			}
 
-			if in.CacheParameters.CacheConfig.CachePrePopulateState != "" {
-				cacheConfigV1beta.CachePrePopulateState = gcpgenserver.NewOptFlexCacheConfigV1betaCachePrePopulateState(
-					gcpgenserver.FlexCacheConfigV1betaCachePrePopulateState(in.CacheParameters.CacheConfig.CachePrePopulateState),
-				)
-			}
-
 			if in.CacheParameters.CacheConfig.CachePrePopulate != nil {
 				flexCachePrePopulateV1beta := gcpgenserver.FlexCachePrePopulateV1beta{
 					PathList:        gcpgenserver.NewOptNilStringArray(in.CacheParameters.CacheConfig.CachePrePopulate.PathList),
@@ -2310,12 +2309,6 @@ func convertToFlexCacheV1(cp *models.CacheParameters) gcpgenserver.FlexCacheV1be
 			CifsChangeNotifyEnabled: gcpgenserver.NewOptNilBool(nillable.GetBool(incomingConfig.CifsChangeNotifyEnabled, false)),
 		}
 
-		if incomingConfig.CachePrePopulateState != "" {
-			cacheConfig.CachePrePopulateState = gcpgenserver.NewOptFlexCacheConfigV1betaCachePrePopulateState(
-				gcpgenserver.FlexCacheConfigV1betaCachePrePopulateState(incomingConfig.CachePrePopulateState),
-			)
-		}
-
 		if incomingConfig.CachePrePopulate != nil {
 			prepopulate := gcpgenserver.FlexCachePrePopulateV1beta{
 				PathList:        gcpgenserver.NewOptNilStringArray(incomingConfig.CachePrePopulate.PathList),
@@ -2323,6 +2316,12 @@ func convertToFlexCacheV1(cp *models.CacheParameters) gcpgenserver.FlexCacheV1be
 				Recursion:       gcpgenserver.NewOptNilBool(nillable.GetBool(incomingConfig.CachePrePopulate.Recursion, false)),
 			}
 			cacheConfig.CachePrePopulate = gcpgenserver.NewOptFlexCachePrePopulateV1beta(prepopulate)
+		}
+
+		if incomingConfig.CachePrePopulateState != "" {
+			cacheConfig.CachePrePopulateState = gcpgenserver.NewOptFlexCacheConfigV1betaCachePrePopulateState(
+				gcpgenserver.FlexCacheConfigV1betaCachePrePopulateState(incomingConfig.CachePrePopulateState),
+			)
 		}
 
 		cacheParameters.CacheConfig = gcpgenserver.NewOptFlexCacheConfigV1beta(cacheConfig)

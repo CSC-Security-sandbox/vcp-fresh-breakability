@@ -707,3 +707,27 @@ func (d *DataStoreRepository) GetVolumeByNameAccountIDAndZone(ctx context.Contex
 	}
 	return volume, nil
 }
+
+// GetActivePrepopulateJobs retrieves all active (NEW or PROCESSING) prepopulate jobs
+func (d *DataStoreRepository) GetActivePrepopulateJobs(ctx context.Context) ([]*datamodel.Job, error) {
+	return getActivePrepopulateJobs(d.db.GORM().WithContext(ctx))
+}
+
+func getActivePrepopulateJobs(db *gorm.DB) ([]*datamodel.Job, error) {
+	var jobs []*datamodel.Job
+
+	err := db.
+		Where("type = ?", models.JobTypeFlexCachePrePopulate).
+		Where("state IN ?", []string{
+			string(models.JobsStateNEW),
+			string(models.JobsStatePROCESSING),
+		}).
+		Order("created_at ASC"). // Process oldest jobs first
+		Find(&jobs).Error
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return jobs, nil
+}

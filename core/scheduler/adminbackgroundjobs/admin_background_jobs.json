@@ -63,5 +63,10 @@
     "jobType": "ELIGIBILITY_STRING_JOB",
     "cronExpression": "*/5 * * * *",
     "state": "CREATING"
+  },
+  "SYNC_FLEXCACHE_PREPOPULATE_JOBS": {
+    "jobType": "SYNC_FLEXCACHE_PREPOPULATE_JOBS",
+    "cronExpression": "*/3 * * * *",
+    "state": "CREATING"
   }
 }

@@ -28,6 +28,7 @@ const (
 	SyncBackupZiZsMetadata        = "SYNC_BACKUP_ZIZS_METADATA"
 	SyncPoolCompliance            = "SYNC_POOL_COMPLIANCE"
 	EligibilityStringJob          = "ELIGIBILITY_STRING_JOB"
+	FlexCachePrepopulate          = "SYNC_FLEXCACHE_PREPOPULATE_JOBS"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
@@ -45,6 +46,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 	SyncBackupZiZsMetadata:        backgroundworkflows.SyncBackupZiZsWorkflow,
 	SyncPoolCompliance:            backgroundworkflows.SyncPoolZIZSDetailsWorkflow,
 	EligibilityStringJob:          backgroundworkflows.EligibilityStringWorkflow,
+	FlexCachePrepopulate:          backgroundworkflows.SyncFlexCachePrepopulateWorkflow,
 }
 
 type JobManagerActivity struct {

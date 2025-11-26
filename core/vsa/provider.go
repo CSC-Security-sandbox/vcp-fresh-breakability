@@ -43,7 +43,7 @@ type Provider interface {
 	GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumes() ([]*Volume, error)
 	UpdateVolume(params UpdateVolumeParams) error
-	UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) error
+	UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) (*OntapAsyncResponse, error)
 	RevertVolume(params RevertVolumeParams) error
 	UpdateVolumeEnableEncryption(params UpdateVolumeParams) error
 	IgroupCreate(params IgroupCreateParams) (string, error)

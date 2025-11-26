@@ -1,6 +1,8 @@
 package vsa
 
 import (
+	"fmt"
+
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -80,11 +82,33 @@ func (rc *OntapRestProvider) DeleteFlexCacheVolume(volumeUUID, name string) (*On
 	return nil, nil
 }
 
-// UpdateFlexCacheVolume updates a FlexCache volume by calling the ONTAP REST Client
-func (rc *OntapRestProvider) UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) error {
+// UpdateFlexCacheVolume updates a FlexCache volume configuration
+// Returns OntapAsyncResponse with job UUID if async, nil if completed synchronously
+func (rc *OntapRestProvider) UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) (*OntapAsyncResponse, error) {
+	success, jobUUID, err := rc.updateFlexCacheVolume(params)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return the job UUID if one was created (async operation)
+	if jobUUID != nil {
+		return &OntapAsyncResponse{JobUUID: *jobUUID}, nil
+	}
+
+	// Completed synchronously
+	if !success {
+		return nil, fmt.Errorf("FlexCache volume update failed")
+	}
+
+	return nil, nil
+}
+
+// updateFlexCacheVolume is the internal implementation
+// Returns: (success, jobUUID, error)
+func (rc *OntapRestProvider) updateFlexCacheVolume(params UpdateFlexCacheVolumeParams) (bool, *string, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
-		return err
+		return false, nil, err
 	}
 
 	flexCacheVolumeUpdateParams := &ontapRest.FlexcacheModifyParams{
@@ -103,19 +127,13 @@ func (rc *OntapRestProvider) UpdateFlexCacheVolume(params UpdateFlexCacheVolumeP
 
 	success, job, err := client.Storage().FlexCacheVolumeModify(flexCacheVolumeUpdateParams)
 	if err != nil {
-		return err
+		return false, nil, err
 	}
 
-	if success {
-		return nil
+	// Return job UUID if ONTAP created a background job
+	if job != nil && job.JobUUID != "" {
+		return success, &job.JobUUID, nil
 	}
 
-	// Poll the job if it exists
-	if job != nil {
-		if err = client.Poll(job.JobUUID); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return success, nil, nil
 }

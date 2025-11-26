@@ -1399,6 +1399,22 @@ func (re *retryEngine) CancelRunningJobsForResource(ctx context.Context, resourc
 	return err
 }
 
+func (re *retryEngine) GetActivePrepopulateJobs(ctx context.Context) ([]*datamodel.Job, error) {
+	var var0 []*datamodel.Job
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetActivePrepopulateJobs(ctx)
+		if err != nil {
+			re.logError("GetActivePrepopulateJobs", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
 	var var0 *datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {

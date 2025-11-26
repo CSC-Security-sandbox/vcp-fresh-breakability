@@ -1563,6 +1563,7 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 				AtimeScrubDays:          volume.CacheParameters.CacheConfig.AtimeScrubDays,
 				CifsChangeNotifyEnabled: volume.CacheParameters.CacheConfig.CifsChangeNotifyEnabled,
 				WritebackEnabled:        volume.CacheParameters.CacheConfig.WritebackEnabled,
+				CachePrePopulateState:   volume.CacheParameters.CacheConfig.CachePrePopulateState,
 			}
 
 			if volume.CacheParameters.CacheConfig.CachePrePopulate != nil {

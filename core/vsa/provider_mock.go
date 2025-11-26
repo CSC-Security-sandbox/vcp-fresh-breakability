@@ -6200,21 +6200,33 @@ func (_c *MockProvider_UpdateExportPolicyRules_Call) RunAndReturn(run func(Updat
 }
 
 // UpdateFlexCacheVolume provides a mock function with given fields: params
-func (_m *MockProvider) UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) error {
+func (_m *MockProvider) UpdateFlexCacheVolume(params UpdateFlexCacheVolumeParams) (*OntapAsyncResponse, error) {
 	ret := _m.Called(params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateFlexCacheVolume")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(UpdateFlexCacheVolumeParams) error); ok {
+	var r0 *OntapAsyncResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(UpdateFlexCacheVolumeParams) (*OntapAsyncResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(UpdateFlexCacheVolumeParams) *OntapAsyncResponse); ok {
 		r0 = rf(params)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*OntapAsyncResponse)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(UpdateFlexCacheVolumeParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockProvider_UpdateFlexCacheVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateFlexCacheVolume'
@@ -6235,12 +6247,12 @@ func (_c *MockProvider_UpdateFlexCacheVolume_Call) Run(run func(params UpdateFle
 	return _c
 }
 
-func (_c *MockProvider_UpdateFlexCacheVolume_Call) Return(_a0 error) *MockProvider_UpdateFlexCacheVolume_Call {
-	_c.Call.Return(_a0)
+func (_c *MockProvider_UpdateFlexCacheVolume_Call) Return(_a0 *OntapAsyncResponse, _a1 error) *MockProvider_UpdateFlexCacheVolume_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockProvider_UpdateFlexCacheVolume_Call) RunAndReturn(run func(UpdateFlexCacheVolumeParams) error) *MockProvider_UpdateFlexCacheVolume_Call {
+func (_c *MockProvider_UpdateFlexCacheVolume_Call) RunAndReturn(run func(UpdateFlexCacheVolumeParams) (*OntapAsyncResponse, error)) *MockProvider_UpdateFlexCacheVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

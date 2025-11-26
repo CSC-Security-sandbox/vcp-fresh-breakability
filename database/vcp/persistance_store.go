@@ -1416,3 +1416,7 @@ func (s *PersistenceStore) GetActiveDirectoryForPoolByPoolID(ctx context.Context
 func (s *PersistenceStore) ListClusterPeeringRowsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ClusterPeerings, error) {
 	return s.dataStore.ListClusterPeeringRowsByPoolID(ctx, poolID)
 }
+
+func (s *PersistenceStore) GetActivePrepopulateJobs(ctx context.Context) ([]*datamodel.Job, error) {
+	return s.dataStore.GetActivePrepopulateJobs(ctx)
+}

@@ -1,8 +1,11 @@
 package workflows
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -28,9 +31,10 @@ type volumeUpdateWorkflow struct {
 // Enforcing the WorkflowInterface on volumeUpdateWorkflow
 var _ WorkflowInterface = &volumeUpdateWorkflow{}
 var (
-	convertCacheParameters    = _convertCacheParameters
-	flexCacheEnabled          = env.GetBool("FLEXCACHE_ENABLED", false)
-	isUpdateFlexCacheRequired = _isUpdateFlexCacheRequired
+	convertCacheParameters               = _convertCacheParameters
+	flexCacheEnabled                     = env.GetBool("FLEXCACHE_ENABLED", false)
+	isUpdateFlexCacheRequired            = _isUpdateFlexCacheRequired
+	isUpdateFlexCachePrepopulateRequired = _isUpdateFlexCachePrepopulateRequired
 )
 
 // UpdateVolumeWorkflow Update Volume Workflow process volume related requests from a customer.
@@ -185,10 +189,62 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if isUpdateFlexCacheRequired(volume, params) {
 		rollbackManager.AddActivity(flexCacheUpdateActivity.UpdateFlexCacheVolumeInONTAP, volume,
 			getUpdateParamsForRollback(volResponse, volume), node)
+
+		var ontapAsyncResponse *vsa.OntapAsyncResponse
 		err = workflow.ExecuteActivity(ctx, flexCacheUpdateActivity.UpdateFlexCacheVolumeInONTAP, volume,
-			params, node).Get(ctx, nil)
+			params, node).Get(ctx, &ontapAsyncResponse)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
+		}
+
+		if err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, 30*time.Minute); err != nil {
+			return nil, ConvertToVSAError(fmt.Errorf("failed to update FlexCache volume: %w", err))
+		}
+	}
+
+	// Handle prepopulate separately if requested
+	if isUpdateFlexCachePrepopulateRequired(volume, params) {
+		err := workflow.ExecuteActivity(ctx, flexCacheUpdateActivity.UpdatePrepopulateState,
+			volume.UUID, cvpModels.FlexCacheConfigV1betaCachePrePopulateStateCACHEPREPOPULATESTATEUNSPECIFIED).Get(ctx, nil)
+		if err != nil {
+			log.Errorf("Failed to update prepopulate state to UNSPECIFIED: %v", err)
+		}
+
+		// Start the ONTAP prepopulate job
+		var ontapJobUUID string
+		err = workflow.ExecuteActivity(ctx, flexCacheUpdateActivity.StartFlexCachePrepopulate,
+			volume, params, node).Get(ctx, &ontapJobUUID)
+		if err != nil {
+			log.Errorf("Failed to start prepopulate in ONTAP: %v", err)
+			stateErr := workflow.ExecuteActivity(ctx, flexCacheUpdateActivity.UpdatePrepopulateState,
+				volume.UUID, cvpModels.FlexCacheConfigV1betaCachePrePopulateStateERROR).Get(ctx, nil)
+			if stateErr != nil {
+				log.Errorf("Failed to update prepopulate state to ERROR after ONTAP failure: %v", stateErr)
+			}
+
+			log.Warnf("Prepopulate failed to start but continuing with volume update - prepopulate is best-effort")
+		} else if ontapJobUUID == "" {
+			err = workflow.ExecuteActivity(ctx, flexCacheUpdateActivity.UpdatePrepopulateState,
+				volume.UUID, cvpModels.FlexCacheConfigV1betaCachePrePopulateStateCOMPLETE).Get(ctx, nil)
+			if err != nil {
+				log.Errorf("Failed to update prepopulate state to COMPLETE: %v", err)
+			}
+		} else {
+			// Create a Job record for tracking with ONTAP UUID in job attributes
+			var createdJobUUID string
+			err = workflow.ExecuteActivity(ctx, flexCacheUpdateActivity.CreatePrepopulateJob,
+				volume, ontapJobUUID).Get(ctx, &createdJobUUID)
+			if err != nil {
+				log.Errorf("Failed to create job record: %v", err)
+				stateErr := workflow.ExecuteActivity(ctx, flexCacheUpdateActivity.UpdatePrepopulateState,
+					volume.UUID, cvpModels.FlexCacheConfigV1betaCachePrePopulateStateERROR).Get(ctx, nil)
+				if stateErr != nil {
+					log.Errorf("Failed to update prepopulate state to ERROR after job creation failure: %v", stateErr)
+				}
+
+				log.Warnf("ONTAP prepopulate job %s started but cannot be tracked - job will run to completion in ONTAP for volume %s",
+					ontapJobUUID, volume.UUID)
+			}
 		}
 	}
 
@@ -633,56 +689,69 @@ func _isUpdateFlexCacheRequired(existingVolume *datamodel.Volume, params *common
 		return true
 	}
 
-	// PrePopulate diff handling
-	pp := inCfg.CachePrePopulate
-	if pp == nil {
+	return false
+}
+
+func _isUpdateFlexCachePrepopulateRequired(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
+	if !flexCacheEnabled {
 		return false
 	}
-	exPP := exCfg.CachePrePopulate
-
-	// Adding new PrePopulate section
-	if exPP == nil {
-		if pp.Recursion != nil || pp.PathList != nil || pp.ExcludePathList != nil {
-			return true
-		}
+	if params == nil || params.CacheParameters == nil || params.CacheParameters.CacheConfig == nil {
+		return false
+	}
+	if existingVolume == nil || existingVolume.CacheParameters == nil {
 		return false
 	}
 
-	if changedBool(pp.Recursion, exPP.Recursion) {
-		return true
-	}
+	inCfg := params.CacheParameters.CacheConfig
+	exCfg := existingVolume.CacheParameters.CacheConfig
 
-	sliceChanged := func(in, ex []string) bool {
-		if in == nil {
-			return false
-		}
-		if len(in) == 0 {
-			return len(ex) != 0
-		}
-
-		// Set comparison (order ignored, duplicates not distinguished).
-		inSet := make(map[string]struct{}, len(in))
-		for _, v := range in {
-			inSet[v] = struct{}{}
-		}
-		exSet := make(map[string]struct{}, len(ex))
-		for _, v := range ex {
-			exSet[v] = struct{}{}
-		}
-
-		if len(inSet) != len(exSet) {
+	if inCfg.CachePrePopulate != nil {
+		if exCfg == nil || exCfg.CachePrePopulate == nil {
 			return true
 		}
-		for v := range inSet {
-			if _, ok := exSet[v]; !ok {
+
+		changedBool := func(in, ex *bool) bool {
+			if in == nil {
+				return false
+			}
+			return ex == nil || *in != *ex
+		}
+
+		sliceChanged := func(in, ex []string) bool {
+			if in == nil {
+				return false
+			}
+			if len(in) == 0 {
+				return len(ex) != 0
+			}
+
+			// Set comparison (order ignored, duplicates not distinguished).
+			inSet := make(map[string]struct{}, len(in))
+			for _, v := range in {
+				inSet[v] = struct{}{}
+			}
+			exSet := make(map[string]struct{}, len(ex))
+			for _, v := range ex {
+				exSet[v] = struct{}{}
+			}
+
+			if len(inSet) != len(exSet) {
 				return true
 			}
+			for v := range inSet {
+				if _, ok := exSet[v]; !ok {
+					return true
+				}
+			}
+			return false
 		}
-		return false
-	}
 
-	return sliceChanged(pp.PathList, exPP.PathList) ||
-		sliceChanged(pp.ExcludePathList, exPP.ExcludePathList)
+		return sliceChanged(inCfg.CachePrePopulate.PathList, exCfg.CachePrePopulate.PathList) ||
+			sliceChanged(inCfg.CachePrePopulate.ExcludePathList, exCfg.CachePrePopulate.ExcludePathList) ||
+			changedBool(inCfg.CachePrePopulate.Recursion, exCfg.CachePrePopulate.Recursion)
+	}
+	return false
 }
 
 func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse, existingVolume *datamodel.Volume) *common.UpdateVolumeParams {

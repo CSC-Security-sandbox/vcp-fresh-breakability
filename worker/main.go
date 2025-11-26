@@ -382,6 +382,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(workflows.ClusterUpgradeWorkflow)
 	worker.RegisterWorkflow(workflows.RestoreBackupWorkflowWithContext)
 	worker.RegisterWorkflow(backgroundworkflows.UpdateBackupScheduleWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncFlexCachePrepopulateWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -408,4 +409,5 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.SyncBackupZiZsActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.EligibilityStringActivity{SE: conn, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&backgroundactivities.UpdateBackupScheduleActivity{SE: conn, ScheduleClient: temporal.ScheduleClient()})
+	worker.RegisterActivity(&backgroundactivities.FlexCachePrepopulateActivity{SE: conn})
 }

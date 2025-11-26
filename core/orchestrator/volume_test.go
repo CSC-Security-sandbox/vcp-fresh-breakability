@@ -16473,6 +16473,158 @@ func TestConvertDatastoreVolumeToModelCacheParameters(t *testing.T) {
 		assert.True(tt, *result.CacheParameters.CacheConfig.CachePrePopulate.Recursion)
 		assert.True(tt, *result.CacheParameters.CacheConfig.WritebackEnabled)
 	})
+
+	t.Run("ConvertVolumeWithCachePrePopulateState", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:             "test-volume",
+			Description:      "test description",
+			SizeInBytes:      107374182400,
+			Account:          account,
+			Pool:             pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster",
+				PeerSvmName:     "peer-svm",
+				PeerVolumeName:  "peer-volume",
+				PeerIpAddresses: []string{"10.196.33.52", "10.196.33.44"},
+				CacheState:      "PEERED",
+				CacheConfig: &datamodel.CacheConfig{
+					CachePrePopulateState: "COMPLETE",
+					CachePrePopulate: &datamodel.CachePrePopulate{
+						PathList:        []string{"/"},
+						ExcludePathList: []string{},
+						Recursion:       nillable.ToPointer(true),
+					},
+					WritebackEnabled:        nillable.ToPointer(false),
+					AtimeScrubEnabled:       nillable.ToPointer(false),
+					AtimeScrubDays:          nillable.ToPointer(int16(0)),
+					CifsChangeNotifyEnabled: nillable.ToPointer(false),
+				},
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.CacheParameters)
+		assert.NotNil(tt, result.CacheParameters.CacheConfig)
+		assert.Equal(tt, "COMPLETE", result.CacheParameters.CacheConfig.CachePrePopulateState)
+		assert.NotNil(tt, result.CacheParameters.CacheConfig.CachePrePopulate)
+		assert.Equal(tt, []string{"/"}, result.CacheParameters.CacheConfig.CachePrePopulate.PathList)
+		assert.Equal(tt, []string{}, result.CacheParameters.CacheConfig.CachePrePopulate.ExcludePathList)
+		assert.True(tt, *result.CacheParameters.CacheConfig.CachePrePopulate.Recursion)
+	})
+
+	t.Run("ConvertVolumeWithCachePrePopulateStateInProgress", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:             "test-volume",
+			Account:          account,
+			Pool:             pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster",
+				PeerSvmName:     "peer-svm",
+				PeerVolumeName:  "peer-volume",
+				PeerIpAddresses: []string{"10.196.33.52"},
+				CacheState:      "PEERED",
+				CacheConfig: &datamodel.CacheConfig{
+					CachePrePopulateState: "IN_PROGRESS",
+					WritebackEnabled:      nillable.ToPointer(true),
+				},
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.CacheParameters)
+		assert.NotNil(tt, result.CacheParameters.CacheConfig)
+		assert.Equal(tt, "IN_PROGRESS", result.CacheParameters.CacheConfig.CachePrePopulateState)
+	})
+
+	t.Run("ConvertVolumeWithEmptyCachePrePopulateState", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:             "test-volume",
+			Account:          account,
+			Pool:             pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerClusterName: "peer-cluster",
+				PeerSvmName:     "peer-svm",
+				PeerVolumeName:  "peer-volume",
+				PeerIpAddresses: []string{"10.196.33.52"},
+				CacheState:      "PEERED",
+				CacheConfig: &datamodel.CacheConfig{
+					CachePrePopulateState: "", // Empty state
+					WritebackEnabled:      nillable.ToPointer(false),
+				},
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.CacheParameters)
+		assert.NotNil(tt, result.CacheParameters.CacheConfig)
+		assert.Equal(tt, "", result.CacheParameters.CacheConfig.CachePrePopulateState)
+	})
 }
 
 func TestConvertDatastoreVolumeToModel_CloneFields(t *testing.T) {

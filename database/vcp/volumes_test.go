@@ -4089,3 +4089,577 @@ func TestGetFlexCacheVolumeCountByClusterPeerID(t *testing.T) {
 		assert.Equal(tt, int64(0), count)
 	})
 }
+
+func TestGetActivePrepopulateJobs(t *testing.T) {
+	t.Run("WhenNoJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, jobs, "Expected empty slice when no jobs exist")
+	})
+
+	t.Run("WhenOnlyNewJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		// Create NEW job
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName: "test-volume-1",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateNEW),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-1",
+			},
+		}
+		assert.NoError(tt, store.db.Create(job1).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 1, "Expected 1 NEW job")
+		assert.Equal(tt, "job-uuid-1", jobs[0].UUID)
+		assert.Equal(tt, string(models.JobsStateNEW), jobs[0].State)
+	})
+
+	t.Run("WhenOnlyProcessingJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName: "test-volume-1",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStatePROCESSING),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-1",
+			},
+		}
+		assert.NoError(tt, store.db.Create(job1).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 1, "Expected 1 PROCESSING job")
+		assert.Equal(tt, "job-uuid-1", jobs[0].UUID)
+		assert.Equal(tt, string(models.JobsStatePROCESSING), jobs[0].State)
+	})
+
+	t.Run("WhenBothNewAndProcessingJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName: "test-volume-1",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateNEW),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-1",
+			},
+		}
+		job2 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-2"},
+			ResourceName: "test-volume-2",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStatePROCESSING),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-2",
+			},
+		}
+
+		assert.NoError(tt, store.db.Create(job1).Error())
+		assert.NoError(tt, store.db.Create(job2).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 2, "Expected 2 active jobs (NEW + PROCESSING)")
+
+		states := []string{jobs[0].State, jobs[1].State}
+		assert.Contains(tt, states, string(models.JobsStateNEW))
+		assert.Contains(tt, states, string(models.JobsStatePROCESSING))
+	})
+
+	t.Run("WhenCompletedJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName: "test-volume-1",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateDONE),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-1",
+			},
+		}
+		assert.NoError(tt, store.db.Create(job1).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, jobs, "Expected no COMPLETED jobs to be returned")
+	})
+
+	t.Run("WhenFailedJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName: "test-volume-1",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateERROR),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-1",
+			},
+		}
+		assert.NoError(tt, store.db.Create(job1).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, jobs, "Expected no FAILED jobs to be returned")
+	})
+
+	t.Run("WhenMixedJobStatesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		jobNew := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-new"},
+			ResourceName: "test-volume-new",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateNEW),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-new",
+			},
+		}
+		jobProcessing := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-processing"},
+			ResourceName: "test-volume-processing",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStatePROCESSING),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-processing",
+			},
+		}
+		jobCompleted := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-completed"},
+			ResourceName: "test-volume-completed",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateERROR),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-completed",
+			},
+		}
+		jobFailed := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-failed"},
+			ResourceName: "test-volume-failed",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateERROR),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-failed",
+			},
+		}
+
+		assert.NoError(tt, store.db.Create(jobNew).Error())
+		assert.NoError(tt, store.db.Create(jobProcessing).Error())
+		assert.NoError(tt, store.db.Create(jobCompleted).Error())
+		assert.NoError(tt, store.db.Create(jobFailed).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 2, "Expected only NEW and PROCESSING jobs (2 total)")
+
+		uuids := []string{jobs[0].UUID, jobs[1].UUID}
+		assert.Contains(tt, uuids, "job-uuid-new")
+		assert.Contains(tt, uuids, "job-uuid-processing")
+		assert.NotContains(tt, uuids, "job-uuid-completed")
+		assert.NotContains(tt, uuids, "job-uuid-failed")
+	})
+
+	t.Run("WhenNonPrepopulateJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName: "test-volume-1",
+			Type:         "OTHER_JOB_TYPE",
+			State:        string(models.JobsStateNEW),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-1",
+			},
+		}
+		assert.NoError(tt, store.db.Create(job1).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, jobs, "Expected no jobs of other types to be returned")
+	})
+
+	t.Run("WhenJobsAreOrderedByCreatedAtAsc", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName: "test-volume-1",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateNEW),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-1",
+			},
+		}
+		assert.NoError(tt, store.db.Create(job1).Error())
+
+		job2 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-2"},
+			ResourceName: "test-volume-2",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateNEW),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-2",
+			},
+		}
+		assert.NoError(tt, store.db.Create(job2).Error())
+
+		job3 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-3"},
+			ResourceName: "test-volume-3",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateNEW),
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-3",
+			},
+		}
+		assert.NoError(tt, store.db.Create(job3).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 3, "Expected 3 jobs")
+
+		// Verify jobs are ordered by created_at ASC (oldest first)
+		assert.Equal(tt, "job-uuid-1", jobs[0].UUID, "First job should be the oldest")
+		assert.Equal(tt, "job-uuid-2", jobs[1].UUID, "Second job should be middle")
+		assert.Equal(tt, "job-uuid-3", jobs[2].UUID, "Third job should be newest")
+
+		// Verify timestamps are in ascending order
+		assert.True(tt, jobs[0].CreatedAt.Before(jobs[1].CreatedAt) || jobs[0].CreatedAt.Equal(jobs[1].CreatedAt),
+			"Jobs should be ordered by created_at ascending")
+		assert.True(tt, jobs[1].CreatedAt.Before(jobs[2].CreatedAt) || jobs[1].CreatedAt.Equal(jobs[2].CreatedAt),
+			"Jobs should be ordered by created_at ascending")
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate an error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		assert.NoError(tt, err)
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Nil(tt, jobs, "Expected nil jobs when error occurs")
+
+		// Verify it's wrapped as a database read error
+		var vcpError *vsaerrors.CustomError
+		if errors.As(err, &vcpError) {
+			assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, vcpError.TrackingID, "Expected ErrDatabaseDataReadError tracking ID")
+		}
+	})
+
+	t.Run("WhenContextIsCanceled", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel immediately
+
+		jobs, err := store.GetActivePrepopulateJobs(ctx)
+		assert.Error(tt, err, "Expected error when context is canceled")
+		assert.Nil(tt, jobs, "Expected nil jobs when context is canceled")
+	})
+
+	t.Run("WhenLargeNumberOfJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		// Create 50 active jobs
+		for i := 0; i < 50; i++ {
+			state := string(models.JobsStateNEW)
+			if i%2 == 0 {
+				state = string(models.JobsStatePROCESSING)
+			}
+
+			job := &datamodel.Job{
+				BaseModel:    datamodel.BaseModel{UUID: fmt.Sprintf("job-uuid-%d", i)},
+				ResourceName: fmt.Sprintf("test-volume-%d", i),
+				Type:         string(models.JobTypeFlexCachePrePopulate),
+				State:        state,
+				AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+				JobAttributes: &datamodel.JobAttributes{
+					ResourceUUID: fmt.Sprintf("ontap-job-uuid-%d", i),
+				},
+			}
+			assert.NoError(tt, store.db.Create(job).Error())
+		}
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 50, "Expected all 50 active jobs to be returned")
+
+		// Verify all jobs are either NEW or PROCESSING
+		for _, job := range jobs {
+			assert.Contains(tt, []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}, job.State,
+				"All returned jobs should be NEW or PROCESSING")
+			assert.Equal(tt, string(models.JobTypeFlexCachePrePopulate), job.Type,
+				"All returned jobs should be FlexCachePrePopulate type")
+		}
+	})
+
+	t.Run("WhenMultipleAccountsHaveJobs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account1 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid-1"},
+			Name:      "test_account_1",
+		}
+		account2 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "test-account-uuid-2"},
+			Name:      "test_account_2",
+		}
+		assert.NoError(tt, store.db.Create(account1).Error())
+		assert.NoError(tt, store.db.Create(account2).Error())
+
+		// Create jobs for account 1
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName: "test-volume-1",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateNEW),
+			AccountID:    sql.NullInt64{Int64: account1.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-1",
+			},
+		}
+		// Create jobs for account 2
+		job2 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-2"},
+			ResourceName: "test-volume-2",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStatePROCESSING),
+			AccountID:    sql.NullInt64{Int64: account2.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-2",
+			},
+		}
+
+		assert.NoError(tt, store.db.Create(job1).Error())
+		assert.NoError(tt, store.db.Create(job2).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 2, "Expected jobs from both accounts")
+
+		accountIDs := []int64{jobs[0].AccountID.Int64, jobs[1].AccountID.Int64}
+		assert.Contains(tt, accountIDs, account1.ID, "Should include job from account 1")
+		assert.Contains(tt, accountIDs, account2.ID, "Should include job from account 2")
+	})
+
+	t.Run("WhenJobWithNullAccountIDExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName: "test-volume-1",
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+			State:        string(models.JobsStateNEW),
+			AccountID:    sql.NullInt64{Valid: false}, // Null account ID
+			IsAdminJob:   true,
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "ontap-job-uuid-1",
+			},
+		}
+		assert.NoError(tt, store.db.Create(job1).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 1, "Expected 1 job with null account ID")
+		assert.False(tt, jobs[0].AccountID.Valid, "Expected account ID to be null")
+		assert.True(tt, jobs[0].IsAdminJob, "Expected job to be admin job")
+	})
+
+	t.Run("WhenJobAttributesAreNull", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		job1 := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-uuid-1"},
+			ResourceName:  "test-volume-1",
+			Type:          string(models.JobTypeFlexCachePrePopulate),
+			State:         string(models.JobsStateNEW),
+			AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: nil, // Null job attributes
+		}
+		assert.NoError(tt, store.db.Create(job1).Error())
+
+		jobs, err := store.GetActivePrepopulateJobs(context.Background())
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 1, "Expected 1 job even with null attributes")
+		assert.Nil(tt, jobs[0].JobAttributes, "Expected job attributes to be nil")
+	})
+}

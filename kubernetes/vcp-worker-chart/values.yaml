@@ -83,6 +83,7 @@ workerConfig:
   snapshotSyncMaxConcurrentActivitiesPerChild: 5
   gcpHydrateAuthServiceAccount: ""
   gcpHydrateBaseUrl: ""
+  flexcachePrepopulateMaxJobsPerRun: 20
   resourceCleanupParentWorkflowBatchSize: 100
   resourceCleanupChildWorkflowTimeout: 240
   resourceCleanupChildWorkflowActivityBatchSize: 25
