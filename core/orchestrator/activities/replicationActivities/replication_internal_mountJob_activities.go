@@ -36,6 +36,10 @@ func (j *MountJobActivity) CheckMountJob(ctx context.Context, dbReplication *dat
 		logger.Errorf("Failed to get replication details from Ontap for replication %s: %v", dbReplication.UUID, err)
 		return utilErrors.NewNonRetryableErr(err.Error())
 	}
+	if strings.Contains(snapmirror.LastTransferError, "Transfer aborted") && snapmirror.CurrentTransferType == "" {
+		logger.Infof("Transfer aborted, No data transfer is in progress for replication %s", dbReplication.UUID)
+		return nil
+	}
 	if snapmirror.MirrorState == models.OntapSnapmirrored {
 		logger.Infof("Status is snapmirrored. External_UUID: %s", replication.ExternalUUID)
 		return nil
