@@ -40,6 +40,14 @@ const (
 	BackupEnabledVolumeAllocatedSize                     MeasuredType = "BACKUP_ENABLED_VOLUME_ALLOCATED_SIZE"
 	TotalLogicalSize                                     MeasuredType = "TOTAL_LOGICAL_SIZE"
 	VolumeAllocatedThroughput                            MeasuredType = "VOLUME_ALLOCATED_THROUGHPUT"
+	AverageReadLatency                                   MeasuredType = "AVERAGE_READ_LATENCY"
+	AverageWriteLatency                                  MeasuredType = "AVERAGE_WRITE_LATENCY"
+	AverageOtherLatency                                  MeasuredType = "AVERAGE_OTHER_LATENCY"
+	ReadIo                                               MeasuredType = "READ_IO"
+	WriteIo                                              MeasuredType = "WRITE_IO"
+	OtherIo                                              MeasuredType = "OTHER_IO"
+	CoolTier1DataReadSize                                MeasuredType = "COOL_TIER_DATA_READ_SIZE"
+	CoolTier1DataWriteSize                               MeasuredType = "COOL_TIER_DATA_WRITE_SIZE"
 )
 
 func init() {
@@ -64,6 +72,16 @@ func init() {
 	CombinedKeyResourceTypeMeasuredTypeMap["snapmirror_total_transfer_bytes"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumeReplicationRelationship, MeasuredType: XregionReplicationTotalTransferBytes}
 	CombinedKeyResourceTypeMeasuredTypeMap["throughput_limit"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: VolumeAllocatedThroughput}
 	CombinedKeyResourceTypeMeasuredTypeMap["throughput_limit_regional_ha"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumeRegionalHA, MeasuredType: VolumeAllocatedThroughput}
+	CombinedKeyResourceTypeMeasuredTypeMap["volume_read_latency"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: AverageReadLatency}
+	CombinedKeyResourceTypeMeasuredTypeMap["volume_write_latency"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: AverageWriteLatency}
+	CombinedKeyResourceTypeMeasuredTypeMap["volume_other_latency"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: AverageOtherLatency}
+	CombinedKeyResourceTypeMeasuredTypeMap["volume_read_data"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: ReadIo}
+	CombinedKeyResourceTypeMeasuredTypeMap["volume_write_data"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: WriteIo}
+	CombinedKeyResourceTypeMeasuredTypeMap["volume_other_data"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: OtherIo}
+	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_clinet_protocol_reads"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTier1DataReadSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_cloud_bin_op_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTier1DataWriteSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_client_protocol_reads"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTier1DataReadSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_cloud_bin_operation_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTier1DataWriteSize}
 }
 
 // NewMeasuredType takes a string and converts it to the defined MeasuredType. If the string is not in the map of available measured types, exists is false and the result is nil.

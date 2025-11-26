@@ -187,6 +187,8 @@ func TestMetricsMappingMapCompleteness(t *testing.T) {
 		{ResourceType: metadata.VolumePool, MeasuredType: metadata.AllocatedUsed},
 		{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolTotalThroughputMibps},
 		{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolTotalIops},
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTier1DataReadSize},
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTier1DataWriteSize},
 
 		// Regional HA volume pool mappings
 		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolAllocatedSize},
@@ -195,11 +197,21 @@ func TestMetricsMappingMapCompleteness(t *testing.T) {
 		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolTotalIops},
 
 		// Volume mappings
-		{ResourceType: metadata.Backup, MeasuredType: metadata.BackupLogicalSize},
 		{ResourceType: metadata.Volume, MeasuredType: metadata.VolumeAllocatedThroughput},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.AverageReadLatency},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.AverageWriteLatency},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.AverageOtherLatency},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.ReadIo},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.WriteIo},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.OtherIo},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.CoolTier1DataReadSize},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.CoolTier1DataWriteSize},
 
 		// Regional HA volume mappings
 		{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.VolumeAllocatedThroughput},
+
+		// Backup mappings
+		{ResourceType: metadata.Backup, MeasuredType: metadata.BackupLogicalSize},
 	}
 
 	for _, expectedKey := range expectedMappings {

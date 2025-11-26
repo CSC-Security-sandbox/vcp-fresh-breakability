@@ -41,6 +41,7 @@ type TelemetryConfig struct {
 type MetricItem struct {
 	Metric       string `yaml:"metric"`
 	ResourceType string `yaml:"resourceType"`
+	MetricType   string `yaml:"metricType"`
 }
 type MetricsConfig struct {
 	VolumeMetrics []MetricItem `yaml:"metrics"`

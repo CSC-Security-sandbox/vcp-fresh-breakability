@@ -94,7 +94,7 @@ func main() {
 	}
 	wrapper := collector.NewMetricClientWrapper(client)
 	config := metricscommon.LoadMetricsConfigFromBytes()
-	provider := collector.NewGoogleProvider(tenantProvider, wrapper, config.VolumeMetrics)
+	provider := collector.NewGoogleProvider(tenantProvider, wrapper, config.VolumeMetrics, googleSink)
 	billingProvider := aggregator.NewBillingProvider(telemetryDbConn, VCPDbConn, metricscommon.LoadConfig(), billingSink)
 	bizopsProvider := bizops.NewBizOpsProvider(telemetryDbConn, VCPDbConn, bizopsSink)
 	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider, billingProvider, bizopsProvider)

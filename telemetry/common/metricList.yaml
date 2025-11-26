@@ -1,7 +1,28 @@
 metrics:
   - metric: volume_space_logical_used
     resourceType: custom.googleapis.com
+    metricType: usage
   - metric: volume_capacity
     resourceType: custom.googleapis.com
+    metricType: usage
   - metric: snapmirror_total_transfer_bytes
     resourceType: custom.googleapis.com
+    metricType: usage
+  - metric: volume_read_latency
+    resourceType: custom.googleapis.com
+    metricType: performance
+  - metric: volume_write_latency
+    resourceType: custom.googleapis.com
+    metricType: performance
+  - metric: volume_other_latency
+    resourceType: custom.googleapis.com
+    metricType: performance
+  - metric: volume_read_data
+    resourceType: custom.googleapis.com
+    metricType: performance
+  - metric: volume_write_data
+    resourceType: custom.googleapis.com
+    metricType: performance
+  - metric: volume_other_data
+    resourceType: custom.googleapis.com
+    metricType: performance

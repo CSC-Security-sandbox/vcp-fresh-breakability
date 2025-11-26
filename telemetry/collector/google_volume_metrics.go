@@ -10,6 +10,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
@@ -18,6 +19,7 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -73,6 +75,7 @@ func (g *GoogleVolumeMetricsProvider) GetVolumeMetrics(ctx context.Context, logg
 
 func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context, logger log.Logger, projectID string, timestamp time.Time) ([]datamodel.HydratedMetrics, error) {
 	var projectResults []datamodel.HydratedMetrics
+	var perfMetrics []entity.HydratedMetric
 	projectName := fmt.Sprintf("projects/%s", projectID)
 	telemetryConfig := common.LoadConfig()
 	env := telemetryConfig.Environment
@@ -91,6 +94,23 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 			},
 			View:     monitoringpb.ListTimeSeriesRequest_FULL,
 			PageSize: telemetryConfig.PageSize,
+		}
+
+		if metric.MetricType == "performance" {
+			req.Aggregation = &monitoringpb.Aggregation{
+				AlignmentPeriod:    &durationpb.Duration{Seconds: 300},
+				PerSeriesAligner:   monitoringpb.Aggregation_ALIGN_MEAN,
+				CrossSeriesReducer: monitoringpb.Aggregation_REDUCE_MEAN,
+				GroupByFields: []string{
+					"metric.label.metric",
+					"metric.label.volume",
+					"metric.label.project",
+					"metric.label.datacenter",
+					"metric.label.pool_name",
+					"metric.label.deployment_name",
+					"metric.label.is_regional_ha",
+				},
+			}
 		}
 
 		it := g.client.ListTimeSeries(ctx, req)
@@ -116,9 +136,30 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 				continue
 			}
 			resourceType := metadata.CombinedKeyResourceTypeMeasuredTypeMap[metric.Metric].ResourceType
+
+			if metric.MetricType == "performance" {
+				met := metadata.ResourceMetadata{}
+				met.SetAccountName(resp.Metric.Labels["project"])
+				met.SetResourceType(resourceType)
+				switch resourceType {
+				case metadata.Volume:
+					met.SetResourceName(resp.Metric.Labels["volume"])
+					met.SetResourceDisplayName(resp.Metric.Labels["volume"])
+				case metadata.VolumePool:
+					met.SetResourceName(resp.Metric.Labels["pool_name"])
+					met.SetResourceDisplayName(resp.Metric.Labels["pool_name"])
+				}
+				met.SetRegionName(resp.Metric.Labels["datacenter"])
+				perfMetrics = append(perfMetrics, setupHydratedMetric(timestamp, met, measuredType, extractValue(resp.Points[0].Value)))
+				continue
+			}
+
 			metrics := setupHydratedMetrics(measuredType, resourceType, projectID, resp, timestamp)
 			projectResults = append(projectResults, metrics)
 		}
+	}
+	if g.googleSink != nil {
+		g.googleSink.DeliverMetrics(ctx, perfMetrics)
 	}
 	return projectResults, nil
 }

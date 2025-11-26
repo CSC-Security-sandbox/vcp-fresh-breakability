@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -415,9 +417,10 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_Success(t *testing.T) {
 	mockClient.On("ListTimeSeries", ctx, mock.AnythingOfType("*monitoringpb.ListTimeSeriesRequest")).Return(mockIterator)
 
 	provider := &GoogleVolumeMetricsProvider{
-		client:    mockClient,
-		startTime: time.Now().Add(-time.Hour),
-		endTime:   time.Now(),
+		client:     mockClient,
+		startTime:  time.Now().Add(-time.Hour),
+		endTime:    time.Now(),
+		googleSink: nil, // Set to nil for test
 		metrics: []common.MetricItem{
 			{
 				Metric:       "volume_space_logical_used",
@@ -772,4 +775,370 @@ func TestCollectVolumeMetrics_DirectCall(t *testing.T) {
 		assert.Equal(t, expectedError, err)
 		mockProvider.AssertExpectations(t)
 	})
+}
+
+// TestGoogleVolumeMetricsProvider_CollectProjectMetrics_PerformanceFlow tests the performance metric collection flow
+func TestGoogleVolumeMetricsProvider_CollectProjectMetrics_PerformanceFlow(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+	projectID := "test-project-123"
+	timestamp := time.Now()
+
+	// Create mock client and iterator
+	mockClient := new(MockMonitoringClient)
+	mockIterator := new(MockTimeSeriesIterator)
+
+	// Test performance metrics
+	testMetrics := []common.MetricItem{
+		{Metric: "operations_total", ResourceType: "netapp.com/volume", MetricType: "performance"},
+	}
+
+	// Create GoogleSink for the provider
+	config := common.LoadConfig()
+	googleSink := performance.NewSink(ctx, config)
+
+	provider := &GoogleVolumeMetricsProvider{
+		client:     mockClient,
+		metrics:    testMetrics,
+		startTime:  timestamp.Add(-5 * time.Minute),
+		endTime:    timestamp,
+		googleSink: googleSink,
+	}
+
+	// Create test time series for volume metrics (covers lines 141-154)
+	volumeTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "netapp.com/volume/operations_total",
+			Labels: map[string]string{
+				"metric":          "operations_total",
+				"volume":          "test-volume",
+				"project":         projectID,
+				"datacenter":      "us-central1",
+				"pool_name":       "test-pool",
+				"deployment_name": "test-deployment",
+			},
+		},
+		Points: []*monitoringpb.Point{
+			{
+				Value: &monitoringpb.TypedValue{
+					Value: &monitoringpb.TypedValue_DoubleValue{DoubleValue: 100.5},
+				},
+			},
+		},
+	}
+
+	// Mock the iterator to return our test metrics
+	mockIterator.On("Next").Return(volumeTimeSeries, nil).Once()
+	mockIterator.On("Next").Return(nil, iterator.Done).Once()
+
+	// Mock the client to return our iterator and verify aggregation is set for performance metrics (covers lines 99-114)
+	mockClient.On("ListTimeSeries", ctx, mock.MatchedBy(func(req *monitoringpb.ListTimeSeriesRequest) bool {
+		return req.Aggregation != nil &&
+			req.Aggregation.PerSeriesAligner == monitoringpb.Aggregation_ALIGN_MEAN &&
+			req.Aggregation.CrossSeriesReducer == monitoringpb.Aggregation_REDUCE_MEAN &&
+			len(req.Aggregation.GroupByFields) == 7
+	})).Return(mockIterator)
+
+	result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)
+
+	assert.NoError(t, err)
+	assert.Empty(t, result) // Performance metrics don't get added to project results
+	mockClient.AssertExpectations(t)
+	mockIterator.AssertExpectations(t)
+	// Note: We expect googleSink.DeliverMetrics to be called (covers lines 161-163)
+}
+
+// TestGoogleVolumeMetricsProvider_CollectProjectMetrics_VolumePoolResourceType tests volume pool metrics
+func TestGoogleVolumeMetricsProvider_CollectProjectMetrics_VolumePoolResourceType(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+	projectID := "test-project-123"
+	timestamp := time.Now()
+
+	// Create mock client and iterator
+	mockClient := new(MockMonitoringClient)
+	mockIterator := new(MockTimeSeriesIterator)
+
+	testCases := []struct {
+		name         string
+		resourceType string
+		metricType   string
+		labels       map[string]string
+	}{
+		{
+			name:         "Volume performance metric",
+			resourceType: "Volume",
+			metricType:   "performance",
+			labels: map[string]string{
+				"metric":     "operations_total",
+				"volume":     "test-volume-name",
+				"project":    projectID,
+				"datacenter": "us-central1",
+			},
+		},
+		{
+			name:         "VolumePool performance metric",
+			resourceType: "VolumePool", 
+			metricType:   "performance",
+			labels: map[string]string{
+				"metric":     "space_logical_used",
+				"pool_name":  "test-pool-name",
+				"project":    projectID,
+				"datacenter": "europe-west1",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Test performance metrics for specific resource types
+			testMetrics := []common.MetricItem{
+				{Metric: tc.labels["metric"], ResourceType: "netapp.com/" + strings.ToLower(tc.resourceType), MetricType: tc.metricType},
+			}
+
+			// Create GoogleSink for the provider  
+			config := common.LoadConfig()
+			googleSink := performance.NewSink(ctx, config)
+
+			provider := &GoogleVolumeMetricsProvider{
+				client:     mockClient,
+				metrics:    testMetrics,
+				startTime:  timestamp.Add(-5 * time.Minute),
+				endTime:    timestamp,
+				googleSink: googleSink,
+			}
+
+			// Create test time series that will trigger the performance metric path (lines 140-154)
+			timeSeries := &monitoringpb.TimeSeries{
+				Metric: &metric.Metric{
+					Type:   "netapp.com/" + strings.ToLower(tc.resourceType) + "/" + tc.labels["metric"],
+					Labels: tc.labels,
+				},
+				Points: []*monitoringpb.Point{
+					{
+						Value: &monitoringpb.TypedValue{
+							Value: &monitoringpb.TypedValue_DoubleValue{DoubleValue: 512.0},
+						},
+					},
+				},
+			}
+
+			// Reset mocks for each test case
+			mockClient.ExpectedCalls = nil
+			mockIterator.ExpectedCalls = nil
+
+			// Mock the iterator to return our test metrics
+			mockIterator.On("Next").Return(timeSeries, nil).Once()
+			mockIterator.On("Next").Return(nil, iterator.Done).Once()
+
+			// Mock the client
+			mockClient.On("ListTimeSeries", ctx, mock.Anything).Return(mockIterator)
+
+			result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)
+
+			assert.NoError(t, err)
+			assert.Empty(t, result) // Performance metrics don't get added to project results but are sent to googleSink
+			mockClient.AssertExpectations(t)
+			mockIterator.AssertExpectations(t)
+		})
+	}
+}
+
+// Additional test function to cover performance metric edge cases
+func TestGoogleVolumeMetricsProvider_PerformanceMetricEdgeCases(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+	projectID := "test-project-456"
+	timestamp := time.Now()
+
+	mockClient := new(MockMonitoringClient)
+
+	testMetrics := []common.MetricItem{
+		{Metric: "volume_read_latency", ResourceType: "netapp.com/volume", MetricType: "performance"},
+		{Metric: "pool_client_protocol_reads", ResourceType: "netapp.com/pool", MetricType: "performance"},
+	}
+
+	// Create GoogleSink for the provider
+	config := common.LoadConfig()
+	googleSink := performance.NewSink(ctx, config)
+
+	provider := &GoogleVolumeMetricsProvider{
+		client:     mockClient,
+		metrics:    testMetrics,
+		startTime:  timestamp.Add(-5 * time.Minute),
+		endTime:    timestamp,
+		googleSink: googleSink,
+	}
+
+	// Create test time series for Volume performance metric (covers lines 143-145 for Volume case)  
+	volumeTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "netapp.com/volume/volume_read_latency",
+			Labels: map[string]string{
+				"metric":          "volume_read_latency",
+				"volume":          "test-volume", 
+				"project":         projectID,
+				"datacenter":      "us-west1",
+				"deployment_name": "test-deployment",
+			},
+		},
+		Points: []*monitoringpb.Point{
+			{
+				Value: &monitoringpb.TypedValue{
+					Value: &monitoringpb.TypedValue_DoubleValue{DoubleValue: 15.5},
+				},
+			},
+		},
+	}
+
+	// Create test time series for VolumePool performance metric (covers lines 146-148 for VolumePool case)
+	poolTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "netapp.com/pool/pool_client_protocol_reads",
+			Labels: map[string]string{
+				"metric":          "pool_client_protocol_reads",
+				"pool_name":       "test-pool",
+				"project":         projectID,
+				"datacenter":      "us-west1", 
+				"deployment_name": "test-deployment",
+			},
+		},
+		Points: []*monitoringpb.Point{
+			{
+				Value: &monitoringpb.TypedValue{
+					Value: &monitoringpb.TypedValue_DoubleValue{DoubleValue: 1024.0},
+				},
+			},
+		},
+	}
+
+	// Create separate iterators for each metric (provider calls ListTimeSeries once per metric)
+	mockIterator1 := new(MockTimeSeriesIterator)
+	mockIterator2 := new(MockTimeSeriesIterator)
+
+	// First call for volume_read_latency metric
+	mockIterator1.On("Next").Return(volumeTimeSeries, nil).Once()
+	mockIterator1.On("Next").Return(nil, iterator.Done).Once()
+	mockClient.On("ListTimeSeries", ctx, mock.MatchedBy(func(req *monitoringpb.ListTimeSeriesRequest) bool {
+		return strings.Contains(req.Filter, "volume_read_latency")
+	})).Return(mockIterator1).Once()
+
+	// Second call for pool_client_protocol_reads metric
+	mockIterator2.On("Next").Return(poolTimeSeries, nil).Once()
+	mockIterator2.On("Next").Return(nil, iterator.Done).Once()
+	mockClient.On("ListTimeSeries", ctx, mock.MatchedBy(func(req *monitoringpb.ListTimeSeriesRequest) bool {
+		return strings.Contains(req.Filter, "pool_client_protocol_reads")
+	})).Return(mockIterator2).Once()
+
+	result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)
+
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+	mockClient.AssertExpectations(t)
+	mockIterator1.AssertExpectations(t)
+	mockIterator2.AssertExpectations(t)
+}
+
+func TestGoogleVolumeMetricsProvider_CollectProjectMetrics_PerformanceMetricsSpecificCoverage(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+	projectID := "test-project-performance"
+	timestamp := time.Now()
+
+	mockClient := new(MockMonitoringClient)
+
+	// Test metrics that will specifically trigger performance metric handling code paths
+	testMetrics := []common.MetricItem{
+		{Metric: "volume_write_latency", ResourceType: "netapp.com/volume", MetricType: "performance"},
+		{Metric: "throughput_limit", ResourceType: "netapp.com/volume", MetricType: "performance"},
+		{Metric: "pool_cloud_bin_operation_size", ResourceType: "netapp.com/pool", MetricType: "performance"},
+	}
+
+	// Create GoogleSink for the provider
+	config := common.LoadConfig()
+	googleSink := performance.NewSink(ctx, config)
+
+	provider := &GoogleVolumeMetricsProvider{
+		client:     mockClient,
+		metrics:    testMetrics,
+		startTime:  timestamp.Add(-5 * time.Minute),
+		endTime:    timestamp,
+		googleSink: googleSink,
+	}
+
+	// Multiple Volume performance metrics to ensure line 143-145 coverage
+	volumeLatencyTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "netapp.com/volume/volume_write_latency",
+			Labels: map[string]string{
+				"metric":          "volume_write_latency",
+				"volume":          "performance-test-volume",
+				"project":         projectID,
+				"datacenter":      "europe-west4",
+			},
+		},
+		Points: []*monitoringpb.Point{{Value: &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_DoubleValue{DoubleValue: 25.7}}}},
+	}
+
+	volumeThroughputTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "netapp.com/volume/throughput_limit", 
+			Labels: map[string]string{
+				"metric":          "throughput_limit",
+				"volume":          "throughput-test-volume",
+				"project":         projectID,
+				"datacenter":      "asia-southeast1",
+			},
+		},
+		Points: []*monitoringpb.Point{{Value: &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_DoubleValue{DoubleValue: 512.0}}}},
+	}
+
+	// VolumePool performance metric to ensure line 146-148 coverage
+	poolBinOpTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "netapp.com/pool/pool_cloud_bin_operation_size",
+			Labels: map[string]string{
+				"metric":          "pool_cloud_bin_operation_size",
+				"pool_name":       "performance-test-pool",
+				"project":         projectID,
+				"datacenter":      "us-east1",
+			},
+		},
+		Points: []*monitoringpb.Point{{Value: &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_DoubleValue{DoubleValue: 8192.0}}}},
+	}
+
+	// Create separate iterators for each metric (provider calls ListTimeSeries once per metric)
+	mockIterator1 := new(MockTimeSeriesIterator)
+	mockIterator2 := new(MockTimeSeriesIterator) 
+	mockIterator3 := new(MockTimeSeriesIterator)
+
+	// First call for volume_write_latency metric
+	mockIterator1.On("Next").Return(volumeLatencyTimeSeries, nil).Once()
+	mockIterator1.On("Next").Return(nil, iterator.Done).Once()
+	mockClient.On("ListTimeSeries", ctx, mock.MatchedBy(func(req *monitoringpb.ListTimeSeriesRequest) bool {
+		return strings.Contains(req.Filter, "volume_write_latency")
+	})).Return(mockIterator1).Once()
+
+	// Second call for throughput_limit metric  
+	mockIterator2.On("Next").Return(volumeThroughputTimeSeries, nil).Once()
+	mockIterator2.On("Next").Return(nil, iterator.Done).Once()
+	mockClient.On("ListTimeSeries", ctx, mock.MatchedBy(func(req *monitoringpb.ListTimeSeriesRequest) bool {
+		return strings.Contains(req.Filter, "throughput_limit")
+	})).Return(mockIterator2).Once()
+
+	// Third call for pool_cloud_bin_operation_size metric
+	mockIterator3.On("Next").Return(poolBinOpTimeSeries, nil).Once()
+	mockIterator3.On("Next").Return(nil, iterator.Done).Once()
+	mockClient.On("ListTimeSeries", ctx, mock.MatchedBy(func(req *monitoringpb.ListTimeSeriesRequest) bool {
+		return strings.Contains(req.Filter, "pool_cloud_bin_operation_size")
+	})).Return(mockIterator3).Once()
+
+	result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)
+
+	assert.NoError(t, err)
+	assert.Empty(t, result) // Performance metrics go to googleSink, not returned
+	mockClient.AssertExpectations(t)
+	mockIterator1.AssertExpectations(t)
+	mockIterator2.AssertExpectations(t)
+	mockIterator3.AssertExpectations(t)
 }

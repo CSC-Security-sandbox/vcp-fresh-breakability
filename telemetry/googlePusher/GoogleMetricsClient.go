@@ -434,12 +434,17 @@ func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric)
 	metricValue := &servicecontrol.MetricValue{}
 	mibToKibConverter := 1024
 	metricMeasuredType, _ := metric.GetMeasuredType()
+	metricResourceType, _ := metric.GetResourceType()
 
 	switch metricMeasuredType {
 	case metadata.VolumeAllocatedThroughput:
 		volAllocatedThroughputInMibPerSec, _ := metric.GetDoubleQuantity()
 		volAllocatedThroughputInKibPerSec := int64(volAllocatedThroughputInMibPerSec * float64(mibToKibConverter))
 		metricValue.Int64Value = &volAllocatedThroughputInKibPerSec
+	case metadata.AverageReadLatency, metadata.AverageWriteLatency, metadata.AverageOtherLatency:
+		val, _ := metric.GetDoubleQuantity()
+		metricValue.DoubleValue = &val
+		client.logger.Debugf("Set Metric Value for MeasuredType %s as %f", metricMeasuredType, val)
 	default:
 		val, _ := metric.GetQuantity()
 		metricValue.Int64Value = nillable.ToPointer(val)
@@ -483,6 +488,15 @@ func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric)
 			}
 		}
 	}
+
+	// Add metric-specific labels from Triple (Middle/Right) for performance metrics
+	if metric.GetType() == common.HydratedMetric {
+		nameAndKeyLabel, exists := client.nameAndKeyLabelOfMetric[metadata.CombinedKeyResourceTypeMeasuredType{ResourceType: metricResourceType, MeasuredType: metricMeasuredType}]
+		if exists && nameAndKeyLabel.Middle != "" && nameAndKeyLabel.Right != "" {
+			valueLabels[nameAndKeyLabel.Middle] = nameAndKeyLabel.Right
+		}
+	}
+
 	metricValue.Labels = valueLabels
 
 	client.logger.Debugf("Created metric value - StartTime: %s, EndTime: %s, Labels: %d, Value: %v",

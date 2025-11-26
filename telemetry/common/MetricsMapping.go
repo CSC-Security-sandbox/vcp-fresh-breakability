@@ -43,6 +43,36 @@ func CreateMetricsMappingMap() map[metadata.CombinedKeyResourceTypeMeasuredType]
 		{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.VolumeAllocatedThroughput}: {
 			Left: "throughput_limit", Middle: "", Right: "",
 		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.AverageReadLatency}: {
+			Left: "average_latency", Middle: "method", Right: "read",
+		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.AverageWriteLatency}: {
+			Left: "average_latency", Middle: "method", Right: "write",
+		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.AverageOtherLatency}: {
+			Left: "average_latency", Middle: "method", Right: "metadata",
+		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.ReadIo}: {
+			Left: "throughput", Middle: "type", Right: "read",
+		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.WriteIo}: {
+			Left: "throughput", Middle: "type", Right: "write",
+		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.OtherIo}: {
+			Left: "throughput", Middle: "type", Right: "metadata",
+		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.CoolTier1DataReadSize}: {
+			Left: "auto_tiering/cold_tier_read_byte_count", Middle: "", Right: "",
+		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.CoolTier1DataWriteSize}: {
+			Left: "auto_tiering/cold_tier_write_byte_count", Middle: "", Right: "",
+		},
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTier1DataReadSize}: {
+			Left: "auto_tiering/cold_tier_read_byte_count", Middle: "", Right: "",
+		},
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTier1DataWriteSize}: {
+			Left: "auto_tiering/cold_tier_write_byte_count", Middle: "", Right: "",
+		},
 	}
 	return metricsMappingMap
 }

@@ -1,17 +1,20 @@
 package collector
 
 import (
+	"testing"
+	"time"
+
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"github.com/stretchr/testify/assert"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
-	"testing"
-	"time"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 )
 
 func TestNewGoogleProvider_ReturnsGoogleVolumeMetricsProvider(t *testing.T) {
 	mockTenantProvider := new(MockTenantProjectProvider)
 	mockClient := new(MockMonitoringClient)
+	sink := &performance.GoogleSink{}
 
 	testMetrics := []common.MetricItem{
 		{
@@ -20,7 +23,7 @@ func TestNewGoogleProvider_ReturnsGoogleVolumeMetricsProvider(t *testing.T) {
 		},
 	}
 
-	provider := NewGoogleProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, sink)
 
 	gProvider, ok := provider.(*GoogleVolumeMetricsProvider)
 	assert.True(t, ok, "Expected type *GoogleVolumeMetricsProvider")
@@ -34,13 +37,14 @@ func TestNewGoogleProvider_ReturnsGoogleVolumeMetricsProvider(t *testing.T) {
 func TestNewGoogleVolumeMetricsProvider_InitializesFields(t *testing.T) {
 	mockTenantProvider := new(MockTenantProjectProvider)
 	mockClient := new(MockMonitoringClient)
+	sink := &performance.GoogleSink{}
 	testMetrics := []common.MetricItem{
 		{
 			Metric:       "volume_read_ops",
 			ResourceType: "netapp_volume",
 		},
 	}
-	provider := NewGoogleVolumeMetricsProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := NewGoogleVolumeMetricsProvider(mockTenantProvider, mockClient, testMetrics, sink)
 
 	assert.Equal(t, mockTenantProvider, provider.tenantProjectProvider)
 	assert.Equal(t, mockClient, provider.client)
@@ -77,13 +81,14 @@ func TestNewGoogleTenantProjectProviderSetsDatastore(t *testing.T) {
 func TestNewGoogleVolumeMetricsProviderInitializesFields(t *testing.T) {
 	mockTenantProvider := new(MockTenantProjectProvider)
 	mockClient := new(MockMonitoringClient)
+	sink := &performance.GoogleSink{}
 	testMetrics := []common.MetricItem{
 		{
 			Metric:       "volume_read_ops",
 			ResourceType: "netapp_volume",
 		},
 	}
-	provider := NewGoogleVolumeMetricsProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := NewGoogleVolumeMetricsProvider(mockTenantProvider, mockClient, testMetrics, sink)
 	assert.Equal(t, mockTenantProvider, provider.tenantProjectProvider)
 	assert.Equal(t, mockClient, provider.client)
 	assert.WithinDuration(t, time.Now().Add(-5*time.Minute), provider.startTime, time.Minute)
@@ -93,12 +98,13 @@ func TestNewGoogleVolumeMetricsProviderInitializesFields(t *testing.T) {
 func TestNewGoogleProviderReturnsGoogleVolumeMetricsProvider(t *testing.T) {
 	mockTenantProvider := new(MockTenantProjectProvider)
 	mockClient := new(MockMonitoringClient)
+	sink := &performance.GoogleSink{}
 	testMetrics := []common.MetricItem{
 		{
 			Metric:       "volume_read_ops",
 			ResourceType: "netapp_volume",
 		},
 	}
-	provider := NewGoogleProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, sink)
 	assert.IsType(t, &GoogleVolumeMetricsProvider{}, provider)
 }

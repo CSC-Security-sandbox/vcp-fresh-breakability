@@ -590,7 +590,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsEnabledValidCli
 		},
 	}
 
-	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
 		Pool: datamodel.Pool{
 			Name:         "dummy-pool",
@@ -649,7 +649,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsError(t 
 			ResourceType: "netapp_volume",
 		},
 	}
-	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
 		Pool: datamodel.Pool{
@@ -712,7 +712,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsError(t
 			ResourceType: "netapp_volume",
 		},
 	}
-	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
 		Pool: datamodel.Pool{
@@ -772,7 +772,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 	testMetrics := []common.MetricItem{
 		{Metric: "volume_read_ops", ResourceType: "netapp_volume"},
 	}
-	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
 		Pool: datamodel.Pool{
@@ -841,7 +841,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 			ResourceType: "netapp_volume",
 		},
 	}
-	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
 		Pool: datamodel.Pool{
@@ -906,7 +906,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 			ResourceType: "netapp_volume",
 		},
 	}
-	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics)
+	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
 		Pool: datamodel.Pool{
 			Name:         "dummy-pool",

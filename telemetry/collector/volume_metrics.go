@@ -1,15 +1,17 @@
 package collector
 
 import (
+	"context"
+	"time"
+
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
-	"context"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"time"
 )
 
 // TimeSeriesIterator abstracts the Next method for iterating time series.
@@ -74,18 +76,20 @@ type GoogleVolumeMetricsProvider struct {
 	metrics               []common.MetricItem
 	jobQueue              *utils.JobQueue
 	MetricList            []datamodel.HydratedMetrics
+	googleSink            *performance.GoogleSink
 }
 
-func NewGoogleVolumeMetricsProvider(tenantProjectProvider TenantProjectProvider, client MonitoringClient, VolumeMetrics []common.MetricItem) *GoogleVolumeMetricsProvider {
+func NewGoogleVolumeMetricsProvider(tenantProjectProvider TenantProjectProvider, client MonitoringClient, VolumeMetrics []common.MetricItem, googleSink *performance.GoogleSink) *GoogleVolumeMetricsProvider {
 	return &GoogleVolumeMetricsProvider{
 		tenantProjectProvider: tenantProjectProvider,
 		client:                client,
 		startTime:             time.Now().Add(-5 * time.Minute),
 		endTime:               time.Now(),
 		metrics:               VolumeMetrics,
+		googleSink:            googleSink,
 	}
 }
 
-func NewGoogleProvider(tenantProjectProvider TenantProjectProvider, client MonitoringClient, VolumeMetrics []common.MetricItem) VolumeMetricsProvider {
-	return NewGoogleVolumeMetricsProvider(tenantProjectProvider, client, VolumeMetrics)
+func NewGoogleProvider(tenantProjectProvider TenantProjectProvider, client MonitoringClient, VolumeMetrics []common.MetricItem, googleSink *performance.GoogleSink) VolumeMetricsProvider {
+	return NewGoogleVolumeMetricsProvider(tenantProjectProvider, client, VolumeMetrics, googleSink)
 }
