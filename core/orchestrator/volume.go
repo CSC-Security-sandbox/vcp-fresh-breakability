@@ -1464,6 +1464,8 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 			TieringPolicy:            volume.AutoTieringPolicy.TieringPolicy,
 			HotTierBypassModeEnabled: volume.AutoTieringPolicy.HotTierBypassModeEnabled,
 		}
+		res.HotTierSizeGib = volume.HotTierSizeGib
+		res.ColdTierSizeGib = volume.ColdTierSizeGib
 	}
 
 	if volume.LargeVolumeAttributes != nil {
@@ -1888,7 +1890,24 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to start update volume workflow: ", "error", err)
 		return nil, "", err
 	}
+	dbVolume = updateLatestTieringInformationToVolumeResponse(dbVolume, params)
+
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
+}
+
+func updateLatestTieringInformationToVolumeResponse(dbVolume *datamodel.Volume, updateParams *common.UpdateVolumeParams) *datamodel.Volume {
+	updatedDBVolume := dbVolume
+	if updateParams != nil && updateParams.AutoTieringPolicy != nil {
+		if updatedDBVolume.AutoTieringPolicy == nil {
+			updatedDBVolume.AutoTieringPolicy = &datamodel.AutoTieringPolicy{}
+		}
+		updatedDBVolume.AutoTieringEnabled = updateParams.AutoTieringPolicy.AutoTieringEnabled
+		updatedDBVolume.AutoTieringPolicy.TieringPolicy = updateParams.AutoTieringPolicy.TieringPolicy
+		updatedDBVolume.AutoTieringPolicy.CoolingThresholdDays = updateParams.AutoTieringPolicy.CoolingThresholdDays
+		updatedDBVolume.AutoTieringPolicy.HotTierBypassModeEnabled = updateParams.AutoTieringPolicy.HotTierBypassModeEnabled
+	}
+
+	return updatedDBVolume
 }
 
 func _updateVolumeStatus(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume, state string, stateDetails string) (*datamodel.Volume, error) {

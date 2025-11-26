@@ -403,6 +403,7 @@ func mergeUpdateParamsIntoPoolModel(poolModel *models.Pool, params *commonparams
 
 	// Update AutoTieringConfig only if auto tiering parameters are provided in params
 	if params.AllowAutoTiering || params.HotTierSizeInBytes > 0 {
+		merged.AllowAutoTiering = params.AllowAutoTiering
 		// Create a copy of AutoTieringConfig if it exists, otherwise create new
 		if merged.AutoTieringConfig != nil {
 			// Shallow copy the existing config

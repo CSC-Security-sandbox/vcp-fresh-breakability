@@ -781,11 +781,9 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAll
 				// Only disable HotTierBypassModeEnabled, if it was previously enabled and no tiering policy has come as part of the request body.
 			} else if dbVolume != nil && dbVolume.AutoTieringPolicy != nil && dbVolume.AutoTieringPolicy.HotTierBypassModeEnabled && !req.TieringPolicy.Value.TierAction.IsSet() {
-				param.AutoTieringPolicy.TieringPolicy = dbVolume.AutoTieringPolicy.TieringPolicy
+				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
 				param.AutoTieringPolicy.AutoTieringEnabled = dbVolume.AutoTieringPolicy.AutoTieringEnabled
-				if param.AutoTieringPolicy.TieringPolicy == ontapmodels.VolumeInlineTieringPolicyAuto {
-					param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
-				}
+				param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
 			}
 		}
 	}
@@ -1363,6 +1361,8 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 				CoolingThresholdDays:     gcpgenserver.NewOptNilInt32(volume.AutoTieringPolicy.CoolingThresholdDays),
 				HotTierBypassModeEnabled: gcpgenserver.NewOptNilBool(volume.AutoTieringPolicy.HotTierBypassModeEnabled),
 			})
+		res.HotTierSizeGib = gcpgenserver.NewOptNilFloat64(float64(volume.HotTierSizeGib))
+		res.ColdTierSizeGib = gcpgenserver.NewOptNilFloat64(float64(volume.ColdTierSizeGib))
 	}
 
 	if volume.CacheParameters != nil {
@@ -2696,7 +2696,6 @@ func _prepareSplitCloneVolumeParams(params gcpgenserver.V1betaSplitCloneVolumePa
 
 	return param, nil
 }
-
 
 // validateProtocolsV1beta enforces protocol constraints for FlexCache volume requests.
 // FlexCache volumes are file-only; block protocols (currently iSCSI) must be excluded.

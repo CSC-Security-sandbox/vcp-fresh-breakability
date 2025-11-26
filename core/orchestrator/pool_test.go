@@ -5357,3 +5357,438 @@ func TestCreateExpertModeUser(t *testing.T) {
 		assert.Equal(tt, "nodepwd", c.Password)
 	})
 }
+
+func Test_mergeUpdateParamsIntoPoolModel(t *testing.T) {
+	t.Run("WhenNoAutoTieringParamsProvided", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776, // 1 TB
+			AllowAutoTiering: false,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      107374182400, // 100 GB
+				EnableHotTierAutoResize: false,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+				Labels: map[string]string{
+					"env": "test",
+				},
+			},
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:             "test-pool-uuid",
+			SizeInBytes:        2199023255552, // 2 TB
+			AllowAutoTiering:   false,
+			HotTierSizeInBytes: 0,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.NotEqual(tt, poolModel, result, "Should return a new pool pointer (shallow copy)")
+		assert.Equal(tt, uint64(2199023255552), result.SizeInBytes, "SizeInBytes should be updated")
+		// AutoTieringConfig should remain unchanged since no auto tiering params were provided
+		assert.NotNil(tt, result.AutoTieringConfig)
+		assert.Equal(tt, uint64(107374182400), result.AutoTieringConfig.HotTierSizeInBytes)
+		assert.False(tt, result.AutoTieringConfig.EnableHotTierAutoResize)
+		assert.False(tt, result.AllowAutoTiering)
+		// Original pool should be unchanged
+		assert.Equal(tt, uint64(1099511627776), poolModel.SizeInBytes)
+	})
+
+	t.Run("WhenAllowAutoTieringIsTrue", func(tt *testing.T) {
+		// Arrange - Testing line 400 specifically
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: false,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      107374182400,
+				EnableHotTierAutoResize: false,
+			},
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:                  "test-pool-uuid",
+			AllowAutoTiering:        true,         // This triggers line 399 condition
+			HotTierSizeInBytes:      214748364800, // 200 GB
+			EnableHotTierAutoResize: true,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert - Line 400 should set AllowAutoTiering from params
+		assert.NotNil(tt, result)
+		assert.True(tt, result.AllowAutoTiering, "Line 400: AllowAutoTiering should be set from params")
+		assert.NotNil(tt, result.AutoTieringConfig)
+		assert.Equal(tt, uint64(214748364800), result.AutoTieringConfig.HotTierSizeInBytes)
+		assert.True(tt, result.AutoTieringConfig.EnableHotTierAutoResize)
+		// Original pool should be unchanged
+		assert.False(tt, poolModel.AllowAutoTiering)
+	})
+
+	t.Run("WhenHotTierSizeInBytesProvidedWithoutAllowAutoTiering", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      107374182400,
+				EnableHotTierAutoResize: false,
+			},
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:                  "test-pool-uuid",
+			AllowAutoTiering:        false,
+			HotTierSizeInBytes:      214748364800, // This triggers line 399 condition
+			EnableHotTierAutoResize: true,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert - Line 400 should set AllowAutoTiering to false from params
+		assert.NotNil(tt, result)
+		assert.False(tt, result.AllowAutoTiering, "Line 400: AllowAutoTiering should be false from params")
+		assert.NotNil(tt, result.AutoTieringConfig)
+		assert.Equal(tt, uint64(214748364800), result.AutoTieringConfig.HotTierSizeInBytes)
+		assert.True(tt, result.AutoTieringConfig.EnableHotTierAutoResize)
+	})
+
+	t.Run("WhenAutoTieringConfigIsNil", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:              "test-pool",
+			SizeInBytes:       1099511627776,
+			AllowAutoTiering:  false,
+			AutoTieringConfig: nil, // Test case where config is nil
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:                  "test-pool-uuid",
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      214748364800,
+			EnableHotTierAutoResize: true,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.True(tt, result.AllowAutoTiering, "Line 400: AllowAutoTiering should be set to true")
+		assert.NotNil(tt, result.AutoTieringConfig, "AutoTieringConfig should be created")
+		assert.Equal(tt, uint64(214748364800), result.AutoTieringConfig.HotTierSizeInBytes)
+		assert.True(tt, result.AutoTieringConfig.EnableHotTierAutoResize)
+		// Original pool should still have nil config
+		assert.Nil(tt, poolModel.AutoTieringConfig)
+	})
+
+	t.Run("WhenAutoTieringConfigExists", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      107374182400,
+				EnableHotTierAutoResize: false,
+				BucketName:              "existing-bucket",
+				HotTierConsumption:      50000000000,
+				ColdTierConsumption:     57374182400,
+			},
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:                  "test-pool-uuid",
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      214748364800,
+			EnableHotTierAutoResize: true,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.True(tt, result.AllowAutoTiering)
+		assert.NotNil(tt, result.AutoTieringConfig)
+		assert.NotEqual(tt, poolModel.AutoTieringConfig, result.AutoTieringConfig, "Should create a copy of AutoTieringConfig")
+		// Updated fields
+		assert.Equal(tt, uint64(214748364800), result.AutoTieringConfig.HotTierSizeInBytes)
+		assert.True(tt, result.AutoTieringConfig.EnableHotTierAutoResize)
+		// Preserved fields from existing config
+		assert.Equal(tt, "existing-bucket", result.AutoTieringConfig.BucketName)
+		assert.Equal(tt, int64(50000000000), result.AutoTieringConfig.HotTierConsumption)
+		assert.Equal(tt, int64(57374182400), result.AutoTieringConfig.ColdTierConsumption)
+		// Original should be unchanged
+		assert.Equal(tt, uint64(107374182400), poolModel.AutoTieringConfig.HotTierSizeInBytes)
+		assert.False(tt, poolModel.AutoTieringConfig.EnableHotTierAutoResize)
+	})
+
+	t.Run("WhenOnlyEnableHotTierAutoResizeIsUpdated", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      107374182400,
+				EnableHotTierAutoResize: false,
+			},
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:                  "test-pool-uuid",
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      0, // Not provided
+			EnableHotTierAutoResize: true,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.True(tt, result.AllowAutoTiering)
+		assert.NotNil(tt, result.AutoTieringConfig)
+		// HotTierSizeInBytes should remain unchanged since params.HotTierSizeInBytes is 0
+		assert.Equal(tt, uint64(107374182400), result.AutoTieringConfig.HotTierSizeInBytes)
+		assert.True(tt, result.AutoTieringConfig.EnableHotTierAutoResize)
+	})
+
+	t.Run("WhenPoolAttributesWithLabelsAreCopied", func(tt *testing.T) {
+		// Arrange
+		originalLabels := map[string]string{
+			"env":  "production",
+			"team": "platform",
+		}
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: false,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone:   "us-west1-a",
+				SecondaryZone: "us-west1-b",
+				IsRegionalHA:  true,
+				Labels:        originalLabels,
+			},
+		}
+		originalPoolAttributesPtr := poolModel.PoolAttributes
+		params := &common.UpdatePoolParams{
+			PoolId:             "test-pool-uuid",
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: 214748364800,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert
+		assert.NotNil(tt, result)
+		// PoolAttributes pointer should be different (shallow copy created)
+		assert.True(tt, result.PoolAttributes != originalPoolAttributesPtr, "PoolAttributes pointer should be different")
+		assert.Equal(tt, "us-west1-a", result.PoolAttributes.PrimaryZone)
+		assert.Equal(tt, "us-west1-b", result.PoolAttributes.SecondaryZone)
+		assert.True(tt, result.PoolAttributes.IsRegionalHA)
+		assert.Equal(tt, 2, len(result.PoolAttributes.Labels))
+		assert.Equal(tt, "production", result.PoolAttributes.Labels["env"])
+		assert.Equal(tt, "platform", result.PoolAttributes.Labels["team"])
+		// Mutating result labels should not affect original
+		result.PoolAttributes.Labels["env"] = "staging"
+		assert.Equal(tt, "production", originalLabels["env"], "Original labels should be unchanged")
+	})
+
+	t.Run("WhenPoolAttributesIsNil", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: false,
+			PoolAttributes:   nil,
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:             "test-pool-uuid",
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: 214748364800,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Nil(tt, result.PoolAttributes, "PoolAttributes should remain nil")
+		assert.True(tt, result.AllowAutoTiering)
+	})
+
+	t.Run("WhenDisablingAutoTiering", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: true,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      107374182400,
+				EnableHotTierAutoResize: true,
+			},
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:                  "test-pool-uuid",
+			AllowAutoTiering:        false,
+			HotTierSizeInBytes:      214748364800, // Still updating hot tier size
+			EnableHotTierAutoResize: false,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert - Line 400 should set AllowAutoTiering to false
+		assert.NotNil(tt, result)
+		assert.False(tt, result.AllowAutoTiering, "Line 400: AllowAutoTiering should be disabled")
+		assert.NotNil(tt, result.AutoTieringConfig)
+		assert.Equal(tt, uint64(214748364800), result.AutoTieringConfig.HotTierSizeInBytes)
+		assert.False(tt, result.AutoTieringConfig.EnableHotTierAutoResize)
+	})
+
+	t.Run("WhenSizeInBytesIsZero", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: false,
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:             "test-pool-uuid",
+			SizeInBytes:        0, // Not provided
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: 214748364800,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, uint64(1099511627776), result.SizeInBytes, "SizeInBytes should remain unchanged")
+		assert.True(tt, result.AllowAutoTiering)
+	})
+
+	t.Run("WhenBothSizeAndAutoTieringUpdated", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: false,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      107374182400,
+				EnableHotTierAutoResize: false,
+			},
+		}
+		params := &common.UpdatePoolParams{
+			PoolId:                  "test-pool-uuid",
+			SizeInBytes:             3298534883328, // 3 TB
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      322122547200, // 300 GB
+			EnableHotTierAutoResize: true,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, uint64(3298534883328), result.SizeInBytes, "SizeInBytes should be updated")
+		assert.True(tt, result.AllowAutoTiering, "Line 400: AllowAutoTiering should be updated")
+		assert.NotNil(tt, result.AutoTieringConfig)
+		assert.Equal(tt, uint64(322122547200), result.AutoTieringConfig.HotTierSizeInBytes)
+		assert.True(tt, result.AutoTieringConfig.EnableHotTierAutoResize)
+		// Original should be unchanged
+		assert.Equal(tt, uint64(1099511627776), poolModel.SizeInBytes)
+		assert.False(tt, poolModel.AllowAutoTiering)
+	})
+
+	t.Run("WhenAllFieldsRemainUnchanged", func(tt *testing.T) {
+		// Arrange
+		poolModel := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			Description:      "Test pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: true,
+			Region:           "us-west1",
+			Zone:             "us-west1-a",
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      107374182400,
+				EnableHotTierAutoResize: true,
+				BucketName:              "test-bucket",
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+				Labels: map[string]string{
+					"env": "test",
+				},
+			},
+		}
+		originalPoolPtr := poolModel
+		params := &common.UpdatePoolParams{
+			PoolId:             "test-pool-uuid",
+			SizeInBytes:        0,
+			AllowAutoTiering:   false,
+			HotTierSizeInBytes: 0,
+		}
+
+		// Act
+		result := mergeUpdateParamsIntoPoolModel(poolModel, params)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.True(tt, result != originalPoolPtr, "Should return a different pool pointer (shallow copy)")
+		// All fields should remain unchanged except the shallow copy
+		assert.Equal(tt, poolModel.Name, result.Name)
+		assert.Equal(tt, poolModel.Description, result.Description)
+		assert.Equal(tt, poolModel.SizeInBytes, result.SizeInBytes)
+		assert.Equal(tt, poolModel.AllowAutoTiering, result.AllowAutoTiering)
+		assert.Equal(tt, poolModel.Region, result.Region)
+		assert.Equal(tt, poolModel.Zone, result.Zone)
+		// AutoTieringConfig should remain unchanged (no auto tiering params provided)
+		assert.Equal(tt, poolModel.AutoTieringConfig.HotTierSizeInBytes, result.AutoTieringConfig.HotTierSizeInBytes)
+		assert.Equal(tt, poolModel.AutoTieringConfig.EnableHotTierAutoResize, result.AutoTieringConfig.EnableHotTierAutoResize)
+	})
+}

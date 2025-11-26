@@ -803,6 +803,8 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 	if pool.AllowAutoTiering {
 		poolV1beta.HotTierSizeInBytes = gcpgenserver.NewOptNilFloat64(getHotTierSizeInBytes(pool.AutoTieringConfig))
 		poolV1beta.EnableHotTierAutoResize = gcpgenserver.NewOptNilBool(getEnableHotTierAutoResize(pool.AutoTieringConfig))
+		poolV1beta.HotTierConsumption = getHotTierConsumptionOpt(pool.AutoTieringConfig)
+		poolV1beta.ColdTierConsumption = getColdTierConsumptionOpt(pool.AutoTieringConfig)
 	}
 
 	return poolV1beta

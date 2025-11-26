@@ -23406,3 +23406,462 @@ func TestCreateVolume_IdempotencyJobTypeLookup(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func Test_updateLatestTieringInformationToVolumeResponse(t *testing.T) {
+	t.Run("WhenUpdateParamsIsNil", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, nil)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		assert.True(tt, result.AutoTieringEnabled, "AutoTieringEnabled should remain unchanged")
+		assert.NotNil(tt, result.AutoTieringPolicy, "AutoTieringPolicy should remain unchanged")
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(31), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenUpdateParamsAutoTieringPolicyIsNil", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId:          "test-volume-uuid",
+			AutoTieringPolicy: nil,
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		assert.True(tt, result.AutoTieringEnabled, "AutoTieringEnabled should remain unchanged")
+		assert.NotNil(tt, result.AutoTieringPolicy, "AutoTieringPolicy should remain unchanged")
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(31), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenVolumeAutoTieringPolicyIsNilAndUpdateParamsHasAutoTieringPolicy", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: false,
+			AutoTieringPolicy:  nil,
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "snapshot-only",
+				CoolingThresholdDays:     45,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		assert.True(tt, result.AutoTieringEnabled, "AutoTieringEnabled should be updated from params")
+		assert.NotNil(tt, result.AutoTieringPolicy, "AutoTieringPolicy should be initialized")
+		assert.Equal(tt, "snapshot-only", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(45), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenVolumeAutoTieringPolicyExistsAndUpdateParamsHasNewValues", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       false,
+				TieringPolicy:            "none",
+				CoolingThresholdDays:     60,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		assert.False(tt, result.AutoTieringEnabled, "AutoTieringEnabled should be updated from params")
+		assert.NotNil(tt, result.AutoTieringPolicy, "AutoTieringPolicy should exist")
+		assert.Equal(tt, "none", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(60), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenEnablingAutoTieringWithAllPolicyValues", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: false,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "",
+				CoolingThresholdDays:     0,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "all",
+				CoolingThresholdDays:     14,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		assert.True(tt, result.AutoTieringEnabled, "AutoTieringEnabled should be updated to true")
+		assert.NotNil(tt, result.AutoTieringPolicy, "AutoTieringPolicy should exist")
+		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(14), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenUpdatingOnlyTieringPolicy", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "backup",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		assert.True(tt, result.AutoTieringEnabled)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, "backup", result.AutoTieringPolicy.TieringPolicy, "TieringPolicy should be updated")
+		assert.Equal(tt, int32(31), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenUpdatingOnlyCoolingThresholdDays", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     90,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		assert.True(tt, result.AutoTieringEnabled)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(90), result.AutoTieringPolicy.CoolingThresholdDays, "CoolingThresholdDays should be updated")
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenUpdatingOnlyHotTierBypassModeEnabled", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		assert.True(tt, result.AutoTieringEnabled)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(31), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled, "HotTierBypassModeEnabled should be updated")
+	})
+
+	t.Run("WhenDisablingAutoTiering", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       false,
+				TieringPolicy:            "none",
+				CoolingThresholdDays:     0,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		assert.False(tt, result.AutoTieringEnabled, "AutoTieringEnabled should be disabled")
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, "none", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(0), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenVolumeHasMinimalCoolingThresholdDays", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: false,
+			AutoTieringPolicy:  nil,
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     2, // Minimal threshold
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.True(tt, result.AutoTieringEnabled)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(2), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenVolumeHasMaximalCoolingThresholdDays", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: false,
+			AutoTieringPolicy:  nil,
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     183, // Maximum threshold
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.True(tt, result.AutoTieringEnabled)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(183), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("WhenVolumeHasOtherFieldsUnaffected", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			Description:        "Test volume description",
+			State:              "available",
+			SizeInBytes:        107374182400, // 100 GB
+			AutoTieringEnabled: false,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:            "none",
+				CoolingThresholdDays:     0,
+				HotTierBypassModeEnabled: false,
+			},
+			HotTierSizeGib:  50,
+			ColdTierSizeGib: 50,
+		}
+		updateParams := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "snapshot-only",
+				CoolingThresholdDays:     45,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		// Act
+		result := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams)
+
+		// Assert
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbVolume, result, "Should return the same volume pointer")
+		// Verify tiering fields are updated
+		assert.True(tt, result.AutoTieringEnabled)
+		assert.Equal(tt, "snapshot-only", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(45), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		// Verify other fields remain unchanged
+		assert.Equal(tt, "test-volume", result.Name)
+		assert.Equal(tt, "Test volume description", result.Description)
+		assert.Equal(tt, "available", result.State)
+		assert.Equal(tt, int64(107374182400), result.SizeInBytes)
+		assert.Equal(tt, uint64(50), result.HotTierSizeGib)
+		assert.Equal(tt, uint64(50), result.ColdTierSizeGib)
+	})
+
+	t.Run("WhenMultipleSequentialUpdates", func(tt *testing.T) {
+		// Arrange
+		dbVolume := &datamodel.Volume{
+			BaseModel:          datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:               "test-volume",
+			AutoTieringEnabled: false,
+			AutoTieringPolicy:  nil,
+		}
+
+		// First update - enable tiering
+		updateParams1 := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     31,
+				HotTierBypassModeEnabled: false,
+			},
+		}
+
+		// Act - First update
+		result1 := updateLatestTieringInformationToVolumeResponse(dbVolume, updateParams1)
+
+		// Assert - First update
+		assert.True(tt, result1.AutoTieringEnabled)
+		assert.Equal(tt, "auto", result1.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(31), result1.AutoTieringPolicy.CoolingThresholdDays)
+		assert.False(tt, result1.AutoTieringPolicy.HotTierBypassModeEnabled)
+
+		// Second update - change policy
+		updateParams2 := &common.UpdateVolumeParams{
+			VolumeId: "test-volume-uuid",
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				TieringPolicy:            "snapshot-only",
+				CoolingThresholdDays:     60,
+				HotTierBypassModeEnabled: true,
+			},
+		}
+
+		// Act - Second update
+		result2 := updateLatestTieringInformationToVolumeResponse(result1, updateParams2)
+
+		// Assert - Second update
+		assert.True(tt, result2.AutoTieringEnabled)
+		assert.Equal(tt, "snapshot-only", result2.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(60), result2.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result2.AutoTieringPolicy.HotTierBypassModeEnabled)
+
+		// Verify both results point to the same volume
+		assert.Equal(tt, result1, result2, "Should be the same volume pointer")
+	})
+}

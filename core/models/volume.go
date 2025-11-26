@@ -40,6 +40,8 @@ type Volume struct {
 	IsClone                     bool
 	CloneSharedBytes            uint64
 	IncrementalSpaceInBytes     uint64
+	HotTierSizeGib              uint64
+	ColdTierSizeGib             uint64
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume

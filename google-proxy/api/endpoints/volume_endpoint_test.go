@@ -8340,6 +8340,8 @@ func TestConvertModelToVCPVolume_AutoTieringPolicy(t *testing.T) {
 				CoolingThresholdDays:     30,
 				HotTierBypassModeEnabled: true,
 			},
+			HotTierSizeGib:  100,
+			ColdTierSizeGib: 200,
 		}
 
 		result := convertModelToVCPVolume(vol)
@@ -8352,6 +8354,12 @@ func TestConvertModelToVCPVolume_AutoTieringPolicy(t *testing.T) {
 		assert.Equal(tt, int32(30), tieringPolicy.CoolingThresholdDays.Value)
 		assert.True(tt, tieringPolicy.HotTierBypassModeEnabled.IsSet())
 		assert.True(tt, tieringPolicy.HotTierBypassModeEnabled.Value)
+
+		// Assert HotTierSizeGib and ColdTierSizeGib are set
+		assert.True(tt, result.HotTierSizeGib.IsSet(), "HotTierSizeGib should be set when AutoTieringPolicy exists")
+		assert.Equal(tt, float64(100), result.HotTierSizeGib.Value, "HotTierSizeGib should match volume.HotTierSizeGib")
+		assert.True(tt, result.ColdTierSizeGib.IsSet(), "ColdTierSizeGib should be set when AutoTieringPolicy exists")
+		assert.Equal(tt, float64(200), result.ColdTierSizeGib.Value, "ColdTierSizeGib should match volume.ColdTierSizeGib")
 	})
 
 	t.Run("AutoTieringPolicy_WithHotTierBypassModeDisabled_ShouldIncludeAllFields", func(tt *testing.T) {
@@ -8362,6 +8370,8 @@ func TestConvertModelToVCPVolume_AutoTieringPolicy(t *testing.T) {
 				CoolingThresholdDays:     45,
 				HotTierBypassModeEnabled: false,
 			},
+			HotTierSizeGib:  250,
+			ColdTierSizeGib: 750,
 		}
 
 		result := convertModelToVCPVolume(vol)
@@ -8374,6 +8384,12 @@ func TestConvertModelToVCPVolume_AutoTieringPolicy(t *testing.T) {
 		assert.Equal(tt, int32(45), tieringPolicy.CoolingThresholdDays.Value)
 		assert.True(tt, tieringPolicy.HotTierBypassModeEnabled.IsSet())
 		assert.False(tt, tieringPolicy.HotTierBypassModeEnabled.Value)
+
+		// Assert HotTierSizeGib and ColdTierSizeGib are set
+		assert.True(tt, result.HotTierSizeGib.IsSet(), " HotTierSizeGib should be set")
+		assert.Equal(tt, float64(250), result.HotTierSizeGib.Value, " HotTierSizeGib should be 250")
+		assert.True(tt, result.ColdTierSizeGib.IsSet(), " ColdTierSizeGib should be set")
+		assert.Equal(tt, float64(750), result.ColdTierSizeGib.Value, " ColdTierSizeGib should be 750")
 	})
 
 	t.Run("AutoTieringPolicy_Paused_ShouldIncludeTieringPolicyWithPAUSED", func(tt *testing.T) {
@@ -8384,6 +8400,8 @@ func TestConvertModelToVCPVolume_AutoTieringPolicy(t *testing.T) {
 				CoolingThresholdDays:     30,
 				HotTierBypassModeEnabled: false,
 			},
+			HotTierSizeGib:  50,
+			ColdTierSizeGib: 950,
 		}
 
 		result := convertModelToVCPVolume(vol)
@@ -8396,16 +8414,73 @@ func TestConvertModelToVCPVolume_AutoTieringPolicy(t *testing.T) {
 		assert.Equal(tt, int32(30), tieringPolicy.CoolingThresholdDays.Value)
 		assert.True(tt, tieringPolicy.HotTierBypassModeEnabled.IsSet())
 		assert.False(tt, tieringPolicy.HotTierBypassModeEnabled.Value)
+
+		// Assert HotTierSizeGib and ColdTierSizeGib are set even when paused
+		assert.True(tt, result.HotTierSizeGib.IsSet(), " HotTierSizeGib should be set even when tiering is paused")
+		assert.Equal(tt, float64(50), result.HotTierSizeGib.Value, " HotTierSizeGib should be 50")
+		assert.True(tt, result.ColdTierSizeGib.IsSet(), " ColdTierSizeGib should be set even when tiering is paused")
+		assert.Equal(tt, float64(950), result.ColdTierSizeGib.Value, " ColdTierSizeGib should be 950")
 	})
 
 	t.Run("NoAutoTieringPolicy_ShouldNotIncludeTieringPolicy", func(tt *testing.T) {
 		vol := &models.Volume{
-			BaseModel: models.BaseModel{UUID: "vol-1"},
+			BaseModel:       models.BaseModel{UUID: "vol-1"},
+			HotTierSizeGib:  100,
+			ColdTierSizeGib: 200,
 		}
 
 		result := convertModelToVCPVolume(vol)
 
 		assert.False(tt, result.TieringPolicy.IsSet())
+		// Should NOT be executed when AutoTieringPolicy is nil
+		assert.False(tt, result.HotTierSizeGib.IsSet(), " HotTierSizeGib should NOT be set when AutoTieringPolicy is nil")
+		assert.False(tt, result.ColdTierSizeGib.IsSet(), " ColdTierSizeGib should NOT be set when AutoTieringPolicy is nil")
+	})
+
+	t.Run("AutoTieringPolicy_WithZeroTierSizes_ShouldSetZeroValues", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				CoolingThresholdDays:     30,
+				HotTierBypassModeEnabled: false,
+			},
+			HotTierSizeGib:  0,
+			ColdTierSizeGib: 0,
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.True(tt, result.TieringPolicy.IsSet())
+
+		// Assert set even with zero values
+		assert.True(tt, result.HotTierSizeGib.IsSet(), " HotTierSizeGib should be set even with zero value")
+		assert.Equal(tt, float64(0), result.HotTierSizeGib.Value, " HotTierSizeGib should be 0")
+		assert.True(tt, result.ColdTierSizeGib.IsSet(), " ColdTierSizeGib should be set even with zero value")
+		assert.Equal(tt, float64(0), result.ColdTierSizeGib.Value, " ColdTierSizeGib should be 0")
+	})
+
+	t.Run("AutoTieringPolicy_WithLargeTierSizes_ShouldHandleLargeValues", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				CoolingThresholdDays:     60,
+				HotTierBypassModeEnabled: true,
+			},
+			HotTierSizeGib:  10000,
+			ColdTierSizeGib: 90000,
+		}
+
+		result := convertModelToVCPVolume(vol)
+
+		assert.True(tt, result.TieringPolicy.IsSet())
+
+		// Assert that it should handle large values correctly
+		assert.True(tt, result.HotTierSizeGib.IsSet(), " HotTierSizeGib should be set with large value")
+		assert.Equal(tt, float64(10000), result.HotTierSizeGib.Value, " HotTierSizeGib should be 10000")
+		assert.True(tt, result.ColdTierSizeGib.IsSet(), " ColdTierSizeGib should be set with large value")
+		assert.Equal(tt, float64(90000), result.ColdTierSizeGib.Value, " ColdTierSizeGib should be 90000")
 	})
 }
 

@@ -3959,12 +3959,13 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "test-pool-uuid",
 			},
-			Name:           "test-pool",
-			Description:    "Test pool description",
-			SizeInBytes:    1099511627776,
-			ServiceLevel:   "PREMIUM",
-			QosType:        "auto",
-			PoolAttributes: &models.PoolAttributes{},
+			Name:             "test-pool",
+			Description:      "Test pool description",
+			SizeInBytes:      1099511627776,
+			ServiceLevel:     "PREMIUM",
+			QosType:          "auto",
+			AllowAutoTiering: true, // Enable auto-tiering to test lines 789-790
+			PoolAttributes:   &models.PoolAttributes{},
 			AutoTieringConfig: &models.AutoTieringConfig{
 				HotTierSizeInBytes:      500000000000,
 				EnableHotTierAutoResize: true,
@@ -3978,9 +3979,11 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
-		// Consumption fields should not be set in convertToPoolV1Beta (used for create/update responses)
-		assert.False(tt, result.HotTierConsumption.IsSet())
-		assert.False(tt, result.ColdTierConsumption.IsSet())
+		// Lines 789-790: Consumption fields should be set when AllowAutoTiering is true
+		assert.True(tt, result.HotTierConsumption.IsSet(), "Line 789: HotTierConsumption should be set when AllowAutoTiering is true")
+		assert.Equal(tt, int64(250000000000), result.HotTierConsumption.Value, "Line 789: HotTierConsumption should match config value")
+		assert.True(tt, result.ColdTierConsumption.IsSet(), "Line 790: ColdTierConsumption should be set when AllowAutoTiering is true")
+		assert.Equal(tt, int64(150000000000), result.ColdTierConsumption.Value, "Line 790: ColdTierConsumption should match config value")
 	})
 
 	t.Run("WhenPoolHasNoAutoTieringConfig", func(tt *testing.T) {
@@ -4227,6 +4230,187 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 		asset := metadata.ChildAssets.Value[0]
 		assert.Equal(tt, "database", asset.AssetType.Value)
 		assert.Equal(tt, []string{"db1", "db2", "db3"}, asset.AssetNames)
+	})
+
+	// Additional tests specifically for lines 789-790
+	t.Run("WhenAllowAutoTieringIsFalse_ShouldNotSetConsumption", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: false, // Lines 789-790 should NOT execute
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      100000000000,
+				ColdTierConsumption:     200000000000,
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		// Lines 789-790 should NOT execute when AllowAutoTiering is false
+		assert.False(tt, result.HotTierConsumption.IsSet(), "Line 789 should NOT execute when AllowAutoTiering is false")
+		assert.False(tt, result.ColdTierConsumption.IsSet(), "Line 790 should NOT execute when AllowAutoTiering is false")
+	})
+
+	t.Run("WhenAllowAutoTieringTrueButNilConfig_ShouldHandleGracefully", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:              "test-pool",
+			SizeInBytes:       1099511627776,
+			AllowAutoTiering:  true, // Lines 789-790 should execute
+			PoolAttributes:    &models.PoolAttributes{},
+			AutoTieringConfig: nil, // But config is nil
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		// Lines 789-790 execute, but helper functions return empty opt when config is nil
+		assert.False(tt, result.HotTierConsumption.IsSet(), "Line 789: Should handle nil config gracefully")
+		assert.False(tt, result.ColdTierConsumption.IsSet(), "Line 790: Should handle nil config gracefully")
+	})
+
+	t.Run("WhenAllowAutoTieringTrueWithZeroConsumption_ShouldSetZeroValues", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: true, // Lines 789-790 should execute
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      0, // Zero consumption
+				ColdTierConsumption:     0, // Zero consumption
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		// Lines 789-790: Should set even with zero values
+		assert.True(tt, result.HotTierConsumption.IsSet(), "Line 789: Should set even with zero value")
+		assert.Equal(tt, int64(0), result.HotTierConsumption.Value, "Line 789: Should be zero")
+		assert.True(tt, result.ColdTierConsumption.IsSet(), "Line 790: Should set even with zero value")
+		assert.Equal(tt, int64(0), result.ColdTierConsumption.Value, "Line 790: Should be zero")
+	})
+
+	t.Run("WhenAllowAutoTieringTrueWithLargeConsumption_ShouldHandleLargeValues", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      10995116277760, // 10 TiB
+			AllowAutoTiering: true,           // Lines 789-790 should execute
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1099511627776, // 1 TiB
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      900000000000,  // 900 GB
+				ColdTierConsumption:     9000000000000, // 9 TB
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		// Lines 789-790: Should handle large values correctly
+		assert.True(tt, result.HotTierConsumption.IsSet(), "Line 789: Should handle large values")
+		assert.Equal(tt, int64(900000000000), result.HotTierConsumption.Value, "Line 789: Should match large value")
+		assert.True(tt, result.ColdTierConsumption.IsSet(), "Line 790: Should handle large values")
+		assert.Equal(tt, int64(9000000000000), result.ColdTierConsumption.Value, "Line 790: Should match large value")
+	})
+
+	t.Run("WhenAllowAutoTieringTrueWithNegativeConsumption_ShouldSetNegativeValues", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: true, // Lines 789-790 should execute
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      -100000000000, // Negative (edge case)
+				ColdTierConsumption:     -200000000000, // Negative (edge case)
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		// Lines 789-790: Should set even with negative values (edge case)
+		assert.True(tt, result.HotTierConsumption.IsSet(), "Line 789: Should set even with negative value")
+		assert.Equal(tt, int64(-100000000000), result.HotTierConsumption.Value, "Line 789: Should handle negative")
+		assert.True(tt, result.ColdTierConsumption.IsSet(), "Line 790: Should set even with negative value")
+		assert.Equal(tt, int64(-200000000000), result.ColdTierConsumption.Value, "Line 790: Should handle negative")
+	})
+
+	t.Run("WhenAllowAutoTieringTrueWithOnlyHotConsumption_ShouldSetBothFields", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: true, // Lines 789-790 should execute
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      300000000000, // Only hot has value
+				ColdTierConsumption:     0,            // Cold is zero
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		// Lines 789-790: Both should be set
+		assert.True(tt, result.HotTierConsumption.IsSet(), "Line 789: Should be set")
+		assert.Equal(tt, int64(300000000000), result.HotTierConsumption.Value, "Line 789: Should match hot value")
+		assert.True(tt, result.ColdTierConsumption.IsSet(), "Line 790: Should be set even if zero")
+		assert.Equal(tt, int64(0), result.ColdTierConsumption.Value, "Line 790: Should be zero")
+	})
+
+	t.Run("WhenAllowAutoTieringTrueWithOnlyColdConsumption_ShouldSetBothFields", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			Name:             "test-pool",
+			SizeInBytes:      1099511627776,
+			AllowAutoTiering: true, // Lines 789-790 should execute
+			PoolAttributes:   &models.PoolAttributes{},
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      500000000000,
+				EnableHotTierAutoResize: true,
+				HotTierConsumption:      0,            // Hot is zero
+				ColdTierConsumption:     400000000000, // Only cold has value
+			},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		// Lines 789-790: Both should be set
+		assert.True(tt, result.HotTierConsumption.IsSet(), "Line 789: Should be set even if zero")
+		assert.Equal(tt, int64(0), result.HotTierConsumption.Value, "Line 789: Should be zero")
+		assert.True(tt, result.ColdTierConsumption.IsSet(), "Line 790: Should be set")
+		assert.Equal(tt, int64(400000000000), result.ColdTierConsumption.Value, "Line 790: Should match cold value")
 	})
 }
 
