@@ -5382,6 +5382,9 @@ func TestCreateAutoTieringParams_WithAutoPolicy(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 		},
 		AccountID: 123,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
 	}
 
 	result, err := activities.CreateAutoTieringParams(ctx, mockStorage, params, volume)
@@ -5411,6 +5414,9 @@ func TestCreateAutoTieringParams_WithSnapshotOnlyPolicy(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 		},
 		AccountID: 123,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
 	}
 
 	result, err := activities.CreateAutoTieringParams(ctx, mockStorage, params, volume)
@@ -5440,6 +5446,9 @@ func TestCreateAutoTieringParams_WithNonePolicy(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 		},
 		AccountID: 123,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
 	}
 
 	result, err := activities.CreateAutoTieringParams(ctx, mockStorage, params, volume)
@@ -5449,6 +5458,70 @@ func TestCreateAutoTieringParams_WithNonePolicy(t *testing.T) {
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyNone, result.CoolAccessTieringPolicy)
 	assert.Equal(t, "", result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(0), result.CoolnessPeriod)
+}
+
+func TestCreateAutoTieringParams_WithAutoTieringPolicySetForFileVolume(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	params := &vsa.CreateVolumeParams{
+		TieringPolicy: &vsa.TieringPolicy{},
+	}
+
+	volume := &datamodel.Volume{
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAuto, // Explicitly set
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 10,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFS}, // File protocol
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+
+	result, err := activities.CreateAutoTieringParams(ctx, mockStorage, params, volume)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyAuto, result.CoolAccessTieringPolicy)
+	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
+	assert.Equal(t, int64(10), result.CoolnessPeriod)
+}
+
+func TestCreateAutoTieringParams_WithSnapshotOnlyPolicySetForBlockVolume(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	params := &vsa.CreateVolumeParams{
+		TieringPolicy: &vsa.TieringPolicy{},
+	}
+
+	volume := &datamodel.Volume{
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicySnapshotOnly, // Explicitly set
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 10,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolISCSI}, // Block protocol
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+
+	result, err := activities.CreateAutoTieringParams(ctx, mockStorage, params, volume)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, ontapModels.VolumeInlineTieringPolicySnapshotOnly, result.CoolAccessTieringPolicy)
+	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
+	assert.Equal(t, int64(10), result.CoolnessPeriod)
 }
 
 func TestFetchRemoteBackupVaultFromVCP_Success(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -3570,6 +3571,32 @@ func TestMultiADEnvironmentVariables_Integration(t *testing.T) {
 			// Assertions
 			assert.Equal(t, tt.expectedEnable, enableValue, "EnableMultiAD should match expected value")
 			assert.Equal(t, tt.expectedMaxNumber, maxValue, "MaxNumberOfADPerAccount should match expected value")
+		})
+	}
+}
+
+func TestFetchTieringPolicyAsPerVolumeType(t *testing.T) {
+	tests := []struct {
+		name           string
+		fileVolume     bool
+		expectedPolicy string
+	}{
+		{
+			name:           "FileVolume_ReturnsAutoPolicy",
+			fileVolume:     true,
+			expectedPolicy: ontapmodels.VolumeInlineTieringPolicyAuto,
+		},
+		{
+			name:           "BlockVolume_ReturnsSnapshotOnlyPolicy",
+			fileVolume:     false,
+			expectedPolicy: ontapmodels.VolumeInlineTieringPolicySnapshotOnly,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FetchTieringPolicyAsPerVolumeType(tt.fileVolume)
+			assert.Equal(t, tt.expectedPolicy, result, "Tiering policy should match expected value")
 		})
 	}
 }

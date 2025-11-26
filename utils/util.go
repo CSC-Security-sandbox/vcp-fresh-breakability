@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
+	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -1256,4 +1257,12 @@ func ComparePointerStringSlices(slice1 []*string, slice2 []string) bool {
 	}
 
 	return true
+}
+
+// FetchTieringPolicyAsPerVolumeType returns the supported tiering policy depending on the volume type.
+func FetchTieringPolicyAsPerVolumeType(fileVolume bool) string {
+	if fileVolume {
+		return ontapmodels.VolumeInlineTieringPolicyAuto
+	}
+	return ontapmodels.VolumeInlineTieringPolicySnapshotOnly
 }

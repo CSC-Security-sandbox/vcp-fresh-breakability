@@ -320,7 +320,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 
 		reqCacheProperties, _ := req.Volume.CacheParameters.Get()
 		param.CacheParameters = &models.CacheParameters{
-			CacheState: cvpmodels.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED,
+			CacheState:            cvpmodels.FlexCacheV1betaCacheStateCACHESTATEUNSPECIFIED,
 			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
 			CacheStateDetails:     models.InitiatingClusterPeering,
 			PeerVolumeName:        reqCacheProperties.PeerVolumeName,
@@ -375,6 +375,10 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if !autoTieringEnabled {
 			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 		}
+		isBlockVolume := len(param.Protocols) > 0 && utils.IsSanProtocols(param.Protocols)
+		if isBlockVolume && req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
+			return nil, errors.NewUserInputValidationErr("hotTierBypassMode is not supported for block volume")
+		}
 
 		if !req.Volume.TieringPolicy.Value.TierAction.IsSet() {
 			return nil, errors.NewUserInputValidationErr("Tiering action is required when enabling auto-tiering on volume")
@@ -390,7 +394,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		switch req.Volume.TieringPolicy.Value.TierAction.Value {
 		case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
 			param.AutoTieringPolicy.AutoTieringEnabled = true
-			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
+			param.AutoTieringPolicy.TieringPolicy = utils.FetchTieringPolicyAsPerVolumeType(!isBlockVolume)
 			param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
 			param.AutoTieringPolicy.CoolingThresholdDays = req.Volume.TieringPolicy.Value.CoolingThresholdDays.Value
 		case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
@@ -398,7 +402,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
 		}
 
-		// Process HotTierBypassModeEnabled if provided
+		// Process HotTierBypassModeEnabled if provided. Supported only for file volume.
 		if req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
 			param.AutoTieringPolicy.HotTierBypassModeEnabled = req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.Value
 			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
@@ -737,6 +741,11 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		if !autoTieringEnabled {
 			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 		}
+
+		isBlockVolume := dbVolume != nil && len(dbVolume.ProtocolTypes) > 0 && utils.IsSanProtocols(dbVolume.ProtocolTypes)
+		if isBlockVolume && req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
+			return nil, errors.NewUserInputValidationErr("hotTierBypassMode is not supported for block volume")
+		}
 		param.AutoTieringPolicy = &common.AutoTieringPolicy{}
 
 		// Set the default cooling threshold from DB if available
@@ -751,7 +760,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			switch req.TieringPolicy.Value.TierAction.Value {
 			case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
 				param.AutoTieringPolicy.AutoTieringEnabled = true
-				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
+				param.AutoTieringPolicy.TieringPolicy = utils.FetchTieringPolicyAsPerVolumeType(!isBlockVolume)
 				param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
 			case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
 				if req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() && req.TieringPolicy.Value.HotTierBypassModeEnabled.Value {
@@ -769,12 +778,12 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			}
 			param.AutoTieringPolicy.TieringPolicy = dbVolume.AutoTieringPolicy.TieringPolicy
 			param.AutoTieringPolicy.AutoTieringEnabled = dbVolume.AutoTieringPolicy.AutoTieringEnabled
-			if param.AutoTieringPolicy.TieringPolicy == ontapmodels.VolumeInlineTieringPolicyAuto {
+			if param.AutoTieringPolicy.TieringPolicy == utils.FetchTieringPolicyAsPerVolumeType(!isBlockVolume) {
 				param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
 			}
 		}
 
-		// Process HotTierBypassModeEnabled if provided
+		// Process HotTierBypassModeEnabled if provided. Supported only for file volume.
 		if req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
 			param.AutoTieringPolicy.HotTierBypassModeEnabled = req.TieringPolicy.Value.HotTierBypassModeEnabled.Value
 			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
