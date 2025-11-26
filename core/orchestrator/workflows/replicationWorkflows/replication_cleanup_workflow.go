@@ -128,7 +128,7 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if replicationResult.DstReplication != nil && (replicationResult.DstReplication.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED || replicationResult.DstReplication.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED) {
+	if replicationResult.DstReplication != nil && (replicationResult.DstReplication.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED || replicationResult.DstReplication.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING) {
 		err = workflow.ExecuteActivity(ctx, replicationActivity.StopReplicationOnDestinationForCleanup, &replicationResult).Get(ctx, &replicationResult)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
