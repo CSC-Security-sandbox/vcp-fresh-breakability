@@ -63,7 +63,7 @@ func TestCheckMountJob(t *testing.T) {
 	})
 	t.Run("ReturnsNilWhenMirrorStateIsSnapmirrored", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		mockProvider.On("GetVolumeReplication", mock.Anything).Return(&vsa.VolumeReplication{MirrorState: "snapmirrored"}, nil)
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(&vsa.VolumeReplication{MirrorState: "snapmirrored", RelationshipStatus: "idle"}, nil)
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
@@ -188,7 +188,7 @@ func TestCheckMountJob(t *testing.T) {
 	t.Run("ReturnsNilWhenTransferAbortedAndNoCurrentTransfer", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(&vsa.VolumeReplication{
-			LastTransferError:   "Transfer aborted.",
+			UnhealthyReason:     "Transfer aborted.",
 			CurrentTransferType: "",
 		}, nil)
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
