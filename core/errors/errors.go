@@ -101,6 +101,11 @@ const (
 	ErrONTAPClientCreationError        = 5008
 	ErrConstituentVolumesLimitExceeded = 5009
 	ErrVolumeExceedsMaximumSize        = 5010
+	ErrInvalidConstituentVolumeCount   = 5011
+	ErrNoAggregatesWithCapacity        = 5012
+	ErrInsufficientAggregateCapacity   = 5013
+	ErrOntapAggregateCountMismatch     = 5014
+	ErrOfflineAggregateError           = 5015
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021

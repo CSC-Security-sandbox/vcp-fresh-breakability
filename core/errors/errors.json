@@ -335,6 +335,36 @@
     "retriable": false,
     "http_code": 400
   },
+  "5011": {
+    "description": "Invalid Constituent Volume Count",
+    "message": "The constituent volume count must be greater than zero.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5012": {
+    "description": "No Aggregates With Available Capacity",
+    "message": "All storage aggregates have reached their maximum capacity and cannot accommodate additional volumes.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5013": {
+    "description": "Insufficient Aggregate Capacity",
+    "message": "Insufficient storage capacity available across aggregates to fulfill the volume creation request.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5014": {
+    "description": "ONTAP Aggregate Count Mismatch",
+    "message": "Some aggregates may be unavailable/offline to fulfil this request.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "5015": {
+    "description": "Aggregate is offline",
+    "message": "Storage aggregate is not in online state and cannot accommodate volumes.",
+    "retriable": false,
+    "http_code": 500
+  },
   "6020": {
     "description": "IAM client Not Found",
     "message": "IAM client Not Found",

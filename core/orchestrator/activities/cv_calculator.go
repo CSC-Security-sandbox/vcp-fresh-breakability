@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -26,15 +27,15 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 
 	if largeVolumeConstituentCount <= 0 {
 		logger.Errorf("Invalid constituent volume count: %d", largeVolumeConstituentCount)
-		return nil, fmt.Errorf("constituent volume count must be greater than zero")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInvalidConstituentVolumeCount,
+			fmt.Errorf("constituent volume count must be greater than zero"))
 	}
-
 	// Validate total aggregates is same as number of HA pairs
 	if len(aggregates) != expectedAggregateCount {
 		logger.Errorf("Aggregate count mismatch: expected %d aggregates (nodes=%d), received %d", expectedAggregateCount, totalNodes, len(aggregates))
-		return nil, fmt.Errorf("expected exactly %d aggregates, got %d", expectedAggregateCount, len(aggregates))
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapAggregateCountMismatch,
+			fmt.Errorf("expected exactly %d aggregates, got %d", expectedAggregateCount, len(aggregates)))
 	}
-
 	maxConstituentsPerAggregate := GetMaxConstituentsPerAggregate(logger, instanceType)
 	// Build map of aggregate name to available CVs based on size
 	aggregateNameToAvailableCvMap := make(map[string]int64)
@@ -50,7 +51,8 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 		// Check if any aggregate is not available - return error immediately
 		if !utils.ContainsString(availableAggregateStates, agg.State) {
 			logger.Errorf("Aggregate %s is not online (state: %s)", agg.Name, agg.State)
-			return nil, fmt.Errorf("aggregate %s is not online (state: %s), all aggregates must be online", agg.Name, agg.State)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOfflineAggregateError,
+				fmt.Errorf("aggregate %s is not online (state: %s), all aggregates must be online", agg.Name, agg.State))
 		}
 
 		if agg.VolumeCount >= maxConstituentsPerAggregate {
@@ -80,14 +82,16 @@ func CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx context.Context
 
 	if len(availableAggregates) == 0 {
 		logger.Errorf("No aggregates with available capacity (max allowed %d)", maxConstituentsPerAggregate)
-		return nil, fmt.Errorf("no aggregates with available capacity (all have reached max %d constituents)", maxConstituentsPerAggregate)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrNoAggregatesWithCapacity,
+			fmt.Errorf("no aggregates with available capacity (all have reached max %d constituents)", maxConstituentsPerAggregate))
 	}
 
 	// Check if we can serve the customer request
 	if largeVolumeConstituentCount > totalAvailableCapacity {
 		logger.Errorf("Insufficient total aggregate capacity: requested %d CVs, available %d", largeVolumeConstituentCount, totalAvailableCapacity)
-		return nil, fmt.Errorf("insufficient total aggregate capacity: requested %d CVs, but only %d capacity available across all aggregates",
-			largeVolumeConstituentCount, totalAvailableCapacity)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInsufficientAggregateCapacity,
+			fmt.Errorf("insufficient total aggregate capacity: requested %d CVs, but only %d capacity available across all aggregates",
+				largeVolumeConstituentCount, totalAvailableCapacity))
 	}
 
 	// Create map of aggregate names to CVs placed
@@ -181,7 +185,8 @@ func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, a
 	// Validate that we have exactly 12 aggregates
 	if len(aggregates) != expectedAggregateCount {
 		logger.Errorf("Aggregate count mismatch: expected %d aggregates (nodes=%d), received %d", expectedAggregateCount, totalNodes, len(aggregates))
-		return nil, fmt.Errorf("expected exactly %d aggregates, got %d", expectedAggregateCount, len(aggregates))
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapAggregateCountMismatch,
+			fmt.Errorf("expected exactly %d aggregates, got %d", expectedAggregateCount, len(aggregates)))
 	}
 
 	maxConstituentsPerAggregate := GetMaxConstituentsPerAggregate(logger, instanceType)
@@ -197,7 +202,8 @@ func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, a
 		// Check if any aggregate is not available - return error immediately
 		if !utils.ContainsString(availableAggregateStates, agg.State) {
 			logger.Errorf("Aggregate %s is not online (state: %s)", agg.Name, agg.State)
-			return nil, fmt.Errorf("aggregate %s is not online (state: %s), all aggregates must be online", agg.Name, agg.State)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOfflineAggregateError,
+				fmt.Errorf("aggregate %s is not online (state: %s), all aggregates must be online", agg.Name, agg.State))
 		}
 
 		if agg.VolumeCount >= maxConstituentsPerAggregate {
@@ -217,14 +223,16 @@ func CalculateAggregatesForConstituentVolumesWithCVLimits(ctx context.Context, a
 
 	if len(availableAggregates) == 0 {
 		logger.Errorf("No aggregates with available capacity (max allowed %d)", maxConstituentsPerAggregate)
-		return nil, fmt.Errorf("no aggregates with available capacity (all have reached max %d constituents)", maxConstituentsPerAggregate)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrNoAggregatesWithCapacity,
+			fmt.Errorf("no aggregates with available capacity (all have reached max %d constituents)", maxConstituentsPerAggregate))
 	}
 
 	// Check if we can serve the customer request
 	if largeVolumeConstituentCount > totalAvailableCapacity {
 		logger.Errorf("Insufficient total aggregate capacity: requested %d CVs, available %d", largeVolumeConstituentCount, totalAvailableCapacity)
-		return nil, fmt.Errorf("insufficient total aggregate capacity: requested %d CVs, but only %d capacity available across all aggregates",
-			largeVolumeConstituentCount, totalAvailableCapacity)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInsufficientAggregateCapacity,
+			fmt.Errorf("insufficient total aggregate capacity: requested %d CVs, but only %d capacity available across all aggregates",
+				largeVolumeConstituentCount, totalAvailableCapacity))
 	}
 
 	// Create map of aggregate names to CVs placed

@@ -311,7 +311,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 			// Assert
 			assert.NotNil(t, err)
 			assert.Nil(t, result)
-			assert.EqualError(t, err, fmt.Sprintf("insufficient total aggregate capacity: requested %d CVs, but only %d capacity available across all aggregates", 1, 0))
+			// Check that it returns the standardized VCP error message for ErrInsufficientAggregateCapacity (5013)
+			assert.Equal(t, "Insufficient storage capacity available across aggregates to fulfill the volume creation request.", err.Error())
 		})
 
 		t.Run("EmptyAggregates_ReturnsError", func(t *testing.T) {
@@ -323,7 +324,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "expected exactly 4 aggregates")
+			// Check that it returns the standardized VCP error message for ErrOntapAggregateCountMismatch (5014)
+			assert.Equal(t, "Some aggregates may be unavailable/offline to fulfil this request.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -336,7 +338,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "constituent volume count must be greater than zero")
+			// Check that it returns the standardized VCP error message for ErrInvalidConstituentVolumeCount (5011)
+			assert.Equal(t, "The constituent volume count must be greater than zero.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -356,7 +359,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "is not online")
+			// Check that it returns the standardized VCP error message for ErrOfflineAggregateError (5015)
+			assert.Equal(t, "Storage aggregate is not in online state and cannot accommodate volumes.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -370,7 +374,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "no aggregates with available capacity")
+			// Check that it returns the standardized VCP error message for ErrNoAggregatesWithCapacity (5012)
+			assert.Equal(t, "All storage aggregates have reached their maximum capacity and cannot accommodate additional volumes.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -390,7 +395,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "expected exactly 12 aggregates")
+			// Check that it returns the standardized VCP error message for ErrOntapAggregateCountMismatch (5014)
+			assert.Equal(t, "Some aggregates may be unavailable/offline to fulfil this request.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -433,7 +439,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 1500 CVs, but only 1493 capacity available across all aggregates")
+			// Check that it returns the standardized VCP error message for ErrInsufficientAggregateCapacity (5013)
+			assert.Equal(t, "Insufficient storage capacity available across aggregates to fulfill the volume creation request.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -457,7 +464,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 3000 CVs, but only 2993 capacity available across all aggregates")
+			// Check that it returns the standardized VCP error message for ErrInsufficientAggregateCapacity (5013)
+			assert.Equal(t, "Insufficient storage capacity available across aggregates to fulfill the volume creation request.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -481,7 +489,8 @@ func TestCalculateAggregatesForConstituentVolumesWithSpaceLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 6000 CVs, but only 5993 capacity available across all aggregates")
+			// Check that it returns the standardized VCP error message for ErrInsufficientAggregateCapacity (5013)
+			assert.Equal(t, "Insufficient storage capacity available across aggregates to fulfill the volume creation request.", err.Error())
 			assert.Nil(t, result)
 		})
 	})
@@ -734,7 +743,8 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "expected exactly 12 aggregates")
+			// Check that it returns the standardized VCP error message for ErrOntapAggregateCountMismatch (5014)
+			assert.Equal(t, "Some aggregates may be unavailable/offline to fulfil this request.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -756,7 +766,8 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "is not online")
+			// Check that it returns the standardized VCP error message for ErrOfflineAggregateError (5015)
+			assert.Equal(t, "Storage aggregate is not in online state and cannot accommodate volumes.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -770,7 +781,8 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "no aggregates with available capacity")
+			// Check that it returns the standardized VCP error message for ErrNoAggregatesWithCapacity (5012)
+			assert.Equal(t, "All storage aggregates have reached their maximum capacity and cannot accommodate additional volumes.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -789,7 +801,8 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "expected exactly 12 aggregates")
+			// Check that it returns the standardized VCP error message for ErrOntapAggregateCountMismatch (5014)
+			assert.Equal(t, "Some aggregates may be unavailable/offline to fulfil this request.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -839,7 +852,8 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 1500 CVs, but only 1493 capacity available across all aggregates")
+			// Check that it returns the standardized VCP error message for ErrInsufficientAggregateCapacity (5013)
+			assert.Equal(t, "Insufficient storage capacity available across aggregates to fulfill the volume creation request.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -862,7 +876,8 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 3000 CVs, but only 2993 capacity available across all aggregates")
+			// Check that it returns the standardized VCP error message for ErrInsufficientAggregateCapacity (5013)
+			assert.Equal(t, "Insufficient storage capacity available across aggregates to fulfill the volume creation request.", err.Error())
 			assert.Nil(t, result)
 		})
 
@@ -885,8 +900,181 @@ func TestCalculateAggregatesForConstituentVolumesWithCVLimits(t *testing.T) {
 
 			// Assert
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "insufficient total aggregate capacity: requested 6000 CVs, but only 5993 capacity available across all aggregates")
+			// Check that it returns the standardized VCP error message for ErrInsufficientAggregateCapacity (5013)
+			assert.Equal(t, "Insufficient storage capacity available across aggregates to fulfill the volume creation request.", err.Error())
 			assert.Nil(t, result)
+		})
+	})
+}
+
+// TestVCPErrorHandling tests that all error conditions return proper VCP errors with correct error codes
+func TestVCPErrorHandling(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("CalculateAggregatesForConstituentVolumesWithSpaceLimits_VCPErrors", func(t *testing.T) {
+		// Test invalid constituent volume count
+		t.Run("InvalidConstituentVolumeCount_ReturnsVCPError", func(t *testing.T) {
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "online", VolumeCount: 0, Size: utils.TiBInBytes},
+			}
+
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 0, utils.TiBInBytes, 2, "c3-standard-4-lssd")
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			// Check that it returns the standardized VCP error message for ErrInvalidConstituentVolumeCount (5011)
+			assert.Equal(t, "The constituent volume count must be greater than zero.", err.Error())
+		})
+
+		// Test aggregate count mismatch
+		t.Run("AggregateCountMismatch_ReturnsVCPError", func(t *testing.T) {
+			// Provide only 1 aggregate when 2 are expected (totalNodes=4, expectedAggregates=2)
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "online", VolumeCount: 0, Size: utils.TiBInBytes},
+			}
+
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 4, "c3-standard-4-lssd")
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			// Check that it returns the standardized VCP error message for ErrOntapAggregateCountMismatch (5014)
+			assert.Equal(t, "Some aggregates may be unavailable/offline to fulfil this request.", err.Error())
+		})
+
+		// Test aggregate not online
+		t.Run("AggregateNotOnline_ReturnsVCPError", func(t *testing.T) {
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "offline", VolumeCount: 0, Size: utils.TiBInBytes},
+				{Name: "aggr2", State: "online", VolumeCount: 0, Size: utils.TiBInBytes},
+			}
+
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 4, "c3-standard-4-lssd")
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			// Check that it returns the standardized VCP error message for ErrOfflineAggregateError (5015)
+			assert.Equal(t, "Storage aggregate is not in online state and cannot accommodate volumes.", err.Error())
+		})
+
+		// Test no aggregates with available capacity
+		t.Run("NoAggregatesWithCapacity_ReturnsVCPError", func(t *testing.T) {
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "online", VolumeCount: 249, Size: utils.TiBInBytes}, // At max capacity for c3-standard-4-lssd
+				{Name: "aggr2", State: "online", VolumeCount: 249, Size: utils.TiBInBytes}, // At max capacity
+			}
+
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 4, "c3-standard-4-lssd")
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			// Check that it returns the standardized VCP error message for ErrNoAggregatesWithCapacity (5012)
+			assert.Equal(t, "All storage aggregates have reached their maximum capacity and cannot accommodate additional volumes.", err.Error())
+		})
+
+		// Test insufficient total aggregate capacity
+		t.Run("InsufficientTotalCapacity_ReturnsVCPError", func(t *testing.T) {
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "online", VolumeCount: 0, Size: utils.GiBInBytes, TotalProvisionedSize: 0},
+				{Name: "aggr2", State: "online", VolumeCount: 0, Size: utils.GiBInBytes, TotalProvisionedSize: 0},
+			}
+
+			// Request more CVs than can fit based on space limitations
+			result, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1000, utils.TiBInBytes, 4, "c3-standard-4-lssd")
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			// Check that it returns the standardized VCP error message for ErrInsufficientAggregateCapacity (5013)
+			assert.Equal(t, "Insufficient storage capacity available across aggregates to fulfill the volume creation request.", err.Error())
+		})
+	})
+
+	t.Run("CalculateAggregatesForConstituentVolumesWithCVLimits_VCPErrors", func(t *testing.T) {
+		// Test aggregate count mismatch
+		t.Run("AggregateCountMismatch_ReturnsVCPError", func(t *testing.T) {
+			// Provide only 1 aggregate when 2 are expected (totalNodes=4, expectedAggregates=2)
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "online", VolumeCount: 0},
+			}
+
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 1, 4, "c3-standard-4-lssd")
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			// Check that it returns the standardized VCP error message for ErrOntapAggregateCountMismatch (5014)
+			assert.Equal(t, "Some aggregates may be unavailable/offline to fulfil this request.", err.Error())
+		})
+
+		// Test aggregate not online
+		t.Run("AggregateNotOnline_ReturnsVCPError", func(t *testing.T) {
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "maintenance", VolumeCount: 0},
+				{Name: "aggr2", State: "online", VolumeCount: 0},
+			}
+
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 1, 4, "c3-standard-4-lssd")
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			// Check that it returns the standardized VCP error message for ErrOfflineAggregateError (5015)
+			assert.Equal(t, "Storage aggregate is not in online state and cannot accommodate volumes.", err.Error())
+		})
+
+		// Test no aggregates with available capacity
+		t.Run("NoAggregatesWithCapacity_ReturnsVCPError", func(t *testing.T) {
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "online", VolumeCount: 249}, // At max capacity for c3-standard-4-lssd
+				{Name: "aggr2", State: "online", VolumeCount: 249}, // At max capacity
+			}
+
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 1, 4, "c3-standard-4-lssd")
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			// Check that it returns the standardized VCP error message for ErrNoAggregatesWithCapacity (5012)
+			assert.Equal(t, "All storage aggregates have reached their maximum capacity and cannot accommodate additional volumes.", err.Error())
+		})
+
+		// Test insufficient total aggregate capacity
+		t.Run("InsufficientTotalCapacity_ReturnsVCPError", func(t *testing.T) {
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "online", VolumeCount: 248}, // Only 1 CV available
+				{Name: "aggr2", State: "online", VolumeCount: 248}, // Only 1 CV available
+			}
+
+			// Request more CVs than available capacity (total available = 2, request = 10)
+			result, err := CalculateAggregatesForConstituentVolumesWithCVLimits(ctx, aggregates, 10, 4, "c3-standard-4-lssd")
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			// Check that it returns the standardized VCP error message for ErrInsufficientAggregateCapacity (5013)
+			assert.Equal(t, "Insufficient storage capacity available across aggregates to fulfill the volume creation request.", err.Error())
+		})
+	})
+
+	// Test that VCP errors contain the expected error codes by checking error type
+	t.Run("VCPErrorTypes", func(t *testing.T) {
+		// Test ErrInvalidConstituentVolumeCount scenarios
+		t.Run("InvalidConstituentVolumeCount_ErrorCode5011", func(t *testing.T) {
+			aggregates := []*vsa.Aggregate{
+				{Name: "aggr1", State: "online", VolumeCount: 0, Size: utils.TiBInBytes},
+			}
+
+			// Test invalid constituent count (uses ErrInvalidConstituentVolumeCount)
+			_, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, -1, utils.TiBInBytes, 2, "c3-standard-4-lssd")
+			assert.Error(t, err)
+			// Check that it returns the standardized VCP error message for ErrInvalidConstituentVolumeCount (5011)
+			assert.Equal(t, "The constituent volume count must be greater than zero.", err.Error())
+		})
+
+		// Test ErrOntapAggregateCountMismatch scenarios
+		t.Run("OntapAggregateCountMismatch_AggregateCountMismatch", func(t *testing.T) {
+			aggregates := []*vsa.Aggregate{}
+
+			// Test aggregate count mismatch (uses ErrOntapAggregateCountMismatch)
+			_, err := CalculateAggregatesForConstituentVolumesWithSpaceLimits(ctx, aggregates, 1, utils.TiBInBytes, 4, "c3-standard-4-lssd")
+			assert.Error(t, err)
+			// Check that it returns the standardized VCP error message for ErrOntapAggregateCountMismatch (5014)
+			assert.Equal(t, "Some aggregates may be unavailable/offline to fulfil this request.", err.Error())
 		})
 	})
 }

@@ -4047,7 +4047,8 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "expected exactly 6 aggregates")
+		// Check for the standardized VCP error message for ErrOntapAggregateCountMismatch (5014)
+		assert.Contains(t, err.Error(), "Some aggregates may be unavailable/offline to fulfil this request.")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -4094,7 +4095,8 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "is not online")
+		// Check for the standardized VCP error message for ErrOfflineAggregateError (5015)
+		assert.Contains(t, err.Error(), "Storage aggregate is not in online state and cannot accommodate volumes.")
 		mockProvider.AssertExpectations(t)
 	})
 }
