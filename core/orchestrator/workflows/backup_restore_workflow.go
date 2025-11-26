@@ -180,7 +180,9 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 				backupActivitiesContext.BackupWorkflowInit.BackupVault.UUID,
 				backupActivitiesContext.BackupWorkflowInit.Backup.UUID,
 				backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name, activities.BackupRestoreCountDecrement).Get(ctx, nil)
-			log.Errorf("Failed to revert backup restore count: %v", decrementErr)
+			if decrementErr != nil {
+				log.Errorf("Failed to revert backup restore count: %v", decrementErr)
+			}
 		}
 
 		// just a placeholder for rollback manager cleanup

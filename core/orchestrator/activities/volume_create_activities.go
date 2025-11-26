@@ -1642,25 +1642,29 @@ func (a VolumeCreateActivity) DeleteRolesForServiceAccountInBackupTenantProject(
 func (a VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, targetPool *datamodel.Pool, backup *datamodel.Backup, node *models.Node, name string) (*vsa.OntapAsyncResponse, error) {
 	log := util.GetLogger(ctx)
 
-	// TODO - Ideally the Cloud Target should be deleted post-restoration. However, due to errors related to
-	//  dangling snapmirror relationships, this validation is skipped for cross-region backup restores
-	if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == CrossRegionBackupType {
-		log.Infof("Skipping DeleteObjectStoreForCrossVPC for cross-region backup restore")
-		return nil, nil
-	}
-	targetPoolTenantProject, err := GetPoolTenantProject(targetPool)
-	if err != nil {
-		log.Errorf("Failed to get target pool tenant project: %v", err)
-		return nil, nil
+	backupVault := backup.BackupVault
+	var bucketDetails *datamodel.BucketDetails
+	for _, details := range backupVault.BucketDetails {
+		if details.BucketName == backup.Attributes.BucketName {
+			bucketDetails = details
+			break
+		}
 	}
 
-	backupTenantProject, err := GetBackupTenantProject(backup)
-	if err != nil {
-		log.Errorf("Failed to get backup tenant project: %v", err)
-		return nil, nil
+	if bucketDetails == nil {
+		return nil, errors.New("could not find the bucket details of the backup in the backup vault")
 	}
 
-	if strings.EqualFold(targetPoolTenantProject, backupTenantProject) {
+	targetPoolRegion, _, err := utils.ParseRegionAndZone(targetPool.PoolAttributes.PrimaryZone)
+	if err != nil {
+		return nil, err
+	}
+
+	// If the target pool belongs to the same VPC and the same region as the source volume of the backup, it could be possible
+	// that other volumes in the pool are associated with the same backup vault. In such cases, we cannot delete object store (cloud target)
+	// from ONTAP as other volumes could be having snapmirror relationships with the same bucket.
+	if targetPool.Network == bucketDetails.VendorSubnetID && *backupVault.SourceRegionName == targetPoolRegion {
+		log.Infof("Target Pool belongs to the same VPC and same region as the source volume of the backup - Cloud Target need not be deleted")
 		return nil, nil
 	}
 

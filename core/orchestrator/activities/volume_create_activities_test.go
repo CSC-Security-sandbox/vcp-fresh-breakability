@@ -4956,101 +4956,17 @@ func TestSetupCrossTenantProjectPermissions(t *testing.T) {
 }
 
 func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
-	t.Run("WhenSameTenantProject_ThenReturnNil", func(t *testing.T) {
-		// Arrange
-		activity := activities.VolumeCreateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		targetPool := &datamodel.Pool{
-			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "same-project"},
-		}
-		backup := &datamodel.Backup{
-			Attributes: &datamodel.BackupAttributes{
-				BucketName: "test-bucket",
-			},
-			BackupVault: &datamodel.BackupVault{
-				BucketDetails: []*datamodel.BucketDetails{
-					{
-						BucketName:          "test-bucket",
-						TenantProjectNumber: "same-project",
-					},
-				},
-			},
-		}
-		node := &models.Node{}
-
-		// Act
-		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
-
-		// Assert
-		assert.NoError(t, err)
-		assert.Nil(t, result)
-	})
-
-	t.Run("WhenGetPoolTenantProjectFails_ThenReturnNil", func(t *testing.T) {
-		// Arrange
-		activity := activities.VolumeCreateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		targetPool := &datamodel.Pool{
-			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: ""}, // Empty will cause error
-		}
-		backup := &datamodel.Backup{
-			Attributes: &datamodel.BackupAttributes{
-				BucketName: "test-bucket",
-			},
-			BackupVault: &datamodel.BackupVault{
-				BucketDetails: []*datamodel.BucketDetails{
-					{
-						BucketName:          "test-bucket",
-						TenantProjectNumber: "backup-project",
-					},
-				},
-			},
-		}
-		node := &models.Node{}
-
-		// Act
-		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
-
-		// Assert
-		assert.NoError(t, err)
-		assert.Nil(t, result)
-	})
-
-	t.Run("WhenGetBackupTenantProjectFails_ThenReturnNil", func(t *testing.T) {
-		// Arrange
-		activity := activities.VolumeCreateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		targetPool := &datamodel.Pool{
-			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
-		}
-		backup := &datamodel.Backup{
-			Attributes: &datamodel.BackupAttributes{
-				BucketName: "test-bucket",
-			},
-			BackupVault: &datamodel.BackupVault{
-				BucketDetails: []*datamodel.BucketDetails{
-					{
-						BucketName:          "different-bucket", // Mismatch will cause error
-						TenantProjectNumber: "backup-project",
-					},
-				},
-			},
-		}
-		node := &models.Node{}
-
-		// Act
-		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
-
-		// Assert
-		assert.NoError(t, err)
-		assert.Nil(t, result)
-	})
-
 	t.Run("WhenGetProviderByNodeFails_ThenReturnError", func(t *testing.T) {
 		// Arrange
 		activity := activities.VolumeCreateActivity{}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		sourceRegion := "us-east1"
+		targetRegion := "us-east4"
 		targetPool := &datamodel.Pool{
+			Network: "projects/target-project/global/networks/target-vpc",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
 			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
 		}
 		backup := &datamodel.Backup{
@@ -5058,15 +4974,24 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 				BucketName: "test-bucket",
 			},
 			BackupVault: &datamodel.BackupVault{
+				SourceRegionName: &sourceRegion,
 				BucketDetails: []*datamodel.BucketDetails{
 					{
 						BucketName:          "test-bucket",
+						VendorSubnetID:      "projects/source-project/global/networks/source-vpc",
 						TenantProjectNumber: "backup-project",
 					},
 				},
 			},
 		}
 		node := &models.Node{}
+
+		// Mock ParseRegionAndZone to return the target region
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		defer func() { utils.ParseRegionAndZone = originalParseRegionAndZone }()
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return targetRegion, "us-east4-a", nil
+		}
 
 		// Mock GetProviderByNode to return error
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -5088,7 +5013,13 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		// Arrange
 		activity := activities.VolumeCreateActivity{}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		sourceRegion := "us-east1"
+		targetRegion := "us-east4"
 		targetPool := &datamodel.Pool{
+			Network: "projects/target-project/global/networks/target-vpc",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
 			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
 		}
 		backup := &datamodel.Backup{
@@ -5096,9 +5027,11 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 				BucketName: "test-bucket",
 			},
 			BackupVault: &datamodel.BackupVault{
+				SourceRegionName: &sourceRegion,
 				BucketDetails: []*datamodel.BucketDetails{
 					{
 						BucketName:          "test-bucket",
+						VendorSubnetID:      "projects/source-project/global/networks/source-vpc",
 						TenantProjectNumber: "backup-project",
 					},
 				},
@@ -5106,6 +5039,13 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		}
 		node := &models.Node{}
 		mockProvider := new(vsa.MockProvider)
+
+		// Mock ParseRegionAndZone to return the target region
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		defer func() { utils.ParseRegionAndZone = originalParseRegionAndZone }()
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return targetRegion, "us-east4-a", nil
+		}
 
 		// Mock GetProviderByNode to return the mock provider
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -5130,7 +5070,13 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		// Arrange
 		activity := activities.VolumeCreateActivity{}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		sourceRegion := "us-east1"
+		targetRegion := "us-east4"
 		targetPool := &datamodel.Pool{
+			Network: "projects/target-project/global/networks/target-vpc",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
 			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
 		}
 		backup := &datamodel.Backup{
@@ -5138,9 +5084,11 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 				BucketName: "test-bucket",
 			},
 			BackupVault: &datamodel.BackupVault{
+				SourceRegionName: &sourceRegion,
 				BucketDetails: []*datamodel.BucketDetails{
 					{
 						BucketName:          "test-bucket",
+						VendorSubnetID:      "projects/source-project/global/networks/source-vpc",
 						TenantProjectNumber: "backup-project",
 					},
 				},
@@ -5148,6 +5096,13 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		}
 		node := &models.Node{}
 		mockProvider := new(vsa.MockProvider)
+
+		// Mock ParseRegionAndZone to return the target region
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		defer func() { utils.ParseRegionAndZone = originalParseRegionAndZone }()
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return targetRegion, "us-east4-a", nil
+		}
 
 		// Mock GetProviderByNode to return the mock provider
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -5168,7 +5123,7 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		mockProvider.AssertExpectations(t)
 	})
 
-	t.Run("WhenCrossRegionBackupType_ThenSkipAndReturnNil", func(t *testing.T) {
+	t.Run("WhenBucketDetailsNotFound_ThenReturnError", func(t *testing.T) {
 		// Arrange
 		activity := activities.VolumeCreateActivity{}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -5177,13 +5132,12 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		}
 		backup := &datamodel.Backup{
 			Attributes: &datamodel.BackupAttributes{
-				BucketName: "test-bucket",
+				BucketName: "non-existent-bucket",
 			},
 			BackupVault: &datamodel.BackupVault{
-				BackupVaultType: activities.CrossRegionBackupType,
 				BucketDetails: []*datamodel.BucketDetails{
 					{
-						BucketName:          "test-bucket",
+						BucketName:          "different-bucket",
 						TenantProjectNumber: "backup-project",
 					},
 				},
@@ -5195,10 +5149,96 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
 
 		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "could not find the bucket details of the backup in the backup vault")
+	})
+
+	t.Run("WhenParseRegionAndZoneReturnsError_ThenReturnError", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		targetPool := &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "invalid-zone-format",
+			},
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						TenantProjectNumber: "backup-project",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+
+		// Mock ParseRegionAndZone to return error
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		defer func() { utils.ParseRegionAndZone = originalParseRegionAndZone }()
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "", "", errors.New("failed to parse region and zone")
+		}
+
+		// Act
+		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to parse region and zone")
+	})
+
+	t.Run("WhenTargetPoolInSameVPCAndSameRegion_ThenReturnNilEarly", func(t *testing.T) {
+		// Arrange
+		activity := activities.VolumeCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		sourceRegion := "us-east1"
+		targetRegion := "us-east1"
+		vpcID := "projects/test-project/global/networks/test-vpc"
+		targetPool := &datamodel.Pool{
+			Network: vpcID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-east1-a",
+			},
+			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
+		}
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket",
+			},
+			BackupVault: &datamodel.BackupVault{
+				SourceRegionName: &sourceRegion,
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:          "test-bucket",
+						VendorSubnetID:      vpcID,
+						TenantProjectNumber: "backup-project",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+
+		// Mock ParseRegionAndZone to return the target region
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		defer func() { utils.ParseRegionAndZone = originalParseRegionAndZone }()
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return targetRegion, "us-east1-a", nil
+		}
+
+		// Act
+		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+
+		// Assert
 		assert.NoError(t, err)
 		assert.Nil(t, result)
-		// Verify that GetProviderByNode is not called (early return)
-		// This ensures the function returns early without processing further
 	})
 }
 
