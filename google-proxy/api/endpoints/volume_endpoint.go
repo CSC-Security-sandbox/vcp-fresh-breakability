@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 	"slices"
 	"strconv"
@@ -19,6 +20,7 @@ import (
 	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -42,6 +44,7 @@ var (
 	sfrEnabled                    = env.GetBool("SFR_ENABLED", false)
 	MaxSourceFileList             = env.GetInt("MAX_SOURCE_FILE_LIST", 8)
 	thinCloneGASupport            = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+	hybridReplicationEnabled      = env.GetBool("HYBRID_REPLICATION_ENABLED", false)
 )
 
 const (
@@ -112,6 +115,13 @@ func convertModelsToVCPVolumes(volumes []*models.Volume) []gcpgenserver.VolumeV1
 func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams) (gcpgenserver.V1betaCreateVolumeRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if req.HybridReplicationParameters.IsSet() && !hybridReplicationEnabled {
+		return &gcpgenserver.V1betaCreateVolumeBadRequest{
+			Code:    http.StatusNotImplemented,
+			Message: "Hybrid migration is not enabled",
+		}, nil
+	}
+
 	region, zone, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateVolumeBadRequest{
@@ -338,10 +348,8 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		param.SnapshotDirectory = req.Volume.SnapshotDirectory.Value
 	}
 
-	if req.VolumeType.IsSet() {
-		if req.VolumeType.Value == volumeTypeSecondary {
-			param.IsDataProtection = true
-		}
+	if (req.VolumeType.IsSet() && req.VolumeType.Value == volumeTypeSecondary) || req.HybridReplicationParameters.IsSet() {
+		param.IsDataProtection = true
 	}
 
 	if req.Volume.Description.IsSet() {
@@ -538,6 +546,46 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			return nil, errors.NewUserInputValidationErr("Maximum allowed snapshot-reserve-percentage value during create is 90.Use volume update to set it to a higher value after the volume has been created.")
 		}
 		param.SnapReserve = int64(snapReserve)
+	}
+
+	var replicationSchedule, description, clusterLocation string
+	var labels map[string]string
+	if req.HybridReplicationParameters.IsSet() {
+		hybridReplicationParameters, _ := req.HybridReplicationParameters.Get()
+
+		if hybridReplicationParameters.ReplicationSchedule.IsSet() {
+			replicationSchedule = string(replication.MapCCFERescheduleToInternalReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(hybridReplicationParameters.ReplicationSchedule.Value)))
+		}
+		if hybridReplicationParameters.Labels.IsSet() {
+			labels = hybridReplicationParameters.Labels.Value
+		}
+		if hybridReplicationParameters.Description.IsSet() {
+			description = hybridReplicationParameters.Description.Value
+		}
+
+		if hybridReplicationParameters.ClusterLocation.IsSet() {
+			clusterLocation = hybridReplicationParameters.ClusterLocation.Value
+		}
+
+		replicationType := models.HybridReplicationParametersReplicationType(hybridReplicationParameters.HybridReplicationType)
+		if replicationType == models.HybridReplicationParametersReplicationTypeMIGRATION {
+			replicationSchedule = SnapshotScheduleLabelHourly
+		}
+		param.HybridReplicationParameters = &models.HybridReplicationParameters{
+			ResourceID:          hybridReplicationParameters.ResourceId,
+			ReplicationType:     replicationType,
+			PeerVolumeName:      hybridReplicationParameters.PeerVolumeName,
+			PeerClusterName:     hybridReplicationParameters.PeerClusterName,
+			PeerSvmName:         hybridReplicationParameters.PeerSvmName,
+			PeerIPAddresses:     hybridReplicationParameters.PeerIpAddresses,
+			Labels:              labels,
+			Description:         description,
+			ClusterLocation:     clusterLocation,
+			ReplicationSchedule: replicationSchedule,
+		}
+		if hybridReplicationParameters.LargeVolumeConstituentCount.IsSet() {
+			param.HybridReplicationParameters.LargeVolumeConstituentCount = &hybridReplicationParameters.LargeVolumeConstituentCount.Value
+		}
 	}
 
 	if req.Volume.LargeCapacity.IsSet() {

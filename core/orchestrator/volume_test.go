@@ -1556,7 +1556,632 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			assert.NotContains(tt, err.Error(), "Invalid volume capacity")
 		}
 	})
+	t.Run("HybridReplication_ReverseTypeNotAllowed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume-reverse",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType: models.HybridReplicationParametersReplicationTypeREVERSE,
+				PeerClusterName: "peer-cluster",
+				PeerVolumeName:  "peer-volume",
+				PeerSvmName:     "peer-svm",
+				PeerIPAddresses: []string{"192.168.1.1"},
+				ResourceID:      "resource-123",
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "Hybrid replication is not allowed for replicationType: REVERSE")
+	})
+
+	t.Run("HybridReplication_ContinuousTypeNotAllowed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume-continuous",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType: models.HybridReplicationParametersReplicationTypeCONTINUOUS,
+				PeerClusterName: "peer-cluster",
+				PeerVolumeName:  "peer-volume",
+				PeerSvmName:     "peer-svm",
+				PeerIPAddresses: []string{"192.168.1.1"},
+				ResourceID:      "resource-123",
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "Hybrid replication is not allowed for replicationType: CONTINUOUS")
+	})
+
+	t.Run("HybridReplication_EmptyScheduleForOnPrem", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume-empty-schedule",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "", // Empty schedule
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-volume",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:     []string{"192.168.1.1"},
+				ResourceID:          "resource-123",
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "Can't have empty replicationSchedule for ONPREM")
+	})
+
+	t.Run("HybridReplication_MissingRequiredFields", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume-missing-fields",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "daily",
+				PeerClusterName:     "", // Missing required field
+				PeerVolumeName:      "peer-volume",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:     []string{"192.168.1.1"},
+				ResourceID:          "resource-123",
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "PeerClusterName, PeerSvmName, PeerVolumeName, PeerIPAddresses and ResourceID are required for Hybrid Replication")
+	})
+
+	t.Run("HybridReplication_BlockDevicesNotAllowed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		blockDevices := &[]common.BlockDevice{
+			{
+				Name:   "test-block-device",
+				OSType: "linux",
+			},
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume-block-devices",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+			BlockDevices:  blockDevices,
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "daily",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-volume",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:     []string{"192.168.1.1"},
+				ResourceID:          "resource-123",
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "BlockDevices are not supported for Hybrid Replication")
+	})
+
+	t.Run("HybridReplication_SnapshotNotAllowed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume-with-snapshot",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+			SnapshotID:    "snapshot-123", // Not allowed for hybrid replication
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "daily",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-volume",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:     []string{"192.168.1.1"},
+				ResourceID:          "resource-123",
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "Restoring volume from snapshot, backup, or enabling auto-tiering/snapshot policy is not supported for Hybrid Replication volumes")
+	})
+
+	t.Run("HybridReplication_ScheduledBackupNotAllowed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		scheduledBackupEnabled := true
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume-with-scheduled-backup",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &scheduledBackupEnabled,
+			},
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "daily",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-volume",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:     []string{"192.168.1.1"},
+				ResourceID:          "resource-123",
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "Scheduled backups are not supported for Hybrid Replication, only manual backups are supported")
+	})
+
+	t.Run("HybridReplication_InvalidIPAddress", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume-invalid-ip",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "daily",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-volume",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:     []string{"invalid-ip"}, // Invalid IP address
+				ResourceID:          "resource-123",
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid IP Address provided in Hybrid Replication Parameters")
+	})
+
+	t.Run("HybridReplication_InvalidLabels", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			State:         models.LifeCycleStateREADY,
+			Network:       "test-network",
+			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
+			LargeCapacity: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Name:          "test-volume-invalid-labels",
+			PoolID:        pool.UUID,
+			QuotaInBytes:  500 * 1024 * 1024 * 1024,
+			Protocols:     []string{utils.ProtocolNFSv3},
+			Network:       "test-network",
+			LargeCapacity: false,
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "daily",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-volume",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:     []string{"192.168.1.1"},
+				ResourceID:          "resource-123",
+				Labels: map[string]string{
+					"": "empty-key", // Invalid label with empty key
+				},
+			},
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NotNil(tt, err)
+		// The error should be from ValidateLabels function
+		assert.Contains(tt, err.Error(), "Label key is required")
+	})
 	t.Run("CloneSharedBytes_SnapshotNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -2812,6 +3437,150 @@ func TestCreateVolume(t *testing.T) {
 			DisplayName:   "Some display name",
 			PoolID:        "test-pool-uuid",
 			CreationToken: "test-creation-token",
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &[]bool{true}[0],
+				BackupVaultID:          "test-backup-vault-id",
+				BackupPolicyId:         "test-backup-policy-id",
+				BackupChainBytes:       &[]int64{1000}[0],
+			},
+			AutoTieringPolicy: &common.AutoTieringPolicy{
+				AutoTieringEnabled:   true,
+				TieringPolicy:        "ENABLED",
+				CoolingThresholdDays: 30,
+			},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.NotNil(tt, volume, "Expected nil volume")
+		assert.NoError(tt, err, "error not found")
+		assert.Equal(tt, volume.DisplayName, "test_volume")
+		assert.Equal(tt, volume.AccountName, "test_account")
+		assert.Equal(tt, volume.PoolID, "test-pool-uuid")
+		assert.Equal(tt, volume.PoolName, "test_pool")
+		assert.Equal(tt, volume.VendorID, "")
+		assert.Equal(tt, volume.CreationToken, "test-creation-token")
+		assert.Equal(tt, volume.Description, "Some description")
+		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
+		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
+		assert.Equal(tt, volume.LifeCycleState, "CREATING")
+		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
+	})
+	t.Run("WhenCreateVolumeSuccessForHybridReplication", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			State:     "READY",
+		}
+
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "daily",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-volume",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:     []string{"192.168.1.1"},
+				ResourceID:          "resource-123",
+			},
+
 			DataProtection: &models.DataProtection{
 				ScheduledBackupEnabled: &[]bool{true}[0],
 				BackupVaultID:          "test-backup-vault-id",
@@ -10464,7 +11233,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			LargeCapacity:           false,
 			IsClone:                 true,                  // MUST be true for cloneSharedBytes to be set
 			CreationToken:           "test-creation-token", // Required for file volumes
-			FileProperties: &models.FileProperties{
+			FileProperties:          &models.FileProperties{
 				// Required for NAS volumes (can be minimal)
 			},
 		}

@@ -281,6 +281,9 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(workflows.UpdateActiveDirectoryWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteActiveDirectoryWorkflow)
 	worker.RegisterWorkflow(workflows.SplitVolumeWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.CreateHybridReplicationWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.EstablishPeeringWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.InternalEstablishWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
@@ -340,6 +343,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: dbcon})
 	worker.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&activities.VolumeSplitActivity{SE: dbcon, Scheduler: temporalScheduler})
+	worker.RegisterActivity(&replicationActivities.HybridReplicationActivity{SE: dbcon})
 }
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {

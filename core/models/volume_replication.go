@@ -8,6 +8,7 @@ import (
 
 type HybridReplicationHydrateType string
 type VolumeReplicationHydrateState string
+type HybridReplicationParametersReplicationType string
 
 type VolumeReplicationUpdateMaskRequest struct {
 	State                 VolumeReplicationHydrateState `json:"state"`
@@ -31,33 +32,54 @@ const (
 	SrcEndpoint = "src"
 )
 
+var (
+	VolumeReplicationHydrateStateUnspecified           VolumeReplicationHydrateState = "UNSPECIFIED"
+	VolumeReplicationHydrateStateCreating              VolumeReplicationHydrateState = "CREATING"
+	VolumeReplicationHydrateStateReady                 VolumeReplicationHydrateState = "READY"
+	VolumeReplicationHydrateStateUpdating              VolumeReplicationHydrateState = "UPDATING"
+	VolumeReplicationHydrateStateDeleting              VolumeReplicationHydrateState = "DELETING"
+	VolumeReplicationHydrateStateError                 VolumeReplicationHydrateState = "ERROR"
+	VolumeReplicationHydrateStatePendingClusterPeering VolumeReplicationHydrateState = "PENDING_CLUSTER_PEERING"
+	VolumeReplicationHydrateStatePendingSvmPeering     VolumeReplicationHydrateState = "PENDING_SVM_PEERING"
+	VolumeReplicationHydrateStateExternalManaged       VolumeReplicationHydrateState = "EXTERNALLY_MANAGED_REPLICATION"
+)
+
+var (
+	HybridReplicationParametersReplicationTypeMIGRATION   HybridReplicationParametersReplicationType = "MIGRATION"
+	HybridReplicationParametersReplicationTypeUNSPECIFIED HybridReplicationParametersReplicationType = "REPLICATION_TYPE_UNSPECIFIED"
+	HybridReplicationParametersReplicationTypeCONTINUOUS  HybridReplicationParametersReplicationType = "CONTINUOUS_REPLICATION"
+	HybridReplicationParametersReplicationTypeONPREM      HybridReplicationParametersReplicationType = "ONPREM_REPLICATION"
+	HybridReplicationParametersReplicationTypeREVERSE     HybridReplicationParametersReplicationType = "REVERSE_ONPREM_REPLICATION"
+)
+
 type VolumeReplication struct {
 	BaseModel
-	Name                  string
-	Description           string
-	State                 string
-	StateDetails          string
-	Uri                   string
-	RemoteUri             string
-	ReplicationAttributes *ReplicationDetails
-	MirrorState           *string
-	RelationshipStatus    *string
-	TotalProgress         int64
-	TotalTransferBytes    int64
-	TotalTransferTimeSecs int64
-	LastTransferSize      int64
-	LastTransferError     string
-	LastTransferDuration  int64
-	LastTransferEndTime   *time.Time
-	ProgressLastUpdated   *time.Time
-	LastUpdatedFromOntap  time.Time
-	LagTime               int64
-	AccountID             int64
-	Account               *Account
-	VolumeID              int64
-	Volume                *Volume
-	Jobs                  []*Job
-	Healthy               bool
+	Name                        string
+	Description                 string
+	State                       string
+	StateDetails                string
+	Uri                         string
+	RemoteUri                   string
+	ReplicationAttributes       *ReplicationDetails
+	MirrorState                 *string
+	RelationshipStatus          *string
+	TotalProgress               int64
+	TotalTransferBytes          int64
+	TotalTransferTimeSecs       int64
+	LastTransferSize            int64
+	LastTransferError           string
+	LastTransferDuration        int64
+	LastTransferEndTime         *time.Time
+	ProgressLastUpdated         *time.Time
+	LastUpdatedFromOntap        time.Time
+	LagTime                     int64
+	AccountID                   int64
+	Account                     *Account
+	VolumeID                    int64
+	Volume                      *Volume
+	Jobs                        []*Job
+	Healthy                     bool
+	HybridReplicationAttributes *HybridReplicationParameters
 }
 
 type ReplicationDetails struct {
@@ -141,6 +163,21 @@ type UpdateVolumeReplicationStateParams struct {
 	VolumeReplicationId string
 	State               string
 	StateDetails        string
+}
+
+type HybridReplicationParameters struct {
+	ResourceID                  string
+	ReplicationType             HybridReplicationParametersReplicationType
+	PeerVolumeName              string
+	PeerClusterName             string
+	PeerSvmName                 string
+	PeerIPAddresses             []string
+	Labels                      map[string]string
+	Description                 string
+	ClusterLocation             string
+	PeeringCommandExpiryTime    *time.Time
+	ReplicationSchedule         string
+	LargeVolumeConstituentCount *int32
 }
 
 type HybridReplicationStatus string

@@ -10,15 +10,16 @@ import (
 )
 
 var (
-	replicationJobTypes = []string{
+	ReplicationJobTypes = []string{
 		string(models.JobTypeCreateVolumeReplication),
 		string(models.JobTypeDeleteVolumeReplication),
 		string(models.JobTypeUpdateVolumeReplication),
 		string(models.JobTypeResumeVolumeReplication),
 		string(models.JobTypeReverseResumeVolumeReplication),
 		string(models.JobTypeStopVolumeReplication),
+		string(models.JobTypeCreateHybridReplication),
 	}
-	scheduledJobTypes = []string{
+	ScheduledJobTypes = []string{
 		string(models.JobsStateNEW),
 		string(models.JobsStatePROCESSING),
 	}
@@ -43,8 +44,8 @@ func (o *Orchestrator) GetReplicationJobs(ctx context.Context, projectName, pool
 	}
 	filter := utils.CreateFilterWithConditions(
 		utils.NewFilterCondition("account_id", "=", account.ID),
-		utils.NewFilterCondition("type", "in", replicationJobTypes),
-		utils.NewFilterCondition("state", "in", scheduledJobTypes),
+		utils.NewFilterCondition("type", "in", ReplicationJobTypes),
+		utils.NewFilterCondition("state", "in", ScheduledJobTypes),
 	)
 
 	dbJobs, err := se.GetJobsWithCondition(ctx, *filter)

@@ -1601,6 +1601,24 @@
     "retriable": false,
     "http_code": 404
   },
+  "11009": {
+    "description": "Error creating cluster peer - CVI source cluster unreachable",
+    "message": "Source cluster is unreachable. Please verify that the peer address is correct and try again",
+    "retriable": false,
+    "http_code": 400
+  },
+  "11010": {
+    "description": "Cluster peer is not available",
+    "message": "Cluster peer is not available",
+    "retriable": false,
+    "http_code": 400
+  },
+  "11011": {
+    "description": "SVM peer is not available",
+    "message": "SVM peer is not available",
+    "retriable": false,
+    "http_code": 400
+  },
   "12001": {
     "description": "Immutable backup validation failed due to backup policy update",
     "message": "Error while creating immutable backup when backup policy is in updating state",

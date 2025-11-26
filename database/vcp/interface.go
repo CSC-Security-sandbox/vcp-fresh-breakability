@@ -104,7 +104,7 @@ type (
 		GetVolumeReplicationByProjectId(ctx context.Context, accountId int64) ([]*datamodel.VolumeReplication, error)
 		GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error)
 		GetVolumeReplicationCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error)
-		GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error)
+		GetVolumeReplicationCountByPeerDetails(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error)
 		GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error)
 		ListVolumeReplications(ctx context.Context, filter dbutils.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error)
 		ListVolumeReplicationsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.VolumeReplication, error)
@@ -337,5 +337,6 @@ type (
 		DeleteActiveDirectory(ctx context.Context, uuid string) error
 		GetSVMsUsingActiveDirectory(ctx context.Context, adId int64) ([]*datamodel.Svm, error)
 		GetActiveDirectoryForPoolByPoolID(ctx context.Context, poolID int64) (*datamodel.ActiveDirectory, error)
+		ListClusterPeeringRowsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ClusterPeerings, error)
 	}
 )

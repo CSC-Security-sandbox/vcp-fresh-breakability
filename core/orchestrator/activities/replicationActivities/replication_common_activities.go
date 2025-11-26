@@ -48,9 +48,19 @@ func _mapVolumeBetaToVolumeHydrateObject(volume models.Volume, poolResourceId st
 }
 
 func _mapReplicationBetaToReplicationHydrateObject(replication models.VolumeReplication) models.ReplicationHydrateObject {
+	var replicationType models.HybridReplicationHydrateType
+	var labels map[string]string
+	if replication.HybridReplicationAttributes != nil {
+		replicationType = models.HybridReplicationHydrateType(replication.HybridReplicationAttributes.ReplicationType)
+		if replication.HybridReplicationAttributes.Labels != nil {
+			labels = replication.HybridReplicationAttributes.Labels
+		}
+	}
 	return models.ReplicationHydrateObject{
-		ResourceId:       replication.Name,
-		ReplicationState: mapReplicationLifeCycleStateBetaToReplicationHydrationState(replication.State),
+		ResourceId:            replication.Name,
+		ReplicationState:      mapReplicationLifeCycleStateBetaToReplicationHydrationState(replication.State),
+		Labels:                labels,
+		HybridReplicationType: &replicationType,
 	}
 }
 
@@ -144,7 +154,7 @@ func HydrateReplicationState(ctx context.Context, createReplicationResponse mode
 		return err
 	}
 	// Hydrate Replication State to CFFE
-	err = hydrateReplicationState(ctx, logger, createReplicationResponse.ReplicationAttributes.DestinationRegion, project, createReplicationResponse.ReplicationAttributes.DestinationVolumeUUID, createReplicationResponse.UUID, replicationState, callbackToken)
+	err = hydrateReplicationState(ctx, logger, createReplicationResponse.ReplicationAttributes.DestinationRegion, project, createReplicationResponse.ReplicationAttributes.DestinationVolumeName, createReplicationResponse.Name, replicationState, callbackToken)
 	if err != nil {
 		logger.Errorf("Error when hydrating replication: %v", err)
 		return err
@@ -180,6 +190,8 @@ func _mapReplicationLifeCycleStateBetaToReplicationHydrationState(state string) 
 		return "STOPPED"
 	case "deleting":
 		return "DELETING"
+	case "PENDING_CLUSTER_PEERING":
+		return "PENDING_CLUSTER_PEERING"
 	case "error":
 		return "ERROR"
 	default:

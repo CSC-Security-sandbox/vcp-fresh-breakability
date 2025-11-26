@@ -2,13 +2,13 @@ package database
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -988,6 +988,408 @@ func TestDeleteClusterPeeringRow(t *testing.T) {
 		var vErr *vsaerrors.CustomError
 		assert.True(tt, vsaerrors.As(err, &vErr))
 		assert.Equal(tt, vsaerrors.ErrDatabaseDataDeleteError, vErr.TrackingID)
+	})
+}
+
+func TestListClusterPeeringRowsByPoolID(t *testing.T) {
+	t.Run("WhenClusterPeeringRowsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		// Create test cluster peering rows for the same pool
+		clusterPeeringRow1 := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-cluster-peer-1-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered",
+			OnprempCluster: "test-cluster-1",
+			OntapPeerUUID:  "test-ontap-peer-1-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		err = store.db.Create(clusterPeeringRow1).Error()
+		assert.NoError(tt, err, "Failed to create cluster peering row 1")
+
+		clusterPeeringRow2 := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-cluster-peer-2-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusCREATING,
+			StateDetails:   "Creating cluster peer",
+			OnprempCluster: "test-cluster-2",
+			OntapPeerUUID:  "test-ontap-peer-2-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		err = store.db.Create(clusterPeeringRow2).Error()
+		assert.NoError(tt, err, "Failed to create cluster peering row 2")
+
+		// Create cluster peering row for different pool
+		otherPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "other-pool-uuid",
+			},
+			Name:           "other_pool",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "other-deployment",
+		}
+		err = store.db.Create(otherPool).Error()
+		assert.NoError(tt, err, "Failed to create other pool")
+
+		otherClusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				ID:   3,
+				UUID: "other-cluster-peer-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered",
+			OnprempCluster: "other-cluster",
+			OntapPeerUUID:  "other-ontap-peer-uuid",
+			AccountID:      account.ID,
+			PoolID:         otherPool.ID,
+		}
+		err = store.db.Create(otherClusterPeeringRow).Error()
+		assert.NoError(tt, err, "Failed to create other cluster peering row")
+
+		// List cluster peering rows for the first pool
+		results, err := store.ListClusterPeeringRowsByPoolID(context.Background(), pool.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, results, 2, "Expected 2 cluster peering rows, got %d", len(results))
+
+		// Verify the results contain the correct rows
+		foundRow1 := false
+		foundRow2 := false
+		for _, row := range results {
+			assert.Equal(tt, pool.ID, row.PoolID, "Expected pool ID to match")
+
+			if row.ID == clusterPeeringRow1.ID {
+				foundRow1 = true
+				assert.Equal(tt, "test-cluster-1", row.OnprempCluster, "Expected onprem cluster to match")
+				assert.Equal(tt, models.CvpClusterPeeringStatusPEERED, row.State, "Expected state to match")
+			} else if row.ID == clusterPeeringRow2.ID {
+				foundRow2 = true
+				assert.Equal(tt, "test-cluster-2", row.OnprempCluster, "Expected onprem cluster to match")
+				assert.Equal(tt, models.CvpClusterPeeringStatusCREATING, row.State, "Expected state to match")
+			}
+		}
+		assert.True(tt, foundRow1, "Expected to find cluster peering row 1")
+		assert.True(tt, foundRow2, "Expected to find cluster peering row 2")
+	})
+
+	t.Run("WhenNoClusterPeeringRowsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		results, err := store.ListClusterPeeringRowsByPoolID(context.Background(), 999)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, results, "Expected empty results for non-existent pool")
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		// Create test cluster peering row
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-cluster-peer-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered",
+			OnprempCluster: "test-cluster",
+			OntapPeerUUID:  "test-ontap-peer-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		err = store.db.Create(clusterPeeringRow).Error()
+		assert.NoError(tt, err, "Failed to create cluster peering row")
+
+		// Use a cancelled context to trigger a database error
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel the context immediately
+
+		_, err = store.ListClusterPeeringRowsByPoolID(cancelledCtx, pool.ID)
+		assert.Error(tt, err, "Expected error due to cancelled context")
+	})
+
+	t.Run("WhenPoolIDIsZero", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		results, err := store.ListClusterPeeringRowsByPoolID(context.Background(), 0)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, results, "Expected empty results for zero pool ID")
+	})
+
+	t.Run("WhenPoolIDIsNegative", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		results, err := store.ListClusterPeeringRowsByPoolID(context.Background(), -1)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, results, "Expected empty results for negative pool ID")
+	})
+
+	t.Run("WhenPoolIDIsMaxInt64", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		results, err := store.ListClusterPeeringRowsByPoolID(context.Background(), 9223372036854775807) // Max int64
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, results, "Expected empty results for max int64 pool ID")
+	})
+
+	t.Run("WhenMultiplePoolsHaveClusterPeeringRows", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create multiple pools
+		pool1 := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-pool-1-uuid",
+			},
+			Name:           "test_pool_1",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "test-deployment-1",
+		}
+		err = store.db.Create(pool1).Error()
+		assert.NoError(tt, err, "Failed to create pool 1")
+
+		pool2 := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-pool-2-uuid",
+			},
+			Name:           "test_pool_2",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "test-deployment-2",
+		}
+		err = store.db.Create(pool2).Error()
+		assert.NoError(tt, err, "Failed to create pool 2")
+
+		// Create cluster peering rows for pool 1
+		clusterPeeringRow1 := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-cluster-peer-1-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered",
+			OnprempCluster: "test-cluster-1",
+			OntapPeerUUID:  "test-ontap-peer-1-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool1.ID,
+		}
+		err = store.db.Create(clusterPeeringRow1).Error()
+		assert.NoError(tt, err, "Failed to create cluster peering row 1")
+
+		// Create cluster peering rows for pool 2
+		clusterPeeringRow2 := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-cluster-peer-2-uuid",
+			},
+			State:          models.CvpClusterPeeringStatusCREATING,
+			StateDetails:   "Creating cluster peer",
+			OnprempCluster: "test-cluster-2",
+			OntapPeerUUID:  "test-ontap-peer-2-uuid",
+			AccountID:      account.ID,
+			PoolID:         pool2.ID,
+		}
+		err = store.db.Create(clusterPeeringRow2).Error()
+		assert.NoError(tt, err, "Failed to create cluster peering row 2")
+
+		// Test querying pool 1
+		results1, err := store.ListClusterPeeringRowsByPoolID(context.Background(), pool1.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, results1, 1, "Expected 1 cluster peering row for pool 1, got %d", len(results1))
+		assert.Equal(tt, pool1.ID, results1[0].PoolID, "Expected pool ID to match")
+		assert.Equal(tt, "test-cluster-1", results1[0].OnprempCluster, "Expected onprem cluster to match")
+
+		// Test querying pool 2
+		results2, err := store.ListClusterPeeringRowsByPoolID(context.Background(), pool2.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, results2, 1, "Expected 1 cluster peering row for pool 2, got %d", len(results2))
+		assert.Equal(tt, pool2.ID, results2[0].PoolID, "Expected pool ID to match")
+		assert.Equal(tt, "test-cluster-2", results2[0].OnprempCluster, "Expected onprem cluster to match")
+	})
+
+	t.Run("WhenClusterPeeringRowsHaveAttributes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create test pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-pool-uuid",
+			},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			Account:        account,
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		// Create cluster peering row attributes
+		attributes := &datamodel.ClusterPeeringAttributes{
+			PassPhrase:      stringPtr("test-passphrase"),
+			Command:         stringPtr("cluster peer create"),
+			ExpiryTime:      timePtr(time.Now().Add(24 * time.Hour)),
+			ClusterLocation: stringPtr("us-west-1"),
+		}
+
+		// Create test cluster peering row with attributes
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-cluster-peer-uuid",
+			},
+			State:                    models.CvpClusterPeeringStatusPEERED,
+			StateDetails:             "Successfully peered",
+			OnprempCluster:           "test-cluster",
+			OntapPeerUUID:            "test-ontap-peer-uuid",
+			AccountID:                account.ID,
+			PoolID:                   pool.ID,
+			ClusterPeeringAttributes: attributes,
+		}
+		err = store.db.Create(clusterPeeringRow).Error()
+		assert.NoError(tt, err, "Failed to create cluster peering row")
+
+		// List cluster peering rows for the pool
+		results, err := store.ListClusterPeeringRowsByPoolID(context.Background(), pool.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, results, 1, "Expected 1 cluster peering row, got %d", len(results))
+
+		// Verify the result contains the attributes
+		result := results[0]
+		assert.Equal(tt, pool.ID, result.PoolID, "Expected pool ID to match")
+		assert.NotNil(tt, result.ClusterPeeringAttributes, "Expected attributes to be set")
+		assert.Equal(tt, "test-passphrase", *result.ClusterPeeringAttributes.PassPhrase, "Expected passphrase to match")
+		assert.Equal(tt, "cluster peer create", *result.ClusterPeeringAttributes.Command, "Expected command to match")
+		assert.Equal(tt, "us-west-1", *result.ClusterPeeringAttributes.ClusterLocation, "Expected cluster location to match")
 	})
 }
 

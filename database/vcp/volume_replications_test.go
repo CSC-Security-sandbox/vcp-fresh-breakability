@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -495,6 +496,168 @@ func TestUpdateVolumeReplication(t *testing.T) {
 		}
 		err = store.UpdateVolumeReplication(context.Background(), updateVolumeRep)
 		assert.EqualError(tt, err, "volume replication not found", "Expected no error, got %v", err)
+	})
+	t.Run("WhenDeletedAtIsSet", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			Name:           "test_pool",
+			Account:        account,
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		volumeRep := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
+			Name:      "test_volume_rep",
+			Account:   account,
+			Volume:    volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "test-volume-rep-external-uuid",
+			},
+		}
+		err = store.db.Create(volumeRep).Error()
+		assert.NoError(tt, err, "Failed to create volume replication")
+
+		// Verify DeletedAt is nil initially
+		initialVolumeRep, err := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
+		assert.NoError(tt, err, "Failed to get volume replication")
+		assert.Nil(tt, initialVolumeRep.DeletedAt, "Expected DeletedAt to be nil initially")
+
+		// Update with DeletedAt set
+		deletedAt := &gorm.DeletedAt{Time: time.Now(), Valid: true}
+		updateVolumeRep := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-volume-rep-uuid",
+				DeletedAt: deletedAt,
+			},
+			State: models.LifeCycleStateDeleted,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "test-volume-rep-external-uuid",
+			},
+		}
+		err = store.UpdateVolumeReplication(context.Background(), updateVolumeRep)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify DeletedAt was set (use Unscoped to query soft-deleted records)
+		var updatedVolumeRep datamodel.VolumeReplication
+		err = store.db.Unscoped().GORM().Where("uuid = ?", volumeRep.UUID).First(&updatedVolumeRep).Error
+		assert.NoError(tt, err, "Failed to get updated volume replication")
+		assert.NotNil(tt, updatedVolumeRep.DeletedAt, "Expected DeletedAt to be set")
+		assert.True(tt, updatedVolumeRep.DeletedAt.Valid, "Expected DeletedAt.Valid to be true")
+		assert.Equal(tt, deletedAt.Time.Unix(), updatedVolumeRep.DeletedAt.Time.Unix(), "Expected DeletedAt time to match")
+	})
+	t.Run("WhenDeletedAtIsNil", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			Name:           "test_pool",
+			Account:        account,
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		volumeRep := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
+			Name:      "test_volume_rep",
+			Account:   account,
+			Volume:    volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "test-volume-rep-external-uuid",
+			},
+		}
+		err = store.db.Create(volumeRep).Error()
+		assert.NoError(tt, err, "Failed to create volume replication")
+
+		// Verify DeletedAt is nil initially
+		initialVolumeRep, err := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
+		assert.NoError(tt, err, "Failed to get volume replication")
+		assert.Nil(tt, initialVolumeRep.DeletedAt, "Expected DeletedAt to be nil initially")
+
+		// Update without DeletedAt (nil)
+		updateVolumeRep := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
+			State:     models.LifeCycleStateAvailable,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "test-volume-rep-external-uuid",
+			},
+		}
+		err = store.UpdateVolumeReplication(context.Background(), updateVolumeRep)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+
+		// Verify DeletedAt remains nil (not modified)
+		updatedVolumeRep, err := store.GetVolumeReplication(context.Background(), volumeRep.UUID)
+		assert.NoError(tt, err, "Failed to get updated volume replication")
+		assert.Nil(tt, updatedVolumeRep.DeletedAt, "Expected DeletedAt to remain nil when not set in update")
+		assert.Equal(tt, models.LifeCycleStateAvailable, updatedVolumeRep.State, "Expected state to be updated")
 	})
 }
 
@@ -1507,7 +1670,7 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 	})
 }
 
-func TestGetVolumeReplicationCountByPeerName(t *testing.T) {
+func TestGetVolumeReplicationCountByPeerDetails(t *testing.T) {
 	logger := log.NewLogger()
 	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
 
@@ -1633,7 +1796,7 @@ func TestGetVolumeReplicationCountByPeerName(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create volume replication 3")
 
 		// Query for volume replications with specific peer names
-		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "test_account", "peer-svm-1", "peer-volume-1")
+		count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, "test_account", "peer-svm-1", "peer-volume-1")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, int64(2), count, "Expected 2 volume replications, got %d", count)
 	})
@@ -1656,7 +1819,7 @@ func TestGetVolumeReplicationCountByPeerName(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create account")
 
 		// Query for volume replications with non-matching peer names
-		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "test_account", "non-existent-svm", "non-existent-volume")
+		count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, "test_account", "non-existent-svm", "non-existent-volume")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, int64(0), count, "Expected 0 volume replications, got %d", count)
 	})
@@ -1671,7 +1834,7 @@ func TestGetVolumeReplicationCountByPeerName(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		// Query for volume replications with non-existent account
-		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "non-existent-account", "peer-svm-1", "peer-volume-1")
+		count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, "non-existent-account", "peer-svm-1", "peer-volume-1")
 		assert.Error(tt, err, "Expected error for non-existent account")
 		assert.Equal(tt, int64(0), count, "Expected 0 count for non-existent account")
 	})
@@ -1740,7 +1903,7 @@ func TestGetVolumeReplicationCountByPeerName(t *testing.T) {
 		cancelledCtx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel the context immediately
 
-		_, err = store.GetVolumeReplicationCountByPeerName(cancelledCtx, "test_account", "peer-svm-1", "peer-volume-1")
+		_, err = store.GetVolumeReplicationCountByPeerDetails(cancelledCtx, "test_account", "peer-svm-1", "peer-volume-1")
 		assert.Error(tt, err, "Expected error due to cancelled context")
 	})
 
@@ -1813,7 +1976,7 @@ func TestGetVolumeReplicationCountByPeerName(t *testing.T) {
 		assert.NoError(tt, err, "Failed to drop volume_replications table")
 
 		// Try to get count after dropping the table - this should trigger line 246
-		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "test_account", "peer-svm-1", "peer-volume-1")
+		count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, "test_account", "peer-svm-1", "peer-volume-1")
 		assert.Error(tt, err, "Expected error when volume_replications table is dropped")
 		assert.Equal(tt, int64(0), count, "Expected count to be 0 when database error occurs")
 	})

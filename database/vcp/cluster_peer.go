@@ -35,6 +35,11 @@ func (d *DataStoreRepository) DeleteClusterPeeringRow(ctx context.Context, clust
 	return deleteClusterPeeringRow(d.db.GORM().WithContext(ctx), clusterPeeringRow)
 }
 
+// ListClusterPeeringRowsByPoolID retrieves all cluster peering rows for a given pool ID
+func (d *DataStoreRepository) ListClusterPeeringRowsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ClusterPeerings, error) {
+	return listClusterPeeringRowsByPoolID(d.db.GORM().WithContext(ctx), poolID)
+}
+
 // getClusterPeerByAccountIDExternalClusterAndPoolID retrieves a cluster peer by account ID, external cluster name, and pool ID
 func getClusterPeerByAccountIDExternalClusterAndPoolID(db *gorm.DB, accountID int64, onPrempCluster string, poolID int64) (*datamodel.ClusterPeerings, error) {
 	clusterPeeringRow := &datamodel.ClusterPeerings{}
@@ -97,4 +102,14 @@ func deleteClusterPeeringRow(db *gorm.DB, clusterPeeringRow *datamodel.ClusterPe
 		)
 	}
 	return nil
+}
+
+// listClusterPeeringRowsByPoolID retrieves all cluster peering rows for a given pool ID
+func listClusterPeeringRowsByPoolID(db *gorm.DB, poolID int64) ([]*datamodel.ClusterPeerings, error) {
+	var clusterPeeringRows []*datamodel.ClusterPeerings
+	err := db.Where("pool_id = ?", poolID).Find(&clusterPeeringRows).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "cluster peering rows", nil))
+	}
+	return clusterPeeringRows, nil
 }

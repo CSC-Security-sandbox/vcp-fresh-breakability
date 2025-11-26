@@ -136,6 +136,11 @@ func (d *DataStoreRepository) UpdateVolumeReplication(ctx context.Context, volum
 	dbReplication.LagTime = volumeRep.LagTime
 	dbReplication.LastUpdatedFromOntap = volumeRep.LastUpdatedFromOntap
 	dbReplication.ClusterPeerId = volumeRep.ClusterPeerId
+
+	// Handle DeletedAt field for soft deletion
+	if volumeRep.DeletedAt != nil {
+		dbReplication.DeletedAt = volumeRep.DeletedAt
+	}
 	err = tx.Updates(dbReplication).Error
 	if err != nil {
 		return err
@@ -250,7 +255,7 @@ func (d *DataStoreRepository) GetVolumeReplicationCountByClusterPeerID(ctx conte
 	return count, nil
 }
 
-func (d *DataStoreRepository) GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
+func (d *DataStoreRepository) GetVolumeReplicationCountByPeerDetails(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
 	var count int64
 	account, err := d.GetAccount(ctx, accountName)
 	if err != nil {

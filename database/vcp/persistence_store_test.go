@@ -4387,7 +4387,7 @@ func TestPersistenceStore_ListClusterPeeringRowsByAccountID(t *testing.T) {
 	})
 }
 
-func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
+func TestPersistenceStore_GetVolumeReplicationCountByPeerDetails(t *testing.T) {
 	t.Run("WhenVolumeReplicationsExistWithMatchingPeerName", func(tt *testing.T) {
 		logger := log.NewLogger()
 		store, err := SetupStorageForTest(logger)
@@ -4552,12 +4552,12 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 		assert.NotNil(tt, createdReplication3, "Created volume replication 3 should not be nil")
 
 		// Get count for matching peer names
-		count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, peerSvmName, peerVolumeName)
+		count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, account.Name, peerSvmName, peerVolumeName)
 		assert.NoError(tt, err, "Expected no error when getting volume replication count")
 		assert.Equal(tt, int64(2), count, "Expected count to be 2 for matching peer names")
 
 		// Get count for non-matching peer names
-		count, err = store.GetVolumeReplicationCountByPeerName(ctx, account.Name, "different-peer-svm", "different-peer-volume")
+		count, err = store.GetVolumeReplicationCountByPeerDetails(ctx, account.Name, "different-peer-svm", "different-peer-volume")
 		assert.NoError(tt, err, "Expected no error when getting volume replication count")
 		assert.Equal(tt, int64(1), count, "Expected count to be 1 for different peer names")
 	})
@@ -4586,7 +4586,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 		account = createdAccount
 
 		// Get count for non-existent peer names
-		count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, "non-existent-svm", "non-existent-volume")
+		count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, account.Name, "non-existent-svm", "non-existent-volume")
 		assert.NoError(tt, err, "Expected no error when getting volume replication count for non-existent peer names")
 		assert.Equal(tt, int64(0), count, "Expected count to be 0 for non-existent peer names")
 	})
@@ -4604,7 +4604,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 		ctx := context.Background()
 
 		// Try to get count for non-existent account
-		count, err := store.GetVolumeReplicationCountByPeerName(ctx, "non-existent-account", "test-svm", "test-volume")
+		count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, "non-existent-account", "test-svm", "test-volume")
 		assert.Error(tt, err, "Expected error when getting count for non-existent account")
 		assert.Equal(tt, int64(0), count, "Expected count to be 0 for non-existent account")
 	})
@@ -4634,7 +4634,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 		cancelledCtx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel the context immediately
 
-		count, err := store.GetVolumeReplicationCountByPeerName(cancelledCtx, account.Name, "test-svm", "test-volume")
+		count, err := store.GetVolumeReplicationCountByPeerDetails(cancelledCtx, account.Name, "test-svm", "test-volume")
 		assert.Error(tt, err, "Expected error due to cancelled context")
 		assert.Equal(tt, int64(0), count, "Expected count to be 0 when error occurs")
 	})
@@ -4764,13 +4764,13 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 
 		// Test each peer name individually
 		for i, peerName := range peerNames {
-			count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, peerName.svmName, peerName.volumeName)
+			count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, account.Name, peerName.svmName, peerName.volumeName)
 			assert.NoError(tt, err, "Expected no error when getting count for peer %d", i+1)
 			assert.Equal(tt, int64(1), count, "Expected count to be 1 for peer %d", i+1)
 		}
 
 		// Test non-existent peer name
-		count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, "non-existent-svm", "non-existent-volume")
+		count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, account.Name, "non-existent-svm", "non-existent-volume")
 		assert.NoError(tt, err, "Expected no error when getting count for non-existent peer")
 		assert.Equal(tt, int64(0), count, "Expected count to be 0 for non-existent peer")
 	})
@@ -4860,7 +4860,7 @@ func TestPersistenceStore_GetVolumeReplicationCountByPeerName(t *testing.T) {
 		assert.NoError(tt, err, "Failed to close store")
 
 		// Try to get count after closing the store - this should trigger line 246
-		count, err := store.GetVolumeReplicationCountByPeerName(ctx, account.Name, "test-peer-svm", "test-peer-volume")
+		count, err := store.GetVolumeReplicationCountByPeerDetails(ctx, account.Name, "test-peer-svm", "test-peer-volume")
 		assert.Error(tt, err, "Expected error when database connection is closed")
 		assert.Equal(tt, int64(0), count, "Expected count to be 0 when database error occurs")
 	})

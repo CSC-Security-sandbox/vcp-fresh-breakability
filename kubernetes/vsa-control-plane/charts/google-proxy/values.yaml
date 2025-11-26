@@ -36,6 +36,7 @@ cpcrrEnabled: false
 czcrrEnabled: false
 refreshAdminJobSpecs: true
 flexCacheEnabled: false
+hybridReplicationEnabled: false
 autoTieringEnabled: false
 regionalSupportEnabled: true
 filesProtocolSupport: false

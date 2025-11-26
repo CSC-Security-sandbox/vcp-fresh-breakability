@@ -2,6 +2,7 @@ package replication
 
 import (
 	"context"
+	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -228,4 +229,28 @@ type UpdateVolumeReplicationAttributesResult struct {
 	DbVolReplication   *datamodel.VolumeReplication
 	ReplicationDetails *vsa.VolumeReplication
 	Error              error
+}
+
+type CreateHybridReplicationResult struct {
+	Ctx                            context.Context
+	DestinationVolume              *datamodel.Volume
+	DestinationRegion              string
+	DestinationZone                string
+	DestinationProjectNumber       string
+	HybridReplicationParameters    *models.HybridReplicationParameters
+	CorrelationID                  *string
+	RequestID                      *string
+	DstBasePath                    *string
+	DstJwtToken                    *string
+	JobId                          *string
+	NodeProvider                        *models.Node
+	ClusterPeeringRow              *datamodel.ClusterPeerings
+	DbVolReplication               *datamodel.VolumeReplication
+	ClusterPeer                    *vsa.ClusterPeer
+	CurrentHydrateState            models.VolumeReplicationHydrateState
+	DstReplication                 *googleproxyclient.VolumeReplicationInternalV1beta
+	ReplicationCreateResponseONTAP *vsa.VolumeReplication
+	Operation                      *common.Operations
+	DbNodes                        []*datamodel.Node
+	FirstProblemStateTime          *time.Time
 }

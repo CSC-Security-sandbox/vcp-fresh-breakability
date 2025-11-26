@@ -32,8 +32,8 @@ import (
 var (
 	ValidateReplicationParams       = _validateReplicationParams
 	ValidateCreateReplicationParams = _validateCreateReplicationParams
-	validateReplicationResourceId   = _validateReplicationResourceId
-	validateLabels                  = _validateLabels
+	ValidateReplicationResourceId   = _validateReplicationResourceId
+	ValidateLabels                  = _validateLabels
 	internalUtilGetCCFEURI          = GetCCFEURI
 	utilsParseProjectNumberFromURI  = utils.ParseProjectNumberFromURI
 	convertLabelsMapToJSONB         = utils.ConvertLabelsMapToJSONB
@@ -105,7 +105,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	}
 
 	if event.CreateReplicationParams.Labels != nil {
-		err := validateLabels(event.CreateReplicationParams.Labels)
+		err := ValidateLabels(event.CreateReplicationParams.Labels)
 		if err != nil {
 			logger.Error("validateLabels error", "error", err)
 			return nil, err
@@ -165,7 +165,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		}
 	}
 
-	err = validateReplicationResourceId(ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, se)
+	err = ValidateReplicationResourceId(ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, se)
 	if err != nil {
 		logger.Error("Replication resourceId error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrValidateCreateResourceIdInUse, err)
@@ -502,7 +502,7 @@ func _createReplicationObjects(event *CreateReplicationEvent, remotelocation, re
 		SourceLocation:      event.LocationID,
 		DestinationLocation: event.DestinationLocationID,
 		EndpointType:        models.VolumeReplicationCVPV1betaEndpointTypeSrc,
-		ReplicationSchedule: string(mapCCFERescheduleToInternalReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(*event.CreateReplicationParams.ReplicationSchedule))),
+		ReplicationSchedule: string(MapCCFERescheduleToInternalReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(*event.CreateReplicationParams.ReplicationSchedule))),
 		SourcePoolUUID:      event.SourcePool.UUID,
 		Labels:              convertLabelsMapToJSONB(event.CreateReplicationParams.Labels),
 	}
@@ -990,7 +990,7 @@ func _verifyDstReplicationSync(ctx context.Context, event *ResumeReplicationEven
 	return dstReplication, nil
 }
 
-func mapCCFERescheduleToInternalReplicationSchedule(schedule gcpgenserver.ReplicationV1betaReplicationSchedule) googleproxyclient.VolumeReplicationInternalV1betaReplicationSchedule {
+func MapCCFERescheduleToInternalReplicationSchedule(schedule gcpgenserver.ReplicationV1betaReplicationSchedule) googleproxyclient.VolumeReplicationInternalV1betaReplicationSchedule {
 	switch schedule {
 	case gcpgenserver.ReplicationV1betaReplicationScheduleHOURLY:
 		return googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly

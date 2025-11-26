@@ -1039,13 +1039,13 @@ func (re *retryEngine) GetVolumeReplicationCountByClusterPeerID(ctx context.Cont
 	return var0, err
 }
 
-func (re *retryEngine) GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
+func (re *retryEngine) GetVolumeReplicationCountByPeerDetails(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetVolumeReplicationCountByPeerName(ctx, accountName, peerSvmName, peerVolumeName)
+		var0, err = re.dataStore.GetVolumeReplicationCountByPeerDetails(ctx, accountName, peerSvmName, peerVolumeName)
 		if err != nil {
-			re.logError("GetVolumeReplicationCountByPeerName", err)
+			re.logError("GetVolumeReplicationCountByPeerDetails", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -4191,6 +4191,22 @@ func (re *retryEngine) GetActiveDirectoryForPoolByPoolID(ctx context.Context, po
 		var0, err = re.dataStore.GetActiveDirectoryForPoolByPoolID(ctx, poolID)
 		if err != nil {
 			re.logError("GetActiveDirectoryForPoolByPoolID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ListClusterPeeringRowsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ClusterPeerings, error) {
+	var var0 []*datamodel.ClusterPeerings
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListClusterPeeringRowsByPoolID(ctx, poolID)
+		if err != nil {
+			re.logError("ListClusterPeeringRowsByPoolID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

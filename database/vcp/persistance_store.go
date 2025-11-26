@@ -491,8 +491,8 @@ func (s *PersistenceStore) GetVolumeReplicationCountByVolumeID(ctx context.Conte
 	return s.dataStore.GetVolumeReplicationCountByVolumeID(ctx, volumeID)
 }
 
-func (s *PersistenceStore) GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
-	return s.dataStore.GetVolumeReplicationCountByPeerName(ctx, accountName, peerSvmName, peerVolumeName)
+func (s *PersistenceStore) GetVolumeReplicationCountByPeerDetails(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
+	return s.dataStore.GetVolumeReplicationCountByPeerDetails(ctx, accountName, peerSvmName, peerVolumeName)
 }
 
 func (s *PersistenceStore) ListVolumeReplications(ctx context.Context, filter dbutils.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error) {
@@ -1411,4 +1411,8 @@ func (s *PersistenceStore) GetSVMsUsingActiveDirectory(ctx context.Context, adId
 
 func (s *PersistenceStore) GetActiveDirectoryForPoolByPoolID(ctx context.Context, poolID int64) (*datamodel.ActiveDirectory, error) {
 	return s.dataStore.GetActiveDirectoryForPoolByPoolID(ctx, poolID)
+}
+
+func (s *PersistenceStore) ListClusterPeeringRowsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ClusterPeerings, error) {
+	return s.dataStore.ListClusterPeeringRowsByPoolID(ctx, poolID)
 }

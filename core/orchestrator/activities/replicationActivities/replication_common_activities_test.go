@@ -99,6 +99,154 @@ func TestMapVolumeBetaToVolumeHydrateObject(t *testing.T) {
 	})
 }
 
+func TestMapReplicationBetaToReplicationHydrateObject(t *testing.T) {
+	t.Run("WhenReplicationWithHybridReplicationAttributesAndLabels", func(tt *testing.T) {
+		replication := models.VolumeReplication{
+			Name:  "projects/test-project/locations/us-central1/volumes/test-volume/replications/test-replication",
+			State: "available",
+			HybridReplicationAttributes: &models.HybridReplicationParameters{
+				ReplicationType: models.HybridReplicationParametersReplicationTypeMIGRATION,
+				Labels: map[string]string{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			},
+		}
+
+		result := MapReplicationBetaToReplicationHydrateObject(replication)
+
+		assert.Equal(tt, "projects/test-project/locations/us-central1/volumes/test-volume/replications/test-replication", result.ResourceId)
+		assert.Equal(tt, "READY", result.ReplicationState)
+		assert.NotNil(tt, result.HybridReplicationType)
+		assert.Equal(tt, models.HybridReplicationHydrateType("MIGRATION"), *result.HybridReplicationType)
+		assert.NotNil(tt, result.Labels)
+		assert.Equal(tt, map[string]string{"key1": "value1", "key2": "value2"}, result.Labels)
+	})
+
+	t.Run("WhenReplicationWithHybridReplicationAttributesWithoutLabels", func(tt *testing.T) {
+		replication := models.VolumeReplication{
+			Name:  "test-replication-name",
+			State: "creating",
+			HybridReplicationAttributes: &models.HybridReplicationParameters{
+				ReplicationType: models.HybridReplicationParametersReplicationTypeCONTINUOUS,
+				Labels:          nil,
+			},
+		}
+
+		result := MapReplicationBetaToReplicationHydrateObject(replication)
+
+		assert.Equal(tt, "test-replication-name", result.ResourceId)
+		assert.Equal(tt, "CREATING", result.ReplicationState)
+		assert.NotNil(tt, result.HybridReplicationType)
+		assert.Equal(tt, models.HybridReplicationHydrateType("CONTINUOUS_REPLICATION"), *result.HybridReplicationType)
+		assert.Nil(tt, result.Labels)
+	})
+
+	t.Run("WhenReplicationWithoutHybridReplicationAttributes", func(tt *testing.T) {
+		replication := models.VolumeReplication{
+			Name:                        "test-replication-name",
+			State:                       "updating",
+			HybridReplicationAttributes: nil,
+		}
+
+		result := MapReplicationBetaToReplicationHydrateObject(replication)
+
+		assert.Equal(tt, "test-replication-name", result.ResourceId)
+		assert.Equal(tt, "UPDATING", result.ReplicationState)
+		assert.NotNil(tt, result.HybridReplicationType)
+		// When HybridReplicationAttributes is nil, replicationType should be zero value
+		var zeroType models.HybridReplicationHydrateType
+		assert.Equal(tt, zeroType, *result.HybridReplicationType)
+		assert.Nil(tt, result.Labels)
+	})
+
+	t.Run("WhenReplicationWithDifferentStates", func(tt *testing.T) {
+		testCases := []struct {
+			name            string
+			state           string
+			expectedState   string
+			replicationType models.HybridReplicationParametersReplicationType
+		}{
+			{"CreatingState", "creating", "CREATING", models.HybridReplicationParametersReplicationTypeMIGRATION},
+			{"AvailableState", "available", "READY", models.HybridReplicationParametersReplicationTypeCONTINUOUS},
+			{"UpdatingState", "updating", "UPDATING", models.HybridReplicationParametersReplicationTypeONPREM},
+			{"DisabledState", "disabled", "STOPPED", models.HybridReplicationParametersReplicationTypeREVERSE},
+			{"DeletingState", "deleting", "DELETING", models.HybridReplicationParametersReplicationTypeMIGRATION},
+			{"PendingClusterPeeringState", "PENDING_CLUSTER_PEERING", "PENDING_CLUSTER_PEERING", models.HybridReplicationParametersReplicationTypeCONTINUOUS},
+			{"ErrorState", "error", "ERROR", models.HybridReplicationParametersReplicationTypeMIGRATION},
+			{"UnknownState", "unknown-state", "STATE_UNSPECIFIED", models.HybridReplicationParametersReplicationTypeMIGRATION},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				replication := models.VolumeReplication{
+					Name:  "test-replication",
+					State: tc.state,
+					HybridReplicationAttributes: &models.HybridReplicationParameters{
+						ReplicationType: tc.replicationType,
+					},
+				}
+
+				result := MapReplicationBetaToReplicationHydrateObject(replication)
+
+				assert.Equal(tt, "test-replication", result.ResourceId)
+				assert.Equal(tt, tc.expectedState, result.ReplicationState)
+				assert.NotNil(tt, result.HybridReplicationType)
+				assert.Equal(tt, models.HybridReplicationHydrateType(tc.replicationType), *result.HybridReplicationType)
+			})
+		}
+	})
+
+	t.Run("WhenReplicationWithEmptyLabels", func(tt *testing.T) {
+		replication := models.VolumeReplication{
+			Name:  "test-replication",
+			State: "available",
+			HybridReplicationAttributes: &models.HybridReplicationParameters{
+				ReplicationType: models.HybridReplicationParametersReplicationTypeMIGRATION,
+				Labels:          make(map[string]string),
+			},
+		}
+
+		result := MapReplicationBetaToReplicationHydrateObject(replication)
+
+		assert.Equal(tt, "test-replication", result.ResourceId)
+		assert.Equal(tt, "READY", result.ReplicationState)
+		assert.NotNil(tt, result.Labels)
+		assert.Equal(tt, map[string]string{}, result.Labels)
+	})
+
+	t.Run("WhenReplicationWithAllReplicationTypes", func(tt *testing.T) {
+		replicationTypes := []struct {
+			input    models.HybridReplicationParametersReplicationType
+			expected models.HybridReplicationHydrateType
+		}{
+			{models.HybridReplicationParametersReplicationTypeMIGRATION, models.HybridReplicationHydrateType("MIGRATION")},
+			{models.HybridReplicationParametersReplicationTypeCONTINUOUS, models.HybridReplicationHydrateType("CONTINUOUS_REPLICATION")},
+			{models.HybridReplicationParametersReplicationTypeONPREM, models.HybridReplicationHydrateType("ONPREM_REPLICATION")},
+			{models.HybridReplicationParametersReplicationTypeREVERSE, models.HybridReplicationHydrateType("REVERSE_ONPREM_REPLICATION")},
+			{models.HybridReplicationParametersReplicationTypeUNSPECIFIED, models.HybridReplicationHydrateType("REPLICATION_TYPE_UNSPECIFIED")},
+		}
+
+		for _, rt := range replicationTypes {
+			tt.Run(string(rt.input), func(t *testing.T) {
+				replication := models.VolumeReplication{
+					Name:  "test-replication",
+					State: "available",
+					HybridReplicationAttributes: &models.HybridReplicationParameters{
+						ReplicationType: rt.input,
+					},
+				}
+
+				result := MapReplicationBetaToReplicationHydrateObject(replication)
+
+				assert.Equal(tt, "test-replication", result.ResourceId)
+				assert.NotNil(tt, result.HybridReplicationType)
+				assert.Equal(tt, rt.expected, *result.HybridReplicationType)
+			})
+		}
+	})
+}
+
 func TestVolumeReplicationDeHydration(t *testing.T) {
 	createReplicationResponse := &models.VolumeReplication{
 		Name:  "replication-name",

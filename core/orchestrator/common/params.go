@@ -122,6 +122,7 @@ type CreateVolumeParams struct {
 	SnapshotDirectory           bool
 	IsClone                     bool
 	IncrementalSpaceInBytes     uint64
+	HybridReplicationParameters *models.HybridReplicationParameters
 }
 
 type SnapmirrorRelationshipParams struct {

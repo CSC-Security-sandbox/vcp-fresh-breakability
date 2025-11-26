@@ -740,10 +740,10 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		mockStorage.On("GetAccount", ctx, projectNumber).Return(&datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acc-1"}}, nil)
-		validateReplicationResourceId = func(ctx context.Context, projectNumber string, paramReplicationResourceId string, paramsVolumeResourceId string, se database.Storage) error {
+		ValidateReplicationResourceId = func(ctx context.Context, projectNumber string, paramReplicationResourceId string, paramsVolumeResourceId string, se database.Storage) error {
 			return nil
 		}
-		defer func() { validateReplicationResourceId = _validateReplicationResourceId }()
+		defer func() { ValidateReplicationResourceId = _validateReplicationResourceId }()
 
 		// Patch dependencies
 		origGetSignedJwtToken := InternalUtilGetSignedToken

@@ -9986,12 +9986,12 @@ func (_c *MockStorage_GetVolumeReplicationCountByClusterPeerID_Call) RunAndRetur
 	return _c
 }
 
-// GetVolumeReplicationCountByPeerName provides a mock function with given fields: ctx, accountName, peerSvmName, peerVolumeName
-func (_m *MockStorage) GetVolumeReplicationCountByPeerName(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
+// GetVolumeReplicationCountByPeerDetails provides a mock function with given fields: ctx, accountName, peerSvmName, peerVolumeName
+func (_m *MockStorage) GetVolumeReplicationCountByPeerDetails(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
 	ret := _m.Called(ctx, accountName, peerSvmName, peerVolumeName)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetVolumeReplicationCountByPeerName")
+		panic("no return value specified for GetVolumeReplicationCountByPeerDetails")
 	}
 
 	var r0 int64
@@ -10014,33 +10014,33 @@ func (_m *MockStorage) GetVolumeReplicationCountByPeerName(ctx context.Context, 
 	return r0, r1
 }
 
-// MockStorage_GetVolumeReplicationCountByPeerName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeReplicationCountByPeerName'
-type MockStorage_GetVolumeReplicationCountByPeerName_Call struct {
+// MockStorage_GetVolumeReplicationCountByPeerDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeReplicationCountByPeerDetails'
+type MockStorage_GetVolumeReplicationCountByPeerDetails_Call struct {
 	*mock.Call
 }
 
-// GetVolumeReplicationCountByPeerName is a helper method to define mock.On call
+// GetVolumeReplicationCountByPeerDetails is a helper method to define mock.On call
 //   - ctx context.Context
 //   - accountName string
 //   - peerSvmName string
 //   - peerVolumeName string
-func (_e *MockStorage_Expecter) GetVolumeReplicationCountByPeerName(ctx interface{}, accountName interface{}, peerSvmName interface{}, peerVolumeName interface{}) *MockStorage_GetVolumeReplicationCountByPeerName_Call {
-	return &MockStorage_GetVolumeReplicationCountByPeerName_Call{Call: _e.mock.On("GetVolumeReplicationCountByPeerName", ctx, accountName, peerSvmName, peerVolumeName)}
+func (_e *MockStorage_Expecter) GetVolumeReplicationCountByPeerDetails(ctx interface{}, accountName interface{}, peerSvmName interface{}, peerVolumeName interface{}) *MockStorage_GetVolumeReplicationCountByPeerDetails_Call {
+	return &MockStorage_GetVolumeReplicationCountByPeerDetails_Call{Call: _e.mock.On("GetVolumeReplicationCountByPeerDetails", ctx, accountName, peerSvmName, peerVolumeName)}
 }
 
-func (_c *MockStorage_GetVolumeReplicationCountByPeerName_Call) Run(run func(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string)) *MockStorage_GetVolumeReplicationCountByPeerName_Call {
+func (_c *MockStorage_GetVolumeReplicationCountByPeerDetails_Call) Run(run func(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string)) *MockStorage_GetVolumeReplicationCountByPeerDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
 	})
 	return _c
 }
 
-func (_c *MockStorage_GetVolumeReplicationCountByPeerName_Call) Return(_a0 int64, _a1 error) *MockStorage_GetVolumeReplicationCountByPeerName_Call {
+func (_c *MockStorage_GetVolumeReplicationCountByPeerDetails_Call) Return(_a0 int64, _a1 error) *MockStorage_GetVolumeReplicationCountByPeerDetails_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockStorage_GetVolumeReplicationCountByPeerName_Call) RunAndReturn(run func(context.Context, string, string, string) (int64, error)) *MockStorage_GetVolumeReplicationCountByPeerName_Call {
+func (_c *MockStorage_GetVolumeReplicationCountByPeerDetails_Call) RunAndReturn(run func(context.Context, string, string, string) (int64, error)) *MockStorage_GetVolumeReplicationCountByPeerDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -11072,6 +11072,65 @@ func (_c *MockStorage_ListClusterPeeringRowsByAccountID_Call) Return(_a0 []*data
 }
 
 func (_c *MockStorage_ListClusterPeeringRowsByAccountID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.ClusterPeerings, error)) *MockStorage_ListClusterPeeringRowsByAccountID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListClusterPeeringRowsByPoolID provides a mock function with given fields: ctx, poolID
+func (_m *MockStorage) ListClusterPeeringRowsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ClusterPeerings, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListClusterPeeringRowsByPoolID")
+	}
+
+	var r0 []*datamodel.ClusterPeerings
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.ClusterPeerings, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.ClusterPeerings); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ClusterPeerings)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListClusterPeeringRowsByPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListClusterPeeringRowsByPoolID'
+type MockStorage_ListClusterPeeringRowsByPoolID_Call struct {
+	*mock.Call
+}
+
+// ListClusterPeeringRowsByPoolID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+func (_e *MockStorage_Expecter) ListClusterPeeringRowsByPoolID(ctx interface{}, poolID interface{}) *MockStorage_ListClusterPeeringRowsByPoolID_Call {
+	return &MockStorage_ListClusterPeeringRowsByPoolID_Call{Call: _e.mock.On("ListClusterPeeringRowsByPoolID", ctx, poolID)}
+}
+
+func (_c *MockStorage_ListClusterPeeringRowsByPoolID_Call) Run(run func(ctx context.Context, poolID int64)) *MockStorage_ListClusterPeeringRowsByPoolID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListClusterPeeringRowsByPoolID_Call) Return(_a0 []*datamodel.ClusterPeerings, _a1 error) *MockStorage_ListClusterPeeringRowsByPoolID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListClusterPeeringRowsByPoolID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.ClusterPeerings, error)) *MockStorage_ListClusterPeeringRowsByPoolID_Call {
 	_c.Call.Return(run)
 	return _c
 }

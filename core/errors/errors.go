@@ -304,6 +304,9 @@ const (
 	ErrEstablishPeeringJobFailed = 11006
 	ErrInternalPeeringJobFailed  = 11007
 	ErrClusterPeerNotFound       = 11008
+	ErrorCreateClusterPeerCVISourceClusterUnreachable = 11009
+	ErrClusterPeerNotAvailable                        = 11010
+	ErrSVMPeerNotAvailable                            = 11011
 
 	// Backup specific errors (12000-12999 range)
 	ErrImmutableValidationWithUpdatingBackupPolicy = 12001

@@ -20,8 +20,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -433,11 +435,24 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: dbVolume.UUID,
+			PoolUUID:     pool.UUID,
 		},
 	}
 
 	if params.LargeCapacity {
 		job.Type = string(models.JobTypeCreateLargeVolume)
+	}
+
+	wf := workflows.CreateVolumeWorkflow
+
+	if params.HybridReplicationParameters != nil {
+		job.Type = string(models.JobTypeCreateHybridReplication)
+		job.ResourceName = fmt.Sprintf("projects/%s/locations/%s/volumes/%s/replications/%s",
+			params.AccountName,
+			params.Region,
+			params.Name,
+			params.HybridReplicationParameters.ResourceID)
+		wf = replicationWorkflows.CreateHybridReplicationWorkflow
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -464,7 +479,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	err = workflowExecutor.ExecuteSequentialWorkflow(
 		ctx,
 		workflowOptions,
-		workflows.CreateVolumeWorkflow,
+		wf,
 		params,
 		dbVolume,
 		backupVault,
@@ -1008,6 +1023,73 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 
 	if params.SnapshotID != "" && params.IncrementalSpaceInBytes != 0 {
 		incrementalSpaceInBytesSet = true
+	}
+
+	if hp := params.HybridReplicationParameters; hp != nil {
+		replicationType := hp.ReplicationType
+		replicationSchedule := hp.ReplicationSchedule
+		if replicationType == models.HybridReplicationParametersReplicationTypeREVERSE || replicationType == models.HybridReplicationParametersReplicationTypeCONTINUOUS {
+			msg := "Hybrid replication is not allowed for replicationType: " + string(replicationType)
+			return customerrors.NewUserInputValidationErr(msg)
+		}
+
+		if replicationType == models.HybridReplicationParametersReplicationTypeONPREM {
+			if nillable.IsNilOrEmpty(&replicationSchedule) {
+				msg := "Can't have empty replicationSchedule for " + string(replicationType)
+				return customerrors.NewUserInputValidationErr(msg)
+			}
+		}
+
+		if params.BlockDevices != nil && len(*params.BlockDevices) > 0 {
+			for _, paramBlockDevice := range *params.BlockDevices {
+				if paramBlockDevice.Name != "" {
+					return customerrors.NewUserInputValidationErr("BlockDevices are not supported for Hybrid Replication")
+				}
+			}
+		}
+
+		if hp.PeerClusterName == "" || hp.PeerVolumeName == "" || hp.PeerSvmName == "" || len(hp.PeerIPAddresses) == 0 || hp.ResourceID == "" {
+			msg := "PeerClusterName, PeerSvmName, PeerVolumeName, PeerIPAddresses and ResourceID are required for Hybrid Replication"
+			return customerrors.NewUserInputValidationErr(msg)
+		}
+
+		replicationCount, err := se.GetVolumeReplicationCountByPeerDetails(ctx, params.AccountName, params.HybridReplicationParameters.PeerSvmName, params.HybridReplicationParameters.PeerVolumeName)
+		if err != nil {
+			return err
+		}
+
+		if replicationCount > 0 {
+			return customerrors.NewUserInputValidationErr("Hybrid replication already exists for the given peer SVM and volume")
+		}
+
+		if params.SnapshotID != "" || params.BackupID != "" || params.AutoTieringPolicy != nil || params.SnapshotPolicy != nil || params.BackupPath != "" {
+			msg := "Restoring volume from snapshot, backup, or enabling auto-tiering/snapshot policy is not supported for Hybrid Replication volumes"
+			return customerrors.NewUserInputValidationErr(msg)
+		}
+
+		if params.DataProtection != nil && ((params.DataProtection.ScheduledBackupEnabled != nil && *params.DataProtection.ScheduledBackupEnabled) || (params.DataProtection.BackupPolicyId) != "") {
+			msg := "Scheduled backups are not supported for Hybrid Replication, only manual backups are supported"
+			return customerrors.NewUserInputValidationErr(msg)
+		}
+
+		for _, ipAddress := range params.HybridReplicationParameters.PeerIPAddresses {
+			if !utils.ValidateIPv4Address(ipAddress) {
+				msg := "Invalid IP Address provided in Hybrid Replication Parameters"
+				return customerrors.NewUserInputValidationErr(msg)
+			}
+		}
+
+		if params.HybridReplicationParameters.Labels != nil {
+			err := replication.ValidateLabels(params.HybridReplicationParameters.Labels)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = replication.ValidateReplicationResourceId(ctx, params.AccountName, params.HybridReplicationParameters.ResourceID, params.Name, se)
+		if err != nil {
+			return vsaerrors.NewVCPError(vsaerrors.ErrValidateCreateResourceIdInUse, err)
+		}
 	}
 
 	if params.LargeCapacity {

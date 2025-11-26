@@ -132,6 +132,7 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 	// Handle ReplicationAttributes fields safely
 	if replication.ReplicationAttributes != nil {
 		retObj.EndpointType = mapEndpointTypeToInternal(replication.ReplicationAttributes.EndpointType)
+		retObj.ReplicationType = gcpgenserver.NewOptVolumeReplicationInternalV1betaReplicationType(gcpgenserver.VolumeReplicationInternalV1betaReplicationType(replication.ReplicationAttributes.ReplicationType))
 		retObj.ReplicationPolicy = gcpgenserver.NewOptVolumeReplicationInternalV1betaReplicationPolicy(gcpgenserver.VolumeReplicationInternalV1betaReplicationPolicyMirrorAllSnapshots)
 		retObj.ReplicationSchedule = gcpgenserver.NewOptVolumeReplicationInternalV1betaReplicationSchedule(mapReplicationScheduleToInternal(replication.ReplicationAttributes.ReplicationSchedule))
 		retObj.SourceHostName = replication.ReplicationAttributes.SourceHostName

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -3061,7 +3062,6 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.True(tt, result.Network.IsSet(), "Network should be set for non-empty string")
 		assert.Equal(tt, "network-123", result.Network.Value)
 	})
-
 	t.Run("ConvertVolumeV1betaCVPToModelWithCacheParams", func(tt *testing.T) {
 		// Test that non-empty PeerIPAddresses slice is properly set in the result
 		cacheParams := &cvpmodels.FlexCacheV1beta{
@@ -4495,6 +4495,47 @@ func TestV1betaCreateVolume(t *testing.T) {
 		assert.Equal(tt, float64(400), badReq.Code)
 		assert.Contains(tt, badReq.Message, "invalid input")
 	})
+	t.Run("WhenHybridReplicationNotEnabled", func(tt *testing.T) {
+		// Mock the hybridReplicationEnabled variable to be false
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = false
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					ReplicationSchedule:   gcpgenserver.NewOptHybridReplicationParametersV1betaReplicationSchedule("daily"),
+					PeerClusterName:       "peer-cluster",
+					PeerVolumeName:        "peer-volume",
+					PeerSvmName:           "peer-svm",
+					PeerIpAddresses:       []string{"192.168.1.1"},
+					ResourceId:            "resource-123",
+				},
+				Set: true,
+			},
+		}
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(t, err)
+		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusNotImplemented), badReq.Code)
+		assert.Equal(t, "Hybrid migration is not enabled", badReq.Message)
+	})
 
 	t.Run("UserInputValidationErrorWhenVolumeQuotaIsByteIsNotSet", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -5849,6 +5890,69 @@ func TestPrepareCreateVolumeParams_WithAutoTieringFeatureDisabled(t *testing.T) 
 	_, err := _prepareCreateVolumeParams(req, params, region, zone)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
+}
+
+func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *testing.T) {
+	t.Run("WhenHybridReplicationParametersWithAllFields", func(tt *testing.T) {
+		// Mock hybridReplicationEnabled to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION,
+					ReplicationSchedule:   gcpgenserver.NewOptHybridReplicationParametersV1betaReplicationSchedule(gcpgenserver.HybridReplicationParametersV1betaReplicationScheduleHOURLY),
+					PeerClusterName:       "peer-cluster",
+					PeerVolumeName:        "peer-volume",
+					PeerSvmName:           "peer-svm",
+					PeerIpAddresses:       []string{"192.168.1.1", "192.168.1.2"},
+					ResourceId:            "resource-123",
+					Labels: gcpgenserver.NewOptHybridReplicationParametersV1betaLabels(map[string]string{
+						"env": "test",
+						"app": "volume",
+					}),
+					Description:              gcpgenserver.NewOptNilString("Test hybrid replication"),
+					ClusterLocation:          gcpgenserver.NewOptNilString("us-west1"),
+					PeeringCommandExpiryTime: gcpgenserver.NewOptNilDateTime(time.Now().Add(24 * time.Hour)),
+				},
+				Set: true,
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "test-location",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.HybridReplicationParameters)
+
+		hybridParams := result.HybridReplicationParameters
+		assert.Equal(tt, "resource-123", hybridParams.ResourceID)
+		assert.Equal(tt, "peer-volume", hybridParams.PeerVolumeName)
+		assert.Equal(tt, "peer-cluster", hybridParams.PeerClusterName)
+		assert.Equal(tt, "peer-svm", hybridParams.PeerSvmName)
+		assert.Equal(tt, []string{"192.168.1.1", "192.168.1.2"}, hybridParams.PeerIPAddresses)
+		assert.Equal(tt, map[string]string{"env": "test", "app": "volume"}, hybridParams.Labels)
+		assert.Equal(tt, "Test hybrid replication", hybridParams.Description)
+		assert.Equal(tt, "us-west1", hybridParams.ClusterLocation)
+		assert.Equal(tt, "hourly", hybridParams.ReplicationSchedule)
+		assert.Equal(tt, models.HybridReplicationParametersReplicationTypeMIGRATION, hybridParams.ReplicationType)
+		assert.Equal(tt, SnapshotScheduleLabelHourly, hybridParams.ReplicationSchedule)
+	})
 }
 
 func TestPrepareCreateVolumeParams_TieringPolicyWithoutTierAction(t *testing.T) {

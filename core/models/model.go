@@ -83,14 +83,17 @@ const (
 
 const (
 	InitiatingClusterPeering = "Initiating cluster peering on destination cluster"
+	InitiatingSVMPeering     = "Initiating SVM peering on destination cluster"
 	WaitingForClusterPeering = "Waiting for cluster peering to be created on source cluster"
 	ErrorDuringClusterPeer   = "Cluster peering failed, please try again"
 	ClusterPeeringExpired    = "Cluster peering expired"
-	WaitingForSVMPeering     = "Waiting for SVM peering to be established"
+	WaitingForSVMPeering     = "Waiting for SVM peering to be accepted on source cluster"
 	ErrorDuringSVMPeering    = "SVM peering failed, please try again"
 	SVMPeeringExpired        = "SVM peering expired"
 	ErrorUnencryptedVolume   = "Origin volume is not encrypted"
 	ErrorCreatingCacheVolume = "Error creating cache volume"
+
+	ClusterPeeringSourceUnreachable = "Source cluster unreachable, check network connections"
 )
 
 const (

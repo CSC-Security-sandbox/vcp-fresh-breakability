@@ -48,6 +48,7 @@ data:
   CPCRR_ENABLED: "{{ index .Values "cpcrrEnabled" }}"
   CZCRR_ENABLED: "{{ index .Values "czcrrEnabled" }}"
   FLEXCACHE_ENABLED: "{{ index .Values "flexCacheEnabled" }}"
+  HYBRID_REPLICATION_ENABLED: "{{ index .Values "hybridReplicationEnabled" }}"
   REFRESH_ADMIN_JOB_SPECS: "{{ index .Values "refreshAdminJobSpecs" }}"
   AUTO_TIERING_ENABLED: "{{ index .Values "autoTieringEnabled" }}"
   REGIONAL_SUPPORT_ENABLED: "{{ index .Values "regionalSupportEnabled" }}"
