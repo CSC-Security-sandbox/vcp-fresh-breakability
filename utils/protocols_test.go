@@ -308,6 +308,39 @@ func TestIsSanProtocols(t *testing.T) {
 		assert.False(tt, IsSanProtocols(protocols))
 	})
 }
+
+func TestIsNFSProtocols(t *testing.T) {
+	t.Run("All NFS and SMB protocols", func(tt *testing.T) {
+		protocols := []string{ProtocolNFS, ProtocolNFSv3, ProtocolNFSv4, ProtocolSMB}
+		assert.True(tt, IsNFSProtocols(protocols))
+	})
+
+	t.Run("All NFS protocols", func(tt *testing.T) {
+		protocols := []string{ProtocolNFS, ProtocolNFSv3, ProtocolNFSv4}
+		assert.True(tt, IsNFSProtocols(protocols))
+	})
+
+	t.Run("Only NFSV3 protocol", func(tt *testing.T) {
+		protocols := []string{ProtocolNFSv3}
+		assert.True(tt, IsNFSProtocols(protocols))
+	})
+
+	t.Run("Only SMB protocol", func(tt *testing.T) {
+		protocols := []string{ProtocolSMB}
+		assert.False(tt, IsNFSProtocols(protocols))
+	})
+
+	t.Run("Empty slice", func(tt *testing.T) {
+		protocols := []string{}
+		assert.False(tt, IsNFSProtocols(protocols))
+	})
+
+	t.Run("Invalid protocol", func(tt *testing.T) {
+		protocols := []string{"INVALID"}
+		assert.False(tt, IsNFSProtocols(protocols))
+	})
+}
+
 func TestCreateJunctionPath(t *testing.T) {
 	tests := []struct {
 		token    string

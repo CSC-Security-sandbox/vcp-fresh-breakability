@@ -255,6 +255,20 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	if enableLdap && volume.Pool.PoolAttributes.LdapEnabled {
+		var isLastFilesVolume bool
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DetermineIfVolumeIsLastFilesVolume, volume, node).Get(ctx, &isLastFilesVolume)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		if isLastFilesVolume {
+			err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteLDAPConfiguration, volume, node).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		}
+	}
+
 	if enableSmb {
 		err = workflow.ExecuteChildWorkflow(ctx, SmbTeardownWorkflow, volume, node).Get(ctx, nil)
 		if err != nil {

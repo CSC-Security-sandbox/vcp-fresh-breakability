@@ -233,8 +233,12 @@ func (a ActiveDirectoryActivity) CreateJunctionPathForCifsShare(ctx context.Cont
 		Name:            junctionPath[1:],
 		ShareProperties: smbshareProperties,
 	}); err != nil {
-		logger.Error("failed to create junction path for CIFS share", "error", err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		if utilerrors.IsConflictErr(err) || strings.Contains(err.Error(), "duplicate entry") {
+			logger.Infof("CIFS share already exists for SVM  %s", svmName)
+		} else {
+			logger.Error("failed to create junction path for CIFS share", "error", err.Error())
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
 	}
 
 	logger.Info("Successfully created CIFS share", "svm", svmName, "junctionPath", junctionPath)

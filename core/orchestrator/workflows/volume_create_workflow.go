@@ -64,6 +64,10 @@ type PostVolumeProvisioningParams struct {
 // Parameters:
 //   - protocols: Slice of protocol strings to determine workflow type
 //   - phase: Provisioning phase (use PhasePre or PhasePost constants)
+//
+// Returns:
+//   - For post phase with both NFS and SMB protocols: returns a slice of workflows [PostFileVolumeWorkflow, PostFileVolumeWorkflowForSMB]
+//   - For all other cases: returns a single workflow function
 func selectVolumeChildWorkflow(protocols []string, phase, accountName string) (interface{}, error) {
 	if utils.IsSanProtocols(protocols) {
 		switch phase {
@@ -83,9 +87,18 @@ func selectVolumeChildWorkflow(protocols []string, phase, accountName string) (i
 		case PhasePre:
 			return PreFileVolumeWorkflow, nil
 		case PhasePost:
-			if utils.IsSMBProtocols(protocols) && enableSmb {
+			hasNFS := utils.IsNFSProtocols(protocols)
+			hasSMB := utils.IsSMBProtocols(protocols) && enableSmb
+
+			// If both SMB and NFS are present, return both workflows
+			if hasNFS && hasSMB {
+				return []interface{}{PostFileVolumeWorkflowForSMB, PostFileVolumeWorkflow}, nil
+			}
+			// If only SMB is present and enabled, return SMB-specific workflow
+			if hasSMB {
 				return PostFileVolumeWorkflowForSMB, nil
 			}
+			// Otherwise, return the general file workflow (for NFS-only or when SMB is disabled)
 			return PostFileVolumeWorkflow, nil
 		default:
 			return nil, ConvertToVSAError(fmt.Errorf("invalid phase: %s", phase))
@@ -437,7 +450,6 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 				return nil, ConvertToVSAError(err)
 			}
 
-			// Use the new workflow instead of the single activity
 			_, err = EnsureCIFSShareWorkflow(ctx, dbVolume, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID)
 			if err != nil {
 				log.Error("Failed to create cifs share during PostFileVolumeWorkflow with error: ", err)
@@ -668,16 +680,30 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			err = postErr
 			return nil, ConvertToVSAError(err)
 		}
-
+		// Handle both single workflow and slice of workflows (for NFS+SMB combination)
 		var updatedVolume *datamodel.Volume
-		err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolCreateResponse).Get(ctx, &updatedVolume)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-
-		// Update the dbVolume with the changes from the child workflow
-		if updatedVolume != nil {
-			dbVolume = updatedVolume
+		if workflowSlice, ok := postWorkflowFunc.([]interface{}); ok {
+			// Execute multiple workflows sequentially
+			for _, workflowFunc := range workflowSlice {
+				err = workflow.ExecuteChildWorkflow(ctx, workflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolCreateResponse).Get(ctx, &updatedVolume)
+				if err != nil {
+					return nil, ConvertToVSAError(err)
+				}
+				// Update the dbVolume with the changes from each child workflow
+				if updatedVolume != nil {
+					dbVolume = updatedVolume
+				}
+			}
+		} else {
+			// Single workflow execution
+			err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolCreateResponse).Get(ctx, &updatedVolume)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+			// Update the dbVolume with the changes from the child workflow
+			if updatedVolume != nil {
+				dbVolume = updatedVolume
+			}
 		}
 	}
 

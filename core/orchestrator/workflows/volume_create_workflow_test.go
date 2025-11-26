@@ -2021,6 +2021,42 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_SMB_WithFlagDisabled() {
 	assert.IsType(s.T(), PostFileVolumeWorkflow, postWorkflow)
 }
 
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_NFS_And_SMB_Combination() {
+	// Test selectVolumeChildWorkflow with both NFS and SMB protocols when enableSmb is true
+	protocols := []string{utils.ProtocolNFSv3, utils.ProtocolSMB}
+
+	// Save original value and enable flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	// Enable file protocols for testing with allowlisted accounts
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	// Test pre phase - should return single workflow
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), preWorkflow)
+	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
+
+	// Test post phase - should return slice of workflows
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), postWorkflow)
+
+	// Verify it returns a slice of workflows
+	workflowSlice, ok := postWorkflow.([]interface{})
+	assert.True(s.T(), ok, "Expected slice of workflows for NFS+SMB combination")
+	assert.Len(s.T(), workflowSlice, 2, "Expected 2 workflows: PostFileVolumeWorkflow and PostFileVolumeWorkflowForSMB")
+	assert.IsType(s.T(), PostFileVolumeWorkflowForSMB, workflowSlice[0])
+	assert.IsType(s.T(), PostFileVolumeWorkflow, workflowSlice[1])
+}
+
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_FileProtocolsDisabled() {
 	// Test selectVolumeChildWorkflow when file protocols are disabled
 	protocols := []string{utils.ProtocolNFSv3}
@@ -2275,6 +2311,119 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_PopulateRetryPolicyError() {
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "invalid duration")
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_DualProtocol_FileVolume_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("account-1")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	expectedSMBProperties := []string{"browsable", "encrypt_data", "oplocks"}
+	// NFS file volume with file properties and export policy
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{Name: "account-1"},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			ClusterDetails: datamodel.ClusterDetails{
+				Network:       "test-network",
+				SnHostProject: "test-project",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Svm: &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"NFSV3", "SMB"}, // Dual protocol volume
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ReadWrite",
+							NFSv3:          true,
+							NFSv4:          false,
+						},
+					},
+				},
+				JunctionPath:     "/test_share",
+				SMBShareSettings: expectedSMBProperties,
+			},
+		},
+	}
+
+	// node := &models.Node{Name: "node-1"}
+	activeDirectory := &vsa.ActiveDirectory{
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+	}
+	svmName := "test-svm"
+	externalSVMUUID := "svm-uuid"
+	expectedFQDN := "NETBIOS-1234.example.com"
+	svm := &datamodel.Svm{
+		Name: svmName,
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: externalSVMUUID,
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+
+	// Mock activities for Dual protocol volume flow
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "nfs_volume_test",
+			ExternalUUID: "volume-uuid",
+		},
+		AvailableSpace: 1000000,
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil)
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil)
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:      expectedFQDN,
+			NeedsDDNS: false,
+		}, nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare,
+		mock.Anything,
+		mock.Anything,
+		svmName,
+		"/test_share",
+		expectedSMBProperties).Return(nil)
+	s.env.OnActivity(commonActivity.CreateFirewallRule, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	// UpdateJob is called through UpdateJobStatus activity, not directly on mock
 }
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_Success() {

@@ -180,6 +180,82 @@ func (va VolumeDeleteActivity) DeleteVolumeAssociatedSnapshots(ctx context.Conte
 	return nil
 }
 
+func (va VolumeDeleteActivity) DetermineIfVolumeIsLastFilesVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node) (bool, error) {
+	logger := util.GetLogger(ctx)
+
+	if volume == nil || node == nil {
+		return false, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume/node is nil"))
+	}
+
+	if volume.VolumeAttributes == nil {
+		return false, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume attributes is nil for volume: %s", volume.UUID))
+	}
+
+	if !utils.IsNasProtocols(volume.VolumeAttributes.Protocols) {
+		logger.Infof("Volume %s is not files volume", volume.UUID)
+		return false, nil
+	}
+
+	se := va.SE
+	volumes, err := se.GetVolumesByPoolID(ctx, volume.PoolID)
+	if err != nil {
+		logger.Errorf("failed to get volumes for pool %d: %v", volume.PoolID, err)
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	for _, currentVolume := range volumes {
+		if currentVolume == nil {
+			continue
+		}
+		if currentVolume.UUID == volume.UUID {
+			continue
+		}
+		if currentVolume.VolumeAttributes == nil {
+			continue
+		}
+		if utils.IsNasProtocols(currentVolume.VolumeAttributes.Protocols) {
+			logger.Infof("Found NFS/SMB volume %s in pool %d", currentVolume.UUID, volume.PoolID)
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (va VolumeDeleteActivity) DeleteLDAPConfiguration(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+
+	if volume == nil || node == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume/node is nil"))
+	}
+
+	if volume.VolumeAttributes == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume attributes is nil for volume: %s", volume.UUID))
+	}
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if volume.Svm == nil || volume.Svm.SvmDetails == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume SVM details is nil for volume: %s", volume.UUID))
+	}
+
+	err = provider.DeleteLdap(volume.Svm.SvmDetails.ExternalUUID)
+	if err != nil {
+		if utilErrors.IsNotFoundErr(err) {
+			logger.Warnf("Ldap client configuration not found for svm %s, skipping deletion", volume.Svm.SvmDetails.ExternalUUID)
+			return nil
+		}
+		logger.Errorf("failed to delete LDAP config for volume %s: %v", volume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Ldap client configuration deleted successfully for svm %s", volume.Svm.SvmDetails.ExternalUUID)
+	return nil
+}
+
 func (va VolumeDeleteActivity) DetermineSmbTeardownContext(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*SmbTeardownContext, error) {
 	logger := util.GetLogger(ctx)
 	teardown := &SmbTeardownContext{}
@@ -195,8 +271,8 @@ func (va VolumeDeleteActivity) DetermineSmbTeardownContext(ctx context.Context, 
 	teardown.VolumeUUID = volume.UUID
 	teardown.PoolID = volume.PoolID
 
-	if !utils.IsSMBProtocols(volume.VolumeAttributes.Protocols) {
-		logger.Debugf("Volume %s is not SMB-enabled, skipping SMB teardown context", volume.UUID)
+	if !utils.IsNasProtocols(volume.VolumeAttributes.Protocols) {
+		logger.Debugf("Volume %s is not files volume, skipping SMB teardown context", volume.UUID)
 		return teardown, nil
 	}
 
@@ -225,6 +301,10 @@ func (va VolumeDeleteActivity) DetermineSmbTeardownContext(ctx context.Context, 
 		}
 		if utils.IsSMBProtocols(other.VolumeAttributes.Protocols) {
 			logger.Debugf("Found SMB volume %s in pool %d, skipping SMB teardown", other.UUID, volume.PoolID)
+			return teardown, nil
+		}
+		if utils.IsNasProtocols(other.VolumeAttributes.Protocols) && other.Pool.PoolAttributes.LdapEnabled {
+			logger.Infof("Found LDAP enabled NFS volume %s in pool %d, skipping SMB teardown", other.UUID, volume.PoolID)
 			return teardown, nil
 		}
 	}

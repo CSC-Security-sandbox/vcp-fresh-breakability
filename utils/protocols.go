@@ -153,6 +153,19 @@ func IsSMBProtocol(protocol string) bool {
 	return protocol == ProtocolSMB
 }
 
+// IsNFSProtocols checks if the provided protocols contain any NFS protocol
+func IsNFSProtocols(protocols []string) bool {
+	if len(protocols) == 0 {
+		return false
+	}
+	for _, protocol := range protocols {
+		if protocol == ProtocolNFS || protocol == ProtocolNFSv3 || protocol == ProtocolNFSv4 {
+			return true
+		}
+	}
+	return false
+}
+
 // IsSanProtocols checks if the provided protocols are all SAN protocols
 func IsSanProtocols(protocols []string) bool {
 	if len(protocols) == 0 {

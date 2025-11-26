@@ -2873,6 +2873,379 @@ func TestDeleteExportPolicy_NilExportPolicy(t *testing.T) {
 	})
 }
 
+func TestDetermineIfVolumeIsLastFilesVolume_NilVolume(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	isLastVolume, err := activity.DetermineIfVolumeIsLastFilesVolume(ctx, nil, &models.Node{})
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume/node is nil")
+	assert.False(t, isLastVolume)
+}
+
+func TestDetermineIfVolumeIsLastFilesVolume_NilNode(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-1"}}
+	isLastVolume, err := activity.DetermineIfVolumeIsLastFilesVolume(ctx, volume, nil)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume/node is nil")
+	assert.False(t, isLastVolume)
+}
+
+func TestDetermineIfVolumeIsLastFilesVolume_NilVolumeAttributes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: nil,
+	}
+	isLastVolume, err := activity.DetermineIfVolumeIsLastFilesVolume(ctx, volume, &models.Node{})
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume attributes is nil for volume")
+	assert.False(t, isLastVolume)
+}
+
+func TestDetermineIfVolumeIsLastFilesVolume_NonNASProtocol(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"ISCSI"},
+		},
+	}
+	isLastVolume, err := activity.DetermineIfVolumeIsLastFilesVolume(ctx, volume, &models.Node{})
+
+	// Assert
+	assert.NoError(t, err)
+	assert.False(t, isLastVolume)
+}
+
+func TestDetermineIfVolumeIsLastFilesVolume_GetVolumesError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return(nil, errors.New("db error"))
+
+	isLastVolume, err := activity.DetermineIfVolumeIsLastFilesVolume(ctx, volume, &models.Node{})
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
+	assert.False(t, isLastVolume)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineIfVolumeIsLastFilesVolume_OtherVolumeNil(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, nil}, nil)
+
+	isLastVolume, err := activity.DetermineIfVolumeIsLastFilesVolume(ctx, volume, &models.Node{})
+	// Assert
+	assert.NoError(t, err)
+	assert.True(t, isLastVolume)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineIfVolumeIsLastFilesVolume_OtherVolumeNilAttributes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+	}
+	otherVolume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-2"},
+		VolumeAttributes: nil,
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+
+	isLastVolume, err := activity.DetermineIfVolumeIsLastFilesVolume(ctx, volume, &models.Node{})
+	// Assert
+	assert.NoError(t, err)
+	assert.True(t, isLastVolume)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineIfVolumeIsLastFilesVolume_OtherVolumeIsNASProtocol(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+	}
+	otherVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-2"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv4},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+
+	isLastVolume, err := activity.DetermineIfVolumeIsLastFilesVolume(ctx, volume, &models.Node{})
+	// Assert
+	assert.NoError(t, err)
+	assert.False(t, isLastVolume)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteLDAPConfiguration_NilVolume(t *testing.T) {
+	// Mock setup
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Mock provider setup
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Execute test
+	err := activity.DeleteLDAPConfiguration(ctx, nil, &models.Node{})
+
+	// Assertions
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume/node is nil")
+}
+
+func TestDeleteLDAPConfiguration_NilVolumeAttributes(t *testing.T) {
+	// Mock setup
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: nil,
+	}
+
+	// Mock provider setup
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Execute test
+	err := activity.DeleteLDAPConfiguration(ctx, volume, &models.Node{})
+
+	// Assertions
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume attributes is nil for volume")
+}
+
+func TestDeleteLDAPConfiguration_NilSVM(t *testing.T) {
+	// Mock setup
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+	}
+
+	// Mock provider setup
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Execute test
+	err := activity.DeleteLDAPConfiguration(ctx, volume, &models.Node{})
+
+	// Assertions
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume SVM details is nil for volume")
+}
+
+func TestDeleteLDAPConfiguration_ProviderError(t *testing.T) {
+	// Mock setup
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+	}
+
+	// Mock provider setup
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("failed to get provider")
+	}
+
+	// Execute test
+	err := activity.DeleteLDAPConfiguration(ctx, volume, &models.Node{})
+
+	// Assertions
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get provider")
+}
+
+func TestDeleteLDAPConfiguration_LdapClientConfigurationNotFound(t *testing.T) {
+	// Mock setup
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "external-uuid",
+			},
+		},
+	}
+
+	// Mock provider setup
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockProvider.EXPECT().DeleteLdap(mock.Anything).Return(utilErrors.NewNotFoundErr("Ldap client configuration not found", nil))
+
+	// Execute test
+	err := activity.DeleteLDAPConfiguration(ctx, volume, &models.Node{})
+
+	// Assertions
+	assert.NoError(t, err)
+}
+
+func TestDeleteLDAPConfiguration_FailedToDeleteLDAPConfig(t *testing.T) {
+	// Mock setup
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "external-uuid",
+			},
+		},
+	}
+
+	// Mock provider setup
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockProvider.EXPECT().DeleteLdap(mock.Anything).Return(errors.New("failed to delete LDAP config for volume"))
+
+	// Execute test
+	err := activity.DeleteLDAPConfiguration(ctx, volume, &models.Node{})
+
+	// Assertions
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete LDAP config for volume")
+}
+
+func TestDeleteLDAPConfiguration_Success(t *testing.T) {
+	// Mock setup
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+		Svm: &datamodel.Svm{
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "external-uuid",
+			},
+		},
+	}
+
+	// Mock provider setup
+	mockProvider := vsa.NewMockProvider(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockProvider.EXPECT().DeleteLdap(mock.Anything).Return(nil)
+
+	// Execute test
+	err := activity.DeleteLDAPConfiguration(ctx, volume, &models.Node{})
+
+	// Assertions
+	assert.NoError(t, err)
+}
+
 func TestDetermineSmbTeardownContext_NilVolume(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
@@ -2911,7 +3284,7 @@ func TestDetermineSmbTeardownContext_NilVolumeAttributes(t *testing.T) {
 	assert.False(t, teardown.ShouldDelete)
 }
 
-func TestDetermineSmbTeardownContext_NonSMBProtocol(t *testing.T) {
+func TestDetermineSmbTeardownContext_NonNASProtocol(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -2919,7 +3292,7 @@ func TestDetermineSmbTeardownContext_NonSMBProtocol(t *testing.T) {
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			Protocols: []string{"NFS"},
+			Protocols: []string{"ISCSI"},
 		},
 	}
 	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
@@ -3124,6 +3497,39 @@ func TestDetermineSmbTeardownContext_OtherVolumeNilAttributes(t *testing.T) {
 	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
 	assert.NoError(t, err)
 	assert.True(t, teardown.ShouldDelete)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetermineSmbTeardownContext_LDAPEnabledNFSVolumePresent(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+		},
+	}
+	volume2 := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-2"},
+		PoolID:    42,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv3},
+		},
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				LdapEnabled: true,
+			},
+		},
+	}
+	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, volume2}, nil)
+
+	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	assert.NoError(t, err)
+	assert.NotNil(t, teardown)
+	assert.False(t, teardown.ShouldDelete)
 	mockStorage.AssertExpectations(t)
 }
 
