@@ -2585,9 +2585,13 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 
 		backupRegion := components[LocationIdIndex]
 		// Get the volume's region from its pool
-		volumeRegion, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
+		location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
 		if err != nil {
 			logger.Error("Failed to get location from vendor ID: ", "error", err)
+			return "", err
+		}
+		volumeRegion, _, err := utils.ParseRegionAndZone(location)
+		if err != nil {
 			return "", err
 		}
 		backupVaultName := components[BackupVaultNameIndex]

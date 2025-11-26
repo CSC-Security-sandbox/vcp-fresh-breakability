@@ -147,7 +147,6 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 
 	rollbackManager := commonparams.NewRollbackManager()
-	rollbackManager.AddActivity(activities.VolumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, volume.Pool, backup)
 	defer func() {
 		// Capture the workflow error before any cleanup operations
 		workflowErr := err
@@ -180,9 +179,11 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 			log.Errorf("Failed to restore volume state to READY: %v", err2)
 		}
 
-		// Execute rollback manager cleanup if there was a workflow error
-		disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-		rollbackManager.ExecuteRollback(disconnectedCtx, workflowErr)
+		if workflowErr != nil {
+			// Execute rollback manager cleanup if there was a workflow error
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, workflowErr)
+		}
 	}()
 
 	// Execute VPC pool restoration activity to handle cross-project permissions
@@ -581,14 +582,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		return nil, ConvertToVSAError(err)
 	}
 
-	// Step 15: Check if any files were missing and fail with detailed error
-	if len(missingFiles) > 0 {
-		errorMsg := fmt.Sprintf("Transfer completed for %d file(s), but the following file(s) are not present in the backup: %s", len(transferFiles), strings.Join(missingFiles, ", "))
-		log.Errorf("SFR workflow failed: %s", errorMsg)
-		return nil, ConvertToVSAError(fmt.Errorf("%s", errorMsg))
-	}
-
-	// Step 16: Populate SfrMetadata with file count and total size
+	// Step 15: Populate SfrMetadata with file count and total size
 	// Get job ID (int64) from job UUID (wf.ID is the job UUID)
 	var job *datamodel.Job
 	var jobID *int64
@@ -605,6 +599,13 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 			// Don't fail the workflow if metadata population fails, just log the error
 			log.Warnf("Continuing despite SfrMetadata population failure")
 		}
+	}
+
+	// Step 16: Check if any files were missing and fail with detailed error
+	if len(missingFiles) > 0 {
+		errorMsg := fmt.Sprintf("Transfer completed for %d file(s), but the following file(s) are not present in the backup: %s", len(transferFiles), strings.Join(missingFiles, ", "))
+		log.Errorf("SFR workflow failed: %s", errorMsg)
+		return nil, ConvertToVSAError(fmt.Errorf("%s", errorMsg))
 	}
 
 	log.Infof("Restore files from backup workflow completed successfully for %d files", len(transferFiles))
