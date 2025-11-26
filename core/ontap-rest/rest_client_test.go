@@ -61,6 +61,8 @@ func TestNewClient(t *testing.T) {
 			assert.NotNil(t, c.cluster.api)
 			assert.NotNil(t, c.networking.api)
 			assert.NotNil(t, (*c.networking.apiPriv).(*operations.Client))
+			assert.NotNil(t, c.nas.api)
+			assert.NotNil(t, c.nas.apiPriv)
 
 			fv := reflect.ValueOf(c.cluster.api).Elem().FieldByName("transport")
 			it := reflect.NewAt(fv.Type(), unsafe.Pointer(fv.UnsafeAddr())).Elem().Interface().(*transport.IdempotentTransport)
@@ -117,6 +119,8 @@ func TestNewClient_with_lastErr(t *testing.T) {
 			assert.NotNil(t, c.cluster.api)
 			assert.NotNil(t, c.networking.api)
 			assert.NotNil(t, (*c.networking.apiPriv).(*operations.Client))
+			assert.NotNil(t, c.nas.api)
+			assert.NotNil(t, c.nas.apiPriv)
 
 			fv := reflect.ValueOf(c.cluster.api).Elem().FieldByName("transport")
 			it := reflect.NewAt(fv.Type(), unsafe.Pointer(fv.UnsafeAddr())).Elem().Interface().(*transport.IdempotentTransport)
@@ -188,6 +192,8 @@ func TestNewClientWithCert(t *testing.T) {
 			assert.NotNil(t, c.cluster.api)
 			assert.NotNil(t, c.networking.api)
 			assert.NotNil(t, (*c.networking.apiPriv).(*operations.Client))
+			assert.NotNil(t, c.nas.api)
+			assert.NotNil(t, c.nas.apiPriv)
 
 			fv := reflect.ValueOf(c.cluster.api).Elem().FieldByName("transport")
 			it := reflect.NewAt(fv.Type(), unsafe.Pointer(fv.UnsafeAddr())).Elem().Interface().(*transport.IdempotentTransport)
@@ -258,6 +264,8 @@ func TestNewClientWithCert_GetAPICallCertificateFails(t *testing.T) {
 			assert.NotNil(t, c.cluster.api)
 			assert.NotNil(t, c.networking.api)
 			assert.NotNil(t, (*c.networking.apiPriv).(*operations.Client))
+			assert.NotNil(t, c.nas.api)
+			assert.NotNil(t, c.nas.apiPriv)
 
 			fv := reflect.ValueOf(c.cluster.api).Elem().FieldByName("transport")
 			it := reflect.NewAt(fv.Type(), unsafe.Pointer(fv.UnsafeAddr())).Elem().Interface().(*transport.IdempotentTransport)
@@ -323,6 +331,12 @@ func TestRESTClient_SAN(t *testing.T) {
 	sanc := &sanClient{}
 	client := &OntapRestClient{san: sanc}
 	assert.Equal(t, sanc, client.SAN())
+}
+
+func TestRESTClient_NAS(t *testing.T) {
+	nasc := &nasClient{}
+	client := &OntapRestClient{nas: nasc}
+	assert.Equal(t, nasc, client.NAS())
 }
 
 func TestRESTClient_Snapmirror(t *testing.T) {

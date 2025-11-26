@@ -151,7 +151,7 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 			networking:                &networkingClient{api: api.Networking, apiPriv: &apiPriv.Operations},
 			storage:                   &storageClient{api: api.Storage},
 			san:                       &sanClient{api: api.San, poller: p},
-			nas:                       &nasClient{api: api.Nas, poller: p},
+			nas:                       &nasClient{api: api.Nas, apiPriv: &apiPriv.Operations, poller: p},
 			snapmirror:                &snapmirrorClient{api: api.Snapmirror, apiPriv: apiPriv.Snapmirror},
 			poller:                    p,
 			security:                  &securityClient{api: &api.Security},

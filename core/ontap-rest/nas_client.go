@@ -52,7 +52,7 @@ var (
 
 type nasClient struct {
 	api     nas.ClientService
-	apiPriv priv.ClientService
+	apiPriv *priv.ClientService
 	poller  Poller
 }
 
@@ -308,14 +308,14 @@ func _convertCifsShareFromREST(resp *models.CifsShare) *CifsShareGetResponse {
 }
 
 // CifsShareModify Modifies a CIFS share for the ONTAP API SVM
-func (tnc *nasClient) CifsShareModify(params *CifsShareModifyParams) error {
-	_, err := tnc.api.CifsShareModify(cifsShareModifyParamsToONTAP(params), nil)
+func (nc *nasClient) CifsShareModify(params *CifsShareModifyParams) error {
+	_, err := nc.api.CifsShareModify(cifsShareModifyParamsToONTAP(params), nil)
 	return err
 }
 
 // DomainControllersSrvLookupGet invokes pkg/ontap-rest/diag/secd/dns/srv-lookup
-func (tnc *nasClient) DomainControllersSrvLookupGet(params *SrvLookupParams) ([]string, error) {
-	response, err := tnc.apiPriv.SrvLookup(srvLookupParamsToONTAP(params))
+func (nc *nasClient) DomainControllersSrvLookupGet(params *SrvLookupParams) ([]string, error) {
+	response, err := (*nc.apiPriv).SrvLookup(srvLookupParamsToONTAP(params))
 	if err != nil {
 		return nil, err
 	}

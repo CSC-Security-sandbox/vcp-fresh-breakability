@@ -2,7 +2,6 @@ package ontap_rest
 
 import (
 	"errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/go-openapi/runtime"
@@ -12,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	priv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/operations"
 	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 // mockNASClient implements the nas.ClientService interface for testing
@@ -1089,8 +1089,9 @@ func (m *mockPrivClient) SrvLookup(params *priv.SrvLookupParams, opts ...priv.Cl
 
 func TestDomainControllersSrvLookupGet(t *testing.T) {
 	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
-		apiPriv := &mockPrivClient{err: errors.New("api error")}
-		client := &nasClient{apiPriv: apiPriv}
+		mockClient := &mockPrivClient{err: errors.New("api error")}
+		var apiPriv priv.ClientService = mockClient
+		client := &nasClient{apiPriv: &apiPriv}
 		params := &SrvLookupParams{
 			LookupString: "test-lookup",
 			SVMName:      "test-svm",
@@ -1107,8 +1108,9 @@ func TestDomainControllersSrvLookupGet(t *testing.T) {
 				CliOutput: cliOutput,
 			},
 		}
-		apiPriv := &mockPrivClient{response: resp}
-		client := &nasClient{apiPriv: apiPriv}
+		mockClient := &mockPrivClient{response: resp}
+		var apiPriv priv.ClientService = mockClient
+		client := &nasClient{apiPriv: &apiPriv}
 		params := &SrvLookupParams{
 			LookupString: "test-lookup",
 			SVMName:      "test-svm",
