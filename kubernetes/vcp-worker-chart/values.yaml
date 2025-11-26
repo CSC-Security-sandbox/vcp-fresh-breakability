@@ -194,7 +194,7 @@ workerConfig:
   dataSubnetCidrBlockLv: 26
   minLvPoolCoolTierCapacity: "13194139533312"
   maxLvPoolCapacity: "22517998136852476"
-  maxLvHotTierPoolCapacity: "5629499534213119"
+  maxLvHotTierPoolCapacity: "2814749767106560"
   minLvThroughput: 64
   maxLvThroughput: 60000
   minHotTierSize: "1099511627776"
@@ -213,7 +213,7 @@ workerConfig:
   mgmtFirewallSourceRanges: "198.18.0.0/15"
   rsmFirewallSourceRanges: "198.18.0.0/15"
   icFirewallSourceRanges: "198.18.0.0/15"
-  dataFirewallSourceRanges: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+  dataFirewallSourceRanges: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,130.211.0.0/22,35.191.0.0/16"
   mgmtRegionalNatIp: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20"
   mgmtNetworkIpRange: "198.18.0.0/20"
   rsmNetworkIpRange: "198.18.16.0/20"
@@ -222,7 +222,7 @@ workerConfig:
   rsmFirewallPortRules: "tcp,udp"
   icFirewallPortRules: "tcp,udp"
   iscsiFirewallPortRules: "tcp,3260"
-  nfsFirewallPortRules: "tcp,111,635,2049,4045,udp,111,4046"
+  nfsFirewallPortRules: "tcp,111,635,2049,4045,63001-65000,udp,111,4046"
   interclusterFirewallPortRules: "tcp,10566,11104,11105"
   smbFirewallAllowedPortRules: "tcp,88,135,139,389,445,464,636,udp,53,88,389,464"
   ilbHealthCheckFirewallSourceRanges: "130.211.0.0/22,35.191.0.0/16"

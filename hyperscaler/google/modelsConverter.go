@@ -3,6 +3,7 @@ package google
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/common"
@@ -187,16 +188,40 @@ func convertGCPForwardingRuleToForwardingRule(forwardingRule *compute.Forwarding
 func getFirewallAllowedRulesGCP(allowedPortRules []string) []*compute.FirewallAllowed {
 	firewallAllowedPortRules := []*compute.FirewallAllowed{}
 	for _, rule := range allowedPortRules {
+		// Check if it's a single port number
 		if _, err := strconv.Atoi(rule); err == nil {
 			if len(firewallAllowedPortRules) > 0 {
 				lastRule := firewallAllowedPortRules[len(firewallAllowedPortRules)-1]
 				lastRule.Ports = append(lastRule.Ports, rule)
 			}
+		} else if isPortRange(rule) {
+			// Handle port ranges like "63001-65000"
+			if len(firewallAllowedPortRules) > 0 {
+				lastRule := firewallAllowedPortRules[len(firewallAllowedPortRules)-1]
+				lastRule.Ports = append(lastRule.Ports, rule)
+			}
 		} else {
+			// Treat as protocol
 			firewallAllowedPortRules = append(firewallAllowedPortRules, &compute.FirewallAllowed{IPProtocol: rule})
 		}
 	}
 	return firewallAllowedPortRules
+}
+
+// isPortRange checks if a string represents a valid port range (e.g., "63001-65000")
+func isPortRange(rule string) bool {
+	parts := strings.Split(rule, "-")
+	if len(parts) != 2 {
+		return false
+	}
+	// Check if both parts are valid port numbers
+	startPort, err1 := strconv.Atoi(parts[0])
+	endPort, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	// Validate port range (1-65535)
+	return startPort >= 1 && startPort <= 65535 && endPort >= 1 && endPort <= 65535 && startPort <= endPort
 }
 
 func _validateAndConvertPrivateCACertificateToCustomCertificate(certificateId string, cert *privateca.Certificate) (*models.CustomCertificate, error) {

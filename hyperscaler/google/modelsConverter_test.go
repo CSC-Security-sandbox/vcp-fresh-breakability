@@ -422,6 +422,24 @@ func Test_getFirewallAllowedRulesGCP(t *testing.T) {
 
 		assert.Equal(tt, expected, result, "Expected result to match the allowedPortRules")
 	})
+	
+	t.Run("WhenAllowedPortRulesHasPortRanges", func(tt *testing.T) {
+		allowedPortRules := []string{"tcp", "111", "635", "2049", "4045", "udp", "111", "4046", "63001-65000"}
+		result := getFirewallAllowedRulesGCP(allowedPortRules)
+
+		expected := []*compute.FirewallAllowed{
+			{
+				IPProtocol: "tcp",
+				Ports:      []string{"111", "635", "2049", "4045"},
+			},
+			{
+				IPProtocol: "udp",
+				Ports:      []string{"111", "4046", "63001-65000"},
+			},
+		}
+
+		assert.Equal(tt, expected, result, "Expected result to match the allowedPortRules with port ranges")
+	})
 }
 func TestValidateEnvironmentVariables(t *testing.T) {
 	originalAuthtype := env.AuthType
