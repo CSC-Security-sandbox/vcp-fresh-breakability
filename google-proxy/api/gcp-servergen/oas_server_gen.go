@@ -62,6 +62,21 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools
 	V1betaCreatePool(ctx context.Context, req *PoolV1beta, params V1betaCreatePoolParams) (V1betaCreatePoolRes, error)
+	// V1betaCreateQuotaRule implements v1beta_createQuotaRule operation.
+	//
+	// Creates a new quota rule for the specified volume. Quota rules can be used to enforce disk usage
+	// limits for individual users, groups, or set default quotas.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules
+	V1betaCreateQuotaRule(ctx context.Context, req *QuotaRuleCreateV1beta, params V1betaCreateQuotaRuleParams) (V1betaCreateQuotaRuleRes, error)
+	// V1betaCreateQuotaRuleVCP implements v1beta_createQuotaRuleVCP operation.
+	//
+	// Creates a new quota rule for the specified volume. This is an internal endpoint for VCP-to-VCP
+	// communication. Quota rules allow you to set storage limits for individual users, groups, or set
+	// default quotas.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule
+	V1betaCreateQuotaRuleVCP(ctx context.Context, req *QuotaRuleCreateV1beta, params V1betaCreateQuotaRuleVCPParams) (V1betaCreateQuotaRuleVCPRes, error)
 	// V1betaCreateReplication implements v1beta_createReplication operation.
 	//
 	// Create a new volume replication.

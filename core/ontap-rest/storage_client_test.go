@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -1600,5 +1601,114 @@ func TestQoSPolicyGroupCreateParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, &maxThroughput, result.Info.Fixed.MaxThroughputMbps)
 		assert.Equal(tt, &maxIOPS, result.Info.Fixed.MaxThroughputIops)
 		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+	})
+}
+
+func TestQuotaRuleCollectionGet(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QuotaRuleCollectionGet(context.TODO(), storage.NewQuotaRuleCollectionGetParams())
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.QuotaRuleCollectionGetOK{
+			Payload: &models.QuotaRuleResponse{
+				QuotaRuleResponseInlineRecords: []*models.QuotaRule{},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, err := client.QuotaRuleCollectionGet(context.TODO(), storage.NewQuotaRuleCollectionGetParams())
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.NotNil(tt, response.Payload)
+	})
+}
+
+func TestQuotaRuleCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QuotaRuleCreate(context.TODO(), storage.NewQuotaRuleCreateParams())
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		jobUUID := "job-uuid"
+		transport := &mockTransport{response: &storage.QuotaRuleCreateAccepted{
+			Payload: &models.QuotaRuleJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		accepted, err := client.QuotaRuleCreate(context.TODO(), storage.NewQuotaRuleCreateParams())
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, accepted)
+		assert.NotNil(tt, accepted.Payload)
+		assert.NotNil(tt, accepted.Payload.Job)
+		assert.Equal(tt, jobUUID, accepted.Payload.Job.UUID.String())
+	})
+}
+
+func TestQuotaRuleModify(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QuotaRuleModify(context.TODO(), storage.NewQuotaRuleModifyParams())
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		jobUUID := "job-uuid"
+		transport := &mockTransport{response: &storage.QuotaRuleModifyAccepted{
+			Payload: &models.QuotaRuleJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		accepted, err := client.QuotaRuleModify(context.TODO(), storage.NewQuotaRuleModifyParams())
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, accepted)
+		assert.NotNil(tt, accepted.Payload)
+		assert.NotNil(tt, accepted.Payload.Job)
+		assert.Equal(tt, jobUUID, accepted.Payload.Job.UUID.String())
+	})
+}
+
+func TestQuotaRuleDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QuotaRuleDelete(context.TODO(), storage.NewQuotaRuleDeleteParams())
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		jobUUID := "job-uuid"
+		transport := &mockTransport{response: &storage.QuotaRuleDeleteAccepted{
+			Payload: &models.QuotaRuleJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		accepted, err := client.QuotaRuleDelete(context.TODO(), storage.NewQuotaRuleDeleteParams())
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, accepted)
+		assert.NotNil(tt, accepted.Payload)
+		assert.NotNil(tt, accepted.Payload.Job)
+		assert.Equal(tt, jobUUID, accepted.Payload.Job.UUID.String())
 	})
 }

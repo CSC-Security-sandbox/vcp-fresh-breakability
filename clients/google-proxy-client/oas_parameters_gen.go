@@ -86,6 +86,30 @@ type V1betaCreatePoolParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaCreateQuotaRuleParams is parameters of v1beta_createQuotaRule operation.
+type V1betaCreateQuotaRuleParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaCreateQuotaRuleVCPParams is parameters of v1beta_createQuotaRuleVCP operation.
+type V1betaCreateQuotaRuleVCPParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaCreateReplicationParams is parameters of v1beta_createReplication operation.
 type V1betaCreateReplicationParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

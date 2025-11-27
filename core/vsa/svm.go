@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"context"
 	"fmt"
 
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
@@ -87,4 +88,27 @@ func (rc *OntapRestProvider) GetSVM(params GetSvmParams) (*ontapRest.Svm, error)
 	}
 
 	return svm, nil
+}
+
+// ModifyRquota enables or disables recursive quota on an SVM.
+//
+// This method calls the ONTAP REST API to modify the NFS service's RquotaEnabled setting,
+// which controls the 'rquota' (remote quota) protocol support for the SVM.
+func (rc *OntapRestProvider) ModifyRquota(ctx context.Context, svmUUID string, rquota bool) error {
+	// Get the ONTAP client
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+
+	// Modify the NFS service to enable/disable rquota
+	err = client.NAS().NfsParamsModify(ctx, &ontapRest.NfsModifyParams{
+		SvmUUID:       svmUUID,
+		RquotaEnabled: &rquota,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

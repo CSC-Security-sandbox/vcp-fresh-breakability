@@ -34,6 +34,7 @@ type ClusterClient interface { // generate:mock
 	ScheduleCreate(params *ScheduleCreateParams) error
 	ScheduleCollectionGet(sfp *ScheduleCollectionGetParams, ucbf UserCallbackFunc[[]*Schedule]) error
 	GetJob(UUID string) (*cluster.JobGetOK, error)
+	JobGet(ctx context.Context, params *JobGetParams) (*cluster.JobGetOK, error)
 	PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*cluster.PostClusterAccessTokenOK, error)
 	ModifyNode(ctx context.Context, params *NodeModifyParams) (*cluster.NodeModifyOK, error)
 }
@@ -191,6 +192,23 @@ func (cc *clusterClient) GetJob(UUID string) (*cluster.JobGetOK, error) {
 	}
 	return job, nil
 }
+
+// JobGet retrieves job details from ONTAP using JobGet API.
+// This method matches the spec's JobGet interface (create-quota-cvs-job-function.md, Section 7).
+// It calls the underlying api.JobGet and returns the response for manual conversion.
+func (cc *clusterClient) JobGet(ctx context.Context, params *JobGetParams) (*cluster.JobGetOK, error) {
+	// Convert our JobGetParams to the client JobGetParams using JobGetParamsToONTAP
+	clientParams := JobGetParamsToONTAP(params).WithContext(ctx)
+
+	// Call the underlying API JobGet method
+	// This returns *cluster.JobGetOK which will be converted in fetchDetailsFromJob per spec
+	job, err := cc.api.JobGet(clientParams, nil)
+	if err != nil {
+		return nil, err
+	}
+	return job, nil
+}
+
 func (cc clusterClient) PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*cluster.PostClusterAccessTokenOK, error) {
 	logger := util.GetLogger(ctx)
 	logger.Info("In OntapProvider.PostClusterLincenseAccessToken(...)")

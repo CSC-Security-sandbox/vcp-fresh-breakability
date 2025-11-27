@@ -1630,5 +1630,11 @@
     "message": "Immutable backup vault is being updated",
     "retriable": true,
     "http_code": 400
+  },
+  "12003": {
+    "description": "Google Proxy Internal Create Quota Rule Error",
+    "message": "Failed to create quota rule on destination via VCP internal API",
+    "retriable": false,
+    "http_code": 500
   }
 }

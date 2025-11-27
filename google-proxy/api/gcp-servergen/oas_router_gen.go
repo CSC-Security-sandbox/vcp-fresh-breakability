@@ -860,28 +860,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										return
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/snapmirrorSnapshots"
+									case '/': // Prefix: "/"
 
-										if l := len("/snapmirrorSnapshots"); len(elem) >= l && elem[0:l] == "/snapmirrorSnapshots" {
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
-											// Leaf node.
-											switch r.Method {
-											case "DELETE":
-												s.handleV1betaInternalDeleteVolumeSnapmirrorSnapshotRequest([3]string{
-													args[0],
-													args[1],
-													args[2],
-												}, elemIsEscaped, w, r)
-											default:
-												s.notAllowed(w, r, "DELETE")
+											break
+										}
+										switch elem[0] {
+										case 'q': // Prefix: "quotaRule"
+
+											if l := len("quotaRule"); len(elem) >= l && elem[0:l] == "quotaRule" {
+												elem = elem[l:]
+											} else {
+												break
 											}
 
-											return
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaCreateQuotaRuleVCPRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
+											}
+
+										case 's': // Prefix: "snapmirrorSnapshots"
+
+											if l := len("snapmirrorSnapshots"); len(elem) >= l && elem[0:l] == "snapmirrorSnapshots" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "DELETE":
+													s.handleV1betaInternalDeleteVolumeSnapmirrorSnapshotRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "DELETE")
+												}
+
+												return
+											}
+
 										}
 
 									}
@@ -1984,7 +2022,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										break
 									}
 
-									// Param: "volumeResourceId"
+									// Param: "volumeId"
 									// Match until "/"
 									idx := strings.IndexByte(elem, '/')
 									if idx < 0 {
@@ -2164,6 +2202,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													return
 												}
 
+											}
+
+										case 'q': // Prefix: "quotaRules"
+
+											if l := len("quotaRules"); len(elem) >= l && elem[0:l] == "quotaRules" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaCreateQuotaRuleRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
 											}
 
 										case 'r': // Prefix: "re"
@@ -3422,28 +3484,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										}
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/snapmirrorSnapshots"
+									case '/': // Prefix: "/"
 
-										if l := len("/snapmirrorSnapshots"); len(elem) >= l && elem[0:l] == "/snapmirrorSnapshots" {
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
-											// Leaf node.
-											switch method {
-											case "DELETE":
-												r.name = V1betaInternalDeleteVolumeSnapmirrorSnapshotOperation
-												r.summary = "Delete Snapmirror snapshots of a volume"
-												r.operationID = "v1beta_internalDeleteVolumeSnapmirrorSnapshot"
-												r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots"
-												r.args = args
-												r.count = 3
-												return r, true
-											default:
-												return
+											break
+										}
+										switch elem[0] {
+										case 'q': // Prefix: "quotaRule"
+
+											if l := len("quotaRule"); len(elem) >= l && elem[0:l] == "quotaRule" {
+												elem = elem[l:]
+											} else {
+												break
 											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaCreateQuotaRuleVCPOperation
+													r.summary = "Create a quota rule for a volume (Internal VCP API)"
+													r.operationID = "v1beta_createQuotaRuleVCP"
+													r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+
+										case 's': // Prefix: "snapmirrorSnapshots"
+
+											if l := len("snapmirrorSnapshots"); len(elem) >= l && elem[0:l] == "snapmirrorSnapshots" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "DELETE":
+													r.name = V1betaInternalDeleteVolumeSnapmirrorSnapshotOperation
+													r.summary = "Delete Snapmirror snapshots of a volume"
+													r.operationID = "v1beta_internalDeleteVolumeSnapmirrorSnapshot"
+													r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+
 										}
 
 									}
@@ -4612,7 +4712,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										break
 									}
 
-									// Param: "volumeResourceId"
+									// Param: "volumeId"
 									// Match until "/"
 									idx := strings.IndexByte(elem, '/')
 									if idx < 0 {
@@ -4796,6 +4896,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													}
 												}
 
+											}
+
+										case 'q': // Prefix: "quotaRules"
+
+											if l := len("quotaRules"); len(elem) >= l && elem[0:l] == "quotaRules" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaCreateQuotaRuleOperation
+													r.summary = "Create a quota rule for a volume"
+													r.operationID = "v1beta_createQuotaRule"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
 											}
 
 										case 'r': // Prefix: "re"

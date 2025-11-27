@@ -940,7 +940,7 @@ func TestLunUpdate(t *testing.T) {
 		mockSAN.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})
-	
+
 	t.Run("WhenLunUpdateReturnsConflictError", func(tt *testing.T) {
 		mockSAN.On("LunUpdate", mock.Anything).Return(false, nil, errors.New("New LUN size is the same as the old LUN size")).Once()
 		err := rc.LunUpdate(params)

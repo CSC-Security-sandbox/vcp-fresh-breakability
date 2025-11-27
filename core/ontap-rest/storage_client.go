@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -51,6 +52,10 @@ type StorageClient interface {
 	SnapshotPolicyScheduleCreate(params *SnapshotPolicyScheduleCreateParams) (string, error)
 	SnapshotPolicyScheduleModify(params *SnapshotPolicyScheduleModifyParams) error
 	SnapshotPolicyScheduleDelete(params *SnapshotPolicyScheduleDeleteParams) error
+	QuotaRuleCollectionGet(ctx context.Context, params *storage.QuotaRuleCollectionGetParams) (*storage.QuotaRuleCollectionGetOK, error)
+	QuotaRuleCreate(ctx context.Context, params *storage.QuotaRuleCreateParams) (*storage.QuotaRuleCreateAccepted, error)
+	QuotaRuleModify(ctx context.Context, params *storage.QuotaRuleModifyParams) (*storage.QuotaRuleModifyAccepted, error)
+	QuotaRuleDelete(ctx context.Context, params *storage.QuotaRuleDeleteParams) (*storage.QuotaRuleDeleteAccepted, error)
 }
 
 var (
@@ -395,6 +400,15 @@ func (sc *storageClient) VolumeGet(params *VolumeGetParams) (*Volume, error) {
 	return vol, nil
 }
 
+// VolumeGetWithContext calls the underlying storage API's VolumeGet method with context
+func VolumeGetWithContext(ctx context.Context, restClient RESTClient, params *VolumeGetParams) (*storage.VolumeGetOK, error) {
+	// Type assert to get the concrete OntapRestClient to access storage client
+	ontapClient := restClient.(*OntapRestClient)
+	// Access the storage client's underlying API
+	storageClient := ontapClient.storage
+	return storageClient.api.VolumeGet(VolumeGetParamsToONTAPQuotaRules(ctx, params), nil)
+}
+
 func _fetchVolumeDetails(sc *storageClient, volume *Volume) (*Volume, error) {
 	response, err := sc.api.VolumeGet(volumeGetParamsToONTAP(&VolumeGetParams{
 		UUID: *volume.UUID,
@@ -633,6 +647,29 @@ func (sc *storageClient) SnapshotPolicyScheduleModify(params *SnapshotPolicySche
 func (sc *storageClient) SnapshotPolicyScheduleDelete(params *SnapshotPolicyScheduleDeleteParams) error {
 	_, err := sc.api.SnapshotPolicyScheduleDelete(convertSnapshotPolicyScheduleDeleteParamsToONTAP(params), nil)
 	return err
+}
+
+// QuotaRuleCollectionGet invokes clients/ontap-rest/client/storage/Client.QuotaRuleCollectionGet
+func (sc *storageClient) QuotaRuleCollectionGet(ctx context.Context, params *storage.QuotaRuleCollectionGetParams) (*storage.QuotaRuleCollectionGetOK, error) {
+	return sc.api.QuotaRuleCollectionGet(params, nil)
+}
+
+// QuotaRuleCreate invokes clients/ontap-rest/client/storage/Client.QuotaRuleCreate
+func (sc *storageClient) QuotaRuleCreate(ctx context.Context, params *storage.QuotaRuleCreateParams) (*storage.QuotaRuleCreateAccepted, error) {
+	_, response, err := sc.api.QuotaRuleCreate(params, nil)
+	return response, err
+}
+
+// QuotaRuleModify invokes clients/ontap-rest/client/storage/Client.QuotaRuleModify
+func (sc *storageClient) QuotaRuleModify(ctx context.Context, params *storage.QuotaRuleModifyParams) (*storage.QuotaRuleModifyAccepted, error) {
+	_, acceptedResponse, err := sc.api.QuotaRuleModify(params, nil)
+	return acceptedResponse, err
+}
+
+// QuotaRuleDelete invokes clients/ontap-rest/client/storage/Client.QuotaRuleDelete
+func (sc *storageClient) QuotaRuleDelete(ctx context.Context, params *storage.QuotaRuleDeleteParams) (*storage.QuotaRuleDeleteAccepted, error) {
+	_, acceptedResponse, err := sc.api.QuotaRuleDelete(params, nil)
+	return acceptedResponse, err
 }
 
 func snapshotCreateParamsToONTAP(params *SnapshotCreateParams) *storage.SnapshotCreateParams {

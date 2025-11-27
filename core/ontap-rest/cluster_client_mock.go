@@ -415,6 +415,65 @@ func (_c *MockClusterClient_GetONTAPVersion_Call) RunAndReturn(run func() (*stri
 	return _c
 }
 
+// JobGet provides a mock function with given fields: ctx, params
+func (_m *MockClusterClient) JobGet(ctx context.Context, params *JobGetParams) (*cluster.JobGetOK, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for JobGet")
+	}
+
+	var r0 *cluster.JobGetOK
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *JobGetParams) (*cluster.JobGetOK, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *JobGetParams) *cluster.JobGetOK); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*cluster.JobGetOK)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *JobGetParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClusterClient_JobGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'JobGet'
+type MockClusterClient_JobGet_Call struct {
+	*mock.Call
+}
+
+// JobGet is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *JobGetParams
+func (_e *MockClusterClient_Expecter) JobGet(ctx interface{}, params interface{}) *MockClusterClient_JobGet_Call {
+	return &MockClusterClient_JobGet_Call{Call: _e.mock.On("JobGet", ctx, params)}
+}
+
+func (_c *MockClusterClient_JobGet_Call) Run(run func(ctx context.Context, params *JobGetParams)) *MockClusterClient_JobGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*JobGetParams))
+	})
+	return _c
+}
+
+func (_c *MockClusterClient_JobGet_Call) Return(_a0 *cluster.JobGetOK, _a1 error) *MockClusterClient_JobGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClusterClient_JobGet_Call) RunAndReturn(run func(context.Context, *JobGetParams) (*cluster.JobGetOK, error)) *MockClusterClient_JobGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ModifyNode provides a mock function with given fields: ctx, params
 func (_m *MockClusterClient) ModifyNode(ctx context.Context, params *NodeModifyParams) (*cluster.NodeModifyOK, error) {
 	ret := _m.Called(ctx, params)

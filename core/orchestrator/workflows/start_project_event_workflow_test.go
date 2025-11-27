@@ -72,7 +72,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	// Create empty filter result for empty pool list
 	emptyFilterResult := &resource_events_activities.PoolFilterResult{
 		FilteredPools: []*datamodel.PoolView{}, // Empty pools
-		VSAError:      false,                    // No transient states
+		VSAError:      false,                   // No transient states
 	}
 
 	// Mock activities
@@ -116,7 +116,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	// Create empty filter result for empty pool list
 	emptyFilterResult := &resource_events_activities.PoolFilterResult{
 		FilteredPools: []*datamodel.PoolView{}, // Empty pools
-		VSAError:      false,                    // No transient states
+		VSAError:      false,                   // No transient states
 	}
 
 	// Mock ListPoolsForAccount to return empty pool list
@@ -345,7 +345,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	// Create filter result indicating transient states detected
 	filterResult := &resource_events_activities.PoolFilterResult{
 		FilteredPools: []*datamodel.PoolView{}, // No pools pass filter
-		VSAError:      true,                     // Transient states detected
+		VSAError:      true,                    // Transient states detected
 	}
 
 	// Mock activities
@@ -495,7 +495,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	}
 	filterResult := &resource_events_activities.PoolFilterResult{
 		FilteredPools: filteredPools, // Some pools pass filter
-		VSAError:      true,           // But transient states detected
+		VSAError:      true,          // But transient states detected
 	}
 
 	// Mock activities
@@ -1096,7 +1096,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -1124,7 +1124,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
-	
+
 	// PollStartProjectEventSDEOperationActivity should NOT be called since SDE is already done
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
 
@@ -1135,7 +1135,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		State:          models.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
 	// Assert workflow completed successfully
@@ -1148,7 +1148,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -1185,7 +1185,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		State:          models.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
 	// Assert workflow completed successfully
@@ -1198,7 +1198,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -1236,7 +1236,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		State:          models.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
 	// Assert workflow failed due to SDE polling failure
@@ -1249,7 +1249,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -1289,7 +1289,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
-	
+
 	// The SDE polling should be called with MaximumAttempts = 1 due to limited remaining time
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
@@ -1301,7 +1301,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		State:          models.StateOff,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
 	// Assert workflow completed successfully despite limited time
@@ -1314,7 +1314,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Ensure CVP_HOST is empty to skip SDE operations
 	cvp.CVP_HOST = ""
 
@@ -1338,7 +1338,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(emptyPoolFilterResult, nil)
 	// Second call: set account to HYPERSCALER_DISABLED state since no SDE operations
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
-	
+
 	// SDE activities should NOT be called when CVP_HOST is empty
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Times(0)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
@@ -1350,7 +1350,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		State:          models.StateOff,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
 	// Assert workflow completed successfully without SDE operations
@@ -1363,7 +1363,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -1386,7 +1386,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, errors.New("Failed to start SDE operation"))
 	// Revert account state due to failure
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
-	
+
 	// PollStartProjectEventSDEOperationActivity should NOT be called since SDE start failed
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
 
@@ -1397,7 +1397,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 		State:          models.StateOff,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
 
 	// Assert workflow completed with error since SDE start failed
@@ -2263,7 +2263,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -2291,7 +2291,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
-	
+
 	// PollStartProjectEventSDEOperationActivity should NOT be called since SDE is already done
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
 
@@ -2302,7 +2302,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 		State:          models.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
 	// Assert workflow completed successfully
@@ -2315,7 +2315,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -2352,7 +2352,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 		State:          models.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
 	// Assert workflow completed successfully
@@ -2365,7 +2365,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -2403,7 +2403,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 		State:          models.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
 	// Assert workflow failed due to SDE polling failure
@@ -2416,7 +2416,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -2450,7 +2450,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
-	
+
 	// The SDE polling should be called with MaximumAttempts = 1 due to limited remaining time
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
@@ -2462,7 +2462,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 		State:          models.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
 	// Assert workflow completed successfully despite limited time
@@ -2475,7 +2475,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Ensure CVP_HOST is empty to skip SDE operations
 	cvp.CVP_HOST = ""
 
@@ -2491,7 +2491,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabling).Return(nil)
 	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
-	
+
 	// SDE activities should NOT be called when CVP_HOST is empty
 	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Times(0)
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
@@ -2503,7 +2503,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 		State:          models.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
 	// Assert workflow completed successfully without SDE operations
@@ -2516,7 +2516,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
-	
+
 	// Set CVP_HOST to trigger SDE operations
 	cvp.CVP_HOST = "test-sde-host"
 	defer func() {
@@ -2540,7 +2540,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateEnabled).Return(nil)
 	// Add mock for reversion state when SDE fails
 	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, models.AccountStateHyperscalerDisabled).Return(nil)
-	
+
 	// PollStartProjectEventSDEOperationActivity should NOT be called since SDE start failed
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Times(0)
 
@@ -2551,7 +2551,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 		State:          models.StateOn,
 		XCorrelationID: "test-correlation-id",
 	}
-	
+
 	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
 
 	// Assert workflow completed with error due to SDE failure

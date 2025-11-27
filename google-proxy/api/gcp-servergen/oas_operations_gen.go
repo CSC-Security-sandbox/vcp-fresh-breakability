@@ -15,6 +15,8 @@ const (
 	V1betaCreateHostGroupOperation                           OperationName = "V1betaCreateHostGroup"
 	V1betaCreateKmsConfigurationOperation                    OperationName = "V1betaCreateKmsConfiguration"
 	V1betaCreatePoolOperation                                OperationName = "V1betaCreatePool"
+	V1betaCreateQuotaRuleOperation                           OperationName = "V1betaCreateQuotaRule"
+	V1betaCreateQuotaRuleVCPOperation                        OperationName = "V1betaCreateQuotaRuleVCP"
 	V1betaCreateReplicationOperation                         OperationName = "V1betaCreateReplication"
 	V1betaCreateSnapshotOperation                            OperationName = "V1betaCreateSnapshot"
 	V1betaCreateVolumeOperation                              OperationName = "V1betaCreateVolume"

@@ -94,6 +94,27 @@ func (UnimplementedHandler) V1betaCreatePool(ctx context.Context, req *PoolV1bet
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaCreateQuotaRule implements v1beta_createQuotaRule operation.
+//
+// Creates a new quota rule for the specified volume. Quota rules can be used to enforce disk usage
+// limits for individual users, groups, or set default quotas.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules
+func (UnimplementedHandler) V1betaCreateQuotaRule(ctx context.Context, req *QuotaRuleCreateV1beta, params V1betaCreateQuotaRuleParams) (r V1betaCreateQuotaRuleRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaCreateQuotaRuleVCP implements v1beta_createQuotaRuleVCP operation.
+//
+// Creates a new quota rule for the specified volume. This is an internal endpoint for VCP-to-VCP
+// communication. Quota rules allow you to set storage limits for individual users, groups, or set
+// default quotas.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule
+func (UnimplementedHandler) V1betaCreateQuotaRuleVCP(ctx context.Context, req *QuotaRuleCreateV1beta, params V1betaCreateQuotaRuleVCPParams) (r V1betaCreateQuotaRuleVCPRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCreateReplication implements v1beta_createReplication operation.
 //
 // Create a new volume replication.

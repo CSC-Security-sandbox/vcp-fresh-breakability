@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"context"
 	"strings"
 
 	nas "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/n_a_s"
@@ -22,6 +23,7 @@ type NASClient interface { // generate:mock
 	NfsServiceGet(params *NfsServiceGetParams) (*NfsService, error)
 	NfsServiceCreate(params *NfsServiceCreateParams) error
 	NfsServiceModify(params *NfsServiceModifyParams) error
+	NfsParamsModify(ctx context.Context, params *NfsModifyParams) error
 	CifsServiceGet(params *CifsServiceGetParams) (*CifsService, error)
 	CifsServiceList(params *CifsServiceGetParams) ([]*CifsService, error)
 	CifsServiceCreate(params *CifsServiceCreateParams) (bool, *JobAccepted, error)
@@ -156,8 +158,17 @@ func (t *nasClient) NfsServiceCreate(params *NfsServiceCreateParams) error {
 }
 
 // NfsServiceModify invokes clients/ontap-rest/client/n_a_s/Client.NfsModify to modify NFS service
+// This is the original method for modifying NFS service with basic parameters (without context).
+// For quota rule operations that require context, use NfsModify instead.
 func (t *nasClient) NfsServiceModify(params *NfsServiceModifyParams) error {
 	_, err := t.api.NfsModify(nfsServiceModifyParamsToONTAP(params), nil)
+	return err
+}
+
+// NfsParamsModify invokes clients/ontap-rest/client/n_a_s/Client.NfsModify to modify NFS service
+// This method includes context support and is used for quota rule operations (e.g., RquotaEnabled).
+func (t *nasClient) NfsParamsModify(ctx context.Context, params *NfsModifyParams) error {
+	_, err := t.api.NfsModify(nfsParamsModifyToONTAP(ctx, params), nil)
 	return err
 }
 

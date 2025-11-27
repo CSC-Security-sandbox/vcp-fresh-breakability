@@ -1134,6 +1134,65 @@ func (_c *MockProvider_CreateQoSGroupPolicy_Call) RunAndReturn(run func(CreateQo
 	return _c
 }
 
+// CreateQuotaRule provides a mock function with given fields: ctx, params
+func (_m *MockProvider) CreateQuotaRule(ctx context.Context, params CreateQuotaRuleParams) (*JobStatus, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateQuotaRule")
+	}
+
+	var r0 *JobStatus
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, CreateQuotaRuleParams) (*JobStatus, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, CreateQuotaRuleParams) *JobStatus); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobStatus)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, CreateQuotaRuleParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CreateQuotaRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateQuotaRule'
+type MockProvider_CreateQuotaRule_Call struct {
+	*mock.Call
+}
+
+// CreateQuotaRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params CreateQuotaRuleParams
+func (_e *MockProvider_Expecter) CreateQuotaRule(ctx interface{}, params interface{}) *MockProvider_CreateQuotaRule_Call {
+	return &MockProvider_CreateQuotaRule_Call{Call: _e.mock.On("CreateQuotaRule", ctx, params)}
+}
+
+func (_c *MockProvider_CreateQuotaRule_Call) Run(run func(ctx context.Context, params CreateQuotaRuleParams)) *MockProvider_CreateQuotaRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(CreateQuotaRuleParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateQuotaRule_Call) Return(_a0 *JobStatus, _a1 error) *MockProvider_CreateQuotaRule_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CreateQuotaRule_Call) RunAndReturn(run func(context.Context, CreateQuotaRuleParams) (*JobStatus, error)) *MockProvider_CreateQuotaRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateRESTClient provides a mock function with no fields
 func (_m *MockProvider) CreateRESTClient() (ontap_rest.RESTClient, error) {
 	ret := _m.Called()
@@ -1929,6 +1988,65 @@ func (_c *MockProvider_DeleteLdap_Call) Return(_a0 error) *MockProvider_DeleteLd
 }
 
 func (_c *MockProvider_DeleteLdap_Call) RunAndReturn(run func(string) error) *MockProvider_DeleteLdap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteQuotaRule provides a mock function with given fields: ctx, quotaUUID
+func (_m *MockProvider) DeleteQuotaRule(ctx context.Context, quotaUUID string) (*JobStatus, error) {
+	ret := _m.Called(ctx, quotaUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteQuotaRule")
+	}
+
+	var r0 *JobStatus
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*JobStatus, error)); ok {
+		return rf(ctx, quotaUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *JobStatus); ok {
+		r0 = rf(ctx, quotaUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobStatus)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, quotaUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_DeleteQuotaRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteQuotaRule'
+type MockProvider_DeleteQuotaRule_Call struct {
+	*mock.Call
+}
+
+// DeleteQuotaRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - quotaUUID string
+func (_e *MockProvider_Expecter) DeleteQuotaRule(ctx interface{}, quotaUUID interface{}) *MockProvider_DeleteQuotaRule_Call {
+	return &MockProvider_DeleteQuotaRule_Call{Call: _e.mock.On("DeleteQuotaRule", ctx, quotaUUID)}
+}
+
+func (_c *MockProvider_DeleteQuotaRule_Call) Run(run func(ctx context.Context, quotaUUID string)) *MockProvider_DeleteQuotaRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteQuotaRule_Call) Return(_a0 *JobStatus, _a1 error) *MockProvider_DeleteQuotaRule_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_DeleteQuotaRule_Call) RunAndReturn(run func(context.Context, string) (*JobStatus, error)) *MockProvider_DeleteQuotaRule_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2732,6 +2850,67 @@ func (_c *MockProvider_GetClusterPeer_Call) RunAndReturn(run func(string) (*Clus
 	return _c
 }
 
+// GetDefaultQuotaRule provides a mock function with given fields: ctx, volumeUUID, svmName, quotaType
+func (_m *MockProvider) GetDefaultQuotaRule(ctx context.Context, volumeUUID string, svmName string, quotaType string) (*QuotaRuleInfo, error) {
+	ret := _m.Called(ctx, volumeUUID, svmName, quotaType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDefaultQuotaRule")
+	}
+
+	var r0 *QuotaRuleInfo
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*QuotaRuleInfo, error)); ok {
+		return rf(ctx, volumeUUID, svmName, quotaType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *QuotaRuleInfo); ok {
+		r0 = rf(ctx, volumeUUID, svmName, quotaType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*QuotaRuleInfo)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, volumeUUID, svmName, quotaType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetDefaultQuotaRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDefaultQuotaRule'
+type MockProvider_GetDefaultQuotaRule_Call struct {
+	*mock.Call
+}
+
+// GetDefaultQuotaRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - svmName string
+//   - quotaType string
+func (_e *MockProvider_Expecter) GetDefaultQuotaRule(ctx interface{}, volumeUUID interface{}, svmName interface{}, quotaType interface{}) *MockProvider_GetDefaultQuotaRule_Call {
+	return &MockProvider_GetDefaultQuotaRule_Call{Call: _e.mock.On("GetDefaultQuotaRule", ctx, volumeUUID, svmName, quotaType)}
+}
+
+func (_c *MockProvider_GetDefaultQuotaRule_Call) Run(run func(ctx context.Context, volumeUUID string, svmName string, quotaType string)) *MockProvider_GetDefaultQuotaRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetDefaultQuotaRule_Call) Return(_a0 *QuotaRuleInfo, _a1 error) *MockProvider_GetDefaultQuotaRule_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetDefaultQuotaRule_Call) RunAndReturn(run func(context.Context, string, string, string) (*QuotaRuleInfo, error)) *MockProvider_GetDefaultQuotaRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetInterclusterLIFs provides a mock function with given fields: servicePolicyName
 func (_m *MockProvider) GetInterclusterLIFs(servicePolicyName string) ([]*InterclusterLif, error) {
 	ret := _m.Called(servicePolicyName)
@@ -3016,6 +3195,192 @@ func (_c *MockProvider_GetONTAPVersion_Call) Return(_a0 *string, _a1 error) *Moc
 }
 
 func (_c *MockProvider_GetONTAPVersion_Call) RunAndReturn(run func() (*string, error)) *MockProvider_GetONTAPVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetOntapQuotaUUIDAndType provides a mock function with given fields: ctx, volumeUUID, svmName, quotaType, target
+func (_m *MockProvider) GetOntapQuotaUUIDAndType(ctx context.Context, volumeUUID string, svmName string, quotaType string, target string) (string, string, error) {
+	ret := _m.Called(ctx, volumeUUID, svmName, quotaType, target)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOntapQuotaUUIDAndType")
+	}
+
+	var r0 string
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) (string, string, error)); ok {
+		return rf(ctx, volumeUUID, svmName, quotaType, target)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) string); ok {
+		r0 = rf(ctx, volumeUUID, svmName, quotaType, target)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string) string); ok {
+		r1 = rf(ctx, volumeUUID, svmName, quotaType, target)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, string, string) error); ok {
+		r2 = rf(ctx, volumeUUID, svmName, quotaType, target)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockProvider_GetOntapQuotaUUIDAndType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOntapQuotaUUIDAndType'
+type MockProvider_GetOntapQuotaUUIDAndType_Call struct {
+	*mock.Call
+}
+
+// GetOntapQuotaUUIDAndType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - svmName string
+//   - quotaType string
+//   - target string
+func (_e *MockProvider_Expecter) GetOntapQuotaUUIDAndType(ctx interface{}, volumeUUID interface{}, svmName interface{}, quotaType interface{}, target interface{}) *MockProvider_GetOntapQuotaUUIDAndType_Call {
+	return &MockProvider_GetOntapQuotaUUIDAndType_Call{Call: _e.mock.On("GetOntapQuotaUUIDAndType", ctx, volumeUUID, svmName, quotaType, target)}
+}
+
+func (_c *MockProvider_GetOntapQuotaUUIDAndType_Call) Run(run func(ctx context.Context, volumeUUID string, svmName string, quotaType string, target string)) *MockProvider_GetOntapQuotaUUIDAndType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetOntapQuotaUUIDAndType_Call) Return(_a0 string, _a1 string, _a2 error) *MockProvider_GetOntapQuotaUUIDAndType_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockProvider_GetOntapQuotaUUIDAndType_Call) RunAndReturn(run func(context.Context, string, string, string, string) (string, string, error)) *MockProvider_GetOntapQuotaUUIDAndType_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetQuotaRuleCollection provides a mock function with given fields: ctx, volumeUUID, svmName
+func (_m *MockProvider) GetQuotaRuleCollection(ctx context.Context, volumeUUID string, svmName string) ([]*QuotaRuleCollectionItem, error) {
+	ret := _m.Called(ctx, volumeUUID, svmName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetQuotaRuleCollection")
+	}
+
+	var r0 []*QuotaRuleCollectionItem
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]*QuotaRuleCollectionItem, error)); ok {
+		return rf(ctx, volumeUUID, svmName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []*QuotaRuleCollectionItem); ok {
+		r0 = rf(ctx, volumeUUID, svmName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*QuotaRuleCollectionItem)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, volumeUUID, svmName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetQuotaRuleCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetQuotaRuleCollection'
+type MockProvider_GetQuotaRuleCollection_Call struct {
+	*mock.Call
+}
+
+// GetQuotaRuleCollection is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - svmName string
+func (_e *MockProvider_Expecter) GetQuotaRuleCollection(ctx interface{}, volumeUUID interface{}, svmName interface{}) *MockProvider_GetQuotaRuleCollection_Call {
+	return &MockProvider_GetQuotaRuleCollection_Call{Call: _e.mock.On("GetQuotaRuleCollection", ctx, volumeUUID, svmName)}
+}
+
+func (_c *MockProvider_GetQuotaRuleCollection_Call) Run(run func(ctx context.Context, volumeUUID string, svmName string)) *MockProvider_GetQuotaRuleCollection_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetQuotaRuleCollection_Call) Return(_a0 []*QuotaRuleCollectionItem, _a1 error) *MockProvider_GetQuotaRuleCollection_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetQuotaRuleCollection_Call) RunAndReturn(run func(context.Context, string, string) ([]*QuotaRuleCollectionItem, error)) *MockProvider_GetQuotaRuleCollection_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetQuotaStatus provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockProvider) GetQuotaStatus(ctx context.Context, volumeUUID string) (*QuotaStatus, error) {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetQuotaStatus")
+	}
+
+	var r0 *QuotaStatus
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*QuotaStatus, error)); ok {
+		return rf(ctx, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *QuotaStatus); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*QuotaStatus)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetQuotaStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetQuotaStatus'
+type MockProvider_GetQuotaStatus_Call struct {
+	*mock.Call
+}
+
+// GetQuotaStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockProvider_Expecter) GetQuotaStatus(ctx interface{}, volumeUUID interface{}) *MockProvider_GetQuotaStatus_Call {
+	return &MockProvider_GetQuotaStatus_Call{Call: _e.mock.On("GetQuotaStatus", ctx, volumeUUID)}
+}
+
+func (_c *MockProvider_GetQuotaStatus_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockProvider_GetQuotaStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetQuotaStatus_Call) Return(_a0 *QuotaStatus, _a1 error) *MockProvider_GetQuotaStatus_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetQuotaStatus_Call) RunAndReturn(run func(context.Context, string) (*QuotaStatus, error)) *MockProvider_GetQuotaStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4886,6 +5251,54 @@ func (_c *MockProvider_ModifyRolePrivilege_Call) RunAndReturn(run func(ModifyRol
 	return _c
 }
 
+// ModifyRquota provides a mock function with given fields: ctx, svmUUID, rquota
+func (_m *MockProvider) ModifyRquota(ctx context.Context, svmUUID string, rquota bool) error {
+	ret := _m.Called(ctx, svmUUID, rquota)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ModifyRquota")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) error); ok {
+		r0 = rf(ctx, svmUUID, rquota)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_ModifyRquota_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ModifyRquota'
+type MockProvider_ModifyRquota_Call struct {
+	*mock.Call
+}
+
+// ModifyRquota is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svmUUID string
+//   - rquota bool
+func (_e *MockProvider_Expecter) ModifyRquota(ctx interface{}, svmUUID interface{}, rquota interface{}) *MockProvider_ModifyRquota_Call {
+	return &MockProvider_ModifyRquota_Call{Call: _e.mock.On("ModifyRquota", ctx, svmUUID, rquota)}
+}
+
+func (_c *MockProvider_ModifyRquota_Call) Run(run func(ctx context.Context, svmUUID string, rquota bool)) *MockProvider_ModifyRquota_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(bool))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ModifyRquota_Call) Return(_a0 error) *MockProvider_ModifyRquota_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_ModifyRquota_Call) RunAndReturn(run func(context.Context, string, bool) error) *MockProvider_ModifyRquota_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ModifySVMWithQoSPolicy provides a mock function with given fields: params
 func (_m *MockProvider) ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolicyParams) error {
 	ret := _m.Called(params)
@@ -5104,6 +5517,67 @@ func (_c *MockProvider_PostClusterLicenseAccessToken_Call) Return(_a0 *string, _
 }
 
 func (_c *MockProvider_PostClusterLicenseAccessToken_Call) RunAndReturn(run func(context.Context, string) (*string, error)) *MockProvider_PostClusterLicenseAccessToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// QuotaEnableDisable provides a mock function with given fields: ctx, volumeUUID, svmName, enable
+func (_m *MockProvider) QuotaEnableDisable(ctx context.Context, volumeUUID string, svmName string, enable bool) (*JobStatus, error) {
+	ret := _m.Called(ctx, volumeUUID, svmName, enable)
+
+	if len(ret) == 0 {
+		panic("no return value specified for QuotaEnableDisable")
+	}
+
+	var r0 *JobStatus
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, bool) (*JobStatus, error)); ok {
+		return rf(ctx, volumeUUID, svmName, enable)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, bool) *JobStatus); ok {
+		r0 = rf(ctx, volumeUUID, svmName, enable)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobStatus)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, bool) error); ok {
+		r1 = rf(ctx, volumeUUID, svmName, enable)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_QuotaEnableDisable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QuotaEnableDisable'
+type MockProvider_QuotaEnableDisable_Call struct {
+	*mock.Call
+}
+
+// QuotaEnableDisable is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - svmName string
+//   - enable bool
+func (_e *MockProvider_Expecter) QuotaEnableDisable(ctx interface{}, volumeUUID interface{}, svmName interface{}, enable interface{}) *MockProvider_QuotaEnableDisable_Call {
+	return &MockProvider_QuotaEnableDisable_Call{Call: _e.mock.On("QuotaEnableDisable", ctx, volumeUUID, svmName, enable)}
+}
+
+func (_c *MockProvider_QuotaEnableDisable_Call) Run(run func(ctx context.Context, volumeUUID string, svmName string, enable bool)) *MockProvider_QuotaEnableDisable_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(bool))
+	})
+	return _c
+}
+
+func (_c *MockProvider_QuotaEnableDisable_Call) Return(_a0 *JobStatus, _a1 error) *MockProvider_QuotaEnableDisable_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_QuotaEnableDisable_Call) RunAndReturn(run func(context.Context, string, string, bool) (*JobStatus, error)) *MockProvider_QuotaEnableDisable_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -6414,6 +6888,65 @@ func (_c *MockProvider_UpdateQoSGroupPolicy_Call) Return(_a0 error) *MockProvide
 }
 
 func (_c *MockProvider_UpdateQoSGroupPolicy_Call) RunAndReturn(run func(UpdateQoSGroupPolicyParams) error) *MockProvider_UpdateQoSGroupPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateQuotaRule provides a mock function with given fields: ctx, params
+func (_m *MockProvider) UpdateQuotaRule(ctx context.Context, params *UpdateQuotaRuleParams) (*JobStatus, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateQuotaRule")
+	}
+
+	var r0 *JobStatus
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *UpdateQuotaRuleParams) (*JobStatus, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *UpdateQuotaRuleParams) *JobStatus); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobStatus)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *UpdateQuotaRuleParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_UpdateQuotaRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateQuotaRule'
+type MockProvider_UpdateQuotaRule_Call struct {
+	*mock.Call
+}
+
+// UpdateQuotaRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *UpdateQuotaRuleParams
+func (_e *MockProvider_Expecter) UpdateQuotaRule(ctx interface{}, params interface{}) *MockProvider_UpdateQuotaRule_Call {
+	return &MockProvider_UpdateQuotaRule_Call{Call: _e.mock.On("UpdateQuotaRule", ctx, params)}
+}
+
+func (_c *MockProvider_UpdateQuotaRule_Call) Run(run func(ctx context.Context, params *UpdateQuotaRuleParams)) *MockProvider_UpdateQuotaRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*UpdateQuotaRuleParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateQuotaRule_Call) Return(_a0 *JobStatus, _a1 error) *MockProvider_UpdateQuotaRule_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_UpdateQuotaRule_Call) RunAndReturn(run func(context.Context, *UpdateQuotaRuleParams) (*JobStatus, error)) *MockProvider_UpdateQuotaRule_Call {
 	_c.Call.Return(run)
 	return _c
 }

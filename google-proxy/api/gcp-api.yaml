@@ -33,6 +33,8 @@ tags:
     description: Internal endpoints
   - name: backups
     description: Backup operations
+  - name: quota-rules
+    description: Quota rule operations
 paths:
   /health:
     get:
@@ -6363,6 +6365,210 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules:
+    post:
+      operationId: v1beta_createQuotaRule
+      summary: Create a quota rule for a volume
+      description: Creates a new quota rule for the specified volume. Quota rules can be used to enforce disk usage limits for individual users, groups, or set default quotas.
+      tags:
+        - quota-rules
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new quota rule
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaRuleCreate_v1beta'
+            examples:
+              individualUserQuota:
+                summary: Individual User Quota
+                value:
+                  resourceId: user-john-quota
+                  diskLimitInMib: 10240
+                  quotaType: INDIVIDUAL_USER_QUOTA
+                  quotaTarget: "1001"
+                  description: Quota rule for user john - 10GB limit
+              individualGroupQuota:
+                summary: Individual Group Quota
+                value:
+                  resourceId: group-developers-quota
+                  diskLimitInMib: 51200
+                  quotaType: INDIVIDUAL_GROUP_QUOTA
+                  quotaTarget: "2001"
+                  description: Quota rule for developers group - 50GB limit
+              defaultUserQuota:
+                summary: Default User Quota
+                value:
+                  resourceId: default-user-quota
+                  diskLimitInMib: 5120
+                  quotaType: DEFAULT_USER_QUOTA
+                  description: Default quota for all users - 5GB limit
+              defaultGroupQuota:
+                summary: Default Group Quota
+                value:
+                  resourceId: default-group-quota
+                  diskLimitInMib: 20480
+                  quotaType: DEFAULT_GROUP_QUOTA
+                  description: Default quota for all groups - 20GB limit
+      responses:
+        '200':
+          description: Quota rule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaRules_v1beta'
+        '202':
+          description: Creating quota rule for volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  quotaId: 3ef2db24-ad4f-05d7-98cc-d242c17bcc94
+                  resourceId: quotarule1
+                  diskLimitInMib: 10000612
+                  quotaType: INDIVIDUAL_USER_QUOTA
+                  quotaTarget: "1221"
+                  state: CREATING
+                  stateDetails: Creation in progress
+                  description: Sample quota rule
+                  createdAt: "2016-11-28T19:30:23.123Z"
+                  updatedAt: "2016-11-28T19:30:23.123Z"
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '408':
+          $ref: '#/components/responses/StandardError-408'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule:
+    post:
+      operationId: v1beta_createQuotaRuleVCP
+      summary: Create a quota rule for a volume (Internal VCP API)
+      description: Creates a new quota rule for the specified volume. This is an internal endpoint for VCP-to-VCP communication. Quota rules allow you to set storage limits for individual users, groups, or set default quotas.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new quota rule
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaRuleCreate_v1beta'
+            examples:
+              individualUserQuota:
+                summary: Individual User Quota
+                value:
+                  resourceId: user-quota-1
+                  diskLimitInMib: 10240
+                  quotaType: INDIVIDUAL_USER_QUOTA
+                  quotaTarget: "1001"
+                  description: 10GB quota for user 1001
+              individualGroupQuota:
+                summary: Individual Group Quota
+                value:
+                  resourceId: group-quota-1
+                  diskLimitInMib: 51200
+                  quotaType: INDIVIDUAL_GROUP_QUOTA
+                  quotaTarget: "2001"
+                  description: 50GB quota for group 2001
+              defaultUserQuota:
+                summary: Default User Quota
+                value:
+                  resourceId: default-user-quota
+                  diskLimitInMib: 5120
+                  quotaType: DEFAULT_USER_QUOTA
+                  description: Default 5GB quota for all users
+              defaultGroupQuota:
+                summary: Default Group Quota
+                value:
+                  resourceId: default-group-quota
+                  diskLimitInMib: 20480
+                  quotaType: DEFAULT_GROUP_QUOTA
+                  description: Default 20GB quota for all groups
+      responses:
+        '202':
+          description: The quota rule creation request has been accepted and is being processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaRulesVCP_v1beta'
+              example:
+                quotaId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                resourceId: quotarule1
+                quotaType: INDIVIDUAL_USER_QUOTA
+                quotaTarget: "1001"
+                diskLimitInMib: 1024
+                state: CREATING
+                stateDetails: Creation in progress
+                createdAt: "2016-11-30T20:32:50.459Z"
+                updatedAt: "2016-11-29T20:32:50.459Z"
+                description: My quota Rules description
+                jobs: []
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '408':
+          $ref: '#/components/responses/StandardError-408'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent:
     post:
       operationId: v1beta_startProjectEvent
@@ -12269,6 +12475,116 @@ components:
           description: Uuid v4 of the volume
           readOnly: true
           example: 9760acf5-4638-11e7-9bdb-020073ca0001
+    QuotaRuleCreate_v1beta:
+      title: QuotaRuleCreate
+      type: object
+      description: Request object for creating a quota rule for a volume
+      allOf:
+        - $ref: '#/components/schemas/QuotaRules_v1beta'
+    QuotaRules_v1beta:
+      type: object
+      title: QuotaRules
+      description: Quota rule object representing a quota policy for a volume
+      required:
+        - resourceId
+        - diskLimitInMib
+        - quotaType
+      properties:
+        quotaId:
+          type: string
+          description: UUID v4 identifier for the quota rule (system generated)
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          minLength: 36
+          maxLength: 36
+          example: 3ef2db24-ad4f-05d7-98cc-d242c17bcc94
+          readOnly: true
+        resourceId:
+          type: string
+          description: Human-readable name of the quota rule
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: quotarule1
+        quotaType:
+          title: quotaType
+          type: string
+          description: Type of quota rule
+          enum:
+            - INDIVIDUAL_USER_QUOTA
+            - INDIVIDUAL_GROUP_QUOTA
+            - DEFAULT_USER_QUOTA
+            - DEFAULT_GROUP_QUOTA
+          example: INDIVIDUAL_USER_QUOTA
+        diskLimitInMib:
+          title: diskLimitInMib
+          type: integer
+          format: int64
+          description: Total size limit in mebibytes (MiB) for the user or group
+          example: 1024
+          x-nullable: false
+        quotaTarget:
+          title: quotaTarget
+          type: string
+          description: Identifier for the quota target (UID, GID, or SID)
+          maxLength: 255
+          example: "1001"
+          x-nullable: true
+        state:
+          title: state
+          type: string
+          description: Current lifecycle state of the quota rule
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - DELETING
+            - ERROR
+          example: READY
+          readOnly: true
+          x-nullable: false
+        stateDetails:
+          title: stateDetails
+          type: string
+          description: Details about the current state
+          example: Available for use
+          readOnly: true
+          x-nullable: true
+        description:
+          title: description
+          type: string
+          description: Human-readable description of the quota rule
+          maxLength: 2048
+          example: My quota rule description
+          x-nullable: true
+        createdAt:
+          title: createdAt
+          type: string
+          format: date-time
+          description: Timestamp when the quota rule was created
+          example: "2016-11-28T19:30:23.123Z"
+          readOnly: true
+          x-nullable: false
+        updatedAt:
+          title: updatedAt
+          type: string
+          format: date-time
+          description: Timestamp when the quota rule was last updated
+          example: "2016-11-28T19:30:23.123Z"
+          readOnly: true
+          x-nullable: false
+        jobs:
+          type: array
+          description: List of ongoing jobs for the quota rule
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/Job_v1beta'
+          x-nullable: false
+    QuotaRulesVCP_v1beta:
+      title: QuotaRulesVCP
+      type: object
+      description: Quota rule response object for VCP internal API with job tracking
+      allOf:
+        - $ref: '#/components/schemas/QuotaRules_v1beta'
   responses:
     StandardError-400:
       description: Bad request

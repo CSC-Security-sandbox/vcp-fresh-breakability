@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -1772,6 +1773,92 @@ func TestNfsServiceCreateParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "test-svm-uuid", *otParams.Info.Svm.UUID)
 		assert.True(tt, *otParams.Info.Enabled)
 		assert.Nil(tt, otParams.Info.Protocol)
+	})
+}
+
+func TestNfsParamsModifyToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := nfsParamsModifyToONTAP(context.Background(), nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &NfsModifyParams{
+			SvmUUID:    "test-svm-uuid",
+			Enabled:    nillable.ToPointer(false),
+			V3Enabled:  nillable.ToPointer(false),
+			V40Enabled: nillable.ToPointer(true),
+			V41Enabled: nillable.ToPointer(false),
+		}
+
+		otParams := nfsParamsModifyToONTAP(context.Background(), params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.False(tt, *otParams.Info.Enabled)
+		assert.False(tt, *otParams.Info.Protocol.V3Enabled)
+		assert.True(tt, *otParams.Info.Protocol.V40Enabled)
+		assert.False(tt, *otParams.Info.Protocol.V41Enabled)
+	})
+	t.Run("WhenProtocolNotSet", func(tt *testing.T) {
+		params := &NfsModifyParams{
+			SvmUUID: "test-svm-uuid",
+			Enabled: nillable.ToPointer(true),
+		}
+
+		otParams := nfsParamsModifyToONTAP(context.Background(), params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.True(tt, *otParams.Info.Enabled)
+		assert.NotNil(tt, otParams.Info.Protocol)
+	})
+	t.Run("WhenRquotaEnabled", func(tt *testing.T) {
+		params := &NfsModifyParams{
+			SvmUUID:       "test-svm-uuid",
+			RquotaEnabled: nillable.ToPointer(true),
+		}
+
+		otParams := nfsParamsModifyToONTAP(context.Background(), params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.True(tt, *otParams.Info.RquotaEnabled)
+	})
+	t.Run("WhenRquotaDisabled", func(tt *testing.T) {
+		params := &NfsModifyParams{
+			SvmUUID:       "test-svm-uuid",
+			RquotaEnabled: nillable.ToPointer(false),
+		}
+
+		otParams := nfsParamsModifyToONTAP(context.Background(), params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.False(tt, *otParams.Info.RquotaEnabled)
+	})
+}
+
+// TestNfsModifyParamsToONTAP tests the Active Directory nfsModifyParamsToONTAP function (without context)
+func TestNfsModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := nfsModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &NfsModifyParams{
+			SvmUUID:                    "test-svm-uuid",
+			AllowLocalNFSUsersWithLdap: nillable.ToPointer(true),
+			V4IDDomain:                 nillable.ToPointer("example.com"),
+			Enabled:                    nillable.ToPointer(true),
+		}
+
+		otParams := nfsModifyParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.True(tt, *otParams.Info.Enabled)
+		assert.True(tt, *otParams.Info.AuthSysExtendedGroupsEnabled)
+		assert.Equal(tt, "example.com", *otParams.Info.Protocol.V4IDDomain)
+	})
+	t.Run("WhenRquotaEnabled", func(tt *testing.T) {
+		params := &NfsModifyParams{
+			SvmUUID:       "test-svm-uuid",
+			RquotaEnabled: nillable.ToPointer(true),
+		}
+
+		otParams := nfsModifyParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.True(tt, *otParams.Info.RquotaEnabled)
 	})
 }
 
@@ -3665,5 +3752,75 @@ func TestCifsServiceDeleteParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "svm-uuid-1", otParams.SvmUUID)
 		assert.NotNil(tt, otParams.Info)
 		assert.NotNil(tt, otParams.Info.AdDomain)
+	})
+}
+
+func TestVolumeGetParamsToONTAPQuotaRules(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		otParams := VolumeGetParamsToONTAPQuotaRules(ctx, nil)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, ctx, otParams.Context)
+	})
+
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &VolumeGetParams{
+			BaseParams: BaseParams{Fields: []string{"field1", "field2"}},
+			UUID:       "test-uuid",
+		}
+
+		otParams := VolumeGetParamsToONTAPQuotaRules(ctx, params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, ctx, otParams.Context)
+		assert.Equal(tt, "field1", otParams.Fields[0])
+		assert.Equal(tt, "field2", otParams.Fields[1])
+		assert.Equal(tt, "test-uuid", otParams.UUID)
+	})
+
+	t.Run("WhenParamsHasOnlyUUID", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &VolumeGetParams{
+			UUID: "test-uuid-only",
+		}
+
+		otParams := VolumeGetParamsToONTAPQuotaRules(ctx, params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, ctx, otParams.Context)
+		assert.Equal(tt, "test-uuid-only", otParams.UUID)
+		assert.Nil(tt, otParams.Fields)
+	})
+
+	t.Run("WhenParamsHasOnlyFields", func(tt *testing.T) {
+		ctx := context.Background()
+		params := &VolumeGetParams{
+			BaseParams: BaseParams{Fields: []string{"field1"}},
+		}
+
+		otParams := VolumeGetParamsToONTAPQuotaRules(ctx, params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, ctx, otParams.Context)
+		assert.Equal(tt, "field1", otParams.Fields[0])
+		assert.Equal(tt, "", otParams.UUID)
+	})
+
+	t.Run("WhenContextIsDifferent", func(tt *testing.T) {
+		ctx1 := context.Background()
+		ctx2, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		params := &VolumeGetParams{
+			UUID: "test-uuid",
+		}
+
+		otParams1 := VolumeGetParamsToONTAPQuotaRules(ctx1, params)
+		otParams2 := VolumeGetParamsToONTAPQuotaRules(ctx2, params)
+
+		assert.NotNil(tt, otParams1)
+		assert.NotNil(tt, otParams2)
+		assert.Equal(tt, ctx1, otParams1.Context)
+		assert.Equal(tt, ctx2, otParams2.Context)
+		assert.Equal(tt, "test-uuid", otParams1.UUID)
+		assert.Equal(tt, "test-uuid", otParams2.UUID)
 	})
 }

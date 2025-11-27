@@ -109,6 +109,34 @@ func encodeV1betaCreatePoolRequest(
 	return nil
 }
 
+func encodeV1betaCreateQuotaRuleRequest(
+	req *QuotaRuleCreateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaCreateQuotaRuleVCPRequest(
+	req *QuotaRuleCreateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaCreateReplicationRequest(
 	req *ReplicationCreateV1beta,
 	r *http.Request,

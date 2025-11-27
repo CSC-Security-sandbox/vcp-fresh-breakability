@@ -187,7 +187,12 @@ type (
 		BatchUnDeleteSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot) error
 		BatchGetSnapshotsByUUIDs(ctx context.Context, snapshotUUIDs []string) ([]*datamodel.Snapshot, error)
 		BatchGetWronglyDeletedSnapshots(ctx context.Context, snapshotExternalUUIDs []string) ([]*datamodel.Snapshot, error)
-
+		CreatingQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error)
+		UpdateQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error)
+		GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.QuotaRule, error)
+		GetQuotaRulesByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.QuotaRule, error)
+		GetQuotaRuleCountBySvmID(ctx context.Context, svmID int64) (int64, error)
+		DeleteQuotaRule(ctx context.Context, id string) (*datamodel.QuotaRule, error)
 		GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error)
 		GetKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error)
 		UpdateKmsConfigState(ctx context.Context, kmsConfigUUID string, state string, stateDetails string) (*datamodel.KmsConfig, error)

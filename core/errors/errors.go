@@ -313,6 +313,7 @@ const (
 	// Backup specific errors (12000-12999 range)
 	ErrImmutableValidationWithUpdatingBackupPolicy = 12001
 	ErrImmutableValidationWithUpdatingBackupVault  = 12002
+	ErrCreateInternalQuotaRule                     = 12003
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.

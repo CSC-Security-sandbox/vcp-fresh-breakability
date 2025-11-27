@@ -772,3 +772,15 @@ type SplitCloneVolumeParams struct {
 	Region      string
 	VolumeID    string
 }
+
+// CreateQuotaRulesParam describes parameters supplied to create a quota rule
+type CreateQuotaRulesParam struct {
+	Name           string
+	VolumeUUID     string
+	QuotaType      string
+	DiskLimitInMib int64
+	QuotaTarget    string
+	ProjectId      string
+	Description    string
+	LocationId     string // Region where the quota rule is being created
+}

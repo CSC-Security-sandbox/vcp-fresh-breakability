@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"context"
 	"slices"
 	"strconv"
 	"strings"
@@ -112,6 +113,21 @@ type Cluster struct {
 type JobGetParams struct {
 	BaseParams
 	UUID string
+}
+
+// JobGetParamsToONTAP converts JobGetParams to ONTAP API parameters
+func JobGetParamsToONTAP(params *JobGetParams) *cluster.JobGetParams {
+	otParams := cluster.NewJobGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	if params.Fields != nil {
+		otParams.SetFields(params.Fields)
+	}
+
+	return otParams
 }
 
 // Job is a simple wrapper of models.Job
@@ -1674,6 +1690,19 @@ func volumeGetParamsToONTAP(params *VolumeGetParams) *storage.VolumeGetParams {
 	return otParams
 }
 
+// VolumeGetParamsToONTAPQuotaRules converts VolumeGetParams to storage.VolumeGetParams with context support
+// This is used specifically for quota rule operations that require context.
+func VolumeGetParamsToONTAPQuotaRules(ctx context.Context, params *VolumeGetParams) *storage.VolumeGetParams {
+	otParams := storage.NewVolumeGetParams().WithContext(ctx)
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetFields(params.Fields)
+	otParams.SetUUID(params.UUID)
+	return otParams
+}
+
 // SnapshotModifyParams is the input param struct for storageClient.SnapshotModify
 type SnapshotModifyParams struct {
 	UUID       string
@@ -2252,6 +2281,11 @@ func qosPolicyGroupCreateParamsToONTAP(params *QoSPolicyGroupCreateParams) *stor
 	otParams.SetReturnRecords(nillable.ToPointer("true"))
 	otParams.SetReturnTimeout(&returnTimeout)
 	return otParams
+}
+
+// QuotaReportResponse is a simple wrapper of storage.QuotaReportCollectionGetOK
+type QuotaReportResponse struct {
+	storage.QuotaReportCollectionGetOK
 }
 
 // SvmCreateParams is the params to create a svm
@@ -4160,7 +4194,9 @@ func nfsServiceModifyParamsToONTAP(params *NfsServiceModifyParams) *nas.NfsModif
 		return otParams
 	}
 
-	nfsInfo := &models.NfsService{}
+	nfsInfo := &models.NfsService{
+		Svm: &models.NfsServiceInlineSvm{UUID: &params.SvmUUID},
+	}
 
 	if params.Enabled != nil {
 		nfsInfo.Enabled = params.Enabled
@@ -4188,8 +4224,62 @@ func nfsServiceModifyParamsToONTAP(params *NfsServiceModifyParams) *nas.NfsModif
 		}
 	}
 
-	otParams.SetSvmUUID(params.SvmUUID)
 	otParams.SetInfo(nfsInfo)
+	otParams.SetSvmUUID(params.SvmUUID)
+	return otParams
+}
+
+// nfsParamsModifyToONTAP converts NfsModifyParams to ONTAP API parameters
+func nfsParamsModifyToONTAP(ctx context.Context, params *NfsModifyParams) *nas.NfsModifyParams {
+	otParams := nas.NewNfsModifyParams().WithContext(ctx)
+	if params == nil {
+		return otParams
+	}
+
+	nfsInfo := &models.NfsService{
+		ShowmountEnabled: params.ShowmountEnabled,
+		Protocol:         &models.NfsServiceInlineProtocol{},
+		Enabled:          params.Enabled,
+	}
+
+	if params.V4IDDomain != nil {
+		nfsInfo.Protocol.V4IDDomain = params.V4IDDomain
+	}
+
+	if params.AllowLocalNFSUsersWithLdap != nil {
+		nfsInfo.AuthSysExtendedGroupsEnabled = params.AllowLocalNFSUsersWithLdap
+	}
+
+	if params.ExtendedGroupsLimit != nil {
+		nfsInfo.ExtendedGroupsLimit = params.ExtendedGroupsLimit
+	}
+
+	if params.V3Enabled != nil {
+		nfsInfo.Protocol.V3Enabled = params.V3Enabled
+	}
+
+	if params.V40Enabled != nil {
+		nfsInfo.Protocol.V40Enabled = params.V40Enabled
+	}
+
+	if params.V41Enabled != nil {
+		nfsInfo.Protocol.V41Enabled = params.V41Enabled
+	}
+
+	if params.RquotaEnabled != nil {
+		nfsInfo.RquotaEnabled = params.RquotaEnabled
+	}
+
+	if params.VstorageEnabled != nil {
+		nfsInfo.VstorageEnabled = params.VstorageEnabled
+	}
+
+	if params.FileSessionIoGroupingCount != nil {
+		nfsInfo.FileSessionIoGroupingCount = params.FileSessionIoGroupingCount
+	}
+
+	otParams.SetInfo(nfsInfo)
+	otParams.SetSvmUUID(params.SvmUUID)
 	return otParams
 }
 

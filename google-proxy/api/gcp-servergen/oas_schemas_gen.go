@@ -3599,6 +3599,8 @@ func (*ErrorStatusCode) v1betaCreateBackupVaultRes()                         {}
 func (*ErrorStatusCode) v1betaCreateHostGroupRes()                           {}
 func (*ErrorStatusCode) v1betaCreateKmsConfigurationRes()                    {}
 func (*ErrorStatusCode) v1betaCreatePoolRes()                                {}
+func (*ErrorStatusCode) v1betaCreateQuotaRuleRes()                           {}
+func (*ErrorStatusCode) v1betaCreateQuotaRuleVCPRes()                        {}
 func (*ErrorStatusCode) v1betaCreateReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaCreateSnapshotRes()                            {}
 func (*ErrorStatusCode) v1betaCreateVolumeRes()                              {}
@@ -7523,6 +7525,7 @@ func (*OperationV1beta) v1betaCreateBackupRes()                              {}
 func (*OperationV1beta) v1betaCreateBackupVaultRes()                         {}
 func (*OperationV1beta) v1betaCreateKmsConfigurationRes()                    {}
 func (*OperationV1beta) v1betaCreatePoolRes()                                {}
+func (*OperationV1beta) v1betaCreateQuotaRuleRes()                           {}
 func (*OperationV1beta) v1betaCreateReplicationRes()                         {}
 func (*OperationV1beta) v1betaCreateSnapshotRes()                            {}
 func (*OperationV1beta) v1betaCreateVolumeRes()                              {}
@@ -11449,6 +11452,144 @@ func (o OptProtocolsV1beta) Get() (v ProtocolsV1beta, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptProtocolsV1beta) Or(d ProtocolsV1beta) ProtocolsV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptQuotaRuleCreateV1betaState returns new OptQuotaRuleCreateV1betaState with value set to v.
+func NewOptQuotaRuleCreateV1betaState(v QuotaRuleCreateV1betaState) OptQuotaRuleCreateV1betaState {
+	return OptQuotaRuleCreateV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptQuotaRuleCreateV1betaState is optional QuotaRuleCreateV1betaState.
+type OptQuotaRuleCreateV1betaState struct {
+	Value QuotaRuleCreateV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptQuotaRuleCreateV1betaState was set.
+func (o OptQuotaRuleCreateV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptQuotaRuleCreateV1betaState) Reset() {
+	var v QuotaRuleCreateV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptQuotaRuleCreateV1betaState) SetTo(v QuotaRuleCreateV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptQuotaRuleCreateV1betaState) Get() (v QuotaRuleCreateV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptQuotaRuleCreateV1betaState) Or(d QuotaRuleCreateV1betaState) QuotaRuleCreateV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptQuotaRulesV1betaState returns new OptQuotaRulesV1betaState with value set to v.
+func NewOptQuotaRulesV1betaState(v QuotaRulesV1betaState) OptQuotaRulesV1betaState {
+	return OptQuotaRulesV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptQuotaRulesV1betaState is optional QuotaRulesV1betaState.
+type OptQuotaRulesV1betaState struct {
+	Value QuotaRulesV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptQuotaRulesV1betaState was set.
+func (o OptQuotaRulesV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptQuotaRulesV1betaState) Reset() {
+	var v QuotaRulesV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptQuotaRulesV1betaState) SetTo(v QuotaRulesV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptQuotaRulesV1betaState) Get() (v QuotaRulesV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptQuotaRulesV1betaState) Or(d QuotaRulesV1betaState) QuotaRulesV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptQuotaRulesVCPV1betaState returns new OptQuotaRulesVCPV1betaState with value set to v.
+func NewOptQuotaRulesVCPV1betaState(v QuotaRulesVCPV1betaState) OptQuotaRulesVCPV1betaState {
+	return OptQuotaRulesVCPV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptQuotaRulesVCPV1betaState is optional QuotaRulesVCPV1betaState.
+type OptQuotaRulesVCPV1betaState struct {
+	Value QuotaRulesVCPV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptQuotaRulesVCPV1betaState was set.
+func (o OptQuotaRulesVCPV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptQuotaRulesVCPV1betaState) Reset() {
+	var v QuotaRulesVCPV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptQuotaRulesVCPV1betaState) SetTo(v QuotaRulesVCPV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptQuotaRulesVCPV1betaState) Get() (v QuotaRulesVCPV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptQuotaRulesVCPV1betaState) Or(d QuotaRulesVCPV1betaState) QuotaRulesVCPV1betaState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -15451,6 +15592,799 @@ func (s *ProtocolsV1beta) UnmarshalText(data []byte) error {
 	}
 }
 
+// Quota rule object representing a quota policy for a volume.
+// Ref: #/components/schemas/QuotaRuleCreate_v1beta
+type QuotaRuleCreateV1beta struct {
+	// UUID v4 identifier for the quota rule (system generated).
+	QuotaId OptString `json:"quotaId"`
+	// Human-readable name of the quota rule.
+	ResourceId string `json:"resourceId"`
+	// Type of quota rule.
+	QuotaType QuotaRuleCreateV1betaQuotaType `json:"quotaType"`
+	// Total size limit in mebibytes (MiB) for the user or group.
+	DiskLimitInMib int64 `json:"diskLimitInMib"`
+	// Identifier for the quota target (UID, GID, or SID).
+	QuotaTarget OptString `json:"quotaTarget"`
+	// Current lifecycle state of the quota rule.
+	State OptQuotaRuleCreateV1betaState `json:"state"`
+	// Details about the current state.
+	StateDetails OptString `json:"stateDetails"`
+	// Human-readable description of the quota rule.
+	Description OptString `json:"description"`
+	// Timestamp when the quota rule was created.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Timestamp when the quota rule was last updated.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// List of ongoing jobs for the quota rule.
+	Jobs []JobV1beta `json:"jobs"`
+}
+
+// GetQuotaId returns the value of QuotaId.
+func (s *QuotaRuleCreateV1beta) GetQuotaId() OptString {
+	return s.QuotaId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *QuotaRuleCreateV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetQuotaType returns the value of QuotaType.
+func (s *QuotaRuleCreateV1beta) GetQuotaType() QuotaRuleCreateV1betaQuotaType {
+	return s.QuotaType
+}
+
+// GetDiskLimitInMib returns the value of DiskLimitInMib.
+func (s *QuotaRuleCreateV1beta) GetDiskLimitInMib() int64 {
+	return s.DiskLimitInMib
+}
+
+// GetQuotaTarget returns the value of QuotaTarget.
+func (s *QuotaRuleCreateV1beta) GetQuotaTarget() OptString {
+	return s.QuotaTarget
+}
+
+// GetState returns the value of State.
+func (s *QuotaRuleCreateV1beta) GetState() OptQuotaRuleCreateV1betaState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *QuotaRuleCreateV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetDescription returns the value of Description.
+func (s *QuotaRuleCreateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *QuotaRuleCreateV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *QuotaRuleCreateV1beta) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetJobs returns the value of Jobs.
+func (s *QuotaRuleCreateV1beta) GetJobs() []JobV1beta {
+	return s.Jobs
+}
+
+// SetQuotaId sets the value of QuotaId.
+func (s *QuotaRuleCreateV1beta) SetQuotaId(val OptString) {
+	s.QuotaId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *QuotaRuleCreateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetQuotaType sets the value of QuotaType.
+func (s *QuotaRuleCreateV1beta) SetQuotaType(val QuotaRuleCreateV1betaQuotaType) {
+	s.QuotaType = val
+}
+
+// SetDiskLimitInMib sets the value of DiskLimitInMib.
+func (s *QuotaRuleCreateV1beta) SetDiskLimitInMib(val int64) {
+	s.DiskLimitInMib = val
+}
+
+// SetQuotaTarget sets the value of QuotaTarget.
+func (s *QuotaRuleCreateV1beta) SetQuotaTarget(val OptString) {
+	s.QuotaTarget = val
+}
+
+// SetState sets the value of State.
+func (s *QuotaRuleCreateV1beta) SetState(val OptQuotaRuleCreateV1betaState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *QuotaRuleCreateV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetDescription sets the value of Description.
+func (s *QuotaRuleCreateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *QuotaRuleCreateV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *QuotaRuleCreateV1beta) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetJobs sets the value of Jobs.
+func (s *QuotaRuleCreateV1beta) SetJobs(val []JobV1beta) {
+	s.Jobs = val
+}
+
+// Type of quota rule.
+type QuotaRuleCreateV1betaQuotaType string
+
+const (
+	QuotaRuleCreateV1betaQuotaTypeINDIVIDUALUSERQUOTA  QuotaRuleCreateV1betaQuotaType = "INDIVIDUAL_USER_QUOTA"
+	QuotaRuleCreateV1betaQuotaTypeINDIVIDUALGROUPQUOTA QuotaRuleCreateV1betaQuotaType = "INDIVIDUAL_GROUP_QUOTA"
+	QuotaRuleCreateV1betaQuotaTypeDEFAULTUSERQUOTA     QuotaRuleCreateV1betaQuotaType = "DEFAULT_USER_QUOTA"
+	QuotaRuleCreateV1betaQuotaTypeDEFAULTGROUPQUOTA    QuotaRuleCreateV1betaQuotaType = "DEFAULT_GROUP_QUOTA"
+)
+
+// AllValues returns all QuotaRuleCreateV1betaQuotaType values.
+func (QuotaRuleCreateV1betaQuotaType) AllValues() []QuotaRuleCreateV1betaQuotaType {
+	return []QuotaRuleCreateV1betaQuotaType{
+		QuotaRuleCreateV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+		QuotaRuleCreateV1betaQuotaTypeINDIVIDUALGROUPQUOTA,
+		QuotaRuleCreateV1betaQuotaTypeDEFAULTUSERQUOTA,
+		QuotaRuleCreateV1betaQuotaTypeDEFAULTGROUPQUOTA,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s QuotaRuleCreateV1betaQuotaType) MarshalText() ([]byte, error) {
+	switch s {
+	case QuotaRuleCreateV1betaQuotaTypeINDIVIDUALUSERQUOTA:
+		return []byte(s), nil
+	case QuotaRuleCreateV1betaQuotaTypeINDIVIDUALGROUPQUOTA:
+		return []byte(s), nil
+	case QuotaRuleCreateV1betaQuotaTypeDEFAULTUSERQUOTA:
+		return []byte(s), nil
+	case QuotaRuleCreateV1betaQuotaTypeDEFAULTGROUPQUOTA:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *QuotaRuleCreateV1betaQuotaType) UnmarshalText(data []byte) error {
+	switch QuotaRuleCreateV1betaQuotaType(data) {
+	case QuotaRuleCreateV1betaQuotaTypeINDIVIDUALUSERQUOTA:
+		*s = QuotaRuleCreateV1betaQuotaTypeINDIVIDUALUSERQUOTA
+		return nil
+	case QuotaRuleCreateV1betaQuotaTypeINDIVIDUALGROUPQUOTA:
+		*s = QuotaRuleCreateV1betaQuotaTypeINDIVIDUALGROUPQUOTA
+		return nil
+	case QuotaRuleCreateV1betaQuotaTypeDEFAULTUSERQUOTA:
+		*s = QuotaRuleCreateV1betaQuotaTypeDEFAULTUSERQUOTA
+		return nil
+	case QuotaRuleCreateV1betaQuotaTypeDEFAULTGROUPQUOTA:
+		*s = QuotaRuleCreateV1betaQuotaTypeDEFAULTGROUPQUOTA
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Current lifecycle state of the quota rule.
+type QuotaRuleCreateV1betaState string
+
+const (
+	QuotaRuleCreateV1betaStateSTATEUNSPECIFIED QuotaRuleCreateV1betaState = "STATE_UNSPECIFIED"
+	QuotaRuleCreateV1betaStateCREATING         QuotaRuleCreateV1betaState = "CREATING"
+	QuotaRuleCreateV1betaStateREADY            QuotaRuleCreateV1betaState = "READY"
+	QuotaRuleCreateV1betaStateUPDATING         QuotaRuleCreateV1betaState = "UPDATING"
+	QuotaRuleCreateV1betaStateDELETING         QuotaRuleCreateV1betaState = "DELETING"
+	QuotaRuleCreateV1betaStateERROR            QuotaRuleCreateV1betaState = "ERROR"
+)
+
+// AllValues returns all QuotaRuleCreateV1betaState values.
+func (QuotaRuleCreateV1betaState) AllValues() []QuotaRuleCreateV1betaState {
+	return []QuotaRuleCreateV1betaState{
+		QuotaRuleCreateV1betaStateSTATEUNSPECIFIED,
+		QuotaRuleCreateV1betaStateCREATING,
+		QuotaRuleCreateV1betaStateREADY,
+		QuotaRuleCreateV1betaStateUPDATING,
+		QuotaRuleCreateV1betaStateDELETING,
+		QuotaRuleCreateV1betaStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s QuotaRuleCreateV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case QuotaRuleCreateV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case QuotaRuleCreateV1betaStateCREATING:
+		return []byte(s), nil
+	case QuotaRuleCreateV1betaStateREADY:
+		return []byte(s), nil
+	case QuotaRuleCreateV1betaStateUPDATING:
+		return []byte(s), nil
+	case QuotaRuleCreateV1betaStateDELETING:
+		return []byte(s), nil
+	case QuotaRuleCreateV1betaStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *QuotaRuleCreateV1betaState) UnmarshalText(data []byte) error {
+	switch QuotaRuleCreateV1betaState(data) {
+	case QuotaRuleCreateV1betaStateSTATEUNSPECIFIED:
+		*s = QuotaRuleCreateV1betaStateSTATEUNSPECIFIED
+		return nil
+	case QuotaRuleCreateV1betaStateCREATING:
+		*s = QuotaRuleCreateV1betaStateCREATING
+		return nil
+	case QuotaRuleCreateV1betaStateREADY:
+		*s = QuotaRuleCreateV1betaStateREADY
+		return nil
+	case QuotaRuleCreateV1betaStateUPDATING:
+		*s = QuotaRuleCreateV1betaStateUPDATING
+		return nil
+	case QuotaRuleCreateV1betaStateDELETING:
+		*s = QuotaRuleCreateV1betaStateDELETING
+		return nil
+	case QuotaRuleCreateV1betaStateERROR:
+		*s = QuotaRuleCreateV1betaStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Quota rule object representing a quota policy for a volume.
+// Ref: #/components/schemas/QuotaRules_v1beta
+type QuotaRulesV1beta struct {
+	// UUID v4 identifier for the quota rule (system generated).
+	QuotaId OptString `json:"quotaId"`
+	// Human-readable name of the quota rule.
+	ResourceId string `json:"resourceId"`
+	// Type of quota rule.
+	QuotaType QuotaRulesV1betaQuotaType `json:"quotaType"`
+	// Total size limit in mebibytes (MiB) for the user or group.
+	DiskLimitInMib int64 `json:"diskLimitInMib"`
+	// Identifier for the quota target (UID, GID, or SID).
+	QuotaTarget OptString `json:"quotaTarget"`
+	// Current lifecycle state of the quota rule.
+	State OptQuotaRulesV1betaState `json:"state"`
+	// Details about the current state.
+	StateDetails OptString `json:"stateDetails"`
+	// Human-readable description of the quota rule.
+	Description OptString `json:"description"`
+	// Timestamp when the quota rule was created.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Timestamp when the quota rule was last updated.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// List of ongoing jobs for the quota rule.
+	Jobs []JobV1beta `json:"jobs"`
+}
+
+// GetQuotaId returns the value of QuotaId.
+func (s *QuotaRulesV1beta) GetQuotaId() OptString {
+	return s.QuotaId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *QuotaRulesV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetQuotaType returns the value of QuotaType.
+func (s *QuotaRulesV1beta) GetQuotaType() QuotaRulesV1betaQuotaType {
+	return s.QuotaType
+}
+
+// GetDiskLimitInMib returns the value of DiskLimitInMib.
+func (s *QuotaRulesV1beta) GetDiskLimitInMib() int64 {
+	return s.DiskLimitInMib
+}
+
+// GetQuotaTarget returns the value of QuotaTarget.
+func (s *QuotaRulesV1beta) GetQuotaTarget() OptString {
+	return s.QuotaTarget
+}
+
+// GetState returns the value of State.
+func (s *QuotaRulesV1beta) GetState() OptQuotaRulesV1betaState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *QuotaRulesV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetDescription returns the value of Description.
+func (s *QuotaRulesV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *QuotaRulesV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *QuotaRulesV1beta) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetJobs returns the value of Jobs.
+func (s *QuotaRulesV1beta) GetJobs() []JobV1beta {
+	return s.Jobs
+}
+
+// SetQuotaId sets the value of QuotaId.
+func (s *QuotaRulesV1beta) SetQuotaId(val OptString) {
+	s.QuotaId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *QuotaRulesV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetQuotaType sets the value of QuotaType.
+func (s *QuotaRulesV1beta) SetQuotaType(val QuotaRulesV1betaQuotaType) {
+	s.QuotaType = val
+}
+
+// SetDiskLimitInMib sets the value of DiskLimitInMib.
+func (s *QuotaRulesV1beta) SetDiskLimitInMib(val int64) {
+	s.DiskLimitInMib = val
+}
+
+// SetQuotaTarget sets the value of QuotaTarget.
+func (s *QuotaRulesV1beta) SetQuotaTarget(val OptString) {
+	s.QuotaTarget = val
+}
+
+// SetState sets the value of State.
+func (s *QuotaRulesV1beta) SetState(val OptQuotaRulesV1betaState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *QuotaRulesV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetDescription sets the value of Description.
+func (s *QuotaRulesV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *QuotaRulesV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *QuotaRulesV1beta) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetJobs sets the value of Jobs.
+func (s *QuotaRulesV1beta) SetJobs(val []JobV1beta) {
+	s.Jobs = val
+}
+
+func (*QuotaRulesV1beta) v1betaCreateQuotaRuleRes() {}
+
+// Type of quota rule.
+type QuotaRulesV1betaQuotaType string
+
+const (
+	QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA  QuotaRulesV1betaQuotaType = "INDIVIDUAL_USER_QUOTA"
+	QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA QuotaRulesV1betaQuotaType = "INDIVIDUAL_GROUP_QUOTA"
+	QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA     QuotaRulesV1betaQuotaType = "DEFAULT_USER_QUOTA"
+	QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA    QuotaRulesV1betaQuotaType = "DEFAULT_GROUP_QUOTA"
+)
+
+// AllValues returns all QuotaRulesV1betaQuotaType values.
+func (QuotaRulesV1betaQuotaType) AllValues() []QuotaRulesV1betaQuotaType {
+	return []QuotaRulesV1betaQuotaType{
+		QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+		QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA,
+		QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA,
+		QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s QuotaRulesV1betaQuotaType) MarshalText() ([]byte, error) {
+	switch s {
+	case QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA:
+		return []byte(s), nil
+	case QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA:
+		return []byte(s), nil
+	case QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA:
+		return []byte(s), nil
+	case QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *QuotaRulesV1betaQuotaType) UnmarshalText(data []byte) error {
+	switch QuotaRulesV1betaQuotaType(data) {
+	case QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA:
+		*s = QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA
+		return nil
+	case QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA:
+		*s = QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA
+		return nil
+	case QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA:
+		*s = QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA
+		return nil
+	case QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA:
+		*s = QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Current lifecycle state of the quota rule.
+type QuotaRulesV1betaState string
+
+const (
+	QuotaRulesV1betaStateSTATEUNSPECIFIED QuotaRulesV1betaState = "STATE_UNSPECIFIED"
+	QuotaRulesV1betaStateCREATING         QuotaRulesV1betaState = "CREATING"
+	QuotaRulesV1betaStateREADY            QuotaRulesV1betaState = "READY"
+	QuotaRulesV1betaStateUPDATING         QuotaRulesV1betaState = "UPDATING"
+	QuotaRulesV1betaStateDELETING         QuotaRulesV1betaState = "DELETING"
+	QuotaRulesV1betaStateERROR            QuotaRulesV1betaState = "ERROR"
+)
+
+// AllValues returns all QuotaRulesV1betaState values.
+func (QuotaRulesV1betaState) AllValues() []QuotaRulesV1betaState {
+	return []QuotaRulesV1betaState{
+		QuotaRulesV1betaStateSTATEUNSPECIFIED,
+		QuotaRulesV1betaStateCREATING,
+		QuotaRulesV1betaStateREADY,
+		QuotaRulesV1betaStateUPDATING,
+		QuotaRulesV1betaStateDELETING,
+		QuotaRulesV1betaStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s QuotaRulesV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case QuotaRulesV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case QuotaRulesV1betaStateCREATING:
+		return []byte(s), nil
+	case QuotaRulesV1betaStateREADY:
+		return []byte(s), nil
+	case QuotaRulesV1betaStateUPDATING:
+		return []byte(s), nil
+	case QuotaRulesV1betaStateDELETING:
+		return []byte(s), nil
+	case QuotaRulesV1betaStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *QuotaRulesV1betaState) UnmarshalText(data []byte) error {
+	switch QuotaRulesV1betaState(data) {
+	case QuotaRulesV1betaStateSTATEUNSPECIFIED:
+		*s = QuotaRulesV1betaStateSTATEUNSPECIFIED
+		return nil
+	case QuotaRulesV1betaStateCREATING:
+		*s = QuotaRulesV1betaStateCREATING
+		return nil
+	case QuotaRulesV1betaStateREADY:
+		*s = QuotaRulesV1betaStateREADY
+		return nil
+	case QuotaRulesV1betaStateUPDATING:
+		*s = QuotaRulesV1betaStateUPDATING
+		return nil
+	case QuotaRulesV1betaStateDELETING:
+		*s = QuotaRulesV1betaStateDELETING
+		return nil
+	case QuotaRulesV1betaStateERROR:
+		*s = QuotaRulesV1betaStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Quota rule object representing a quota policy for a volume.
+// Ref: #/components/schemas/QuotaRulesVCP_v1beta
+type QuotaRulesVCPV1beta struct {
+	// UUID v4 identifier for the quota rule (system generated).
+	QuotaId OptString `json:"quotaId"`
+	// Human-readable name of the quota rule.
+	ResourceId string `json:"resourceId"`
+	// Type of quota rule.
+	QuotaType QuotaRulesVCPV1betaQuotaType `json:"quotaType"`
+	// Total size limit in mebibytes (MiB) for the user or group.
+	DiskLimitInMib int64 `json:"diskLimitInMib"`
+	// Identifier for the quota target (UID, GID, or SID).
+	QuotaTarget OptString `json:"quotaTarget"`
+	// Current lifecycle state of the quota rule.
+	State OptQuotaRulesVCPV1betaState `json:"state"`
+	// Details about the current state.
+	StateDetails OptString `json:"stateDetails"`
+	// Human-readable description of the quota rule.
+	Description OptString `json:"description"`
+	// Timestamp when the quota rule was created.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Timestamp when the quota rule was last updated.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// List of ongoing jobs for the quota rule.
+	Jobs []JobV1beta `json:"jobs"`
+}
+
+// GetQuotaId returns the value of QuotaId.
+func (s *QuotaRulesVCPV1beta) GetQuotaId() OptString {
+	return s.QuotaId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *QuotaRulesVCPV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetQuotaType returns the value of QuotaType.
+func (s *QuotaRulesVCPV1beta) GetQuotaType() QuotaRulesVCPV1betaQuotaType {
+	return s.QuotaType
+}
+
+// GetDiskLimitInMib returns the value of DiskLimitInMib.
+func (s *QuotaRulesVCPV1beta) GetDiskLimitInMib() int64 {
+	return s.DiskLimitInMib
+}
+
+// GetQuotaTarget returns the value of QuotaTarget.
+func (s *QuotaRulesVCPV1beta) GetQuotaTarget() OptString {
+	return s.QuotaTarget
+}
+
+// GetState returns the value of State.
+func (s *QuotaRulesVCPV1beta) GetState() OptQuotaRulesVCPV1betaState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *QuotaRulesVCPV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetDescription returns the value of Description.
+func (s *QuotaRulesVCPV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *QuotaRulesVCPV1beta) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *QuotaRulesVCPV1beta) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetJobs returns the value of Jobs.
+func (s *QuotaRulesVCPV1beta) GetJobs() []JobV1beta {
+	return s.Jobs
+}
+
+// SetQuotaId sets the value of QuotaId.
+func (s *QuotaRulesVCPV1beta) SetQuotaId(val OptString) {
+	s.QuotaId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *QuotaRulesVCPV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetQuotaType sets the value of QuotaType.
+func (s *QuotaRulesVCPV1beta) SetQuotaType(val QuotaRulesVCPV1betaQuotaType) {
+	s.QuotaType = val
+}
+
+// SetDiskLimitInMib sets the value of DiskLimitInMib.
+func (s *QuotaRulesVCPV1beta) SetDiskLimitInMib(val int64) {
+	s.DiskLimitInMib = val
+}
+
+// SetQuotaTarget sets the value of QuotaTarget.
+func (s *QuotaRulesVCPV1beta) SetQuotaTarget(val OptString) {
+	s.QuotaTarget = val
+}
+
+// SetState sets the value of State.
+func (s *QuotaRulesVCPV1beta) SetState(val OptQuotaRulesVCPV1betaState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *QuotaRulesVCPV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetDescription sets the value of Description.
+func (s *QuotaRulesVCPV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *QuotaRulesVCPV1beta) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *QuotaRulesVCPV1beta) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetJobs sets the value of Jobs.
+func (s *QuotaRulesVCPV1beta) SetJobs(val []JobV1beta) {
+	s.Jobs = val
+}
+
+func (*QuotaRulesVCPV1beta) v1betaCreateQuotaRuleVCPRes() {}
+
+// Type of quota rule.
+type QuotaRulesVCPV1betaQuotaType string
+
+const (
+	QuotaRulesVCPV1betaQuotaTypeINDIVIDUALUSERQUOTA  QuotaRulesVCPV1betaQuotaType = "INDIVIDUAL_USER_QUOTA"
+	QuotaRulesVCPV1betaQuotaTypeINDIVIDUALGROUPQUOTA QuotaRulesVCPV1betaQuotaType = "INDIVIDUAL_GROUP_QUOTA"
+	QuotaRulesVCPV1betaQuotaTypeDEFAULTUSERQUOTA     QuotaRulesVCPV1betaQuotaType = "DEFAULT_USER_QUOTA"
+	QuotaRulesVCPV1betaQuotaTypeDEFAULTGROUPQUOTA    QuotaRulesVCPV1betaQuotaType = "DEFAULT_GROUP_QUOTA"
+)
+
+// AllValues returns all QuotaRulesVCPV1betaQuotaType values.
+func (QuotaRulesVCPV1betaQuotaType) AllValues() []QuotaRulesVCPV1betaQuotaType {
+	return []QuotaRulesVCPV1betaQuotaType{
+		QuotaRulesVCPV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+		QuotaRulesVCPV1betaQuotaTypeINDIVIDUALGROUPQUOTA,
+		QuotaRulesVCPV1betaQuotaTypeDEFAULTUSERQUOTA,
+		QuotaRulesVCPV1betaQuotaTypeDEFAULTGROUPQUOTA,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s QuotaRulesVCPV1betaQuotaType) MarshalText() ([]byte, error) {
+	switch s {
+	case QuotaRulesVCPV1betaQuotaTypeINDIVIDUALUSERQUOTA:
+		return []byte(s), nil
+	case QuotaRulesVCPV1betaQuotaTypeINDIVIDUALGROUPQUOTA:
+		return []byte(s), nil
+	case QuotaRulesVCPV1betaQuotaTypeDEFAULTUSERQUOTA:
+		return []byte(s), nil
+	case QuotaRulesVCPV1betaQuotaTypeDEFAULTGROUPQUOTA:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *QuotaRulesVCPV1betaQuotaType) UnmarshalText(data []byte) error {
+	switch QuotaRulesVCPV1betaQuotaType(data) {
+	case QuotaRulesVCPV1betaQuotaTypeINDIVIDUALUSERQUOTA:
+		*s = QuotaRulesVCPV1betaQuotaTypeINDIVIDUALUSERQUOTA
+		return nil
+	case QuotaRulesVCPV1betaQuotaTypeINDIVIDUALGROUPQUOTA:
+		*s = QuotaRulesVCPV1betaQuotaTypeINDIVIDUALGROUPQUOTA
+		return nil
+	case QuotaRulesVCPV1betaQuotaTypeDEFAULTUSERQUOTA:
+		*s = QuotaRulesVCPV1betaQuotaTypeDEFAULTUSERQUOTA
+		return nil
+	case QuotaRulesVCPV1betaQuotaTypeDEFAULTGROUPQUOTA:
+		*s = QuotaRulesVCPV1betaQuotaTypeDEFAULTGROUPQUOTA
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Current lifecycle state of the quota rule.
+type QuotaRulesVCPV1betaState string
+
+const (
+	QuotaRulesVCPV1betaStateSTATEUNSPECIFIED QuotaRulesVCPV1betaState = "STATE_UNSPECIFIED"
+	QuotaRulesVCPV1betaStateCREATING         QuotaRulesVCPV1betaState = "CREATING"
+	QuotaRulesVCPV1betaStateREADY            QuotaRulesVCPV1betaState = "READY"
+	QuotaRulesVCPV1betaStateUPDATING         QuotaRulesVCPV1betaState = "UPDATING"
+	QuotaRulesVCPV1betaStateDELETING         QuotaRulesVCPV1betaState = "DELETING"
+	QuotaRulesVCPV1betaStateERROR            QuotaRulesVCPV1betaState = "ERROR"
+)
+
+// AllValues returns all QuotaRulesVCPV1betaState values.
+func (QuotaRulesVCPV1betaState) AllValues() []QuotaRulesVCPV1betaState {
+	return []QuotaRulesVCPV1betaState{
+		QuotaRulesVCPV1betaStateSTATEUNSPECIFIED,
+		QuotaRulesVCPV1betaStateCREATING,
+		QuotaRulesVCPV1betaStateREADY,
+		QuotaRulesVCPV1betaStateUPDATING,
+		QuotaRulesVCPV1betaStateDELETING,
+		QuotaRulesVCPV1betaStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s QuotaRulesVCPV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case QuotaRulesVCPV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case QuotaRulesVCPV1betaStateCREATING:
+		return []byte(s), nil
+	case QuotaRulesVCPV1betaStateREADY:
+		return []byte(s), nil
+	case QuotaRulesVCPV1betaStateUPDATING:
+		return []byte(s), nil
+	case QuotaRulesVCPV1betaStateDELETING:
+		return []byte(s), nil
+	case QuotaRulesVCPV1betaStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *QuotaRulesVCPV1betaState) UnmarshalText(data []byte) error {
+	switch QuotaRulesVCPV1betaState(data) {
+	case QuotaRulesVCPV1betaStateSTATEUNSPECIFIED:
+		*s = QuotaRulesVCPV1betaStateSTATEUNSPECIFIED
+		return nil
+	case QuotaRulesVCPV1betaStateCREATING:
+		*s = QuotaRulesVCPV1betaStateCREATING
+		return nil
+	case QuotaRulesVCPV1betaStateREADY:
+		*s = QuotaRulesVCPV1betaStateREADY
+		return nil
+	case QuotaRulesVCPV1betaStateUPDATING:
+		*s = QuotaRulesVCPV1betaStateUPDATING
+		return nil
+	case QuotaRulesVCPV1betaStateDELETING:
+		*s = QuotaRulesVCPV1betaStateDELETING
+		return nil
+	case QuotaRulesVCPV1betaStateERROR:
+		*s = QuotaRulesVCPV1betaStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/ReplicationCreate_v1beta
 type ReplicationCreateV1beta struct {
 	// A human readable label for the replication resource which is restricted to letters, numbers, and
@@ -17951,6 +18885,94 @@ func (*V1betaCreatePoolUnauthorized) v1betaCreatePoolRes() {}
 type V1betaCreatePoolUnprocessableEntity Error
 
 func (*V1betaCreatePoolUnprocessableEntity) v1betaCreatePoolRes() {}
+
+type V1betaCreateQuotaRuleBadRequest Error
+
+func (*V1betaCreateQuotaRuleBadRequest) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleConflict Error
+
+func (*V1betaCreateQuotaRuleConflict) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleForbidden Error
+
+func (*V1betaCreateQuotaRuleForbidden) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleInternalServerError Error
+
+func (*V1betaCreateQuotaRuleInternalServerError) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleMethodNotAllowed Error
+
+func (*V1betaCreateQuotaRuleMethodNotAllowed) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleNotFound Error
+
+func (*V1betaCreateQuotaRuleNotFound) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleRequestTimeout Error
+
+func (*V1betaCreateQuotaRuleRequestTimeout) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleServiceUnavailable Error
+
+func (*V1betaCreateQuotaRuleServiceUnavailable) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleTooManyRequests Error
+
+func (*V1betaCreateQuotaRuleTooManyRequests) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleUnauthorized Error
+
+func (*V1betaCreateQuotaRuleUnauthorized) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleUnprocessableEntity Error
+
+func (*V1betaCreateQuotaRuleUnprocessableEntity) v1betaCreateQuotaRuleRes() {}
+
+type V1betaCreateQuotaRuleVCPBadRequest Error
+
+func (*V1betaCreateQuotaRuleVCPBadRequest) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPConflict Error
+
+func (*V1betaCreateQuotaRuleVCPConflict) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPForbidden Error
+
+func (*V1betaCreateQuotaRuleVCPForbidden) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPInternalServerError Error
+
+func (*V1betaCreateQuotaRuleVCPInternalServerError) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPMethodNotAllowed Error
+
+func (*V1betaCreateQuotaRuleVCPMethodNotAllowed) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPNotFound Error
+
+func (*V1betaCreateQuotaRuleVCPNotFound) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPRequestTimeout Error
+
+func (*V1betaCreateQuotaRuleVCPRequestTimeout) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPServiceUnavailable Error
+
+func (*V1betaCreateQuotaRuleVCPServiceUnavailable) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPTooManyRequests Error
+
+func (*V1betaCreateQuotaRuleVCPTooManyRequests) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPUnauthorized Error
+
+func (*V1betaCreateQuotaRuleVCPUnauthorized) v1betaCreateQuotaRuleVCPRes() {}
+
+type V1betaCreateQuotaRuleVCPUnprocessableEntity Error
+
+func (*V1betaCreateQuotaRuleVCPUnprocessableEntity) v1betaCreateQuotaRuleVCPRes() {}
 
 type V1betaCreateReplicationBadRequest Error
 

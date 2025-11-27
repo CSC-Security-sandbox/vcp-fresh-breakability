@@ -87,6 +87,14 @@ type Provider interface {
 	GetSnapshot(snapshotUUID string, volumeUUID string) (*SnapshotProviderResponse, error)
 	GetSnapshots(volumeUUID string) ([]*Snapshot, error)
 	ListSnapmirrorSnapshots(volumeUUID string) ([]*SnapshotListResponse, error)
+	CreateQuotaRule(ctx context.Context, params CreateQuotaRuleParams) (*JobStatus, error)
+	GetDefaultQuotaRule(ctx context.Context, volumeUUID, svmName, quotaType string) (*QuotaRuleInfo, error)
+	GetQuotaRuleCollection(ctx context.Context, volumeUUID, svmName string) ([]*QuotaRuleCollectionItem, error)
+	GetOntapQuotaUUIDAndType(ctx context.Context, volumeUUID, svmName, quotaType, target string) (string, string, error)
+	UpdateQuotaRule(ctx context.Context, params *UpdateQuotaRuleParams) (*JobStatus, error)
+	DeleteQuotaRule(ctx context.Context, quotaUUID string) (*JobStatus, error)
+	GetQuotaStatus(ctx context.Context, volumeUUID string) (*QuotaStatus, error)
+	QuotaEnableDisable(ctx context.Context, volumeUUID, svmName string, enable bool) (*JobStatus, error)
 	UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error
 	CloudTargetGet(name *string) (*ontapRest.CloudTarget, error)
 	CloudTargetCreate(name, containerName string) (*ontapRest.CloudTarget, error)
@@ -113,6 +121,7 @@ type Provider interface {
 	DeleteLdap(svmUUID string) error
 	CreateQoSGroupPolicy(params CreateQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
 	ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolicyParams) error
+	ModifyRquota(ctx context.Context, svmUUID string, rquota bool) error
 	FindQoSGroupPolicy(params FindQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
 	UpdateQoSGroupPolicy(params UpdateQoSGroupPolicyParams) error
 	CreateExportPolicy(params *ExportPolicy) error

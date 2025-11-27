@@ -2218,6 +2218,102 @@ func (re *retryEngine) BatchGetWronglyDeletedSnapshots(ctx context.Context, snap
 	return var0, err
 }
 
+func (re *retryEngine) CreatingQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
+	var var0 *datamodel.QuotaRule
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreatingQuotaRule(ctx, quotaRule)
+		if err != nil {
+			re.logError("CreatingQuotaRule", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) UpdateQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
+	var var0 *datamodel.QuotaRule
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateQuotaRule(ctx, quotaRule)
+		if err != nil {
+			re.logError("UpdateQuotaRule", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.QuotaRule, error) {
+	var var0 *datamodel.QuotaRule
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetQuotaRuleByUUID(ctx, uuid, accountID, volumeID)
+		if err != nil {
+			re.logError("GetQuotaRuleByUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetQuotaRulesByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.QuotaRule, error) {
+	var var0 []*datamodel.QuotaRule
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetQuotaRulesByVolumeID(ctx, volumeID)
+		if err != nil {
+			re.logError("GetQuotaRulesByVolumeID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetQuotaRuleCountBySvmID(ctx context.Context, svmID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetQuotaRuleCountBySvmID(ctx, svmID)
+		if err != nil {
+			re.logError("GetQuotaRuleCountBySvmID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) DeleteQuotaRule(ctx context.Context, id string) (*datamodel.QuotaRule, error) {
+	var var0 *datamodel.QuotaRule
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteQuotaRule(ctx, id)
+		if err != nil {
+			re.logError("DeleteQuotaRule", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error) {
 	var var0 []*datamodel.KmsConfig
 	err := retry.Do(func(attempt int) (bool, error) {

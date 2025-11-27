@@ -709,10 +709,168 @@ type CreateSnapshotParams struct {
 	Comment    string
 }
 
+type CreateQuotaRuleParams struct {
+	VolumeUUID     string
+	SVMName        string
+	QuotaTarget    string
+	QuotaType      string
+	DiskLimitInKib int64
+	RQuota         bool
+}
+
+type UpdateQuotaRuleParams struct {
+	ExternalQuotaRuleUUID string
+	DiskLimitInKibs       int64
+}
+
 type SnapshotProviderResponse struct {
 	ProviderResponse
 	SizeInBytes        int64
 	LogicalSizeInBytes int64
+}
+
+// QuotaRuleProviderResponse contains the response from ONTAP quota rule operations.
+// It includes the operation state, any error messages, and the ONTAP quota rule UUID.
+//
+// The State field should use the JobRespSuccess or JobRespFailure constants defined
+// in quota_rule.go for consistency across the codebase.
+//
+// Example usage:
+//
+//	response, err := provider.CreateQuotaRule(params)
+//	if err != nil {
+//	    return err
+//	}
+//	if response.IsFailure() {
+//	    return fmt.Errorf("quota rule creation failed: %s", response.Message)
+//	}
+type QuotaRuleProviderResponse struct {
+	ProviderResponse
+	ExternalUUID string // ONTAP quota rule UUID (assigned by ONTAP after creation)
+	State        string // Operation state: "success" or "failure" (use JobRespSuccess/JobRespFailure constants)
+	Message      string // Error message if State is "failure", empty on success
+}
+
+// IsSuccess returns true if the quota rule operation completed successfully.
+// This is the preferred way to check for success instead of comparing State directly.
+func (r *QuotaRuleProviderResponse) IsSuccess() bool {
+	return r.State == JobRespSuccess
+}
+
+// IsFailure returns true if the quota rule operation failed.
+// This is the preferred way to check for failure instead of comparing State directly.
+func (r *QuotaRuleProviderResponse) IsFailure() bool {
+	return r.State == JobRespFailure
+}
+
+// HasError returns true if there's an error message present.
+// This can be used to check if detailed error information is available.
+func (r *QuotaRuleProviderResponse) HasError() bool {
+	return r.Message != ""
+}
+
+type QuotaRuleInfo struct {
+	UUID            string
+	Type            string
+	Target          string
+	DiskLimitInKibs int64
+}
+
+// QuotaRuleCollectionItem represents a single quota rule from GetQuotaRuleCollection
+type QuotaRuleCollectionItem struct {
+	UUID                  string
+	Name                  string
+	LifeCycleState        string
+	LifeCycleStateDetails string
+	QuotaTarget           string
+	DiskLimitInKibs       int64
+	VolumeUUID            string
+	QuotaType             string
+	RQuota                bool
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+	DeletedAt             *time.Time
+	Jobs                  []*datamodel.Job
+	QuotaRuleInlineGroup  *QuotaRuleInlineGroup
+	QuotaRuleInlineUsers  []*QuotaRuleInlineUser
+	Description           *string
+}
+
+// QuotaRuleInlineGroup represents group information in a quota rule
+type QuotaRuleInlineGroup struct {
+	ID   *string // Group ID (GID or group name)
+	Name *string // Group name
+}
+
+// QuotaRuleInlineUser represents user information in a quota rule
+type QuotaRuleInlineUser struct {
+	ID   *string // User ID (UID or username)
+	Name *string // User name
+}
+
+// QuotaStatus represents the current state of the quota system on a volume
+type QuotaStatus struct {
+	Enabled bool   // Whether quota is enabled
+	State   string // Quota state: "off", "on", "initializing", "resizing", "corrupt"
+}
+
+// QuotaEnableDisableResponse represents the response from enabling/disabling quota
+// QuotaEnableDisableResponse contains the response from ONTAP quota enable/disable operations.
+// It includes the operation state and any error messages.
+//
+// The State field should use the JobRespSuccess or JobRespFailure constants defined
+// in quota_rule.go for consistency across the codebase.
+type QuotaEnableDisableResponse struct {
+	State   string // Job state: "success" or "failure" (use JobRespSuccess/JobRespFailure constants)
+	Message string // Error message if state is "failure", empty on success
+}
+
+// IsSuccess returns true if the quota enable/disable operation completed successfully.
+// This is the preferred way to check for success instead of comparing State directly.
+func (r *QuotaEnableDisableResponse) IsSuccess() bool {
+	return r.State == JobRespSuccess
+}
+
+// IsFailure returns true if the quota enable/disable operation failed.
+// This is the preferred way to check for failure instead of comparing State directly.
+func (r *QuotaEnableDisableResponse) IsFailure() bool {
+	return r.State == JobRespFailure
+}
+
+// HasError returns true if there's an error message present.
+// This can be used to check if detailed error information is available.
+func (r *QuotaEnableDisableResponse) HasError() bool {
+	return r.Message != ""
+}
+
+// JobStatus represents the status of an asynchronous ONTAP job operation.
+// According to spec (create-quota-cvs-job-function.md), this matches storage.JobStatus
+// and includes Code, State, and Message fields from the ONTAP job response.
+//
+// The State field should use the JobRespSuccess or JobRespFailure constants defined
+// in quota_rule.go for consistency across the codebase.
+type JobStatus struct {
+	Code    int64  // Job error code (0 on success, non-zero on failure)
+	State   string // Job state: "success" or "failure" (use JobRespSuccess/JobRespFailure constants)
+	Message string // Error message if state is "failure", empty on success
+}
+
+// IsSuccess returns true if the job completed successfully.
+// This is the preferred way to check for success instead of comparing State directly.
+func (r *JobStatus) IsSuccess() bool {
+	return r.State == JobRespSuccess
+}
+
+// IsFailure returns true if the job failed.
+// This is the preferred way to check for failure instead of comparing State directly.
+func (r *JobStatus) IsFailure() bool {
+	return r.State == JobRespFailure
+}
+
+// HasError returns true if there's an error message present.
+// This can be used to check if detailed error information is available.
+func (r *JobStatus) HasError() bool {
+	return r.Message != ""
 }
 
 type SnapshotListResponse struct {

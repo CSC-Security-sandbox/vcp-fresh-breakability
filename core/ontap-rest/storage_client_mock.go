@@ -3,6 +3,8 @@
 package ontap_rest
 
 import (
+	context "context"
+
 	mock "github.com/stretchr/testify/mock"
 	storage "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/storage"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -734,6 +736,242 @@ func (_c *MockStorageClient_QosPolicyGroupCollectionModify_Call) Return(_a0 *Qos
 }
 
 func (_c *MockStorageClient_QosPolicyGroupCollectionModify_Call) RunAndReturn(run func([]*QosPolicyGroupModifyCollectionParams) (*QosPolicyModifyCollection, *JobAccepted, error)) *MockStorageClient_QosPolicyGroupCollectionModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// QuotaRuleCollectionGet provides a mock function with given fields: ctx, params
+func (_m *MockStorageClient) QuotaRuleCollectionGet(ctx context.Context, params *storage.QuotaRuleCollectionGetParams) (*storage.QuotaRuleCollectionGetOK, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for QuotaRuleCollectionGet")
+	}
+
+	var r0 *storage.QuotaRuleCollectionGetOK
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *storage.QuotaRuleCollectionGetParams) (*storage.QuotaRuleCollectionGetOK, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *storage.QuotaRuleCollectionGetParams) *storage.QuotaRuleCollectionGetOK); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storage.QuotaRuleCollectionGetOK)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *storage.QuotaRuleCollectionGetParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_QuotaRuleCollectionGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QuotaRuleCollectionGet'
+type MockStorageClient_QuotaRuleCollectionGet_Call struct {
+	*mock.Call
+}
+
+// QuotaRuleCollectionGet is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *storage.QuotaRuleCollectionGetParams
+func (_e *MockStorageClient_Expecter) QuotaRuleCollectionGet(ctx interface{}, params interface{}) *MockStorageClient_QuotaRuleCollectionGet_Call {
+	return &MockStorageClient_QuotaRuleCollectionGet_Call{Call: _e.mock.On("QuotaRuleCollectionGet", ctx, params)}
+}
+
+func (_c *MockStorageClient_QuotaRuleCollectionGet_Call) Run(run func(ctx context.Context, params *storage.QuotaRuleCollectionGetParams)) *MockStorageClient_QuotaRuleCollectionGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*storage.QuotaRuleCollectionGetParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_QuotaRuleCollectionGet_Call) Return(_a0 *storage.QuotaRuleCollectionGetOK, _a1 error) *MockStorageClient_QuotaRuleCollectionGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_QuotaRuleCollectionGet_Call) RunAndReturn(run func(context.Context, *storage.QuotaRuleCollectionGetParams) (*storage.QuotaRuleCollectionGetOK, error)) *MockStorageClient_QuotaRuleCollectionGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// QuotaRuleCreate provides a mock function with given fields: ctx, params
+func (_m *MockStorageClient) QuotaRuleCreate(ctx context.Context, params *storage.QuotaRuleCreateParams) (*storage.QuotaRuleCreateAccepted, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for QuotaRuleCreate")
+	}
+
+	var r0 *storage.QuotaRuleCreateAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *storage.QuotaRuleCreateParams) (*storage.QuotaRuleCreateAccepted, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *storage.QuotaRuleCreateParams) *storage.QuotaRuleCreateAccepted); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storage.QuotaRuleCreateAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *storage.QuotaRuleCreateParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_QuotaRuleCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QuotaRuleCreate'
+type MockStorageClient_QuotaRuleCreate_Call struct {
+	*mock.Call
+}
+
+// QuotaRuleCreate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *storage.QuotaRuleCreateParams
+func (_e *MockStorageClient_Expecter) QuotaRuleCreate(ctx interface{}, params interface{}) *MockStorageClient_QuotaRuleCreate_Call {
+	return &MockStorageClient_QuotaRuleCreate_Call{Call: _e.mock.On("QuotaRuleCreate", ctx, params)}
+}
+
+func (_c *MockStorageClient_QuotaRuleCreate_Call) Run(run func(ctx context.Context, params *storage.QuotaRuleCreateParams)) *MockStorageClient_QuotaRuleCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*storage.QuotaRuleCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_QuotaRuleCreate_Call) Return(_a0 *storage.QuotaRuleCreateAccepted, _a1 error) *MockStorageClient_QuotaRuleCreate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_QuotaRuleCreate_Call) RunAndReturn(run func(context.Context, *storage.QuotaRuleCreateParams) (*storage.QuotaRuleCreateAccepted, error)) *MockStorageClient_QuotaRuleCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// QuotaRuleDelete provides a mock function with given fields: ctx, params
+func (_m *MockStorageClient) QuotaRuleDelete(ctx context.Context, params *storage.QuotaRuleDeleteParams) (*storage.QuotaRuleDeleteAccepted, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for QuotaRuleDelete")
+	}
+
+	var r0 *storage.QuotaRuleDeleteAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *storage.QuotaRuleDeleteParams) (*storage.QuotaRuleDeleteAccepted, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *storage.QuotaRuleDeleteParams) *storage.QuotaRuleDeleteAccepted); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storage.QuotaRuleDeleteAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *storage.QuotaRuleDeleteParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_QuotaRuleDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QuotaRuleDelete'
+type MockStorageClient_QuotaRuleDelete_Call struct {
+	*mock.Call
+}
+
+// QuotaRuleDelete is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *storage.QuotaRuleDeleteParams
+func (_e *MockStorageClient_Expecter) QuotaRuleDelete(ctx interface{}, params interface{}) *MockStorageClient_QuotaRuleDelete_Call {
+	return &MockStorageClient_QuotaRuleDelete_Call{Call: _e.mock.On("QuotaRuleDelete", ctx, params)}
+}
+
+func (_c *MockStorageClient_QuotaRuleDelete_Call) Run(run func(ctx context.Context, params *storage.QuotaRuleDeleteParams)) *MockStorageClient_QuotaRuleDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*storage.QuotaRuleDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_QuotaRuleDelete_Call) Return(_a0 *storage.QuotaRuleDeleteAccepted, _a1 error) *MockStorageClient_QuotaRuleDelete_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_QuotaRuleDelete_Call) RunAndReturn(run func(context.Context, *storage.QuotaRuleDeleteParams) (*storage.QuotaRuleDeleteAccepted, error)) *MockStorageClient_QuotaRuleDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// QuotaRuleModify provides a mock function with given fields: ctx, params
+func (_m *MockStorageClient) QuotaRuleModify(ctx context.Context, params *storage.QuotaRuleModifyParams) (*storage.QuotaRuleModifyAccepted, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for QuotaRuleModify")
+	}
+
+	var r0 *storage.QuotaRuleModifyAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *storage.QuotaRuleModifyParams) (*storage.QuotaRuleModifyAccepted, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *storage.QuotaRuleModifyParams) *storage.QuotaRuleModifyAccepted); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storage.QuotaRuleModifyAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *storage.QuotaRuleModifyParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_QuotaRuleModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QuotaRuleModify'
+type MockStorageClient_QuotaRuleModify_Call struct {
+	*mock.Call
+}
+
+// QuotaRuleModify is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *storage.QuotaRuleModifyParams
+func (_e *MockStorageClient_Expecter) QuotaRuleModify(ctx interface{}, params interface{}) *MockStorageClient_QuotaRuleModify_Call {
+	return &MockStorageClient_QuotaRuleModify_Call{Call: _e.mock.On("QuotaRuleModify", ctx, params)}
+}
+
+func (_c *MockStorageClient_QuotaRuleModify_Call) Run(run func(ctx context.Context, params *storage.QuotaRuleModifyParams)) *MockStorageClient_QuotaRuleModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*storage.QuotaRuleModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_QuotaRuleModify_Call) Return(_a0 *storage.QuotaRuleModifyAccepted, _a1 error) *MockStorageClient_QuotaRuleModify_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_QuotaRuleModify_Call) RunAndReturn(run func(context.Context, *storage.QuotaRuleModifyParams) (*storage.QuotaRuleModifyAccepted, error)) *MockStorageClient_QuotaRuleModify_Call {
 	_c.Call.Return(run)
 	return _c
 }

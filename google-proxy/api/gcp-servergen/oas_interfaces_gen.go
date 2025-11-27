@@ -37,6 +37,14 @@ type V1betaCreatePoolRes interface {
 	v1betaCreatePoolRes()
 }
 
+type V1betaCreateQuotaRuleRes interface {
+	v1betaCreateQuotaRuleRes()
+}
+
+type V1betaCreateQuotaRuleVCPRes interface {
+	v1betaCreateQuotaRuleVCPRes()
+}
+
 type V1betaCreateReplicationRes interface {
 	v1betaCreateReplicationRes()
 }

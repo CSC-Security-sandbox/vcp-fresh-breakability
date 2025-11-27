@@ -2249,6 +2249,7 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[{\"export\":\"/some-volume\",\"exportFull\":\"1.2.3.4:/some-volume\",\"instructions\":\"Setting up your instance\\nOpen an SSH client and connect to your instance.\\nInstall the nfs client on your instance.\\nOn Red Hat Enterprise Linux or SuSE Linux instance:\\nsudo yum install -y nfs-utils\\nOn an Ubuntu or Debian instance:\\nsudo apt-get install nfs-common\\n\\nMounting your volume\\nCreate a new directory on your instance, such as \\\"/some-volume\\\":\\nsudo mkdir /some-volume\\nMount your volume using the example command below:\\nsudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp 1.2.3.4:/some-volume /some-volume\\nNote. Please use mount options appropriate for your specific workloads when known.\",\"protocol\":\"NFSV3\"}],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"SOFTWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"clusterLocation\":\"Orlando\",\"created\":\"2024-01-29T10:33:49.536Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"a02acf13-00ae-8d17-3f9a-e6daa1473d5b\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3796c3d1-6524-9757-aedf-017e41a430ab\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"1a65c06a-94a1-f850-0a1a-d0d07b6f7560\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Update in progress\",\"transferStats\":{\"lagTime\":18,\"lastTransferEndTime\":\"2024-01-29T10:34:11.000Z\",\"totalTransferBytes\":18872,\"totalTransferTimeSecs\":2}}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:03.512Z\",\"description\":\"My replication\",\"destination\":{\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"volumeId\":\"00000000-0000-0000-0000-000000000000\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"PREPARING\",\"replicationSchedule\":\"EVERY_10_MINUTES\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"CREATING\",\"stateDetails\":\"Create in progress\",\"stateDetailsCode\":0,\"transferStats\":{}}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"createdAt\":\"2016-11-28T19:30:23.123Z\",\"description\":\"Sample quota rule\",\"diskLimitInMib\":10000612,\"quotaId\":\"3ef2db24-ad4f-05d7-98cc-d242c17bcc94\",\"quotaTarget\":\"1221\",\"quotaType\":\"INDIVIDUAL_USER_QUOTA\",\"resourceId\":\"quotarule1\",\"state\":\"CREATING\",\"stateDetails\":\"Creation in progress\",\"updatedAt\":\"2016-11-28T19:30:23.123Z\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"jobs\":[\"ba2c8826-2627-057c-42ba-343ee7ab1ebe\"],\"resourceId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/us-central1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"cacheParameters\":{\"cacheState\":\"PENDING_CLUSTER_PEERING\",\"command\":\"cluster peer create -peer-addrs 192.140.112.101,192.140.112.102 -initial-allowed-vserver-peers svm_560a3f3cb4d345f18297decc3a5988bc\",\"commandExpiryTime\":\"2025-04-20T16:21:01Z\",\"passphrase\":\"loremIpsum\",\"peerClusterName\":\"my-cluster-name\",\"peerIpAddresses\":[\"101.102.103.104\",\"101.102.103.105\"],\"peerSvmName\":\"svm_560a3f3cb4d345f18297decc3a5988bc\",\"peerVolumeName\":\"volume_myvolname\"},\"created\":\"2025-01-29T09:10:30.384Z\",\"creationToken\":\"suddenly-distinguished-feynman\",\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"quotaInBytes\":50000000000000,\"resourceId\":\"big-data\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"EXTREME\",\"unixPermissions\":\"0755\",\"usedBytes\":38786062792785,\"volumeId\":\"49b96a2f-4a38-6fa4-2cc6-f598ef2f8a0e\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}}"},
@@ -2961,6 +2962,288 @@ func TestProtocolsV1beta_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 ProtocolsV1beta
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestQuotaRuleCreateV1beta_EncodeDecode(t *testing.T) {
+	var typ QuotaRuleCreateV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 QuotaRuleCreateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestQuotaRuleCreateV1betaQuotaType_EncodeDecode(t *testing.T) {
+	var typ QuotaRuleCreateV1betaQuotaType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 QuotaRuleCreateV1betaQuotaType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestQuotaRuleCreateV1betaQuotaType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"INDIVIDUAL_USER_QUOTA\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ QuotaRuleCreateV1betaQuotaType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 QuotaRuleCreateV1betaQuotaType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestQuotaRuleCreateV1betaState_EncodeDecode(t *testing.T) {
+	var typ QuotaRuleCreateV1betaState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 QuotaRuleCreateV1betaState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestQuotaRuleCreateV1betaState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ QuotaRuleCreateV1betaState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 QuotaRuleCreateV1betaState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestQuotaRulesV1beta_EncodeDecode(t *testing.T) {
+	var typ QuotaRulesV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 QuotaRulesV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestQuotaRulesV1betaQuotaType_EncodeDecode(t *testing.T) {
+	var typ QuotaRulesV1betaQuotaType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 QuotaRulesV1betaQuotaType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestQuotaRulesV1betaQuotaType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"INDIVIDUAL_USER_QUOTA\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ QuotaRulesV1betaQuotaType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 QuotaRulesV1betaQuotaType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestQuotaRulesV1betaState_EncodeDecode(t *testing.T) {
+	var typ QuotaRulesV1betaState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 QuotaRulesV1betaState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestQuotaRulesV1betaState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ QuotaRulesV1betaState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 QuotaRulesV1betaState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestQuotaRulesVCPV1beta_EncodeDecode(t *testing.T) {
+	var typ QuotaRulesVCPV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 QuotaRulesVCPV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestQuotaRulesVCPV1betaQuotaType_EncodeDecode(t *testing.T) {
+	var typ QuotaRulesVCPV1betaQuotaType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 QuotaRulesVCPV1betaQuotaType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestQuotaRulesVCPV1betaQuotaType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"INDIVIDUAL_USER_QUOTA\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ QuotaRulesVCPV1betaQuotaType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 QuotaRulesVCPV1betaQuotaType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestQuotaRulesVCPV1betaState_EncodeDecode(t *testing.T) {
+	var typ QuotaRulesVCPV1betaState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 QuotaRulesVCPV1betaState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestQuotaRulesVCPV1betaState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ QuotaRulesVCPV1betaState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 QuotaRulesVCPV1betaState
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
@@ -4656,6 +4939,270 @@ func TestV1betaCreatePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaCreatePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleMethodNotAllowed_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleMethodNotAllowed
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleMethodNotAllowed
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleRequestTimeout_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleRequestTimeout
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleRequestTimeout
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleServiceUnavailable_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleServiceUnavailable
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleServiceUnavailable
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPMethodNotAllowed_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPMethodNotAllowed
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPMethodNotAllowed
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPRequestTimeout_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPRequestTimeout
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPRequestTimeout
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPServiceUnavailable_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPServiceUnavailable
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPServiceUnavailable
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateQuotaRuleVCPUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateQuotaRuleVCPUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateQuotaRuleVCPUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaCreateReplicationBadRequest_EncodeDecode(t *testing.T) {

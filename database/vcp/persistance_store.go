@@ -1420,3 +1420,27 @@ func (s *PersistenceStore) ListClusterPeeringRowsByPoolID(ctx context.Context, p
 func (s *PersistenceStore) GetActivePrepopulateJobs(ctx context.Context) ([]*datamodel.Job, error) {
 	return s.dataStore.GetActivePrepopulateJobs(ctx)
 }
+
+func (s *PersistenceStore) CreatingQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
+	return s.dataStore.CreatingQuotaRule(ctx, quotaRule)
+}
+
+func (s *PersistenceStore) UpdateQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
+	return s.dataStore.UpdateQuotaRule(ctx, quotaRule)
+}
+
+func (s *PersistenceStore) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.QuotaRule, error) {
+	return s.dataStore.GetQuotaRuleByUUID(ctx, uuid, accountID, volumeID)
+}
+
+func (s *PersistenceStore) GetQuotaRulesByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.QuotaRule, error) {
+	return s.dataStore.GetQuotaRulesByVolumeID(ctx, volumeID)
+}
+
+func (s *PersistenceStore) GetQuotaRuleCountBySvmID(ctx context.Context, svmID int64) (int64, error) {
+	return s.dataStore.GetQuotaRuleCountBySvmID(ctx, svmID)
+}
+
+func (s *PersistenceStore) DeleteQuotaRule(ctx context.Context, id string) (*datamodel.QuotaRule, error) {
+	return s.dataStore.DeleteQuotaRule(ctx, id)
+}

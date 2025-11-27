@@ -36,6 +36,7 @@ func getVcpModels() []interface{} {
 		&datamodel.PendingResourceDeletions{},
 		&datamodel.ActiveDirectory{},
 		&datamodel.ClusterPeerings{},
+		&datamodel.QuotaRule{},
 	}
 }
 

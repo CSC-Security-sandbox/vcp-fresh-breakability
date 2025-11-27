@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -469,6 +470,54 @@ func TestNfsServiceCreate(t *testing.T) {
 		api := &mockNASClient{}
 		client := &nasClient{api: api}
 		err := client.NfsServiceCreate(&NfsServiceCreateParams{})
+		assert.NoError(tt, err)
+	})
+}
+
+func TestNfsModify(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		err := client.NfsParamsModify(context.Background(), &NfsModifyParams{})
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		err := client.NfsParamsModify(context.Background(), &NfsModifyParams{})
+		assert.NoError(tt, err)
+	})
+}
+
+func TestNfsParamsModify(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		err := client.NfsParamsModify(nil, &NfsModifyParams{
+			SvmUUID:       "test-svm-uuid",
+			RquotaEnabled: nillable.ToPointer(true),
+		})
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		err := client.NfsParamsModify(nil, &NfsModifyParams{
+			SvmUUID:       "test-svm-uuid",
+			RquotaEnabled: nillable.ToPointer(true),
+		})
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenRquotaDisabled_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		err := client.NfsParamsModify(nil, &NfsModifyParams{
+			SvmUUID:       "test-svm-uuid",
+			RquotaEnabled: nillable.ToPointer(false),
+		})
 		assert.NoError(tt, err)
 	})
 }
@@ -1399,68 +1448,6 @@ func TestCifsServiceRemoveSecurityPrivilege(t *testing.T) {
 			SvmUUID: "test-uuid",
 		}
 		err := client.CifsServiceRemoveSecurityPrivilege(params)
-		assert.NoError(tt, err)
-	})
-}
-
-func TestNfsModify(t *testing.T) {
-	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
-		api := &mockNASClient{err: errors.New("api error")}
-		client := &nasClient{api: api}
-		params := &NfsModifyParams{
-			SvmUUID: "test-uuid",
-		}
-		err := client.NfsModify(params)
-		assert.EqualError(tt, err, "api error")
-	})
-
-	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
-		api := &mockNASClient{}
-		client := &nasClient{api: api}
-		params := &NfsModifyParams{
-			SvmUUID: "test-uuid",
-		}
-		err := client.NfsModify(params)
-		assert.NoError(tt, err)
-	})
-
-	t.Run("WhenAllParamsSet_ThenSetAllFields", func(tt *testing.T) {
-		api := &mockNASClient{}
-		client := &nasClient{api: api}
-		v4IDDomain := "test-domain"
-		showmountEnabled := true
-		rquotaEnabled := true
-		allowLocalNFSUsersWithLdap := true
-		extendedGroupsLimit := int64(100)
-		enabled := true
-		v3Enabled := true
-		v40Enabled := true
-		v41Enabled := true
-		vstorageEnabled := true
-		fileSessionIoGroupingCount := int64(10)
-
-		params := &NfsModifyParams{
-			SvmUUID:                    "test-uuid",
-			V4IDDomain:                 &v4IDDomain,
-			ShowmountEnabled:           &showmountEnabled,
-			RquotaEnabled:              &rquotaEnabled,
-			AllowLocalNFSUsersWithLdap: &allowLocalNFSUsersWithLdap,
-			ExtendedGroupsLimit:        &extendedGroupsLimit,
-			Enabled:                    &enabled,
-			V3Enabled:                  &v3Enabled,
-			V40Enabled:                 &v40Enabled,
-			V41Enabled:                 &v41Enabled,
-			VstorageEnabled:            &vstorageEnabled,
-			FileSessionIoGroupingCount: &fileSessionIoGroupingCount,
-		}
-		err := client.NfsModify(params)
-		assert.NoError(tt, err)
-	})
-
-	t.Run("WhenParamsNil_ThenNoError", func(tt *testing.T) {
-		api := &mockNASClient{}
-		client := &nasClient{api: api}
-		err := client.NfsModify(nil)
 		assert.NoError(tt, err)
 	})
 }

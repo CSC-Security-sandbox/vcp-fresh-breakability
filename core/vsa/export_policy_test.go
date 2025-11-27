@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -62,6 +63,11 @@ func (m *MockNASClient) NfsServiceCreate(params *ontapRest.NfsServiceCreateParam
 
 func (m *MockNASClient) NfsServiceModify(params *ontapRest.NfsServiceModifyParams) error {
 	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) NfsParamsModify(ctx context.Context, params *ontapRest.NfsModifyParams) error {
+	args := m.Called(ctx, params)
 	return args.Error(0)
 }
 
