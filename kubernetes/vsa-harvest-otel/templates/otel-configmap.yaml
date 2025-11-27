@@ -46,7 +46,13 @@ data:
         resourcedetection:
             detectors: [gcp]
             timeout: 10s
-        transform:
+        transform/monitoring:
+            error_mode: ignore
+            metric_statements:
+              - context: resource
+                statements:
+                  - set(attributes["k8s.cluster.name"],attributes["deployment_name"])
+        transform/tenant:
             error_mode: ignore
             metric_statements:
               - context: resource
@@ -70,6 +76,9 @@ data:
                   - source_labels: ['__name__']
                     action: drop
                     regex: 'poller_memory|poller_memory_percent'
+                  - source_labels: ['__name__']
+                    action: drop
+                    regex: 'instrumentation_source|instrumentation_version|service_name|service_instance_id|plex'
         prometheus/scaling:
             config:
                 scrape_configs:
@@ -86,11 +95,11 @@ data:
         pipelines:
             metrics:
                 receivers: [prometheus]
-                processors: [resourcedetection]
+                processors: [batch,resourcedetection,transform/monitoring]
                 exporters: [googlecloud, debug]
             metrics/tenants:
                 receivers: [prometheus]
-                processors: [resourcedetection, groupbyattrs,transform, batch]
+                processors: [resourcedetection, groupbyattrs,transform/tenant, batch]
                 exporters: [googlecloud, debug]
             metrics/scaling:
                 receivers: [prometheus/scaling]
