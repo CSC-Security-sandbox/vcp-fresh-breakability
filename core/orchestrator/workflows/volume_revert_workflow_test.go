@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -100,6 +101,15 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_Success() {
 	s.env.RegisterActivity(&volumeRevertActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
 
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
 	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
@@ -171,6 +181,15 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_GetNodeError() {
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
 
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
 	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get node"))
@@ -235,6 +254,15 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_RevertVolumeError(
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeRevertActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 
 	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -306,6 +334,13 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_UpdateJobStatusPro
 	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil)
+
 	// Set up mock expectations - fail on UpdateJobStatus
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
 
@@ -366,6 +401,15 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_UpdateJobStatusDon
 	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeRevertActivity)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 
 	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
@@ -440,6 +484,15 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_UpdateJobStatusErr
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeRevertActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 
 	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
@@ -569,6 +622,15 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_WithCertificateAut
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeRevertActivity)
 
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
 	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
@@ -639,6 +701,15 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_WithSecretManagerA
 	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeRevertActivity)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 
 	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -713,6 +784,15 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_UpdateVolumeStateI
 	s.env.RegisterActivity(&volumeRevertActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
 
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
 	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
@@ -731,6 +811,157 @@ func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_UpdateVolumeStateI
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_FailsOnJobInErrorState() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	params := &common.RevertVolumeParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+		VolumeID:    "volume-uuid",
+		SnapshotID:  "snapshot-uuid",
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "volume-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-volume-uuid",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+				AuthType:      env.USERNAME_PWD,
+			},
+			DeploymentName: "test-deployment",
+		},
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+	}
+
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "snapshot-uuid",
+		},
+		Name: "test-snapshot",
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			ExternalUUID: "external-snapshot-uuid",
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(&commonActivity)
+
+	// Mock GetJob to return job in ERROR state
+	jobInErrorState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateERROR),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInErrorState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInErrorState, nil).Maybe()
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(RevertVolumeWorkflow, params, volume, snapshot)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "job default-test-workflow-id is in state ERROR; expected NEW")
+}
+
+func (s *VolumeRevertUnitTestSuite) Test_RevertVolumeWorkflow_SucceedsWhenJobNotInErrorState() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeRevertActivity := activities.VolumeRevertActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	params := &common.RevertVolumeParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+		VolumeID:    "volume-uuid",
+		SnapshotID:  "snapshot-uuid",
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "volume-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-volume-uuid",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+				AuthType:      env.USERNAME_PWD,
+			},
+			DeploymentName: "test-deployment",
+		},
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+	}
+
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "snapshot-uuid",
+		},
+		Name: "test-snapshot",
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			ExternalUUID: "external-snapshot-uuid",
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(&commonActivity)
+	s.env.RegisterActivity(&volumeRevertActivity)
+	s.env.RegisterActivity(&volumeCreateActivity)
+
+	// Mock GetJob to return job in NEW state (not ERROR)
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
+	// Set up mock expectations
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name:            "test-node",
+			EndpointAddress: "127.0.0.1",
+		},
+	}, nil)
+	s.env.OnActivity(volumeRevertActivity.RevertVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RevertVolumeWorkflow, params, volume, snapshot)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
 func TestVolumeRevertUnitTestSuite(t *testing.T) {

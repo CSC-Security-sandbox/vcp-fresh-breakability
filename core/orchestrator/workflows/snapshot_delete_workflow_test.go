@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -56,8 +57,18 @@ func (s *SnapshotDeleteTestSuite) Test_DeleteSnapshotWorkflow_Success() {
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshotInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshot)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -97,8 +108,16 @@ func (s *SnapshotDeleteTestSuite) Test_DeleteSnapshotWorkflow_Failure() {
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshotInONTAP)
 	s.env.RegisterActivity(deleteActivity.DeleteSnapshot)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -168,8 +187,18 @@ func (s *SnapshotDeleteTestSuite) TestDeleteSnapshotWorkflowFailsOnJobStatusUpda
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(deleteSnapshotActivity.DeleteSnapshotInONTAP)
 	s.env.RegisterActivity(deleteSnapshotActivity.DeleteSnapshot)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 
 	// Mock UpdateJob to return error for PROCESSING state
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(assert.AnError)
@@ -210,8 +239,18 @@ func (s *SnapshotDeleteTestSuite) TestDeleteSnapshotWorkflowCompletesDespiteFina
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(deleteSnapshotActivity.DeleteSnapshotInONTAP)
 	s.env.RegisterActivity(deleteSnapshotActivity.DeleteSnapshot)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 
 	// Mock UpdateJob method calls
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
@@ -247,8 +286,18 @@ func (s *SnapshotDeleteTestSuite) TestDeleteSnapshotWorkflowFailsOnActivityError
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(deleteSnapshotActivity.DeleteSnapshotInONTAP)
 	s.env.RegisterActivity(deleteSnapshotActivity.DeleteSnapshot)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 
 	// Mock UpdateJob method calls
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
@@ -263,6 +312,94 @@ func (s *SnapshotDeleteTestSuite) TestDeleteSnapshotWorkflowFailsOnActivityError
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *SnapshotDeleteTestSuite) TestDeleteSnapshotWorkflowFailsOnJobInErrorState() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	params := &common.DeleteSnapshotParams{
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: "test-account",
+		},
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{ID: int64(1)},
+		Account:   &datamodel.Account{Name: "test-account"},
+		Volume:    &datamodel.Volume{BaseModel: datamodel.BaseModel{ID: int64(1)}, Name: "test-volume"},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(&commonActivity)
+
+	// Mock GetJob to return job in ERROR state
+	jobInErrorState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateERROR),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInErrorState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInErrorState, nil).Maybe()
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(DeleteSnapshotWorkflow, params, snapshot)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "job default-test-workflow-id is in state ERROR; expected NEW")
+}
+
+func (s *SnapshotDeleteTestSuite) TestDeleteSnapshotWorkflowSucceedsWhenJobNotInErrorState() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.SnapshotDeleteActivity{SE: mockStorage}
+
+	// Mock UpdateJob method calls
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "DONE", 0, "").Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshot)
+
+	// Mock GetJob to return job in NEW state (not ERROR)
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshot, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	snapshot := &datamodel.Snapshot{
+		Volume: &datamodel.Volume{
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				}},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+	}
+	deleteSnapParams := &common.DeleteSnapshotParams{}
+	s.env.ExecuteWorkflow(DeleteSnapshotWorkflow, deleteSnapParams, snapshot)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
 }
 
 func TestSnapshotDeleteTestSuite(t *testing.T) {

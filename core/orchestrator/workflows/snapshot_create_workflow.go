@@ -1,6 +1,8 @@
 package workflows
 
 import (
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -10,9 +12,15 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	snapshotStartToCloseTimeoutSec = env.GetUint64("SNAPSHOT_START_TO_CLOSE_TIMEOUT_SEC", 300)
+	snapshotHeartbeatTimeoutSec    = env.GetUint64("SNAPSHOT_HEARTBEAT_TIMEOUT_SEC", 150)
 )
 
 type snapshotCreateWorkflow struct {
@@ -31,6 +39,10 @@ func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotP
 		logger.Infof("Snapshot workflow setup executed with error: %v", err)
 		return nil, err
 	}
+	if err = snapshotWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, err
+	}
+
 	snapshotWf.Status = WorkflowStatusRunning
 	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -87,9 +99,13 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(snapshotStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(snapshotHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
-			MaximumAttempts:        1,
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}

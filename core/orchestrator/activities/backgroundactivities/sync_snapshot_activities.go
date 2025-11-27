@@ -18,7 +18,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"gorm.io/gorm"
 )
 
@@ -58,6 +60,7 @@ type SyncSnapshotActivity struct {
 func (a *SyncSnapshotActivity) ListPoolsUUIDPaginated(ctx context.Context, offset, limit int) ([]*database.PoolIdentifier, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Listing pools paginated")
 
 	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
 	pools, err := se.ListPoolUUIDsPaginated(ctx, filter, offset, limit)
@@ -65,6 +68,7 @@ func (a *SyncSnapshotActivity) ListPoolsUUIDPaginated(ctx context.Context, offse
 		logger.Errorf("Failed to list pools: %v", err)
 		return nil, fmt.Errorf("failed to list pools")
 	}
+	activity.RecordHeartbeat(ctx, "Pools listed successfully")
 
 	logger.Infof("Found %d pools (offset: %d, limit: %d)", len(pools), offset, limit)
 	return pools, nil
@@ -74,6 +78,7 @@ func (a *SyncSnapshotActivity) ListPoolsUUIDPaginated(ctx context.Context, offse
 func (a *SyncSnapshotActivity) GetTotalPoolCount(ctx context.Context) (int, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Getting total pool count")
 
 	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
 	count, err := se.GetPoolsCount(ctx, filter)
@@ -81,6 +86,7 @@ func (a *SyncSnapshotActivity) GetTotalPoolCount(ctx context.Context) (int, erro
 		logger.Errorf("Failed to count pools: %v", err)
 		return 0, fmt.Errorf("failed to count pools")
 	}
+	activity.RecordHeartbeat(ctx, "Pool count retrieved successfully")
 
 	logger.Debugf("Total pools count: %d", count)
 	return int(count), nil
@@ -352,7 +358,7 @@ func _getOntapRestProviderForPoolFastConn(ctx context.Context, se database.Stora
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:           nodes,
+		Nodes:            nodes,
 		DeploymentName:   pool.DeploymentName,
 		OntapCredentials: pool.PoolCredentials,
 	})
@@ -624,6 +630,7 @@ type SyncSnapshotsForPoolBatchReturnValue struct {
 // SyncSnapshotsForPoolBatchActivity processes a batch of pools for snapshot synchronization
 func (a *SyncSnapshotActivity) SyncSnapshotsForPoolBatchActivity(ctx context.Context, poolIdentifiers []*database.PoolIdentifier) (*SyncSnapshotsForPoolBatchReturnValue, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting snapshot sync batch")
 	if len(poolIdentifiers) == 0 {
 		return &SyncSnapshotsForPoolBatchReturnValue{}, nil
 	}
@@ -632,6 +639,7 @@ func (a *SyncSnapshotActivity) SyncSnapshotsForPoolBatchActivity(ctx context.Con
 	result := &SyncSnapshotsForPoolBatchReturnValue{
 		TotalProcessed: len(poolIdentifiers),
 	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Processing %d pools", len(poolIdentifiers)))
 
 	// Process each pool in the batch with controlled concurrency
 	var wg sync.WaitGroup
@@ -670,6 +678,7 @@ func (a *SyncSnapshotActivity) SyncSnapshotsForPoolBatchActivity(ctx context.Con
 	}
 	// Wait for all goroutines to complete
 	wg.Wait()
+	activity.RecordHeartbeat(ctx, "Snapshot sync batch completed")
 	logger.Infof("Snapshot batch processing completed: total pools = %d, successful = %d, failed = %d", result.TotalProcessed, result.Successful, result.Failed)
 
 	if result.Failed > 0 {
@@ -683,7 +692,8 @@ func (a *SyncSnapshotActivity) SyncSnapshotsForPoolBatchActivity(ctx context.Con
 
 // processPoolSnapshotSync processes snapshot synchronization for a single pool
 func (a *SyncSnapshotActivity) processPoolSnapshotSync(ctx context.Context, poolIdentifier *database.PoolIdentifier) error {
-	logger := util.GetLogger(ctx)
+	baseLogger := util.GetLogger(ctx)
+	logger := baseLogger.With(log.Fields{"poolName": poolIdentifier.Name})
 	logger.Infof("Starting processPoolSnapshotSync for pool: %s", poolIdentifier.Name)
 
 	// Fetch pool details

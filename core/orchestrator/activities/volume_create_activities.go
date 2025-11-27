@@ -403,6 +403,7 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 
 func (a VolumeCreateActivity) UpdateVolumeStateInDB(ctx context.Context, volumeUUID, state, stateDetails string) error {
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Updating volume state in database")
 
 	err := se.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
 		"state":         state,
@@ -411,6 +412,7 @@ func (a VolumeCreateActivity) UpdateVolumeStateInDB(ctx context.Context, volumeU
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Volume state updated successfully")
 
 	return nil
 }

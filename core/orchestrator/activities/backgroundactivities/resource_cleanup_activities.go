@@ -11,6 +11,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
 
 type ResourceDeleteActivity struct {
@@ -36,6 +37,7 @@ type ResourceCleanupBatchReturnValue struct {
 func (a *ResourceDeleteActivity) GetTotalResourceCount(ctx context.Context) (int, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Getting total resource count")
 
 	// Use optimized CountPools method instead of fetching all pool data
 	count, err := se.GetResourcesCount(ctx)
@@ -43,6 +45,7 @@ func (a *ResourceDeleteActivity) GetTotalResourceCount(ctx context.Context) (int
 		logger.Errorf("Failed to count resources: %v", err)
 		return 0, fmt.Errorf("failed to count resources")
 	}
+	activity.RecordHeartbeat(ctx, "Resource count retrieved successfully")
 
 	logger.Infof("Total resources count: %d", count)
 	return int(count), nil
@@ -52,12 +55,14 @@ func (a *ResourceDeleteActivity) GetTotalResourceCount(ctx context.Context) (int
 func (a *ResourceDeleteActivity) ListResourcesPaginated(ctx context.Context, offset, limit int) ([]*datamodel.PendingResourceDeletions, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Listing resources paginated")
 
 	resources, err := se.ListPendingResourceDeletions(ctx, offset, limit)
 	if err != nil {
 		logger.Errorf("Failed to list resources: %v", err)
 		return nil, fmt.Errorf("failed to list resources")
 	}
+	activity.RecordHeartbeat(ctx, "Resources listed successfully")
 
 	logger.Infof("Found %d resources (offset: %d, limit: %d)", len(resources), offset, limit)
 	return resources, nil
@@ -67,12 +72,14 @@ func (a *ResourceDeleteActivity) ListResourcesPaginated(ctx context.Context, off
 func (a *ResourceDeleteActivity) CleanupPendingResources(ctx context.Context, resources []*datamodel.PendingResourceDeletions) (*ResourceCleanupBatchReturnValue, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting resource cleanup batch")
 
 	if len(resources) == 0 {
 		return &ResourceCleanupBatchReturnValue{}, nil
 	}
 
 	logger.Infof("Starting batch processing of %d resources for cleanup", len(resources))
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Processing %d resources", len(resources)))
 
 	// Get the GCP service instance once outside the loop for better performance
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
@@ -146,6 +153,7 @@ func (a *ResourceDeleteActivity) CleanupPendingResources(ctx context.Context, re
 		}
 	}
 
+	activity.RecordHeartbeat(ctx, "Resource cleanup batch completed")
 	logger.Infof("Batch processing completed. Total: %d, Successful: %d, Failed: %d",
 		result.TotalProcessed, result.Successful, result.Failed)
 

@@ -8,11 +8,16 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	temporalUtils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	backgroundWorkflowStartToCloseTimeoutSec = env.GetUint64("BACKGROUND_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 300)
+	backgroundWorkflowHeartbeatTimeoutSec    = env.GetUint64("BACKGROUND_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
 )
 
 // GenericParentWorkflowConfig contains configuration for the generic parent workflow
@@ -67,7 +72,8 @@ func GenericParentWorkflow(ctx workflow.Context, config GenericParentWorkflowCon
 
 	// Activity options for master workflow activities
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(backgroundWorkflowStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(backgroundWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -80,7 +86,7 @@ func GenericParentWorkflow(ctx workflow.Context, config GenericParentWorkflowCon
 
 	childWorkflowTimeout := config.ChildWorkflowTimeout
 	if childWorkflowTimeout == 0 {
-		childWorkflowTimeout = temporalUtils.GetWorkflowGlobalTimeout() // Use global timeout if not specified
+		childWorkflowTimeout = 10 * time.Minute
 	}
 	childWorkflowOptions := workflow.ChildWorkflowOptions{
 		WorkflowRunTimeout: childWorkflowTimeout,
@@ -206,7 +212,8 @@ func GenericChildWorkflow(ctx workflow.Context, offset, limit int, config Generi
 
 	// Retry options specifically for ListDataActivity
 	listDataRetryOptions := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(backgroundWorkflowStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(backgroundWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

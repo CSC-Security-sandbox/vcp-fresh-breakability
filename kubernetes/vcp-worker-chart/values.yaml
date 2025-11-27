@@ -78,7 +78,7 @@ workerConfig:
   snapshotSyncMaxConcurrency: 20
   ontapSnapshotFetchConcurrencyLimit: 5
   snapshotSyncParentWorkflowBatchSize: 100
-  snapshotSyncChildWorkflowTimeout: 120
+  snapshotSyncChildWorkflowTimeout: 10
   snapshotSyncChildWorkflowActivityBatchSize: 10
   snapshotSyncChildWorkflowActivityTimeoutMinutes: 10
   snapshotSyncMaxConcurrentActivitiesPerChild: 5
@@ -239,6 +239,18 @@ workerConfig:
   retryMaxAttempts: "3"
   retryMaxInterval: "5m"
   retryBackoffCoefficient: "2.0"
+
+  # Snapshot workflow timeout configuration (in seconds)
+  snapshotStartToCloseTimeoutSec: "300"  # 5 minutes
+  snapshotHeartbeatTimeoutSec: "150"     # 2.5 minutes
+
+  # Volume revert workflow timeout configuration (in seconds)
+  volumeRevertStartToCloseTimeoutSec: "600"  # 10 minutes
+  volumeRevertHeartbeatTimeoutSec: "300"     # 5 minutes
+
+  # Background workflow timeout configuration (in seconds)
+  backgroundWorkflowStartToCloseTimeoutSec: "300"  # 5 minutes
+  backgroundWorkflowHeartbeatTimeoutSec: "150"     # 2.5 minutes
 
   # SA Creation Retry Configuration
   saRetryStartToCloseTimeout: "25m"

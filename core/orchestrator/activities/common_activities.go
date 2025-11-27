@@ -4,7 +4,6 @@ import (
 	"context"
 	errors2 "errors"
 	"fmt"
-	"go.temporal.io/sdk/client"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +22,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
 )
 
 const (
@@ -382,6 +383,7 @@ func (ca CommonActivities) ILBHealthCheckFirewall(ctx context.Context, params En
 // GetNode retrieves the node associated with the given pool ID.
 func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) ([]*datamodel.Node, error) {
 	se := ca.SE
+	activity.RecordHeartbeat(ctx, "Fetching nodes for pool")
 
 	nodes, err := se.GetNodesByPoolID(ctx, poolId)
 	if err != nil {
@@ -390,6 +392,7 @@ func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) ([]*datamo
 	if len(nodes) == 0 {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrUnexpectedNodeCountForPool, errors.New("Node not found for the pool")))
 	}
+	activity.RecordHeartbeat(ctx, "Nodes fetched successfully")
 
 	return nodes, nil
 }

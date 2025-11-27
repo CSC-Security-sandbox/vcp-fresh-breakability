@@ -33,6 +33,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/mocks"
 	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestCreateVolume_Success(t *testing.T) {
@@ -2202,17 +2203,22 @@ func TestConvertToVSASnapshotPolicySchedules(t *testing.T) {
 func TestUpdateVolumeStateInDB_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.Background()
 	volumeUUID := "vol-uuid-1"
 	state := "READY"
 	stateDetails := "Available"
 
-	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
 		"state":         state,
 		"state_details": stateDetails,
 	}).Return(nil)
 
-	err := activity.UpdateVolumeStateInDB(ctx, volumeUUID, state, stateDetails)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateVolumeStateInDB)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeStateInDB, volumeUUID, state, stateDetails)
+
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
@@ -2220,20 +2226,25 @@ func TestUpdateVolumeStateInDB_Success(t *testing.T) {
 func TestUpdateVolumeStateInDB_Error(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.Background()
 	volumeUUID := "vol-uuid-2"
 	state := "FAILED"
 	stateDetails := "Error"
 	expectedErr := errors.New("db error")
 
-	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
 		"state":         state,
 		"state_details": stateDetails,
 	}).Return(expectedErr)
 
-	err := activity.UpdateVolumeStateInDB(ctx, volumeUUID, state, stateDetails)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateVolumeStateInDB)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeStateInDB, volumeUUID, state, stateDetails)
+
 	assert.Error(t, err)
-	assert.Equal(t, expectedErr, err)
+	assert.Contains(t, err.Error(), expectedErr.Error())
 	mockStorage.AssertExpectations(t)
 }
 

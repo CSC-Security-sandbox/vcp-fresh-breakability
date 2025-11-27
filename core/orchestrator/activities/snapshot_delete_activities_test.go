@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestDeleteSnapshot_Success(t *testing.T) {
@@ -21,13 +21,17 @@ func TestDeleteSnapshot_Success(t *testing.T) {
 	activity := activities.SnapshotDeleteActivity{
 		SE: mockStorage,
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	snapshotID := "test-snapshot-id"
 	expectedSnapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshotID}}
 
-	mockStorage.On("DeleteSnapshot", ctx, snapshotID).Return(expectedSnapshot, nil)
+	mockStorage.On("DeleteSnapshot", mock.Anything, snapshotID).Return(expectedSnapshot, nil)
 
-	err := activity.DeleteSnapshot(ctx, expectedSnapshot)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.DeleteSnapshot)
+
+	_, err := env.ExecuteActivity(activity.DeleteSnapshot, expectedSnapshot)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -36,16 +40,20 @@ func TestDeleteSnapshot_Success(t *testing.T) {
 func TestDeleteSnapshot_Failure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.SnapshotDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	snapshotID := "test-snapshot-id"
 	expectedError := errors.New("snapshot not found")
 
-	mockStorage.On("DeleteSnapshot", ctx, snapshotID).Return(nil, expectedError)
+	mockStorage.On("DeleteSnapshot", mock.Anything, snapshotID).Return(nil, expectedError)
 
-	err := activity.DeleteSnapshot(ctx, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshotID}})
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.DeleteSnapshot)
+
+	_, err := env.ExecuteActivity(activity.DeleteSnapshot, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshotID}})
 
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedError.Error())
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 }
 
@@ -61,7 +69,6 @@ func TestDeleteSnapshotInONTAP_Success(t *testing.T) {
 	}
 
 	activity := activities.SnapshotDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	snapshot := &datamodel.Snapshot{
 		SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "uuid-123"},
 		BaseModel: datamodel.BaseModel{
@@ -80,7 +87,12 @@ func TestDeleteSnapshotInONTAP_Success(t *testing.T) {
 	// Mock the DeleteSnapshot method
 	mockProvider.On("DeleteSnapshot", snapshot.SnapshotAttributes.ExternalUUID, snapshot.Volume.VolumeAttributes.ExternalUUID).Return(nil)
 
-	err := activity.DeleteSnapshotInONTAP(ctx, snapshot, node)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.DeleteSnapshotInONTAP)
+
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotInONTAP, snapshot, node)
 
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
@@ -97,7 +109,6 @@ func TestDeleteSnapshotInONTAP_Failure(t *testing.T) {
 	}
 
 	activity := activities.SnapshotDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	snapshot := &datamodel.Snapshot{
 		SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "uuid-123"},
 		BaseModel: datamodel.BaseModel{
@@ -117,10 +128,15 @@ func TestDeleteSnapshotInONTAP_Failure(t *testing.T) {
 	// Mock the DeleteSnapshot method
 	mockProvider.On("DeleteSnapshot", snapshot.SnapshotAttributes.ExternalUUID, snapshot.Volume.VolumeAttributes.ExternalUUID).Return(expectedError)
 
-	err := activity.DeleteSnapshotInONTAP(ctx, snapshot, node)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.DeleteSnapshotInONTAP)
+
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotInONTAP, snapshot, node)
 
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedError.Error())
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
 
@@ -134,7 +150,6 @@ func TestDeleteSnapshotInONTAP_GetproviderByNodeFailure(t *testing.T) {
 	}
 
 	activity := activities.SnapshotDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	snapshot := &datamodel.Snapshot{
 		SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "uuid-123"},
 		BaseModel: datamodel.BaseModel{
@@ -150,10 +165,15 @@ func TestDeleteSnapshotInONTAP_GetproviderByNodeFailure(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	err := activity.DeleteSnapshotInONTAP(ctx, snapshot, node)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.DeleteSnapshotInONTAP)
+
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotInONTAP, snapshot, node)
 
 	assert.Error(t, err)
-	assert.EqualError(t, err, "failed to get provider by node")
+	assert.Contains(t, err.Error(), "failed to get provider by node")
 }
 
 func TestDeleteSnapshotInONTAP_SnapshotInUse(t *testing.T) {
@@ -167,7 +187,6 @@ func TestDeleteSnapshotInONTAP_SnapshotInUse(t *testing.T) {
 	}
 
 	activity := activities.SnapshotDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	snapshot := &datamodel.Snapshot{
 		SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "uuid-123"},
 		BaseModel: datamodel.BaseModel{
@@ -187,7 +206,12 @@ func TestDeleteSnapshotInONTAP_SnapshotInUse(t *testing.T) {
 	// Mock the DeleteSnapshot method to return "snapshot is in use" error
 	mockProvider.On("DeleteSnapshot", snapshot.SnapshotAttributes.ExternalUUID, snapshot.Volume.VolumeAttributes.ExternalUUID).Return(expectedError)
 
-	err := activity.DeleteSnapshotInONTAP(ctx, snapshot, node)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.DeleteSnapshotInONTAP)
+
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotInONTAP, snapshot, node)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "snapshot is in use")
@@ -197,15 +221,19 @@ func TestDeleteSnapshotInONTAP_SnapshotInUse(t *testing.T) {
 func TestUpdateDeleteSnapshotDetails_Failure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.SnapshotDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"}}
 	expectedError := errors.New("update failed")
 
-	mockStorage.On("UpdateSnapshot", ctx, snapshot).Return(nil, expectedError)
+	mockStorage.On("UpdateSnapshot", mock.Anything, mock.Anything).Return(nil, expectedError)
 
-	err := activity.UpdateDeleteSnapshotDetails(ctx, snapshot)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateDeleteSnapshotDetails)
+
+	_, err := env.ExecuteActivity(activity.UpdateDeleteSnapshotDetails, snapshot)
 
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedError.Error())
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 }

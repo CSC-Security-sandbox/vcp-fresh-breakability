@@ -1,15 +1,23 @@
 package workflows
 
 import (
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	volumeRevertStartToCloseTimeoutSec = env.GetUint64("VOLUME_REVERT_START_TO_CLOSE_TIMEOUT_SEC", 600)
+	volumeRevertHeartbeatTimeoutSec    = env.GetUint64("VOLUME_REVERT_HEARTBEAT_TIMEOUT_SEC", 300)
 )
 
 type volumeRevertWorkflow struct {
@@ -27,6 +35,9 @@ func RevertVolumeWorkflow(ctx workflow.Context, params *common.RevertVolumeParam
 	err := volumeWf.Setup(ctx, volume)
 	if err != nil {
 		log.Errorf("Volume update workflow setup executed with error: %v", err)
+		return err
+	}
+	if err = volumeWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
 		return err
 	}
 	volumeWf.Status = WorkflowStatusRunning
@@ -86,7 +97,8 @@ func (wf *volumeRevertWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 	options := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(volumeRevertStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(volumeRevertHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

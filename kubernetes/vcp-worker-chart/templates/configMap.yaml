@@ -210,6 +210,18 @@ data:
   RETRY_MAX_INTERVAL: {{$.Values.workerConfig.retryMaxInterval | quote }}
   RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.retryBackoffCoefficient | quote }}
 
+  # Snapshot workflow timeout configuration
+  SNAPSHOT_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.snapshotStartToCloseTimeoutSec | quote }}
+  SNAPSHOT_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.snapshotHeartbeatTimeoutSec | quote }}
+
+  # Volume revert workflow timeout configuration
+  VOLUME_REVERT_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.volumeRevertStartToCloseTimeoutSec | quote }}
+  VOLUME_REVERT_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.volumeRevertHeartbeatTimeoutSec | quote }}
+
+  # Background workflow timeout configuration
+  BACKGROUND_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.backgroundWorkflowStartToCloseTimeoutSec | quote }}
+  BACKGROUND_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.backgroundWorkflowHeartbeatTimeoutSec | quote }}
+
   SA_RETRY_START_TO_CLOSE_TIMEOUT: {{$.Values.workerConfig.saRetryStartToCloseTimeout | quote }}
   SA_RETRY_INTERVAL: {{$.Values.workerConfig.saRetryInitialInterval | quote }}
   SA_RETRY_MAXIMUM_ATTEMPTS: {{$.Values.workerConfig.saRetryMaximumAttempts | quote }}

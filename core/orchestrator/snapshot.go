@@ -32,7 +32,6 @@ import (
 )
 
 const (
-	SNAPSHOT_TYPE_ADHOC    = "adhoc"
 	STORAGE_CLASS_SOFTWARE = "SOFTWARE"
 )
 
@@ -192,7 +191,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		Volume:             volume,
 		Account:            account,
 		IsAppConsistent:    params.IsAppConsistent,
-		Type:               SNAPSHOT_TYPE_ADHOC,
+		Type:               backgroundactivities.SnapshotTypeAdHoc,
 		SnapshotAttributes: &datamodel.SnapshotAttributes{},
 	}
 

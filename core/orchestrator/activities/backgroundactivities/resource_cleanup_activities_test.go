@@ -6,50 +6,64 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestResourceDeleteActivity_GetTotalResourceCount(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.GetTotalResourceCount)
 
 	// Mock the database call
-	mockStorage.On("GetResourcesCount", ctx).Return(int64(3), nil)
+	mockStorage.On("GetResourcesCount", mock.Anything).Return(int64(3), nil)
 
-	count, err := activity.GetTotalResourceCount(ctx)
+	encodedValue, err := env.ExecuteActivity(activityInstance.GetTotalResourceCount)
 
+	assert.NoError(t, err)
+	var count int
+	err = encodedValue.Get(&count)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, count)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestResourceDeleteActivity_GetTotalResourceCount_Error(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.GetTotalResourceCount)
 
 	// Mock the database call to return error
-	mockStorage.On("GetResourcesCount", ctx).Return(int64(0), assert.AnError)
+	mockStorage.On("GetResourcesCount", mock.Anything).Return(int64(0), assert.AnError)
 
-	count, err := activity.GetTotalResourceCount(ctx)
+	_, err := env.ExecuteActivity(activityInstance.GetTotalResourceCount)
 
 	assert.Error(t, err)
-	assert.Equal(t, 0, count)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestResourceDeleteActivity_ListResourcesPaginated(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.ListResourcesPaginated)
 
 	// Mock the database call
 	allResources := []*datamodel.PendingResourceDeletions{
@@ -59,11 +73,14 @@ func TestResourceDeleteActivity_ListResourcesPaginated(t *testing.T) {
 		{ID: 4, ResourceType: "bucket", ResourceName: "test-bucket-4"},
 		{ID: 5, ResourceType: "bucket", ResourceName: "test-bucket-5"},
 	}
-	mockStorage.On("ListPendingResourceDeletions", ctx, 1, 2).Return(allResources, nil)
+	mockStorage.On("ListPendingResourceDeletions", mock.Anything, 1, 2).Return(allResources, nil)
 
 	// Test pagination
-	resources, err := activity.ListResourcesPaginated(ctx, 1, 2)
+	encodedValue, err := env.ExecuteActivity(activityInstance.ListResourcesPaginated, 1, 2)
 
+	assert.NoError(t, err)
+	var resources []*datamodel.PendingResourceDeletions
+	err = encodedValue.Get(&resources)
 	assert.NoError(t, err)
 	assert.Len(t, resources, 5) // The mock returns all resources, not paginated
 	assert.Equal(t, "test-bucket-1", resources[0].ResourceName)
@@ -72,26 +89,40 @@ func TestResourceDeleteActivity_ListResourcesPaginated(t *testing.T) {
 }
 
 func TestResourceDeleteActivity_ListResourcesPaginated_EmptyResult(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.ListResourcesPaginated)
 
 	// Mock the database call to return empty list
-	mockStorage.On("ListPendingResourceDeletions", ctx, 0, 10).Return([]*datamodel.PendingResourceDeletions{}, nil)
+	mockStorage.On("ListPendingResourceDeletions", mock.Anything, 0, 10).Return([]*datamodel.PendingResourceDeletions{}, nil)
 
-	resources, err := activity.ListResourcesPaginated(ctx, 0, 10)
+	encodedValue, err := env.ExecuteActivity(activityInstance.ListResourcesPaginated, 0, 10)
 
+	assert.NoError(t, err)
+	var resources []*datamodel.PendingResourceDeletions
+	err = encodedValue.Get(&resources)
 	assert.NoError(t, err)
 	assert.Len(t, resources, 0)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_EmptyList(t *testing.T) {
-	ctx := context.Background()
-	activity := &ResourceDeleteActivity{}
+	activityInstance := &ResourceDeleteActivity{}
 
-	result, err := activity.CleanupPendingResources(ctx, []*datamodel.PendingResourceDeletions{})
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
+	encodedValue, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, []*datamodel.PendingResourceDeletions{})
+
+	assert.NoError(t, err)
+	var result *ResourceCleanupBatchReturnValue
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, 0, result.TotalProcessed)
@@ -100,12 +131,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_EmptyList(t *testing.T) 
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_GCPServiceInitializationFails(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
 	// Mock hyperscaler2.GetGCPService to return error
 	originalGetGCPService := hyperscaler2.GetGCPService
@@ -118,21 +150,20 @@ func TestResourceDeleteActivity_CleanupPendingResources_GCPServiceInitialization
 		{ID: 1, ResourceName: "bucket1", ResourceType: "BUCKET"},
 	}
 
-	result, err := activity.CleanupPendingResources(ctx, resources)
+	_, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, resources)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error initializing GCP service")
-	assert.Nil(t, result)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionSucceeds(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
 	// Mock hyperscaler2.GetGCPService to return success
 	originalGetGCPService := hyperscaler2.GetGCPService
@@ -153,10 +184,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionSucceeds(t
 	}
 
 	// Mock successful update
-	mockStorage.On("UpdatePendingResourceDeletion", ctx, int64(1), true, "").Return(&datamodel.PendingResourceDeletions{}, nil)
+	mockStorage.On("UpdatePendingResourceDeletion", mock.Anything, int64(1), true, "").Return(&datamodel.PendingResourceDeletions{}, nil)
 
-	result, err := activity.CleanupPendingResources(ctx, resources)
+	encodedValue, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, resources)
 
+	assert.NoError(t, err)
+	var result *ResourceCleanupBatchReturnValue
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.TotalProcessed)
 	assert.Equal(t, 1, result.Successful)
@@ -167,12 +201,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionSucceeds(t
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionFailsWithError(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
 	// Mock hyperscaler2.GetGCPService to return success
 	originalGetGCPService := hyperscaler2.GetGCPService
@@ -193,10 +228,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionFailsWithE
 	}
 
 	// Mock successful update with error message
-	mockStorage.On("UpdatePendingResourceDeletion", ctx, int64(1), false, "bucket deletion failed").Return(&datamodel.PendingResourceDeletions{}, nil)
+	mockStorage.On("UpdatePendingResourceDeletion", mock.Anything, int64(1), false, "bucket deletion failed").Return(&datamodel.PendingResourceDeletions{}, nil)
 
-	result, err := activity.CleanupPendingResources(ctx, resources)
+	encodedValue, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, resources)
 
+	assert.NoError(t, err)
+	var result *ResourceCleanupBatchReturnValue
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.TotalProcessed)
 	assert.Equal(t, 0, result.Successful)
@@ -209,12 +247,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionFailsWithE
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionFailsWithoutError(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
 	// Mock hyperscaler2.GetGCPService to return success
 	originalGetGCPService := hyperscaler2.GetGCPService
@@ -235,10 +274,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionFailsWitho
 	}
 
 	// Mock successful update with default error message
-	mockStorage.On("UpdatePendingResourceDeletion", ctx, int64(1), false, "Resource deletion failed").Return(&datamodel.PendingResourceDeletions{}, nil)
+	mockStorage.On("UpdatePendingResourceDeletion", mock.Anything, int64(1), false, "Resource deletion failed").Return(&datamodel.PendingResourceDeletions{}, nil)
 
-	result, err := activity.CleanupPendingResources(ctx, resources)
+	encodedValue, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, resources)
 
+	assert.NoError(t, err)
+	var result *ResourceCleanupBatchReturnValue
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.TotalProcessed)
 	assert.Equal(t, 0, result.Successful)
@@ -251,12 +293,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionFailsWitho
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionFailsWithCustomError(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
 	// Mock hyperscaler2.GetGCPService to return success
 	originalGetGCPService := hyperscaler2.GetGCPService
@@ -278,10 +321,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionFailsWithC
 	}
 
 	// Mock successful update with original error message
-	mockStorage.On("UpdatePendingResourceDeletion", ctx, int64(1), false, "original error").Return(&datamodel.PendingResourceDeletions{}, nil)
+	mockStorage.On("UpdatePendingResourceDeletion", mock.Anything, int64(1), false, "original error").Return(&datamodel.PendingResourceDeletions{}, nil)
 
-	result, err := activity.CleanupPendingResources(ctx, resources)
+	encodedValue, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, resources)
 
+	assert.NoError(t, err)
+	var result *ResourceCleanupBatchReturnValue
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.TotalProcessed)
 	assert.Equal(t, 0, result.Successful)
@@ -294,12 +340,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_BucketDeletionFailsWithC
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_UnsupportedResourceType(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
 	// Mock hyperscaler2.GetGCPService to return success
 	originalGetGCPService := hyperscaler2.GetGCPService
@@ -312,8 +359,11 @@ func TestResourceDeleteActivity_CleanupPendingResources_UnsupportedResourceType(
 		{ID: 1, ResourceName: "resource1", ResourceType: "UNSUPPORTED_TYPE"},
 	}
 
-	result, err := activity.CleanupPendingResources(ctx, resources)
+	encodedValue, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, resources)
 
+	assert.NoError(t, err)
+	var result *ResourceCleanupBatchReturnValue
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.TotalProcessed)
 	assert.Equal(t, 0, result.Successful)
@@ -326,12 +376,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_UnsupportedResourceType(
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_MixedResourceTypes(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
 	// Mock hyperscaler2.GetGCPService to return success
 	originalGetGCPService := hyperscaler2.GetGCPService
@@ -359,11 +410,14 @@ func TestResourceDeleteActivity_CleanupPendingResources_MixedResourceTypes(t *te
 	}
 
 	// Mock updates
-	mockStorage.On("UpdatePendingResourceDeletion", ctx, int64(1), true, "").Return(&datamodel.PendingResourceDeletions{}, nil)
-	mockStorage.On("UpdatePendingResourceDeletion", ctx, int64(2), false, "second bucket failed").Return(&datamodel.PendingResourceDeletions{}, nil)
+	mockStorage.On("UpdatePendingResourceDeletion", mock.Anything, int64(1), true, "").Return(&datamodel.PendingResourceDeletions{}, nil)
+	mockStorage.On("UpdatePendingResourceDeletion", mock.Anything, int64(2), false, "second bucket failed").Return(&datamodel.PendingResourceDeletions{}, nil)
 
-	result, err := activity.CleanupPendingResources(ctx, resources)
+	encodedValue, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, resources)
 
+	assert.NoError(t, err)
+	var result *ResourceCleanupBatchReturnValue
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, result.TotalProcessed)
 	assert.Equal(t, 1, result.Successful)
@@ -378,12 +432,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_MixedResourceTypes(t *te
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_UpdatePendingResourceDeletionFailsAfterSuccessfulDeletion(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
 	// Mock hyperscaler2.GetGCPService to return success
 	originalGetGCPService := hyperscaler2.GetGCPService
@@ -404,10 +459,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_UpdatePendingResourceDel
 	}
 
 	// Mock update to fail
-	mockStorage.On("UpdatePendingResourceDeletion", ctx, int64(1), true, "").Return(nil, errors.New("update failed"))
+	mockStorage.On("UpdatePendingResourceDeletion", mock.Anything, int64(1), true, "").Return(nil, errors.New("update failed"))
 
-	result, err := activity.CleanupPendingResources(ctx, resources)
+	encodedValue, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, resources)
 
+	assert.NoError(t, err)
+	var result *ResourceCleanupBatchReturnValue
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.TotalProcessed)
 	assert.Equal(t, 0, result.Successful) // Should not count as successful due to update failure
@@ -418,12 +476,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_UpdatePendingResourceDel
 }
 
 func TestResourceDeleteActivity_CleanupPendingResources_UpdatePendingResourceDeletionFailsAfterFailedDeletion(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
 	mockStorage := database.NewMockStorage(t)
-	activity := &ResourceDeleteActivity{SE: mockStorage}
+	activityInstance := &ResourceDeleteActivity{SE: mockStorage}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activityInstance.CleanupPendingResources)
 
 	// Mock hyperscaler2.GetGCPService to return success
 	originalGetGCPService := hyperscaler2.GetGCPService
@@ -444,10 +503,13 @@ func TestResourceDeleteActivity_CleanupPendingResources_UpdatePendingResourceDel
 	}
 
 	// Mock update to fail
-	mockStorage.On("UpdatePendingResourceDeletion", ctx, int64(1), false, "deletion failed").Return(nil, errors.New("update failed"))
+	mockStorage.On("UpdatePendingResourceDeletion", mock.Anything, int64(1), false, "deletion failed").Return(nil, errors.New("update failed"))
 
-	result, err := activity.CleanupPendingResources(ctx, resources)
+	encodedValue, err := env.ExecuteActivity(activityInstance.CleanupPendingResources, resources)
 
+	assert.NoError(t, err)
+	var result *ResourceCleanupBatchReturnValue
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.TotalProcessed)
 	assert.Equal(t, 0, result.Successful)

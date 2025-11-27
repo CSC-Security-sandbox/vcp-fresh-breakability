@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -77,6 +78,15 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowWorkflowExecutesSucces
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&snapshotCreateActivity)
 
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
 	// Mock UpdateJob method calls - these are called by the UpdateJobStatus activity
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "DONE", 0, "").Return(nil)
@@ -122,6 +132,15 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnActivityError()
 
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&snapshotCreateActivity)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
 
 	// Mock UpdateJob method calls - use mock.Anything for error details since they may vary
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
@@ -201,6 +220,15 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnJobStatusUpdate
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&snapshotCreateActivity)
 
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
 	// Mock UpdateJob to return error for PROCESSING state
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(assert.AnError)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -240,9 +268,17 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnFinalJobStatusU
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(commonActivity.GetNode)
 	s.env.RegisterActivity(snapshotCreateActivity.CreateSnapshotInONTAP)
 	s.env.RegisterActivity(snapshotCreateActivity.UpdateSnapshotDetails)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -286,6 +322,15 @@ func (s *SnapshotUnitTestSuite) TestSnapshotCreateWorkflowRollbackOnFailure() {
 		},
 	}
 
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	// Also mock the storage call as fallback
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
 	// Mock UpdateJob method calls - use mock.Anything for error details since they may vary
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
 	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 1011, mock.Anything).Return(nil)
@@ -300,6 +345,105 @@ func (s *SnapshotUnitTestSuite) TestSnapshotCreateWorkflowRollbackOnFailure() {
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	// The error message has changed due to the workflow structure, so we'll just check that there's an error
 	s.env.AssertExpectations(s.T())
+}
+
+func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnJobInErrorState() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	params := &common.CreateSnapshotParams{
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: "test-account",
+		},
+	}
+	snapshot := &datamodel.Snapshot{
+		Name: "test-snapshot",
+		Volume: &datamodel.Volume{
+			PoolID: 1,
+			Pool: &datamodel.Pool{
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+		},
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes:            0,
+			LogicalSizeUsedInBytes: 0,
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(&commonActivity)
+
+	// Mock GetJob to return job in ERROR state
+	jobInErrorState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateERROR),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInErrorState, nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateSnapshotWorkflow, params, snapshot)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "job default-test-workflow-id is in state ERROR; expected NEW")
+}
+
+func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowSucceedsWhenJobNotInErrorState() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	snapshotCreateActivity := activities.SnapshotCreateActivity{SE: mockStorage}
+
+	params := &common.CreateSnapshotParams{
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: "test-account",
+		},
+	}
+	snapshot := &datamodel.Snapshot{
+		Name: "test-snapshot",
+		Volume: &datamodel.Volume{
+			PoolID: 1,
+			Pool: &datamodel.Pool{
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+		},
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes:            0,
+			LogicalSizeUsedInBytes: 0,
+		},
+	}
+
+	s.env.RegisterActivity(&commonActivity)
+	s.env.RegisterActivity(&snapshotCreateActivity)
+
+	// Mock UpdateJob method calls
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "DONE", 0, "").Return(nil)
+
+	// Mock GetJob to return job in NEW state (not ERROR)
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(snapshotCreateActivity.CreateSnapshotInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SnapshotProviderResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "snapshot-uuid"}, SizeInBytes: 1024, LogicalSizeInBytes: 1024}, nil)
+	s.env.OnActivity(snapshotCreateActivity.UpdateSnapshotDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(CreateSnapshotWorkflow, params, snapshot)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
 func TestSnapshotUnitTestSuite(t *testing.T) {

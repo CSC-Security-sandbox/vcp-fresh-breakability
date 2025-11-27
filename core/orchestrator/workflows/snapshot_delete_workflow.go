@@ -1,6 +1,8 @@
 package workflows
 
 import (
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -29,6 +31,11 @@ func DeleteSnapshotWorkflow(ctx workflow.Context, params *common.DeleteSnapshotP
 		logger.Infof("Snapshot Delete workflow setup executed with error: %v", err)
 		return nil, err
 	}
+
+	if err = snapshotWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, err
+	}
+
 	snapshotWf.Status = WorkflowStatusRunning
 	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -83,7 +90,8 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 		return nil, ConvertToVSAError(err)
 	}
 	options := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(snapshotStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(snapshotHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

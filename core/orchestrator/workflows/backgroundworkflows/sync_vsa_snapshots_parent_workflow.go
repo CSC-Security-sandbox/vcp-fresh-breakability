@@ -12,7 +12,7 @@ var (
 	// SnapshotSyncParentWorkflowBatchSize is the number of pools each child workflow processes
 	SnapshotSyncParentWorkflowBatchSize = env.GetInt("SNAPSHOT_SYNC_PARENT_WORKFLOW_BATCH_SIZE", 1000)
 	// SnapshotSyncChildWorkflowTimeout is the timeout for each child workflow
-	SnapshotSyncChildWorkflowTimeout = time.Duration(env.GetInt("SNAPSHOT_SYNC_CHILD_WORKFLOW_TIMEOUT_MINUTES", 120)) * time.Minute
+	SnapshotSyncChildWorkflowTimeout = time.Duration(env.GetInt("SNAPSHOT_SYNC_CHILD_WORKFLOW_TIMEOUT_MINUTES", 10)) * time.Minute
 )
 
 // SnapshotsSyncParentWorkflow coordinates multiple child workflows to process all pools
