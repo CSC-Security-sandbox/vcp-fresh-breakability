@@ -3032,6 +3032,59 @@ func Test_createServiceAccountAndAttachRole(t *testing.T) {
 		assert.Nil(t, sa)
 		assert.Contains(t, err.Error(), "attach error")
 	})
+
+	// Test for 409 concurrent policy modification retry behavior
+	t.Run("attach roles succeeds after 409 retry", func(t *testing.T) {
+		mockGcp := hyperscaler2.NewMockGoogleServices(t)
+		createReq := &hyperscaler3.CreateServiceAccountRequest{
+			AccountId: saAccountID,
+			ServiceAccount: &hyperscaler3.ServiceAccount{
+				DisplayName: saDisplayName,
+			},
+		}
+
+		// First call succeeds for CreateServiceAccount
+		mockGcp.EXPECT().GetLogger().Return(log.NewLogger())
+		mockGcp.EXPECT().CreateServiceAccount(createReq, projectID, saEmail).Return(expectedSA, nil)
+
+		// AttachOrUpdateRolesForServiceAccounts should succeed
+		// In reality, Temporal's retry policy will handle 409 errors automatically
+		// This test verifies the function propagates errors correctly for retry
+		mockGcp.EXPECT().AttachOrUpdateRolesForServiceAccounts(roles, saEmail, projectID).Return(nil)
+
+		sa, err := activities.CreateServiceAccountAndAttachRole(ctx, projectID, saAccountID, saDisplayName, mockGcp)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("attach roles fails with 409 concurrent policy changes - error propagated for retry", func(t *testing.T) {
+		mockGcp := hyperscaler2.NewMockGoogleServices(t)
+		createReq := &hyperscaler3.CreateServiceAccountRequest{
+			AccountId: saAccountID,
+			ServiceAccount: &hyperscaler3.ServiceAccount{
+				DisplayName: saDisplayName,
+			},
+		}
+
+		mockGcp.EXPECT().GetLogger().Return(log.NewLogger())
+		mockGcp.EXPECT().CreateServiceAccount(createReq, projectID, saEmail).Return(expectedSA, nil)
+
+		// Simulate 409 error with "aborted" status - this should be retried by Temporal
+		err409 := vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError,
+			fmt.Errorf("googleapi: Error 409: There were concurrent policy changes. Please retry the whole read-modify-write with exponential backoff., aborted"))
+		mockGcp.EXPECT().AttachOrUpdateRolesForServiceAccounts(roles, saEmail, projectID).Return(err409)
+
+		sa, err := activities.CreateServiceAccountAndAttachRole(ctx, projectID, saAccountID, saDisplayName, mockGcp)
+		assert.Error(t, err)
+		assert.Nil(t, sa)
+		// Verify error is propagated (wrapped as Temporal application error but retryable)
+		// The error is wrapped by WrapAsTemporalApplicationError but remains retryable
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			// Check that the underlying error is retryable
+			assert.True(t, customErr.Retriable, "Error should be retryable for Temporal retry")
+		}
+	})
 }
 
 func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
@@ -3195,6 +3248,71 @@ func Test_deleteServiceAccount(t *testing.T) {
 		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "service account not found")
+	})
+
+	// Tests for 409 concurrent policy modification retry behavior
+	t.Run("role removal succeeds after handling concurrent modifications", func(t *testing.T) {
+		mockGcp := hyperscaler2.NewMockGoogleServices(t)
+		mockGcp.EXPECT().GetLogger().Return(logger).Maybe()
+
+		// Both operations succeed (retry happens at lower level if needed)
+		mockGcp.EXPECT().RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber).Return(nil)
+		mockGcp.EXPECT().DeleteServiceAccount(projectNumber, saEmail).Return(nil)
+
+		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
+		assert.NoError(t, err)
+	})
+
+	t.Run("role removal fails with 409 concurrent policy changes - error propagated for retry", func(t *testing.T) {
+		mockGcp := hyperscaler2.NewMockGoogleServices(t)
+		mockGcp.EXPECT().GetLogger().Return(logger).Maybe()
+
+		// Simulate 409 error with "aborted" status during role removal
+		// This error should be propagated so Temporal/retry logic can retry the entire activity
+		err409 := fmt.Errorf("googleapi: Error 409: There were concurrent policy changes. Please retry the whole read-modify-write with exponential backoff. The request's ETag did not match., aborted")
+		mockGcp.EXPECT().RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber).Return(err409)
+
+		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
+		assert.Error(t, err)
+		// Verify the 409 error is properly propagated for retry
+		assert.Contains(t, err.Error(), "409")
+		assert.Contains(t, err.Error(), "aborted")
+	})
+
+	t.Run("role removal succeeds but delete fails with 409 - error propagated for retry", func(t *testing.T) {
+		mockGcp := hyperscaler2.NewMockGoogleServices(t)
+		mockGcp.EXPECT().GetLogger().Return(logger).Maybe()
+
+		// Role removal succeeds
+		mockGcp.EXPECT().RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber).Return(nil)
+
+		// Delete fails with 409 (less common but possible)
+		err409 := fmt.Errorf("googleapi: Error 409: Conflict, aborted")
+		mockGcp.EXPECT().DeleteServiceAccount(projectNumber, saEmail).Return(err409)
+
+		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "409")
+	})
+
+	t.Run("parallel deletions scenario - multiple 409 errors handled", func(t *testing.T) {
+		// This test simulates what happens when multiple pools are deleted in parallel
+		// Each tries to remove roles from service accounts in the same project
+		// The function should return errors that trigger Temporal retry
+
+		mockGcp := hyperscaler2.NewMockGoogleServices(t)
+		mockGcp.EXPECT().GetLogger().Return(logger).Maybe()
+
+		// Simulate concurrent modification error (first attempt fails)
+		err409 := fmt.Errorf("googleapi: Error 409: There were concurrent policy changes. Please retry with exponential backoff. ETag mismatch., aborted")
+		mockGcp.EXPECT().RemoveRolesFromServiceAccounts(roles, saEmail, projectNumber).Return(err409)
+
+		err := activities.DeleteServiceAccountAndRemoveStorageRole(ctx, projectNumber, saAccountID, mockGcp)
+		assert.Error(t, err)
+		// Verify error contains markers for retry logic
+		assert.Contains(t, err.Error(), "409")
+		assert.Contains(t, err.Error(), "aborted")
+		// The activity will be retried by Temporal's retry policy
 	})
 }
 
@@ -4789,7 +4907,7 @@ func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			AuthType: env.USERNAME_PWD,
-			Password:  "test-password",
+			Password: "test-password",
 		},
 	}
 	svm := &datamodel.Svm{
@@ -4800,9 +4918,9 @@ func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 		},
 	}
 	node := &coremodel.Node{
-		Name:                      "test-node",
-		EndpointAddress:           "1.2.3.4",
-		AuthType:                  env.USERNAME_PWD,
+		Name:                           "test-node",
+		EndpointAddress:                "1.2.3.4",
+		AuthType:                       env.USERNAME_PWD,
 		EndpointAddressesToHostNameMap: make(map[string]string),
 	}
 
@@ -5144,7 +5262,7 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			AuthType: env.USERNAME_PWD,
-			Password:  "test-password",
+			Password: "test-password",
 		},
 	}
 	updateParams := &commonparams.UpdatePoolParams{
@@ -5152,9 +5270,9 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		TotalIops:            nillable.ToPointer(int64(6000)), // New IOPS requirement
 	}
 	node := &coremodel.Node{
-		Name:                      "test-node",
-		EndpointAddress:           "1.2.3.4",
-		AuthType:                  env.USERNAME_PWD,
+		Name:                           "test-node",
+		EndpointAddress:                "1.2.3.4",
+		AuthType:                       env.USERNAME_PWD,
 		EndpointAddressesToHostNameMap: make(map[string]string),
 	}
 

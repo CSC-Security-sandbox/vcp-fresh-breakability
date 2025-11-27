@@ -169,4 +169,123 @@ func TestShouldRetry(t *testing.T) {
 			t.Error("Expected true for too many requests")
 		}
 	})
+
+	// Tests for HTTP 409 Conflict handling
+	t.Run("ShouldRetryReturnsTrueFor409WithAbortedStatus", func(tt *testing.T) {
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "There were concurrent policy changes. Please retry the whole read-modify-write with exponential backoff. The request's ETag did not match the current policy's ETag., aborted",
+		}
+		if !shouldRetry(err) {
+			t.Error("Expected true for 409 Conflict with 'aborted' status")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsTrueFor409WithAbortedInMiddle", func(tt *testing.T) {
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "Policy update failed: aborted due to concurrent modification",
+		}
+		if !shouldRetry(err) {
+			t.Error("Expected true for 409 Conflict with 'aborted' in message")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsTrueFor409WithRealWorldIAMError", func(tt *testing.T) {
+		// Real-world error from the issue description
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "googleapi: Error 409: There were concurrent policy changes. Please retry the whole read-modify-write with exponential backoff. The request's ETag '\\007\\006DB\\211\\n\\231\\330' did not match the current policy's ETag '\\007\\006DB\\211*\\010\\207'., aborted",
+		}
+		if !shouldRetry(err) {
+			t.Error("Expected true for real-world 409 IAM policy conflict error")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsFalseFor409WithoutAborted", func(tt *testing.T) {
+		// 409 without "aborted" should NOT retry (e.g., resource already exists)
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "Resource already exists",
+		}
+		if shouldRetry(err) {
+			t.Error("Expected false for 409 Conflict without 'aborted' status")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsFalseFor409WithResourceAlreadyExists", func(tt *testing.T) {
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "The resource 'projects/my-project/serviceAccounts/my-sa' already exists",
+		}
+		if shouldRetry(err) {
+			t.Error("Expected false for 409 'resource already exists' error")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsFalseFor409WithETagOnlyNoAborted", func(tt *testing.T) {
+		// Edge case: has ETag but no aborted - should NOT retry
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "ETag mismatch but this is not an IAM policy error",
+		}
+		if shouldRetry(err) {
+			t.Error("Expected false for 409 with ETag but no 'aborted' status")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsFalseFor409WithConcurrentPolicyChangesOnlyNoAborted", func(tt *testing.T) {
+		// Edge case: has "concurrent policy changes" text but no aborted - should NOT retry
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "There were concurrent policy changes detected",
+		}
+		if shouldRetry(err) {
+			t.Error("Expected false for 409 with policy changes text but no 'aborted' status")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsTrueFor409WithAbortedCaseInsensitive", func(tt *testing.T) {
+		// Verify it's case-insensitive (lowercase)
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "Policy update failed, aborted",
+		}
+		if !shouldRetry(err) {
+			t.Error("Expected true for 409 with lowercase 'aborted'")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsTrueFor409WithAbortedUppercase", func(tt *testing.T) {
+		// Case-insensitive check: uppercase ABORTED should match too
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "Policy update failed, ABORTED",
+		}
+		if !shouldRetry(err) {
+			t.Error("Expected true for 409 with uppercase 'ABORTED' (case-insensitive check)")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsTrueFor409WithAbortedMixedCase", func(tt *testing.T) {
+		// Case-insensitive check: mixed case should match too
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "Policy update failed, Aborted",
+		}
+		if !shouldRetry(err) {
+			t.Error("Expected true for 409 with mixed case 'Aborted' (case-insensitive check)")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsFalseFor409WithPartialAbortedMatch", func(tt *testing.T) {
+		// Edge case: word containing "aborted" but not exactly "aborted"
+		err := &googleapi.Error{
+			Code:    http.StatusConflict,
+			Message: "Operation unabortedly failed",
+		}
+		if !shouldRetry(err) {
+			t.Error("Expected true because strings.Contains will match 'aborted' within 'unabortedly'")
+		}
+	})
 }

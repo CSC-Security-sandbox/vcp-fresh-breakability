@@ -93,6 +93,15 @@ func shouldRetry(err error) bool {
 			return true
 		case http.StatusTooManyRequests:
 			return true
+		case http.StatusConflict:
+			// Retry on IAM policy conflicts (ABORTED status from concurrent modifications)
+			// Google Cloud returns 409 with "aborted" status for ETag mismatches during
+			// concurrent policy updates. Retrying with exponential backoff resolves these.
+			// Reference: https://cloud.google.com/iam/docs/retry-strategy
+			if strings.Contains(strings.ToLower(err.Error()), "aborted") {
+				return true
+			}
+			return false
 		default:
 			if strings.Contains(err.Error(), "rateLimitExceeded") {
 				return true
