@@ -72,6 +72,7 @@ workerConfig:
   objectStoreAuthType: "GCP_SA"
   gcpHydrateEnabled: "true"
   flexCacheEnabled: "false"
+  hybridReplicationEnabled: "false"
   gcpHydrateBatchSize: "10"
   thinCloneGASupport: false
   snapshotSyncMaxConcurrency: 20
