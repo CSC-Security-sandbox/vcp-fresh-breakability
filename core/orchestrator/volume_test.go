@@ -1826,82 +1826,6 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		assert.Contains(tt, err.Error(), "PeerClusterName, PeerSvmName, PeerVolumeName, PeerIPAddresses and ResourceID are required for Hybrid Replication")
 	})
 
-	t.Run("HybridReplication_BlockDevicesNotAllowed", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
-		mockLogger := log.NewLogger()
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:          "test_pool",
-			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
-			Network:       "test-network",
-			SizeInBytes:   int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
-			LargeCapacity: false,
-		}
-
-		err = store.DB().Create(pool).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool: %v", err)
-		}
-
-		poolView := &datamodel.PoolView{
-			Pool:         *pool,
-			QuotaInBytes: 0,
-		}
-
-		blockDevices := &[]common.BlockDevice{
-			{
-				Name:   "test-block-device",
-				OSType: "linux",
-			},
-		}
-
-		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Name:          "test-volume-block-devices",
-			PoolID:        pool.UUID,
-			QuotaInBytes:  500 * 1024 * 1024 * 1024,
-			Protocols:     []string{utils.ProtocolNFSv3},
-			Network:       "test-network",
-			LargeCapacity: false,
-			BlockDevices:  blockDevices,
-			HybridReplicationParameters: &models.HybridReplicationParameters{
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
-				ReplicationSchedule: "daily",
-				PeerClusterName:     "peer-cluster",
-				PeerVolumeName:      "peer-volume",
-				PeerSvmName:         "peer-svm",
-				PeerIPAddresses:     []string{"192.168.1.1"},
-				ResourceID:          "resource-123",
-			},
-		}
-
-		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.NotNil(tt, err)
-		assert.Contains(tt, err.Error(), "BlockDevices are not supported for Hybrid Replication")
-	})
-
 	t.Run("HybridReplication_SnapshotNotAllowed", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -11233,7 +11157,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			LargeCapacity:           false,
 			IsClone:                 true,                  // MUST be true for cloneSharedBytes to be set
 			CreationToken:           "test-creation-token", // Required for file volumes
-			FileProperties:          &models.FileProperties{
+			FileProperties: &models.FileProperties{
 				// Required for NAS volumes (can be minimal)
 			},
 		}

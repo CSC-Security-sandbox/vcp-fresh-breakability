@@ -1040,14 +1040,6 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			}
 		}
 
-		if params.BlockDevices != nil && len(*params.BlockDevices) > 0 {
-			for _, paramBlockDevice := range *params.BlockDevices {
-				if paramBlockDevice.Name != "" {
-					return customerrors.NewUserInputValidationErr("BlockDevices are not supported for Hybrid Replication")
-				}
-			}
-		}
-
 		if hp.PeerClusterName == "" || hp.PeerVolumeName == "" || hp.PeerSvmName == "" || len(hp.PeerIPAddresses) == 0 || hp.ResourceID == "" {
 			msg := "PeerClusterName, PeerSvmName, PeerVolumeName, PeerIPAddresses and ResourceID are required for Hybrid Replication"
 			return customerrors.NewUserInputValidationErr(msg)
