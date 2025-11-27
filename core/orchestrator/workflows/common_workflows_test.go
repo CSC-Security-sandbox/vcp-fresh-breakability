@@ -411,6 +411,72 @@ func TestUpdateJobStatusWithEmptyID(t *testing.T) {
 	assert.ErrorContains(t, err.(*vsaerrors.CustomError).OriginalErr, "job uuid cannot be empty")
 }
 
+func TestEnsureJobStateSuccess(t *testing.T) {
+	ctx := context.TODO()
+	wfCtx := &mockWorkflowContext{base: ctx}
+	origExecuteActivity := executeActivity
+
+	defer func() { executeActivity = origExecuteActivity }()
+	executeActivity = func(ctx workflow.Context, activity interface{}, args ...interface{}) workflow.Future {
+		f := new(mockFuture)
+		f.On("Get", ctx, mock.Anything).
+			Run(func(args mock.Arguments) {
+				jobPtr := args[1].(**datamodel.Job)
+				*jobPtr = &datamodel.Job{State: string(coreModels.JobsStateNEW)}
+			}).
+			Return(nil)
+		return f
+	}
+
+	bw := &BaseWorkflow{ID: "job-id"}
+	err := bw.EnsureJobState(wfCtx, coreModels.JobsStateNEW)
+
+	assert.NoError(t, err)
+}
+
+func TestEnsureJobStateMismatch(t *testing.T) {
+	ctx := context.TODO()
+	wfCtx := &mockWorkflowContext{base: ctx}
+	origExecuteActivity := executeActivity
+
+	defer func() { executeActivity = origExecuteActivity }()
+	executeActivity = func(ctx workflow.Context, activity interface{}, args ...interface{}) workflow.Future {
+		f := new(mockFuture)
+		f.On("Get", ctx, mock.Anything).
+			Run(func(args mock.Arguments) {
+				jobPtr := args[1].(**datamodel.Job)
+				*jobPtr = &datamodel.Job{State: string(coreModels.JobsStatePROCESSING)}
+			}).
+			Return(nil)
+		return f
+	}
+
+	bw := &BaseWorkflow{ID: "job-id"}
+	err := bw.EnsureJobState(wfCtx, coreModels.JobsStateNEW)
+
+	assert.Error(t, err)
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok)
+	assert.Equal(t, vsaerrors.ErrResourceStateConflictError, customErr.TrackingID)
+	assert.NotNil(t, customErr.OriginalErr)
+	assert.Contains(t, customErr.OriginalErr.Error(), "expected NEW")
+}
+
+func TestEnsureJobStateEmptyID(t *testing.T) {
+	ctx := context.TODO()
+	wfCtx := &mockWorkflowContext{base: ctx}
+
+	bw := &BaseWorkflow{ID: ""}
+	err := bw.EnsureJobState(wfCtx, coreModels.JobsStateNEW)
+
+	assert.Error(t, err)
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok)
+	assert.Equal(t, vsaerrors.ErrWorkflowConfigurationError, customErr.TrackingID)
+	assert.NotNil(t, customErr.OriginalErr)
+	assert.Contains(t, customErr.OriginalErr.Error(), "job uuid cannot be empty")
+}
+
 func TestGetSnapshotPolicyName(t *testing.T) {
 	t.Run("ReturnsPolicyName", func(t *testing.T) {
 		volume := &datamodel.Volume{

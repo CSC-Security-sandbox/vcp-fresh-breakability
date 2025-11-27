@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -60,11 +61,18 @@ func (d *DataStoreRepository) CreateAdminJobSpecIfNotExists(ctx context.Context,
 
 	jobSpec.DeletedAt = nil
 
-	// Pure INSERT - will fail if job_type already exists due to unique constraint
-	err = tx.Create(&jobSpec).Error
-	if err != nil {
-		logger.Errorf("Failed to create admin job spec for jobType: %s, error: %v", jobSpec.JobType, err)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
+	if createErr := tx.Create(&jobSpec).Error; createErr != nil {
+		err = createErr
+		if errors.Is(createErr, gorm.ErrDuplicatedKey) || strings.Contains(strings.ToLower(createErr.Error()), "unique constraint failed") {
+			var existing datamodel.AdminJobSpec
+			lookupErr := db.Where("job_type = ?", jobSpec.JobType).First(&existing).Error
+			if lookupErr == nil {
+				return &existing, vsaerrors.ErrAdminJobSpecAlreadyExists
+			}
+			logger.Warnf("Failed to load existing admin job spec for jobType %s after duplicate detection: %v", jobSpec.JobType, lookupErr)
+		}
+		logger.Errorf("Failed to create admin job spec for jobType: %s, error: %v", jobSpec.JobType, createErr)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, createErr)
 	}
 
 	return jobSpec, nil

@@ -57,6 +57,7 @@ maxConstituentsPerAggregate: "1000" # 1000 constituents per aggregate
 minSizeGranularity: "1073741824" # 1GiB in bytes
 jwkKidsUrl: "https://www.googleapis.com/service_accounts/v1/metadata/x509/"
 workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
+cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
 maxHostsPerHostgroup: "64"
 gcpKmsKeyRotationEnabled: "false" # Flag to enable GCP KMS key rotation
 minCustomIops: "1024"
@@ -65,7 +66,7 @@ maxCustomIops: "160000"
 maxCustomThroughput: "5120"
 iopsPerMibps: "16"
 deleteResourcesCronExpression: "0 0 * * *" # DELETE_RESOURCES job configuration
-waitForTemporalEnabled: true
+waitForTemporalEnabled: false
 metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"
 thinCloneGASupport: false

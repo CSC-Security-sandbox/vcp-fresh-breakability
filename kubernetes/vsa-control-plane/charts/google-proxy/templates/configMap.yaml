@@ -70,6 +70,7 @@ data:
   IOPS_PER_MIBPS: "{{ index .Values "iopsPerMibps" }}"
   JWK_KIDS_URL: "{{ index .Values "jwkKidsUrl" }}"
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: "{{ index .Values "workflowGlobalTimeoutMinutes" }}"
+  CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: "{{ index .Values "cmekWorkflowGlobalTimeoutMinutes" }}"
   MAX_HOSTS_PER_HOSTGROUP: "{{ index .Values "maxHostsPerHostgroup" }}"
   PROBER_PROJECT_LIST: {{ .Values.proberProjectList | quote }}
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: "{{ index .Values "enableUniqueSerialNumberGeneration" }}"

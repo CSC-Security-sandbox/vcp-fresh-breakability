@@ -126,6 +126,7 @@ data:
   ENABLE_SMB: {{$.Values.workerConfig.enableSmb | quote }}
   PROBER_PROJECT_LIST: {{$.Values.workerConfig.proberProjectList | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
+  CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.cmekWorkflowGlobalTimeoutMinutes | quote }}
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
   FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
   FLEXCACHE_FORCE_ENCRYPTION: {{$.Values.workerConfig.flexcacheForceEncryption | quote }}

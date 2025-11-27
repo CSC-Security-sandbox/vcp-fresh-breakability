@@ -24,14 +24,28 @@ import (
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/drivers/postgres"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/client"
 	_ "go.uber.org/automaxprocs"
 	"golang.org/x/sync/errgroup"
+)
+
+const (
+	syncVSAClusterHealthJobType            = "SYNC_VSA_CLUSTER_HEALTH_STATUS"
+	syncVSAClusterHealthCronExpression     = "*/30 * * * * *"
+	syncVSAClusterHealthLockTimeoutSeconds = 30
+
+	workflowSupervisorJobType            = "WORKFLOW_SUPERVISOR_SWEEP"
+	workflowSupervisorScheduleExpression = "0 */5 * * * *"
+	workflowSupervisorCronExpression     = "0 */5 * * * *"
+	workflowSupervisorLockTimeoutSeconds = 300
 )
 
 func main() {
@@ -55,6 +69,8 @@ func main() {
 			logger.ErrorContext(ctx, "error shutting down OpenTelemetry", "error", err)
 		}
 	}()
+
+	metrics.RegisterBackgroundTaskSchedulerMetrics()
 
 	cfg := common.LoadConfig()
 
@@ -107,7 +123,7 @@ func main() {
 	// Start background task scheduler
 	if cfg.EnableBackgroundTask {
 		eg.Go(func() error {
-			return startBackgroundTaskScheduler(ctx, dbCon)
+			return startBackgroundTaskScheduler(ctx, dbCon, workflowClient.GetTemporalClient())
 		})
 	}
 
@@ -226,19 +242,28 @@ func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 }
 
 // startBackgroundTaskScheduler initializes and starts the cron scheduler for background tasks
-func startBackgroundTaskScheduler(ctx context.Context, se database.Storage) error {
+func startBackgroundTaskScheduler(ctx context.Context, se database.Storage, temporal client.Client) error {
 	logger := util.GetLogger(ctx)
-	logger.Info("Starting background task scheduler  ")
+	logger.Info("Starting background task scheduler")
 
 	logger.InfoContext(ctx, "Starting background task scheduler")
 
 	cronScheduler := cron.New()
 
 	// Schedule the VSA Cluster Health Sync Task to run every 30 seconds with database-backed locking
-	err := cronScheduler.AddFunc("*/30 * * * * *", func() { syncVSAClusterHealthWithLock(ctx, se, logger) })
-	if err != nil {
-		logger.ErrorContext(ctx, "Failed to schedule VSA Cluster Health Sync Task", "error", err)
-		return err
+	syncErr := cronScheduler.AddFunc(syncVSAClusterHealthCronExpression, func() { syncVSAClusterHealthWithLock(ctx, se, logger) })
+	if syncErr != nil {
+		metrics.IncBackgroundTaskError(syncVSAClusterHealthJobType, "schedule_registration")
+		logger.ErrorContext(ctx, "Failed to schedule VSA Cluster Health Sync Task", "error", syncErr)
+		return syncErr
+	}
+
+	// Schedule the workflow supervisor task to run every 5min with database-backed locking
+	supervisorErr := cronScheduler.AddFunc(workflowSupervisorScheduleExpression, func() { runLockedWorkflowSupervisorTask(ctx, se, temporal, logger) })
+	if supervisorErr != nil {
+		metrics.IncBackgroundTaskError(workflowSupervisorJobType, "schedule_registration")
+		logger.ErrorContext(ctx, "Failed to schedule Workflow Supervisor Task", "error", supervisorErr)
+		return supervisorErr
 	}
 
 	cronScheduler.Start()
@@ -254,16 +279,12 @@ func startBackgroundTaskScheduler(ctx context.Context, se database.Storage) erro
 
 // syncVSAClusterHealthWithLock implements database-backed cron job with locking mechanism
 func syncVSAClusterHealthWithLock(ctx context.Context, se database.Storage, logger log.Logger) {
-	const jobType = "SYNC_VSA_CLUSTER_HEALTH_STATUS"
-	const cronExpression = "*/30 * * * * *"
-	const lockTimeoutSeconds = 30
-
 	logger.InfoContext(ctx, "Starting VSA cluster health sync with lock")
 
 	// Try to create the job spec atomically (pod initialization phase)
 	newJobSpec := &datamodel.AdminJobSpec{
-		JobType:        jobType,
-		CronExpression: cronExpression,
+		JobType:        syncVSAClusterHealthJobType,
+		CronExpression: syncVSAClusterHealthCronExpression,
 		State:          scheduler.JobStatusScheduled,
 	}
 
@@ -276,31 +297,40 @@ func syncVSAClusterHealthWithLock(ctx context.Context, se database.Storage, logg
 		if correlationID == "" {
 			correlationID = uuid.NewString()
 		}
+		metrics.IncBackgroundTaskRun(syncVSAClusterHealthJobType)
 		tasks.SyncVSAClusterHealth(ctx, se, correlationID)
 		return
 	}
 
+	if !errors.Is(createErr, vsaerrors.ErrAdminJobSpecAlreadyExists) {
+		logger.ErrorContext(ctx, "Failed to create admin job spec", "error", createErr, "jobType", syncVSAClusterHealthJobType)
+		metrics.IncBackgroundTaskError(syncVSAClusterHealthJobType, "create_admin_job_spec")
+		return
+	}
+
 	// Job spec already exists, try to acquire lock by updating it
-	logger.InfoContext(ctx, "Job spec already exists, attempting to acquire lock by updating", "jobType", jobType)
+	logger.InfoContext(ctx, "Job spec already exists, attempting to acquire lock by updating", "jobType", syncVSAClusterHealthJobType)
 
 	currentTime := time.Now()
 	// Lock threshold: only allow lock acquisition if last update was >= 30 seconds ago
 	// This handles the case where a pod crashes - after 30 seconds, other pods can take over
-	lockThreshold := currentTime.Add(-time.Duration(lockTimeoutSeconds) * time.Second)
+	lockThreshold := currentTime.Add(-time.Duration(syncVSAClusterHealthLockTimeoutSeconds) * time.Second)
 
 	// Try to acquire the lock by updating the job spec
-	rowsAffected, updateErr := se.UpdateAdminJobSpecWithLock(ctx, jobType, scheduler.JobStatusScheduled, lockThreshold, currentTime)
+	rowsAffected, updateErr := se.UpdateAdminJobSpecWithLock(ctx, syncVSAClusterHealthJobType, scheduler.JobStatusScheduled, lockThreshold, currentTime)
 
 	if updateErr != nil {
-		logger.ErrorContext(ctx, "Failed to acquire lock for admin job spec", "error", updateErr, "jobType", jobType)
+		logger.ErrorContext(ctx, "Failed to acquire lock for admin job spec", "error", updateErr, "jobType", syncVSAClusterHealthJobType)
+		metrics.IncBackgroundTaskError(syncVSAClusterHealthJobType, "acquire_lock")
 		return
 	}
 
 	if rowsAffected > 0 {
 		// Successfully acquired the lock, now get the job spec to retrieve UUID
-		jobSpec, getErr := se.GetAdminJobSpecByJobType(ctx, jobType)
+		jobSpec, getErr := se.GetAdminJobSpecByJobType(ctx, syncVSAClusterHealthJobType)
 		if getErr != nil {
-			logger.ErrorContext(ctx, "Failed to retrieve job spec after acquiring lock", "error", getErr, "jobType", jobType)
+			logger.ErrorContext(ctx, "Failed to retrieve job spec after acquiring lock", "error", getErr, "jobType", syncVSAClusterHealthJobType)
+			metrics.IncBackgroundTaskError(syncVSAClusterHealthJobType, "load_job_spec")
 			return
 		}
 
@@ -310,7 +340,68 @@ func syncVSAClusterHealthWithLock(ctx context.Context, se database.Storage, logg
 		if correlationID == "" {
 			correlationID = uuid.NewString()
 		}
+		metrics.IncBackgroundTaskRun(syncVSAClusterHealthJobType)
 		tasks.SyncVSAClusterHealth(ctx, se, correlationID)
+	} else {
+		logger.InfoContext(ctx, "Could not acquire lock - another pod is currently executing the task or not enough time has passed since last execution")
+	}
+}
+
+func runLockedWorkflowSupervisorTask(ctx context.Context, se database.Storage, temporal client.Client, logger log.Logger) {
+	logger.InfoContext(ctx, "Starting workflow supervisor task with lock")
+
+	// Try to create the job spec atomically (pod initialization phase)
+	newJobSpec := &datamodel.AdminJobSpec{
+		BaseModel:      datamodel.BaseModel{UUID: utils.RandomUUID()},
+		JobType:        workflowSupervisorJobType,
+		CronExpression: workflowSupervisorCronExpression,
+		State:          scheduler.JobStatusScheduled,
+	}
+
+	_, createErr := se.CreateAdminJobSpecIfNotExists(ctx, newJobSpec)
+
+	// if createErr is not nil and createErr is not already exist then return error
+	if createErr != nil {
+		if !errors.Is(createErr, vsaerrors.ErrAdminJobSpecAlreadyExists) {
+			logger.ErrorContext(ctx, createErr.Error(), "error", createErr.Error())
+			metrics.IncBackgroundTaskError(workflowSupervisorJobType, "create_admin_job_spec")
+			return
+		}
+	}
+
+	logger.InfoContext(ctx, "Job spec already exists, attempting to acquire lock by updating", "jobType", workflowSupervisorJobType)
+
+	currentTime := time.Now()
+	// Lock threshold: only allow lock acquisition if last update was >= 30 seconds ago
+	// This handles the case where a pod crashes - after 30 seconds, other pods can take over
+	lockThreshold := currentTime.Add(-time.Duration(workflowSupervisorLockTimeoutSeconds) * time.Second)
+
+	// Try to acquire the lock by updating the job spec
+	rowsAffected, updateErr := se.UpdateAdminJobSpecWithLock(ctx, workflowSupervisorJobType, scheduler.JobStatusScheduled, lockThreshold, currentTime)
+
+	if updateErr != nil {
+		logger.ErrorContext(ctx, "Failed to acquire lock for admin job spec", "error", updateErr, "jobType", workflowSupervisorJobType)
+		metrics.IncBackgroundTaskError(workflowSupervisorJobType, "acquire_lock")
+		return
+	}
+
+	if rowsAffected > 0 {
+		// Successfully acquired the lock, now get the job spec to retrieve UUID
+		jobSpec, getErr := se.GetAdminJobSpecByJobType(ctx, workflowSupervisorJobType)
+		if getErr != nil {
+			logger.ErrorContext(ctx, "Failed to retrieve job spec after acquiring lock", "error", getErr, "jobType", workflowSupervisorJobType)
+			metrics.IncBackgroundTaskError(workflowSupervisorJobType, "load_job_spec")
+			return
+		}
+
+		logger.InfoContext(ctx, "Successfully acquired lock, executing task", "jobUUID", jobSpec.UUID)
+		// Generate correlation ID for tracing (use job UUID if available, otherwise generate new UUID)
+		correlationID := jobSpec.UUID
+		if correlationID == "" {
+			correlationID = uuid.NewString()
+		}
+		metrics.IncBackgroundTaskRun(workflowSupervisorJobType)
+		tasks.WorkflowSupervisorTask(ctx, se, temporal, correlationID)
 	} else {
 		logger.InfoContext(ctx, "Could not acquire lock - another pod is currently executing the task or not enough time has passed since last execution")
 	}

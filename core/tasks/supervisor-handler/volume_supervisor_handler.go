@@ -1,0 +1,61 @@
+package supervisorhandler
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+// VolumeHandler implements Handler for Volume resources.
+type VolumeHandler struct{}
+
+// NewVolumeHandler returns the handler that cleans up volume resources in VCP.
+func NewVolumeHandler() *VolumeHandler {
+	return &VolumeHandler{}
+}
+
+// JobTypes enumerates the job types supported by the volume handler.
+func (h *VolumeHandler) JobTypes() []models.JobType {
+	return []models.JobType{
+		models.JobTypeCreateVolume,
+		models.JobTypeCreateLargeVolume,
+		models.JobTypeFlexCacheCreateVolume,
+	}
+}
+
+// Handle removes volume artifacts from VCP for the job.
+func (h *VolumeHandler) Handle(ctx context.Context, job *datamodel.Job, event Event, storage database.Storage) error {
+	if event != EventTimeout {
+		return nil
+	}
+
+	logger := util.GetLogger(ctx).With(log.Fields{
+		"jobUUID":                               job.UUID,
+		"jobType":                               job.Type,
+		string(middleware.RequestCorrelationID): utils.GetCoRelationIDFromContext(ctx),
+	})
+
+	if job.JobAttributes == nil || job.JobAttributes.ResourceUUID == "" {
+		logger.Warnf("workflow-supervisor-task: job lacks volume resource UUID; skipping cleanup")
+		return nil
+	}
+
+	if _, err := storage.DeleteVolumeAndChildResources(ctx, job.JobAttributes.ResourceUUID); err != nil {
+		if vsaerrors.IsNotFoundErr(err) {
+			logger.Warnf("workflow-supervisor-task: volume already deleted in VCP")
+			return nil
+		}
+		return fmt.Errorf("delete volume from VCP: %w", err)
+	}
+
+	logger.Infof("workflow-supervisor-task: volume %s removed from VCP", job.JobAttributes.ResourceUUID)
+	return nil
+}

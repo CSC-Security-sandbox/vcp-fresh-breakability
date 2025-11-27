@@ -14,6 +14,8 @@ var (
 	Combine = multierr.Combine
 	New     = errors.New
 	Newf    = fmt.Errorf
+	// ErrAdminJobSpecAlreadyExists is returned when attempting to create an admin job spec with a job type that already exists.
+	ErrAdminJobSpecAlreadyExists = errors.New("admin job spec already exists")
 )
 
 const (

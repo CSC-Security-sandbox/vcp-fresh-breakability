@@ -9,6 +9,7 @@ import (
 )
 
 var WorkflowGlobalTimeoutMinutes = env.GetString("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "60")
+var CMEKWorkflowGlobalTimeoutMinutes = env.GetString("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "14")
 
 // Struct for RetryPolicy configuration
 type RetryPolicyConfig struct {
@@ -70,6 +71,15 @@ func GetWorkflowGlobalTimeout() time.Duration {
 	if err != nil {
 		// If parsing fails, default to 60 minutes
 		return 60 * time.Minute
+	}
+	return timeout
+}
+
+func GetCMEKWorkFlowGlobalTimeout() time.Duration {
+	timeout, err := time.ParseDuration(CMEKWorkflowGlobalTimeoutMinutes + "m")
+	if err != nil {
+		// If parsing fails, default to 14 minutes
+		return 14 * time.Minute
 	}
 	return timeout
 }

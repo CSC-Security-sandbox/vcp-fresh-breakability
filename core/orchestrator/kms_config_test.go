@@ -1042,9 +1042,13 @@ func TestCreateKmsConfig(t *testing.T) {
 		parseKeyFullPathResource = func(s string) (*utils.ParsedKeyFullPathResource, error) {
 			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
 		}
-		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{AccountID: 1}, nil)
+		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			AccountID: 1,
+		}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job error"))
 		mockStorage.On("UpdateKmsConfigState", ctx, "uuid", models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, "job error").Return(nil, nil)
 
 		defer func() {
 			getOrCreateAccount = _getOrCreateAccount
@@ -1054,6 +1058,42 @@ func TestCreateKmsConfig(t *testing.T) {
 		if err == nil || err.Error() != "job error" {
 			t.Errorf("Expected job error, got %v", err)
 		}
+	})
+	t.Run("CreateKmsConfigLogsDeleteFailureDuringCleanup", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		mockStorage := new(database.MockStorage)
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{}, nil
+		}
+		parseKeyFullPathResource = func(s string) (*utils.ParsedKeyFullPathResource, error) {
+			return &utils.ParsedKeyFullPathResource{CryptoKey: "k", ProjectID: "p", Location: "l", KeyRing: "r"}, nil
+		}
+		waitOriginal := waitForTemporalEnabled
+		waitForTemporalEnabled = false
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+			waitForTemporalEnabled = waitOriginal
+		}()
+
+		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			AccountID: 1,
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeKmsConfigUUID: "uuid",
+			},
+		}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return((*datamodel.Job)(nil), errors.New("job error"))
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, "job error").Return((*datamodel.KmsConfig)(nil), errors.New("delete cleanup error"))
+
+		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
+		if err == nil || err.Error() != "job error" {
+			t.Errorf("Expected job error, got %v", err)
+		}
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("CreateKmsConfigReturnsErrorWhenStorageFails", func(tt *testing.T) {
 		ctx := context.Background()
@@ -1085,9 +1125,11 @@ func TestCreateKmsConfig(t *testing.T) {
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
 		mockStorage := new(database.MockStorage)
+		waitForTemporalEnabled = true
 		defer func() {
 			getOrCreateAccount = _getOrCreateAccount
 			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+			waitForTemporalEnabled = env.GetBool("WAIT_FOR_TEMPORAL_ENABLED", false)
 		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{}, nil
@@ -1101,6 +1143,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
 		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
 		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, "workflow error").Return(nil, nil)
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		assert.NoError(tt, err)
@@ -1143,9 +1186,11 @@ func TestCreateKmsConfig(t *testing.T) {
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
 		mockStorage := new(database.MockStorage)
+		waitForTemporalEnabled = true
 		defer func() {
 			getOrCreateAccount = _getOrCreateAccount
 			parseKeyFullPathResource = utils.ParseKeyFullPathResource
+			waitForTemporalEnabled = env.GetBool("WAIT_FOR_TEMPORAL_ENABLED", false)
 		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{}, nil
@@ -1159,6 +1204,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
 		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
 		mockStorage.On("UpdateJob", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("job-uuid"))
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, "workflow error").Return(nil, nil)
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		assert.NoError(tt, err)
@@ -1187,7 +1233,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
 		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error"))
 		mockStorage.On("UpdateJob", ctx, mock.Anything, models.LifeCycleStateError, mock.Anything, mock.Anything).Return(nil).Once()
-		mockStorage.On("UpdateKmsConfigState", ctx, "uuid", models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil).Once()
+		mockStorage.On("DeleteKmsConfig", ctx, "uuid", models.LifeCycleStateError, mock.Anything).Return(nil, nil).Once()
 
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		assert.Error(tt, err)

@@ -36,6 +36,9 @@ func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfi
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	if err = kmsConfigWorkflow.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusRunning
 	err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {

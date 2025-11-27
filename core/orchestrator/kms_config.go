@@ -14,7 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows/background_kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -38,7 +38,7 @@ var (
 	updateSDEKmsConfiguration     = sde.UpdateSDEKmsConfiguration
 	createAndSyncKmsConfig        = kms_activities.CreateAndSyncKmsConfig
 	getSDEKmsConfiguration        = kms_activities.GetSDEKmsConfiguration
-	waitForTemporalEnabled        = env.GetBool("WAIT_FOR_TEMPORAL_ENABLED", true)
+	waitForTemporalEnabled        = env.GetBool("WAIT_FOR_TEMPORAL_ENABLED", false)
 )
 
 const (
@@ -85,7 +85,10 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 				}
 				if kmsConfig != nil {
 					// bring back the kms config to original state
-					_, _ = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateError, err.Error())
+					_, delError := se.DeleteKmsConfig(ctx, kmsConfig.UUID, models.LifeCycleStateError, err.Error())
+					if delError != nil {
+						logger.Error("Failed to delete kms config after create error", "error", delError)
+					}
 				}
 			}
 		}
@@ -138,7 +141,7 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+			WorkflowRunTimeout:    workflowengine.GetCMEKWorkFlowGlobalTimeout(),
 		},
 		kms_workflows.CreateKmsConfigWorkflow,
 		params,

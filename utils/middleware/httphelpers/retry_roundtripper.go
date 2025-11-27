@@ -15,6 +15,14 @@ import (
 var (
 	timeSleep = time.Sleep
 	ioReadAll = io.ReadAll
+	// retryableStatusCodes contains HTTP response codes that should trigger a retry.
+	// Update this list when new transient scenarios need to be retried.
+	retryableStatusCodes = map[int]struct{}{
+		http.StatusInternalServerError: {},
+		http.StatusBadGateway:          {},
+		http.StatusServiceUnavailable:  {},
+		http.StatusGatewayTimeout:      {},
+	}
 )
 
 type retryRoundTripper struct {
@@ -93,9 +101,32 @@ func (c *retryRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 			}
 			break
 		}
+		if shouldRetryResponse(response) {
+			if response.Body != nil {
+				if errClose := response.Body.Close(); errClose != nil {
+					c.logger.With(log.Fields{
+						"error": errClose,
+					}).WarnContext(ctx, "Error while closing response body for retry")
+				}
+			}
+			c.logger.With(log.Fields{
+				"status_code": response.StatusCode,
+				"try_number":  i + 1,
+			}).WarnContext(ctx, "Retrying server call due to response status code")
+			response = nil
+			continue
+		}
 		return response, err
 	}
 	return response, err
+}
+
+func shouldRetryResponse(response *http.Response) bool {
+	if response == nil {
+		return false
+	}
+	_, ok := retryableStatusCodes[response.StatusCode]
+	return ok
 }
 
 func NewRetryRoundTripper(retryDelay time.Duration, maxRetries int, logger log.Logger, nextRoundTripper http.RoundTripper) http.RoundTripper {

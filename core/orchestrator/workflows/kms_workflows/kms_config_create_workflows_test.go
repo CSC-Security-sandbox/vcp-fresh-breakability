@@ -5,8 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -22,6 +23,13 @@ import (
 )
 
 var getSignedJwtToken = auth.GetSignedJwtToken
+
+func expectJobIsNew(env *testsuite.TestWorkflowEnvironment) {
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(coremodels.JobsStateNEW),
+	}, nil)
+}
 
 func TestCreateKmsConfig(t *testing.T) {
 	t.Run("WhenGetSignedTokenActivityFails", func(t *testing.T) {
@@ -51,6 +59,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{}
+		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", errors.New("GetSignedTokenActivity failed"))
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -66,6 +75,38 @@ func TestCreateKmsConfig(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
+	})
+	t.Run("WhenJobStateIsNotNew", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+		}
+		kmsConfig := &datamodel.KmsConfig{}
+
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(coremodels.JobsStatePROCESSING),
+		}, nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "expected NEW")
 	})
 	t.Run("WhenPollKmsConfigOperationActivityFails", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
@@ -94,6 +135,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{}
+		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError("some", "error", nil))
@@ -138,6 +180,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
+		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
@@ -183,7 +226,8 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
-		cvpKmsConfig := &models.KmsConfigV1beta{}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
@@ -232,7 +276,8 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
-		cvpKmsConfig := &models.KmsConfigV1beta{}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
@@ -281,7 +326,8 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
-		cvpKmsConfig := &models.KmsConfigV1beta{}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
@@ -330,7 +376,8 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
-		cvpKmsConfig := &models.KmsConfigV1beta{}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
@@ -376,7 +423,8 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
-		cvpKmsConfig := &models.KmsConfigV1beta{}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("", nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)

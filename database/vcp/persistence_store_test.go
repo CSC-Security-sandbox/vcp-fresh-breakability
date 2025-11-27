@@ -2855,6 +2855,9 @@ func TestCreateAdminJobSpecIfNotExists_Persistence_Store(t *testing.T) {
 
 		newJobSpec, err := store.CreateAdminJobSpecIfNotExists(context.Background(), duplicateJobSpec)
 		assert.Error(t, err)
+		var customErr *vsaerrors.CustomError
+		assert.True(t, vsaerrors.As(err, &customErr))
+		assert.Equal(t, vsaerrors.ErrDatabaseDataInsertError, customErr.TrackingID)
 		assert.Nil(t, newJobSpec)
 	})
 }

@@ -339,14 +339,10 @@ func TestCreateAdminJobSpecIfNotExists(t *testing.T) {
 
 		newJobSpec, err := store.CreateAdminJobSpecIfNotExists(tt.Context(), duplicateJobSpec)
 		assert.Error(tt, err)
-		assert.Nil(tt, newJobSpec)
-
 		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.Equal(tt, vsaerrors.ErrDatabaseDataInsertError, customErr.TrackingID)
-		} else {
-			tt.Fatalf("Expected a CustomError with ErrDatabaseDataInsertError, got: %v", err)
-		}
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, vsaerrors.ErrDatabaseDataInsertError, customErr.TrackingID)
+		assert.Nil(tt, newJobSpec)
 	})
 
 	t.Run("WhenTransactionFails", func(tt *testing.T) {

@@ -209,6 +209,42 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 	return executeActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
 }
 
+func (bw *BaseWorkflow) EnsureJobState(ctx workflow.Context, expected models.JobState) error {
+	if bw.ID == "" {
+		return vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError,
+			errors.New("job uuid cannot be empty"))
+	}
+
+	commonActivity := activities.CommonActivities{}
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 60 * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	})
+
+	var job *datamodel.Job
+	if err := executeActivity(ctx, commonActivity.GetJob, bw.ID).Get(ctx, &job); err != nil {
+		return err
+	}
+
+	if job == nil {
+		return vsaerrors.NewVCPError(
+			vsaerrors.ErrDatabaseDataNotFoundError,
+			fmt.Errorf("job %s not found", bw.ID),
+		)
+	}
+
+	if job.State != string(expected) {
+		return vsaerrors.NewVCPError(
+			vsaerrors.ErrResourceStateConflictError,
+			fmt.Errorf("job %s is in state %s; expected %s", bw.ID, job.State, expected),
+		)
+	}
+
+	return nil
+}
+
 var QueryWorkflowStatus = _queryWorkflowStatus
 
 // QueryWorkflowStatus queries the status of a workflow using its ID and run ID.
