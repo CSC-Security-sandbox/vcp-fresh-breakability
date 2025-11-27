@@ -166,18 +166,19 @@ type UpdateVolumeReplicationStateParams struct {
 }
 
 type HybridReplicationParameters struct {
-	ResourceID                  string
-	ReplicationType             HybridReplicationParametersReplicationType
-	PeerVolumeName              string
-	PeerClusterName             string
-	PeerSvmName                 string
-	PeerIPAddresses             []string
-	Labels                      map[string]string
-	Description                 string
-	ClusterLocation             string
-	PeeringCommandExpiryTime    *time.Time
-	ReplicationSchedule         string
-	LargeVolumeConstituentCount *int32
+	ResourceID                    string
+	ReplicationType               HybridReplicationParametersReplicationType
+	PeerVolumeName                string
+	PeerClusterName               string
+	PeerSvmName                   string
+	PeerIPAddresses               []string
+	Labels                        map[string]string
+	Description                   string
+	ClusterLocation               string
+	PeeringCommandExpiryTime      *time.Time
+	ReplicationSchedule           string
+	LargeVolumeConstituentCount   *int32
+	HybridReplicationUserCommands []string
 }
 
 type HybridReplicationStatus string

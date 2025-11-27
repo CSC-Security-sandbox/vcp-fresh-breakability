@@ -42,6 +42,7 @@ const (
 	accessNone                               = "none"
 	accessReadOnly                           = "readonly"
 	defaultPath                              = "DEFAULT"
+	RemoteRegionCustomer                     = "customer"
 )
 
 var defaultNoneRolePrivilege = []*vsa.RolePrivilege{
@@ -261,7 +262,7 @@ func (a *HybridReplicationActivity) CreateLocalHybridReplicationRow(ctx context.
 		ReplicationSchedule:        result.HybridReplicationParameters.ReplicationSchedule,
 		SourcePoolUUID:             emptyUUID,
 		SourceVolumeUUID:           emptyUUID,
-		SourceLocation:             emptyUUID,
+		SourceLocation:             RemoteRegionCustomer,
 		SourceReplicationUUID:      emptyUUID,
 		SourceSvmName:              result.HybridReplicationParameters.PeerSvmName,
 		SourceHostName:             result.HybridReplicationParameters.PeerClusterName,
@@ -1296,4 +1297,48 @@ func (a *HybridReplicationActivity) UpdateReplicationRowDetailsOnErrorActivity(c
 		return err
 	}
 	return nil
+}
+
+func (a *HybridReplicationActivity) MountReplicationAfterHybridReplicationCreate(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("MountReplicationAfterResume")
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+
+	mountVolumeParams := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+		ProjectNumber:       result.DestinationProjectNumber,
+		LocationId:          result.DbVolReplication.ReplicationAttributes.DestinationLocation,
+		VolumeReplicationId: result.DbVolReplication.ReplicationAttributes.DestinationReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.CorrelationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalMountVolumeReplication(ctx, *mountVolumeParams)
+	if err != nil {
+		logger.Errorf("MountReplicationAfterResume err: %v", err)
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, err)
+	}
+
+	switch r := res.(type) {
+	case *googleproxyclient.InternalJobV1beta:
+		result.JobId = &r.JobUuid.Value
+		return result, nil
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationBadRequest:
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationForbidden:
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationNotFound:
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationConflict:
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationMethodNotAllowed:
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationUnprocessableEntity:
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalMountVolumeReplicationInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New(r.Message))
+	default:
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New("unexpected response type from Google Proxy"))
+	}
 }

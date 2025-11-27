@@ -153,10 +153,8 @@ func TestMapReplicationBetaToReplicationHydrateObject(t *testing.T) {
 
 		assert.Equal(tt, "test-replication-name", result.ResourceId)
 		assert.Equal(tt, "UPDATING", result.ReplicationState)
-		assert.NotNil(tt, result.HybridReplicationType)
-		// When HybridReplicationAttributes is nil, replicationType should be zero value
-		var zeroType models.HybridReplicationHydrateType
-		assert.Equal(tt, zeroType, *result.HybridReplicationType)
+		// When HybridReplicationAttributes is nil, HybridReplicationType should be nil
+		assert.Nil(tt, result.HybridReplicationType)
 		assert.Nil(tt, result.Labels)
 	})
 

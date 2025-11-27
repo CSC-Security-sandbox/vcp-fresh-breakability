@@ -2152,6 +2152,36 @@ func TestValidateReplicationParams(t *testing.T) {
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
+	t.Run("WhenRemoteUriParsingError", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+
+		parseError := errors.New("parse remote URI error")
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", parseError
+		}
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrProjectParsingError, customErr.TrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
 	t.Run("WhenSignedTokenError", func(tt *testing.T) {
 		defer func() {
 			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
@@ -2749,6 +2779,516 @@ func TestValidateReplicationParams(t *testing.T) {
 		assert.Nil(tt, jobUUID)
 		mockStorage.AssertExpectations(tt)
 	})
+	t.Run("WhenDuplicateJobExistsAndDstBasePathEmptyAndGetReplicationFails", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			getReplication = _getReplication
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:        "us-central1",
+					DestinationLocation:   "us-east1",
+					SourceReplicationUUID: "srcUUID",
+				},
+			},
+		}
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "existing-job-uuid",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(existingJob, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("get replication error")
+		}
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenDuplicateJobExistsAndDstBasePathEmptyAndGetReplicationReturnsNil", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			getReplication = _getReplication
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:        "us-central1",
+					DestinationLocation:   "us-east1",
+					SourceReplicationUUID: "srcUUID",
+				},
+			},
+		}
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "existing-job-uuid",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(existingJob, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, nil
+		}
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenRemoteUriIsEmpty", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			replicationJobInProcess = _replicationJobInProcess
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east4-1",
+					DestinationLocation: "us-central1-a",
+				},
+				RemoteUri: "",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
+			return nil
+		}
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenEndpointTypeIsDstEndpoint", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			replicationJobInProcess = _replicationJobInProcess
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east4-1",
+					DestinationLocation: "us-central1-a",
+					EndpointType:        string(coreModels.DstEndpoint),
+				},
+				RemoteUri: "projects/987654321/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "987654321", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
+			return nil
+		}
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenDifferentProjects_GetSignedTokenErrorForDestination", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east4-1",
+					DestinationLocation: "us-central1-a",
+				},
+				RemoteUri: "projects/987654321/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "987654321", nil
+		}
+		callCount := 0
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			callCount++
+			if callCount == 1 {
+				return "src-token", nil
+			}
+			return "", vsaErrors.NewVCPError(vsaErrors.ErrGetSignedToken, errors.New("destination token error"))
+		}
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGetSignedToken, customErr.TrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenSourceLocationIsEmpty", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			replicationJobInProcess = _replicationJobInProcess
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "",
+					DestinationLocation: "us-central1-a",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
+			return nil
+		}
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenDestinationLocationIsEmpty", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			replicationJobInProcess = _replicationJobInProcess
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east4-1",
+					DestinationLocation: "",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return location, "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
+			return nil
+		}
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenDuplicateJobFound_WithDstBasePathEmpty_GetReplicationFails", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			getReplication = _getReplication
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:        "us-central1",
+					DestinationLocation:   "",
+					SourceReplicationUUID: "src-replication-uuid",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "existing-job-uuid",
+			},
+		}
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(existingJob, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "us-central1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		getReplication = func(ctx context.Context, basePath, projectNumber, location, replicationUUID, token string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("get replication error")
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, errors.New("get replication error"))
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenDuplicateJobFound_WithDstBasePathEmpty_GetReplicationReturnsNil", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			getReplication = _getReplication
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:        "us-central1",
+					DestinationLocation:   "",
+					SourceReplicationUUID: "src-replication-uuid",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "existing-job-uuid",
+			},
+		}
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(existingJob, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "us-central1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		getReplication = func(ctx context.Context, basePath, projectNumber, location, replicationUUID, token string) (*coreModels.VolumeReplication, error) {
+			return nil, nil
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, nil)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenDuplicateJobFound_WithDstBasePathEmpty_Success", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			getReplication = _getReplication
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:        "us-central1",
+					DestinationLocation:   "",
+					SourceReplicationUUID: "src-replication-uuid",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "existing-job-uuid",
+			},
+		}
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(existingJob, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			return "us-central1", "us-central1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		mirrorState := "MIRRORED"
+		mockReplication := &coreModels.VolumeReplication{
+			MirrorState: &mirrorState,
+		}
+		getReplication = func(ctx context.Context, basePath, projectNumber, location, replicationUUID, token string) (*coreModels.VolumeReplication, error) {
+			return mockReplication, nil
+		}
+		replication, jobUUID, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.NoError(tt, err)
+		assert.Equal(tt, mockReplication, replication)
+		assert.Equal(tt, "existing-job-uuid", *jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenDuplicateJobFound_WithDstBasePathNotEmpty_GetReplicationReturnsNil", func(tt *testing.T) {
+		defer func() {
+			InternalParseRegionAndZone = utils.ParseRegionAndZone
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			getReplication = _getReplication
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1",
+					DestinationLocation:        "us-east1",
+					DestinationReplicationUUID: "dst-replication-uuid",
+				},
+				RemoteUri: "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "existing-job-uuid",
+			},
+		}
+		mockStorage.On("CheckAndFetchDuplicateJobs", mock.Anything, mock.Anything, mock.Anything).Return(existingJob, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "mock-token", nil
+		}
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == "us-central1" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		getReplication = func(ctx context.Context, basePath, projectNumber, location, replicationUUID, token string) (*coreModels.VolumeReplication, error) {
+			return nil, nil
+		}
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, nil)
+		_, _, err := _validateReplicationParams(context.Background(), event, 12345, mockStorage, false, "CREATE_VOLUME_REPLICATION")
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestVerifyDstReplicationResume(t *testing.T) {
@@ -2830,6 +3370,200 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, dstReplication, resp)
 	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsNotExternalManaged", func(tt *testing.T) {
+		ctx := context.Background()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		status := coreModels.HybridReplicationStatusPeered
+		hybridEvent := &ResumeReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "00000000-0000-0000-0000-000000000000",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+						Status:                status,
+					},
+				},
+			},
+		}
+		expectedError := errors.NewUserInputValidationErr("Hybrid Replication needs to be in externally managed state before resuming")
+		resp, err := _verifyDstReplicationResume(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNotNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &ResumeReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "destUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+				},
+			},
+		}
+		srcReplication := &coreModels.VolumeReplication{
+			ReplicationAttributes: &coreModels.ReplicationDetails{
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-volume",
+				DestinationSvmName:    "dst-svm",
+				DestinationVolumeName: "dst-volume",
+			},
+			HybridReplicationAttributes: &coreModels.HybridReplicationParameters{},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return srcReplication, nil
+		}
+		resp, err := _verifyDstReplicationResume(ctx, hybridEvent)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, srcReplication, resp)
+		assert.NotNil(tt, resp.HybridReplicationAttributes.HybridReplicationUserCommands)
+		assert.Contains(tt, resp.StateDetails, "Please execute the commands on Onprem ONTAP to Resume replication")
+	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsExternalManaged", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		status := coreModels.HybridReplicationStatusExternalManaged
+		hybridEvent := &ResumeReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "00000000-0000-0000-0000-000000000000",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+						Status:                status,
+					},
+				},
+			},
+		}
+		srcReplication := &coreModels.VolumeReplication{
+			ReplicationAttributes: &coreModels.ReplicationDetails{
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-volume",
+				DestinationSvmName:    "dst-svm",
+				DestinationVolumeName: "dst-volume",
+			},
+			HybridReplicationAttributes: &coreModels.HybridReplicationParameters{},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return srcReplication, nil
+		}
+		resp, err := _verifyDstReplicationResume(ctx, hybridEvent)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, srcReplication, resp)
+		assert.NotNil(tt, resp.HybridReplicationAttributes.HybridReplicationUserCommands)
+	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndGetReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &ResumeReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        "",
+						DestinationReplicationUUID: "destUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+				},
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("get replication error")
+		}
+		resp, err := _verifyDstReplicationResume(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
+	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndGetReplicationReturnsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &ResumeReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        "",
+						DestinationReplicationUUID: "destUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+				},
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, nil
+		}
+		resp, err := _verifyDstReplicationResume(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
+	})
 }
 
 func TestVerifyDstReplicationStop(t *testing.T) {
@@ -2853,12 +3587,10 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 				},
 			},
 		}
-
 		getReplication = func(ctx context.Context, basePath, projectNumber, locationID, replicationUUID, jwt string) (*coreModels.VolumeReplication, error) {
 			return mockReplication, nil
 		}
 		defer func() { getReplication = _getReplication }()
-
 		replication, err := _verifyDstReplicationStop(context.Background(), event)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, replication)
@@ -2985,6 +3717,224 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, replication)
 		assert.Contains(tt, err.Error(), "Replication relationship status is in transferring state")
+	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsNotExternalManaged", func(tt *testing.T) {
+		ctx := context.Background()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		status := coreModels.HybridReplicationStatusPeered
+		hybridEvent := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "00000000-0000-0000-0000-000000000000",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+						Status:                status,
+					},
+				},
+			},
+		}
+		expectedError := errors.NewUserInputValidationErr("Hybrid Replication needs to be in externally managed state before stopping")
+		resp, err := _verifyDstReplicationStop(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNotNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "destUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+				},
+			},
+		}
+		srcReplication := &coreModels.VolumeReplication{
+			ReplicationAttributes: &coreModels.ReplicationDetails{
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-volume",
+				DestinationSvmName:    "dst-svm",
+				DestinationVolumeName: "dst-volume",
+			},
+			HybridReplicationAttributes: &coreModels.HybridReplicationParameters{},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return srcReplication, nil
+		}
+		resp, err := _verifyDstReplicationStop(ctx, hybridEvent)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, srcReplication, resp)
+		assert.NotNil(tt, resp.HybridReplicationAttributes.HybridReplicationUserCommands)
+		assert.Contains(tt, resp.StateDetails, "Please execute the commands on Onprem ONTAP to Stop replication")
+	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsExternalManaged", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		status := coreModels.HybridReplicationStatusExternalManaged
+		hybridEvent := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "00000000-0000-0000-0000-000000000000",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+						Status:                status,
+					},
+				},
+			},
+		}
+		srcReplication := &coreModels.VolumeReplication{
+			ReplicationAttributes: &coreModels.ReplicationDetails{
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-volume",
+				DestinationSvmName:    "dst-svm",
+				DestinationVolumeName: "dst-volume",
+			},
+			HybridReplicationAttributes: &coreModels.HybridReplicationParameters{},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return srcReplication, nil
+		}
+		resp, err := _verifyDstReplicationStop(ctx, hybridEvent)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, srcReplication, resp)
+		assert.NotNil(tt, resp.HybridReplicationAttributes.HybridReplicationUserCommands)
+	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndGetReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        "",
+						DestinationReplicationUUID: "destUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+				},
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("get replication error")
+		}
+		resp, err := _verifyDstReplicationStop(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
+	})
+	t.Run("WhenHybridReplicationNotInPeeredStateBeforeStopping", func(tt *testing.T) {
+		ctx := context.Background()
+		event := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "dstLocation",
+						DestinationReplicationUUID: "00000000-0000-0000-0000-000000000000",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+					},
+				},
+			},
+		}
+		expectedError := errors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before stopping")
+		resp, err := _verifyDstReplicationStop(ctx, event)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndGetReplicationReturnsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        "",
+						DestinationReplicationUUID: "destUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+				},
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, nil
+		}
+		resp, err := _verifyDstReplicationStop(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
 	})
 }
 
@@ -3893,5 +4843,158 @@ func TestIsPoolInTransitionState(t *testing.T) {
 		}
 		resp := isPoolInTransitionState(pool)
 		assert.False(tt, resp, "Should be false")
+	})
+}
+
+func TestIsSrcForHybridReplication(t *testing.T) {
+	reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+	migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+
+	t.Run("ReturnsTrue_WhenAllConditionsMet", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType: &reverseType,
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: remoteRegionCustomer,
+			},
+		}
+		result := IsSrcForHybridReplication(replication)
+		assert.True(tt, result)
+	})
+
+	t.Run("ReturnsFalse_WhenHybridReplicationAttributesIsNil", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			HybridReplicationAttributes: nil,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: "",
+			},
+		}
+		result := IsSrcForHybridReplication(replication)
+		assert.False(tt, result)
+	})
+
+	t.Run("ReturnsFalse_WhenHybridReplicationTypeIsNil", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType: nil,
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: "",
+			},
+		}
+		result := IsSrcForHybridReplication(replication)
+		assert.False(tt, result)
+	})
+
+	t.Run("ReturnsFalse_WhenHybridReplicationTypeIsNotReverse", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType: &migrationType,
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: "",
+			},
+		}
+		result := IsSrcForHybridReplication(replication)
+		assert.False(tt, result)
+	})
+
+	t.Run("ReturnsFalse_WhenDestinationLocationIsNotEmpty", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType: &reverseType,
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: "us-central1",
+			},
+		}
+		result := IsSrcForHybridReplication(replication)
+		assert.False(tt, result)
+	})
+
+	t.Run("Panics_WhenReplicationAttributesIsNil", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType: &reverseType,
+			},
+			ReplicationAttributes: nil,
+		}
+		assert.Panics(tt, func() {
+			IsSrcForHybridReplication(replication)
+		}, "Should panic when ReplicationAttributes is nil")
+	})
+}
+
+func TestGetPath(t *testing.T) {
+	t.Run("ReturnsFormattedPath_WhenBothParametersProvided", func(tt *testing.T) {
+		svmName := "test-svm"
+		volumeName := "test-volume"
+		result := getPath(svmName, volumeName)
+		assert.Equal(tt, "test-svm:test-volume", result)
+	})
+
+	t.Run("ReturnsFormattedPath_WhenSvmNameIsEmpty", func(tt *testing.T) {
+		svmName := ""
+		volumeName := "test-volume"
+		result := getPath(svmName, volumeName)
+		assert.Equal(tt, ":test-volume", result)
+	})
+
+	t.Run("ReturnsFormattedPath_WhenVolumeNameIsEmpty", func(tt *testing.T) {
+		svmName := "test-svm"
+		volumeName := ""
+		result := getPath(svmName, volumeName)
+		assert.Equal(tt, "test-svm:", result)
+	})
+
+	t.Run("ReturnsFormattedPath_WhenBothParametersAreEmpty", func(tt *testing.T) {
+		svmName := ""
+		volumeName := ""
+		result := getPath(svmName, volumeName)
+		assert.Equal(tt, ":", result)
+	})
+
+	t.Run("ReturnsFormattedPath_WithUnderscores", func(tt *testing.T) {
+		svmName := "test_svm_name"
+		volumeName := "test_volume_name"
+		result := getPath(svmName, volumeName)
+		assert.Equal(tt, "test_svm_name:test_volume_name", result)
+	})
+
+	t.Run("ReturnsFormattedPath_WithNumbers", func(tt *testing.T) {
+		svmName := "svm123"
+		volumeName := "volume456"
+		result := getPath(svmName, volumeName)
+		assert.Equal(tt, "svm123:volume456", result)
+	})
+
+	t.Run("ReturnsFormattedPath_WithMixedCharacters", func(tt *testing.T) {
+		svmName := "svm-01_test"
+		volumeName := "volume-02_test"
+		result := getPath(svmName, volumeName)
+		assert.Equal(tt, "svm-01_test:volume-02_test", result)
+	})
+
+	t.Run("ReturnsFormattedPath_WithLongNames", func(tt *testing.T) {
+		svmName := strings.Repeat("a", 100)
+		volumeName := strings.Repeat("b", 100)
+		result := getPath(svmName, volumeName)
+		expected := svmName + ":" + volumeName
+		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("ReturnsFormattedPath_WithSingleCharacterNames", func(tt *testing.T) {
+		svmName := "a"
+		volumeName := "b"
+		result := getPath(svmName, volumeName)
+		assert.Equal(tt, "a:b", result)
+	})
+
+	t.Run("ReturnsFormattedPath_WithSpaces", func(tt *testing.T) {
+		svmName := "svm name"
+		volumeName := "volume name"
+		result := getPath(svmName, volumeName)
+		assert.Equal(tt, "svm name:volume name", result)
 	})
 }

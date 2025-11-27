@@ -82,6 +82,7 @@ func (s *HybridCreateWorkflowTestSuite) registerHybridReplicationActivities(comm
 	s.env.RegisterActivity(hybridReplicationActivity.UpdateReplicationRowDetailsOnErrorActivity)
 	s.env.RegisterActivity(hybridReplicationActivity.GetNodeForHybridReplication)
 	s.env.RegisterActivity(hybridReplicationActivity.CreateNodesForHybridReplication)
+	s.env.RegisterActivity(hybridReplicationActivity.MountReplicationAfterHybridReplicationCreate)
 }
 
 // Helper function to create test data
@@ -546,6 +547,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateInternalEstablishWorkflow_Succ
 	s.env.OnActivity(hybridReplicationActivity.CreateHybridVolumeReplicationInternal, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.UpdateHybridVolumeReplicationDetailsAndSetPeeringStatusToPeered, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.DescribeJobForHybridReplicationWorkflow, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(hybridReplicationActivity.MountReplicationAfterHybridReplicationCreate, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow

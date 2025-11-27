@@ -2683,8 +2683,8 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 		activity := HybridReplicationActivity{SE: mockStorage}
 
 		volumeReplication := &datamodel.VolumeReplication{
-			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-uuid"},
-			Name:                        "test-replication",
+			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
+			Name:      "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				// Empty attributes
 			},
@@ -5649,5 +5649,524 @@ func TestHybridReplicationActivity_UpdateSVMPeerOnErrorActivity(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "delete error")
 		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestMountReplicationAfterHybridReplicationCreate(t *testing.T) {
+	t.Run("Success_ReturnsJobIdFromInternalJobResponse", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		// Setup test data
+		dstBasePath := "https://test-dst-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		destinationProjectNumber := "123456789"
+		correlationID := "test-correlation-id"
+		jobUUID := "test-job-uuid-12345"
+		destinationLocation := "us-central1"
+		destinationReplicationUUID := "dest-replication-uuid-123"
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              &dstBasePath,
+			DstJwtToken:              &dstJwtToken,
+			DestinationProjectNumber: destinationProjectNumber,
+			CorrelationID:            &correlationID,
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        destinationLocation,
+					DestinationReplicationUUID: destinationReplicationUUID,
+				},
+			},
+		}
+
+		// Setup expected parameters
+		expectedParams := googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       destinationProjectNumber,
+			LocationId:          destinationLocation,
+			VolumeReplicationId: destinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+
+		// Setup mock response
+		mockResponse := &googleproxyclient.InternalJobV1beta{
+			JobUuid: googleproxyclient.OptString{
+				Value: jobUUID,
+				Set:   true,
+			},
+		}
+
+		// Setup mock client
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			assert.Equal(tt, dstBasePath, basePath)
+			assert.Equal(tt, dstJwtToken, jwt)
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, expectedParams).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, &jobUUID, updatedResult.JobId)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenV1betaInternalMountVolumeReplicationFails", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		// Setup test data
+		dstBasePath := "https://test-dst-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		destinationProjectNumber := "123456789"
+		correlationID := "test-correlation-id"
+		destinationLocation := "us-central1"
+		destinationReplicationUUID := "dest-replication-uuid-123"
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              &dstBasePath,
+			DstJwtToken:              &dstJwtToken,
+			DestinationProjectNumber: destinationProjectNumber,
+			CorrelationID:            &correlationID,
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        destinationLocation,
+					DestinationReplicationUUID: destinationReplicationUUID,
+				},
+			},
+		}
+
+		// Setup expected parameters
+		expectedParams := googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       destinationProjectNumber,
+			LocationId:          destinationLocation,
+			VolumeReplicationId: destinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(correlationID),
+		}
+
+		apiError := errors.New("network timeout")
+
+		// Setup mock client
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, expectedParams).Return(nil, apiError)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaerrors.ErrMountingVolumeReplication, customErr.TrackingID)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_BadRequest", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:              nillable.GetStringPtr("test-jwt-token"),
+			DestinationProjectNumber: "123456789",
+			CorrelationID:            nillable.GetStringPtr("test-correlation-id"),
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-replication-uuid-123",
+				},
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationBadRequest{
+			Message: "Invalid request parameters",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaerrors.ErrMountingVolumeReplication, customErr.TrackingID)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Unauthorized", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:              nillable.GetStringPtr("test-jwt-token"),
+			DestinationProjectNumber: "123456789",
+			CorrelationID:            nillable.GetStringPtr("test-correlation-id"),
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-replication-uuid-123",
+				},
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationUnauthorized{
+			Message: "Unauthorized access",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaerrors.ErrMountingVolumeReplication, customErr.TrackingID)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Forbidden", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:              nillable.GetStringPtr("test-jwt-token"),
+			DestinationProjectNumber: "123456789",
+			CorrelationID:            nillable.GetStringPtr("test-correlation-id"),
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-replication-uuid-123",
+				},
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationForbidden{
+			Message: "Forbidden access",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaerrors.ErrMountingVolumeReplication, customErr.TrackingID)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_NotFound", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:              nillable.GetStringPtr("test-jwt-token"),
+			DestinationProjectNumber: "123456789",
+			CorrelationID:            nillable.GetStringPtr("test-correlation-id"),
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-replication-uuid-123",
+				},
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationNotFound{
+			Message: "Replication not found",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaerrors.ErrMountingVolumeReplication, customErr.TrackingID)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_Conflict", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:              nillable.GetStringPtr("test-jwt-token"),
+			DestinationProjectNumber: "123456789",
+			CorrelationID:            nillable.GetStringPtr("test-correlation-id"),
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-replication-uuid-123",
+				},
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationConflict{
+			Message: "Resource conflict",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaerrors.ErrMountingVolumeReplication, customErr.TrackingID)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_MethodNotAllowed", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:              nillable.GetStringPtr("test-jwt-token"),
+			DestinationProjectNumber: "123456789",
+			CorrelationID:            nillable.GetStringPtr("test-correlation-id"),
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-replication-uuid-123",
+				},
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationMethodNotAllowed{
+			Message: "Method not allowed",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaerrors.ErrMountingVolumeReplication, customErr.TrackingID)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_UnprocessableEntity", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:              nillable.GetStringPtr("test-jwt-token"),
+			DestinationProjectNumber: "123456789",
+			CorrelationID:            nillable.GetStringPtr("test-correlation-id"),
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-replication-uuid-123",
+				},
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationUnprocessableEntity{
+			Message: "Unprocessable entity",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaerrors.ErrMountingVolumeReplication, customErr.TrackingID)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_InternalServerError", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		result := &replication.CreateHybridReplicationResult{
+			DstBasePath:              nillable.GetStringPtr("https://test-dst-base-path.com"),
+			DstJwtToken:              nillable.GetStringPtr("test-jwt-token"),
+			DestinationProjectNumber: "123456789",
+			CorrelationID:            nillable.GetStringPtr("test-correlation-id"),
+			DbVolReplication: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-replication-uuid-123",
+				},
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaInternalMountVolumeReplicationInternalServerError{
+			Message: "Internal server error",
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger slogger.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Execute test
+		activity := &HybridReplicationActivity{}
+		updatedResult, err := activity.MountReplicationAfterHybridReplicationCreate(ctx, result)
+
+		// Verify results
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaerrors.ErrMountingVolumeReplication, customErr.TrackingID)
+		mockClient.AssertExpectations(tt)
 	})
 }

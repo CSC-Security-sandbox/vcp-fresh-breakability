@@ -130,6 +130,17 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 		}, nil
 	}
 
+	if req.HybridReplicationParameters.IsSet() && len(req.Volume.BlockDevices) > 0 {
+		for _, paramBlockDevice := range req.Volume.BlockDevices {
+			if paramBlockDevice.Name.IsSet() && paramBlockDevice.Name.Value != "" {
+				return &gcpgenserver.V1betaCreateVolumeBadRequest{
+					Code:    http.StatusBadRequest,
+					Message: "Block device name is not supported for hybrid replication volume. This will be replicated from onprem volume.",
+				}, nil
+			}
+		}
+	}
+
 	param, err := prepareCreateVolumeParams(req, params, region, zone)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {

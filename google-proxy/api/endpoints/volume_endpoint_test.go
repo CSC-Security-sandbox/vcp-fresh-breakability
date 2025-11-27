@@ -4952,6 +4952,302 @@ func TestV1betaCreateVolume(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
 		assert.False(tt, op.Done.Value)
 	})
+
+	t.Run("BlockDevicesWithNameSet_ReturnsBadRequest", func(tt *testing.T) {
+		// Mock the hybridReplicationEnabled variable to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				BlockDevices: []gcpgenserver.BlockDeviceV1beta{
+					{
+						Name: gcpgenserver.NewOptString("test-lun"),
+					},
+				},
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					ReplicationSchedule:   gcpgenserver.NewOptHybridReplicationParametersV1betaReplicationSchedule("daily"),
+					PeerClusterName:       "peer-cluster",
+					PeerVolumeName:        "peer-volume",
+					PeerSvmName:           "peer-svm",
+					PeerIpAddresses:       []string{"192.168.1.1"},
+					ResourceId:            "resource-123",
+				},
+				Set: true,
+			},
+		}
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Equal(tt, "Block device name is not supported for hybrid replication volume. This will be replicated from onprem volume.", badReq.Message)
+	})
+
+	t.Run("BlockDevicesWithMultipleDevicesAndOneHasName_ReturnsBadRequest", func(tt *testing.T) {
+		// Mock the hybridReplicationEnabled variable to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				BlockDevices: []gcpgenserver.BlockDeviceV1beta{
+					{
+						OsType: gcpgenserver.NewOptBlockDeviceV1betaOsType(gcpgenserver.BlockDeviceV1betaOsTypeLINUX),
+					},
+					{
+						Name: gcpgenserver.NewOptString("test-lun"),
+					},
+				},
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					ReplicationSchedule:   gcpgenserver.NewOptHybridReplicationParametersV1betaReplicationSchedule("daily"),
+					PeerClusterName:       "peer-cluster",
+					PeerVolumeName:        "peer-volume",
+					PeerSvmName:           "peer-svm",
+					PeerIpAddresses:       []string{"192.168.1.1"},
+					ResourceId:            "resource-123",
+				},
+				Set: true,
+			},
+		}
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Equal(tt, "Block device name is not supported for hybrid replication volume. This will be replicated from onprem volume.", badReq.Message)
+	})
+
+	t.Run("BlockDevicesNil_ShouldPass", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				BlockDevices:  nil,
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "CREATING",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("BlockDevicesEmpty_ShouldPass", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				BlockDevices:  []gcpgenserver.BlockDeviceV1beta{},
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "CREATING",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("BlockDevicesWithoutName_ShouldPass", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				BlockDevices: []gcpgenserver.BlockDeviceV1beta{
+					{
+						OsType: gcpgenserver.NewOptBlockDeviceV1betaOsType(gcpgenserver.BlockDeviceV1betaOsTypeLINUX),
+					},
+				},
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "CREATING",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("BlockDevicesWithNameButNoHybridReplication_ShouldPass", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				BlockDevices: []gcpgenserver.BlockDeviceV1beta{
+					{
+						Name:   gcpgenserver.NewOptString("test-lun"),
+						OsType: gcpgenserver.NewOptBlockDeviceV1betaOsType(gcpgenserver.BlockDeviceV1betaOsTypeLINUX),
+					},
+				},
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "CREATING",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("BlockDevicesWithoutNameWithHybridReplication_ShouldPass", func(tt *testing.T) {
+		// Mock the hybridReplicationEnabled variable to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				BlockDevices: []gcpgenserver.BlockDeviceV1beta{
+					{
+						OsType: gcpgenserver.NewOptBlockDeviceV1betaOsType(gcpgenserver.BlockDeviceV1betaOsTypeLINUX),
+					},
+				},
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					ReplicationSchedule:   gcpgenserver.NewOptHybridReplicationParametersV1betaReplicationSchedule("daily"),
+					PeerClusterName:       "peer-cluster",
+					PeerVolumeName:        "peer-volume",
+					PeerSvmName:           "peer-svm",
+					PeerIpAddresses:       []string{"192.168.1.1"},
+					ResourceId:            "resource-123",
+				},
+				Set: true,
+			},
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "CREATING",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
 }
 
 func TestConvertModelToVCPVolume(t *testing.T) {

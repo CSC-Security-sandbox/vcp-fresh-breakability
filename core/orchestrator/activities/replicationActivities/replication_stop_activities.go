@@ -2,8 +2,10 @@ package replicationActivities
 
 import (
 	"context"
+	"fmt"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
@@ -16,6 +18,9 @@ type StopVolumeReplicationActivity struct {
 }
 
 func (a *StopVolumeReplicationActivity) GetSrcBasePathStop(ctx context.Context, result *replication.StopReplicationResult) (*replication.StopReplicationResult, error) {
+	if result.Event.ReplicationModel.ReplicationAttributes.SourceLocation == RemoteRegionCustomer {
+		return result, nil
+	}
 	srcBasePath, err := GetBasePath(ctx, result.Event.ReplicationModel.ReplicationAttributes.SourceLocation)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
@@ -25,6 +30,9 @@ func (a *StopVolumeReplicationActivity) GetSrcBasePathStop(ctx context.Context, 
 }
 
 func (a *StopVolumeReplicationActivity) GetDstBasePathStop(ctx context.Context, result *replication.StopReplicationResult) (*replication.StopReplicationResult, error) {
+	if result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation == RemoteRegionCustomer {
+		return result, nil
+	}
 	dstBasePath, err := GetBasePath(ctx, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
@@ -100,4 +108,61 @@ func (a *StopVolumeReplicationActivity) DescribeDestJobStop(ctx context.Context,
 		return err
 	}
 	return nil
+}
+
+func (a *StopVolumeReplicationActivity) HandleHybridReplicationStopWhenGcnvIsSrc(ctx context.Context, result *replication.StopReplicationResult) (*replication.StopReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("HandleHybridReplicationWhenGcnvIsSrc")
+
+	// Query the replication from database
+	dbReplication, err := a.SE.GetVolumeReplication(ctx, result.Event.ReplicationModel.UUID)
+	if err != nil {
+		logger.Errorf("Failed to get replication from database: %v", err)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+	}
+
+	// Ensure HybridReplicationAttributes exists
+	if dbReplication.HybridReplicationAttributes == nil {
+		dbReplication.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{}
+	}
+
+	// Generate commands for stopping replication
+	if dbReplication.ReplicationAttributes != nil {
+		extOntapPath := getPath(dbReplication.ReplicationAttributes.DestinationSvmName, dbReplication.ReplicationAttributes.DestinationVolumeName)
+		gcnvPath := getPath(dbReplication.ReplicationAttributes.SourceSvmName, dbReplication.ReplicationAttributes.SourceVolumeName)
+		commands := []string{
+			"# Please run the following command once on your ONTAP system.",
+			fmt.Sprintf("snapmirror break -source-path %s -destination-path %s", gcnvPath, extOntapPath),
+			"# If ran successfully, MirrorState will say Broken-Off. Please check by running:",
+			fmt.Sprintf("snapmirror show -source-path %s -destination-path %s", gcnvPath, extOntapPath),
+		}
+		dbReplication.HybridReplicationAttributes.HybridReplicationUserCommands = commands
+	}
+
+	// Update the replication in database
+	err = a.SE.UpdateVolumeReplication(ctx, dbReplication)
+	if err != nil {
+		logger.Errorf("Failed to update replication in database: %v", err)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataUpdateError, err)
+	}
+
+	logger.Infof("Successfully updated HybridReplicationUserCommands for replication %s", dbReplication.UUID)
+	return result, nil
+}
+
+// getPath returns the path of an ONTAP snapmirror relationship in a <svm_name>:<volume_name> format
+func getPath(svmName, volumeName string) string {
+	return fmt.Sprintf("%s:%s", svmName, volumeName)
+}
+
+func (a *StopVolumeReplicationActivity) SetHybridReplicationVariablesStop(ctx context.Context, result *replication.StopReplicationResult) (*replication.StopReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	if result.DbVolReplication != nil && result.DbVolReplication.HybridReplicationAttributes != nil {
+		logger.Infof("Replication is a hybrid replication")
+		result.IsHybridReplicationVolume = true
+	}
+	if replication.IsSrcForHybridReplication(result.DbVolReplication) {
+		result.IsSrcForHybridReplication = true
+	}
+	return result, nil
 }

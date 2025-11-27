@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -95,6 +95,11 @@ func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface
 		DbVolReplication: event.ReplicationModel,
 	}
 
+	err = workflow.ExecuteActivity(ctx, replicationActivity.SetHybridReplicationVariablesResume, &replicationResult).Get(ctx, &replicationResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathResume, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -115,34 +120,41 @@ func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.VerifyDstVolume, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+	if !replicationResult.IsSrcForHybridReplication {
+		err = workflow.ExecuteActivity(ctx, replicationActivity.VerifyDstVolume, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.ResizeVolumeIfNeeded, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+		err = workflow.ExecuteActivity(ctx, replicationActivity.ResizeVolumeIfNeeded, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.DescribeRemoteJobResume, &replicationResult).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DescribeRemoteJobResume, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.ResumeReplicationOnDestination, &replicationResult, params).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+		err = workflow.ExecuteActivity(ctx, replicationActivity.ResumeReplicationOnDestination, &replicationResult, params).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobResume, &replicationResult).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobResume, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.MountReplicationAfterResume, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+		err = workflow.ExecuteActivity(ctx, replicationActivity.MountReplicationAfterResume, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	} else {
+		err = workflow.ExecuteActivity(ctx, replicationActivity.HandleHybridReplicationResumeWhenGcnvIsSrc, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	return nil, workflows.ConvertToVSAError(err)

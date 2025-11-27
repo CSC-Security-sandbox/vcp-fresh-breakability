@@ -2,7 +2,6 @@ package replicationActivities
 
 import (
 	"context"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
@@ -48,20 +47,18 @@ func _mapVolumeBetaToVolumeHydrateObject(volume models.Volume, poolResourceId st
 }
 
 func _mapReplicationBetaToReplicationHydrateObject(replication models.VolumeReplication) models.ReplicationHydrateObject {
-	var replicationType models.HybridReplicationHydrateType
-	var labels map[string]string
+	replicationHydrate := models.ReplicationHydrateObject{
+		ResourceId:       replication.Name,
+		ReplicationState: mapReplicationLifeCycleStateBetaToReplicationHydrationState(replication.State),
+	}
 	if replication.HybridReplicationAttributes != nil {
-		replicationType = models.HybridReplicationHydrateType(replication.HybridReplicationAttributes.ReplicationType)
+		replicationType := models.HybridReplicationHydrateType(replication.HybridReplicationAttributes.ReplicationType)
+		replicationHydrate.HybridReplicationType = &replicationType
 		if replication.HybridReplicationAttributes.Labels != nil {
-			labels = replication.HybridReplicationAttributes.Labels
+			replicationHydrate.Labels = replication.HybridReplicationAttributes.Labels
 		}
 	}
-	return models.ReplicationHydrateObject{
-		ResourceId:            replication.Name,
-		ReplicationState:      mapReplicationLifeCycleStateBetaToReplicationHydrationState(replication.State),
-		Labels:                labels,
-		HybridReplicationType: &replicationType,
-	}
+	return replicationHydrate
 }
 
 func GetQuotaLimit(ctx context.Context, region string, project string) (int, error) {

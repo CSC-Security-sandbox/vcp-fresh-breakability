@@ -80,22 +80,24 @@ type CreateReplicationResult struct {
 	Operation        *common.Operations
 }
 type StopReplicationResult struct {
-	Ctx              context.Context
-	Event            *StopReplicationEvent
-	EventBytes       []byte
-	DstBasePath      *string
-	SrcBasePath      *string
-	DstProjectNumber *string
-	SrcProjectNumber *string
-	DstJwtToken      *string
-	SrcJwtToken      *string
-	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
-	DstVolume        *googleproxyclient.VolumeV1beta
-	SrcVolume        *googleproxyclient.VolumeV1beta
-	Error            error
-	JobId            *string
-	DbVolReplication *datamodel.VolumeReplication
-	CorrelationID    *string
+	Ctx                       context.Context
+	Event                     *StopReplicationEvent
+	EventBytes                []byte
+	DstBasePath               *string
+	SrcBasePath               *string
+	DstProjectNumber          *string
+	SrcProjectNumber          *string
+	DstJwtToken               *string
+	SrcJwtToken               *string
+	DstReplication            *googleproxyclient.VolumeReplicationInternalV1beta
+	DstVolume                 *googleproxyclient.VolumeV1beta
+	SrcVolume                 *googleproxyclient.VolumeV1beta
+	Error                     error
+	JobId                     *string
+	DbVolReplication          *datamodel.VolumeReplication
+	CorrelationID             *string
+	IsHybridReplicationVolume bool
+	IsSrcForHybridReplication bool
 }
 
 type StopReplicationEvent struct {
@@ -135,21 +137,23 @@ type UpdateReplicationEvent struct {
 }
 
 type ResumeReplicationResult struct {
-	Ctx              context.Context
-	Event            *ResumeReplicationEvent
-	EventBytes       []byte
-	DstBasePath      *string
-	SrcBasePath      *string
-	DstProjectNumber *string
-	SrcProjectNumber *string
-	DstJwtToken      *string
-	SrcJwtToken      *string
-	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
-	DstVolume        *googleproxyclient.VolumeV1beta
-	SrcVolume        *googleproxyclient.VolumeV1beta
-	Error            error
-	JobId            *string
-	DbVolReplication *datamodel.VolumeReplication
+	Ctx                       context.Context
+	Event                     *ResumeReplicationEvent
+	EventBytes                []byte
+	DstBasePath               *string
+	SrcBasePath               *string
+	DstProjectNumber          *string
+	SrcProjectNumber          *string
+	DstJwtToken               *string
+	SrcJwtToken               *string
+	DstReplication            *googleproxyclient.VolumeReplicationInternalV1beta
+	DstVolume                 *googleproxyclient.VolumeV1beta
+	SrcVolume                 *googleproxyclient.VolumeV1beta
+	Error                     error
+	JobId                     *string
+	DbVolReplication          *datamodel.VolumeReplication
+	IsHybridReplicationVolume bool
+	IsSrcForHybridReplication bool
 }
 
 type DeleteReplicationEvent struct {
@@ -243,7 +247,7 @@ type CreateHybridReplicationResult struct {
 	DstBasePath                    *string
 	DstJwtToken                    *string
 	JobId                          *string
-	NodeProvider                        *models.Node
+	NodeProvider                   *models.Node
 	ClusterPeeringRow              *datamodel.ClusterPeerings
 	DbVolReplication               *datamodel.VolumeReplication
 	ClusterPeer                    *vsa.ClusterPeer

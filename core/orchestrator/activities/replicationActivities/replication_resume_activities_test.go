@@ -9,6 +9,7 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -82,6 +83,26 @@ func TestGetSrcBasePathResume(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 	})
+	t.Run("WhenSourceLocationIsEmpty", func(tt *testing.T) {
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation: RemoteRegionCustomer,
+						},
+					},
+				},
+			},
+		}
+		activity := ResumeVolumeReplicationActivity{}
+
+		updatedResult, err := activity.GetSrcBasePathResume(context.Background(), result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Nil(tt, updatedResult.SrcBasePath)
+	})
 }
 
 func TestGetDstBasePathResume(t *testing.T) {
@@ -147,6 +168,26 @@ func TestGetDstBasePathResume(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
+	})
+	t.Run("WhenDestinationLocationIsEmpty", func(tt *testing.T) {
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: RemoteRegionCustomer,
+						},
+					},
+				},
+			},
+		}
+		activity := ResumeVolumeReplicationActivity{}
+
+		updatedResult, err := activity.GetDstBasePathResume(context.Background(), result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Nil(tt, updatedResult.DstBasePath)
 	})
 }
 
@@ -1883,5 +1924,320 @@ func TestMountReplicationAfterResume(t *testing.T) {
 		assert.Nil(tt, updatedResult)
 		assert.Equal(tt, "Failed to mount volume replication", err.Error())
 		mockClient.AssertExpectations(tt)
+	})
+}
+
+func TestHandleHybridReplicationResumeWhenGcnvIsSrc(t *testing.T) {
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		replicationUUID := "test-replication-uuid"
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						BaseModel: datamodel.BaseModel{
+							UUID: replicationUUID,
+						},
+					},
+				},
+			},
+		}
+
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: replicationUUID,
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-volume",
+				DestinationSvmName:    "dst-svm",
+				DestinationVolumeName: "dst-volume",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, replicationUUID).Return(dbReplication, nil)
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.AnythingOfType("*datamodel.VolumeReplication")).Return(nil)
+
+		updatedResult, err := activity.HandleHybridReplicationResumeWhenGcnvIsSrc(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		replicationUUID := "test-replication-uuid"
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						BaseModel: datamodel.BaseModel{
+							UUID: replicationUUID,
+						},
+					},
+				},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, replicationUUID).Return(nil, errors.New("database error"))
+
+		updatedResult, err := activity.HandleHybridReplicationResumeWhenGcnvIsSrc(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		replicationUUID := "test-replication-uuid"
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						BaseModel: datamodel.BaseModel{
+							UUID: replicationUUID,
+						},
+					},
+				},
+			},
+		}
+
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: replicationUUID,
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-volume",
+				DestinationSvmName:    "dst-svm",
+				DestinationVolumeName: "dst-volume",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, replicationUUID).Return(dbReplication, nil)
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.AnythingOfType("*datamodel.VolumeReplication")).Return(errors.New("update error"))
+
+		updatedResult, err := activity.HandleHybridReplicationResumeWhenGcnvIsSrc(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		replicationUUID := "test-replication-uuid"
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						BaseModel: datamodel.BaseModel{
+							UUID: replicationUUID,
+						},
+					},
+				},
+			},
+		}
+
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: replicationUUID,
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-volume",
+				DestinationSvmName:    "dst-svm",
+				DestinationVolumeName: "dst-volume",
+			},
+			HybridReplicationAttributes: nil,
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, replicationUUID).Return(dbReplication, nil)
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
+			return r.HybridReplicationAttributes != nil
+		})).Return(nil)
+
+		updatedResult, err := activity.HandleHybridReplicationResumeWhenGcnvIsSrc(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenReplicationAttributesIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+		replicationUUID := "test-replication-uuid"
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						BaseModel: datamodel.BaseModel{
+							UUID: replicationUUID,
+						},
+					},
+				},
+			},
+		}
+
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: replicationUUID,
+			},
+			ReplicationAttributes:       nil,
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, replicationUUID).Return(dbReplication, nil)
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
+			return r.HybridReplicationAttributes != nil && len(r.HybridReplicationAttributes.HybridReplicationUserCommands) == 0
+		})).Return(nil)
+
+		updatedResult, err := activity.HandleHybridReplicationResumeWhenGcnvIsSrc(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestSetHybridReplicationVariablesResume(t *testing.T) {
+	ctx := context.Background()
+	activity := ResumeVolumeReplicationActivity{}
+
+	t.Run("WhenDbVolReplicationIsNil", func(tt *testing.T) {
+		result := &replication.ResumeReplicationResult{
+			DbVolReplication: nil,
+		}
+
+		// IsSrcForHybridReplication will panic if replication is nil, so we expect a panic
+		assert.Panics(tt, func() {
+			_, _ = activity.SetHybridReplicationVariablesResume(ctx, result)
+		})
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsNil", func(tt *testing.T) {
+		result := &replication.ResumeReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: nil,
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: "us-central1",
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.False(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.IsSrcForHybridReplication)
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsSetButNotReverse", func(tt *testing.T) {
+		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		result := &replication.ResumeReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+					HybridReplicationType: &migrationType,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: "us-central1",
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.IsSrcForHybridReplication)
+	})
+
+	t.Run("WhenIsSrcForHybridReplicationIsTrue", func(tt *testing.T) {
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		result := &replication.ResumeReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+					HybridReplicationType: &reverseType,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: RemoteRegionCustomer,
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.True(tt, updatedResult.IsSrcForHybridReplication)
+	})
+
+	t.Run("WhenHybridReplicationTypeIsReverseButDestinationLocationIsNotEmpty", func(tt *testing.T) {
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		result := &replication.ResumeReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+					HybridReplicationType: &reverseType,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: "us-central1",
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.IsSrcForHybridReplication)
+	})
+
+	t.Run("WhenHybridReplicationTypeIsNil", func(tt *testing.T) {
+		result := &replication.ResumeReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+					HybridReplicationType: nil,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: "",
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.IsSrcForHybridReplication)
 	})
 }

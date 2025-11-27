@@ -77,10 +77,11 @@ type QuotaType string
 type ResourceType string
 
 const (
-	storageUriRegex    = "^projects\\/([^\\/]+)\\/locations\\/([^\\/]+)\\/storagePools|pools\\/([^\\/]+)$"
-	maxRuneCount       = 63
-	maxByteCount       = 128
-	dstVolumeNameRegex = "^[a-z]([a-z0-9_]{0,61}[a-z0-9])?$"
+	storageUriRegex      = "^projects\\/([^\\/]+)\\/locations\\/([^\\/]+)\\/storagePools|pools\\/([^\\/]+)$"
+	maxRuneCount         = 63
+	maxByteCount         = 128
+	dstVolumeNameRegex   = "^[a-z]([a-z0-9_]{0,61}[a-z0-9])?$"
+	remoteRegionCustomer = "customer"
 )
 
 var compiledRegex = regexp.MustCompile(dstVolumeNameRegex)
@@ -619,10 +620,13 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 	}
 	replication := replicationDb[0]
 
-	remoteProject, err := utilsParseProjectNumberFromURI(replication.RemoteUri)
-	if err != nil {
-		logger.Error("Parse Remote URI Error", "error", err)
-		return nil, nil, errors.NewVCPError(errors.ErrProjectParsingError, err)
+	remoteProject := event.AccountName
+	if replication.RemoteUri != "" {
+		remoteProject, err = utilsParseProjectNumberFromURI(replication.RemoteUri)
+		if err != nil {
+			logger.Error("Parse Remote URI Error", "error", err)
+			return nil, nil, errors.NewVCPError(errors.ErrProjectParsingError, err)
+		}
 	}
 
 	event.SourceProjectNumber, event.DestinationProjectNumber = event.AccountName, remoteProject
@@ -646,28 +650,34 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 		}
 	}
 
-	sourceRegion, _, parseError := InternalParseRegionAndZone(replication.ReplicationAttributes.SourceLocation)
-	if parseError != nil {
-		logger.Error("Parse Source Location Error")
-		return nil, nil, errors.NewVCPError(errors.ErrParseSourceLocation, errors.New(parseError.Error()))
+	var srcBasePath string
+	if replication.ReplicationAttributes.SourceLocation != remoteRegionCustomer {
+		sourceRegion, _, parseError := InternalParseRegionAndZone(replication.ReplicationAttributes.SourceLocation)
+		if parseError != nil {
+			logger.Error("Parse Source Location Error")
+			return nil, nil, errors.NewVCPError(errors.ErrParseSourceLocation, errors.New(parseError.Error()))
+		}
+
+		srcBasePath, err = InternalUtilGetPairedRegionURI(sourceRegion)
+		if err != nil {
+			logger.Error("Get Paired Source Region Uri error", "error", err)
+			return nil, nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
+		}
 	}
 
-	srcBasePath, err := InternalUtilGetPairedRegionURI(sourceRegion)
-	if err != nil {
-		logger.Error("Get Paired Source Region Uri error", "error", err)
-		return nil, nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
-	}
+	var dstBasePath string
+	if replication.ReplicationAttributes.DestinationLocation != remoteRegionCustomer {
+		destRegion, _, parseError := InternalParseRegionAndZone(replication.ReplicationAttributes.DestinationLocation)
+		if parseError != nil {
+			logger.Error("Parse Destination Location Error", "error", errors.New(parseError.Error()))
+			return nil, nil, errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
+		}
 
-	destRegion, _, parseError := InternalParseRegionAndZone(replication.ReplicationAttributes.DestinationLocation)
-	if parseError != nil {
-		logger.Error("Parse Destination Location Error", "error", errors.New(parseError.Error()))
-		return nil, nil, errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
-	}
-
-	dstBasePath, err := InternalUtilGetPairedRegionURI(destRegion)
-	if err != nil {
-		logger.Error("Get Paired Destination Region Uri error", "error", err)
-		return nil, nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
+		dstBasePath, err = InternalUtilGetPairedRegionURI(destRegion)
+		if err != nil {
+			logger.Error("Get Paired Destination Region Uri error", "error", err)
+			return nil, nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
+		}
 	}
 
 	// Set the ReplicationModel before checking for duplicate jobs
@@ -683,6 +693,14 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 		return nil, nil, err
 	}
 	if existingJob != nil {
+		if event.DstBasePath == "" {
+			srcReplication, err := getReplication(ctx, event.SrcBasePath, event.SourceProjectNumber, event.ReplicationModel.ReplicationAttributes.SourceLocation, event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID, event.SrcToken)
+			if err != nil || srcReplication == nil {
+				logger.Error("getReplication error", "error", err)
+				return nil, nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+			}
+			return srcReplication, &existingJob.UUID, nil
+		}
 		dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 		if err != nil || dstReplication == nil {
 			logger.Error("getReplication error", "error", err)
@@ -703,6 +721,37 @@ func _validateReplicationParams(ctx context.Context, event *CommonReplicationEve
 
 func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEvent) (*coreModels.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
+	replication := event.ReplicationModel
+
+	if IsSrcForHybridReplication(event.ReplicationModel) {
+		if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusExternalManaged {
+			logger.Error("Hybrid Replication needs to be in externally managed state before resuming")
+			return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in externally managed state before resuming")
+		}
+
+		srcReplication, err := getReplication(ctx, event.SrcBasePath, event.SourceProjectNumber, replication.ReplicationAttributes.SourceLocation, replication.ReplicationAttributes.SourceReplicationUUID, event.SrcToken)
+		if err != nil || srcReplication == nil {
+			logger.Error("getReplication error", "error", err)
+			return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+		}
+
+		extOntapPath := getPath(srcReplication.ReplicationAttributes.DestinationSvmName, srcReplication.ReplicationAttributes.DestinationVolumeName)
+		gcnvPath := getPath(srcReplication.ReplicationAttributes.SourceSvmName, srcReplication.ReplicationAttributes.SourceVolumeName)
+		command := []string{
+			"# Please run the following command once on your ONTAP system.",
+			fmt.Sprintf("snapmirror resync -source-path %s -destination-path %s", gcnvPath, extOntapPath),
+			"# If ran successfully, MirrorState will switch to SnapMirrored after a few minutes. Please check by running:",
+			fmt.Sprintf("snapmirror show -source-path %s -destination-path %s", gcnvPath, extOntapPath),
+		}
+		hybridReplicationUserCommands := models.HybridReplicationUserCommandsV1beta{
+			Commands: command,
+		}
+		srcReplication.HybridReplicationAttributes.HybridReplicationUserCommands = hybridReplicationUserCommands.Commands
+		srcReplication.StateDetails = "Please execute the commands on Onprem ONTAP to Resume replication"
+
+		return srcReplication, nil
+	}
+
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
 		logger.Error("getReplication error", "error", err)
@@ -722,6 +771,41 @@ func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEv
 
 func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent) (*coreModels.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
+	replication := event.ReplicationModel
+	if IsSrcForHybridReplication(event.ReplicationModel) {
+		if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusExternalManaged {
+			logger.Error("Hybrid Replication needs to be in externally managed state before stopping")
+			return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in externally managed state before stopping")
+		}
+
+		srcReplication, err := getReplication(ctx, event.SrcBasePath, event.SourceProjectNumber, replication.ReplicationAttributes.SourceLocation, replication.ReplicationAttributes.SourceReplicationUUID, event.SrcToken)
+		if err != nil || srcReplication == nil {
+			logger.Error("getReplication error", "error", err)
+			return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+		}
+
+		extOntapPath := getPath(srcReplication.ReplicationAttributes.DestinationSvmName, srcReplication.ReplicationAttributes.DestinationVolumeName)
+		gcnvPath := getPath(srcReplication.ReplicationAttributes.SourceSvmName, srcReplication.ReplicationAttributes.SourceVolumeName)
+		command := []string{
+			"# Please run the following command once on your ONTAP system.",
+			fmt.Sprintf("snapmirror break -source-path %s -destination-path %s", gcnvPath, extOntapPath),
+			"# If ran successfully, MirrorState will say Broken-Off. Please check by running:",
+			fmt.Sprintf("snapmirror show -source-path %s -destination-path %s", gcnvPath, extOntapPath),
+		}
+		hybridReplicationUserCommands := models.HybridReplicationUserCommandsV1beta{
+			Commands: command,
+		}
+		srcReplication.HybridReplicationAttributes.HybridReplicationUserCommands = hybridReplicationUserCommands.Commands
+		srcReplication.StateDetails = "Please execute the commands on Onprem ONTAP to Stop replication"
+
+		return srcReplication, nil
+	}
+
+	if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPeered {
+		logger.Error("Hybrid Replication needs to be in peered state before stopping")
+		return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before stopping")
+	}
+
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
 		logger.Error("getReplication error", "error", err)
@@ -1022,4 +1106,19 @@ func mapLifecycleStateToState(state googleproxyclient.VolumeReplicationInternalV
 	default:
 		return coreModels.LifeCycleStateUnknown
 	}
+}
+
+func IsSrcForHybridReplication(replication *datamodel.VolumeReplication) bool {
+	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.HybridReplicationType != nil {
+		if *replication.HybridReplicationAttributes.HybridReplicationType == string(coreModels.HybridReplicationParametersReplicationTypeREVERSE) &&
+			replication.ReplicationAttributes.DestinationLocation == remoteRegionCustomer {
+			return true
+		}
+	}
+	return false
+}
+
+// getPath returns the path of an ONTAP snapmirror relationship in a <svm_name>:<volume_name> format
+func getPath(svmName, volumeName string) string {
+	return fmt.Sprintf("%s:%s", svmName, volumeName)
 }

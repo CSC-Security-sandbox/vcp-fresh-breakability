@@ -528,6 +528,11 @@ func (wf *createInternalEstablishWorkflow) Run(ctx workflow.Context, args ...int
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
+
+	err = workflow.ExecuteActivity(ctx, replicationActivity.MountReplicationAfterHybridReplicationCreate, &replicationResult).Get(ctx, &replicationResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
 	return nil, workflows.ConvertToVSAError(err)
 }
 

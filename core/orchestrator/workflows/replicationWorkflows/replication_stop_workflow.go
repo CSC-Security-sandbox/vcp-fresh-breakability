@@ -95,6 +95,11 @@ func (wf *ReplicationStopWorkflow) Run(ctx workflow.Context, args ...interface{}
 		CorrelationID:    event.CommonReplicationEventParams.XCorrelationID,
 	}
 
+	err = workflow.ExecuteActivity(ctx, replicationActivity.SetHybridReplicationVariablesStop, &replicationResult).Get(ctx, &replicationResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathStop, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -115,14 +120,21 @@ func (wf *ReplicationStopWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.StopReplicationOnDestination, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+	if !replicationResult.IsSrcForHybridReplication {
+		err = workflow.ExecuteActivity(ctx, replicationActivity.StopReplicationOnDestination, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeDestJobStop, &replicationResult).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeDestJobStop, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	} else {
+		err = workflow.ExecuteActivity(ctx, replicationActivity.HandleHybridReplicationStopWhenGcnvIsSrc, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	return nil, workflows.ConvertToVSAError(err)

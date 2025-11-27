@@ -2,14 +2,16 @@ package replicationActivities
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilError "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -23,6 +25,9 @@ type ResumeVolumeReplicationActivity struct {
 }
 
 func (a *ResumeVolumeReplicationActivity) GetSrcBasePathResume(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+	if result.Event.ReplicationModel.ReplicationAttributes.SourceLocation == RemoteRegionCustomer {
+		return result, nil
+	}
 	srcBasePath, err := GetBasePath(ctx, result.Event.ReplicationModel.ReplicationAttributes.SourceLocation)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
@@ -32,6 +37,9 @@ func (a *ResumeVolumeReplicationActivity) GetSrcBasePathResume(ctx context.Conte
 }
 
 func (a *ResumeVolumeReplicationActivity) GetDstBasePathResume(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+	if result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation == RemoteRegionCustomer {
+		return result, nil
+	}
 	dstBasePath, err := GetBasePath(ctx, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
@@ -63,6 +71,9 @@ func (a *ResumeVolumeReplicationActivity) GetSignedDstTokenResume(ctx context.Co
 }
 
 func (a *ResumeVolumeReplicationActivity) VerifyDstVolume(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+	if result.IsHybridReplicationVolume {
+		return result, nil
+	}
 	srcVolume, dstVolume, err := verifyDstVolume(ctx, result.Event.ReplicationModel.ReplicationAttributes, *result.SrcBasePath, *result.DstBasePath, *result.SrcJwtToken, *result.DstJwtToken, result.Event.SourceProjectNumber, result.Event.DestinationProjectNumber, result.Event.XCorrelationID, false)
 	if err != nil {
 		if err.(*errors.CustomError).TrackingID == errors.ErrVolumeNotFound {
@@ -76,6 +87,9 @@ func (a *ResumeVolumeReplicationActivity) VerifyDstVolume(ctx context.Context, r
 }
 
 func (a *ResumeVolumeReplicationActivity) ResizeVolumeIfNeeded(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+	if result.IsHybridReplicationVolume {
+		return result, nil
+	}
 	logger := util.GetLogger(ctx)
 	var srcVolumeQuota float64
 	var dstVolumeQuota float64
@@ -174,6 +188,18 @@ func (a *ResumeVolumeReplicationActivity) DescribeRemoteJobResume(ctx context.Co
 	return nil
 }
 
+func (a *ResumeVolumeReplicationActivity) SetHybridReplicationVariablesResume(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	if result.DbVolReplication != nil && result.DbVolReplication.HybridReplicationAttributes != nil {
+		logger.Infof("Replication is a hybrid replication")
+		result.IsHybridReplicationVolume = true
+	}
+	if replication.IsSrcForHybridReplication(result.DbVolReplication) {
+		result.IsSrcForHybridReplication = true
+	}
+	return result, nil
+}
+
 func (a *ResumeVolumeReplicationActivity) MountReplicationAfterResume(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("MountReplicationAfterResume")
@@ -216,4 +242,44 @@ func (a *ResumeVolumeReplicationActivity) MountReplicationAfterResume(ctx contex
 	default:
 		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New("unexpected response type from Google Proxy"))
 	}
+}
+
+func (a *ResumeVolumeReplicationActivity) HandleHybridReplicationResumeWhenGcnvIsSrc(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("HandleHybridReplicationWhenGcnvIsSrc")
+
+	// Query the replication from database
+	dbReplication, err := a.SE.GetVolumeReplication(ctx, result.Event.ReplicationModel.UUID)
+	if err != nil {
+		logger.Errorf("Failed to get replication from database: %v", err)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+	}
+
+	// Ensure HybridReplicationAttributes exists
+	if dbReplication.HybridReplicationAttributes == nil {
+		dbReplication.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{}
+	}
+
+	// Generate commands for resuming replication
+	if dbReplication.ReplicationAttributes != nil {
+		extOntapPath := getPath(dbReplication.ReplicationAttributes.DestinationSvmName, dbReplication.ReplicationAttributes.DestinationVolumeName)
+		gcnvPath := getPath(dbReplication.ReplicationAttributes.SourceSvmName, dbReplication.ReplicationAttributes.SourceVolumeName)
+		commands := []string{
+			"# Please run the following command once on your ONTAP system.",
+			fmt.Sprintf("snapmirror resync -source-path %s -destination-path %s", gcnvPath, extOntapPath),
+			"# If ran successfully, MirrorState will switch to SnapMirrored after a few minutes. Please check by running:",
+			fmt.Sprintf("snapmirror show -source-path %s -destination-path %s", gcnvPath, extOntapPath),
+		}
+		dbReplication.HybridReplicationAttributes.HybridReplicationUserCommands = commands
+	}
+
+	// Update the replication in database
+	err = a.SE.UpdateVolumeReplication(ctx, dbReplication)
+	if err != nil {
+		logger.Errorf("Failed to update replication in database: %v", err)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataUpdateError, err)
+	}
+
+	logger.Infof("Successfully updated HybridReplicationUserCommands for replication %s", dbReplication.UUID)
+	return result, nil
 }
