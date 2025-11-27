@@ -3,6 +3,7 @@ package google
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -2360,6 +2361,52 @@ func Test_GetServiceNetOpStatus(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
+	})
+	t.Run("Error_IPExhaustion", func(tt *testing.T) {
+		operationName := "operations/operation-ip-exhaustion"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if strings.Contains(req.URL.Path, "operations/operation-ip-exhaustion") {
+				response := &servicenetworking.Operation{
+					Name: operationName,
+					Done: true,
+					Error: &servicenetworking.Status{
+						Message: "Couldn't find free blocks in allocated IP ranges. Please allocate new ranges for this service provider",
+					},
+				}
+				responseJson, _ := json.Marshal(response)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(responseJson)
+				return
+			}
+			rw.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		serviceNetworkingEndpoint = server.URL
+		ctx := context.Background()
+
+		networkingService, err := servicenetworking.NewService(ctx, option.WithEndpoint(server.URL), option.WithoutAuthentication())
+		if err != nil {
+			tt.Fatalf("Failed to create networking service: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				networkingService: networkingService,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+
+		result, err := gcpService.GetServiceNetOpStatus(operationName)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		// Verify it's a non-retryable temporal application error
+		var appErr *temporal.ApplicationError
+		assert.True(tt, errors.As(err, &appErr))
+		assert.True(tt, appErr.NonRetryable())
+		assert.Contains(tt, err.Error(), "Couldn't find free blocks in allocated IP ranges")
 	})
 }
 

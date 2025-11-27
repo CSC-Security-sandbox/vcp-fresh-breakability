@@ -16,11 +16,14 @@ import (
 )
 
 var (
+	GlobalRegion                        = "global"
+	serviceNetworkingConnectionErrorMsg = "Please create Service Networking connection with service"
+	ipExhaustionErrorMsg                = "Couldn't find free blocks in allocated IP ranges. Please allocate new ranges for this service provider"
+
 	waitTimeoutMinutes         = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
 	minimumTenantNetworkSize   = env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
 	minimumLVTenantNetworkSize = env.GetInt64("DATA_SUBNET_CIDR_BLOCK_LV", int64(26))
 	defaultSleepTime           = time.Duration(env.GetInt64("GCP_NETWORK_SLEEP_SECONDS", int64(28))) * time.Second
-	GlobalRegion               = "global"
 
 	CreateTPSubnetOp       = _createTPSubnetOp
 	getProjectIDFromNumber = _getProjectIDFromNumber
@@ -116,7 +119,7 @@ func (gcpService *GcpServices) ReleaseSubnetwork(region, projectName, subnetwork
 func (gcpService *GcpServices) GetSnHost(project string) (string, error) {
 	snProject, err := gcpService.AdminGCPService.computeService.Projects.GetXpnHost(project).Do()
 	if err != nil {
-		if strings.Contains(err.Error(), "Please create Service Networking connection with service") {
+		if strings.Contains(err.Error(), serviceNetworkingConnectionErrorMsg) {
 			gcpService.Logger.Errorf(fmt.Sprintf("error getting SN host for project due to peering. Should not retry for project : %s, Error : %v", project, err))
 			return "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("SN Producer Host Project %s Error: %v", project, err)))
 		}
@@ -136,10 +139,10 @@ func _createTPSubnetOp(gcpService *GcpServices, request *servicenetworking.AddSu
 			err = &googleapi.Error{Message: tu.Error.Message}
 		}
 		if err != nil {
-			if strings.Contains(err.Error(), "are not successfully connected yet") || strings.Contains(err.Error(), "Please create Service Networking connection with service") {
+			if strings.Contains(err.Error(), "are not successfully connected yet") || strings.Contains(err.Error(), serviceNetworkingConnectionErrorMsg) {
 				gcpService.Logger.Errorf("CreateTPSubnetOp failed : with peering error : %v", err.Error())
 				return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, err))
-			} else if strings.Contains(err.Error(), "Couldn't find free blocks in allocated IP ranges. Please allocate new ranges for this service provider") {
+			} else if strings.Contains(err.Error(), ipExhaustionErrorMsg) {
 				gcpService.Logger.Errorf("CreateTPSubnetOp failed : with IP Exhaustion error : %v", err.Error())
 				return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPCustomerIPExhaustion, err))
 			}
@@ -390,8 +393,11 @@ func (gcpService *GcpServices) GetServiceNetOpStatus(operationName string) (*mod
 	if op != nil && op.Error != nil {
 		gcpService.Logger.Errorf(fmt.Sprintf("GetServiceNetOpStatus's operation failed with error : %s", op.Error.Message))
 		err = &googleapi.Error{Message: op.Error.Message}
-		if strings.Contains(err.Error(), "Please create Service Networking connection with service") {
+		if strings.Contains(err.Error(), serviceNetworkingConnectionErrorMsg) {
 			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("GetServiceNetOpStatus SN Producer Host peering Error: %v", err)))
+		} else if strings.Contains(err.Error(), ipExhaustionErrorMsg) {
+			gcpService.Logger.Errorf("GetServiceNetOpStatus failed with IP Exhaustion error: %v", err.Error())
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPCustomerIPExhaustion, err))
 		}
 		return nil, err
 	}
