@@ -20,6 +20,7 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -69,6 +70,8 @@ var (
 	authGetSignedJwtToken             = auth.GetSignedJwtToken
 	utilGetVolumeUriFromCcfeUri       = utils.GetVolumeUriFromCcfeUri
 	convertLabelsMapToJSONB           = utils.ConvertLabelsMapToJSONB
+
+	WorkflowGlobalTimeoutForReplicationMinutes = env.GetInt("WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES", 10)
 )
 
 const (
@@ -139,7 +142,7 @@ func _createVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+			WorkflowRunTimeout:    time.Duration(WorkflowGlobalTimeoutForReplicationMinutes) * time.Minute,
 		},
 		replicationWorkflows.CreateInternalVolumeReplicationWorkflow,
 		params,

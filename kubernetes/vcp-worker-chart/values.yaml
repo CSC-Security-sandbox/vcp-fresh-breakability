@@ -213,6 +213,7 @@ workerConfig:
 
   workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
   cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
+  workflowGlobalTimeoutForReplicationMinutes: 10
   mgmtFirewallSourceRanges: "198.18.0.0/15"
   rsmFirewallSourceRanges: "198.18.0.0/15"
   icFirewallSourceRanges: "198.18.0.0/15"
@@ -239,6 +240,8 @@ workerConfig:
   retryMaxAttempts: "3"
   retryMaxInterval: "5m"
   retryBackoffCoefficient: "2.0"
+  startToCloseTimeoutForReplicationActivities: 300
+  backoffCoefficientForReplicationActivities: 1.5
 
   # Snapshot workflow timeout configuration (in seconds)
   snapshotStartToCloseTimeoutSec: "300"  # 5 minutes

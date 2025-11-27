@@ -127,6 +127,7 @@ data:
   PROBER_PROJECT_LIST: {{$.Values.workerConfig.proberProjectList | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
   CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.cmekWorkflowGlobalTimeoutMinutes | quote }}
+  WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutForReplicationMinutes | quote }}
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
   FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
   FLEXCACHE_FORCE_ENCRYPTION: {{$.Values.workerConfig.flexcacheForceEncryption | quote }}
@@ -205,10 +206,12 @@ data:
   ADC_CERT_SECRET_NAME: {{$.Values.workerConfig.adc.certSecretName | quote }}
 
   START_TO_CLOSE_WORKFLOW_TIMEOUT: {{$.Values.workerConfig.startToCloseTimeout | quote }}
+  START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_ACTIVITIES: {{$.Values.workerConfig.startToCloseTimeoutForReplicationActivities | quote }}
   RETRY_INTERVAL: {{$.Values.workerConfig.retryInterval | quote }}
   RETRY_MAX_ATTEMPTS: {{$.Values.workerConfig.retryMaxAttempts | quote }}
   RETRY_MAX_INTERVAL: {{$.Values.workerConfig.retryMaxInterval | quote }}
   RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.retryBackoffCoefficient | quote }}
+  BACKOFF_COEFFICIENT_FOR_REPLICATION_ACTIVITIES: {{$.Values.workerConfig.backoffCoefficientForReplicationActivities | quote }}
 
   # Snapshot workflow timeout configuration
   SNAPSHOT_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.snapshotStartToCloseTimeoutSec | quote }}

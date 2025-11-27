@@ -73,12 +73,8 @@ func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 	params := args[0].(*common.ClusterPeerParams)
 	pool := args[1].(*datamodel.Pool)
 	clusterPeerActivity := &activities.ClusterPeerActivity{}
-	retryPolicy, err := PopulateRetryPolicyParams()
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(StartToCloseTimeoutForReplicationActivities) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			MaximumAttempts:        1,
 			NonRetryableErrorTypes: []string{"PanicError"},
@@ -87,7 +83,7 @@ func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
 	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
+	err := workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -571,8 +567,8 @@ func (wf *clusterUpgradeWorkflow) updateOntapVersionAfterUpgrade(ctx workflow.Co
 
 	// Create node for provider
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:           dbNodes,
-		DeploymentName:  upgradeContext.Pool.DeploymentName,
+		Nodes:            dbNodes,
+		DeploymentName:   upgradeContext.Pool.DeploymentName,
 		OntapCredentials: upgradeContext.Pool.PoolCredentials,
 	})
 
