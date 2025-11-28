@@ -8,8 +8,11 @@ import (
 	"go.temporal.io/sdk/temporal"
 )
 
-var WorkflowGlobalTimeoutMinutes = env.GetString("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "60")
-var CMEKWorkflowGlobalTimeoutMinutes = env.GetString("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "14")
+var (
+	CMEKWorkflowGlobalTimeoutMinutes     = env.GetString("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "14")
+	WorkflowGlobalTimeoutMinutes         = env.GetString("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "60")
+	ExpertModeSyncWorkflowTimeoutMinutes = env.GetString("EXPERT_MODE_SYNC_WORKFLOW_TIMEOUT_MINUTES", "10")
+)
 
 // Struct for RetryPolicy configuration
 type RetryPolicyConfig struct {
@@ -80,6 +83,14 @@ func GetCMEKWorkFlowGlobalTimeout() time.Duration {
 	if err != nil {
 		// If parsing fails, default to 14 minutes
 		return 14 * time.Minute
+	}
+	return timeout
+}
+
+func GetExpertModeSyncWorkflowTimeout() time.Duration {
+	timeout, err := time.ParseDuration(ExpertModeSyncWorkflowTimeoutMinutes + "m")
+	if err != nil {
+		return 10 * time.Minute
 	}
 	return timeout
 }

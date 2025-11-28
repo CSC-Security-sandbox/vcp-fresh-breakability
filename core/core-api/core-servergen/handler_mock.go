@@ -128,6 +128,66 @@ func (_c *MockHandler_NewError_Call) RunAndReturn(run func(context.Context, erro
 	return _c
 }
 
+// V1CreateExpertModeVolume provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1CreateExpertModeVolume(ctx context.Context, req *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1CreateExpertModeVolume")
+	}
+
+	var r0 V1CreateExpertModeVolumeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeV1, V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeV1, V1CreateExpertModeVolumeParams) V1CreateExpertModeVolumeRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1CreateExpertModeVolumeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ExpertModeVolumeV1, V1CreateExpertModeVolumeParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1CreateExpertModeVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1CreateExpertModeVolume'
+type MockHandler_V1CreateExpertModeVolume_Call struct {
+	*mock.Call
+}
+
+// V1CreateExpertModeVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ExpertModeVolumeV1
+//   - params V1CreateExpertModeVolumeParams
+func (_e *MockHandler_Expecter) V1CreateExpertModeVolume(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1CreateExpertModeVolume_Call {
+	return &MockHandler_V1CreateExpertModeVolume_Call{Call: _e.mock.On("V1CreateExpertModeVolume", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1CreateExpertModeVolume_Call) Run(run func(ctx context.Context, req *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams)) *MockHandler_V1CreateExpertModeVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ExpertModeVolumeV1), args[2].(V1CreateExpertModeVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1CreateExpertModeVolume_Call) Return(_a0 V1CreateExpertModeVolumeRes, _a1 error) *MockHandler_V1CreateExpertModeVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1CreateExpertModeVolume_Call) RunAndReturn(run func(context.Context, *ExpertModeVolumeV1, V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error)) *MockHandler_V1CreateExpertModeVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1CreateImageVersion provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1CreateImageVersion(ctx context.Context, req *ImageVersionCreateRequestV1, params V1CreateImageVersionParams) (V1CreateImageVersionRes, error) {
 	ret := _m.Called(ctx, req, params)

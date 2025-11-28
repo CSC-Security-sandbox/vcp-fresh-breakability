@@ -841,3 +841,165 @@ func TestUnsetSvmActiveDirectoryID(t *testing.T) {
 		assert.True(tt, errors.As(err, &vcpErr))
 	})
 }
+
+func TestDataStoreRepository_GetSvmByExternalUUID(t *testing.T) {
+	t.Run("WhenSvmExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-external-1"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-external-1"},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			State:          models.LifeCycleStateREADY,
+			DeploymentName: "deployment-1",
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		const externalUUID = "550e8400-e29b-41d4-a716-446655440000"
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-external-1"},
+			Name:      "test_svm",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: externalUUID,
+				IPSpace:      "Default",
+			},
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		result, err := store.GetSvmByExternalUUID(context.Background(), externalUUID, pool.ID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, svm.UUID, result.UUID)
+		assert.Equal(tt, externalUUID, result.SvmDetails.ExternalUUID)
+	})
+
+	t.Run("WhenSvmDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		result, err := store.GetSvmByExternalUUID(context.Background(), "missing-external", 999)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenPoolDoesNotMatch", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-external-2"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		sourcePool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-source"},
+			Name:           "source_pool",
+			AccountID:      account.ID,
+			State:          models.LifeCycleStateREADY,
+			DeploymentName: "deployment-source",
+		}
+		assert.NoError(tt, store.db.Create(sourcePool).Error())
+
+		targetPool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-target"},
+			Name:           "target_pool",
+			AccountID:      account.ID,
+			State:          models.LifeCycleStateREADY,
+			DeploymentName: "deployment-target",
+		}
+		assert.NoError(tt, store.db.Create(targetPool).Error())
+
+		const externalUUID = "550e8400-e29b-41d4-a716-446655440001"
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-external-2"},
+			Name:      "test_svm",
+			PoolID:    sourcePool.ID,
+			AccountID: account.ID,
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: externalUUID,
+				IPSpace:      "Default",
+			},
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		result, err := store.GetSvmByExternalUUID(context.Background(), externalUUID, targetPool.ID)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenMultipleSvmsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-external-3"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-external-3"},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			State:          models.LifeCycleStateREADY,
+			DeploymentName: "deployment-3",
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		svm1 := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-external-3a"},
+			Name:      "svm-1",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "550e8400-e29b-41d4-a716-446655440010",
+				IPSpace:      "Default",
+			},
+		}
+		assert.NoError(tt, store.db.Create(svm1).Error())
+
+		svm2 := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-external-3b"},
+			Name:      "svm-2",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "550e8400-e29b-41d4-a716-446655440011",
+				IPSpace:      "Default",
+			},
+		}
+		assert.NoError(tt, store.db.Create(svm2).Error())
+
+		result1, err := store.GetSvmByExternalUUID(context.Background(), svm1.SvmDetails.ExternalUUID, pool.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, svm1.UUID, result1.UUID)
+
+		result2, err := store.GetSvmByExternalUUID(context.Background(), svm2.SvmDetails.ExternalUUID, pool.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, svm2.UUID, result2.UUID)
+
+		assert.NotEqual(tt, result1.UUID, result2.UUID)
+	})
+}

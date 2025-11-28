@@ -239,3 +239,20 @@ func _listSvmsWithAccountId(db *gorm.DB, accountId int64) ([]*datamodel.Svm, err
 	}
 	return svms, nil
 }
+
+// GetSvmByNameAndPoolID retrieves an SVM by name and pool ID
+func (d *DataStoreRepository) GetSvmByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.Svm, error) {
+	return getSvmWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Svm{Name: name, PoolID: poolID})
+}
+
+// GetSvmByExternalUUID retrieves an SVM by external UUID from svm_details JSONB field and validates pool ownership
+func (d *DataStoreRepository) GetSvmByExternalUUID(ctx context.Context, externalUUID string, poolID int64) (*datamodel.Svm, error) {
+	db := d.db.GORM().WithContext(ctx)
+	svm := &datamodel.Svm{}
+	err := db.Where("pool_id = ? AND svm_details ->> 'external_uuid' = ?", poolID, externalUUID).
+		First(&svm).Error
+	if err != nil {
+		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "svm", nil)
+	}
+	return svm, nil
+}

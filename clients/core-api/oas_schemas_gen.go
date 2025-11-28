@@ -530,6 +530,216 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
+// Ref: #/components/schemas/ExpertModeVolume_v1
+type ExpertModeVolumeV1 struct {
+	// GCP project number.
+	ProjectNumber string `json:"projectNumber"`
+	// GCNV pool UUID.
+	PoolUUID string `json:"poolUUID"`
+	// The action to be performed on the resource.
+	Action ExpertModeVolumeV1Action `json:"action"`
+	// Volume name.
+	VolumeName string `json:"volumeName"`
+	// Volume size in bytes.
+	SizeInBytes float64 `json:"sizeInBytes"`
+	// Volume style.
+	Style ExpertModeVolumeV1Style `json:"style"`
+	// SVM UUID.
+	SvmUuid OptString `json:"svmUuid"`
+	// SVM name (alternative to svmUuid).
+	SvmName OptString `json:"svmName"`
+	// Volume UUID (for update/delete actions).
+	VolumeUuid OptString `json:"volumeUuid"`
+}
+
+// GetProjectNumber returns the value of ProjectNumber.
+func (s *ExpertModeVolumeV1) GetProjectNumber() string {
+	return s.ProjectNumber
+}
+
+// GetPoolUUID returns the value of PoolUUID.
+func (s *ExpertModeVolumeV1) GetPoolUUID() string {
+	return s.PoolUUID
+}
+
+// GetAction returns the value of Action.
+func (s *ExpertModeVolumeV1) GetAction() ExpertModeVolumeV1Action {
+	return s.Action
+}
+
+// GetVolumeName returns the value of VolumeName.
+func (s *ExpertModeVolumeV1) GetVolumeName() string {
+	return s.VolumeName
+}
+
+// GetSizeInBytes returns the value of SizeInBytes.
+func (s *ExpertModeVolumeV1) GetSizeInBytes() float64 {
+	return s.SizeInBytes
+}
+
+// GetStyle returns the value of Style.
+func (s *ExpertModeVolumeV1) GetStyle() ExpertModeVolumeV1Style {
+	return s.Style
+}
+
+// GetSvmUuid returns the value of SvmUuid.
+func (s *ExpertModeVolumeV1) GetSvmUuid() OptString {
+	return s.SvmUuid
+}
+
+// GetSvmName returns the value of SvmName.
+func (s *ExpertModeVolumeV1) GetSvmName() OptString {
+	return s.SvmName
+}
+
+// GetVolumeUuid returns the value of VolumeUuid.
+func (s *ExpertModeVolumeV1) GetVolumeUuid() OptString {
+	return s.VolumeUuid
+}
+
+// SetProjectNumber sets the value of ProjectNumber.
+func (s *ExpertModeVolumeV1) SetProjectNumber(val string) {
+	s.ProjectNumber = val
+}
+
+// SetPoolUUID sets the value of PoolUUID.
+func (s *ExpertModeVolumeV1) SetPoolUUID(val string) {
+	s.PoolUUID = val
+}
+
+// SetAction sets the value of Action.
+func (s *ExpertModeVolumeV1) SetAction(val ExpertModeVolumeV1Action) {
+	s.Action = val
+}
+
+// SetVolumeName sets the value of VolumeName.
+func (s *ExpertModeVolumeV1) SetVolumeName(val string) {
+	s.VolumeName = val
+}
+
+// SetSizeInBytes sets the value of SizeInBytes.
+func (s *ExpertModeVolumeV1) SetSizeInBytes(val float64) {
+	s.SizeInBytes = val
+}
+
+// SetStyle sets the value of Style.
+func (s *ExpertModeVolumeV1) SetStyle(val ExpertModeVolumeV1Style) {
+	s.Style = val
+}
+
+// SetSvmUuid sets the value of SvmUuid.
+func (s *ExpertModeVolumeV1) SetSvmUuid(val OptString) {
+	s.SvmUuid = val
+}
+
+// SetSvmName sets the value of SvmName.
+func (s *ExpertModeVolumeV1) SetSvmName(val OptString) {
+	s.SvmName = val
+}
+
+// SetVolumeUuid sets the value of VolumeUuid.
+func (s *ExpertModeVolumeV1) SetVolumeUuid(val OptString) {
+	s.VolumeUuid = val
+}
+
+// The action to be performed on the resource.
+type ExpertModeVolumeV1Action string
+
+const (
+	ExpertModeVolumeV1ActionCreate ExpertModeVolumeV1Action = "Create"
+	ExpertModeVolumeV1ActionUpdate ExpertModeVolumeV1Action = "Update"
+	ExpertModeVolumeV1ActionDelete ExpertModeVolumeV1Action = "Delete"
+)
+
+// AllValues returns all ExpertModeVolumeV1Action values.
+func (ExpertModeVolumeV1Action) AllValues() []ExpertModeVolumeV1Action {
+	return []ExpertModeVolumeV1Action{
+		ExpertModeVolumeV1ActionCreate,
+		ExpertModeVolumeV1ActionUpdate,
+		ExpertModeVolumeV1ActionDelete,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExpertModeVolumeV1Action) MarshalText() ([]byte, error) {
+	switch s {
+	case ExpertModeVolumeV1ActionCreate:
+		return []byte(s), nil
+	case ExpertModeVolumeV1ActionUpdate:
+		return []byte(s), nil
+	case ExpertModeVolumeV1ActionDelete:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExpertModeVolumeV1Action) UnmarshalText(data []byte) error {
+	switch ExpertModeVolumeV1Action(data) {
+	case ExpertModeVolumeV1ActionCreate:
+		*s = ExpertModeVolumeV1ActionCreate
+		return nil
+	case ExpertModeVolumeV1ActionUpdate:
+		*s = ExpertModeVolumeV1ActionUpdate
+		return nil
+	case ExpertModeVolumeV1ActionDelete:
+		*s = ExpertModeVolumeV1ActionDelete
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Volume style.
+type ExpertModeVolumeV1Style string
+
+const (
+	ExpertModeVolumeV1StyleFlexvol   ExpertModeVolumeV1Style = "flexvol"
+	ExpertModeVolumeV1StyleFlexgroup ExpertModeVolumeV1Style = "flexgroup"
+	ExpertModeVolumeV1StyleFlexcache ExpertModeVolumeV1Style = "flexcache"
+)
+
+// AllValues returns all ExpertModeVolumeV1Style values.
+func (ExpertModeVolumeV1Style) AllValues() []ExpertModeVolumeV1Style {
+	return []ExpertModeVolumeV1Style{
+		ExpertModeVolumeV1StyleFlexvol,
+		ExpertModeVolumeV1StyleFlexgroup,
+		ExpertModeVolumeV1StyleFlexcache,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExpertModeVolumeV1Style) MarshalText() ([]byte, error) {
+	switch s {
+	case ExpertModeVolumeV1StyleFlexvol:
+		return []byte(s), nil
+	case ExpertModeVolumeV1StyleFlexgroup:
+		return []byte(s), nil
+	case ExpertModeVolumeV1StyleFlexcache:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExpertModeVolumeV1Style) UnmarshalText(data []byte) error {
+	switch ExpertModeVolumeV1Style(data) {
+	case ExpertModeVolumeV1StyleFlexvol:
+		*s = ExpertModeVolumeV1StyleFlexvol
+		return nil
+	case ExpertModeVolumeV1StyleFlexgroup:
+		*s = ExpertModeVolumeV1StyleFlexgroup
+		return nil
+	case ExpertModeVolumeV1StyleFlexcache:
+		*s = ExpertModeVolumeV1StyleFlexcache
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Gcp customer managed encryption key configuration.
 // Ref: #/components/schemas/GcpKmsConfig_v1
 type GcpKmsConfigV1 struct {
@@ -4226,6 +4436,43 @@ func (s *UpgradeProgressV1Status) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+type V1CreateExpertModeVolumeBadRequest Error
+
+func (*V1CreateExpertModeVolumeBadRequest) v1CreateExpertModeVolumeRes() {}
+
+type V1CreateExpertModeVolumeConflict Error
+
+func (*V1CreateExpertModeVolumeConflict) v1CreateExpertModeVolumeRes() {}
+
+type V1CreateExpertModeVolumeForbidden Error
+
+func (*V1CreateExpertModeVolumeForbidden) v1CreateExpertModeVolumeRes() {}
+
+type V1CreateExpertModeVolumeInternalServerError Error
+
+func (*V1CreateExpertModeVolumeInternalServerError) v1CreateExpertModeVolumeRes() {}
+
+type V1CreateExpertModeVolumeNotFound Error
+
+func (*V1CreateExpertModeVolumeNotFound) v1CreateExpertModeVolumeRes() {}
+
+// V1CreateExpertModeVolumeOK is response for V1CreateExpertModeVolume operation.
+type V1CreateExpertModeVolumeOK struct{}
+
+func (*V1CreateExpertModeVolumeOK) v1CreateExpertModeVolumeRes() {}
+
+type V1CreateExpertModeVolumeTooManyRequests Error
+
+func (*V1CreateExpertModeVolumeTooManyRequests) v1CreateExpertModeVolumeRes() {}
+
+type V1CreateExpertModeVolumeUnauthorized Error
+
+func (*V1CreateExpertModeVolumeUnauthorized) v1CreateExpertModeVolumeRes() {}
+
+type V1CreateExpertModeVolumeUnprocessableEntity Error
+
+func (*V1CreateExpertModeVolumeUnprocessableEntity) v1CreateExpertModeVolumeRes() {}
 
 type V1CreateImageVersionBadRequest Error
 

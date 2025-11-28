@@ -21,6 +21,8 @@ tags:
     description: Cluster upgrade operations
   - name: replications
     description: Replication operations
+  - name: expertMode
+    description: Expert mode operations
 paths:
   /health:
     get:
@@ -1007,6 +1009,47 @@ paths:
           $ref: '#/components/responses/StandardError-500'
         '501':
           $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/expertMode/volumes:
+    post:
+      tags:
+        - expertMode
+      summary: Create volume in expert mode
+      description: Create an expert volume using expert mode with direct pool and SVM specification
+      operationId: v1_createExpertModeVolume
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a volume in expert mode
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpertModeVolume_v1'
+        required: true
+      responses:
+        "200":
+          description: Volume created successfully
+        "400":
+          $ref: '#/components/responses/StandardError-400'
+        "401":
+          $ref: '#/components/responses/StandardError-401'
+        "403":
+          $ref: '#/components/responses/StandardError-403'
+        "404":
+          $ref: '#/components/responses/StandardError-404'
+        "409":
+          $ref: '#/components/responses/StandardError-409'
+        "422":
+          $ref: '#/components/responses/StandardError-422'
+        "429":
+          $ref: '#/components/responses/StandardError-429'
+        "500":
+          $ref: '#/components/responses/StandardError-500'
         default:
           description: Unexpected error
           content:
@@ -2183,15 +2226,81 @@ components:
             type: string
             pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
           description: Array of external UUIDs to filter replications by
-          example:
-            - "9760acf5-4638-11e7-9bdb-020073ca7773"
-            - "8850bcf5-4639-11e7-9bdb-020073ca7774"
+          example: ["9760acf5-4638-11e7-9bdb-020073ca7773", "8850bcf5-4639-11e7-9bdb-020073ca7774"]
         IncludeSourceEndpoints:
           title: IncludeSourceEndpoints
           type: boolean
           description: Whether to include source endpoints in results. If false (default), only destination endpoints are returned.
           default: false
           example: false
+    ExpertModeVolume_v1:
+      title: ExpertModeVolume
+      type: object
+      required:
+        - projectNumber
+        - poolUUID
+        - volumeName
+        - sizeInBytes
+        - style
+        - action
+      properties:
+        projectNumber:
+          title: projectNumber
+          type: string
+          description: GCP project number
+          pattern: "^[0-9]{1,20}$"
+          example: "123456789012"
+        poolUUID:
+          title: poolUUID
+          type: string
+          description: GCNV pool UUID
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        action:
+          title: action
+          type: string
+          description: The action to be performed on the resource
+          enum:
+            - Create
+            - Update
+            - Delete
+          example: "Create"
+        volumeName:
+          title: volumeName
+          type: string
+          description: Volume name
+          example: "my-volume"
+        sizeInBytes:
+          title: sizeInBytes
+          type: number
+          format: integer
+          description: Volume size in bytes
+          example: 1099511627776
+        style:
+          title: style
+          type: string
+          description: Volume style
+          enum:
+            - flexvol
+            - flexgroup
+            - flexcache
+          example: "flexvol"
+        svmUuid:
+          title: svmUuid
+          type: string
+          description: SVM UUID
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        svmName:
+          title: svmName
+          type: string
+          description: SVM name (alternative to svmUuid)
+          example: "my-svm"
+        volumeUuid:
+          title: volumeUuid
+          type: string
+          description: Volume UUID (for update/delete actions)
+          example: "9760acf5-4638-11e7-9bdb-020073ca8888"
     Replication_v1:
       title: Replication
       type: object

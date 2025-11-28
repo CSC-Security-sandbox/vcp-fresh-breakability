@@ -5,6 +5,10 @@ type GetHealthRes interface {
 	getHealthRes()
 }
 
+type V1CreateExpertModeVolumeRes interface {
+	v1CreateExpertModeVolumeRes()
+}
+
 type V1CreateImageVersionRes interface {
 	v1CreateImageVersionRes()
 }

@@ -311,6 +311,100 @@ func TestError_Examples(t *testing.T) {
 		})
 	}
 }
+func TestExpertModeVolumeV1_EncodeDecode(t *testing.T) {
+	var typ ExpertModeVolumeV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExpertModeVolumeV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestExpertModeVolumeV1Action_EncodeDecode(t *testing.T) {
+	var typ ExpertModeVolumeV1Action
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExpertModeVolumeV1Action
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestExpertModeVolumeV1Action_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"Create\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ExpertModeVolumeV1Action
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ExpertModeVolumeV1Action
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestExpertModeVolumeV1Style_EncodeDecode(t *testing.T) {
+	var typ ExpertModeVolumeV1Style
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExpertModeVolumeV1Style
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestExpertModeVolumeV1Style_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"flexvol\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ExpertModeVolumeV1Style
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ExpertModeVolumeV1Style
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestGcpKmsConfigV1_EncodeDecode(t *testing.T) {
 	var typ GcpKmsConfigV1
 	typ.SetFake()
@@ -1199,6 +1293,102 @@ func TestUpgradeProgressV1Status_Examples(t *testing.T) {
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
+}
+func TestV1CreateExpertModeVolumeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1CreateExpertModeVolumeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateExpertModeVolumeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateExpertModeVolumeConflict_EncodeDecode(t *testing.T) {
+	var typ V1CreateExpertModeVolumeConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateExpertModeVolumeConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateExpertModeVolumeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1CreateExpertModeVolumeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateExpertModeVolumeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateExpertModeVolumeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1CreateExpertModeVolumeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateExpertModeVolumeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateExpertModeVolumeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1CreateExpertModeVolumeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateExpertModeVolumeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateExpertModeVolumeTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1CreateExpertModeVolumeTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateExpertModeVolumeTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateExpertModeVolumeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1CreateExpertModeVolumeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateExpertModeVolumeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateExpertModeVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1CreateExpertModeVolumeUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateExpertModeVolumeUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1CreateImageVersionBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1CreateImageVersionBadRequest

@@ -22,6 +22,15 @@ func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ er
 	return r, ht.ErrNotImplemented
 }
 
+// V1CreateExpertModeVolume implements v1_createExpertModeVolume operation.
+//
+// Create an expert volume using expert mode with direct pool and SVM specification.
+//
+// POST /v1/expertMode/volumes
+func (UnimplementedHandler) V1CreateExpertModeVolume(ctx context.Context, req *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams) (r V1CreateExpertModeVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1CreateImageVersion implements v1_createImageVersion operation.
 //
 // Creates a new image version entry in the database. This is useful when an image version was missed

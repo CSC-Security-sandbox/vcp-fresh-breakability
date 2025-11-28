@@ -136,6 +136,8 @@ type OrchestratorFactory interface {
 	GetADConfig(ctx context.Context, params *commonparams.GetADParams) (*models.ActiveDirectory, error)
 	GetSDEActiveDirectory(ctx context.Context, getADParams *commonparams.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error)
 	DeleteActiveDirectory(ctx context.Context, params *commonparams.DeleteActiveDirectoryParams) (string, error)
+
+	CreateExpertModeVolume(ctx context.Context, params *commonparams.CreateExpertModeVolumeParams) error
 }
 
 type Orchestrator struct {

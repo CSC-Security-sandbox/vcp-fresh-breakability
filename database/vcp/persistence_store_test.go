@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -5663,4 +5664,188 @@ func TestPersistenceStore_GetPoolByID(t *testing.T) {
 	result, err = store.GetPoolByID(context.Background(), 999)
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+// TestPersistenceStore_ExpertModeVolumeWrapperMethods tests the expert mode volume wrapper methods
+// that delegate to dataStore in persistance_store.go
+func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Setup test data: account, pool, and SVM
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-account-uuid-expert",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Name: "test_account_expert",
+	}
+	err = store.DB().Create(account).Error
+	require.NoError(t, err)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-pool-uuid-expert",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Name:           "test_pool_expert",
+		AccountID:      account.ID,
+		SizeInBytes:    2199023255552, // 2TB
+		DeploymentName: "test_deployment_expert",
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-west1-a",
+		},
+	}
+	err = store.DB().Create(pool).Error
+	require.NoError(t, err)
+
+	svmDetails := &datamodel.SvmDetails{
+		ExternalUUID: "550e8400-e29b-41d4-a716-446655440000",
+		IPSpace:      "Default",
+	}
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-svm-uuid-expert",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Name:       "test_svm_expert",
+		PoolID:     pool.ID,
+		AccountID:  account.ID,
+		SvmDetails: svmDetails,
+		State:      models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(svm).Error
+	require.NoError(t, err)
+
+	t.Run("CreateExpertModeVolume", func(t *testing.T) {
+		// Test CreateExpertModeVolume wrapper method (line 381)
+		// This covers the wrapper method that delegates to dataStore
+
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			Name:         "test-expert-volume-wrapper",
+			SizeInBytes:  1099511627776, // 1TB
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexvol",
+			ExternalUUID: utils.RandomUUID(),
+			State:        models.LifeCycleStateCreating,
+		}
+
+		// Test the wrapper method
+		result, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotEmpty(t, result.UUID)
+		assert.Equal(t, expertModeVolume.Name, result.Name)
+		assert.Equal(t, expertModeVolume.SizeInBytes, result.SizeInBytes)
+		assert.Equal(t, expertModeVolume.PoolID, result.PoolID)
+		assert.Equal(t, expertModeVolume.AccountID, result.AccountID)
+		assert.Equal(t, expertModeVolume.SvmID, result.SvmID)
+		assert.Equal(t, expertModeVolume.Style, result.Style)
+		assert.Equal(t, models.LifeCycleStateCreating, result.State)
+		assert.NotEmpty(t, result.ExternalUUID)
+	})
+
+	t.Run("GetExpertModeVolumeTotalSizeByPoolID", func(t *testing.T) {
+		// Test GetExpertModeVolumeTotalSizeByPoolID wrapper method (line 389)
+		// This covers the wrapper method that delegates to dataStore
+
+		// Create a new pool for this test to avoid interference from previous tests
+		testPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-pool-uuid-total-size",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:           "test_pool_total_size",
+			AccountID:      account.ID,
+			SizeInBytes:    2199023255552, // 2TB
+			DeploymentName: "test_deployment_total_size",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-c",
+			},
+		}
+		err = store.DB().Create(testPool).Error
+		require.NoError(t, err)
+
+		// Create multiple volumes for the pool
+		volume1 := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume-total-1",
+			SizeInBytes:  1099511627776, // 1TB
+			PoolID:       testPool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexvol",
+			ExternalUUID: utils.RandomUUID(),
+			State:        models.LifeCycleStateCreating,
+		}
+		_, err = store.CreateExpertModeVolume(ctx, volume1)
+		require.NoError(t, err)
+
+		volume2 := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume-total-2",
+			SizeInBytes:  214748364800, // 200GB
+			PoolID:       testPool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexgroup",
+			ExternalUUID: utils.RandomUUID(),
+			State:        models.LifeCycleStateCreating,
+		}
+		_, err = store.CreateExpertModeVolume(ctx, volume2)
+		require.NoError(t, err)
+
+		volume3 := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume-total-3",
+			SizeInBytes:  536870912000, // 500GB
+			PoolID:       testPool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexvol",
+			ExternalUUID: utils.RandomUUID(),
+			State:        models.LifeCycleStateCreating,
+		}
+		_, err = store.CreateExpertModeVolume(ctx, volume3)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		totalSize, err := store.GetExpertModePoolUsedCapacity(ctx, testPool.ID)
+		assert.NoError(t, err)
+		expectedTotal := int64(1099511627776 + 214748364800 + 536870912000) // 1TB + 200GB + 500GB
+		assert.Equal(t, expectedTotal, totalSize, "Total size should be sum of all volumes")
+
+		// Test with empty pool
+		emptyPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-pool-uuid-empty",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:           "test_pool_empty",
+			AccountID:      account.ID,
+			SizeInBytes:    2199023255552,
+			DeploymentName: "test_deployment_empty",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-d",
+			},
+		}
+		err = store.DB().Create(emptyPool).Error
+		require.NoError(t, err)
+
+		emptyTotal, err := store.GetExpertModePoolUsedCapacity(ctx, emptyPool.ID)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), emptyTotal, "Total size should be 0 for empty pool")
+	})
 }

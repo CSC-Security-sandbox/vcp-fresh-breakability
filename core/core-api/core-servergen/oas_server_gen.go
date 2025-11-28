@@ -14,6 +14,12 @@ type Handler interface {
 	//
 	// GET /health
 	GetHealth(ctx context.Context) (GetHealthRes, error)
+	// V1CreateExpertModeVolume implements v1_createExpertModeVolume operation.
+	//
+	// Create an expert volume using expert mode with direct pool and SVM specification.
+	//
+	// POST /v1/expertMode/volumes
+	V1CreateExpertModeVolume(ctx context.Context, req *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error)
 	// V1CreateImageVersion implements v1_createImageVersion operation.
 	//
 	// Creates a new image version entry in the database. This is useful when an image version was missed

@@ -1575,6 +1575,38 @@ func (re *retryEngine) ListSvmsWithAccountId(ctx context.Context, accountId int6
 	return var0, err
 }
 
+func (re *retryEngine) GetSvmByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.Svm, error) {
+	var var0 *datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSvmByNameAndPoolID(ctx, name, poolID)
+		if err != nil {
+			re.logError("GetSvmByNameAndPoolID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetSvmByExternalUUID(ctx context.Context, externalUUID string, poolID int64) (*datamodel.Svm, error) {
+	var var0 *datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSvmByExternalUUID(ctx, externalUUID, poolID)
+		if err != nil {
+			re.logError("GetSvmByExternalUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
 	var var0 *datamodel.Lif
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4319,6 +4351,54 @@ func (re *retryEngine) ListClusterPeeringRowsByPoolID(ctx context.Context, poolI
 		var0, err = re.dataStore.ListClusterPeeringRowsByPoolID(ctx, poolID)
 		if err != nil {
 			re.logError("ListClusterPeeringRowsByPoolID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) CreateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
+	var var0 *datamodel.ExpertModeVolumes
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateExpertModeVolume(ctx, expertModeVolume)
+		if err != nil {
+			re.logError("CreateExpertModeVolume", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetExpertModePoolUsedCapacity(ctx, poolID)
+		if err != nil {
+			re.logError("GetExpertModePoolUsedCapacity", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetExpertModeVolumeByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.ExpertModeVolumes, error) {
+	var var0 *datamodel.ExpertModeVolumes
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetExpertModeVolumeByNameAndPoolID(ctx, name, poolID)
+		if err != nil {
+			re.logError("GetExpertModeVolumeByNameAndPoolID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

@@ -37,6 +37,7 @@ func getVcpModels() []interface{} {
 		&datamodel.ActiveDirectory{},
 		&datamodel.ClusterPeerings{},
 		&datamodel.QuotaRule{},
+		&datamodel.ExpertModeVolumes{},
 	}
 }
 

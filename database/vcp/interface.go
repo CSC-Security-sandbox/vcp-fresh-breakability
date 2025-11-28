@@ -142,6 +142,8 @@ type (
 		UpdateSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm, activeDirectoryID int64) (*datamodel.Svm, error)
 		UnsetSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
 		ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error)
+		GetSvmByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.Svm, error)
+		GetSvmByExternalUUID(ctx context.Context, externalUUID string, poolID int64) (*datamodel.Svm, error)
 
 		CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error)
 		GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error)
@@ -344,5 +346,10 @@ type (
 		GetSVMsUsingActiveDirectory(ctx context.Context, adId int64) ([]*datamodel.Svm, error)
 		GetActiveDirectoryForPoolByPoolID(ctx context.Context, poolID int64) (*datamodel.ActiveDirectory, error)
 		ListClusterPeeringRowsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ClusterPeerings, error)
+
+		// Expert Mode Volume operations
+		CreateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error)
+		GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error)
+		GetExpertModeVolumeByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.ExpertModeVolumes, error)
 	}
 )

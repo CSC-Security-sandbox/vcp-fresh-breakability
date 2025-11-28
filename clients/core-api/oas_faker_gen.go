@@ -198,6 +198,65 @@ func (s *Error) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ExpertModeVolumeV1) SetFake() {
+	{
+		{
+			s.ProjectNumber = "string"
+		}
+	}
+	{
+		{
+			s.PoolUUID = "string"
+		}
+	}
+	{
+		{
+			s.Action.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeName = "string"
+		}
+	}
+	{
+		{
+			s.SizeInBytes = float64(0)
+		}
+	}
+	{
+		{
+			s.Style.SetFake()
+		}
+	}
+	{
+		{
+			s.SvmUuid.SetFake()
+		}
+	}
+	{
+		{
+			s.SvmName.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeUuid.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ExpertModeVolumeV1Action) SetFake() {
+	*s = ExpertModeVolumeV1ActionCreate
+}
+
+// SetFake set fake values.
+func (s *ExpertModeVolumeV1Style) SetFake() {
+	*s = ExpertModeVolumeV1StyleFlexvol
+}
+
+// SetFake set fake values.
 func (s *GcpKmsConfigV1) SetFake() {
 	{
 		{
@@ -1244,6 +1303,78 @@ func (s *UpgradeProgressV1) SetFake() {
 // SetFake set fake values.
 func (s *UpgradeProgressV1Status) SetFake() {
 	*s = UpgradeProgressV1StatusPENDING
+}
+
+// SetFake set fake values.
+func (s *V1CreateExpertModeVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateExpertModeVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateExpertModeVolumeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateExpertModeVolumeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateExpertModeVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateExpertModeVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateExpertModeVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateExpertModeVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateExpertModeVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateExpertModeVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateExpertModeVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateExpertModeVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateExpertModeVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateExpertModeVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateExpertModeVolumeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateExpertModeVolumeUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

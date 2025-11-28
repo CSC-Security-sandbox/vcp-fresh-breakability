@@ -483,7 +483,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-
 		if !disableVsaCleanupOnVLMFailure {
 			rollbackManager.AddActivity(poolActivity.DeleteExpertModeCredentials, pool)
 		}

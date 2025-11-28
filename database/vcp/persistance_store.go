@@ -375,6 +375,19 @@ func (s *PersistenceStore) UpdatingPool(ctx context.Context, pool *datamodel.Poo
 	return s.dataStore.UpdatingPool(ctx, pool)
 }
 
+// Expert Mode Volume operations
+func (s *PersistenceStore) CreateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
+	return s.dataStore.CreateExpertModeVolume(ctx, expertModeVolume)
+}
+
+func (s *PersistenceStore) GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error) {
+	return s.dataStore.GetExpertModePoolUsedCapacity(ctx, poolID)
+}
+
+func (s *PersistenceStore) GetExpertModeVolumeByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.ExpertModeVolumes, error) {
+	return s.dataStore.GetExpertModeVolumeByNameAndPoolID(ctx, name, poolID)
+}
+
 func (s *PersistenceStore) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	return s.dataStore.UpdatedPool(ctx, pool)
 }
@@ -865,6 +878,14 @@ func (s *PersistenceStore) ListKmsConfigByAccountID(ctx context.Context, account
 
 func (s *PersistenceStore) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error) {
 	return s.dataStore.GetSvmsByKmsConfigID(ctx, kmsConfigID)
+}
+
+func (s *PersistenceStore) GetSvmByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.Svm, error) {
+	return s.dataStore.GetSvmByNameAndPoolID(ctx, name, poolID)
+}
+
+func (s *PersistenceStore) GetSvmByExternalUUID(ctx context.Context, externalUUID string, poolID int64) (*datamodel.Svm, error) {
+	return s.dataStore.GetSvmByExternalUUID(ctx, externalUUID, poolID)
 }
 
 func (s *PersistenceStore) CreateKmsConfig(ctx context.Context, kmsConfigParams *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {

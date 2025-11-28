@@ -1357,6 +1357,65 @@ func (_c *MockStorage_CreateClusterUpgradeJob_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// CreateExpertModeVolume provides a mock function with given fields: ctx, expertModeVolume
+func (_m *MockStorage) CreateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, expertModeVolume)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateExpertModeVolume")
+	}
+
+	var r0 *datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, expertModeVolume)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ExpertModeVolumes) *datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, expertModeVolume)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.ExpertModeVolumes) error); ok {
+		r1 = rf(ctx, expertModeVolume)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CreateExpertModeVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateExpertModeVolume'
+type MockStorage_CreateExpertModeVolume_Call struct {
+	*mock.Call
+}
+
+// CreateExpertModeVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - expertModeVolume *datamodel.ExpertModeVolumes
+func (_e *MockStorage_Expecter) CreateExpertModeVolume(ctx interface{}, expertModeVolume interface{}) *MockStorage_CreateExpertModeVolume_Call {
+	return &MockStorage_CreateExpertModeVolume_Call{Call: _e.mock.On("CreateExpertModeVolume", ctx, expertModeVolume)}
+}
+
+func (_c *MockStorage_CreateExpertModeVolume_Call) Run(run func(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes)) *MockStorage_CreateExpertModeVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ExpertModeVolumes))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateExpertModeVolume_Call) Return(_a0 *datamodel.ExpertModeVolumes, _a1 error) *MockStorage_CreateExpertModeVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CreateExpertModeVolume_Call) RunAndReturn(run func(context.Context, *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error)) *MockStorage_CreateExpertModeVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateHostGroup provides a mock function with given fields: ctx, hostGroup
 func (_m *MockStorage) CreateHostGroup(ctx context.Context, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroup)
@@ -6509,6 +6568,123 @@ func (_c *MockStorage_GetEligibleVolumes_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// GetExpertModePoolUsedCapacity provides a mock function with given fields: ctx, poolID
+func (_m *MockStorage) GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExpertModePoolUsedCapacity")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetExpertModePoolUsedCapacity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModePoolUsedCapacity'
+type MockStorage_GetExpertModePoolUsedCapacity_Call struct {
+	*mock.Call
+}
+
+// GetExpertModePoolUsedCapacity is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+func (_e *MockStorage_Expecter) GetExpertModePoolUsedCapacity(ctx interface{}, poolID interface{}) *MockStorage_GetExpertModePoolUsedCapacity_Call {
+	return &MockStorage_GetExpertModePoolUsedCapacity_Call{Call: _e.mock.On("GetExpertModePoolUsedCapacity", ctx, poolID)}
+}
+
+func (_c *MockStorage_GetExpertModePoolUsedCapacity_Call) Run(run func(ctx context.Context, poolID int64)) *MockStorage_GetExpertModePoolUsedCapacity_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetExpertModePoolUsedCapacity_Call) Return(_a0 int64, _a1 error) *MockStorage_GetExpertModePoolUsedCapacity_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetExpertModePoolUsedCapacity_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockStorage_GetExpertModePoolUsedCapacity_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetExpertModeVolumeByNameAndPoolID provides a mock function with given fields: ctx, name, poolID
+func (_m *MockStorage) GetExpertModeVolumeByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, name, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExpertModeVolumeByNameAndPoolID")
+	}
+
+	var r0 *datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, name, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, name, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, name, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetExpertModeVolumeByNameAndPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModeVolumeByNameAndPoolID'
+type MockStorage_GetExpertModeVolumeByNameAndPoolID_Call struct {
+	*mock.Call
+}
+
+// GetExpertModeVolumeByNameAndPoolID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - poolID int64
+func (_e *MockStorage_Expecter) GetExpertModeVolumeByNameAndPoolID(ctx interface{}, name interface{}, poolID interface{}) *MockStorage_GetExpertModeVolumeByNameAndPoolID_Call {
+	return &MockStorage_GetExpertModeVolumeByNameAndPoolID_Call{Call: _e.mock.On("GetExpertModeVolumeByNameAndPoolID", ctx, name, poolID)}
+}
+
+func (_c *MockStorage_GetExpertModeVolumeByNameAndPoolID_Call) Run(run func(ctx context.Context, name string, poolID int64)) *MockStorage_GetExpertModeVolumeByNameAndPoolID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetExpertModeVolumeByNameAndPoolID_Call) Return(_a0 *datamodel.ExpertModeVolumes, _a1 error) *MockStorage_GetExpertModeVolumeByNameAndPoolID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetExpertModeVolumeByNameAndPoolID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.ExpertModeVolumes, error)) *MockStorage_GetExpertModeVolumeByNameAndPoolID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFlexCacheVolumeCountByClusterPeerID provides a mock function with given fields: ctx, clusterPeerID
 func (_m *MockStorage) GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
 	ret := _m.Called(ctx, clusterPeerID)
@@ -9400,6 +9576,126 @@ func (_c *MockStorage_GetSoftDeleteAccount_Call) Return(_a0 *datamodel.Account, 
 }
 
 func (_c *MockStorage_GetSoftDeleteAccount_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Account, error)) *MockStorage_GetSoftDeleteAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSvmByExternalUUID provides a mock function with given fields: ctx, externalUUID, poolID
+func (_m *MockStorage) GetSvmByExternalUUID(ctx context.Context, externalUUID string, poolID int64) (*datamodel.Svm, error) {
+	ret := _m.Called(ctx, externalUUID, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSvmByExternalUUID")
+	}
+
+	var r0 *datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.Svm, error)); ok {
+		return rf(ctx, externalUUID, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.Svm); ok {
+		r0 = rf(ctx, externalUUID, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, externalUUID, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetSvmByExternalUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSvmByExternalUUID'
+type MockStorage_GetSvmByExternalUUID_Call struct {
+	*mock.Call
+}
+
+// GetSvmByExternalUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - externalUUID string
+//   - poolID int64
+func (_e *MockStorage_Expecter) GetSvmByExternalUUID(ctx interface{}, externalUUID interface{}, poolID interface{}) *MockStorage_GetSvmByExternalUUID_Call {
+	return &MockStorage_GetSvmByExternalUUID_Call{Call: _e.mock.On("GetSvmByExternalUUID", ctx, externalUUID, poolID)}
+}
+
+func (_c *MockStorage_GetSvmByExternalUUID_Call) Run(run func(ctx context.Context, externalUUID string, poolID int64)) *MockStorage_GetSvmByExternalUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetSvmByExternalUUID_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockStorage_GetSvmByExternalUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetSvmByExternalUUID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.Svm, error)) *MockStorage_GetSvmByExternalUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSvmByNameAndPoolID provides a mock function with given fields: ctx, name, poolID
+func (_m *MockStorage) GetSvmByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.Svm, error) {
+	ret := _m.Called(ctx, name, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSvmByNameAndPoolID")
+	}
+
+	var r0 *datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.Svm, error)); ok {
+		return rf(ctx, name, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.Svm); ok {
+		r0 = rf(ctx, name, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, name, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetSvmByNameAndPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSvmByNameAndPoolID'
+type MockStorage_GetSvmByNameAndPoolID_Call struct {
+	*mock.Call
+}
+
+// GetSvmByNameAndPoolID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - poolID int64
+func (_e *MockStorage_Expecter) GetSvmByNameAndPoolID(ctx interface{}, name interface{}, poolID interface{}) *MockStorage_GetSvmByNameAndPoolID_Call {
+	return &MockStorage_GetSvmByNameAndPoolID_Call{Call: _e.mock.On("GetSvmByNameAndPoolID", ctx, name, poolID)}
+}
+
+func (_c *MockStorage_GetSvmByNameAndPoolID_Call) Run(run func(ctx context.Context, name string, poolID int64)) *MockStorage_GetSvmByNameAndPoolID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetSvmByNameAndPoolID_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockStorage_GetSvmByNameAndPoolID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetSvmByNameAndPoolID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.Svm, error)) *MockStorage_GetSvmByNameAndPoolID_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -220,30 +220,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
-				case 'e': // Prefix: "expertMode/pools/"
+				case 'e': // Prefix: "expertMode/"
 
-					if l := len("expertMode/pools/"); len(elem) >= l && elem[0:l] == "expertMode/pools/" {
+					if l := len("expertMode/"); len(elem) >= l && elem[0:l] == "expertMode/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
-					// Param: "poolId"
-					// Match until "/"
-					idx := strings.IndexByte(elem, '/')
-					if idx < 0 {
-						idx = len(elem)
-					}
-					args[0] = elem[:idx]
-					elem = elem[idx:]
-
 					if len(elem) == 0 {
 						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/credentials"
+					case 'p': // Prefix: "pools/"
 
-						if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
+						if l := len("pools/"); len(elem) >= l && elem[0:l] == "pools/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "poolId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/credentials"
+
+							if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleV1GetOntapCredentialsRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "GET")
+								}
+
+								return
+							}
+
+						}
+
+					case 'v': // Prefix: "volumes"
+
+						if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
 							elem = elem[l:]
 						} else {
 							break
@@ -252,12 +288,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						if len(elem) == 0 {
 							// Leaf node.
 							switch r.Method {
-							case "GET":
-								s.handleV1GetOntapCredentialsRequest([1]string{
-									args[0],
-								}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleV1CreateExpertModeVolumeRequest([0]string{}, elemIsEscaped, w, r)
 							default:
-								s.notAllowed(w, r, "GET")
+								s.notAllowed(w, r, "POST")
 							}
 
 							return
@@ -666,30 +700,68 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					}
 
-				case 'e': // Prefix: "expertMode/pools/"
+				case 'e': // Prefix: "expertMode/"
 
-					if l := len("expertMode/pools/"); len(elem) >= l && elem[0:l] == "expertMode/pools/" {
+					if l := len("expertMode/"); len(elem) >= l && elem[0:l] == "expertMode/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
-					// Param: "poolId"
-					// Match until "/"
-					idx := strings.IndexByte(elem, '/')
-					if idx < 0 {
-						idx = len(elem)
-					}
-					args[0] = elem[:idx]
-					elem = elem[idx:]
-
 					if len(elem) == 0 {
 						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/credentials"
+					case 'p': // Prefix: "pools/"
 
-						if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
+						if l := len("pools/"); len(elem) >= l && elem[0:l] == "pools/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "poolId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/credentials"
+
+							if l := len("/credentials"); len(elem) >= l && elem[0:l] == "/credentials" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = V1GetOntapCredentialsOperation
+									r.summary = "Get ONTAP credentials"
+									r.operationID = "v1_getOntapCredentials"
+									r.pathPattern = "/v1/expertMode/pools/{poolId}/credentials"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+
+						}
+
+					case 'v': // Prefix: "volumes"
+
+						if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
 							elem = elem[l:]
 						} else {
 							break
@@ -698,13 +770,13 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						if len(elem) == 0 {
 							// Leaf node.
 							switch method {
-							case "GET":
-								r.name = V1GetOntapCredentialsOperation
-								r.summary = "Get ONTAP credentials"
-								r.operationID = "v1_getOntapCredentials"
-								r.pathPattern = "/v1/expertMode/pools/{poolId}/credentials"
+							case "POST":
+								r.name = V1CreateExpertModeVolumeOperation
+								r.summary = "Create volume in expert mode"
+								r.operationID = "v1_createExpertModeVolume"
+								r.pathPattern = "/v1/expertMode/volumes"
 								r.args = args
-								r.count = 1
+								r.count = 0
 								return r, true
 							default:
 								return
