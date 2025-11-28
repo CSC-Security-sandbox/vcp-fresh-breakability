@@ -132,9 +132,21 @@ spec:
               protocol: TCP
           {{- if ne $service "worker" }}
           livenessProbe:
+             failureThreshold: 3
              initialDelaySeconds: 150
+             periodSeconds: 10
+             successThreshold: 1
              tcpSocket:
                port: rpc
+             timeoutSeconds: 1
+          readinessProbe:
+             failureThreshold: 3
+             initialDelaySeconds: 30
+             periodSeconds: 10
+             successThreshold: 1
+             tcpSocket:
+               port: rpc
+             timeoutSeconds: 1
           {{- end }}
           volumeMounts:
             - name: config
