@@ -969,13 +969,6 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 		}
 	}
 
-	if req.ActiveDirectoryResourceId.Value != "" {
-		return &gcpgenserver.Error{
-			Code:    http.StatusBadRequest,
-			Message: "Active directory cannot be assigned to a Unified Flex Storage Pool",
-		}
-	}
-
 	if req.LdapEnabled.IsSet() && req.LdapEnabled.Value && req.ActiveDirectoryConfigId.Value == "" {
 		return &gcpgenserver.Error{
 			Code:    http.StatusBadRequest,

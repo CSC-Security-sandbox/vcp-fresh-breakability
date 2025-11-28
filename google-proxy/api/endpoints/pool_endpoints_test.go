@@ -1172,34 +1172,6 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
 		assert.Equal(tt, "Invalid location ID", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
-	t.Run("WhenActiveDirectoryResourceIdIsSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		params := gcpgenserver.V1betaCreatePoolParams{
-			LocationId:    "us-east4",
-			ProjectNumber: "project-number",
-		}
-		req := &gcpgenserver.PoolV1beta{
-			Unified:                   gcpgenserver.NewOptBool(true),
-			ActiveDirectoryResourceId: gcpgenserver.NewOptString("some-resource-id"),
-		}
-
-		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
-		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
-
-		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-			return "us-east4", "us-east4", nil
-		}
-
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-		result, err := handler.V1betaCreatePool(context.Background(), req, params)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
-		assert.Equal(tt, "Active directory cannot be assigned to a Unified Flex Storage Pool", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
-	})
 	t.Run("WhenLdapEnabledIsSetButActiveDirectoryConfigIdIsNotSet", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		// Mock the environment variable to enable LDAP
