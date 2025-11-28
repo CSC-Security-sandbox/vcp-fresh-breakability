@@ -450,7 +450,7 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 				return nil, ConvertToVSAError(err)
 			}
 
-			_, err = EnsureCIFSShareWorkflow(ctx, dbVolume, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID)
+			fqdn, err := EnsureCIFSShareWorkflow(ctx, dbVolume, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID)
 			if err != nil {
 				log.Error("Failed to create cifs share during PostFileVolumeWorkflow with error: ", err)
 				return nil, ConvertToVSAError(err)
@@ -460,6 +460,21 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 			if err != nil {
 				log.Error("Failed to configure Ldap with error: ", err)
 				return nil, ConvertToVSAError(err)
+			}
+
+			if fqdn != "" && dbVolume.VolumeAttributes != nil && dbVolume.VolumeAttributes.FileProperties != nil {
+				dbVolume.VolumeAttributes.FileProperties.Fqdn = fqdn
+			}
+
+			if !dbSvm.ActiveDirectoryID.Valid {
+				var updatedSvm *datamodel.Svm
+				params := activities.UpdateSvmActiveDirectoryParams{Svm: dbSvm, ActiveDirectoryUUID: activeDirectory.UUID}
+				err = workflow.ExecuteActivity(ctx, activities.CommonActivities.UpdateSvmActiveDirectory, params).Get(ctx, &updatedSvm)
+				if err != nil {
+					log.Error("Failed to update SVM Active Directory association during PostFileVolumeWorkflow with error: ", err)
+					return nil, ConvertToVSAError(err)
+				}
+				dbSvm = updatedSvm
 			}
 		}
 	}

@@ -1761,6 +1761,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_Success() {
 	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&active_directory_activities.GetOrCreateCifsServiceResult{FQDN: "fqdn.example.com"}, nil).Once()
 	s.env.OnActivity(volumeActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.Anything).Return(svm, nil).Once()
 
 	// Execute the workflow
 	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, volCreateResponse)
@@ -1769,6 +1770,68 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_Success() {
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_SVMUpdateFails() {
+	// Test PostFileVolumeWorkflow with LDAP Enabled Pool
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	enableLdap = true
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				LdapEnabled: true,
+			},
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:      "svm-name",
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: "svm-external-uuid",
+		},
+	}
+	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+	isRestoreSnapshot := false
+
+	// Enable file protocols for testing with allowlisted accounts
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&active_directory_activities.GetOrCreateCifsServiceResult{FQDN: "fqdn.example.com"}, nil).Once()
+	s.env.OnActivity(volumeActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.Anything).Return(nil, errors.New("Failed to update SVM Active Directory association during PostFileVolumeWorkflow"))
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, volCreateResponse)
+	enableLdap = false
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.ErrorContains(s.T(), s.env.GetWorkflowError(), "Failed to update SVM Active Directory association during PostFileVolumeWorkflow")
 }
 
 func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {

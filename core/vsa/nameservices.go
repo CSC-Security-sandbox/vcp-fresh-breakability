@@ -1,16 +1,18 @@
 package vsa
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"context"
 	"reflect"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 const (
@@ -126,6 +128,7 @@ func (rc *OntapRestProvider) CreateDns(params CreateDnsParams) error {
 
 func (rc *OntapRestProvider) CreateLdap(ad *datamodel.ActiveDirectory, volume *datamodel.Volume) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
+	logger := util.GetLogger(context.Background())
 	if err != nil {
 		return err
 	}
@@ -150,7 +153,11 @@ func (rc *OntapRestProvider) CreateLdap(ad *datamodel.ActiveDirectory, volume *d
 		}
 		err = client.NameServices().LdapSchemaCreate(ldapSchemaCreateParams)
 		if err != nil {
-			return err
+			if errors.IsConflictErr(err) || strings.Contains(err.Error(), "duplicate entry") {
+				logger.Infof("Ldap schema already exists: %s", err.Error())
+			} else {
+				return err
+			}
 		}
 
 		ldapSchemaModifyParams := &ontapRest.LdapSchemaModifyParams{
