@@ -30,6 +30,9 @@ func UpdateBackupPolicyWorkflow(ctx workflow.Context, params *common.UpdateBacku
 	if err != nil {
 		return err
 	}
+	if err := updateBackupPolicyWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return ConvertToVSAError(err)
+	}
 	updateBackupPolicyWF.Status = WorkflowStatusRunning
 	err = updateBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -161,6 +164,9 @@ func DeleteBackupPolicyWorkflow(ctx workflow.Context, params *common.DeleteBacku
 	err := deleteBackupPolicyWF.Setup(ctx, params)
 	if err != nil {
 		return err
+	}
+	if err := deleteBackupPolicyWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return ConvertToVSAError(err)
 	}
 	deleteBackupPolicyWF.Status = WorkflowStatusRunning
 	err = deleteBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)

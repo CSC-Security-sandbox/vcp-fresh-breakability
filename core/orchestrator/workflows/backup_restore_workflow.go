@@ -45,6 +45,9 @@ func RestoreBackupWorkflow(ctx workflow.Context, params *common.CreateVolumePara
 		log.Errorf("Failed to setup RestoreBackupWorkflow: %v", err)
 		return nil, err
 	}
+	if err := restoreWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 	restoreWf.Status = WorkflowStatusRunning
 	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -82,6 +85,9 @@ func RestoreBackupWorkflowWithContext(ctx workflow.Context, backupActivitiesCont
 	if err != nil {
 		log.Errorf("Failed to setup RestoreBackupWorkflow: %v", err)
 		return nil, err
+	}
+	if err := restoreWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
 	}
 	restoreWf.Status = WorkflowStatusRunning
 	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)

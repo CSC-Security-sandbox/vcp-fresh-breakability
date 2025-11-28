@@ -56,6 +56,9 @@ func CreateBackupWorkflow(ctx workflow.Context, params *commonparams.CreateBacku
 	if err != nil {
 		return nil, err
 	}
+	if err := backupWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 	backupWf.Status = WorkflowStatusRunning
 	err = backupWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -400,6 +403,9 @@ func DeleteBackupWorkflow(ctx workflow.Context, params *commonparams.DeleteBacku
 	err := backupWf.Setup(ctx, params)
 	if err != nil {
 		return nil, err
+	}
+	if err := backupWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
 	}
 	backupWf.Status = WorkflowStatusRunning
 	err = backupWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
@@ -756,6 +762,9 @@ func UpdateBackupWorkflow(ctx workflow.Context, backup *datamodel.Backup) (gcpge
 	if err != nil {
 		logger.Infof("Backup update workflow setup executed with error: %v", err)
 		return nil, err
+	}
+	if err := backupWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
 	}
 	backupWf.Status = WorkflowStatusRunning
 	err = backupWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)

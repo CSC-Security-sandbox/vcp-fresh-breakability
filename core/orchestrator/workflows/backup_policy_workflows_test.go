@@ -44,20 +44,35 @@ func TestBackupPolicyTestSuite(t *testing.T) {
 	suite.Run(t, new(BackupPolicyWorkflowsTestSuite))
 }
 
-func (s *BackupPolicyWorkflowsTestSuite) TestEnableBackupPolicyWorkflow_Success() {
+// setupMockStorage creates a mock storage with GetJob mocked
+func (s *BackupPolicyWorkflowsTestSuite) setupMockStorage() *database.MockStorage {
 	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	return mockStorage
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestEnableBackupPolicyWorkflow_Success() {
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInVCP)
 	s.env.RegisterActivity(backupPolicyActivity.PauseBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
 	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
@@ -100,19 +115,24 @@ func (s *BackupPolicyWorkflowsTestSuite) TestEnableBackupPolicyWorkflow_Success(
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestDisableBackupPolicyWorkflow_Success() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInVCP)
 	s.env.RegisterActivity(backupPolicyActivity.PauseBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
 	s.env.OnActivity(backupPolicyActivity.PauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
@@ -155,16 +175,21 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDisableBackupPolicyWorkflow_Success
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_GetAuthJWTTokenFailure() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", errors.New("failed to get auth token"))
 	s.env.OnActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -206,17 +231,22 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_GetAuthJ
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEFailure() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil, errors.New("failed to update backup policy in SDE"))
 	s.env.OnActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
@@ -259,17 +289,22 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEBadRequestError() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
 		nil, backup_policy.NewV1betaUpdateBackupPolicyBadRequest())
@@ -319,17 +354,22 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEUnauthorizedError() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
 		nil, backup_policy.NewV1betaUpdateBackupPolicyUnauthorized())
@@ -379,17 +419,22 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEForbiddenError() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
 		nil, backup_policy.NewV1betaUpdateBackupPolicyForbidden())
@@ -439,17 +484,22 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDENotFoundError() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
 		nil, backup_policy.NewV1betaUpdateBackupPolicyNotFound())
@@ -499,17 +549,22 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEInternalServerError() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
 		nil, backup_policy.NewV1betaUpdateBackupPolicyInternalServerError())
@@ -559,19 +614,24 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UnpauseBackupPolicyScheduleFailure() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInSDE)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
 	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(errors.New("failed to unpause backup policy schedule"))
@@ -617,19 +677,24 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UnpauseB
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_PauseBackupPolicyScheduleFailure() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.PauseBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInSDE)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
 	s.env.OnActivity(backupPolicyActivity.PauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(errors.New("failed to unpause backup policy schedule"))
@@ -675,13 +740,14 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_PauseBac
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInVCPFailure() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.PauseBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInVCP)
@@ -690,6 +756,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInSDE)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(&cvpmodels.BackupPolicyV1beta{}, nil)
 	s.env.OnActivity(backupPolicyActivity.PauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
@@ -738,18 +808,23 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Success() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
@@ -781,13 +856,14 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Success(
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_GetAuthJWTTokenFailure() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
@@ -821,18 +897,23 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_GetAuthJ
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBackupPolicyInSDEFails() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(errors.New("failed to delete backup policy in SDE"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -862,18 +943,23 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBackupPolicyScheduleFailure() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(errors.New("failed to delete backup policy schedule"))
@@ -904,18 +990,23 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBa
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBackupPolicyInVCPFailure() {
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
@@ -956,12 +1047,17 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 		env.RegisterWorkflow(DeleteBackupPolicyWorkflow)
 
 		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		mockScheduler := scheduler.NewMockScheduler(t)
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 		// Register activities
 		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
 		env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 		env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
@@ -969,6 +1065,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		// Setup mocks
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 		env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(errors.New("SDE deletion failed"))
 		env.OnActivity(backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, mock.Anything, mock.Anything, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Return(nil)
@@ -1012,12 +1112,17 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 		env.RegisterWorkflow(DeleteBackupPolicyWorkflow)
 
 		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		mockScheduler := scheduler.NewMockScheduler(t)
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 		// Register activities
 		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
 		env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 		env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
@@ -1025,6 +1130,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Rollback
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		// Setup mocks
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 		env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
@@ -1070,13 +1179,14 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowStateRoll
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	env.RegisterWorkflow(DeleteBackupPolicyWorkflow)
 
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities
 	env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	env.RegisterActivity(commonActivity.GetJob)
 	env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
 	env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 	env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
@@ -1084,6 +1194,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowStateRoll
 	env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 	// Setup mocks - simulate SDE failure and rollback failure
+	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(errors.New("SDE deletion failed"))
 	env.OnActivity(backupPolicyActivity.UpdateBackupPolicyStateInCaseOfError, mock.Anything, mock.Anything, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Return(errors.New("rollback failed"))
@@ -1125,13 +1239,14 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowSuccessNo
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	env.RegisterWorkflow(DeleteBackupPolicyWorkflow)
 
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := s.setupMockStorage()
 	mockScheduler := scheduler.NewMockScheduler(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
 
 	// Register activities including the rollback activity
 	env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	env.RegisterActivity(commonActivity.GetJob)
 	env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
 	env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 	env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
@@ -1139,6 +1254,10 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowSuccessNo
 	env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 	// Setup mocks for successful execution
+	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
 	env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
@@ -1173,4 +1292,101 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflowSuccessNo
 	assert.NoError(s.T(), env.GetWorkflowError())
 	// Verify rollback activity was NOT called
 	env.AssertActivityNotCalled(s.T(), "UpdateBackupPolicyStateInCaseOfError")
+}
+
+// TestUpdateBackupPolicyWorkflow_EnsureJobStateError tests the error path when EnsureJobState fails
+func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_EnsureJobStateError() {
+	mockStorage := s.setupMockStorage()
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetJob)
+
+	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+	}, nil)
+
+	params := &common.UpdateBackupPolicyParams{
+		Name:               "backup-policy-1",
+		AccountName:        "account-1",
+		BackupPolicyID:     "backup-policy-uuid-1",
+		LocationID:         "us-west1",
+		Description:        nillable.ToPointer("backup policy description"),
+		PolicyEnabled:      nillable.ToPointer(true),
+		DailyBackupLimit:   nillable.ToPointer(int64(3)),
+		WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+		MonthlyBackupLimit: nillable.ToPointer(int64(3)),
+	}
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			ID:   int64(1),
+			UUID: "backup-policy-uuid-1",
+		},
+		Name: "backup-policy-1",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         true,
+		LifeCycleState:        models.LifeCycleStateUpdating,
+		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+	}
+	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
+
+	// Assert that the workflow failed due to EnsureJobState error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+// TestDeleteBackupPolicyWorkflow_EnsureJobStateError tests the error path when EnsureJobState fails
+func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_EnsureJobStateError() {
+	mockStorage := s.setupMockStorage()
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetJob)
+
+	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+	}, nil)
+
+	params := &common.DeleteBackupPolicyParams{
+		Name:           "backup-policy-1",
+		OwnerID:        "account-1",
+		BackupPolicyID: "backup-policy-uuid-1",
+		LocationID:     "us-west1",
+	}
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			ID:   int64(1),
+			UUID: "backup-policy-uuid-1",
+		},
+		Name: "backup-policy-1",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateDeleting,
+		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+	}
+	s.env.ExecuteWorkflow(DeleteBackupPolicyWorkflow, params, dbBackupPolicy)
+
+	// Assert that the workflow failed due to EnsureJobState error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
 }

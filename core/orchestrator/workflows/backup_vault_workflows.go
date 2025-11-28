@@ -38,6 +38,9 @@ func UpdateBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	if err := bvWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 	bvWF.Status = WorkflowStatusRunning
 	err = bvWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -157,6 +160,9 @@ func DeleteBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 	bvWF := new(backupVaultDeleteWorkflow)
 	err := bvWF.Setup(ctx, params)
 	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	if err := bvWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	bvWF.Status = WorkflowStatusRunning

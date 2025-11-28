@@ -34,6 +34,16 @@ type TestBackupActivity struct {
 	*activities.BackupActivity
 }
 
+// setupMockCommonActivities creates a properly mocked CommonActivities for testing
+func setupMockCommonActivities(t *testing.T) (*activities.CommonActivities, *database.MockStorage) {
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	return &activities.CommonActivities{SE: mockStorage}, mockStorage
+}
+
 // setupMockBackupActivity creates a properly mocked BackupActivity for testing
 func setupMockBackupActivity(t *testing.T) *TestBackupActivity {
 	mockStorage := database.NewMockStorage(t)
@@ -107,11 +117,17 @@ func TestBackupWorkflow(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	mockStorage.On("UpdateSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
 	mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{
 		Name:               "test-backup",
@@ -309,11 +325,17 @@ func TestBackupWorkflowFail(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	env.RegisterActivity(&TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}})
 
@@ -369,11 +391,17 @@ func TestBackupWorkflowFailAfterSnapshot(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
 	mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{
@@ -499,12 +527,18 @@ func TestBackupWorkflowGetSmSourcePathActivityFailure(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	env.RegisterActivity(&TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}})
 
 	// Set up test data
@@ -561,11 +595,17 @@ func TestBackupWorkflowSnapmirrorTransferPolling(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	mockStorage.On("GetSnapshotsByTypeAndVolumeID", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Snapshot{}, nil).Maybe()
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -757,11 +797,17 @@ func TestBackupWorkflowSnapmirrorTransferFailed(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
 	mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{
@@ -888,7 +934,16 @@ func TestUpdateBackupWorkflowSuccess(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+
+		// Create mock storage for CommonActivities
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 		env.RegisterWorkflow(UpdateBackupWorkflow)
 
@@ -925,10 +980,16 @@ func TestUpdateBackupWorkflowFailure(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		// Mock storage for proper BackupActivity initialization
+		// Mock storage for proper BackupActivity and CommonActivities initialization
 		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil)
-		env.RegisterActivity(&activities.CommonActivities{})
+
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(&TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}})
 		env.RegisterWorkflow(UpdateBackupWorkflow)
 
@@ -971,7 +1032,16 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+
+		// Create mock storage for CommonActivities
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 		env.RegisterWorkflow(DeleteBackupWorkflow)
 
@@ -1058,7 +1128,8 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterWorkflow(ADCWorkflow)
@@ -1117,7 +1188,8 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 
 		// Set up test data
@@ -1199,7 +1271,8 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 		env.RegisterWorkflow(ADCWorkflow)
 		env.RegisterWorkflow(DeleteBackupWorkflow)
@@ -1285,7 +1358,8 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterWorkflow(ADCWorkflow)
@@ -1412,7 +1486,8 @@ func TestDeleteBackupWorkflowHandleError(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
+	commonActivity, _ := setupMockCommonActivities(t)
+	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(setupMockBackupActivity(t))
 	env.RegisterWorkflow(DeleteBackupWorkflow)
 
@@ -1465,7 +1540,8 @@ func TestDeleteBackupWorkflowHandleErrorFailure(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
+	commonActivity, _ := setupMockCommonActivities(t)
+	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(setupMockBackupActivity(t))
 	env.RegisterWorkflow(DeleteBackupWorkflow)
 
@@ -1509,7 +1585,8 @@ func TestCreateBackupWorkflowEdgeCases(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflow)
 
 		// Create mock storage for BackupActivity
@@ -1705,7 +1782,16 @@ func TestDeleteBackupWorkflowAdditionalErrorCases(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+
+		// Create mock storage for CommonActivities
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 		env.RegisterWorkflow(DeleteBackupWorkflow)
 
@@ -1754,7 +1840,16 @@ func TestDeleteBackupWorkflowAdditionalErrorCases(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+
+		// Create mock storage for CommonActivities
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 		env.RegisterWorkflow(DeleteBackupWorkflow)
 
@@ -1804,7 +1899,16 @@ func TestUpdateBackupWorkflowAdditionalCases(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+
+		// Create mock storage for CommonActivities
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 		env.RegisterWorkflow(UpdateBackupWorkflow)
 
@@ -1843,7 +1947,8 @@ func TestDeleteBackupWorkflow_ADCWorkflowErrorWithCloudDeletionInitiated(t *test
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(setupMockBackupActivity(t))
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterWorkflow(ADCWorkflow)
@@ -1905,11 +2010,17 @@ func TestBackupWorkflowSnapmirrorTransferWaitTimeCap(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	mockStorage.On("GetSnapshotsByTypeAndVolumeID", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Snapshot{}, nil).Maybe()
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -2202,11 +2313,17 @@ func TestBackupWorkflowGetObjectStoreEndpointActivityFailure(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
 	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -2448,11 +2565,17 @@ func TestBackupWorkflowHydrationWithGetLocation(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	mockStorage.On("UpdateSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
 	mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{
 		Name:               "test-backup",
@@ -2661,7 +2784,8 @@ func TestCreateBackupWorkflowWithContinueAsNew(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflow)
 
 		// Create mock storage for BackupActivity
@@ -2843,7 +2967,8 @@ func TestCreateBackupWorkflowWithContinueAsNew(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflow)
 
 		// Create mock storage for BackupActivity
@@ -3060,7 +3185,8 @@ func TestCreateBackupWorkflowWithEventHistoryThreshold(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflow)
 
 		// Create mock storage for BackupActivity
@@ -3245,7 +3371,8 @@ func TestCreateBackupWorkflowWithRetryPolicy(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflow)
 
 		// Create mock storage for BackupActivity
@@ -3462,7 +3589,8 @@ func TestCreateBackupWorkflowWithErrorHandling(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflow)
 
 		// Create mock storage for BackupActivity
@@ -3525,7 +3653,8 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflowWithContext)
 
 		// Create mock storage for BackupActivity
@@ -3745,7 +3874,11 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, mockCommonStorage := setupMockCommonActivities(t)
+		mockCommonStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		mockCommonStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterWorkflow(CreateBackupWorkflowWithContext)
 
 		// Create mock storage for BackupActivity
@@ -3785,6 +3918,15 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 			Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		}
 
+		// Mock UpdateBackupError for revert logic
+		backupActivity := &activities.BackupActivity{SE: mockStorage}
+		env.RegisterActivity(backupActivity.UpdateBackupError)
+		env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		// Mock PrepareObjectStoreActivity to fail to simulate setup failure
+		env.RegisterActivity(backupActivity.PrepareObjectStoreActivity)
+		env.OnActivity("PrepareObjectStoreActivity", mock.Anything, mock.Anything).Return(nil, errors.New("failed to prepare object store")).Maybe()
+
 		// Execute workflow
 		env.ExecuteWorkflow(CreateBackupWorkflowWithContext, backupActivitiesContext, params)
 
@@ -3805,7 +3947,8 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflowWithContext)
 
 		// Create mock storage for BackupActivity
@@ -3869,7 +4012,8 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflowWithContext)
 
 		// Create mock storage for BackupActivity
@@ -3937,7 +4081,8 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflowWithContext)
 
 		// Create mock storage for BackupActivity
@@ -4112,7 +4257,8 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
 		env.RegisterWorkflow(CreateBackupWorkflowWithContext)
 
 		// Create mock storage for BackupActivity
@@ -4182,11 +4328,17 @@ func TestBackupWorkflow_CreateBackupMetadataIfFirstBackupActivityFailure(t *test
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterWorkflow(CreateBackupWorkflow)
 
-	// Create mock storage for BackupActivity
+	// Create mock storage for CommonActivities and BackupActivity
 	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
 	mockStorage.On("UpdateSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
 	mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{
 		Name:               "test-backup",
@@ -4424,7 +4576,8 @@ func TestDeleteBackupWorkflow_DeleteBackupMetadataIfLastBackupActivityFailure(t 
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
+	commonActivity, _ := setupMockCommonActivities(t)
+	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(setupMockBackupActivity(t))
 	env.RegisterWorkflow(DeleteBackupWorkflow)
 
@@ -4513,7 +4666,8 @@ func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
+	commonActivity, _ := setupMockCommonActivities(t)
+	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(setupMockBackupActivity(t))
 	env.RegisterWorkflow(DeleteBackupWorkflow)
 
@@ -4553,7 +4707,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			VendorSubnetID: "subnet-12345",
 		},
-		Account: account,
+		Account:        account,
 		DataProtection: &datamodel.DataProtection{},
 	}
 	externalBackupUUID := "external-backup-uuid"
@@ -4612,7 +4766,8 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
+	commonActivity, _ := setupMockCommonActivities(t)
+	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(setupMockBackupActivity(t))
 	env.RegisterWorkflow(DeleteBackupWorkflow)
 
@@ -4652,7 +4807,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			VendorSubnetID: "subnet-12345",
 		},
-		Account: account,
+		Account:        account,
 		DataProtection: &datamodel.DataProtection{},
 	}
 	externalBackupUUID := "external-backup-uuid"
@@ -4697,5 +4852,142 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 	// Assert that the workflow failed due to DeleteRemoteBackupFromVCPActivity failure
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestCreateBackupWorkflow_EnsureJobStateError tests the error path when EnsureJobState fails
+func TestCreateBackupWorkflow_EnsureJobStateError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	commonActivity, mockStorage := setupMockCommonActivities(t)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.RegisterActivity(commonActivity)
+	env.RegisterActivity(commonActivity.GetJob)
+	env.RegisterWorkflow(CreateBackupWorkflow)
+
+	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
+	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+	}, nil)
+
+	// Set up test data
+	params := &commonparams.CreateBackupParams{
+		VolumeUUID:  "test-vol",
+		AccountName: "test-account",
+		BackupName:  "test-backup",
+	}
+	backupVault := &datamodel.BackupVault{
+		Name:          "test-backup-vault",
+		BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+	}
+	backup := &datamodel.Backup{
+		State:         "InProgress",
+		Name:          "test-backup",
+		VolumeUUID:    "test-vol",
+		BackupVault:   backupVault,
+		BackupVaultID: 1,
+		Attributes:    &datamodel.BackupAttributes{},
+	}
+	volume := &datamodel.Volume{
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}, PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-central1-a"}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, VendorSubnetID: "subnet-12345", ExternalUUID: "external-uuid"},
+	}
+
+	// Execute workflow
+	env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
+
+	// Assert that the workflow failed due to EnsureJobState error
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestDeleteBackupWorkflow_EnsureJobStateError tests the error path when EnsureJobState fails
+func TestDeleteBackupWorkflow_EnsureJobStateError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	commonActivity, mockStorage := setupMockCommonActivities(t)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.RegisterActivity(commonActivity)
+	env.RegisterActivity(commonActivity.GetJob)
+	env.RegisterWorkflow(DeleteBackupWorkflow)
+
+	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
+	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+	}, nil)
+
+	// Set up test data
+	params := &commonparams.DeleteBackupParams{
+		BackupVaultUUID: "vault-uuid",
+		BackupUUID:      "backup-uuid",
+		AccountName:     "test-account",
+	}
+
+	// Execute workflow
+	env.ExecuteWorkflow(DeleteBackupWorkflow, params)
+
+	// Assert that the workflow failed due to EnsureJobState error
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestUpdateBackupWorkflow_EnsureJobStateError tests the error path when EnsureJobState fails
+func TestUpdateBackupWorkflow_EnsureJobStateError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	commonActivity, mockStorage := setupMockCommonActivities(t)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.RegisterActivity(commonActivity)
+	env.RegisterActivity(commonActivity.GetJob)
+	env.RegisterWorkflow(UpdateBackupWorkflow)
+
+	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
+	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
+	}, nil)
+
+	// Set up test data
+	backup := &datamodel.Backup{
+		BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
+		Name:      "test-backup",
+		State:     "Ready",
+	}
+
+	// Execute workflow
+	env.ExecuteWorkflow(UpdateBackupWorkflow, backup)
+
+	// Assert that the workflow failed due to EnsureJobState error
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
