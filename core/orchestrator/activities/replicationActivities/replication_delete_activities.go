@@ -22,7 +22,20 @@ type DeleteVolumeReplicationActivity struct {
 	SE database.Storage
 }
 
+func (a *DeleteVolumeReplicationActivity) SetHybridReplicationVariablesDelete(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	if result.Event != nil && result.Event.ReplicationModel != nil && result.Event.ReplicationModel.HybridReplicationAttributes != nil {
+		logger.Infof("Replication is a hybrid replication")
+		result.IsHybridReplicationVolume = true
+		// TODO: check replication count for hybrid replication, if last then set peering cleanup flag also
+	}
+	return result, nil
+}
+
 func (a *DeleteVolumeReplicationActivity) GetSrcBasePathDelete(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	if result.Event.ReplicationModel.ReplicationAttributes.SourceLocation == RemoteRegionCustomer {
+		return result, nil
+	}
 	srcBasePath, err := GetBasePath(ctx, result.Event.ReplicationModel.ReplicationAttributes.SourceLocation)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
@@ -32,6 +45,9 @@ func (a *DeleteVolumeReplicationActivity) GetSrcBasePathDelete(ctx context.Conte
 }
 
 func (a *DeleteVolumeReplicationActivity) GetDstBasePathDelete(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	if result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation == RemoteRegionCustomer {
+		return result, nil
+	}
 	dstBasePath, err := GetBasePath(ctx, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)

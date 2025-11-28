@@ -52,6 +52,25 @@ func TestGetSrcBasePathDelete(t *testing.T) {
 		assert.NotNil(tt, updatedResult.SrcBasePath)
 		assert.Equal(tt, "https://src-base-path.example.com", *updatedResult.SrcBasePath)
 	})
+	t.Run("WhenHybridReplication", func(tt *testing.T) {
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation: RemoteRegionCustomer,
+						},
+					},
+				},
+			},
+		}
+		activity := DeleteVolumeReplicationActivity{}
+
+		updatedResult, err := activity.GetSrcBasePathDelete(context.Background(), result)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, updatedResult.SrcBasePath)
+	})
 	t.Run("ErrorSrcBasePath", func(tt *testing.T) {
 		defer func() {
 			replicationInternalParseRegionAndZone = replication.InternalParseRegionAndZone
@@ -117,6 +136,25 @@ func TestGetDstBasePathDelete(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, updatedResult.DstBasePath)
 		assert.Equal(tt, "https://dst-base-path.example.com", *updatedResult.DstBasePath)
+	})
+	t.Run("WhenHybridReplication", func(tt *testing.T) {
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: RemoteRegionCustomer,
+						},
+					},
+				},
+			},
+		}
+		activity := DeleteVolumeReplicationActivity{}
+
+		updatedResult, err := activity.GetDstBasePathDelete(context.Background(), result)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, updatedResult.DstBasePath)
 	})
 	t.Run("ErrorDstBasePath", func(tt *testing.T) {
 		defer func() {
@@ -3591,5 +3629,136 @@ func TestUpdateReplicationOnDestinationToErrorState(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "Failed to update volume replication state on")
+	})
+}
+
+func TestSetHybridReplicationVariablesDelete(t *testing.T) {
+	ctx := context.Background()
+	activity := DeleteVolumeReplicationActivity{}
+
+	t.Run("WhenEventIsNil", func(tt *testing.T) {
+		result := &replication.DeleteReplicationResult{
+			Event: nil,
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.False(tt, updatedResult.IsHybridReplicationVolume)
+	})
+
+	t.Run("WhenReplicationModelIsNil", func(tt *testing.T) {
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: nil,
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.False(tt, updatedResult.IsHybridReplicationVolume)
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsNil", func(tt *testing.T) {
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: nil,
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.False(tt, updatedResult.IsHybridReplicationVolume)
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsSet", func(tt *testing.T) {
+		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+							HybridReplicationType: &migrationType,
+						},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+	})
+
+	t.Run("WhenHybridReplicationTypeIsReverse", func(tt *testing.T) {
+		reverseType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+							HybridReplicationType: &reverseType,
+						},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+	})
+
+	t.Run("WhenHybridReplicationTypeIsNil", func(tt *testing.T) {
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+							HybridReplicationType: nil,
+						},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "",
+						},
+					},
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
 	})
 }

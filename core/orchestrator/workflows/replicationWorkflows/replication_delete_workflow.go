@@ -108,6 +108,11 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		}
 	}()
 
+	err = workflow.ExecuteActivity(ctx, replicationActivity.SetHybridReplicationVariablesDelete, &replicationResult).Get(ctx, &replicationResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathDelete, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -153,29 +158,31 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteSnapmirrorSnapshotsOnSource, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+	if !replicationResult.IsHybridReplicationVolume {
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteSnapmirrorSnapshotsOnSource, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeSourceJobForDelete, &replicationResult).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeSourceJobForDelete, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.DeHydrateDestinationVolumeReplication, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeHydrateDestinationVolumeReplication, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationRecordOnSource, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+		err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationRecordOnSource, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeSourceJobForDelete, &replicationResult).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeSourceJobForDelete, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationRecordOnDestination, &replicationResult).Get(ctx, &replicationResult)
@@ -204,6 +211,8 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 			return nil, workflows.ConvertToVSAError(err)
 		}
 	}
+
+	// TODO: Add cleanup for cluser and svm peering if needed
 
 	return nil, workflows.ConvertToVSAError(err)
 }

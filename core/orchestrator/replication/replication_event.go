@@ -162,19 +162,20 @@ type DeleteReplicationEvent struct {
 }
 
 type DeleteReplicationResult struct {
-	Ctx              context.Context
-	Event            *DeleteReplicationEvent
-	DstBasePath      *string
-	SrcBasePath      *string
-	DstProjectNumber *string
-	SrcProjectNumber *string
-	DstJwtToken      *string
-	SrcJwtToken      *string
-	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
-	DstVolume        *googleproxyclient.VolumeV1beta
-	Error            error
-	JobId            string
-	CorrelationID    *string
+	Ctx                       context.Context
+	Event                     *DeleteReplicationEvent
+	DstBasePath               *string
+	SrcBasePath               *string
+	DstProjectNumber          *string
+	SrcProjectNumber          *string
+	DstJwtToken               *string
+	SrcJwtToken               *string
+	DstReplication            *googleproxyclient.VolumeReplicationInternalV1beta
+	DstVolume                 *googleproxyclient.VolumeV1beta
+	Error                     error
+	JobId                     string
+	CorrelationID             *string
+	IsHybridReplicationVolume bool
 }
 
 type UpdateReplicationResult struct {
