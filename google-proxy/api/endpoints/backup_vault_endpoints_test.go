@@ -823,6 +823,54 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError).Code)
 	})
 
+	t.Run("WhenGetMultipleBackupVaultsFailsWithTooManyRequests", func(t *testing.T) {
+		// Create a mock client
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		// Define input parameters
+		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		// Define request
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"BV0"},
+		}
+
+		// Define mock error
+		errorMessage := "Too many requests"
+		errorCode := float64(429)
+		mockError := &backup_vault.V1betaGetMultipleBackupVaultsTooManyRequests{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		// Set up the mock client behavior
+		mockClient.EXPECT().
+			V1betaGetMultipleBackupVaults(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		// Call the method under test
+		result, err := handler.V1betaGetMultipleBackupVaults(context.Background(), req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Check if the code is as expected
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsTooManyRequests).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsTooManyRequests).Message)
+	})
+
 	t.Run("WhenGetMultipleBackupVaultsFailsWithUnknownError", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)

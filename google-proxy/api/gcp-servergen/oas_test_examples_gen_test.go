@@ -7826,6 +7826,18 @@ func TestV1betaGetMultipleBackupPoliciesOK_EncodeDecode(t *testing.T) {
 	var typ2 V1betaGetMultipleBackupPoliciesOK
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaGetMultipleBackupPoliciesTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupPoliciesTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupPoliciesTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaGetMultipleBackupPoliciesUnauthorized_EncodeDecode(t *testing.T) {
 	var typ V1betaGetMultipleBackupPoliciesUnauthorized
 	typ.SetFake()
@@ -7908,6 +7920,18 @@ func TestV1betaGetMultipleBackupVaultsOK_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaGetMultipleBackupVaultsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleBackupVaultsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupVaultsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupVaultsTooManyRequests
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaGetMultipleBackupVaultsUnauthorized_EncodeDecode(t *testing.T) {

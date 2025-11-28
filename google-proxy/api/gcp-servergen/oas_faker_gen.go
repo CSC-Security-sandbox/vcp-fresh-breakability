@@ -8170,6 +8170,15 @@ func (s *V1betaGetMultipleBackupPoliciesOK) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaGetMultipleBackupPoliciesTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupPoliciesTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaGetMultipleBackupPoliciesUnauthorized) SetFake() {
 	var unwrapped Error
 	{
@@ -8237,6 +8246,15 @@ func (s *V1betaGetMultipleBackupVaultsOK) SetFake() {
 			}
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupVaultsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupVaultsTooManyRequests(unwrapped)
 }
 
 // SetFake set fake values.

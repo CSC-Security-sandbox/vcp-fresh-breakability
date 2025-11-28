@@ -56,6 +56,12 @@ func (o *V1betaGetMultipleBackupPoliciesReader) ReadResponse(response runtime.Cl
 			return nil, err
 		}
 		return nil, result
+	case 429:
+		result := NewV1betaGetMultipleBackupPoliciesTooManyRequests()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewV1betaGetMultipleBackupPoliciesInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -239,6 +245,40 @@ func (o *V1betaGetMultipleBackupPoliciesNotFound) GetPayload() *models.Error {
 }
 
 func (o *V1betaGetMultipleBackupPoliciesNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.Error)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewV1betaGetMultipleBackupPoliciesTooManyRequests creates a V1betaGetMultipleBackupPoliciesTooManyRequests with default headers values
+func NewV1betaGetMultipleBackupPoliciesTooManyRequests() *V1betaGetMultipleBackupPoliciesTooManyRequests {
+	return &V1betaGetMultipleBackupPoliciesTooManyRequests{}
+}
+
+/*
+V1betaGetMultipleBackupPoliciesTooManyRequests handles this case with default header values.
+
+Too many requests
+*/
+type V1betaGetMultipleBackupPoliciesTooManyRequests struct {
+	Payload *models.Error
+}
+
+func (o *V1betaGetMultipleBackupPoliciesTooManyRequests) Error() string {
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupPolicies][%d] v1betaGetMultipleBackupPoliciesTooManyRequests  %+v", 429, o.Payload)
+}
+
+func (o *V1betaGetMultipleBackupPoliciesTooManyRequests) GetPayload() *models.Error {
+	return o.Payload
+}
+
+func (o *V1betaGetMultipleBackupPoliciesTooManyRequests) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.Error)
 

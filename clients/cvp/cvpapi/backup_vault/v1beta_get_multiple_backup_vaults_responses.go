@@ -56,6 +56,12 @@ func (o *V1betaGetMultipleBackupVaultsReader) ReadResponse(response runtime.Clie
 			return nil, err
 		}
 		return nil, result
+	case 429:
+		result := NewV1betaGetMultipleBackupVaultsTooManyRequests()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
 	case 500:
 		result := NewV1betaGetMultipleBackupVaultsInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -239,6 +245,40 @@ func (o *V1betaGetMultipleBackupVaultsNotFound) GetPayload() *models.Error {
 }
 
 func (o *V1betaGetMultipleBackupVaultsNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.Error)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewV1betaGetMultipleBackupVaultsTooManyRequests creates a V1betaGetMultipleBackupVaultsTooManyRequests with default headers values
+func NewV1betaGetMultipleBackupVaultsTooManyRequests() *V1betaGetMultipleBackupVaultsTooManyRequests {
+	return &V1betaGetMultipleBackupVaultsTooManyRequests{}
+}
+
+/*
+V1betaGetMultipleBackupVaultsTooManyRequests handles this case with default header values.
+
+Too many requests
+*/
+type V1betaGetMultipleBackupVaultsTooManyRequests struct {
+	Payload *models.Error
+}
+
+func (o *V1betaGetMultipleBackupVaultsTooManyRequests) Error() string {
+	return fmt.Sprintf("[POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults][%d] v1betaGetMultipleBackupVaultsTooManyRequests  %+v", 429, o.Payload)
+}
+
+func (o *V1betaGetMultipleBackupVaultsTooManyRequests) GetPayload() *models.Error {
+	return o.Payload
+}
+
+func (o *V1betaGetMultipleBackupVaultsTooManyRequests) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.Error)
 

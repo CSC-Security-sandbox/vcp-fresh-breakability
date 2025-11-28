@@ -11652,6 +11652,14 @@ func (s *V1betaGetMultipleBackupPoliciesOK) Validate() error {
 	return nil
 }
 
+func (s *V1betaGetMultipleBackupPoliciesTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaGetMultipleBackupPoliciesUnauthorized) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -11733,6 +11741,14 @@ func (s *V1betaGetMultipleBackupVaultsOK) Validate() error {
 	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleBackupVaultsTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

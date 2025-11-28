@@ -20134,6 +20134,10 @@ func (s *V1betaGetMultipleBackupPoliciesOK) SetBackupPolicies(val []BackupPolicy
 
 func (*V1betaGetMultipleBackupPoliciesOK) v1betaGetMultipleBackupPoliciesRes() {}
 
+type V1betaGetMultipleBackupPoliciesTooManyRequests Error
+
+func (*V1betaGetMultipleBackupPoliciesTooManyRequests) v1betaGetMultipleBackupPoliciesRes() {}
+
 type V1betaGetMultipleBackupPoliciesUnauthorized Error
 
 func (*V1betaGetMultipleBackupPoliciesUnauthorized) v1betaGetMultipleBackupPoliciesRes() {}
@@ -20173,6 +20177,10 @@ func (s *V1betaGetMultipleBackupVaultsOK) SetBackupVaults(val []BackupVaultV1bet
 }
 
 func (*V1betaGetMultipleBackupVaultsOK) v1betaGetMultipleBackupVaultsRes() {}
+
+type V1betaGetMultipleBackupVaultsTooManyRequests Error
+
+func (*V1betaGetMultipleBackupVaultsTooManyRequests) v1betaGetMultipleBackupVaultsRes() {}
 
 type V1betaGetMultipleBackupVaultsUnauthorized Error
 

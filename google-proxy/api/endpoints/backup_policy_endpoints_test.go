@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"testing"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -3770,6 +3770,56 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError).Message)
+	})
+
+	t.Run("WhenGetMultipleBackupPoliciesFailsWithTooManyRequests", func(t *testing.T) {
+		// Create a mock client
+		mockClient := backup_policy.NewMockClientService(t)
+
+		// Define input parameters
+		params := gcpgenserver.V1betaGetMultipleBackupPoliciesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		// Define request
+		req := &gcpgenserver.BackupPolicyIdListV1beta{
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
+		}
+
+		// Define mock error
+		errorCode := float64(429)
+		errorMessage := "Too many requests"
+		mockError := &backup_policy.V1betaGetMultipleBackupPoliciesTooManyRequests{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		// Set up the mock client behavior
+		mockClient.EXPECT().
+			V1betaGetMultipleBackupPolicies(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		// Call the method under test
+		result, err := handler.V1betaGetMultipleBackupPolicies(context.Background(), req, params)
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Check if the code is as expected
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesTooManyRequests).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesTooManyRequests).Message)
 	})
 
 	t.Run("WhenGetMultipleBackupPoliciesFailsWithUnknownError", func(t *testing.T) {

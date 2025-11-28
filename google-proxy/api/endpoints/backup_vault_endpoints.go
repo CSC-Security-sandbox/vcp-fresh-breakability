@@ -664,6 +664,13 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 				Code:    code,
 				Message: msg,
 			}, nil
+		case *backup_vault.V1betaGetMultipleBackupVaultsTooManyRequests:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaGetMultipleBackupVaultsTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
 		case *backup_vault.V1betaGetMultipleBackupVaultsDefault:
 			return &gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError{
 				Code:    500,

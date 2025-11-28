@@ -323,6 +323,13 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 				Code:    code,
 				Message: msg,
 			}, nil
+		case *backup_policy.V1betaGetMultipleBackupPoliciesTooManyRequests:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaGetMultipleBackupPoliciesTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
 		case *backup_policy.V1betaGetMultipleBackupPoliciesDefault:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
