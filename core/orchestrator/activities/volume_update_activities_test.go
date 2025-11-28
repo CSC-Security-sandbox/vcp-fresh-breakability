@@ -4679,3 +4679,35 @@ func TestUpdateVolumeInDB_WithSMBSettingsAndOtherFields_Success(t *testing.T) {
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
+
+func TestGetUpdatedFieldsFromParams_WithKmsGrant(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	kmsGrant := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:      "test-volume",
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "vault-123",
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		DataProtection: &models.UpdateDataProtection{
+			KmsGrant: &kmsGrant,
+		},
+	}
+
+	updatedFields, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedFields)
+	assert.Contains(t, updatedFields, "data_protection")
+
+	dataProtection, ok := updatedFields["data_protection"].(*datamodel.DataProtection)
+	assert.True(t, ok)
+	assert.NotNil(t, dataProtection)
+	assert.Equal(t, kmsGrant, *dataProtection.KmsGrant)
+	assert.Equal(t, "vault-123", dataProtection.BackupVaultID)
+}

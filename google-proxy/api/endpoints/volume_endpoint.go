@@ -509,6 +509,11 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if reqBackupConfig.ScheduledBackupEnabled.IsSet() {
 			param.DataProtection.ScheduledBackupEnabled = &reqBackupConfig.ScheduledBackupEnabled.Value
 		}
+
+		// Validate kmsGrant in backupConfig
+		if reqBackupConfig.KmsGrant.IsSet() && reqBackupConfig.KmsGrant.Value != "" {
+			return nil, errors.NewUserInputValidationErr("Volumes cannot be created with CMEK-enabled backup vaults. Please use a backup vault without CMEK encryption")
+		}
 	}
 
 	if req.Volume.SnapshotPolicy.IsSet() {
@@ -870,6 +875,11 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 		if reqBackupConfig.ScheduledBackupEnabled.IsSet() {
 			param.DataProtection.ScheduledBackupEnabled = &reqBackupConfig.ScheduledBackupEnabled.Value
+		}
+
+		// Validate kmsGrant in backupConfig
+		if reqBackupConfig.KmsGrant.IsSet() && reqBackupConfig.KmsGrant.Value != "" {
+			return nil, errors.NewUserInputValidationErr("Volumes cannot be configured with CMEK-enabled backup vaults. Please use a backup vault without CMEK encryption")
 		}
 	}
 
@@ -1409,8 +1419,12 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		if volume.DataProtection.BackupChainBytes != nil {
 			backupConfig.BackupChainBytes = gcpgenserver.NewOptNilInt64(*volume.DataProtection.BackupChainBytes)
 		}
+		if volume.DataProtection.KmsGrant != nil && *volume.DataProtection.KmsGrant != "" {
+			backupConfig.KmsGrant = gcpgenserver.NewOptNilString(*volume.DataProtection.KmsGrant)
+		}
 		if backupConfig.BackupVaultId.Set || backupConfig.BackupPolicyId.Set ||
-			backupConfig.BackupChainBytes.Set || backupConfig.ScheduledBackupEnabled.Set {
+			backupConfig.BackupChainBytes.Set || backupConfig.ScheduledBackupEnabled.Set ||
+			backupConfig.KmsGrant.Set {
 			res.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(backupConfig)
 		}
 	}
@@ -1871,6 +1885,9 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		if in.BackupConfig.BackupPolicyID != nil {
 			backupConfigV1beta.BackupPolicyId = utils.SafeString(in.BackupConfig.BackupPolicyID)
 			backupConfigV1beta.ScheduledBackupEnabled = utils.SafeBool(in.BackupConfig.ScheduledBackupEnabled)
+		}
+		if in.BackupConfig.KmsGrant != nil {
+			backupConfigV1beta.KmsGrant = utils.SafeString(in.BackupConfig.KmsGrant)
 		}
 
 		volume.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(backupConfigV1beta)

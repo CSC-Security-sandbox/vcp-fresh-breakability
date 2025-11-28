@@ -682,6 +682,8 @@ type BackupConfigV1beta struct {
 	ScheduledBackupEnabled OptNilBool `json:"scheduledBackupEnabled"`
 	// Size in bytes of the backup of the volume.
 	BackupChainBytes OptNilInt64 `json:"backupChainBytes"`
+	// KMS grant.
+	KmsGrant OptNilString `json:"kmsGrant"`
 }
 
 // GetBackupPolicyId returns the value of BackupPolicyId.
@@ -704,6 +706,11 @@ func (s *BackupConfigV1beta) GetBackupChainBytes() OptNilInt64 {
 	return s.BackupChainBytes
 }
 
+// GetKmsGrant returns the value of KmsGrant.
+func (s *BackupConfigV1beta) GetKmsGrant() OptNilString {
+	return s.KmsGrant
+}
+
 // SetBackupPolicyId sets the value of BackupPolicyId.
 func (s *BackupConfigV1beta) SetBackupPolicyId(val OptNilString) {
 	s.BackupPolicyId = val
@@ -722,6 +729,11 @@ func (s *BackupConfigV1beta) SetScheduledBackupEnabled(val OptNilBool) {
 // SetBackupChainBytes sets the value of BackupChainBytes.
 func (s *BackupConfigV1beta) SetBackupChainBytes(val OptNilInt64) {
 	s.BackupChainBytes = val
+}
+
+// SetKmsGrant sets the value of KmsGrant.
+func (s *BackupConfigV1beta) SetKmsGrant(val OptNilString) {
+	s.KmsGrant = val
 }
 
 // Merged schema.
@@ -1942,6 +1954,10 @@ type BackupVaultCreateV1beta struct {
 	// The destination region the backup needs to be stored in.
 	BackupRegion          OptString                      `json:"backupRegion"`
 	BackupRetentionPolicy OptBackupRetentionPolicyV1beta `json:"backupRetentionPolicy"`
+	// Complete resource path of the KMS config.
+	KmsConfigResourcePath OptString `json:"kmsConfigResourcePath"`
+	// Key version used to encrypt backups in the vault.
+	BackupsPrimaryKeyVersion OptString `json:"backupsPrimaryKeyVersion"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -1964,6 +1980,16 @@ func (s *BackupVaultCreateV1beta) GetBackupRetentionPolicy() OptBackupRetentionP
 	return s.BackupRetentionPolicy
 }
 
+// GetKmsConfigResourcePath returns the value of KmsConfigResourcePath.
+func (s *BackupVaultCreateV1beta) GetKmsConfigResourcePath() OptString {
+	return s.KmsConfigResourcePath
+}
+
+// GetBackupsPrimaryKeyVersion returns the value of BackupsPrimaryKeyVersion.
+func (s *BackupVaultCreateV1beta) GetBackupsPrimaryKeyVersion() OptString {
+	return s.BackupsPrimaryKeyVersion
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *BackupVaultCreateV1beta) SetResourceId(val OptString) {
 	s.ResourceId = val
@@ -1982,6 +2008,16 @@ func (s *BackupVaultCreateV1beta) SetBackupRegion(val OptString) {
 // SetBackupRetentionPolicy sets the value of BackupRetentionPolicy.
 func (s *BackupVaultCreateV1beta) SetBackupRetentionPolicy(val OptBackupRetentionPolicyV1beta) {
 	s.BackupRetentionPolicy = val
+}
+
+// SetKmsConfigResourcePath sets the value of KmsConfigResourcePath.
+func (s *BackupVaultCreateV1beta) SetKmsConfigResourcePath(val OptString) {
+	s.KmsConfigResourcePath = val
+}
+
+// SetBackupsPrimaryKeyVersion sets the value of BackupsPrimaryKeyVersion.
+func (s *BackupVaultCreateV1beta) SetBackupsPrimaryKeyVersion(val OptString) {
+	s.BackupsPrimaryKeyVersion = val
 }
 
 // Ref: #/components/schemas/BackupVaultInternalUpdate_v1beta
@@ -2585,6 +2621,10 @@ type BackupVaultUpdateV1beta struct {
 	// Description of the resource.
 	Description           OptString                            `json:"description"`
 	BackupRetentionPolicy OptBackupRetentionPolicyUpdateV1beta `json:"backupRetentionPolicy"`
+	// Complete resource path of the KMS config.
+	KmsConfigResourcePath OptString `json:"kmsConfigResourcePath"`
+	// Key version used to encrypt backups in the vault.
+	BackupsPrimaryKeyVersion OptString `json:"backupsPrimaryKeyVersion"`
 }
 
 // GetDescription returns the value of Description.
@@ -2597,6 +2637,16 @@ func (s *BackupVaultUpdateV1beta) GetBackupRetentionPolicy() OptBackupRetentionP
 	return s.BackupRetentionPolicy
 }
 
+// GetKmsConfigResourcePath returns the value of KmsConfigResourcePath.
+func (s *BackupVaultUpdateV1beta) GetKmsConfigResourcePath() OptString {
+	return s.KmsConfigResourcePath
+}
+
+// GetBackupsPrimaryKeyVersion returns the value of BackupsPrimaryKeyVersion.
+func (s *BackupVaultUpdateV1beta) GetBackupsPrimaryKeyVersion() OptString {
+	return s.BackupsPrimaryKeyVersion
+}
+
 // SetDescription sets the value of Description.
 func (s *BackupVaultUpdateV1beta) SetDescription(val OptString) {
 	s.Description = val
@@ -2605,6 +2655,16 @@ func (s *BackupVaultUpdateV1beta) SetDescription(val OptString) {
 // SetBackupRetentionPolicy sets the value of BackupRetentionPolicy.
 func (s *BackupVaultUpdateV1beta) SetBackupRetentionPolicy(val OptBackupRetentionPolicyUpdateV1beta) {
 	s.BackupRetentionPolicy = val
+}
+
+// SetKmsConfigResourcePath sets the value of KmsConfigResourcePath.
+func (s *BackupVaultUpdateV1beta) SetKmsConfigResourcePath(val OptString) {
+	s.KmsConfigResourcePath = val
+}
+
+// SetBackupsPrimaryKeyVersion sets the value of BackupsPrimaryKeyVersion.
+func (s *BackupVaultUpdateV1beta) SetBackupsPrimaryKeyVersion(val OptString) {
+	s.BackupsPrimaryKeyVersion = val
 }
 
 // Ref: #/components/schemas/BackupVaultUuidList_v1beta
@@ -2634,6 +2694,8 @@ type BackupVaultV1beta struct {
 	BackupRegion OptString `json:"backupRegion"`
 	// The source region of the backup.
 	SourceRegion OptString `json:"sourceRegion"`
+	// Complete resource path of the KMS config.
+	KmsConfigResourcePath OptString `json:"kmsConfigResourcePath"`
 	// The destination region backup vault.
 	DestinationBackupVault OptString `json:"destinationBackupVault"`
 	// The source region backup vault.
@@ -2649,6 +2711,12 @@ type BackupVaultV1beta struct {
 	// Date the resource was deleted.
 	DeletedAt             OptDateTime                    `json:"deletedAt"`
 	BackupRetentionPolicy OptBackupRetentionPolicyV1beta `json:"backupRetentionPolicy"`
+	// Key version used to encrypt backups in the vault.
+	BackupsPrimaryKeyVersion OptString `json:"backupsPrimaryKeyVersion"`
+	// Current state of CMEK encryption for the backup vault.
+	EncryptionState OptBackupVaultV1betaEncryptionState `json:"encryptionState"`
+	// KMS grant.
+	KmsGrant OptString `json:"kmsGrant"`
 }
 
 // GetBackupVaultId returns the value of BackupVaultId.
@@ -2674,6 +2742,11 @@ func (s *BackupVaultV1beta) GetBackupRegion() OptString {
 // GetSourceRegion returns the value of SourceRegion.
 func (s *BackupVaultV1beta) GetSourceRegion() OptString {
 	return s.SourceRegion
+}
+
+// GetKmsConfigResourcePath returns the value of KmsConfigResourcePath.
+func (s *BackupVaultV1beta) GetKmsConfigResourcePath() OptString {
+	return s.KmsConfigResourcePath
 }
 
 // GetDestinationBackupVault returns the value of DestinationBackupVault.
@@ -2716,6 +2789,21 @@ func (s *BackupVaultV1beta) GetBackupRetentionPolicy() OptBackupRetentionPolicyV
 	return s.BackupRetentionPolicy
 }
 
+// GetBackupsPrimaryKeyVersion returns the value of BackupsPrimaryKeyVersion.
+func (s *BackupVaultV1beta) GetBackupsPrimaryKeyVersion() OptString {
+	return s.BackupsPrimaryKeyVersion
+}
+
+// GetEncryptionState returns the value of EncryptionState.
+func (s *BackupVaultV1beta) GetEncryptionState() OptBackupVaultV1betaEncryptionState {
+	return s.EncryptionState
+}
+
+// GetKmsGrant returns the value of KmsGrant.
+func (s *BackupVaultV1beta) GetKmsGrant() OptString {
+	return s.KmsGrant
+}
+
 // SetBackupVaultId sets the value of BackupVaultId.
 func (s *BackupVaultV1beta) SetBackupVaultId(val OptString) {
 	s.BackupVaultId = val
@@ -2739,6 +2827,11 @@ func (s *BackupVaultV1beta) SetBackupRegion(val OptString) {
 // SetSourceRegion sets the value of SourceRegion.
 func (s *BackupVaultV1beta) SetSourceRegion(val OptString) {
 	s.SourceRegion = val
+}
+
+// SetKmsConfigResourcePath sets the value of KmsConfigResourcePath.
+func (s *BackupVaultV1beta) SetKmsConfigResourcePath(val OptString) {
+	s.KmsConfigResourcePath = val
 }
 
 // SetDestinationBackupVault sets the value of DestinationBackupVault.
@@ -2781,6 +2874,21 @@ func (s *BackupVaultV1beta) SetBackupRetentionPolicy(val OptBackupRetentionPolic
 	s.BackupRetentionPolicy = val
 }
 
+// SetBackupsPrimaryKeyVersion sets the value of BackupsPrimaryKeyVersion.
+func (s *BackupVaultV1beta) SetBackupsPrimaryKeyVersion(val OptString) {
+	s.BackupsPrimaryKeyVersion = val
+}
+
+// SetEncryptionState sets the value of EncryptionState.
+func (s *BackupVaultV1beta) SetEncryptionState(val OptBackupVaultV1betaEncryptionState) {
+	s.EncryptionState = val
+}
+
+// SetKmsGrant sets the value of KmsGrant.
+func (s *BackupVaultV1beta) SetKmsGrant(val OptString) {
+	s.KmsGrant = val
+}
+
 func (*BackupVaultV1beta) v1betaDescribeBackupVaultRes() {}
 
 // Type of the backup vault.
@@ -2819,6 +2927,62 @@ func (s *BackupVaultV1betaBackupVaultType) UnmarshalText(data []byte) error {
 		return nil
 	case BackupVaultV1betaBackupVaultTypeCROSSREGION:
 		*s = BackupVaultV1betaBackupVaultTypeCROSSREGION
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Current state of CMEK encryption for the backup vault.
+type BackupVaultV1betaEncryptionState string
+
+const (
+	BackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING    BackupVaultV1betaEncryptionState = "ENCRYPTION_STATE_PENDING"
+	BackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED  BackupVaultV1betaEncryptionState = "ENCRYPTION_STATE_COMPLETED"
+	BackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS BackupVaultV1betaEncryptionState = "ENCRYPTION_STATE_IN_PROGRESS"
+	BackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED     BackupVaultV1betaEncryptionState = "ENCRYPTION_STATE_FAILED"
+)
+
+// AllValues returns all BackupVaultV1betaEncryptionState values.
+func (BackupVaultV1betaEncryptionState) AllValues() []BackupVaultV1betaEncryptionState {
+	return []BackupVaultV1betaEncryptionState{
+		BackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING,
+		BackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED,
+		BackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS,
+		BackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupVaultV1betaEncryptionState) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING:
+		return []byte(s), nil
+	case BackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED:
+		return []byte(s), nil
+	case BackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS:
+		return []byte(s), nil
+	case BackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupVaultV1betaEncryptionState) UnmarshalText(data []byte) error {
+	switch BackupVaultV1betaEncryptionState(data) {
+	case BackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING:
+		*s = BackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING
+		return nil
+	case BackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED:
+		*s = BackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED
+		return nil
+	case BackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS:
+		*s = BackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS
+		return nil
+	case BackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED:
+		*s = BackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -8115,6 +8279,52 @@ func (o OptBackupVaultV1betaBackupVaultType) Get() (v BackupVaultV1betaBackupVau
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBackupVaultV1betaBackupVaultType) Or(d BackupVaultV1betaBackupVaultType) BackupVaultV1betaBackupVaultType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupVaultV1betaEncryptionState returns new OptBackupVaultV1betaEncryptionState with value set to v.
+func NewOptBackupVaultV1betaEncryptionState(v BackupVaultV1betaEncryptionState) OptBackupVaultV1betaEncryptionState {
+	return OptBackupVaultV1betaEncryptionState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupVaultV1betaEncryptionState is optional BackupVaultV1betaEncryptionState.
+type OptBackupVaultV1betaEncryptionState struct {
+	Value BackupVaultV1betaEncryptionState
+	Set   bool
+}
+
+// IsSet returns true if OptBackupVaultV1betaEncryptionState was set.
+func (o OptBackupVaultV1betaEncryptionState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupVaultV1betaEncryptionState) Reset() {
+	var v BackupVaultV1betaEncryptionState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupVaultV1betaEncryptionState) SetTo(v BackupVaultV1betaEncryptionState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupVaultV1betaEncryptionState) Get() (v BackupVaultV1betaEncryptionState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupVaultV1betaEncryptionState) Or(d BackupVaultV1betaEncryptionState) BackupVaultV1betaEncryptionState {
 	if v, ok := o.Get(); ok {
 		return v
 	}

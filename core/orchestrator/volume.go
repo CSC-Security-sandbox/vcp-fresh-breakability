@@ -323,6 +323,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			BackupPolicyID:         params.DataProtection.BackupPolicyId,
 			BackupChainBytes:       params.DataProtection.BackupChainBytes,
 			ScheduledBackupEnabled: params.DataProtection.ScheduledBackupEnabled,
+			KmsGrant:               params.DataProtection.KmsGrant,
 		}
 	}
 
@@ -874,6 +875,37 @@ func getBackupVaultFromCVP(ctx context.Context, backupVaultID string, region str
 	return nil, customerrors.NewNotFoundErr("Backup vault", &backupVaultID)
 }
 
+func _isBackupVaultCMEKEnabled(ctx context.Context, backupVaultID, region, accountName string) (bool, error) {
+	logger := util.GetLogger(ctx)
+	getSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, getSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(&backup_vault.V1betaListBackupVaultsParams{
+		LocationID:     region,
+		ProjectNumber:  accountName,
+		XCorrelationID: &xCorrelationID,
+	})
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return false, customerrors.NewNotFoundErr("Backup vault", nil)
+		}
+		logger.Errorf("Error fetching backup vaults from CVP: %v", err)
+		return false, err
+	}
+
+	for _, bv := range vaults.Payload.BackupVaults {
+		if bv.BackupVaultID == backupVaultID {
+			if bv.KmsConfigResourcePath != nil && *bv.KmsConfigResourcePath != "" {
+				return true, nil
+			}
+			return false, nil
+		}
+	}
+
+	return false, customerrors.NewNotFoundErr("Backup vault", &backupVaultID)
+}
+
 // GetBackupPolicyFromCVP fetches backup policy from CVP and converts it to the internal data model
 func GetBackupPolicyFromCVP(ctx context.Context, backupPolicyUUID, region, accountName string) (*datamodel.BackupPolicy, error) {
 	logger := util.GetLogger(ctx)
@@ -1262,6 +1294,19 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			if bv.BackupVaultType == activities.CrossRegionBackupType && *bv.BackupRegionName == params.Region {
 				return customerrors.NewUserInputValidationErr("cannot assign a cross-region backup vault to a volume in the destination region")
 			}
+		}
+
+		// Block CMEK for all VCP volumes (both SAN and NAS)
+		// Since we're in VCP orchestrator code, any volume being created is a VCP volume
+		if params.DataProtection.KmsGrant != nil && *params.DataProtection.KmsGrant != "" {
+			return customerrors.NewUserInputValidationErr("Volumes cannot be created with CMEK-enabled backup vaults. Please use a backup vault without CMEK encryption")
+		}
+
+		isCMEKEnabled, err := _isBackupVaultCMEKEnabled(ctx, params.DataProtection.BackupVaultID, params.Region, params.AccountName)
+		if err != nil {
+			logger.Warnf("Failed to check CMEK status for backup vault %s: %v", params.DataProtection.BackupVaultID, err)
+		} else if isCMEKEnabled {
+			return customerrors.NewUserInputValidationErr("Volumes cannot be created with CMEK-enabled backup vaults. Please use a backup vault without CMEK encryption")
 		}
 	}
 
@@ -1859,6 +1904,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			dbVolume.DataProtection.BackupVaultID = nillable.GetString(params.DataProtection.BackupVaultID, dbVolume.DataProtection.BackupVaultID)
 			dbVolume.DataProtection.BackupPolicyID = nillable.GetString(params.DataProtection.BackupPolicyId, dbVolume.DataProtection.BackupPolicyID)
 			dbVolume.DataProtection.ScheduledBackupEnabled = params.DataProtection.ScheduledBackupEnabled
+			dbVolume.DataProtection.KmsGrant = params.DataProtection.KmsGrant
 
 			if dbVolume.DataProtection.BackupVaultID == "" && !nillable.IsNilOrEmpty(params.DataProtection.BackupPolicyId) {
 				return nil, "", customerrors.NewUserInputValidationErr("backup vault is required to assign a backup policy to a volume")
@@ -2192,6 +2238,32 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 		if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
+		}
+	}
+
+	// Block CMEK for all VCP volumes (both SAN and NAS)
+	// Since we got the volume from VCP database (line 1812), it exists in VCP and is a VCP volume
+	var backupVaultID string
+	if params.DataProtection != nil && params.DataProtection.BackupVaultID != nil && *params.DataProtection.BackupVaultID != "" {
+		backupVaultID = *params.DataProtection.BackupVaultID
+	} else if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
+		backupVaultID = volume.DataProtection.BackupVaultID
+	}
+
+	if backupVaultID != "" {
+		if params.DataProtection != nil && params.DataProtection.KmsGrant != nil && *params.DataProtection.KmsGrant != "" {
+			return customerrors.NewUserInputValidationErr("Volumes cannot be updated with CMEK-enabled backup vaults. Please use a backup vault without CMEK encryption")
+		}
+
+		if volume.DataProtection != nil && volume.DataProtection.BackupVaultID == backupVaultID && volume.DataProtection.KmsGrant != nil && *volume.DataProtection.KmsGrant != "" {
+			return customerrors.NewUserInputValidationErr("Volumes cannot be updated with CMEK-enabled backup vaults. Please use a backup vault without CMEK encryption")
+		}
+
+		isCMEKEnabled, err := _isBackupVaultCMEKEnabled(ctx, backupVaultID, params.Region, params.AccountName)
+		if err != nil {
+			log.Warnf("Failed to check CMEK status for backup vault %s: %v", backupVaultID, err)
+		} else if isCMEKEnabled {
+			return customerrors.NewUserInputValidationErr("Volumes cannot be updated with CMEK-enabled backup vaults. Please use a backup vault without CMEK encryption")
 		}
 	}
 

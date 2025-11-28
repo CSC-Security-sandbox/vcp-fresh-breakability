@@ -134,7 +134,7 @@ func TestDataProtection_Value(t *testing.T) {
 	}
 	val, err := dp.Value()
 	assert.NoError(t, err)
-	assert.Equal(t, `{"scheduled_backup_enabled":true,"backup_vault_id":"vault123","backup_policy_id":"","backup_chain_bytes":null}`, string(val.([]byte)))
+	assert.Equal(t, `{"scheduled_backup_enabled":true,"backup_vault_id":"vault123","backup_policy_id":"","backup_chain_bytes":null,"kms_grant":null}`, string(val.([]byte)))
 }
 
 func TestBackupAttributes_Scan(t *testing.T) {

@@ -29,6 +29,9 @@ type BackupConfigV1beta struct {
 	// Backup vault resource ID
 	BackupVaultID *string `json:"backupVaultId,omitempty"`
 
+	// KMS grant
+	KmsGrant *string `json:"kmsGrant,omitempty"`
+
 	// Indicates whether policy is enable or disabled on the volume
 	ScheduledBackupEnabled *bool `json:"scheduledBackupEnabled,omitempty"`
 }

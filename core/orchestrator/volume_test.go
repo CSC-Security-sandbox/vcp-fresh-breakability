@@ -12,6 +12,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -24709,4 +24712,724 @@ func Test_updateLatestTieringInformationToVolumeResponse(t *testing.T) {
 		// Verify both results point to the same volume
 		assert.Equal(tt, result1, result2, "Should be the same volume pointer")
 	})
+}
+
+func TestValidateCreateVolumeParams_ISCSIWithCMEK_KmsGrantSet(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
+		},
+		State:       models.LifeCycleStateREADY,
+		SizeInBytes: int64(maxQuotaInBytesPool),
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+		Name:      "test_svm",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(svm).Error
+	if err != nil {
+		t.Fatalf("Failed to create svm: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+		Name:            "test_node",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.12",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node).Error
+	assert.NoError(t, err)
+
+	lif := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
+		Name:      "test_lif",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.1",
+		NodeID:    node.ID,
+	}
+	err = store.DB().Create(lif).Error
+	assert.NoError(t, err)
+
+	node2 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid2"},
+		Name:            "test_node2",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.13",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node2).Error
+	assert.NoError(t, err)
+
+	lif2 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid2"},
+		Name:      "test_lif2",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.2",
+		NodeID:    node2.ID,
+	}
+	err = store.DB().Create(lif2).Error
+	assert.NoError(t, err)
+
+	bv := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+		Name:      "test_bv",
+		AccountID: account.ID,
+	}
+	err = store.DB().Create(bv).Error
+	assert.NoError(t, err)
+
+	kmsGrant := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	params := &common.CreateVolumeParams{
+		Name:         "test-volume",
+		PoolID:       pool.UUID,
+		QuotaInBytes: minQuotaInBytesVolume + 1,
+		Protocols:    []string{utils.ProtocolISCSI},
+		DataProtection: &models.DataProtection{
+			BackupVaultID: "test-bv-uuid",
+			KmsGrant:      &kmsGrant,
+		},
+		AccountName: account.Name,
+		Region:      "us-west1",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool:         *pool,
+		QuotaInBytes: minQuotaInBytesVolume,
+	}
+
+	err = validateCreateVolumeParams(ctx, store, params, poolView)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Volumes cannot be created with CMEK-enabled backup vaults")
+}
+
+func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
+		},
+		State:       models.LifeCycleStateREADY,
+		SizeInBytes: int64(maxQuotaInBytesPool),
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+		Name:      "test_svm",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(svm).Error
+	if err != nil {
+		t.Fatalf("Failed to create svm: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+		Name:            "test_node",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.12",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node).Error
+	assert.NoError(t, err)
+
+	lif := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
+		Name:      "test_lif",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.1",
+		NodeID:    node.ID,
+	}
+	err = store.DB().Create(lif).Error
+	assert.NoError(t, err)
+
+	node2 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid2"},
+		Name:            "test_node2",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.13",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node2).Error
+	assert.NoError(t, err)
+
+	lif2 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid2"},
+		Name:      "test_lif2",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.2",
+		NodeID:    node2.ID,
+	}
+	err = store.DB().Create(lif2).Error
+	assert.NoError(t, err)
+
+	bv := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+		Name:      "test_bv",
+		AccountID: account.ID,
+	}
+	err = store.DB().Create(bv).Error
+	assert.NoError(t, err)
+
+	// Mock cvpCreateClient to return a backup vault with CMEK enabled
+	originalCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = originalCvpCreateClient }()
+
+	mockBackupVaultClient := &backup_vault.MockClientService{}
+	mockCvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+	kmsConfigPath := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+			BackupVaults: []*cvpmodels.BackupVaultV1beta{
+				{
+					BackupVaultID:         "test-bv-uuid",
+					KmsConfigResourcePath: &kmsConfigPath,
+				},
+			},
+		},
+	}
+	mockBackupVaultClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *mockCvpClient
+	}
+
+	params := &common.CreateVolumeParams{
+		Name:         "test-volume",
+		PoolID:       pool.UUID,
+		QuotaInBytes: minQuotaInBytesVolume + 1,
+		Protocols:    []string{utils.ProtocolISCSI},
+		DataProtection: &models.DataProtection{
+			BackupVaultID: "test-bv-uuid",
+		},
+		AccountName: account.Name,
+		Region:      "us-west1",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool:         *pool,
+		QuotaInBytes: minQuotaInBytesVolume,
+	}
+
+	err = validateCreateVolumeParams(ctx, store, params, poolView)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Volumes cannot be created with CMEK-enabled backup vaults")
+}
+
+func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckError(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
+		},
+		State:       models.LifeCycleStateREADY,
+		SizeInBytes: int64(maxQuotaInBytesPool),
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+		Name:      "test_svm",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(svm).Error
+	if err != nil {
+		t.Fatalf("Failed to create svm: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+		Name:            "test_node",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.12",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node).Error
+	assert.NoError(t, err)
+
+	lif := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
+		Name:      "test_lif",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.1",
+		NodeID:    node.ID,
+	}
+	err = store.DB().Create(lif).Error
+	assert.NoError(t, err)
+
+	node2 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid2"},
+		Name:            "test_node2",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.13",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node2).Error
+	assert.NoError(t, err)
+
+	lif2 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid2"},
+		Name:      "test_lif2",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.2",
+		NodeID:    node2.ID,
+	}
+	err = store.DB().Create(lif2).Error
+	assert.NoError(t, err)
+
+	bv := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+		Name:      "test_bv",
+		AccountID: account.ID,
+	}
+	err = store.DB().Create(bv).Error
+	assert.NoError(t, err)
+
+	// Mock cvpCreateClient to return NotFound error
+	originalCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = originalCvpCreateClient }()
+
+	mockBackupVaultClient := &backup_vault.MockClientService{}
+	mockCvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+	mockBackupVaultClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(nil, customerrors.NewNotFoundErr("Backup vault", nil))
+
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *mockCvpClient
+	}
+
+	params := &common.CreateVolumeParams{
+		Name:         "test-volume",
+		PoolID:       pool.UUID,
+		QuotaInBytes: minQuotaInBytesVolume + 1,
+		Protocols:    []string{utils.ProtocolISCSI},
+		BlockProperties: &common.BlockPropertiesRequest{
+			OSType:         "linux",
+			HostGroupUUIDs: []string{},
+		},
+		DataProtection: &models.DataProtection{
+			BackupVaultID: "test-bv-uuid",
+		},
+		AccountName: account.Name,
+		Region:      "us-west1",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool:         *pool,
+		QuotaInBytes: minQuotaInBytesVolume,
+	}
+
+	// Should not error - the CMEK check error is logged but doesn't fail validation
+	err = validateCreateVolumeParams(ctx, store, params, poolView)
+	// The function should continue and not fail on CMEK check error
+	assert.NoError(t, err)
+}
+
+func TestValidateCreateVolumeParams_ISCSIWithCMEK_CMEKCheckNotFoundVault(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
+		},
+		State:       models.LifeCycleStateREADY,
+		SizeInBytes: int64(maxQuotaInBytesPool),
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+		Name:      "test_svm",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(svm).Error
+	if err != nil {
+		t.Fatalf("Failed to create svm: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+		Name:            "test_node",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.12",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node).Error
+	assert.NoError(t, err)
+
+	lif := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
+		Name:      "test_lif",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.1",
+		NodeID:    node.ID,
+	}
+	err = store.DB().Create(lif).Error
+	assert.NoError(t, err)
+
+	node2 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid2"},
+		Name:            "test_node2",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.13",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node2).Error
+	assert.NoError(t, err)
+
+	lif2 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid2"},
+		Name:      "test_lif2",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.2",
+		NodeID:    node2.ID,
+	}
+	err = store.DB().Create(lif2).Error
+	assert.NoError(t, err)
+
+	bv := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+		Name:      "test_bv",
+		AccountID: account.ID,
+	}
+	err = store.DB().Create(bv).Error
+	assert.NoError(t, err)
+
+	// Mock cvpCreateClient to return empty list (vault not found)
+	originalCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = originalCvpCreateClient }()
+
+	mockBackupVaultClient := &backup_vault.MockClientService{}
+	mockCvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+	mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+			BackupVaults: []*cvpmodels.BackupVaultV1beta{
+				{
+					BackupVaultID: "other-vault-id",
+				},
+			},
+		},
+	}
+	mockBackupVaultClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *mockCvpClient
+	}
+
+	params := &common.CreateVolumeParams{
+		Name:         "test-volume",
+		PoolID:       pool.UUID,
+		QuotaInBytes: minQuotaInBytesVolume + 1,
+		Protocols:    []string{utils.ProtocolISCSI},
+		BlockProperties: &common.BlockPropertiesRequest{
+			OSType:         "linux",
+			HostGroupUUIDs: []string{},
+		},
+		DataProtection: &models.DataProtection{
+			BackupVaultID: "test-bv-uuid",
+		},
+		AccountName: account.Name,
+		Region:      "us-west1",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool:         *pool,
+		QuotaInBytes: minQuotaInBytesVolume,
+	}
+
+	// Should not error - the CMEK check returns false when vault not found
+	err = validateCreateVolumeParams(ctx, store, params, poolView)
+	assert.NoError(t, err)
+}
+
+func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	backupVaultID := "test-bv-uuid"
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:        "test-volume",
+		AccountID:   account.ID,
+		PoolID:      pool.ID,
+		State:       models.LifeCycleStateREADY,
+		SizeInBytes: int64(minQuotaInBytesVolume + 1),
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolISCSI},
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+		},
+	}
+	err = store.DB().Create(volume).Error
+	assert.NoError(t, err)
+
+	// Mock cvpCreateClient to return a backup vault with CMEK enabled
+	originalCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = originalCvpCreateClient }()
+
+	mockBackupVaultClient := &backup_vault.MockClientService{}
+	mockCvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+	kmsConfigPath := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+			BackupVaults: []*cvpmodels.BackupVaultV1beta{
+				{
+					BackupVaultID:         backupVaultID,
+					KmsConfigResourcePath: &kmsConfigPath,
+				},
+			},
+		},
+	}
+	mockBackupVaultClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *mockCvpClient
+	}
+
+	params := &common.UpdateVolumeParams{
+		DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &backupVaultID,
+		},
+		AccountName: account.Name,
+		Region:      "us-west1",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
+	poolView.Account = account
+
+	err = validateUpdateVolumeRequest(ctx, store, volume, params, poolView)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Volumes cannot be updated with CMEK-enabled backup vaults")
+}
+
+func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_ExistingKmsGrant(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	backupVaultID := "test-bv-uuid"
+	kmsGrant := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:        "test-volume",
+		AccountID:   account.ID,
+		PoolID:      pool.ID,
+		State:       models.LifeCycleStateREADY,
+		SizeInBytes: int64(minQuotaInBytesVolume + 1),
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolISCSI},
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+			KmsGrant:      &kmsGrant,
+		},
+	}
+	err = store.DB().Create(volume).Error
+	assert.NoError(t, err)
+
+	params := &common.UpdateVolumeParams{
+		DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &backupVaultID,
+		},
+		AccountName: account.Name,
+		Region:      "us-west1",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
+	poolView.Account = account
+
+	err = validateUpdateVolumeRequest(ctx, store, volume, params, poolView)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Volumes cannot be updated with CMEK-enabled backup vaults")
 }

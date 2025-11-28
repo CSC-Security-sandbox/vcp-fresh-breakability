@@ -11068,3 +11068,180 @@ func TestConvertModelToVolumeV1beta_WithSMBSettings(t *testing.T) {
 		assert.Nil(tt, result.SmbSettings)
 	})
 }
+
+func TestPrepareCreateVolumeParams_ISCSIWithKmsGrant_ReturnsError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testvolume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaISCSI,
+			},
+			BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+				gcpgenserver.BackupConfigV1beta{
+					KmsGrant: gcpgenserver.NewOptNilString("projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"),
+				},
+			),
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Volumes cannot be created with CMEK-enabled backup vaults")
+}
+
+func TestPrepareCreateVolumeParams_WithKmsGrant_NoProtocols_ReturnsError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testvolume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+				gcpgenserver.BackupConfigV1beta{
+					KmsGrant: gcpgenserver.NewOptNilString("projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"),
+				},
+			),
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	// kmsGrant should be rejected regardless of protocols
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Volumes cannot be created with CMEK-enabled backup vaults")
+}
+
+func TestPrepareUpdateVolumeParams_ISCSIWithKmsGrant_ReturnsError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		Protocols: []gcpgenserver.ProtocolsV1beta{
+			gcpgenserver.ProtocolsV1betaISCSI,
+		},
+		BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+			gcpgenserver.BackupConfigV1beta{
+				KmsGrant: gcpgenserver.NewOptNilString("projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"),
+			},
+		),
+	}
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume-id",
+	}
+	dbVolume := &models.Volume{
+		BaseModel:   models.BaseModel{UUID: "test-volume-id"},
+		DisplayName: "testvolume",
+	}
+
+	region := "test-region"
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Volumes cannot be configured with CMEK-enabled backup vaults")
+}
+
+func TestPrepareUpdateVolumeParams_ISCSIWithKmsGrant_FromDBVolume(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		// No protocols in request, kmsGrant should be rejected regardless
+		BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+			gcpgenserver.BackupConfigV1beta{
+				KmsGrant: gcpgenserver.NewOptNilString("projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"),
+			},
+		),
+	}
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume-id",
+	}
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume-id"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{utils.ProtocolISCSI},
+	}
+
+	region := "test-region"
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Volumes cannot be configured with CMEK-enabled backup vaults")
+}
+
+func TestPrepareUpdateVolumeParams_WithKmsGrant_NoProtocols_ReturnsError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+			gcpgenserver.BackupConfigV1beta{
+				KmsGrant: gcpgenserver.NewOptNilString("projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"),
+			},
+		),
+	}
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume-id",
+	}
+	dbVolume := &models.Volume{
+		BaseModel:   models.BaseModel{UUID: "test-volume-id"},
+		DisplayName: "testvolume",
+	}
+
+	region := "test-region"
+	// kmsGrant should be rejected regardless of protocols
+	_, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Volumes cannot be configured with CMEK-enabled backup vaults")
+}
+
+func TestConvertModelToVCPVolume_WithKmsGrant(t *testing.T) {
+	kmsGrant := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	volume := &models.Volume{
+		BaseModel:      models.BaseModel{UUID: "test-uuid"},
+		DisplayName:    "test-volume",
+		ProtocolTypes:  []string{"NFSV3"},
+		LifeCycleState: "READY",
+		DataProtection: &models.DataProtection{
+			KmsGrant: &kmsGrant,
+		},
+	}
+
+	result := convertModelToVCPVolume(volume)
+	require.NotNil(t, result, "convertModelToVCPVolume returned nil")
+	assert.NotNil(t, result.BackupConfig)
+	assert.True(t, result.BackupConfig.Value.KmsGrant.IsSet())
+	assert.Equal(t, kmsGrant, result.BackupConfig.Value.KmsGrant.Value)
+}

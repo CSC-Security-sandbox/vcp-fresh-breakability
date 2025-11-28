@@ -272,6 +272,12 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 	if brPolicy != nil {
 		body.BackupRetentionPolicy = brPolicy
 	}
+	if req.KmsConfigResourcePath.IsSet() {
+		body.KmsConfigResourcePath = &req.KmsConfigResourcePath.Value
+	}
+	if req.BackupsPrimaryKeyVersion.IsSet() {
+		body.BackupsPrimaryKeyVersion = &req.BackupsPrimaryKeyVersion.Value
+	}
 	vault, err := cvpClient.BackupVault.V1betaCreateBackupVault(&backup_vault.V1betaCreateBackupVaultParams{
 		LocationID:     reqPayloadparams.LocationId,
 		ProjectNumber:  reqPayloadparams.ProjectNumber,
@@ -761,6 +767,12 @@ func _updateBackupVaultInSDE(ctx context.Context, req *gcpgenserver.BackupVaultU
 	if brPolicy != nil {
 		body.BackupRetentionPolicy = brPolicy
 	}
+	if req.KmsConfigResourcePath.IsSet() {
+		body.KmsConfigResourcePath = &req.KmsConfigResourcePath.Value
+	}
+	if req.BackupsPrimaryKeyVersion.IsSet() {
+		body.BackupsPrimaryKeyVersion = &req.BackupsPrimaryKeyVersion.Value
+	}
 
 	vault, err := cvpClient.BackupVault.V1betaUpdateBackupVault(&backup_vault.V1betaUpdateBackupVaultParams{
 		LocationID:     params.LocationId,
@@ -1152,6 +1164,15 @@ func convertBackupVaultV1Beta(bv *models.BackupVaultV1beta) gcpgenserver.BackupV
 	}
 	if bv.BackupVaultType != nil {
 		convertedBackupVault.BackupVaultType = gcpgenserver.NewOptBackupVaultV1betaBackupVaultType(gcpgenserver.BackupVaultV1betaBackupVaultType(*bv.BackupVaultType))
+	}
+	if bv.KmsConfigResourcePath != nil {
+		convertedBackupVault.KmsConfigResourcePath = gcpgenserver.NewOptString(*bv.KmsConfigResourcePath)
+	}
+	if bv.BackupsPrimaryKeyVersion != nil {
+		convertedBackupVault.BackupsPrimaryKeyVersion = gcpgenserver.NewOptString(*bv.BackupsPrimaryKeyVersion)
+	}
+	if bv.EncryptionState != nil {
+		convertedBackupVault.EncryptionState = gcpgenserver.NewOptBackupVaultV1betaEncryptionState(gcpgenserver.BackupVaultV1betaEncryptionState(*bv.EncryptionState))
 	}
 	return convertedBackupVault
 }

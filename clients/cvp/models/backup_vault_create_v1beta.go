@@ -27,10 +27,21 @@ type BackupVaultCreateV1beta struct {
 	// backup retention policy
 	BackupRetentionPolicy *BackupRetentionPolicyV1beta `json:"backupRetentionPolicy,omitempty"`
 
+	// backupsPrimaryKeyVersion
+	//
+	// key version used to encrypt backups in the vault
+	// Read Only: true
+	BackupsPrimaryKeyVersion *string `json:"backupsPrimaryKeyVersion,omitempty"`
+
 	// description
 	//
 	// Description of the resource
 	Description *string `json:"description,omitempty"`
+
+	// kmsConfigResourcePath
+	//
+	// Complete resource path of the KMS config
+	KmsConfigResourcePath *string `json:"kmsConfigResourcePath,omitempty"`
 
 	// resourceId
 	//

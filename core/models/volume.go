@@ -111,6 +111,7 @@ type DataProtection struct {
 	BackupVaultID          string
 	BackupPolicyId         string
 	BackupChainBytes       *int64
+	KmsGrant               *string
 }
 
 type UpdateDataProtection struct {
@@ -118,4 +119,5 @@ type UpdateDataProtection struct {
 	BackupVaultID          *string
 	BackupPolicyId         *string
 	BackupChainBytes       *int64
+	KmsGrant               *string
 }

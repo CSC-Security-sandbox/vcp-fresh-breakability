@@ -639,6 +639,47 @@ func TestBackupVaultV1betaBackupVaultType_EncodeDecode(t *testing.T) {
 	var typ2 BackupVaultV1betaBackupVaultType
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestBackupVaultV1betaEncryptionState_EncodeDecode(t *testing.T) {
+	var typ BackupVaultV1betaEncryptionState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupVaultV1betaEncryptionState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBackupVaultV1betaEncryptionState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"ENCRYPTION_STATE_COMPLETED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BackupVaultV1betaEncryptionState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BackupVaultV1betaEncryptionState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestBackupVaultV1betaState_EncodeDecode(t *testing.T) {
 	var typ BackupVaultV1betaState
 	typ.SetFake()

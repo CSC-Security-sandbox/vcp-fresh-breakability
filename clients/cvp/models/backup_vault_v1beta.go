@@ -44,6 +44,12 @@ type BackupVaultV1beta struct {
 	// Enum: [IN_REGION CROSS_REGION]
 	BackupVaultType *string `json:"backupVaultType,omitempty"`
 
+	// backupsPrimaryKeyVersion
+	//
+	// key version used to encrypt backups in the vault
+	// Read Only: true
+	BackupsPrimaryKeyVersion *string `json:"backupsPrimaryKeyVersion,omitempty"`
+
 	// created
 	//
 	// Creation date of the resource
@@ -67,6 +73,18 @@ type BackupVaultV1beta struct {
 	//
 	// The destination region backup vault
 	DestinationBackupVault *string `json:"destinationBackupVault,omitempty"`
+
+	// encryptionState
+	//
+	// Current state of CMEK encryption for the backup vault
+	// Read Only: true
+	// Enum: [ENCRYPTION_STATE_PENDING ENCRYPTION_STATE_COMPLETED ENCRYPTION_STATE_IN_PROGRESS ENCRYPTION_STATE_FAILED]
+	EncryptionState *string `json:"encryptionState,omitempty"`
+
+	// kmsConfigResourcePath
+	//
+	// Complete resource path of the KMS config
+	KmsConfigResourcePath *string `json:"kmsConfigResourcePath,omitempty"`
 
 	// resourceId
 	//
@@ -127,6 +145,10 @@ func (m *BackupVaultV1beta) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateDeletedAt(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateEncryptionState(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -267,6 +289,55 @@ func (m *BackupVaultV1beta) validateDeletedAt(formats strfmt.Registry) error {
 	}
 
 	if err := validate.FormatOf("deletedAt", "body", "date-time", m.DeletedAt.String(), formats); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var backupVaultV1betaTypeEncryptionStatePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["ENCRYPTION_STATE_PENDING","ENCRYPTION_STATE_COMPLETED","ENCRYPTION_STATE_IN_PROGRESS","ENCRYPTION_STATE_FAILED"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		backupVaultV1betaTypeEncryptionStatePropEnum = append(backupVaultV1betaTypeEncryptionStatePropEnum, v)
+	}
+}
+
+const (
+
+	// BackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING captures enum value "ENCRYPTION_STATE_PENDING"
+	BackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING string = "ENCRYPTION_STATE_PENDING"
+
+	// BackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED captures enum value "ENCRYPTION_STATE_COMPLETED"
+	BackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED string = "ENCRYPTION_STATE_COMPLETED"
+
+	// BackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS captures enum value "ENCRYPTION_STATE_IN_PROGRESS"
+	BackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS string = "ENCRYPTION_STATE_IN_PROGRESS"
+
+	// BackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED captures enum value "ENCRYPTION_STATE_FAILED"
+	BackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED string = "ENCRYPTION_STATE_FAILED"
+)
+
+// prop value enum
+func (m *BackupVaultV1beta) validateEncryptionStateEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, backupVaultV1betaTypeEncryptionStatePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BackupVaultV1beta) validateEncryptionState(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.EncryptionState) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateEncryptionStateEnum("encryptionState", "body", *m.EncryptionState); err != nil {
 		return err
 	}
 

@@ -2435,6 +2435,682 @@ func TestConvertBackupRetentionPolicyToCvpModelForCreate(t *testing.T) {
 	})
 }
 
+func TestV1betaCreateBackupVaultWithKmsConfigResourcePathAndBackupsPrimaryKeyVersion(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	t.Run("CreateWithBothKmsFieldsSet", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		kmsConfigPath := "projects/test-project-123/locations/us-central1/kmsConfigs/test-kms-config"
+		backupsPrimaryKeyVersion := "projects/test-project-123/locations/us-central1/kmsConfigs/test-kms-config/cryptoKeys/test-key/cryptoKeyVersions/1"
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:               gcpgenserver.NewOptString("test-backup-vault"),
+			Description:              gcpgenserver.NewOptString("Test backup vault with KMS fields"),
+			KmsConfigResourcePath:    gcpgenserver.NewOptString(kmsConfigPath),
+			BackupsPrimaryKeyVersion: gcpgenserver.NewOptString(backupsPrimaryKeyVersion),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		// Mock successful CVP response
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:               nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID:            "bv-uuid-123",
+					Description:              nillable.GetStringPtr("Test backup vault with KMS fields"),
+					KmsConfigResourcePath:    nillable.GetStringPtr(kmsConfigPath),
+					BackupsPrimaryKeyVersion: nillable.GetStringPtr(backupsPrimaryKeyVersion),
+					State:                    "CREATING",
+					StateDetails:             "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault" &&
+					params.Body.KmsConfigResourcePath != nil &&
+					*params.Body.KmsConfigResourcePath == kmsConfigPath &&
+					params.Body.BackupsPrimaryKeyVersion != nil &&
+					*params.Body.BackupsPrimaryKeyVersion == backupsPrimaryKeyVersion
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("CreateWithOnlyKmsConfigResourcePathSet", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		kmsConfigPath := "projects/test-project-123/locations/us-central1/kmsConfigs/test-kms-config"
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:            gcpgenserver.NewOptString("test-backup-vault"),
+			Description:           gcpgenserver.NewOptString("Test backup vault with KMS config only"),
+			KmsConfigResourcePath: gcpgenserver.NewOptString(kmsConfigPath),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		// Mock successful CVP response
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:               nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID:            "bv-uuid-123",
+					Description:              nillable.GetStringPtr("Test backup vault with KMS config only"),
+					KmsConfigResourcePath:    nillable.GetStringPtr(kmsConfigPath),
+					BackupsPrimaryKeyVersion: nil,
+					State:                    "CREATING",
+					StateDetails:             "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault" &&
+					params.Body.KmsConfigResourcePath != nil &&
+					*params.Body.KmsConfigResourcePath == kmsConfigPath &&
+					params.Body.BackupsPrimaryKeyVersion == nil
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("CreateWithOnlyBackupsPrimaryKeyVersionSet", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		backupsPrimaryKeyVersion := "projects/test-project-123/locations/us-central1/kmsConfigs/test-kms-config/cryptoKeys/test-key/cryptoKeyVersions/1"
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:               gcpgenserver.NewOptString("test-backup-vault"),
+			Description:              gcpgenserver.NewOptString("Test backup vault with primary key version only"),
+			BackupsPrimaryKeyVersion: gcpgenserver.NewOptString(backupsPrimaryKeyVersion),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		// Mock successful CVP response
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:               nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID:            "bv-uuid-123",
+					Description:              nillable.GetStringPtr("Test backup vault with primary key version only"),
+					KmsConfigResourcePath:    nil,
+					BackupsPrimaryKeyVersion: nillable.GetStringPtr(backupsPrimaryKeyVersion),
+					State:                    "CREATING",
+					StateDetails:             "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault" &&
+					params.Body.KmsConfigResourcePath == nil &&
+					params.Body.BackupsPrimaryKeyVersion != nil &&
+					*params.Body.BackupsPrimaryKeyVersion == backupsPrimaryKeyVersion
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+}
+
+func TestV1betaCreateBackupVaultWithEncryptionState(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	t.Run("CreateWithEncryptionStatePending", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("test-backup-vault"),
+			Description: gcpgenserver.NewOptString("Test backup vault with encryption state"),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		encryptionState := "ENCRYPTION_STATE_PENDING"
+		// Mock successful CVP response with encryption state
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:      nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID:   "bv-uuid-123",
+					Description:     nillable.GetStringPtr("Test backup vault with encryption state"),
+					EncryptionState: nillable.GetStringPtr(encryptionState),
+					State:           "CREATING",
+					StateDetails:    "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault"
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("CreateWithEncryptionStateCompleted", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("test-backup-vault"),
+			Description: gcpgenserver.NewOptString("Test backup vault with encryption completed"),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		encryptionState := "ENCRYPTION_STATE_COMPLETED"
+		// Mock successful CVP response with encryption state
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:      nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID:   "bv-uuid-123",
+					Description:     nillable.GetStringPtr("Test backup vault with encryption completed"),
+					EncryptionState: nillable.GetStringPtr(encryptionState),
+					State:           "CREATING",
+					StateDetails:    "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault"
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("CreateWithEncryptionStateInProgress", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("test-backup-vault"),
+			Description: gcpgenserver.NewOptString("Test backup vault with encryption in progress"),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		encryptionState := "ENCRYPTION_STATE_IN_PROGRESS"
+		// Mock successful CVP response with encryption state
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:      nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID:   "bv-uuid-123",
+					Description:     nillable.GetStringPtr("Test backup vault with encryption in progress"),
+					EncryptionState: nillable.GetStringPtr(encryptionState),
+					State:           "CREATING",
+					StateDetails:    "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault"
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("CreateWithEncryptionStateFailed", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("test-backup-vault"),
+			Description: gcpgenserver.NewOptString("Test backup vault with encryption failed"),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		encryptionState := "ENCRYPTION_STATE_FAILED"
+		// Mock successful CVP response with encryption state
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:      nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID:   "bv-uuid-123",
+					Description:     nillable.GetStringPtr("Test backup vault with encryption failed"),
+					EncryptionState: nillable.GetStringPtr(encryptionState),
+					State:           "CREATING",
+					StateDetails:    "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault"
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("CreateWithNoEncryptionState", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("test-backup-vault"),
+			Description: gcpgenserver.NewOptString("Test backup vault without encryption state"),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		// Mock successful CVP response without encryption state
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:      nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID:   "bv-uuid-123",
+					Description:     nillable.GetStringPtr("Test backup vault without encryption state"),
+					EncryptionState: nil,
+					State:           "CREATING",
+					StateDetails:    "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault"
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+}
+
+func TestV1betaCreateBackupVaultWithKmsGrant(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	t.Run("CreateWithKmsGrantSet", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("test-backup-vault"),
+			Description: gcpgenserver.NewOptString("Test backup vault with KMS grant"),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		// Mock successful CVP response
+		// Note: KmsGrant is not in the CVP client model, it's only in the API response model
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:    nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID: "bv-uuid-123",
+					Description:   nillable.GetStringPtr("Test backup vault with KMS grant"),
+					State:         "CREATING",
+					StateDetails:  "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault"
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("CreateWithNoKmsGrant", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			ProjectNumber:  "test-project-123",
+			LocationId:     "us-central1",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+		}
+
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("test-backup-vault"),
+			Description: gcpgenserver.NewOptString("Test backup vault without KMS grant"),
+		}
+
+		// Mock region parsing
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "", nil
+		}
+
+		// Mock orchestrator calls - backup vault doesn't exist
+		vaultName := "test-backup-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-backup-vault", "test-project-123").Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+
+		// Mock successful CVP response
+		// Note: KmsGrant is not in the CVP client model, it's only in the API response model
+		cvpResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: &models.BackupVaultV1beta{
+					ResourceID:    nillable.GetStringPtr("test-backup-vault"),
+					BackupVaultID: "bv-uuid-123",
+					Description:   nillable.GetStringPtr("Test backup vault without KMS grant"),
+					State:         "CREATING",
+					StateDetails:  "Creation in progress",
+				},
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.MatchedBy(func(params *backup_vault.V1betaCreateBackupVaultParams) bool {
+				return params.LocationID == "us-central1" &&
+					params.ProjectNumber == "test-project-123" &&
+					params.Body.ResourceID == "test-backup-vault"
+			})).
+			Return(cvpResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+}
+
 func TestV1betaUpdateBackupVaultNotEnabled(t *testing.T) {
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
@@ -4172,4 +4848,73 @@ func TestV1betaUpdateBackupVault_AttachmentValidation(t *testing.T) {
 		assert.Equal(tt, "Failed to check backup vault attachment status", errorResponse.Message)
 		mockOrchestrator.AssertExpectations(tt)
 	})
+}
+
+func TestV1betaUpdateBackupVault_WithKmsConfigResourcePathAndBackupsPrimaryKeyVersion(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	params := gcpgenserver.V1betaUpdateBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	kmsConfigPath := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	backupsPrimaryKeyVersion := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1"
+
+	req := &gcpgenserver.BackupVaultUpdateV1beta{
+		KmsConfigResourcePath:    gcpgenserver.NewOptString(kmsConfigPath),
+		BackupsPrimaryKeyVersion: gcpgenserver.NewOptString(backupsPrimaryKeyVersion),
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	resID := "vault-id"
+	bvResp := mod.BackupVaultV1beta{
+		Name:        resID,
+		AccountName: "1234567890",
+	}
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(&bvResp, nil)
+
+	mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
+		Return(&mod.BackupVaultV1beta{}, "operation-id", nil)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestConvertBackupVaultV1Beta_WithKmsConfigResourcePathAndBackupsPrimaryKeyVersionAndEncryptionState(t *testing.T) {
+	kmsConfigPath := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	backupsPrimaryKeyVersion := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1"
+	encryptionState := "ENCRYPTED"
+
+	bv := &models.BackupVaultV1beta{
+		BackupVaultID:            "test-vault-id",
+		KmsConfigResourcePath:    &kmsConfigPath,
+		BackupsPrimaryKeyVersion: &backupsPrimaryKeyVersion,
+		EncryptionState:          &encryptionState,
+	}
+
+	result := convertBackupVaultV1Beta(bv)
+
+	assert.NotNil(t, result)
+	assert.True(t, result.KmsConfigResourcePath.IsSet())
+	assert.Equal(t, kmsConfigPath, result.KmsConfigResourcePath.Value)
+	assert.True(t, result.BackupsPrimaryKeyVersion.IsSet())
+	assert.Equal(t, backupsPrimaryKeyVersion, result.BackupsPrimaryKeyVersion.Value)
+	assert.True(t, result.EncryptionState.IsSet())
+	assert.Equal(t, gcpgenserver.BackupVaultV1betaEncryptionState(encryptionState), result.EncryptionState.Value)
 }

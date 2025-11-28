@@ -891,10 +891,11 @@ func (immutableAttributes ImmutableAttributes) Value() (driver.Value, error) {
 }
 
 type DataProtection struct {
-	ScheduledBackupEnabled *bool  `json:"scheduled_backup_enabled"`
-	BackupVaultID          string `json:"backup_vault_id"`
-	BackupPolicyID         string `json:"backup_policy_id"`
-	BackupChainBytes       *int64 `json:"backup_chain_bytes"`
+	ScheduledBackupEnabled *bool   `json:"scheduled_backup_enabled"`
+	BackupVaultID          string  `json:"backup_vault_id"`
+	BackupPolicyID         string  `json:"backup_policy_id"`
+	BackupChainBytes       *int64  `json:"backup_chain_bytes"`
+	KmsGrant               *string `json:"kms_grant"`
 }
 
 func (dp *DataProtection) Scan(value interface{}) error {

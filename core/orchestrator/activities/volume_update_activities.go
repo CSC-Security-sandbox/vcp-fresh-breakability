@@ -425,6 +425,9 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 			volume.DataProtection.BackupPolicyID = *params.DataProtection.BackupPolicyId
 		}
 		volume.DataProtection.ScheduledBackupEnabled = params.DataProtection.ScheduledBackupEnabled
+		if params.DataProtection.KmsGrant != nil {
+			volume.DataProtection.KmsGrant = params.DataProtection.KmsGrant
+		}
 		updates["data_protection"] = volume.DataProtection
 	}
 

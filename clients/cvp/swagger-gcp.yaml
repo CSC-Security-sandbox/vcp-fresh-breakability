@@ -7791,6 +7791,19 @@ definitions:
       backupRetentionPolicy:
         $ref: '#/definitions/BackupRetentionPolicy_v1beta'
         x-nullable: true
+      kmsConfigResourcePath:
+        title: kmsConfigResourcePath
+        type: string
+        description: Complete resource path of the KMS config
+        example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+        x-nullable: true
+      backupsPrimaryKeyVersion:
+        title: backupsPrimaryKeyVersion
+        type: string
+        readOnly: true
+        description: key version used to encrypt backups in the vault
+        example: projects/my-project-1/locations/eu-west-1/keyRings/my-keyring/cryptoKeys/my-key/cryptoKeyVersions/1
+        x-nullable: true
   BackupVaultUpdate_v1beta:
     title: BackupVaultUpdateRequest
     type: object
@@ -7802,6 +7815,19 @@ definitions:
         x-nullable: true
       backupRetentionPolicy:
         $ref: '#/definitions/BackupRetentionPolicyUpdate_v1beta'
+        x-nullable: true
+      kmsConfigResourcePath:
+        title: kmsConfigResourcePath
+        type: string
+        description: Complete resource path of the KMS config
+        example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+        x-nullable: true
+      backupsPrimaryKeyVersion:
+        title: backupsPrimaryKeyVersion
+        type: string
+        readOnly: true
+        description: key version used to encrypt backups in the vault
+        example: projects/my-project-1/locations/eu-west-1/keyRings/my-keyring/cryptoKeys/my-key/cryptoKeyVersions/1
         x-nullable: true
   VolumeRevert_v1beta:
     title: VolumeRevert
@@ -8001,6 +8027,12 @@ definitions:
         description: The source region of the backup
         example: us-east4
         x-nullable: true
+      kmsConfigResourcePath:
+        title: kmsConfigResourcePath
+        type: string
+        description: Complete resource path of the KMS config
+        example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+        x-nullable: true
       destinationBackupVault:
         title: destinationBackupVault
         type: string
@@ -8057,6 +8089,25 @@ definitions:
         x-nullable: true
       backupRetentionPolicy:
         $ref: '#/definitions/BackupRetentionPolicy_v1beta'
+      backupsPrimaryKeyVersion:
+        title: backupsPrimaryKeyVersion
+        type: string
+        readOnly: true
+        description: key version used to encrypt backups in the vault
+        example: projects/my-project-1/locations/eu-west-1/keyRings/my-keyring/cryptoKeys/my-key/cryptoKeyVersions/1
+        x-nullable: true
+      encryptionState:
+        title: encryptionState
+        type: string
+        readOnly: true
+        description: Current state of CMEK encryption for the backup vault
+        enum:
+          - ENCRYPTION_STATE_PENDING
+          - ENCRYPTION_STATE_COMPLETED
+          - ENCRYPTION_STATE_IN_PROGRESS
+          - ENCRYPTION_STATE_FAILED
+        example: ENCRYPTION_STATE_COMPLETED
+        x-nullable: true
   SnapshotId_v1beta:
     title: SnapshotId
     type: object
@@ -10107,6 +10158,10 @@ definitions:
         format: int64
         readOnly: true
         description: Size in bytes of the backup of the volume
+        x-nullable: true
+      kmsGrant:
+        type: string
+        description: KMS grant
         x-nullable: true
   TieringPolicy_v1beta:
     title: TieringPolicy
