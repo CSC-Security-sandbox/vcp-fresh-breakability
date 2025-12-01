@@ -22,7 +22,7 @@ type MockVCPProcessor struct {
 }
 
 // ProcessUsageMetrics implements the missing interface method
-func (m *MockVCPProcessor) ProcessUsageMetrics(ctx context.Context) error {
+func (m *MockVCPProcessor) ProcessUsageMetrics(ctx context.Context, timestamp time.Time) error {
 	return nil
 }
 

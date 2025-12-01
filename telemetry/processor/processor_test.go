@@ -1659,7 +1659,7 @@ func TestMetricsProcessor_ProcessUsageMetrics_AggregationTimingVerification(t *t
 	telemetryStore.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Act - call ProcessUsageMetrics
-	err := mp.ProcessUsageMetrics(ctx)
+	err := mp.ProcessUsageMetrics(ctx, beforeCall)
 
 	// Assert - should succeed demonstrating proper aggregation timing implementation
 	assert.NoError(t, err)
@@ -1685,7 +1685,7 @@ func TestMetricsProcessor_ProcessUsageMetrics_NilBillingProvider(t *testing.T) {
 
 	// Should panic due to nil billing provider
 	assert.Panics(t, func() {
-		_ = mp.ProcessUsageMetrics(ctx)
+		_ = mp.ProcessUsageMetrics(ctx, time.Now())
 	}, "Should panic when billingProvider is nil")
 }
 
@@ -1790,7 +1790,7 @@ func TestMetricsProcessor_ProcessUsageMetrics_RetryRecordsAndNewRecords(t *testi
 	})).Return(2, nil) // Return success for both metrics
 
 	// Act
-	err := mp.ProcessUsageMetrics(ctx)
+	err := mp.ProcessUsageMetrics(ctx, time.Now())
 
 	// Assert
 	assert.NoError(t, err)

@@ -2,8 +2,9 @@ package utils
 
 import (
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 )
 
 const (
@@ -61,4 +62,27 @@ func ValidateResourceMetadata(resourceMetadata metadata.ResourceMetadata) error 
 		return fmt.Errorf("DeploymentName is nil")
 	}
 	return nil
+}
+
+func PrepareAggregationTime(t time.Time, targetMinute int) time.Time {
+	totalMinutes := t.Hour()*60 + t.Minute()
+
+	adjustedMinutes := totalMinutes - targetMinute
+
+	var minutesToSubtract int
+
+	// If we're before the first target minute mark of the day, go to previous day's target minute
+	if adjustedMinutes < 0 {
+		// For times before target minute, we need to go back to target minute of previous day
+		// Minutes to subtract = current minutes + (60 - target minute)
+		minutesToSubtract = totalMinutes + (60 - targetMinute)
+	} else {
+		// For normal cases, calculate excess minutes beyond the previous target minute mark
+		excessMinutes := adjustedMinutes % 60
+		minutesToSubtract = excessMinutes
+	}
+
+	result := t.Add(-time.Duration(minutesToSubtract) * time.Minute)
+
+	return result.Truncate(time.Minute)
 }

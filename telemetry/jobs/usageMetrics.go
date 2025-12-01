@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
@@ -17,9 +18,27 @@ type ProcessUsageMetrics struct {
 	CorrelationID string `json:"correlation_id,omitempty"`
 }
 
-func NewProcessUsageMetrics(data string) *ProcessUsageMetrics {
+type UsageMetricsPayload struct {
+	Timestamp            time.Time `json:"timestamp"`
+	AggregationStartTime time.Time `json:"aggregation_start_time"`
+	AggregationEndTime   time.Time `json:"aggregation_end_time"`
+}
+
+func NewProcessUsageMetrics(timeStamp time.Time, aggregationStartTime time.Time, aggregationEndTime time.Time) *ProcessUsageMetrics {
+	payload := UsageMetricsPayload{
+		Timestamp:            timeStamp,
+		AggregationStartTime: aggregationStartTime,
+		AggregationEndTime:   aggregationEndTime,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return &ProcessUsageMetrics{
+			Data: timeStamp.String(),
+		}
+	}
 	return &ProcessUsageMetrics{
-		Data: data,
+		Data: string(jsonData),
 	}
 }
 
@@ -46,7 +65,15 @@ func (e ProcessUsageMetrics) Perform(p interface{}, attempt int32) error {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Processing usage metrics job with correlation ID: %s, attempt: %d", e.CorrelationID, attempt)
 
-	err := proc.ProcessUsageMetrics(ctx)
+	var payload UsageMetricsPayload
+	err := json.Unmarshal([]byte(e.Data), &payload)
+	if err != nil {
+		logger.Errorf("Failed to Unmarshal Job Data with correlation ID %s for raw data %s: %v", e.CorrelationID, e.Data, err)
+		return err
+	}
+
+	err = proc.ProcessUsageMetrics(ctx, payload.AggregationEndTime)
+
 	if err != nil {
 		if e.CorrelationID != "" {
 			logger := util.GetLogger(ctx)

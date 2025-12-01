@@ -3,11 +3,13 @@ package api
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/telemetry-servergen"
+	metricscommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
@@ -88,7 +90,6 @@ func (h Handler) V1Usage(ctx context.Context, params oasgenserver.V1UsageParams)
 		correlationID = uuid.NewString()
 		logger.Infof("Processing usage metrics request with generated correlation ID: %s", correlationID)
 	}
-
 	// Add correlation ID to context for propagation
 	loggerFields := log.Fields{
 		"requestCorrelationID": correlationID,
@@ -101,7 +102,11 @@ func (h Handler) V1Usage(ctx context.Context, params oasgenserver.V1UsageParams)
 	ctxWithCorrelation = context.WithValue(ctxWithCorrelation, middleware.ContextSLoggerKey, loggerWithFields)
 	backgroundContext := context.WithoutCancel(ctxWithCorrelation)
 
-	j := jobs.NewProcessUsageMetrics("{}")
+	config := metricscommon.LoadConfig()
+	timeStamp := utils.PrepareAggregationTime(time.Now(), config.TargetMinute)
+	usageEndTime := timeStamp.Add(-15 * time.Minute)
+	usageStartTime := usageEndTime.Add(-1 * time.Hour)
+	j := jobs.NewProcessUsageMetrics(timeStamp, usageStartTime, usageEndTime)
 	j.CorrelationID = correlationID
 	err := h.jobQueue.Enqueue(backgroundContext, j, utils.UsageQueue)
 	if err != nil {

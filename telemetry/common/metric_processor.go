@@ -9,7 +9,7 @@ import (
 
 type VCPProcessor interface {
 	ProcessPerformanceMetrics(ctx context.Context) error
-	ProcessUsageMetrics(ctx context.Context) error
+	ProcessUsageMetrics(ctx context.Context, timestamp time.Time) error
 	CollectMetrics(ctx context.Context, projectId string, timestamp time.Time) error
 	ProcessBizOps(ctx context.Context, params *utils.BizOpsReportParams) error
 }

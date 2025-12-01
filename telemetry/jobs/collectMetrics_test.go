@@ -23,8 +23,8 @@ func (m *MockVCPProcessor) ProcessPerformanceMetrics(ctx context.Context) error 
 	return args.Error(0)
 }
 
-func (m *MockVCPProcessor) ProcessUsageMetrics(ctx context.Context) error {
-	args := m.Called(ctx)
+func (m *MockVCPProcessor) ProcessUsageMetrics(ctx context.Context, timestamp time.Time) error {
+	args := m.Called(ctx, timestamp)
 	return args.Error(0)
 }
 

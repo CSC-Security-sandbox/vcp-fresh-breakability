@@ -273,6 +273,7 @@ telemetryDeployer:
   numWorkersUsage: "1"
   numWorkersCollection: "25"
   numWorkersBizOps: "2"
+  targetMinute : "15"
   resources:
     limits:
       cpu: 1
