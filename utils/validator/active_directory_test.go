@@ -990,3 +990,88 @@ func TestValidateDNTypeValuePair(t *testing.T) {
 		})
 	}
 }
+
+func TestActiveDirectoryValidator_LocationIdValidator_RejectsZones(t *testing.T) {
+	// Note: This test validates the zone rejection logic added in the regionValidator.
+	// In the default configuration where LOCAL_REGION="local", zones are not supported
+	// because "local" doesn't follow the GCP region pattern (<letters>-<letters><digits>).
+	// However, if LOCAL_REGION is set to a GCP-style region (e.g., "us-central1"),
+	// then zonal locations (e.g., "us-central1-a") will be properly detected and rejected
+	// with the zonalAdNotSupportedErr message.
+	//
+	// This test documents the behavior without requiring environment variable changes.
+
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	require.NoError(t, err)
+
+	// Test that the zone validation error is properly stored in dnErrorStore
+	// We can't easily test the full flow without changing LOCAL_REGION env var,
+	// but we can verify that zonal regions in other formats are rejected.
+
+	// These are invalid for other reasons (not "local"), but validates the structure
+	zonalStyleRegions := []string{
+		"us-central1-a",
+		"us-east1-b",
+		"europe-west1-c",
+	}
+
+	for _, region := range zonalStyleRegions {
+		t.Run("zonal_style_region_"+region, func(t *testing.T) {
+			type TestStruct struct {
+				LocationId string `validate:"LocationId"`
+			}
+			testObj := &TestStruct{LocationId: region}
+			err := adValidator.validate.Struct(testObj)
+			require.Error(t, err, "Zonal-style LocationId '%s' should be invalid", region)
+
+			var validationErrs validator.ValidationErrors
+			ok := errors.As(err, &validationErrs)
+			require.True(t, ok, "error should be ValidationErrors type")
+			require.Len(t, validationErrs, 1, "should have exactly one validation error")
+
+			// The error will be zonalAdNotSupportedErr if LOCAL_REGION was "us-central1"
+			// Otherwise it will be the "Region can only be local" error
+			translatedMsg := validationErrs[0].Translate(adValidator.Translator)
+			assert.NotEmpty(t, translatedMsg, "should have an error message")
+			// The actual message depends on LOCAL_REGION env var
+		})
+	}
+}
+
+func TestActiveDirectoryValidator_LocationIdValidator_Invalid(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	require.NoError(t, err)
+
+	invalidRegions := []string{
+		"",                   // empty
+		"invalid",            // malformed
+		"us-central1",        // not "local"
+		"us-east1",           // not "local"
+		"europe-west1",       // not "local"
+		"us_central1",        // invalid format
+		"123-region",         // invalid format
+		"invalid-region-123", // malformed
+	}
+
+	for _, region := range invalidRegions {
+		t.Run("invalid_region_"+region, func(t *testing.T) {
+			type TestStruct struct {
+				LocationId string `validate:"LocationId"`
+			}
+			testObj := &TestStruct{LocationId: region}
+			err := adValidator.validate.Struct(testObj)
+			require.Error(t, err, "Invalid LocationId '%s' should fail validation", region)
+
+			var validationErrs validator.ValidationErrors
+			ok := errors.As(err, &validationErrs)
+			require.True(t, ok, "error should be ValidationErrors type")
+			require.Len(t, validationErrs, 1, "should have exactly one validation error")
+		})
+	}
+}

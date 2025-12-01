@@ -28,6 +28,7 @@ type NASClient interface { // generate:mock
 	CifsServiceList(params *CifsServiceGetParams) ([]*CifsService, error)
 	CifsServiceCreate(params *CifsServiceCreateParams) (bool, *JobAccepted, error)
 	CifsServiceModify(params *CifsServiceModifyParams) error
+	CifsDomainGet(params *CifsDomainGetParams) (*CifsDomain, error)
 	CifsDomainModify(params *CifsDomainModifyParams) error
 	CifsShareACLDelete(params *CifsShareACLDeleteParams) error
 	CifsServiceAddMembers(params *CifsServiceModifyGroupMembersParams) error
@@ -201,8 +202,8 @@ func (t *nasClient) CifsServiceList(params *CifsServiceGetParams) ([]*CifsServic
 }
 
 // CifsServiceCreate creates the cifs service for the specified svm
-func (tnc *nasClient) CifsServiceCreate(params *CifsServiceCreateParams) (bool, *JobAccepted, error) {
-	done, response, err := tnc.api.CifsServiceCreate(cifsServiceCreateParamsToONTAP(params), nil)
+func (nc *nasClient) CifsServiceCreate(params *CifsServiceCreateParams) (bool, *JobAccepted, error) {
+	done, response, err := nc.api.CifsServiceCreate(cifsServiceCreateParamsToONTAP(params), nil)
 	if err != nil {
 		return false, nil, err
 	}
@@ -215,25 +216,25 @@ func (tnc *nasClient) CifsServiceCreate(params *CifsServiceCreateParams) (bool, 
 }
 
 // CifsServiceModify invokes clients/ontap-rest/client/n_a_s/Client.CifsServiceModify to modify CIFS service
-func (tnc *nasClient) CifsServiceModify(params *CifsServiceModifyParams) error {
-	_, _, err := tnc.api.CifsServiceModify(cifsServiceModifyParamsToONTAP(params), nil)
+func (nc *nasClient) CifsServiceModify(params *CifsServiceModifyParams) error {
+	_, _, err := nc.api.CifsServiceModify(cifsServiceModifyParamsToONTAP(params), nil)
 	return err
 }
 
 // CifsShareACLDelete deletes the specified ONTAP API CIFS share
-func (tnc *nasClient) CifsShareACLDelete(params *CifsShareACLDeleteParams) error {
-	_, err := tnc.api.CifsShareACLDelete(cifsShareACLDeleteParamsToONTAP(params), nil)
+func (nc *nasClient) CifsShareACLDelete(params *CifsShareACLDeleteParams) error {
+	_, err := nc.api.CifsShareACLDelete(cifsShareACLDeleteParamsToONTAP(params), nil)
 	return err
 }
 
 // CifsServiceAddMembers adds new CIFS users to groups
-func (tnc *nasClient) CifsServiceAddMembers(params *CifsServiceModifyGroupMembersParams) error {
+func (nc *nasClient) CifsServiceAddMembers(params *CifsServiceModifyGroupMembersParams) error {
 	lcgp := make([]*models.LocalCifsGroupMembersInlineRecordsInlineArrayItem, len(params.Members))
 	for i, member := range params.Members {
 		lcgp[i] = &models.LocalCifsGroupMembersInlineRecordsInlineArrayItem{Name: nillable.ToPointer(member)}
 	}
 
-	_, err := tnc.api.LocalCifsGroupMembersCreate(nas.NewLocalCifsGroupMembersCreateParams().WithSvmUUID(params.SvmUUID).WithLocalCifsGroupSid(params.Sid).WithInfo(
+	_, err := nc.api.LocalCifsGroupMembersCreate(nas.NewLocalCifsGroupMembersCreateParams().WithSvmUUID(params.SvmUUID).WithLocalCifsGroupSid(params.Sid).WithInfo(
 		&models.LocalCifsGroupMembers{
 			LocalCifsGroupMembersInlineRecords: lcgp,
 		}), nil)
@@ -241,14 +242,14 @@ func (tnc *nasClient) CifsServiceAddMembers(params *CifsServiceModifyGroupMember
 }
 
 // CifsServiceDelete deletes the cifs service for the specified svm
-func (tnc *nasClient) CifsServiceDelete(params *CifsServiceDeleteParams) error {
-	_, _, err := tnc.api.CifsServiceDelete(cifsServiceDeleteParamsToONTAP(params), nil)
+func (nc *nasClient) CifsServiceDelete(params *CifsServiceDeleteParams) error {
+	_, _, err := nc.api.CifsServiceDelete(cifsServiceDeleteParamsToONTAP(params), nil)
 	return err
 }
 
 // CifsServiceAddSecurityPrivilege adds a security privilege to a CIFS user
-func (tnc *nasClient) CifsServiceAddSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error {
-	_, err := tnc.api.UserGroupPrivilegesCreate(nas.NewUserGroupPrivilegesCreateParams().WithInfo(&models.UserGroupPrivileges{
+func (nc *nasClient) CifsServiceAddSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error {
+	_, err := nc.api.UserGroupPrivilegesCreate(nas.NewUserGroupPrivilegesCreateParams().WithInfo(&models.UserGroupPrivileges{
 		Name:       &params.Member,
 		Privileges: []*string{cifsUserSeSecurityPrivilege},
 		Svm: &models.UserGroupPrivilegesInlineSvm{
@@ -259,14 +260,23 @@ func (tnc *nasClient) CifsServiceAddSecurityPrivilege(params *CifsServiceModifyS
 }
 
 // CifsDomainModify invokes pkg/ontap-rest/client/nas/Client.CifsDomainModify
-func (tnc *nasClient) CifsDomainModify(params *CifsDomainModifyParams) error {
-	_, err := tnc.api.CifsDomainModify(cifsDomainModifyParamsToONTAP(params), nil)
+func (nc *nasClient) CifsDomainModify(params *CifsDomainModifyParams) error {
+	_, err := nc.api.CifsDomainModify(cifsDomainModifyParamsToONTAP(params), nil)
 	return err
 }
 
+// CifsDomainGet invokes pkg/ontap-rest/client/nas/Client.CifsDomainGet
+func (nc *nasClient) CifsDomainGet(params *CifsDomainGetParams) (*CifsDomain, error) {
+	response, err := nc.api.CifsDomainGet(cifsDomainGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+	return &CifsDomain{CifsDomain: *response.Payload}, nil
+}
+
 // CifsShareCreate creates a CIFS share for the ONTAP API SVM
-func (tnc *nasClient) CifsShareCreate(params *CifsShareCreateParams) error {
-	_, err := tnc.api.CifsShareCreate(cifsShareCreateParamsToONTAP(params), nil)
+func (nc *nasClient) CifsShareCreate(params *CifsShareCreateParams) error {
+	_, err := nc.api.CifsShareCreate(cifsShareCreateParamsToONTAP(params), nil)
 	if err != nil {
 		return err
 	}
@@ -274,8 +284,8 @@ func (tnc *nasClient) CifsShareCreate(params *CifsShareCreateParams) error {
 }
 
 // CifsShareCollectionGet retrieves a CIFS share
-func (tnc *nasClient) CifsShareCollectionGet(params *CifsShareCollectionGetParams) (*CifsShareGetResponse, error) {
-	response, err := tnc.api.CifsShareCollectionGet(cifsShareCollectionGetParamsToONTAP(params), nil)
+func (nc *nasClient) CifsShareCollectionGet(params *CifsShareCollectionGetParams) (*CifsShareGetResponse, error) {
+	response, err := nc.api.CifsShareCollectionGet(cifsShareCollectionGetParamsToONTAP(params), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -482,8 +492,8 @@ func (nc *nasClient) CifsServiceCollectionGetPrivilegedMembers(params *CifsServi
 }
 
 // CifsServiceRemoveSecurityPrivilege removes privileges from a CIFS user
-func (tnc *nasClient) CifsServiceRemoveSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error {
-	_, err := tnc.api.UserGroupPrivilegesModify(nas.NewUserGroupPrivilegesModifyParams().WithSvmUUID(params.SvmUUID).WithName(params.Member).WithInfo(&models.UserGroupPrivileges{
+func (nc *nasClient) CifsServiceRemoveSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error {
+	_, err := nc.api.UserGroupPrivilegesModify(nas.NewUserGroupPrivilegesModifyParams().WithSvmUUID(params.SvmUUID).WithName(params.Member).WithInfo(&models.UserGroupPrivileges{
 		Privileges: []*string{},
 	}), nil)
 	return err

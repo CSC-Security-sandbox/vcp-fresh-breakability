@@ -3,12 +3,12 @@ package vsa
 import (
 	stdErrors "errors"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -29,6 +29,54 @@ func withMockOntapClient(t *testing.T, client ontapRest.RESTClient, err error, f
 		return client, err
 	}
 	fn()
+}
+
+func TestDiscoveryModeConstants(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     DiscoveryMode
+		expected string
+	}{
+		{
+			name:     "DiscoveryModeAll",
+			mode:     DiscoveryModeAll,
+			expected: "all",
+		},
+		{
+			name:     "DiscoveryModeSite",
+			mode:     DiscoveryModeSite,
+			expected: "site",
+		},
+		{
+			name:     "DiscoveryModeNone",
+			mode:     DiscoveryModeNone,
+			expected: "none",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, string(tt.mode), "DiscoveryMode should have correct string value")
+		})
+	}
+}
+
+func TestDiscoveryModeType(t *testing.T) {
+	// Test that DiscoveryMode type can be used
+	var mode DiscoveryMode
+	mode = DiscoveryModeAll
+	assert.Equal(t, DiscoveryMode("all"), mode)
+
+	mode = DiscoveryModeSite
+	assert.Equal(t, DiscoveryMode("site"), mode)
+
+	mode = DiscoveryModeNone
+	assert.Equal(t, DiscoveryMode("none"), mode)
+
+	// Test type conversion
+	assert.Equal(t, "all", string(DiscoveryModeAll))
+	assert.Equal(t, "site", string(DiscoveryModeSite))
+	assert.Equal(t, "none", string(DiscoveryModeNone))
 }
 
 func TestCreateOrModifyDNS_CreatesWhenMissing(t *testing.T) {

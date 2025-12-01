@@ -1,10 +1,12 @@
 package vsa
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
 
+	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -13,9 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
-// ============================================================================
 // Type Definitions and Constructor
-// ============================================================================
 
 type activeDirectoryUpdater struct {
 	provider *OntapRestProvider
@@ -43,6 +43,10 @@ var (
 	decryptPassword                   = utils.DecryptPassword
 )
 
+const (
+	serverDiscoveryModeField = "server_discovery_mode"
+)
+
 func _newActiveDirectoryUpdater(params UpdateActiveDirectoryCredentialsParams, provider *OntapRestProvider, api ontapRest.RESTClient, svmName, svmUUID string) *activeDirectoryUpdater {
 	return &activeDirectoryUpdater{
 		provider: provider,
@@ -53,9 +57,7 @@ func _newActiveDirectoryUpdater(params UpdateActiveDirectoryCredentialsParams, p
 	}
 }
 
-// ============================================================================
 // Main Update Entry Point
-// ============================================================================
 
 // UpdateActiveDirectoryCredentials updates the Active Directory credentials in ONTAP
 func (provider *OntapRestProvider) UpdateActiveDirectoryCredentials(params UpdateActiveDirectoryCredentialsParams, cifs ontapRest.CifsService, svmName, svmExternalUUID string) error {
@@ -241,9 +243,7 @@ func (provider *OntapRestProvider) UpdateActiveDirectoryCredentials(params Updat
 	return nil
 }
 
-// ============================================================================
 // Resource Loading
-// ============================================================================
 
 // LoadSVM caches the ontap SVM of the target CIFS server to be used for the rest of the flow
 func (adu *activeDirectoryUpdater) LoadSVM(svmName string) error {
@@ -267,9 +267,7 @@ func (adu *activeDirectoryUpdater) LoadCIFSServer(cifs *ontapRest.CifsService) (
 	return cifs.Name, cifs.AdDomain.Fqdn, cifs.AdDomain.OrganizationalUnit, nil
 }
 
-// ============================================================================
 // CIFS Server Operations
-// ============================================================================
 
 // UpdateNetBios updates the netbios on the CIFS server
 func (adu *activeDirectoryUpdater) UpdateNetBios(newNetBIOS, site, username string, password log.Secret) (err error) {
@@ -323,9 +321,7 @@ func (adu *activeDirectoryUpdater) UpdateEncryptDCConnections() error {
 	return adu.api.NAS().CifsServiceModify(modifyEncryptedDCConnectionsParams)
 }
 
-// ============================================================================
 // Site Management
-// ============================================================================
 
 // UpdateSite sets or clears the default site name and domain discovery mode
 func (adu *activeDirectoryUpdater) UpdateSite(site string, preferredDCsForCIFSDomainSet bool) error {
@@ -342,6 +338,9 @@ func (adu *activeDirectoryUpdater) UpdateSite(site string, preferredDCsForCIFSDo
 		preferredDCsForCifsDomain, err = adu.api.NAS().DomainControllersSrvLookupGet(fetchDomainControllersUsingSrvLookupParams)
 
 		if err != nil {
+			if strings.Contains(err.Error(), "Reason: dns not found") {
+				return vsaerror.NewVCPError(vsaerror.ErrBadRequest, err)
+			}
 			return err
 		}
 	}
@@ -385,17 +384,102 @@ func (adu *activeDirectoryUpdater) UpdateSite(site string, preferredDCsForCIFSDo
 			}
 		}
 	}
-	return updateSiteONTAP(site, preferredDCsForCIFSDomainSet, adu)
+	return updateSiteONTAP(&site, preferredDCsForCIFSDomainSet, adu)
 }
 
-func _updateSiteONTAP(site string, preferredDCsForCIFSDomainSet bool, adu *activeDirectoryUpdater) error {
-	// TODO: Implement actual site update on ONTAP
+func _updateSiteONTAP(site *string, usePreferredDC bool, adu *activeDirectoryUpdater) (err error) {
+	if site == nil {
+		return nil
+	}
+
+	if adu == nil {
+		return errors.New("activeDirectoryUpdater is nil")
+	}
+
+	originalMode := string(DiscoveryModeAll)
+	defer func() {
+		if usePreferredDC && err != nil {
+			// If changing site fails then we change back from none to previously set mode
+			modifyParams := &ontapRest.CifsDomainModifyParams{
+				DiscoveryMode: &originalMode,
+				SvmUUID:       adu.svmUUID,
+			}
+			if rollbackErr := adu.api.NAS().CifsDomainModify(modifyParams); rollbackErr != nil {
+				adu.provider.Logger.Errorf("Error restoring domain discovery mode: %v", rollbackErr)
+			}
+		}
+	}()
+
+	if *site != "" {
+		if usePreferredDC {
+			// Get current server discovery mode before changing to 'none'
+			fields := []string{serverDiscoveryModeField}
+			params := &ontapRest.CifsDomainGetParams{
+				BaseParams: ontapRest.BaseParams{Fields: fields},
+				SvmUUID:    adu.svmUUID,
+			}
+			var response *ontapRest.CifsDomain
+			response, err = adu.api.NAS().CifsDomainGet(params)
+			if err != nil {
+				return vsaerror.New(fmt.Sprintf("Error fetching domain discovery mode: %v", err))
+			}
+
+			if response != nil && response.ServerDiscoveryMode != nil {
+				originalMode = *response.ServerDiscoveryMode
+			}
+
+			// Set discovery mode to 'none' before site change
+			mode := string(DiscoveryModeNone)
+			modifyParams := &ontapRest.CifsDomainModifyParams{
+				DiscoveryMode: &mode,
+				SvmUUID:       adu.svmUUID,
+			}
+			if err = adu.api.NAS().CifsDomainModify(modifyParams); err != nil {
+				return vsaerror.New(fmt.Sprintf("Error setting domain discovery mode to none: %v", err))
+			}
+		}
+
+		// Modify CIFS server to set the site
+		cifsModifyParams := &ontapRest.CifsServiceModifyParams{
+			Site:    site,
+			SvmUUID: &adu.svmUUID,
+		}
+		if err = adu.api.NAS().CifsServiceModify(cifsModifyParams); err != nil {
+			return vsaerror.New(fmt.Sprintf("Error updating CIFS service with Site: %v, err: %v", site, err))
+		}
+
+		siteMode := string(DiscoveryModeSite)
+		siteModifyParams := &ontapRest.CifsDomainModifyParams{
+			DiscoveryMode: &siteMode,
+			SvmUUID:       adu.svmUUID,
+		}
+		if err = adu.api.NAS().CifsDomainModify(siteModifyParams); err != nil {
+			return vsaerror.New(fmt.Sprintf("Error setting domain discovery mode to site: %v", err))
+		}
+		return nil
+	}
+
+	allMode := string(DiscoveryModeAll)
+	allModifyParams := &ontapRest.CifsDomainModifyParams{
+		DiscoveryMode: &allMode,
+		SvmUUID:       adu.svmUUID,
+	}
+	if err = adu.api.NAS().CifsDomainModify(allModifyParams); err != nil {
+		return vsaerror.New(fmt.Sprintf("Error setting domain discovery mode to all: %v", err))
+	}
+
+	// Modify CIFS server to set the site
+	cifsModifyParams := &ontapRest.CifsServiceModifyParams{
+		Site:    site,
+		SvmUUID: &adu.svmUUID,
+	}
+	if err = adu.api.NAS().CifsServiceModify(cifsModifyParams); err != nil {
+		return vsaerror.New(fmt.Sprintf("Error updating CIFS service with Site: %v, err: %v", site, err))
+	}
 	return nil
 }
 
-// ============================================================================
 // DNS Operations
-// ============================================================================
 
 // ModifyDNS modifies the DNS
 func (adu *activeDirectoryUpdater) ModifyDNS() error {
@@ -418,9 +502,7 @@ func (adu *activeDirectoryUpdater) UpdateDDNS(fqdn string) error {
 	})
 }
 
-// ============================================================================
 // User Management
-// ============================================================================
 
 // UpdateUsers updates the backup, seSecurity and builtin/Administrators users on the CIFS server
 func (adu *activeDirectoryUpdater) UpdateUsers(domainWorkgroup string) error {
@@ -496,9 +578,7 @@ func (adu *activeDirectoryUpdater) UpdateUsers(domainWorkgroup string) error {
 	return nil
 }
 
-// ============================================================================
 // Certificate Management
-// ============================================================================
 
 // UpdateServerCACertificate deletes old certificate from the SVM and installs new certificate
 func (adu *activeDirectoryUpdater) UpdateServerCACertificate() error {
@@ -551,9 +631,7 @@ func _updateServerCertificate(logger log.Logger, trc ontapRest.RESTClient, svmNa
 	return nil
 }
 
-// ============================================================================
 // LDAP Operations
-// ============================================================================
 
 // UpdateLDAPSigning updates a CIFS server AD LDAP signing settings
 func (adu *activeDirectoryUpdater) UpdateLDAPSigning(sign bool) error {
@@ -688,9 +766,7 @@ func (adu *activeDirectoryUpdater) UpdatePreferredDCOrDNAndFilter(updatePreferre
 	return nil
 }
 
-// ============================================================================
 // Utility Functions - User Management
-// ============================================================================
 
 func getActiveDirectoryUserMapKeys(oldADUsers, newAdUsers map[string][]string) []string {
 	var keys []string
@@ -734,9 +810,7 @@ func _removeDomainFromUser(user string) string {
 	return splitUser[len(splitUser)-1]
 }
 
-// ============================================================================
 // Utility Functions - CIFS Groups
-// ============================================================================
 
 func _getCifsGroups(nas ontapRest.NASClient, svmUUID string) (map[string]*ontapRest.CifsGroup, error) {
 	ontapGroups := make(map[string]*ontapRest.CifsGroup)
@@ -805,9 +879,7 @@ func _addUsersToGroup(logger log.Logger, nas ontapRest.NASClient, svmUUID, domai
 	return nil
 }
 
-// ============================================================================
 // Utility Functions - Security Privileges
-// ============================================================================
 
 func _getSecurityPrivilegedUsers(nas ontapRest.NASClient, svmUUID string) ([]string, error) {
 	var ontapSecurityMembers []string
@@ -871,10 +943,8 @@ func _addSecurityPrivilegesToUsers(logger log.Logger, nas ontapRest.NASClient, s
 }
 
 // TODO: To be modified/enabled as necessary when kerberos is supported
-// ============================================================================
 // Kerberos/NFS Operations (Disabled)
-// ============================================================================
-//
+
 //  // UpdateNFSService updates the NFS service including kerberos realm update and recreating machine account
 //  func (adu *activeDirectoryUpdater) UpdateNFSService(updateNetBIOS, updateADName, updateKdcIP bool, fqdn, domain, username, organizationalUnit string, password log.Secret) error {
 //	nfsUpdate := false

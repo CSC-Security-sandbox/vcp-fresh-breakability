@@ -27,6 +27,15 @@ var (
 	updateCIFSShareProperties    = _updateCIFSShareProperties
 )
 
+// DiscoveryMode represents the CIFS domain controller discovery mode
+type DiscoveryMode string
+
+const (
+	DiscoveryModeAll  DiscoveryMode = "all"
+	DiscoveryModeSite DiscoveryMode = "site"
+	DiscoveryModeNone DiscoveryMode = "none"
+)
+
 func (rc *OntapRestProvider) EnsureCIFSShare(params ConfigActiveDirectoryParams) (string, error) {
 	var fqdn string
 	client, err := getOntapClientFunc(rc.ClientParams)

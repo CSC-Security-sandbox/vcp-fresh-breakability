@@ -138,7 +138,13 @@ func (m *mockNASClient) AuditModify(params *nas.AuditModifyParams, authInfo runt
 }
 
 func (m *mockNASClient) CifsDomainGet(params *nas.CifsDomainGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsDomainGetOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	if resp, ok := m.response.(*nas.CifsDomainGetOK); ok {
+		return resp, nil
+	}
+	return &nas.CifsDomainGetOK{}, nil
 }
 
 func (m *mockNASClient) CifsDomainModify(params *nas.CifsDomainModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsDomainModifyOK, error) {
@@ -486,6 +492,46 @@ func TestNfsModify(t *testing.T) {
 		api := &mockNASClient{}
 		client := &nasClient{api: api}
 		err := client.NfsParamsModify(context.Background(), &NfsModifyParams{})
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenAllParamsSet_ThenSetAllFields", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		v4IDDomain := "test-domain"
+		showmountEnabled := true
+		rquotaEnabled := true
+		allowLocalNFSUsersWithLdap := true
+		extendedGroupsLimit := int64(100)
+		enabled := true
+		v3Enabled := true
+		v40Enabled := true
+		v41Enabled := true
+		vstorageEnabled := true
+		fileSessionIoGroupingCount := int64(10)
+
+		params := &NfsModifyParams{
+			SvmUUID:                    "test-uuid",
+			V4IDDomain:                 &v4IDDomain,
+			ShowmountEnabled:           &showmountEnabled,
+			RquotaEnabled:              &rquotaEnabled,
+			AllowLocalNFSUsersWithLdap: &allowLocalNFSUsersWithLdap,
+			ExtendedGroupsLimit:        &extendedGroupsLimit,
+			Enabled:                    &enabled,
+			V3Enabled:                  &v3Enabled,
+			V40Enabled:                 &v40Enabled,
+			V41Enabled:                 &v41Enabled,
+			VstorageEnabled:            &vstorageEnabled,
+			FileSessionIoGroupingCount: &fileSessionIoGroupingCount,
+		}
+		err := client.NfsModify(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenParamsNil_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		err := client.NfsModify(nil)
 		assert.NoError(tt, err)
 	})
 }
@@ -1449,5 +1495,61 @@ func TestCifsServiceRemoveSecurityPrivilege(t *testing.T) {
 		}
 		err := client.CifsServiceRemoveSecurityPrivilege(params)
 		assert.NoError(tt, err)
+	})
+}
+
+func TestCifsDomainGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		params := &CifsDomainGetParams{
+			SvmUUID: "test-uuid",
+		}
+		result, err := client.CifsDomainGet(params)
+		assert.EqualError(tt, err, "api error")
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenSuccessful_ThenReturnCifsDomain", func(tt *testing.T) {
+		discoveryMode := "site"
+		resp := &nas.CifsDomainGetOK{
+			Payload: &models.CifsDomain{
+				ServerDiscoveryMode: &discoveryMode,
+			},
+		}
+		api := &mockNASClient{response: resp}
+		client := &nasClient{api: api}
+		params := &CifsDomainGetParams{
+			SvmUUID: "test-uuid",
+		}
+		result, err := client.CifsDomainGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, discoveryMode, *result.ServerDiscoveryMode)
+	})
+
+	t.Run("WhenSuccessfulWithFields_ThenReturnCifsDomain", func(tt *testing.T) {
+		discoveryMode := "all"
+		resetDiscoveredServers := true
+		rediscoverTrusts := true
+		resp := &nas.CifsDomainGetOK{
+			Payload: &models.CifsDomain{
+				ServerDiscoveryMode: &discoveryMode,
+			},
+		}
+		api := &mockNASClient{response: resp}
+		client := &nasClient{api: api}
+		params := &CifsDomainGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"server_discovery_mode"},
+			},
+			SvmUUID:                "test-uuid",
+			ResetDiscoveredServers: &resetDiscoveredServers,
+			RediscoverTrusts:       &rediscoverTrusts,
+		}
+		result, err := client.CifsDomainGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, discoveryMode, *result.ServerDiscoveryMode)
 	})
 }

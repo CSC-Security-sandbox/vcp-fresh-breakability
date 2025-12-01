@@ -33,6 +33,7 @@ const (
 	usernameValidationErr    = `Active directory username should not contain any of the following characters: /\[]:;|=,+*?"<>`
 	kdcIpValidationErr       = "KdcIP must be at least 7 characters long to be valid"
 	kdcHostNameValidationErr = "KdcHostName must be at least 1 character long to be valid"
+	zonalAdNotSupportedErr   = "Active Directory cannot be created for a zone"
 )
 
 var (
@@ -242,7 +243,11 @@ func (adValidator *ActiveDirectoryValidator) kdcHostNameValidator(fl validator.F
 }
 
 func (adValidator *ActiveDirectoryValidator) regionValidator(fl validator.FieldLevel) bool {
-	_, _, err := utils.ParseAndValidateRegionAndZone(fl.Field().String())
+	_, zone, err := utils.ParseAndValidateRegionAndZone(fl.Field().String())
+	if zone != "" {
+		adValidator.dnErrorStore.Store(fl.StructFieldName(), zonalAdNotSupportedErr)
+		return false
+	}
 	if err != nil {
 		// Store error message keyed by field
 		key := fl.StructFieldName()

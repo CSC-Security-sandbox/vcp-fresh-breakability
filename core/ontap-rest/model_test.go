@@ -3535,6 +3535,63 @@ func TestDNSCreateParamsToONTAPWithSvmUUID(t *testing.T) {
 	})
 }
 
+func TestCifsDomainGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cifsDomainGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithAllFields", func(tt *testing.T) {
+		resetDiscovered := true
+		rediscoverTrusts := false
+		params := &CifsDomainGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"server_discovery_mode", "preferred_dcs"},
+			},
+			SvmUUID:                "svm-uuid-123",
+			ResetDiscoveredServers: &resetDiscovered,
+			RediscoverTrusts:       &rediscoverTrusts,
+		}
+		otParams := cifsDomainGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "svm-uuid-123", otParams.SvmUUID)
+		assert.Equal(tt, 2, len(otParams.Fields))
+		assert.Contains(tt, otParams.Fields, "server_discovery_mode")
+		assert.Contains(tt, otParams.Fields, "preferred_dcs")
+		assert.NotNil(tt, otParams.ResetDiscoveredServers)
+		assert.Equal(tt, "true", *otParams.ResetDiscoveredServers)
+		assert.NotNil(tt, otParams.RediscoverTrusts)
+		assert.Equal(tt, "false", *otParams.RediscoverTrusts)
+	})
+
+	t.Run("WhenParamsSetWithOnlyRequired", func(tt *testing.T) {
+		params := &CifsDomainGetParams{
+			SvmUUID: "svm-uuid-456",
+		}
+		otParams := cifsDomainGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "svm-uuid-456", otParams.SvmUUID)
+		assert.Nil(tt, otParams.ResetDiscoveredServers)
+		assert.Nil(tt, otParams.RediscoverTrusts)
+	})
+
+	t.Run("WhenBooleanParamsSet", func(tt *testing.T) {
+		resetDiscovered := false
+		rediscoverTrusts := true
+		params := &CifsDomainGetParams{
+			SvmUUID:                "svm-uuid-789",
+			ResetDiscoveredServers: &resetDiscovered,
+			RediscoverTrusts:       &rediscoverTrusts,
+		}
+		otParams := cifsDomainGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.ResetDiscoveredServers)
+		assert.Equal(tt, "false", *otParams.ResetDiscoveredServers)
+		assert.NotNil(tt, otParams.RediscoverTrusts)
+		assert.Equal(tt, "true", *otParams.RediscoverTrusts)
+	})
+}
+
 func TestCifsDomainModifyParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil", func(tt *testing.T) {
 		otParams := cifsDomainModifyParamsToONTAP(nil)

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -317,8 +318,9 @@ func TestUpdateSite_WithSite_Success(t *testing.T) {
 	// Mock site update
 	originalUpdateSite := updateSiteONTAP
 	t.Cleanup(func() { updateSiteONTAP = originalUpdateSite })
-	updateSiteONTAP = func(site string, preferredDCsSet bool, adu *activeDirectoryUpdater) error {
-		assert.Equal(t, "NewSite", site)
+	updateSiteONTAP = func(site *string, preferredDCsSet bool, adu *activeDirectoryUpdater) error {
+		assert.NotNil(t, site)
+		assert.Equal(t, "NewSite", *site)
 		assert.True(t, preferredDCsSet)
 		return nil
 	}
@@ -336,8 +338,9 @@ func TestUpdateSite_EmptySite_Success(t *testing.T) {
 
 	originalUpdateSite := updateSiteONTAP
 	t.Cleanup(func() { updateSiteONTAP = originalUpdateSite })
-	updateSiteONTAP = func(site string, preferredDCsSet bool, adu *activeDirectoryUpdater) error {
-		assert.Equal(t, "", site)
+	updateSiteONTAP = func(site *string, preferredDCsSet bool, adu *activeDirectoryUpdater) error {
+		assert.NotNil(t, site)
+		assert.Equal(t, "", *site)
 		return nil
 	}
 
@@ -359,6 +362,48 @@ func TestUpdateSite_SrvLookupError(t *testing.T) {
 	assert.Contains(t, err.Error(), "lookup failed")
 }
 
+func TestUpdateSite_SrvLookupDNSNotFoundError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	// Mock DNS not found error
+	dnsNotFoundErr := vsaerrors.New("SRV lookup failed. Reason: dns not found for domain")
+	mockNAS.On("DomainControllersSrvLookupGet", mock.Anything).Return(nil, dnsNotFoundErr)
+
+	err := adu.UpdateSite("NewSite", false)
+
+	require.Error(t, err)
+
+	// Verify it's a VCP error with ErrBadRequest
+	vcpErr, ok := err.(*vsaerror.CustomError)
+	require.True(t, ok, "error should be a CustomError from vsaerror package")
+	assert.Equal(t, vsaerror.ErrBadRequest, vcpErr.TrackingID, "error TrackingID should be ErrBadRequest")
+
+	// Verify the original error is preserved
+	assert.NotNil(t, vcpErr.OriginalErr, "original error should be preserved")
+	assert.Contains(t, vcpErr.OriginalErr.Error(), "dns not found", "original error should contain 'dns not found'")
+}
+
+func TestUpdateSite_SrvLookupGenericError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	// Mock a generic error (not DNS not found)
+	genericErr := vsaerrors.New("some other error")
+	mockNAS.On("DomainControllersSrvLookupGet", mock.Anything).Return(nil, genericErr)
+
+	err := adu.UpdateSite("NewSite", false)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "some other error")
+
+	// Verify it's NOT wrapped as a VCP CustomError
+	_, ok := err.(*vsaerror.CustomError)
+	assert.False(t, ok, "generic errors should not be wrapped as CustomError")
+}
+
 func TestUpdateSite_ErrorPreferredDCRemoval(t *testing.T) {
 	adu, mockREST := setupMockUpdater(t)
 	mockNAS := &ontapRest.MockNASClient{}
@@ -370,13 +415,298 @@ func TestUpdateSite_ErrorPreferredDCRemoval(t *testing.T) {
 
 	originalUpdateSite := updateSiteONTAP
 	t.Cleanup(func() { updateSiteONTAP = originalUpdateSite })
-	updateSiteONTAP = func(site string, preferredDCsSet bool, adu *activeDirectoryUpdater) error {
+	updateSiteONTAP = func(site *string, preferredDCsSet bool, adu *activeDirectoryUpdater) error {
 		return nil
 	}
 
 	err := adu.UpdateSite("NewSite", false)
 
 	assert.NoError(t, err) // removal error is logged, not returned
+}
+
+// ============================================================================
+// _updateSiteONTAP Tests
+// ============================================================================
+
+func Test_updateSiteONTAP_NilSite(t *testing.T) {
+	adu, _ := setupMockUpdater(t)
+
+	err := _updateSiteONTAP(nil, false, adu)
+
+	assert.NoError(t, err)
+}
+
+func Test_updateSiteONTAP_NilUpdater(t *testing.T) {
+	site := "TestSite"
+
+	err := _updateSiteONTAP(&site, false, nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "activeDirectoryUpdater is nil")
+}
+
+func Test_updateSiteONTAP_EmptySiteWithoutPreferredDC(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := ""
+
+	// Expect setting discovery mode to "all"
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "all" && params.SvmUUID == adu.svmUUID
+	})).Return(nil).Once()
+
+	// Expect CIFS service modify with empty site
+	mockNAS.On("CifsServiceModify", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyParams) bool {
+		return params.Site != nil && *params.Site == "" && *params.SvmUUID == adu.svmUUID
+	})).Return(nil).Once()
+
+	err := _updateSiteONTAP(&site, false, adu)
+
+	assert.NoError(t, err)
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_updateSiteONTAP_NonEmptySiteWithoutPreferredDC(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := "TestSite"
+
+	// Expect CIFS service modify with site
+	mockNAS.On("CifsServiceModify", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyParams) bool {
+		return params.Site != nil && *params.Site == "TestSite" && *params.SvmUUID == adu.svmUUID
+	})).Return(nil).Once()
+
+	// Expect setting discovery mode to "site"
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "site" && params.SvmUUID == adu.svmUUID
+	})).Return(nil).Once()
+
+	err := _updateSiteONTAP(&site, false, adu)
+
+	assert.NoError(t, err)
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_updateSiteONTAP_NonEmptySiteWithPreferredDC(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := "TestSite"
+
+	// Expect getting current discovery mode
+	discoveryMode := "all"
+	mockNAS.On("CifsDomainGet", mock.MatchedBy(func(params *ontapRest.CifsDomainGetParams) bool {
+		return params.SvmUUID == adu.svmUUID && len(params.Fields) > 0
+	})).Return(&ontapRest.CifsDomain{
+		CifsDomain: models.CifsDomain{
+			ServerDiscoveryMode: &discoveryMode,
+		},
+	}, nil).Once()
+
+	// Expect setting discovery mode to "none"
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "none" && params.SvmUUID == adu.svmUUID
+	})).Return(nil).Once()
+
+	// Expect CIFS service modify with site
+	mockNAS.On("CifsServiceModify", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyParams) bool {
+		return params.Site != nil && *params.Site == "TestSite" && *params.SvmUUID == adu.svmUUID
+	})).Return(nil).Once()
+
+	// Expect setting discovery mode to "site"
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "site" && params.SvmUUID == adu.svmUUID
+	})).Return(nil).Once()
+
+	err := _updateSiteONTAP(&site, true, adu)
+
+	assert.NoError(t, err)
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_updateSiteONTAP_ErrorGettingDiscoveryMode(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := "TestSite"
+
+	// Expect getting current discovery mode to fail
+	mockNAS.On("CifsDomainGet", mock.Anything).Return(nil, vsaerrors.New("failed to get domain"))
+
+	// Expect rollback attempt in defer (will try to restore mode to "all" by default)
+	mockNAS.On("CifsDomainModify", mock.Anything).Return(nil).Once()
+
+	err := _updateSiteONTAP(&site, true, adu)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error fetching domain discovery mode")
+}
+
+func Test_updateSiteONTAP_ErrorSettingDiscoveryModeToNone(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := "TestSite"
+	discoveryMode := "all"
+
+	mockNAS.On("CifsDomainGet", mock.Anything).Return(&ontapRest.CifsDomain{
+		CifsDomain: models.CifsDomain{
+			ServerDiscoveryMode: &discoveryMode,
+		},
+	}, nil).Once()
+
+	// Expect setting discovery mode to "none" to fail
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "none"
+	})).Return(vsaerrors.New("failed to set mode")).Once()
+
+	// Expect rollback attempt in defer (will try to restore mode to "all")
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "all"
+	})).Return(nil).Maybe()
+
+	err := _updateSiteONTAP(&site, true, adu)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error setting domain discovery mode to none")
+}
+
+func Test_updateSiteONTAP_ErrorUpdatingCIFSService(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := "TestSite"
+	discoveryMode := "all"
+
+	mockNAS.On("CifsDomainGet", mock.Anything).Return(&ontapRest.CifsDomain{
+		CifsDomain: models.CifsDomain{
+			ServerDiscoveryMode: &discoveryMode,
+		},
+	}, nil).Once()
+
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "none"
+	})).Return(nil).Once()
+
+	// Expect CIFS service modify to fail
+	mockNAS.On("CifsServiceModify", mock.Anything).Return(vsaerrors.New("failed to update CIFS"))
+
+	// Expect rollback attempt in defer (will try to restore mode to "all")
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "all"
+	})).Return(nil).Maybe()
+
+	err := _updateSiteONTAP(&site, true, adu)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error updating CIFS service with Site")
+}
+
+func Test_updateSiteONTAP_ErrorSettingDiscoveryModeToSite(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := "TestSite"
+	discoveryMode := "all"
+
+	mockNAS.On("CifsDomainGet", mock.Anything).Return(&ontapRest.CifsDomain{
+		CifsDomain: models.CifsDomain{
+			ServerDiscoveryMode: &discoveryMode,
+		},
+	}, nil).Once()
+
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "none"
+	})).Return(nil).Once()
+
+	mockNAS.On("CifsServiceModify", mock.Anything).Return(nil).Once()
+
+	// Expect setting discovery mode to "site" to fail
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "site"
+	})).Return(vsaerrors.New("failed to set site mode")).Once()
+
+	// Expect rollback attempt in defer (will try to restore mode - use mock.Anything to catch any mode)
+	mockNAS.On("CifsDomainModify", mock.Anything).Return(nil).Maybe()
+
+	err := _updateSiteONTAP(&site, true, adu)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error setting domain discovery mode to site")
+}
+
+func Test_updateSiteONTAP_EmptySiteErrorSettingDiscoveryModeToAll(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := ""
+
+	// Expect setting discovery mode to "all" to fail
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "all"
+	})).Return(vsaerrors.New("failed to set all mode"))
+
+	err := _updateSiteONTAP(&site, false, adu)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error setting domain discovery mode to all")
+}
+
+func Test_updateSiteONTAP_EmptySiteErrorUpdatingCIFSService(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := ""
+
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "all"
+	})).Return(nil).Once()
+
+	// Expect CIFS service modify to fail
+	mockNAS.On("CifsServiceModify", mock.Anything).Return(vsaerrors.New("failed to update CIFS"))
+
+	err := _updateSiteONTAP(&site, false, adu)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error updating CIFS service with Site")
+}
+
+func Test_updateSiteONTAP_NilDiscoveryModeResponse(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	site := "TestSite"
+
+	// Return nil response (no server discovery mode)
+	mockNAS.On("CifsDomainGet", mock.Anything).Return(nil, nil).Once()
+
+	// Should default to "all" mode when response is nil
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "none"
+	})).Return(nil).Once()
+
+	mockNAS.On("CifsServiceModify", mock.Anything).Return(nil).Once()
+
+	mockNAS.On("CifsDomainModify", mock.MatchedBy(func(params *ontapRest.CifsDomainModifyParams) bool {
+		return params.DiscoveryMode != nil && *params.DiscoveryMode == "site"
+	})).Return(nil).Once()
+
+	err := _updateSiteONTAP(&site, true, adu)
+
+	assert.NoError(t, err)
+	mockNAS.AssertExpectations(t)
 }
 
 // ============================================================================
@@ -1386,4 +1716,688 @@ func TestUpdateActiveDirectoryCredentials_NetBIOSLongerThan10Chars(t *testing.T)
 	err := provider.UpdateActiveDirectoryCredentials(params, cifs, "svm-name", "svm-uuid")
 
 	assert.NoError(t, err)
+}
+
+func Test_addUsersToGroup_RetryWithWorkgroup(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	group := &ontapRest.CifsGroup{
+		Name: "test-group",
+		Sid:  "S-1-5-32-544",
+	}
+
+	// First attempt fails with "Unable to resolve user name"
+	mockNAS.On("CifsServiceAddMembers", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyGroupMembersParams) bool {
+		return params.Members[0] == "DOMAIN\\user1"
+	})).Return(vsaerrors.New("Unable to resolve user name")).Once()
+
+	// Second attempt succeeds with workgroup prepended
+	mockNAS.On("CifsServiceAddMembers", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyGroupMembersParams) bool {
+		return params.Members[0] == "WORKGROUP\\user1"
+	})).Return(nil).Once()
+
+	err := _addUsersToGroup(logger, mockNAS, "test-uuid", "WORKGROUP", group, []string{"DOMAIN\\user1"})
+
+	require.NoError(t, err)
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_addUsersToGroup_RetryFails(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	group := &ontapRest.CifsGroup{
+		Name: "test-group",
+		Sid:  "S-1-5-32-544",
+	}
+
+	// First attempt fails
+	mockNAS.On("CifsServiceAddMembers", mock.Anything).Return(vsaerrors.New("Unable to resolve user name")).Once()
+	// Retry also fails
+	mockNAS.On("CifsServiceAddMembers", mock.Anything).Return(vsaerrors.New("Still cannot resolve")).Once()
+
+	err := _addUsersToGroup(logger, mockNAS, "test-uuid", "WORKGROUP", group, []string{"user1"})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Unable to resolve user name")
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_addUsersToGroup_OtherError(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	group := &ontapRest.CifsGroup{
+		Name: "test-group",
+		Sid:  "S-1-5-32-544",
+	}
+
+	// First attempt fails with a different error
+	mockNAS.On("CifsServiceAddMembers", mock.Anything).Return(vsaerrors.New("Network error"))
+
+	err := _addUsersToGroup(logger, mockNAS, "test-uuid", "WORKGROUP", group, []string{"user1"})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Network error")
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_removeSecurityPrivilegesFromUsers_RetryWithWorkgroup(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	// First attempt fails with "Unable to resolve user name"
+	mockNAS.On("CifsServiceRemoveSecurityPrivilege", mock.MatchedBy(func(params *ontapRest.CifsServiceModifySecurityPrivilegeParams) bool {
+		return params.Member == "DOMAIN\\user1"
+	})).Return(vsaerrors.New("Unable to resolve user name")).Once()
+
+	// Second attempt succeeds with workgroup prepended
+	mockNAS.On("CifsServiceRemoveSecurityPrivilege", mock.MatchedBy(func(params *ontapRest.CifsServiceModifySecurityPrivilegeParams) bool {
+		return params.Member == "WORKGROUP\\user1"
+	})).Return(nil).Once()
+
+	err := _removeSecurityPrivilegesFromUsers(logger, mockNAS, "test-uuid", "WORKGROUP", []string{"DOMAIN\\user1"})
+
+	require.NoError(t, err)
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_removeSecurityPrivilegesFromUsers_RetryFails(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	// First attempt fails
+	mockNAS.On("CifsServiceRemoveSecurityPrivilege", mock.Anything).Return(vsaerrors.New("Unable to resolve user name")).Once()
+	// Retry also fails
+	mockNAS.On("CifsServiceRemoveSecurityPrivilege", mock.Anything).Return(vsaerrors.New("Still cannot resolve")).Once()
+
+	err := _removeSecurityPrivilegesFromUsers(logger, mockNAS, "test-uuid", "WORKGROUP", []string{"user1"})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Unable to resolve user name")
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_removeSecurityPrivilegesFromUsers_OtherError(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	// First attempt fails with a different error
+	mockNAS.On("CifsServiceRemoveSecurityPrivilege", mock.Anything).Return(vsaerrors.New("Network error"))
+
+	err := _removeSecurityPrivilegesFromUsers(logger, mockNAS, "test-uuid", "WORKGROUP", []string{"user1"})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Network error")
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_addSecurityPrivilegesToUsers_RetryFails(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	// First attempt fails
+	mockNAS.On("CifsServiceAddSecurityPrivilege", mock.Anything).Return(vsaerrors.New("Unable to resolve user name")).Once()
+	// Retry also fails
+	mockNAS.On("CifsServiceAddSecurityPrivilege", mock.Anything).Return(vsaerrors.New("Still cannot resolve")).Once()
+
+	err := _addSecurityPrivilegesToUsers(logger, mockNAS, "test-uuid", "WORKGROUP", []string{"user1"})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Unable to resolve user name")
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_addSecurityPrivilegesToUsers_OtherError(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	// First attempt fails with a different error
+	mockNAS.On("CifsServiceAddSecurityPrivilege", mock.Anything).Return(vsaerrors.New("Network error"))
+
+	err := _addSecurityPrivilegesToUsers(logger, mockNAS, "test-uuid", "WORKGROUP", []string{"user1"})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Network error")
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_removeUsersFromGroup_RetryFails(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	group := &ontapRest.CifsGroup{
+		Name: "test-group",
+		Sid:  "S-1-5-32-544",
+	}
+
+	// Both attempts fail
+	mockNAS.On("CifsServiceRemoveMembers", mock.Anything).Return(vsaerrors.New("Unable to resolve user name")).Once()
+	mockNAS.On("CifsServiceRemoveMembers", mock.Anything).Return(vsaerrors.New("Still cannot resolve")).Once()
+
+	err := _removeUsersFromGroup(logger, mockNAS, "test-uuid", "WORKGROUP", group, []string{"user1"})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Unable to resolve user name")
+	mockNAS.AssertExpectations(t)
+}
+
+func Test_getSecurityPrivilegedUsers_Error(t *testing.T) {
+	mockNAS := &ontapRest.MockNASClient{}
+
+	mockNAS.On("CifsServiceCollectionGetPrivilegedMembers", mock.Anything, mock.Anything).Return(vsaerrors.New("API error"))
+
+	result, err := _getSecurityPrivilegedUsers(mockNAS, "test-uuid")
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "API error")
+}
+
+func Test_getCifsGroups_Error(t *testing.T) {
+	mockNAS := &ontapRest.MockNASClient{}
+
+	mockNAS.On("CifsServiceCollectionGetGroups", mock.Anything, mock.Anything).Return(vsaerrors.New("API error"))
+
+	result, err := _getCifsGroups(mockNAS, "test-uuid")
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "API error")
+}
+
+func TestUpdateLDAPOverTLS_CertCollectionGetError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockSec := &ontapRest.MockSecurityClient{}
+	mockREST.On("Security").Return(mockSec)
+
+	mockSec.On("ServerRootCACertificateCollectionGet", mock.Anything).Return(nil, vsaerrors.New("failed to get certs"))
+
+	err := adu.UpdateLDAPOverTLS()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get certs")
+}
+
+func TestUpdateLDAPOverTLS_CertInstallError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockSec := &ontapRest.MockSecurityClient{}
+	mockREST.On("Security").Return(mockSec)
+
+	mockSec.On("ServerRootCACertificateCollectionGet", mock.Anything).Return([]*ontapRest.ServerRootCACertificate{}, nil)
+	mockSec.On("ServerRootCACertificateInstall", mock.Anything).Return(nil, vsaerrors.New("install failed"))
+
+	err := adu.UpdateLDAPOverTLS()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "install failed")
+}
+
+func TestUpdateLDAPOverTLS_CifsServiceModifyError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockSec := &ontapRest.MockSecurityClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("Security").Return(mockSec)
+	mockREST.On("NAS").Return(mockNAS)
+
+	mockSec.On("ServerRootCACertificateCollectionGet", mock.Anything).Return([]*ontapRest.ServerRootCACertificate{}, nil)
+	mockSec.On("ServerRootCACertificateInstall", mock.Anything).Return(&ontapRest.ServerRootCACertificate{}, nil)
+	mockNAS.On("CifsServiceModify", mock.Anything).Return(vsaerrors.New("modify failed"))
+
+	err := adu.UpdateLDAPOverTLS()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "modify failed")
+}
+
+func TestUpdateLDAPOverTLS_LdapGetError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockSec := &ontapRest.MockSecurityClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockNS := &ontapRest.MockNameServicesClient{}
+	mockREST.On("Security").Return(mockSec)
+	mockREST.On("NAS").Return(mockNAS)
+	mockREST.On("NameServices").Return(mockNS)
+
+	mockSec.On("ServerRootCACertificateCollectionGet", mock.Anything).Return([]*ontapRest.ServerRootCACertificate{}, nil)
+	mockSec.On("ServerRootCACertificateInstall", mock.Anything).Return(&ontapRest.ServerRootCACertificate{}, nil)
+	mockNAS.On("CifsServiceModify", mock.Anything).Return(nil)
+	mockNS.On("LdapGet", mock.Anything).Return(nil, vsaerrors.New("ldap get failed"))
+
+	err := adu.UpdateLDAPOverTLS()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ldap get failed")
+}
+
+func TestUpdateLDAPOverTLS_LdapModifyError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockSec := &ontapRest.MockSecurityClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockNS := &ontapRest.MockNameServicesClient{}
+	mockREST.On("Security").Return(mockSec)
+	mockREST.On("NAS").Return(mockNAS)
+	mockREST.On("NameServices").Return(mockNS)
+
+	mockSec.On("ServerRootCACertificateCollectionGet", mock.Anything).Return([]*ontapRest.ServerRootCACertificate{}, nil)
+	mockSec.On("ServerRootCACertificateInstall", mock.Anything).Return(&ontapRest.ServerRootCACertificate{}, nil)
+	mockNAS.On("CifsServiceModify", mock.Anything).Return(nil)
+	mockNS.On("LdapGet", mock.Anything).Return(&ontapRest.LdapService{}, nil)
+	mockNS.On("LdapModify", mock.Anything).Return(vsaerrors.New("ldap modify failed"))
+
+	err := adu.UpdateLDAPOverTLS()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ldap modify failed")
+}
+
+func TestUpdateLDAPOverTLS_LdapGetNotFoundError_NoError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockSec := &ontapRest.MockSecurityClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockNS := &ontapRest.MockNameServicesClient{}
+	mockREST.On("Security").Return(mockSec)
+	mockREST.On("NAS").Return(mockNAS)
+	mockREST.On("NameServices").Return(mockNS)
+
+	mockSec.On("ServerRootCACertificateCollectionGet", mock.Anything).Return([]*ontapRest.ServerRootCACertificate{}, nil)
+	mockSec.On("ServerRootCACertificateInstall", mock.Anything).Return(&ontapRest.ServerRootCACertificate{}, nil)
+	mockNAS.On("CifsServiceModify", mock.Anything).Return(nil)
+	// LDAP client not found - should not be an error
+	mockNS.On("LdapGet", mock.Anything).Return(nil, vsaerrors.NewNotFoundErr("ldap", nil))
+
+	err := adu.UpdateLDAPOverTLS()
+
+	require.NoError(t, err)
+}
+
+func TestUpdateLDAPOverTLS_DisableWithCertDeleteError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	adu.params.NewCredentials.LdapOverTLS = nillable.ToPointer(false)
+
+	mockSec := &ontapRest.MockSecurityClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	mockNS := &ontapRest.MockNameServicesClient{}
+	mockREST.On("Security").Return(mockSec)
+	mockREST.On("NAS").Return(mockNAS)
+	mockREST.On("NameServices").Return(mockNS)
+
+	existingCert := &ontapRest.ServerRootCACertificate{
+		SecurityCertificate: models.SecurityCertificate{
+			UUID: nillable.ToPointer("cert-uuid"),
+		},
+	}
+	mockSec.On("ServerRootCACertificateCollectionGet", mock.Anything).Return([]*ontapRest.ServerRootCACertificate{existingCert}, nil)
+	mockNAS.On("CifsServiceModify", mock.Anything).Return(nil)
+	mockNS.On("LdapGet", mock.Anything).Return(&ontapRest.LdapService{}, nil)
+	mockNS.On("LdapModify", mock.Anything).Return(nil)
+	mockSec.On("ServerRootCACertificateDelete", mock.Anything).Return(vsaerrors.New("delete failed"))
+
+	err := adu.UpdateLDAPOverTLS()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "delete failed")
+}
+
+func TestUpdatePreferredDCOrDNAndFilter_LdapGetError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNS := &ontapRest.MockNameServicesClient{}
+	mockREST.On("NameServices").Return(mockNS)
+
+	mockNS.On("LdapGet", mock.Anything).Return(nil, vsaerrors.New("ldap get failed"))
+
+	err := adu.UpdatePreferredDCOrDNAndFilter(true, false)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ldap get failed")
+}
+
+func TestUpdatePreferredDCOrDNAndFilter_LdapNotFound_NoError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNS := &ontapRest.MockNameServicesClient{}
+	mockREST.On("NameServices").Return(mockNS)
+
+	mockNS.On("LdapGet", mock.Anything).Return(nil, vsaerrors.NewNotFoundErr("ldap", nil))
+
+	err := adu.UpdatePreferredDCOrDNAndFilter(true, false)
+
+	require.NoError(t, err)
+}
+
+func TestUpdatePreferredDCOrDNAndFilter_PreferredServersModifyError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	adu.params.NewCredentials.PreferredServersForLdapClient = nillable.ToPointer("10.0.0.1,10.0.0.2")
+
+	mockNS := &ontapRest.MockNameServicesClient{}
+	mockREST.On("NameServices").Return(mockNS)
+
+	mockNS.On("LdapGet", mock.Anything).Return(&ontapRest.LdapService{}, nil)
+	mockNS.On("LdapModifyPreferredAdServers", mock.Anything).Return(vsaerrors.New("modify failed"))
+
+	err := adu.UpdatePreferredDCOrDNAndFilter(true, false)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "modify failed")
+}
+
+func TestUpdatePreferredDCOrDNAndFilter_DNAndFilterModifyError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	adu.params.NewCredentials.UserDN = nillable.ToPointer("CN=Users,DC=example,DC=com")
+	adu.params.NewCredentials.GroupDN = nillable.ToPointer("CN=Groups,DC=example,DC=com")
+
+	mockNS := &ontapRest.MockNameServicesClient{}
+	mockREST.On("NameServices").Return(mockNS)
+
+	mockNS.On("LdapGet", mock.Anything).Return(&ontapRest.LdapService{}, nil)
+	mockNS.On("LdapModify", mock.Anything).Return(vsaerrors.New("modify failed"))
+
+	err := adu.UpdatePreferredDCOrDNAndFilter(false, true)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "modify failed")
+}
+
+func Test_removeUsersFromGroup_OtherError(t *testing.T) {
+	logger := log.NewLogger()
+	mockNAS := &ontapRest.MockNASClient{}
+
+	group := &ontapRest.CifsGroup{
+		Name: "test-group",
+		Sid:  "S-1-5-32-544",
+	}
+
+	// First attempt fails with a different error
+	mockNAS.On("CifsServiceRemoveMembers", mock.Anything).Return(vsaerrors.New("Network error"))
+
+	err := _removeUsersFromGroup(logger, mockNAS, "test-uuid", "WORKGROUP", group, []string{"user1"})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Network error")
+	mockNAS.AssertExpectations(t)
+}
+
+func TestUpdateNetBios_ModifyNameError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	mockNAS.On("CifsServiceModify", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyParams) bool {
+		return params.Enabled != nil && *params.Enabled == false
+	})).Return(nil).Once()
+
+	// Modify name fails
+	mockNAS.On("CifsServiceModify", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyParams) bool {
+		return params.Name != nil && *params.Name == "NEWNAME"
+	})).Return(vsaerrors.New("modify name failed")).Once()
+
+	// Defer enable should still be called
+	mockNAS.On("CifsServiceModify", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyParams) bool {
+		return params.Enabled != nil && *params.Enabled == true
+	})).Return(nil).Once()
+
+	err := adu.UpdateNetBios("NEWNAME", "NewSite", "admin", "password")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "modify name failed")
+}
+
+func TestUpdateNetBios_ModifyNameError_AndDeferEnableError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	mockNAS.On("CifsServiceModify", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyParams) bool {
+		return params.Enabled != nil && *params.Enabled == false
+	})).Return(nil).Once()
+
+	// Modify name fails
+	mockNAS.On("CifsServiceModify", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyParams) bool {
+		return params.Name != nil && *params.Name == "NEWNAME"
+	})).Return(vsaerrors.New("modify name failed")).Once()
+
+	// Defer enable also fails - should log but return original error
+	mockNAS.On("CifsServiceModify", mock.MatchedBy(func(params *ontapRest.CifsServiceModifyParams) bool {
+		return params.Enabled != nil && *params.Enabled == true
+	})).Return(vsaerrors.New("enable failed")).Once()
+
+	err := adu.UpdateNetBios("NEWNAME", "NewSite", "admin", "password")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "modify name failed") // Should return original error, not defer error
+}
+
+func TestUpdateUsers_GetCifsGroupsError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	originalGetGroups := getCifsGroups
+	t.Cleanup(func() { getCifsGroups = originalGetGroups })
+	getCifsGroups = func(nas ontapRest.NASClient, svmUUID string) (map[string]*ontapRest.CifsGroup, error) {
+		return nil, vsaerrors.New("failed to get groups")
+	}
+
+	err := adu.UpdateUsers("WORKGROUP")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get groups")
+}
+
+func TestUpdateUsers_GroupNotFound(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	originalGetGroups := getCifsGroups
+	t.Cleanup(func() { getCifsGroups = originalGetGroups })
+	getCifsGroups = func(nas ontapRest.NASClient, svmUUID string) (map[string]*ontapRest.CifsGroup, error) {
+		return map[string]*ontapRest.CifsGroup{
+			"BUILTIN\\SomeOtherGroup": {
+				Name: "BUILTIN\\SomeOtherGroup",
+				Sid:  "S-1-5-32-999",
+			},
+		}, nil
+	}
+
+	err := adu.UpdateUsers("WORKGROUP")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Local group 'BUILTIN\\Administrators' not found")
+}
+
+func TestUpdateUsers_RemoveUsersError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	originalGetGroups := getCifsGroups
+	t.Cleanup(func() { getCifsGroups = originalGetGroups })
+	getCifsGroups = func(nas ontapRest.NASClient, svmUUID string) (map[string]*ontapRest.CifsGroup, error) {
+		return map[string]*ontapRest.CifsGroup{
+			"BUILTIN\\Administrators": {
+				Name:    "BUILTIN\\Administrators",
+				Sid:     "S-1-5-32-544",
+				Members: []string{"NEW.DOMAIN.COM\\user1", "NEW.DOMAIN.COM\\user2"},
+			},
+		}, nil
+	}
+
+	originalRemove := removeUsersFromGroup
+	t.Cleanup(func() { removeUsersFromGroup = originalRemove })
+	removeUsersFromGroup = func(logger log.Logger, nas ontapRest.NASClient, svmUUID, domain string, group *ontapRest.CifsGroup, users []string) error {
+		return vsaerrors.New("remove failed")
+	}
+
+	err := adu.UpdateUsers("WORKGROUP")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "remove failed")
+}
+
+func TestUpdateUsers_AddUsersError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	originalGetGroups := getCifsGroups
+	t.Cleanup(func() { getCifsGroups = originalGetGroups })
+	getCifsGroups = func(nas ontapRest.NASClient, svmUUID string) (map[string]*ontapRest.CifsGroup, error) {
+		return map[string]*ontapRest.CifsGroup{
+			"BUILTIN\\Administrators": {
+				Name:    "BUILTIN\\Administrators",
+				Sid:     "S-1-5-32-544",
+				Members: []string{},
+			},
+		}, nil
+	}
+
+	originalAdd := addUsersToGroup
+	t.Cleanup(func() { addUsersToGroup = originalAdd })
+	addUsersToGroup = func(logger log.Logger, nas ontapRest.NASClient, svmUUID, domain string, group *ontapRest.CifsGroup, users []string) error {
+		return vsaerrors.New("add failed")
+	}
+
+	err := adu.UpdateUsers("WORKGROUP")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "add failed")
+}
+
+func TestUpdateUsers_SecurityPrivilege_GetError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	adu.params.NewCredentials.Users = map[string][]string{
+		utils.ActiveDirectorySeSecurityPrivilege: {"user1", "user2"},
+	}
+	adu.params.OldCredentials.Users = map[string][]string{
+		utils.ActiveDirectorySeSecurityPrivilege: {"user1"},
+	}
+
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	originalGet := getSecurityPrivilegedUsers
+	t.Cleanup(func() { getSecurityPrivilegedUsers = originalGet })
+	getSecurityPrivilegedUsers = func(nas ontapRest.NASClient, svmUUID string) ([]string, error) {
+		return nil, vsaerrors.New("get security users failed")
+	}
+
+	err := adu.UpdateUsers("WORKGROUP")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "get security users failed")
+}
+
+func TestUpdateUsers_SecurityPrivilege_RemoveError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	adu.params.NewCredentials.Users = map[string][]string{
+		utils.ActiveDirectorySeSecurityPrivilege: {"user2"},
+	}
+	adu.params.OldCredentials.Users = map[string][]string{
+		utils.ActiveDirectorySeSecurityPrivilege: {"user1", "user2"},
+	}
+
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	originalGet := getSecurityPrivilegedUsers
+	originalRemove := removeSecurityPrivilegesFromUsers
+	t.Cleanup(func() {
+		getSecurityPrivilegedUsers = originalGet
+		removeSecurityPrivilegesFromUsers = originalRemove
+	})
+
+	getSecurityPrivilegedUsers = func(nas ontapRest.NASClient, svmUUID string) ([]string, error) {
+		return []string{"NEW.DOMAIN.COM\\user1", "NEW.DOMAIN.COM\\user2"}, nil
+	}
+
+	removeSecurityPrivilegesFromUsers = func(logger log.Logger, nas ontapRest.NASClient, svmUUID, domain string, users []string) error {
+		return vsaerrors.New("remove security privilege failed")
+	}
+
+	err := adu.UpdateUsers("WORKGROUP")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "remove security privilege failed")
+}
+
+func TestUpdateUsers_SecurityPrivilege_AddError(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	adu.params.NewCredentials.Users = map[string][]string{
+		utils.ActiveDirectorySeSecurityPrivilege: {"user1", "user2"},
+	}
+	adu.params.OldCredentials.Users = map[string][]string{
+		utils.ActiveDirectorySeSecurityPrivilege: {"user1"},
+	}
+
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	originalGet := getSecurityPrivilegedUsers
+	originalAdd := addSecurityPrivilegesToUsers
+	originalRemove := removeSecurityPrivilegesFromUsers
+	t.Cleanup(func() {
+		getSecurityPrivilegedUsers = originalGet
+		addSecurityPrivilegesToUsers = originalAdd
+		removeSecurityPrivilegesFromUsers = originalRemove
+	})
+
+	getSecurityPrivilegedUsers = func(nas ontapRest.NASClient, svmUUID string) ([]string, error) {
+		return []string{"user1"}, nil // No domain prefix to avoid double prepending
+	}
+
+	// No remove needed since user1 is in both old and new
+	removeSecurityPrivilegesFromUsers = func(logger log.Logger, nas ontapRest.NASClient, svmUUID, domain string, users []string) error {
+		return nil
+	}
+
+	addSecurityPrivilegesToUsers = func(logger log.Logger, nas ontapRest.NASClient, svmUUID, domain string, users []string) error {
+		return vsaerrors.New("add security privilege failed")
+	}
+
+	err := adu.UpdateUsers("WORKGROUP")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "add security privilege failed")
+}
+
+func Test_updateServerCertificate_GetError(t *testing.T) {
+	logger := log.NewLogger()
+	mockREST := &ontapRest.MockRESTClient{}
+	mockSec := &ontapRest.MockSecurityClient{}
+	mockREST.On("Security").Return(mockSec)
+
+	mockSec.On("ServerRootCACertificateGet", mock.Anything).Return(nil, vsaerrors.New("get failed"))
+
+	newCertStr := "new-cert-data"
+	oldCertStr := "old-cert-data"
+	err := _updateServerCertificate(logger, mockREST, "test-svm", &newCertStr, &oldCertStr)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "get failed")
+}
+
+func Test_updateServerCertificate_DeleteError(t *testing.T) {
+	logger := log.NewLogger()
+	mockREST := &ontapRest.MockRESTClient{}
+	mockSec := &ontapRest.MockSecurityClient{}
+	mockREST.On("Security").Return(mockSec)
+
+	oldCert := ontapRest.ServerRootCACertificate{
+		SecurityCertificate: models.SecurityCertificate{
+			SerialNumber: nillable.ToPointer("12345"),
+			CommonName:   nillable.ToPointer("old-cert"),
+			Ca:           nillable.ToPointer("old-ca"),
+		},
+	}
+
+	mockSec.On("ServerRootCACertificateGet", mock.Anything).Return(&oldCert, nil)
+	mockSec.On("ServerRootCACertificateDelete", mock.Anything).Return(vsaerrors.New("delete failed"))
+
+	newCertStr := "new-cert-data"
+	oldCertStr := "old-cert-data"
+	err := _updateServerCertificate(logger, mockREST, "test-svm", &newCertStr, &oldCertStr)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "delete failed")
 }

@@ -21,6 +21,64 @@ func (_m *MockNASClient) EXPECT() *MockNASClient_Expecter {
 	return &MockNASClient_Expecter{mock: &_m.Mock}
 }
 
+// CifsDomainGet provides a mock function with given fields: params
+func (_m *MockNASClient) CifsDomainGet(params *CifsDomainGetParams) (*CifsDomain, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsDomainGet")
+	}
+
+	var r0 *CifsDomain
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*CifsDomainGetParams) (*CifsDomain, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*CifsDomainGetParams) *CifsDomain); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*CifsDomain)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*CifsDomainGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNASClient_CifsDomainGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsDomainGet'
+type MockNASClient_CifsDomainGet_Call struct {
+	*mock.Call
+}
+
+// CifsDomainGet is a helper method to define mock.On call
+//   - params *CifsDomainGetParams
+func (_e *MockNASClient_Expecter) CifsDomainGet(params interface{}) *MockNASClient_CifsDomainGet_Call {
+	return &MockNASClient_CifsDomainGet_Call{Call: _e.mock.On("CifsDomainGet", params)}
+}
+
+func (_c *MockNASClient_CifsDomainGet_Call) Run(run func(params *CifsDomainGetParams)) *MockNASClient_CifsDomainGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsDomainGetParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsDomainGet_Call) Return(_a0 *CifsDomain, _a1 error) *MockNASClient_CifsDomainGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNASClient_CifsDomainGet_Call) RunAndReturn(run func(*CifsDomainGetParams) (*CifsDomain, error)) *MockNASClient_CifsDomainGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CifsDomainModify provides a mock function with given fields: params
 func (_m *MockNASClient) CifsDomainModify(params *CifsDomainModifyParams) error {
 	ret := _m.Called(params)

@@ -4403,6 +4403,19 @@ func cifsServiceModifyParamsToONTAP(params *CifsServiceModifyParams) *nas.CifsSe
 	return otParams
 }
 
+func cifsDomainGetParamsToONTAP(params *CifsDomainGetParams) *nas.CifsDomainGetParams {
+	otParams := nas.NewCifsDomainGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetFields(params.Fields)
+	otParams.SetSvmUUID(params.SvmUUID)
+	otParams.SetResetDiscoveredServers(nillable.ToStringPtr(params.ResetDiscoveredServers))
+	otParams.SetRediscoverTrusts(nillable.ToStringPtr(params.RediscoverTrusts))
+	return otParams
+}
+
 func cifsDomainModifyParamsToONTAP(params *CifsDomainModifyParams) *nas.CifsDomainModifyParams {
 	otParams := nas.NewCifsDomainModifyParams()
 	if params == nil {

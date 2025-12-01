@@ -92,7 +92,7 @@ func TestCreateActiveDirectory_Success(t *testing.T) {
 	// Mock external dependencies
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	defer func() {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
@@ -214,9 +214,9 @@ func TestCreateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -375,9 +375,9 @@ func TestCreateActiveDirectory_AccountNotFound(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -485,9 +485,9 @@ func TestCreateActiveDirectory_DefaultOrganizationalUnit(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -576,9 +576,9 @@ func TestCreateActiveDirectory_JobCreationFailed(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -665,9 +665,9 @@ func TestCreateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -752,9 +752,9 @@ func TestCreateActiveDirectory_DatabaseRecordCreationFailed(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -1757,9 +1757,9 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -1842,9 +1842,9 @@ func TestUpdateActiveDirectory_DomainUpdateNotAllowed(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -1896,9 +1896,9 @@ func TestUpdateActiveDirectory_ValidationError(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -1932,9 +1932,9 @@ func TestUpdateActiveDirectory_AccountNotFound(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -1972,9 +1972,9 @@ func TestUpdateActiveDirectory_ADNotFound(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -2024,9 +2024,9 @@ func TestUpdateActiveDirectory_JobCreationFailed(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -2092,9 +2092,9 @@ func TestUpdateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -2207,9 +2207,9 @@ func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -2290,9 +2290,9 @@ func TestUpdateActiveDirectory_ADRecordNotFoundInDB(t *testing.T) {
 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	// Mock to return parsed region and zone
+	// Mock to return parsed region without zone (zones are not supported for Active Directory)
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	// Restore original function after test
 	defer func() {
@@ -3230,7 +3230,7 @@ func TestCreateActiveDirectory_MultiADDisabled_SecondADShouldFail(t *testing.T) 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	defer func() {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
@@ -3313,7 +3313,7 @@ func TestCreateActiveDirectory_MaxADLimitReached_ShouldFail(t *testing.T) {
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	defer func() {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
@@ -3434,7 +3434,7 @@ func TestCreateActiveDirectory_MultiADEnabled_WithinLimit_Success(t *testing.T) 
 	// Save original function
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
-		return "us-central1", "us-central1-a", nil
+		return "us-central1", "", nil
 	}
 	defer func() {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
