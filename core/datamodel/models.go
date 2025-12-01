@@ -557,10 +557,16 @@ type Job struct {
 }
 
 type JobAttributes struct {
-	ResourceUUID      string `json:"resource_uuid"`
-	PoolUUID          string `json:"pool_uuid"`
-	CurrentRetryCount int    `json:"current_retry_count"`
-	Location          string `json:"location"`
+	ResourceUUID         string                 `json:"resource_uuid"`
+	PoolUUID             string                 `json:"pool_uuid"`
+	CurrentRetryCount    int                    `json:"current_retry_count"`
+	Location             string                 `json:"location"`
+	SupervisorAttributes *SupervisorAttributes  `json:"supervisor_attributes,omitempty"`
+	PayloadAttributes    map[string]interface{} `json:"payload_attributes,omitempty"`
+}
+
+type SupervisorAttributes struct {
+	OverrideGracePeriod time.Duration `json:"override_grace_period"`
 }
 
 // Scan method for JobAttributes to handle JSONB data

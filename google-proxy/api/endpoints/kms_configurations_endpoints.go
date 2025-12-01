@@ -13,12 +13,14 @@ import (
 	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -29,12 +31,22 @@ var (
 	roleName                  = "cmekNetAppVolumesRole"
 	parseKmsConfigResponse    = _parseKmsConfigResponse
 	encodeEncryptVolumeV1beta = _encodeEncryptVolumeV1beta
+	cmekSupervisorGracePeriod = parseCmekSupervisorGracePeriod()
 )
 
 const (
 	uriFormat    = "^projects\\/[^\\/]+\\/locations\\/[^\\/]+\\/keyRings\\/[^\\/]+\\/cryptoKeys.+$"
 	regionGlobal = "global"
 )
+
+func parseCmekSupervisorGracePeriod() time.Duration {
+	timeoutStr := env.GetString("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "14")
+	duration, err := time.ParseDuration(timeoutStr + "m")
+	if err != nil {
+		return 14 * time.Minute
+	}
+	return duration
+}
 
 func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V1betaCheckKmsConfigParams) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
@@ -294,13 +306,79 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 				Body:           body,
 			}
 
+			jobPayloadAttributes := map[string]interface{}{
+				"keyFullPath":   req.KeyFullPath,
+				"projectNumber": params.ProjectNumber,
+				"locationId":    params.LocationId,
+			}
+			supervisorAttributes := &datamodel.SupervisorAttributes{
+				OverrideGracePeriod: cmekSupervisorGracePeriod,
+			}
+
+			createJobParams := &common.CreateJobParams{
+				AccountName:  params.ProjectNumber,
+				Type:         coremodel.JobTypeSdeKmsCreate,
+				ResourceName: req.ResourceId.Value,
+				JobAttributes: &datamodel.JobAttributes{
+					PayloadAttributes:    jobPayloadAttributes,
+					SupervisorAttributes: supervisorAttributes,
+				},
+			}
+			if params.XCorrelationID.Set {
+				createJobParams.CorrelationID = params.XCorrelationID.Value
+			}
+
+			sdeJob, jobErr := h.Orchestrator.CreateJob(ctx, createJobParams)
+			if jobErr != nil {
+				logger.Error("Failed to create SDE KMS job", "error", jobErr.Error())
+				return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
+					Code:    http.StatusInternalServerError,
+					Message: "Failed to enqueue SDE KMS creation workflow",
+				}, nil
+			}
+			logger.Debug("Created SDE KMS job", "jobUUID", sdeJob.UUID)
+
+			markSdeJobError := func(failure error) {
+				if failure == nil || sdeJob == nil {
+					return
+				}
+				if updateErr := h.Orchestrator.UpdateJobStatus(
+					ctx,
+					sdeJob.UUID,
+					string(coremodel.JobsStateERROR),
+					sdeJob.TrackingID,
+					failure.Error(),
+				); updateErr != nil {
+					logger.Warn("Failed to mark SDE job as error", "jobUUID", sdeJob.UUID, "error", updateErr)
+				}
+			}
+
+			// clearSdeJobGracePeriod removes the override window so the supervisor
+			// immediately reclaims the SDE job when we abort after creation.
+			clearSdeJobGracePeriod := func() {
+				if sdeJob == nil {
+					return
+				}
+				attrs := &datamodel.JobAttributes{
+					PayloadAttributes: jobPayloadAttributes,
+					SupervisorAttributes: &datamodel.SupervisorAttributes{
+						OverrideGracePeriod: 0,
+					},
+				}
+				if updateErr := h.Orchestrator.UpdateJobAttributes(ctx, sdeJob.UUID, attrs); updateErr != nil {
+					logger.Warn("Failed to clear override grace period for SDE job", "jobUUID", sdeJob.UUID, "error", updateErr)
+				}
+			}
+
 			cvpResponse, err := cvpClient.KmsConfigurations.V1betaCreateKmsConfiguration(cvpCreateKmsConfigParams)
 			if err != nil {
+				markSdeJobError(err)
 				return categorizeCvpClientErrorsForCreateKmsConfigs(err)
 			}
 
 			parsedCvpResponse, err := parseKmsConfigResponse(cvpResponse.Payload.Response)
 			if err != nil {
+				clearSdeJobGracePeriod()
 				return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
 					Code:    http.StatusInternalServerError,
 					Message: "Failed to parse KMS configuration response",
@@ -318,11 +396,13 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 				UUID:           parsedCvpResponse.UUID, // UUID of the SDE kms config
 				XCorrelationID: params.XCorrelationID.Value,
 				Description:    req.Description.Value,
+				SdeJobUUID:     sdeJob.UUID,
 			}
 
 			// create kms config in vsa DB and start the workflow to poll the SDE operation
 			kmsConfig, operationID, err := h.Orchestrator.CreateKmsConfig(ctx, createKmsConfigParams)
 			if err != nil {
+				clearSdeJobGracePeriod()
 				var conflictErr *errors.ConflictErr
 				var badRequestErr *errors.BadRequestErr
 				switch {
@@ -333,7 +413,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 					}, nil
 				case goErrors.As(err, &badRequestErr):
 					return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
-						Message: conflictErr.Error(),
+						Message: badRequestErr.Error(),
 						Code:    http.StatusBadRequest,
 					}, nil
 				default:

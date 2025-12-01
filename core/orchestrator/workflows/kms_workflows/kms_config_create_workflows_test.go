@@ -446,4 +446,68 @@ func TestCreateKmsConfig(t *testing.T) {
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+	t.Run("WhenWorkflowCompletesMarksSdeJobDone", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:           "test-kms",
+			AccountName:    "test-account",
+			SdeJobUUID:     "sde-job-id",
+			ProjectNumber:  "test-project",
+			LocationID:     "us-east4",
+			OperationUri:   "operations/test",
+			OperationDone:  true,
+			XCorrelationID: "corr-id",
+		}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+
+		sdeJobMarkedDone := false
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.BaseModel.UUID == "sde-job-id" && job.State == string(coremodels.JobsStateDONE)
+		})).Run(func(args mock.Arguments) {
+			sdeJobMarkedDone = true
+		}).Return(nil).Once()
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("signed-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreatedKmsConfigActivity", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		assert.True(t, sdeJobMarkedDone)
+		env.AssertExpectations(t)
+	})
 }

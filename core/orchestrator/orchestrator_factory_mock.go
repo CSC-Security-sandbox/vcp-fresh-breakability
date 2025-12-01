@@ -757,6 +757,65 @@ func (_c *MockOrchestratorFactory_CreateImageVersion_Call) RunAndReturn(run func
 	return _c
 }
 
+// CreateJob provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) CreateJob(ctx context.Context, params *common.CreateJobParams) (*datamodel.Job, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateJob")
+	}
+
+	var r0 *datamodel.Job
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateJobParams) (*datamodel.Job, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateJobParams) *datamodel.Job); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateJobParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CreateJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateJob'
+type MockOrchestratorFactory_CreateJob_Call struct {
+	*mock.Call
+}
+
+// CreateJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.CreateJobParams
+func (_e *MockOrchestratorFactory_Expecter) CreateJob(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateJob_Call {
+	return &MockOrchestratorFactory_CreateJob_Call{Call: _e.mock.On("CreateJob", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_CreateJob_Call) Run(run func(ctx context.Context, params *common.CreateJobParams)) *MockOrchestratorFactory_CreateJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.CreateJobParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateJob_Call) Return(_a0 *datamodel.Job, _a1 error) *MockOrchestratorFactory_CreateJob_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateJob_Call) RunAndReturn(run func(context.Context, *common.CreateJobParams) (*datamodel.Job, error)) *MockOrchestratorFactory_CreateJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateKmsConfig provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error) {
 	ret := _m.Called(ctx, params)
@@ -6817,6 +6876,104 @@ func (_c *MockOrchestratorFactory_UpdateHostGroup_Call) Return(_a0 *models.HostG
 }
 
 func (_c *MockOrchestratorFactory_UpdateHostGroup_Call) RunAndReturn(run func(context.Context, *common.UpdateHostGroupParams) (*models.HostGroup, string, error)) *MockOrchestratorFactory_UpdateHostGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateJobAttributes provides a mock function with given fields: ctx, jobID, jobAttributes
+func (_m *MockOrchestratorFactory) UpdateJobAttributes(ctx context.Context, jobID string, jobAttributes *datamodel.JobAttributes) error {
+	ret := _m.Called(ctx, jobID, jobAttributes)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateJobAttributes")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *datamodel.JobAttributes) error); ok {
+		r0 = rf(ctx, jobID, jobAttributes)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_UpdateJobAttributes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateJobAttributes'
+type MockOrchestratorFactory_UpdateJobAttributes_Call struct {
+	*mock.Call
+}
+
+// UpdateJobAttributes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobID string
+//   - jobAttributes *datamodel.JobAttributes
+func (_e *MockOrchestratorFactory_Expecter) UpdateJobAttributes(ctx interface{}, jobID interface{}, jobAttributes interface{}) *MockOrchestratorFactory_UpdateJobAttributes_Call {
+	return &MockOrchestratorFactory_UpdateJobAttributes_Call{Call: _e.mock.On("UpdateJobAttributes", ctx, jobID, jobAttributes)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateJobAttributes_Call) Run(run func(ctx context.Context, jobID string, jobAttributes *datamodel.JobAttributes)) *MockOrchestratorFactory_UpdateJobAttributes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*datamodel.JobAttributes))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateJobAttributes_Call) Return(_a0 error) *MockOrchestratorFactory_UpdateJobAttributes_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateJobAttributes_Call) RunAndReturn(run func(context.Context, string, *datamodel.JobAttributes) error) *MockOrchestratorFactory_UpdateJobAttributes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateJobStatus provides a mock function with given fields: ctx, jobID, status, trackingID, errorDetails
+func (_m *MockOrchestratorFactory) UpdateJobStatus(ctx context.Context, jobID string, status string, trackingID int, errorDetails string) error {
+	ret := _m.Called(ctx, jobID, status, trackingID, errorDetails)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateJobStatus")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int, string) error); ok {
+		r0 = rf(ctx, jobID, status, trackingID, errorDetails)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_UpdateJobStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateJobStatus'
+type MockOrchestratorFactory_UpdateJobStatus_Call struct {
+	*mock.Call
+}
+
+// UpdateJobStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobID string
+//   - status string
+//   - trackingID int
+//   - errorDetails string
+func (_e *MockOrchestratorFactory_Expecter) UpdateJobStatus(ctx interface{}, jobID interface{}, status interface{}, trackingID interface{}, errorDetails interface{}) *MockOrchestratorFactory_UpdateJobStatus_Call {
+	return &MockOrchestratorFactory_UpdateJobStatus_Call{Call: _e.mock.On("UpdateJobStatus", ctx, jobID, status, trackingID, errorDetails)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateJobStatus_Call) Run(run func(ctx context.Context, jobID string, status string, trackingID int, errorDetails string)) *MockOrchestratorFactory_UpdateJobStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateJobStatus_Call) Return(_a0 error) *MockOrchestratorFactory_UpdateJobStatus_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateJobStatus_Call) RunAndReturn(run func(context.Context, string, string, int, string) error) *MockOrchestratorFactory_UpdateJobStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }

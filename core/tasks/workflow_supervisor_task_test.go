@@ -107,7 +107,7 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobNotFoundAfterGraceTriggersCleanu
 	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, job.WorkflowID, "").Return((*workflowservice.DescribeWorkflowExecutionResponse)(nil), serviceerror.NewNotFound("missing"))
 	expectJobLock(t, storage, job)
 	temporal.EXPECT().TerminateWorkflow(mock.Anything, job.WorkflowID, "", supervisorhandler.WorkflowTimeoutDetail).Return(nil)
-	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, fmt.Sprintf("%s: %s", supervisorhandler.WorkflowTimeoutDetail, job.WorkflowID)).Return(nil)
+	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil)
 
 	runner.evaluateJob(context.Background(), job, handler)
 
@@ -176,7 +176,7 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobTimedOutTriggersCleanup(t *testi
 		TrackingID: 42,
 	}
 
-	detail := fmt.Sprintf("%s: %s", supervisorhandler.WorkflowTimeoutDetail, job.WorkflowID)
+	detail := supervisorhandler.WorkflowTimeoutDetail
 	expectJobLock(t, storage, job)
 	temporal.EXPECT().TerminateWorkflow(mock.Anything, job.WorkflowID, "", supervisorhandler.WorkflowTimeoutDetail).Return(nil)
 	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, detail).Return(nil)
@@ -189,6 +189,112 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobTimedOutTriggersCleanup(t *testi
 
 	require.Len(t, handler.events, 1)
 	require.Equal(t, supervisorhandler.EventTimeout, handler.events[0])
+}
+
+func TestWorkflowSupervisorTaskRunnerScanProcessesJobsInIDOrder(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	temporal := workflowEngine.NewMockTemporalTestClient(t)
+	handler := newTestHandler(models.JobTypeCreatePool)
+
+	now := time.Now()
+	olderJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			ID:        10,
+			UUID:      "job-old",
+			CreatedAt: now,
+		},
+		WorkflowID: "",
+		Type:       string(models.JobTypeCreatePool),
+		State:      string(models.JobsStateNEW),
+		TrackingID: 1,
+	}
+	newerJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			ID:        20,
+			UUID:      "job-new",
+			CreatedAt: now.Add(time.Minute),
+		},
+		WorkflowID: "",
+		Type:       string(models.JobTypeCreatePool),
+		State:      string(models.JobsStateNEW),
+		TrackingID: 2,
+	}
+
+	storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return([]*datamodel.Job{newerJob, olderJob}, nil).Once()
+
+	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, olderJob.WorkflowID, "").Return((*workflowservice.DescribeWorkflowExecutionResponse)(nil), context.DeadlineExceeded).Once()
+	storage.EXPECT().UpdateJob(mock.Anything, olderJob.UUID, string(models.JobsStateERROR), olderJob.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
+
+	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, newerJob.WorkflowID, "").Return((*workflowservice.DescribeWorkflowExecutionResponse)(nil), context.DeadlineExceeded).Once()
+	storage.EXPECT().UpdateJob(mock.Anything, newerJob.UUID, string(models.JobsStateERROR), newerJob.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
+
+	runner := &workflowSupervisorTaskRunner{
+		storage:       storage,
+		temporal:      temporal,
+		correlationID: "corr-id",
+		handlers: map[string]supervisorhandler.Handler{
+			string(models.JobTypeCreatePool): handler,
+		},
+	}
+
+	runner.scan(context.Background())
+
+	require.Len(t, handler.jobs, 2)
+	require.Equal(t, olderJob.ID, handler.jobs[0].ID)
+	require.Equal(t, newerJob.ID, handler.jobs[1].ID)
+}
+
+func TestWorkflowSupervisorTaskRunnerScanMaintainsInputOrderForDuplicateIDs(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	temporal := workflowEngine.NewMockTemporalTestClient(t)
+	handler := newTestHandler(models.JobTypeCreatePool)
+
+	now := time.Now()
+	firstJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			ID:        42,
+			UUID:      "job-first",
+			CreatedAt: now,
+		},
+		WorkflowID: "",
+		Type:       string(models.JobTypeCreatePool),
+		State:      string(models.JobsStateNEW),
+		TrackingID: 1,
+	}
+	secondJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			ID:        42,
+			UUID:      "job-second",
+			CreatedAt: now.Add(time.Minute),
+		},
+		WorkflowID: "",
+		Type:       string(models.JobTypeCreatePool),
+		State:      string(models.JobsStateNEW),
+		TrackingID: 2,
+	}
+
+	storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return([]*datamodel.Job{secondJob, firstJob}, nil).Once()
+
+	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, secondJob.WorkflowID, "").Return((*workflowservice.DescribeWorkflowExecutionResponse)(nil), context.DeadlineExceeded).Once()
+	storage.EXPECT().UpdateJob(mock.Anything, secondJob.UUID, string(models.JobsStateERROR), secondJob.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
+
+	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, firstJob.WorkflowID, "").Return((*workflowservice.DescribeWorkflowExecutionResponse)(nil), context.DeadlineExceeded).Once()
+	storage.EXPECT().UpdateJob(mock.Anything, firstJob.UUID, string(models.JobsStateERROR), firstJob.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil).Once()
+
+	runner := &workflowSupervisorTaskRunner{
+		storage:       storage,
+		temporal:      temporal,
+		correlationID: "corr-id",
+		handlers: map[string]supervisorhandler.Handler{
+			string(models.JobTypeCreatePool): handler,
+		},
+	}
+
+	runner.scan(context.Background())
+
+	require.Len(t, handler.jobs, 2)
+	require.Equal(t, secondJob.UUID, handler.jobs[0].UUID)
+	require.Equal(t, firstJob.UUID, handler.jobs[1].UUID)
 }
 
 func TestRunWorkflowSupervisorTaskUsesProvidedHandlers(t *testing.T) {
@@ -297,6 +403,101 @@ func TestWorkflowSupervisorTaskRunnerScanWarnsOnMissingHandler(t *testing.T) {
 	runner.scan(context.Background())
 }
 
+func TestWorkflowSupervisorTaskRunnerScanSkipsJobWithActiveOverrideGracePeriod(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	temporal := workflowEngine.NewMockTemporalTestClient(t)
+	handler := newTestHandler(models.JobTypeCreatePool)
+
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "job-override-skip",
+			CreatedAt: time.Now().Add(-5 * time.Minute),
+		},
+		Type:  string(models.JobTypeCreatePool),
+		State: string(models.JobsStateNEW),
+		JobAttributes: &datamodel.JobAttributes{
+			SupervisorAttributes: &datamodel.SupervisorAttributes{
+				OverrideGracePeriod: 15 * time.Minute,
+			},
+		},
+	}
+
+	storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return([]*datamodel.Job{job}, nil)
+
+	runner := &workflowSupervisorTaskRunner{
+		storage:       storage,
+		temporal:      temporal,
+		correlationID: "corr",
+		handlers: map[string]supervisorhandler.Handler{
+			string(models.JobTypeCreatePool): handler,
+		},
+	}
+
+	runner.scan(context.Background())
+
+	require.Empty(t, handler.events)
+	temporal.AssertNotCalled(t, "DescribeWorkflowExecution", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestShouldSkipJobForOverrideGracePeriod(t *testing.T) {
+	now := time.Now().UTC()
+	grace := 10 * time.Minute
+	createdAt := now.Add(-5 * time.Minute)
+
+	tests := []struct {
+		name     string
+		job      *datamodel.Job
+		wantSkip bool
+		wantTime time.Time
+	}{
+		{
+			name: "skip when within override grace period",
+			job: &datamodel.Job{
+				BaseModel: datamodel.BaseModel{CreatedAt: createdAt},
+				JobAttributes: &datamodel.JobAttributes{
+					SupervisorAttributes: &datamodel.SupervisorAttributes{OverrideGracePeriod: grace},
+				},
+			},
+			wantSkip: true,
+			wantTime: createdAt.Add(grace),
+		},
+		{
+			name: "process when override grace period elapsed",
+			job: &datamodel.Job{
+				BaseModel: datamodel.BaseModel{CreatedAt: now.Add(-2 * grace)},
+				JobAttributes: &datamodel.JobAttributes{
+					SupervisorAttributes: &datamodel.SupervisorAttributes{OverrideGracePeriod: grace},
+				},
+			},
+			wantSkip: false,
+			wantTime: time.Time{},
+		},
+		{
+			name: "no supervisor attributes",
+			job: &datamodel.Job{
+				BaseModel:     datamodel.BaseModel{CreatedAt: createdAt},
+				JobAttributes: &datamodel.JobAttributes{},
+			},
+			wantSkip: false,
+			wantTime: time.Time{},
+		},
+		{
+			name:     "nil job attributes",
+			job:      &datamodel.Job{BaseModel: datamodel.BaseModel{CreatedAt: createdAt}},
+			wantSkip: false,
+			wantTime: time.Time{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			skip, resumeAt, _ := shouldSkipJobForOverrideGracePeriod(tt.job, now)
+			assert.Equal(t, tt.wantSkip, skip)
+			assert.Equal(t, tt.wantTime, resumeAt)
+		})
+	}
+}
+
 func TestWorkflowSupervisorTaskRunnerEvaluateJobMissingExecutionInfo(t *testing.T) {
 	storage := database.NewMockStorage(t)
 	temporal := workflowEngine.NewMockTemporalTestClient(t)
@@ -358,7 +559,7 @@ func TestWorkflowSupervisorTaskRunnerCleanupJobTerminateNotFound(t *testing.T) {
 	})
 
 	temporal.EXPECT().TerminateWorkflow(mock.Anything, job.WorkflowID, "", supervisorhandler.WorkflowTimeoutDetail).Return(serviceerror.NewNotFound("missing"))
-	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, fmt.Sprintf("%s: %s", supervisorhandler.WorkflowTimeoutDetail, job.WorkflowID)).Return(nil)
+	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(nil)
 
 	runner := &workflowSupervisorTaskRunner{
 		storage:  storage,
@@ -401,7 +602,7 @@ func TestWorkflowSupervisorTaskRunnerCleanupJobMarkErrorFailure(t *testing.T) {
 		TrackingID: 99,
 	}
 
-	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, fmt.Sprintf("%s: %s", supervisorhandler.WorkflowTimeoutDetail, job.WorkflowID)).Return(errors.New("update failed"))
+	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail).Return(errors.New("update failed"))
 
 	runner := &workflowSupervisorTaskRunner{
 		storage: storage,
@@ -433,7 +634,7 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobDescribeTimeoutTriggersCleanup(t
 		TrackingID: 101,
 	}
 
-	detail := fmt.Sprintf("%s: %s", supervisorhandler.WorkflowTimeoutDetail, job.WorkflowID)
+	detail := supervisorhandler.WorkflowTimeoutDetail
 
 	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, job.WorkflowID, "").Return((*workflowservice.DescribeWorkflowExecutionResponse)(nil), context.DeadlineExceeded)
 	expectJobLock(t, storage, job)
@@ -471,7 +672,7 @@ func TestWorkflowSupervisorTaskRunnerEvaluateJobDescribeErrorTriggersCleanup(t *
 		TrackingID: 202,
 	}
 
-	detail := fmt.Sprintf("%s: %s", supervisorhandler.WorkflowTimeoutDetail, job.WorkflowID)
+	detail := supervisorhandler.WorkflowTimeoutDetail
 
 	temporal.EXPECT().DescribeWorkflowExecution(mock.Anything, job.WorkflowID, "").Return((*workflowservice.DescribeWorkflowExecutionResponse)(nil), serviceerror.NewInternal("describe failed"))
 	expectJobLock(t, storage, job)
@@ -535,7 +736,7 @@ func TestWorkflowSupervisorTaskRunnerCleanupJobMarksError(t *testing.T) {
 
 	runner := &workflowSupervisorTaskRunner{storage: storage}
 	job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-6"}, WorkflowID: "wf-6", TrackingID: 9}
-	detail := fmt.Sprintf("%s: %s", supervisorhandler.WorkflowTimeoutDetail, job.WorkflowID)
+	detail := supervisorhandler.WorkflowTimeoutDetail
 
 	storage.EXPECT().UpdateJob(mock.Anything, job.UUID, string(models.JobsStateERROR), job.TrackingID, detail).Return(nil)
 

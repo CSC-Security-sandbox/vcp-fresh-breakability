@@ -85,6 +85,63 @@ func DeleteSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConf
 	return convertToOperationV1beta(res.Payload), nil
 }
 
+// KmsConfigSummary represents a minimal view of an SDE KMS configuration.
+type KmsConfigSummary struct {
+	UUID        string
+	ResourceID  string
+	KeyFullPath string
+}
+
+// ListSDEKmsConfigurations fetches SDE KMS configurations for a project/location pair.
+func ListSDEKmsConfigurations(ctx context.Context, projectNumber, locationID, correlationID string) ([]KmsConfigSummary, error) {
+	logger := util.GetLogger(ctx)
+	authToken := utils.GetAuthTokenFromContext(ctx)
+	cvpClient := createClient(logger, authToken)
+
+	var correlationPtr *string
+	if correlationID != "" {
+		correlationPtr = &correlationID
+	}
+
+	listParams := &kms_configurations.V1betaListKmsConfigurationsParams{
+		LocationID:     locationID,
+		ProjectNumber:  projectNumber,
+		XCorrelationID: correlationPtr,
+	}
+
+	res, err := cvpClient.KmsConfigurations.V1betaListKmsConfigurations(listParams)
+	if err != nil {
+		return nil, err
+	}
+
+	if res == nil || res.Payload == nil {
+		return nil, vsaerrors.New("empty response from SDE list kms configurations")
+	}
+
+	configs := make([]KmsConfigSummary, 0, len(res.Payload))
+	for _, cfg := range res.Payload {
+		if cfg == nil {
+			continue
+		}
+
+		summary := KmsConfigSummary{
+			UUID:        cfg.UUID,
+			ResourceID:  "",
+			KeyFullPath: "",
+		}
+		if cfg.ResourceID != nil {
+			summary.ResourceID = *cfg.ResourceID
+		}
+		if cfg.KeyFullPath != nil {
+			summary.KeyFullPath = *cfg.KeyFullPath
+		}
+
+		configs = append(configs, summary)
+	}
+
+	return configs, nil
+}
+
 func DescribeSDEJob(ctx context.Context, operationId, region, accountName, correlationId string) error {
 	logger := util.GetLogger(ctx)
 	jwtToken := utils.GetAuthTokenFromContext(ctx)

@@ -81,6 +81,7 @@ const (
 	JobTypeUpdateKmsConfig                   JobType = "UPDATE_KMS_CONFIG"
 	JobTypeCreateKmsConfig                   JobType = "CREATE_KMS_CONFIG"
 	JobTypeDeleteKmsConfig                   JobType = "DELETE_KMS_CONFIG"
+	JobTypeSdeKmsCreate                      JobType = "SDE_KMS_CREATE"
 	JobTypeMigrateKmsConfig                  JobType = "MIGRATE_KMS_CONFIG"
 	JobTypeRotateKmsConfig                   JobType = "ROTATE_KMS_CONFIG"
 	JobTypeCreateVolumeReplication           JobType = "CREATE_VOLUME_REPLICATION"

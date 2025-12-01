@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -25,7 +26,7 @@ type createKmsConfigWorkflow struct {
 var _ workflows.WorkflowInterface = &createKmsConfigWorkflow{}
 
 var (
-	cvpMaxPollTimeout = env.GetUint64("CVP_JOB_POLL_TIMEOUT_MIN", 20)
+	cvpMaxPollTimeout = env.GetUint64("CVP_JOB_POLL_TIMEOUT_MIN", 10)
 	cvpPollInterval   = env.GetUint64("CVP_JOB_POLL_INTERVAL_SEC", 30)
 )
 
@@ -48,14 +49,19 @@ func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfi
 
 	if customErr != nil {
 		kmsConfigWorkflow.Status = workflows.WorkflowStatusFailed
-		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
-		return nil, workflows.ConvertToVSAError(err)
+		sdeJobUpdateErr := kmsConfigWorkflow.updateSdeJobStatus(ctx, params, models.JobsStateERROR, customErr)
+		vcpJobUpdateerr := kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		if sdeJobUpdateErr != nil || vcpJobUpdateerr != nil {
+			return nil, workflows.ConvertToVSAError(vsaerrors.Combine(sdeJobUpdateErr, vcpJobUpdateerr, customErr))
+		}
+		return nil, customErr
 	}
 
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusCompleted
-	err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	sdeJobUpdateErr := kmsConfigWorkflow.updateSdeJobStatus(ctx, params, models.JobsStateDONE, nil)
+	vcpJobUpdateerr := kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if sdeJobUpdateErr != nil || vcpJobUpdateerr != nil {
+		return nil, workflows.ConvertToVSAError(vsaerrors.Combine(sdeJobUpdateErr, vcpJobUpdateerr))
 	}
 	return nil, nil
 }
@@ -190,4 +196,32 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) RevertCreateKmsConfigWorkflow(
 	// Implement the revert logic for kms config workflows
 	// This might involve rolling back any changes made during the workflow execution
 	return nil
+}
+
+func (kmsConfigWorkflow *createKmsConfigWorkflow) updateSdeJobStatus(ctx workflow.Context, params *common.CreateKmsConfigParams, status models.JobState, customErr *vsaerrors.CustomError) error {
+	if params == nil || params.SdeJobUUID == "" {
+		return nil
+	}
+
+	sdeJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: params.SdeJobUUID},
+		State:     string(status),
+	}
+
+	if customErr != nil {
+		sdeJob.TrackingID = customErr.TrackingID
+		if customErr.OriginalErr != nil {
+			sdeJob.ErrorDetails = customErr.OriginalErr.Error()
+		}
+	}
+
+	commonActivity := activities.CommonActivities{}
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 60 * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	})
+
+	return workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, sdeJob).Get(ctx, nil)
 }

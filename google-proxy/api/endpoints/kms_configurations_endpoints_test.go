@@ -26,8 +26,43 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+func TestParseCmekSupervisorGracePeriod_Default(t *testing.T) {
+	t.Setenv("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "")
+	got := parseCmekSupervisorGracePeriod()
+	assert.Equal(t, 14*time.Minute, got)
+}
+
+func TestParseCmekSupervisorGracePeriod_Custom(t *testing.T) {
+	t.Setenv("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "22")
+	got := parseCmekSupervisorGracePeriod()
+	assert.Equal(t, 22*time.Minute, got)
+}
+
+func TestParseCmekSupervisorGracePeriod_Invalid(t *testing.T) {
+	t.Setenv("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "invalid")
+	got := parseCmekSupervisorGracePeriod()
+	assert.Equal(t, 14*time.Minute, got)
+}
+
 // V1betaCreateKmsConfiguration unittests
 func TestV1betaCreateKmsConfigurations(t *testing.T) {
+	expectCreateJobMaybe := func(mockOrchestrator *orchestrator.MockOrchestratorFactory) {
+		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "sde-job-id"}}
+		mockOrchestrator.EXPECT().CreateJob(mock.Anything, mock.Anything).
+			Maybe().
+			Return(job, nil)
+		mockOrchestrator.EXPECT().
+			UpdateJobStatus(mock.Anything, job.UUID, string(vsaCoreModels.JobsStateERROR), mock.AnythingOfType("int"), mock.AnythingOfType("string")).
+			Maybe().
+			Return(nil)
+		mockOrchestrator.EXPECT().
+			UpdateJobAttributes(mock.Anything, job.UUID, mock.MatchedBy(func(attrs *datamodel.JobAttributes) bool {
+				return attrs != nil && attrs.SupervisorAttributes != nil && attrs.SupervisorAttributes.OverrideGracePeriod == 0
+			})).
+			Maybe().
+			Return(nil)
+	}
+
 	t.Run("CreateKmsConfigurationReturnsBadRequestWhenKeyFullPathIsInvalid", func(t *testing.T) {
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -66,6 +101,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("CreateKmsConfigurationFailsWithConflictError", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -129,6 +165,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("CreateKmsConfigurationFails", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -173,6 +210,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("V1betaCreateKmsConfigurationFails", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -210,6 +248,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("ParseKmsConfigResponseFails", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -258,6 +297,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("CreateKmsConfigurationSuccess", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -308,6 +348,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("GetKmsConfigByKeyFullPathFails", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -331,6 +372,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInErrorState", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -357,6 +399,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInCreatingState", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -384,6 +427,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInInUseState", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -411,6 +455,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("WhenGetJobByResourceUUIDFails", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -437,6 +482,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	t.Run("WhenCheckKmsConfigurationParseAndValidateRegionAndZoneReturnsGlobalRegion", func(t *testing.T) {
 		// Define input parameters
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -462,6 +508,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInDeletingState", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "test-project",
@@ -488,6 +535,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInUpdatingState", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "test-project",
@@ -514,6 +562,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInMigratingState", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "test-project",
@@ -540,6 +589,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInCreatedState", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "test-project",
@@ -569,6 +619,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("CvpClientCreateKmsConfigurationReturnsConflictError", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "test-project",
@@ -613,6 +664,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("CvpClientCreateKmsConfigurationReturnsBadRequestError", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "test-project",
@@ -657,6 +709,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("CvpClientCreateKmsConfigurationReturnsUnauthorizedError", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "test-project",
@@ -701,6 +754,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("OrchestratorCreateKmsConfigFails", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "test-project",

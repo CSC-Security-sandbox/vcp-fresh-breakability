@@ -29,7 +29,7 @@ type createKmsConfigWorkflow struct {
 **Environment Variables**:
 ```go
 var (
-    cvpMaxPollTimeout = env.GetUint64("CVP_JOB_POLL_TIMEOUT_MIN", 20)
+    cvpMaxPollTimeout = env.GetUint64("CVP_JOB_POLL_TIMEOUT_MIN", 10)
     cvpPollInterval   = env.GetUint64("CVP_JOB_POLL_INTERVAL_SEC", 30)
 )
 ```
@@ -71,6 +71,13 @@ var (
    - Validate KMS config creation
    - Update job status
    - Handle rollback if errors occur
+
+#### Supervisor Coordination
+
+- The API creates an SDE provisioning job (`JobTypeSdeKmsCreate`) before calling the CVP create endpoint.
+- The job is issued with an override grace period (default **14 minutes**, controlled by `CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES`) so the supervisor waits before declaring a timeout while CVP completes.
+- When the CVP call itself fails, the job is marked `ERROR` immediately; the supervisor terminates the workflow and performs cleanup on its next scan.
+- If the CVP response cannot be parsed or the subsequent `CreateKmsConfig` orchestration fails, the override grace period is cleared (set to `0`), allowing the supervisor’s standard five‑minute sweep to reclaim the job without waiting the full grace window.
 
 #### Error Handling
 

@@ -38,7 +38,9 @@ The workflow supervisor task is responsible for detecting long-running or stalle
 - Fetch the KMS config metadata (`GetKmsConfig`).
 - Attempt to delete corresponding SDE configuration if attributes are present.
 - Remove the config from VCP (`DeleteKmsConfig`) with timeout detail for auditing.
-- Mark the paired `SDE_KMS_CREATE` job as `ERROR` so that background processors and dashboards reflect that the SDE operation was cleaned up.
+- Mark the paired `SDE_KMS_CREATE` job as `ERROR` when the CVP create call fails so that background processors and dashboards reflect the cleanup status.
+- Jobs are created with an override grace period (default **14 minutes** via `CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES`) so the supervisor waits for CVP propagation before intervening.
+- If the CVP response parsing fails or the subsequent `CreateKmsConfig` orchestration returns an error, the override grace period is cleared (set to `0`) so the supervisor’s regular five‑minute sweep can reclaim the job without waiting the full grace window, preventing stale SDE artefacts.
 
 ### Pool Cleanup
 
@@ -61,11 +63,23 @@ All handlers tolerate "not found" conditions to support idempotent retries.
 - Handler errors are logged, and the job state remains unchanged (still `NEW`), allowing future runs to retry cleanup.
 - Job state transitions to `ERROR` only after handler cleanup completes without error (and only if the supervisor was able to lock the job row).
 
+## Metrics
+
+- The background scheduler increments `vcp.background.task.runs` when the workflow supervisor acquires the admin-job lock and begins a sweep. The metric is tagged with `task=WORKFLOW_SUPERVISOR_SWEEP` and also updates the `vcp.background.task.last_run_timestamp` observable gauge to record when the scan started.
+- Failures while registering or acquiring the lock emit `vcp.background.task.errors` with `task=WORKFLOW_SUPERVISOR_SWEEP` and a `reason` attribute of `schedule_registration`, `create_admin_job_spec`, `acquire_lock`, or `load_job_spec` so operators can distinguish where the sweep stalled.
+
 ## Configuration
 
 - `WORKFLOW_SUPERVISOR_NOT_FOUND_GRACE_PERIOD`: Grace period for missing workflows.
 - `resourceCleanupTimeout`: Hard-coded 30s timeout for handler execution.
 - `temporalDescribeTimeout`: Hard-coded 15s timeout for describe calls.
+
+### Override Grace Period Guidance
+
+- Use the `OverrideGracePeriod` attribute only when a newly created job is expected to look stalled for a short window (for example, while waiting for an external service such as CVP to surface a workflow).
+- Set a positive duration to delay supervisor intervention; the supervisor skips cleanup until the period elapses.
+- To let the supervisor run its normal five-minute sweep, omit the field or set it to `0`.
+- When surface errors after provisioning has begun (e.g., CVP response parsing or orchestration failures), clear the override (set to `0`) so the supervisor can immediately reclaim the job and clean up dependent resources.
 
 ## Testing
 

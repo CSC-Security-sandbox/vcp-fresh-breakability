@@ -277,6 +277,33 @@ func startBackgroundTaskScheduler(ctx context.Context, se database.Storage, temp
 	return nil
 }
 
+func releaseAdminJobSpecLock(ctx context.Context, se database.Storage, jobType string, lockTimeoutSeconds int, logger log.Logger) {
+	if lockTimeoutSeconds <= 0 {
+		return
+	}
+
+	jobSpec, err := se.GetAdminJobSpecByJobType(ctx, jobType)
+	if err != nil {
+		logger.WarnContext(ctx, "Failed to load admin job spec while releasing lock", "jobType", jobType, "error", err)
+		return
+	}
+
+	releaseReference := time.Now()
+	releaseCandidate := releaseReference.Add(-time.Duration(lockTimeoutSeconds) * time.Second)
+	if releaseCandidate.Before(jobSpec.CreatedAt) {
+		releaseCandidate = jobSpec.CreatedAt
+	}
+
+	lockThreshold := releaseReference
+	if lockThreshold.Before(releaseCandidate) {
+		lockThreshold = releaseCandidate
+	}
+
+	if _, err := se.UpdateAdminJobSpecWithLock(ctx, jobType, scheduler.JobStatusScheduled, lockThreshold, releaseCandidate); err != nil {
+		logger.WarnContext(ctx, "Failed to release admin job spec lock", "jobType", jobType, "error", err)
+	}
+}
+
 // syncVSAClusterHealthWithLock implements database-backed cron job with locking mechanism
 func syncVSAClusterHealthWithLock(ctx context.Context, se database.Storage, logger log.Logger) {
 	logger.InfoContext(ctx, "Starting VSA cluster health sync with lock")
@@ -372,8 +399,8 @@ func runLockedWorkflowSupervisorTask(ctx context.Context, se database.Storage, t
 	logger.InfoContext(ctx, "Job spec already exists, attempting to acquire lock by updating", "jobType", workflowSupervisorJobType)
 
 	currentTime := time.Now()
-	// Lock threshold: only allow lock acquisition if last update was >= 30 seconds ago
-	// This handles the case where a pod crashes - after 30 seconds, other pods can take over
+	// Lock threshold: only allow lock acquisition if last update was >= 300 seconds ago
+	// This handles the case where a pod crashes - after 300 seconds, other pods can take over
 	lockThreshold := currentTime.Add(-time.Duration(workflowSupervisorLockTimeoutSeconds) * time.Second)
 
 	// Try to acquire the lock by updating the job spec
@@ -401,6 +428,7 @@ func runLockedWorkflowSupervisorTask(ctx context.Context, se database.Storage, t
 			correlationID = uuid.NewString()
 		}
 		metrics.IncBackgroundTaskRun(workflowSupervisorJobType)
+		defer releaseAdminJobSpecLock(ctx, se, workflowSupervisorJobType, workflowSupervisorLockTimeoutSeconds, logger)
 		tasks.WorkflowSupervisorTask(ctx, se, temporal, correlationID)
 	} else {
 		logger.InfoContext(ctx, "Could not acquire lock - another pod is currently executing the task or not enough time has passed since last execution")

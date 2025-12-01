@@ -8,6 +8,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
@@ -427,6 +428,68 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Message)
+	})
+}
+
+func TestListSDEKmsConfigurations(t *testing.T) {
+	t.Run("WhenListSucceeds", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		projectNumber := "123456789"
+		locationID := "us-east1"
+		correlationID := "corr-id"
+		resourceID := "resource-1"
+		keyFullPath := "projects/123456789/locations/us-east1/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+		mockClient.EXPECT().
+			V1betaListKmsConfigurations(mock.MatchedBy(func(params *kms_configurations.V1betaListKmsConfigurationsParams) bool {
+				return params != nil &&
+					params.ProjectNumber == projectNumber &&
+					params.LocationID == locationID &&
+					params.XCorrelationID != nil &&
+					*params.XCorrelationID == correlationID
+			})).
+			Return(&kms_configurations.V1betaListKmsConfigurationsOK{
+				Payload: []*models.KmsConfigV1beta{
+					{
+						UUID:        "sde-uuid",
+						ResourceID:  &resourceID,
+						KeyFullPath: &keyFullPath,
+					},
+				},
+			}, nil)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, token string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		configs, err := ListSDEKmsConfigurations(context.Background(), projectNumber, locationID, correlationID)
+		require.NoError(t, err)
+		require.Len(t, configs, 1)
+		require.Equal(t, "sde-uuid", configs[0].UUID)
+		require.Equal(t, resourceID, configs[0].ResourceID)
+		require.Equal(t, keyFullPath, configs[0].KeyFullPath)
+	})
+
+	t.Run("WhenListReturnsEmptyPayload", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+
+		mockClient.EXPECT().
+			V1betaListKmsConfigurations(mock.Anything).
+			Return(&kms_configurations.V1betaListKmsConfigurationsOK{}, nil)
+
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, token string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		configs, err := ListSDEKmsConfigurations(context.Background(), "project", "location", "corr")
+		require.Error(t, err)
+		require.Nil(t, configs)
 	})
 }
 

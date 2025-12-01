@@ -1,9 +1,11 @@
+// Package tasks provides background job supervisors and supporting helpers that
+// coordinate Temporal workflow cleanup when jobs stall or time out.
 package tasks
 
 import (
 	"context"
 	"errors"
-	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -46,6 +48,8 @@ type workflowSupervisorTaskRunner struct {
 	handlersMu sync.RWMutex
 }
 
+// runWorkflowSupervisorTask is the cron entry point that scans for stalled jobs
+// and delegates cleanup to registered supervisor handlers.
 func runWorkflowSupervisorTask(ctx context.Context, storage database.Storage, temporal client.Client, correlationID string, handlers ...supervisorhandler.Handler) {
 	loggerFields := log.Fields{string(middleware.RequestCorrelationID): correlationID}
 
@@ -78,6 +82,8 @@ func runWorkflowSupervisorTask(ctx context.Context, storage database.Storage, te
 	runner.scan(ctx)
 }
 
+// registerHandlers installs one or more handler implementations keyed by their
+// advertised job types.
 func (r *workflowSupervisorTaskRunner) registerHandlers(handlers ...supervisorhandler.Handler) {
 	r.handlersMu.Lock()
 	defer r.handlersMu.Unlock()
@@ -92,6 +98,7 @@ func (r *workflowSupervisorTaskRunner) registerHandlers(handlers ...supervisorha
 	}
 }
 
+// handlerFor retrieves the handler registered for the supplied job type.
 func (r *workflowSupervisorTaskRunner) handlerFor(jobType string) (supervisorhandler.Handler, bool) {
 	r.handlersMu.RLock()
 	handler, ok := r.handlers[jobType]
@@ -99,6 +106,7 @@ func (r *workflowSupervisorTaskRunner) handlerFor(jobType string) (supervisorhan
 	return handler, ok
 }
 
+// supportedJobTypes returns the set of job type identifiers known to the runner.
 func (r *workflowSupervisorTaskRunner) supportedJobTypes() []string {
 	r.handlersMu.RLock()
 	defer r.handlersMu.RUnlock()
@@ -110,6 +118,7 @@ func (r *workflowSupervisorTaskRunner) supportedJobTypes() []string {
 	return jobTypes
 }
 
+// scan locates timed-out jobs and invokes the registered handler for each.
 func (r *workflowSupervisorTaskRunner) scan(ctx context.Context) {
 	logger := util.GetLogger(ctx).With(log.Fields{string(middleware.RequestCorrelationID): r.correlationID})
 	jobTypes := r.supportedJobTypes()
@@ -137,7 +146,23 @@ func (r *workflowSupervisorTaskRunner) scan(ctx context.Context) {
 		return
 	}
 
+	sort.SliceStable(jobs, func(i, j int) bool {
+		return jobs[i].ID < jobs[j].ID
+	})
+
+	now := time.Now().UTC()
 	for _, job := range jobs {
+		if skip, resumeAt, grace := shouldSkipJobForOverrideGracePeriod(job, now); skip {
+			logger.With(log.Fields{
+				"jobUUID":      job.UUID,
+				"jobType":      job.Type,
+				"createdAt":    job.CreatedAt.UTC(),
+				"resumeAt":     resumeAt,
+				"overrideWait": grace.String(),
+			}).Info("workflow-supervisor-task: deferring job due to override grace period")
+			continue
+		}
+
 		handler, ok := r.handlerFor(job.Type)
 		if !ok {
 			logger.With(log.Fields{"jobUUID": job.UUID, "jobType": job.Type}).Warn(
@@ -150,6 +175,8 @@ func (r *workflowSupervisorTaskRunner) scan(ctx context.Context) {
 	}
 }
 
+// evaluateJob inspects Temporal state for a job and triggers cleanup when
+// timeout conditions are met.
 func (r *workflowSupervisorTaskRunner) evaluateJob(ctx context.Context, job *datamodel.Job, handler supervisorhandler.Handler) {
 	describeCtx, cancel := context.WithTimeout(ctx, temporalDescribeTimeout)
 	defer cancel()
@@ -164,7 +191,7 @@ func (r *workflowSupervisorTaskRunner) evaluateJob(ctx context.Context, job *dat
 
 	resp, err := r.temporal.DescribeWorkflowExecution(describeCtx, job.WorkflowID, "")
 	if err != nil {
-		logger.Error("workflow-supervisor-task: temporal describe failed; starting cleanup: %v", err)
+		logger.Errorf("workflow-supervisor-task: temporal describe failed; starting cleanup: %v", err)
 		r.cleanupJob(ctx, job, handler, supervisorhandler.EventTimeout, logger)
 		return
 	}
@@ -186,11 +213,13 @@ func (r *workflowSupervisorTaskRunner) evaluateJob(ctx context.Context, job *dat
 	r.cleanupJob(ctx, job, handler, supervisorhandler.EventTimeout, logger)
 }
 
+// markJobAsError updates the job state and detail to record a timeout failure.
 func (r *workflowSupervisorTaskRunner) markJobAsError(ctx context.Context, job *datamodel.Job) error {
-	detail := fmt.Sprintf("%s: %s", supervisorhandler.WorkflowTimeoutDetail, job.WorkflowID)
-	return r.storage.UpdateJob(ctx, job.UUID, string(models.JobsStateERROR), job.TrackingID, detail)
+	return r.storage.UpdateJob(ctx, job.UUID, string(models.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail)
 }
 
+// cleanupJob terminates the workflow if needed, delegates compensating actions,
+// and marks the job as failed.
 func (r *workflowSupervisorTaskRunner) cleanupJob(ctx context.Context, job *datamodel.Job, handler supervisorhandler.Handler, event supervisorhandler.Event, logger log.Logger) {
 	if r.temporal != nil && job.WorkflowID != "" {
 		lockErr := r.storage.WithTransaction(ctx, func(tx dbutils.Transaction) error {
@@ -234,4 +263,29 @@ func (r *workflowSupervisorTaskRunner) cleanupJob(ctx context.Context, job *data
 	if err := r.markJobAsError(ctx, job); err != nil {
 		logger.Errorf("workflow-supervisor-task: failed to mark job error after cleanup: %v", err)
 	}
+}
+
+// shouldSkipJobForOverrideGracePeriod reports whether a job should be deferred
+// based on the override grace period attribute.
+func shouldSkipJobForOverrideGracePeriod(job *datamodel.Job, now time.Time) (bool, time.Time, time.Duration) {
+	if job == nil || job.JobAttributes == nil || job.JobAttributes.SupervisorAttributes == nil {
+		return false, time.Time{}, 0
+	}
+
+	grace := job.JobAttributes.SupervisorAttributes.OverrideGracePeriod
+	if grace <= 0 {
+		return false, time.Time{}, 0
+	}
+
+	createdAt := job.CreatedAt
+	if createdAt.IsZero() {
+		return false, time.Time{}, 0
+	}
+
+	resumeAt := createdAt.Add(grace)
+	if now.Before(resumeAt) {
+		return true, resumeAt, grace
+	}
+
+	return false, time.Time{}, 0
 }
