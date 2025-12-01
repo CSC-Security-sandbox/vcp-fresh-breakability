@@ -14668,6 +14668,9 @@ type PoolUpdateV1beta struct {
 	TotalThroughputMibps OptNilFloat64 `json:"totalThroughputMibps"`
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
+	// Flag indicating if the volume will be a large capacity volume (flexgroup) or a regular volume
+	// (flexvol).
+	LargeCapacity OptNilBool `json:"largeCapacity"`
 }
 
 // GetSizeInBytes returns the value of SizeInBytes.
@@ -14735,6 +14738,11 @@ func (s *PoolUpdateV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
 }
 
+// GetLargeCapacity returns the value of LargeCapacity.
+func (s *PoolUpdateV1beta) GetLargeCapacity() OptNilBool {
+	return s.LargeCapacity
+}
+
 // SetSizeInBytes sets the value of SizeInBytes.
 func (s *PoolUpdateV1beta) SetSizeInBytes(val OptNilFloat64) {
 	s.SizeInBytes = val
@@ -14798,6 +14806,11 @@ func (s *PoolUpdateV1beta) SetTotalThroughputMibps(val OptNilFloat64) {
 // SetTotalIops sets the value of TotalIops.
 func (s *PoolUpdateV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
+}
+
+// SetLargeCapacity sets the value of LargeCapacity.
+func (s *PoolUpdateV1beta) SetLargeCapacity(val OptNilBool) {
+	s.LargeCapacity = val
 }
 
 // JSON dictionary of resource labels to allow linking of billing labels to a pool.
@@ -25107,6 +25120,9 @@ type VolumeUpdateV1beta struct {
 	CacheParameters OptFlexCacheV1beta `json:"cacheParameters"`
 	// Incremental space in bytes for a files clone volume.
 	IncrementalSpaceInBytes OptNilFloat64 `json:"incrementalSpaceInBytes"`
+	// Flag indicating if the volume will be a large capacity volume (flexgroup) or a regular volume
+	// (flexvol).
+	LargeCapacity OptNilBool `json:"largeCapacity"`
 }
 
 // GetQuotaInBytes returns the value of QuotaInBytes.
@@ -25204,6 +25220,11 @@ func (s *VolumeUpdateV1beta) GetIncrementalSpaceInBytes() OptNilFloat64 {
 	return s.IncrementalSpaceInBytes
 }
 
+// GetLargeCapacity returns the value of LargeCapacity.
+func (s *VolumeUpdateV1beta) GetLargeCapacity() OptNilBool {
+	return s.LargeCapacity
+}
+
 // SetQuotaInBytes sets the value of QuotaInBytes.
 func (s *VolumeUpdateV1beta) SetQuotaInBytes(val OptNilFloat64) {
 	s.QuotaInBytes = val
@@ -25297,6 +25318,11 @@ func (s *VolumeUpdateV1beta) SetCacheParameters(val OptFlexCacheV1beta) {
 // SetIncrementalSpaceInBytes sets the value of IncrementalSpaceInBytes.
 func (s *VolumeUpdateV1beta) SetIncrementalSpaceInBytes(val OptNilFloat64) {
 	s.IncrementalSpaceInBytes = val
+}
+
+// SetLargeCapacity sets the value of LargeCapacity.
+func (s *VolumeUpdateV1beta) SetLargeCapacity(val OptNilBool) {
+	s.LargeCapacity = val
 }
 
 // JSON dictionary of resource labels to allow linking of billing labels to a volume.

@@ -3898,6 +3898,103 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Auto-Tiering feature is currently not enabled")
 	})
 
+	t.Run("FailsWhenLargeCapacityChanged_RegularPoolToLargeCapacity", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(4 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(true), // Trying to change from regular to large capacity
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
+		}
+
+		pool := &datamodel.Pool{
+			SizeInBytes:      int64(2 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    false, // Pool is regular capacity
+		}
+
+		err := _validateAndSetUpdatePoolParams(params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Given large capacity value is not supported. Large capacity cannot be changed for existing pool")
+	})
+
+	t.Run("FailsWhenLargeCapacityChanged_LargeCapacityPoolToRegular", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(200 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(false), // Trying to change from large capacity to regular
+			TotalThroughputMibps: 2000,
+			TotalIops:            nillable.ToPointer(int64(32000)),
+		}
+
+		pool := &datamodel.Pool{
+			SizeInBytes:      int64(100 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    true, // Pool is large capacity
+		}
+
+		err := _validateAndSetUpdatePoolParams(params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Given large capacity value is not supported. Large capacity cannot be changed for existing pool")
+	})
+
+	t.Run("PassesWhenLargeCapacityMatches_RegularPool", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(4 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(false), // Matches pool's large capacity setting
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
+		}
+
+		pool := &datamodel.Pool{
+			SizeInBytes:      int64(2 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    false, // Pool is regular capacity
+		}
+
+		err := _validateAndSetUpdatePoolParams(params, pool)
+		assert.NoError(tt, err, "Large capacity matches - should pass validation")
+	})
+
+	t.Run("PassesWhenLargeCapacityMatches_LargeCapacityPool", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(200 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(true), // Matches pool's large capacity setting
+			TotalThroughputMibps: 2000,
+			TotalIops:            nillable.ToPointer(int64(32000)),
+		}
+
+		pool := &datamodel.Pool{
+			SizeInBytes:      int64(100 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    true, // Pool is large capacity
+		}
+
+		err := _validateAndSetUpdatePoolParams(params, pool)
+		assert.NoError(tt, err, "Large capacity matches - should pass validation")
+	})
+
+	t.Run("PassesWhenLargeCapacityNotProvided", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(4 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nil, // Not provided - should pass validation
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
+		}
+
+		pool := &datamodel.Pool{
+			SizeInBytes:      int64(2 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+		}
+
+		err := _validateAndSetUpdatePoolParams(params, pool)
+		assert.NoError(tt, err, "Large capacity not provided - should pass validation")
+	})
+
 	t.Run("ValidParams_BoundarySize_StandardPool", func(tt *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(50 * utils.TiBInBytes), // Boundary size for standard pool

@@ -2047,6 +2047,10 @@ func _updateVolumeStatus(ctx context.Context, se database.Storage, dbVolume *dat
 func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams, pool *datamodel.PoolView) error {
 	log := util.GetLogger(ctx)
 
+	if params.LargeCapacity != nil && (pool.LargeCapacity != *params.LargeCapacity) {
+		return customerrors.NewUserInputValidationErr("Given large capacity value is not supported. Large capacity cannot be changed for existing volume")
+	}
+
 	if volume.State == models.LifeCycleStateUpdating {
 		return customerrors.NewConflictErr("An update operation is already in progress for this volume")
 	} else if utils.IsTransitionalState(volume.State) {

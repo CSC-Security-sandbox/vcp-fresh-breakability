@@ -19048,9 +19048,15 @@ func (s *PoolUpdateV1beta) encodeFields(e *jx.Encoder) {
 			s.TotalIops.Encode(e)
 		}
 	}
+	{
+		if s.LargeCapacity.Set {
+			e.FieldStart("largeCapacity")
+			s.LargeCapacity.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfPoolUpdateV1beta = [13]string{
+var jsonFieldsNameOfPoolUpdateV1beta = [14]string{
 	0:  "sizeInBytes",
 	1:  "description",
 	2:  "zone",
@@ -19064,6 +19070,7 @@ var jsonFieldsNameOfPoolUpdateV1beta = [13]string{
 	10: "customPerformanceEnabled",
 	11: "totalThroughputMibps",
 	12: "totalIops",
+	13: "largeCapacity",
 }
 
 // Decode decodes PoolUpdateV1beta from json.
@@ -19204,6 +19211,16 @@ func (s *PoolUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
+			}
+		case "largeCapacity":
+			if err := func() error {
+				s.LargeCapacity.Reset()
+				if err := s.LargeCapacity.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"largeCapacity\"")
 			}
 		default:
 			return d.Skip()
@@ -61261,9 +61278,15 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 			s.IncrementalSpaceInBytes.Encode(e)
 		}
 	}
+	{
+		if s.LargeCapacity.Set {
+			e.FieldStart("largeCapacity")
+			s.LargeCapacity.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumeUpdateV1beta = [19]string{
+var jsonFieldsNameOfVolumeUpdateV1beta = [20]string{
 	0:  "quotaInBytes",
 	1:  "snapReserve",
 	2:  "snapshotDirectory",
@@ -61283,6 +61306,7 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [19]string{
 	16: "description",
 	17: "cacheParameters",
 	18: "incrementalSpaceInBytes",
+	19: "largeCapacity",
 }
 
 // Decode decodes VolumeUpdateV1beta from json.
@@ -61494,6 +61518,16 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"incrementalSpaceInBytes\"")
+			}
+		case "largeCapacity":
+			if err := func() error {
+				s.LargeCapacity.Reset()
+				if err := s.LargeCapacity.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"largeCapacity\"")
 			}
 		default:
 			return d.Skip()

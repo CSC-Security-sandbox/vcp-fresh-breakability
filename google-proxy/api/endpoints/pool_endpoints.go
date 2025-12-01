@@ -578,6 +578,10 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		PoolId:      params.PoolId,
 	}
 
+	if req.LargeCapacity.IsSet() {
+		param.LargeCapacity = nillable.GetBoolPtr(req.LargeCapacity.Or(false))
+	}
+
 	// IOPS Handling: When only throughput is changed (IOPS not provided in request):
 	// - If current IOPS > (new throughput * 16): Keep current IOPS unchanged
 	// - If current IOPS < (new throughput * 16): Increase IOPS to minimum (throughput * 16)

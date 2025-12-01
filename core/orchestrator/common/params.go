@@ -184,6 +184,7 @@ type UpdateVolumeParams struct {
 	CacheParameters         *models.CacheParameters
 	IncrementalSpaceInBytes uint64
 	SMBShareSettings        []string
+	LargeCapacity           *bool
 }
 
 type CreateLunMapParams struct {

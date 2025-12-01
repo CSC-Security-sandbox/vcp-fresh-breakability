@@ -4285,6 +4285,11 @@ func (s *PoolUpdateV1beta) SetFake() {
 			s.TotalIops.SetFake()
 		}
 	}
+	{
+		{
+			s.LargeCapacity.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -13897,6 +13902,11 @@ func (s *VolumeUpdateV1beta) SetFake() {
 	{
 		{
 			s.IncrementalSpaceInBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.LargeCapacity.SetFake()
 		}
 	}
 }

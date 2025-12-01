@@ -5619,6 +5619,96 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	})
 }
 
+func TestV1betaUpdatePool_LargeCapacityPropagation(t *testing.T) {
+	buildExistingPool := func() *models.Pool {
+		return &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Description: "original description",
+			SizeInBytes: 1099511627776, // 1 TiB
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64,
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+			State:         "READY",
+			LargeCapacity: false,
+		}
+	}
+
+	buildParams := func() gcpgenserver.V1betaUpdatePoolParams {
+		return gcpgenserver.V1betaUpdatePoolParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1-a",
+			PoolId:        "pool-uuid",
+		}
+	}
+
+	newRequest := func() *gcpgenserver.PoolUpdateV1beta {
+		return &gcpgenserver.PoolUpdateV1beta{
+			SizeInBytes:          gcpgenserver.NewOptNilFloat64(2199023255552), // 2 TiB
+			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
+			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
+		}
+	}
+
+	t.Run("SetsLargeCapacityWhenProvided", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalParse := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParse }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1-a", nil
+		}
+
+		existingPool := buildExistingPool()
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(params *commonparams.UpdatePoolParams) bool {
+			return params.LargeCapacity != nil && *params.LargeCapacity
+		})).Return(existingPool, "op-123", nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		req := newRequest()
+		req.LargeCapacity = gcpgenserver.NewOptNilBool(true)
+
+		result, err := handler.V1betaUpdatePool(context.Background(), req, buildParams())
+
+		assert.NoError(tt, err)
+		_, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+	})
+
+	t.Run("LeavesLargeCapacityNilWhenNotProvided", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalParse := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParse }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1-a", nil
+		}
+
+		existingPool := buildExistingPool()
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(params *commonparams.UpdatePoolParams) bool {
+			return params.LargeCapacity == nil
+		})).Return(existingPool, "op-456", nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		req := newRequest() // LargeCapacity not set
+
+		result, err := handler.V1betaUpdatePool(context.Background(), req, buildParams())
+
+		assert.NoError(tt, err)
+		_, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+	})
+}
+
 func TestGetAndSyncAdConfigForPool(t *testing.T) {
 	t.Run("WhenActiveDirectoryConfigIdIsEmpty", func(tt *testing.T) {
 		req := &gcpgenserver.PoolV1beta{

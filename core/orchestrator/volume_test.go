@@ -14651,6 +14651,133 @@ func Test_validateUpdateVolumeRequest_LargeCapacity(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 
+	t.Run("FailsWhenLargeCapacityMismatch_RegularPoolWithLargeCapacityVolume", func(tt *testing.T) {
+		regularPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: false,
+				SizeInBytes:   int64(200 * 1024 * 1024 * 1024 * 1024), // 200 TiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100 GiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes:  int64(200 * 1024 * 1024 * 1024), // 200 GiB
+			LargeCapacity: nillable.ToPointer(true),        // Mismatch: pool is regular, volume is large capacity
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, regularPool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Given large capacity value is not supported. Large capacity cannot be changed for existing volume")
+	})
+
+	t.Run("FailsWhenLargeCapacityMismatch_LargeCapacityPoolWithRegularVolume", func(tt *testing.T) {
+		largeCapacityPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: true,
+				SizeInBytes:   int64(20 * 1125899906842624), // 20 PiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(15 * 1099511627776), // 15 TiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes:  int64(16 * 1099511627776), // 16 TiB
+			LargeCapacity: nillable.ToPointer(false), // Mismatch: pool is large capacity, volume is regular
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, largeCapacityPool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Given large capacity value is not supported. Large capacity cannot be changed for existing volume")
+	})
+
+	t.Run("PassesWhenLargeCapacityMatches_RegularPoolWithRegularVolume", func(tt *testing.T) {
+		regularPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: false,
+				SizeInBytes:   int64(200 * 1024 * 1024 * 1024 * 1024), // 200 TiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100 GiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes:  int64(200 * 1024 * 1024 * 1024), // 200 GiB
+			LargeCapacity: nillable.ToPointer(false),       // Match: both are regular
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, regularPool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("PassesWhenLargeCapacityMatches_LargeCapacityPoolWithLargeCapacityVolume", func(tt *testing.T) {
+		largeCapacityPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: true,
+				SizeInBytes:   int64(20 * 1125899906842624), // 20 PiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(15 * 1099511627776), // 15 TiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes:  int64(16 * 1099511627776), // 16 TiB
+			LargeCapacity: nillable.ToPointer(true),  // Match: both are large capacity
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, largeCapacityPool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("PassesWhenLargeCapacityNotProvided", func(tt *testing.T) {
+		regularPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				LargeCapacity: false,
+				SizeInBytes:   int64(200 * 1024 * 1024 * 1024 * 1024), // 200 TiB
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100 GiB
+		}
+
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes:  int64(200 * 1024 * 1024 * 1024), // 200 GiB
+			LargeCapacity: nil,                             // Not provided - should pass validation
+		}
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, regularPool)
+		assert.NoError(tt, err)
+	})
+
 	t.Run("NonLargeCapacityBlockPropertiesSupported", func(tt *testing.T) {
 		regularPool := &datamodel.PoolView{
 			Pool: datamodel.Pool{

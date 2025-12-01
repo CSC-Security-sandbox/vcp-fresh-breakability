@@ -731,15 +731,16 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		CorrelationID:  params.XCorrelationID.Value,
 	}
 
+	if req.LargeCapacity.IsSet() {
+		param.LargeCapacity = nillable.GetBoolPtr(req.LargeCapacity.Or(false))
+	}
+
 	if req.Description.IsSet() {
 		param.Description, _ = req.Description.Get()
 	}
 
 	if req.QuotaInBytes.IsSet() {
 		quota, _ := req.QuotaInBytes.Get()
-		if err := validateVolumeQuotaSize(quota); err != nil {
-			return nil, err
-		}
 		param.QuotaInBytes = int64(quota)
 	}
 
@@ -1102,16 +1103,6 @@ func convertSMBShareSettingToVCP(settings []string) []gcpgenserver.SMBSettingsV1
 		res = append(res, setting)
 	}
 	return res
-}
-
-func validateVolumeQuotaSize(quota float64) error {
-	minQuotaVal := float64(utils.MinQuotaInBytesVolumeForVolume)
-	maxQuotaVal := float64(utils.MaxQuotaInBytesVolumeForVolume)
-	if quota < minQuotaVal || quota > maxQuotaVal {
-		return errors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %d. Must be between %d GiB and %d GiB.",
-			utils.ConvertBytesToGib(quota), utils.ConvertBytesToGib(minQuotaVal), utils.ConvertBytesToGib(maxQuotaVal)))
-	}
-	return nil
 }
 
 func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1betaDeleteVolumeReq, params gcpgenserver.V1betaDeleteVolumeParams) (gcpgenserver.V1betaDeleteVolumeRes, error) {

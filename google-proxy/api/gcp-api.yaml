@@ -7830,6 +7830,13 @@ components:
           format: double
           nullable: true
           example: 1600.0
+        largeCapacity:
+          title: largeCapacity
+          type: boolean
+          description: Flag indicating if the volume will be a large capacity volume
+            (flexgroup) or a regular volume (flexvol)
+          nullable: true
+          x-omitempty: false
     Pool_v1beta:
       title: Pool
       required:
@@ -8997,6 +9004,13 @@ components:
           example: 4000000000000
           nullable: true
           x-omitempty: true
+        largeCapacity:
+          title: largeCapacity
+          type: boolean
+          description: Flag indicating if the volume will be a large capacity volume
+            (flexgroup) or a regular volume (flexvol)
+          nullable: true
+          x-omitempty: false
     SnapshotPolicy_v1beta:
       title: SnapshotPolicy
       type: object
