@@ -118,6 +118,10 @@ func (s *UnitTestSuite) SetupTest() {
 	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
 
 	// Set default mock responses for commonly used activities
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1084,6 +1088,10 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyInVCPSucceed
 	}
 
 	// Register activities
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.LunSizeUpdateValidation)
@@ -4269,7 +4277,10 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CoverageForMissingLines() {
 		AccountID:   1,
 	}
 
-	// Mock activities to ensure successful execution through the specific lines
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4346,6 +4357,10 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_BackupVaultWithEmptyBucketDeta
 	}
 
 	// Mock activities to ensure successful execution through the specific lines
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4544,6 +4559,11 @@ func (s *UnitTestSuite) TestCreateVolumeWorkflow_CVCountUpdate() {
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4658,27 +4678,48 @@ func TestCreateVolumeWorkflow_CVCountUpdateLogic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create a copy of dbVolume to avoid modifying test data
+			testVolume := &datamodel.Volume{
+				BaseModel: tt.dbVolume.BaseModel,
+			}
+			if tt.dbVolume.LargeVolumeAttributes != nil {
+				testVolume.LargeVolumeAttributes = &datamodel.LargeVolumeAttributes{
+					LargeCapacity:               tt.dbVolume.LargeVolumeAttributes.LargeCapacity,
+					LargeVolumeConstituentCount: tt.dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount,
+				}
+			}
+
 			// Test the condition logic that determines whether to execute CV count update
-			shouldExecute := tt.dbVolume.LargeVolumeAttributes != nil &&
-				tt.dbVolume.LargeVolumeAttributes.LargeCapacity &&
-				tt.dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount == nil &&
+			shouldExecute := testVolume.LargeVolumeAttributes != nil &&
+				testVolume.LargeVolumeAttributes.LargeCapacity &&
+				testVolume.LargeVolumeAttributes.LargeVolumeConstituentCount == nil &&
 				tt.volCreateResponse.ConstituentCount != nil
 
 			assert.Equal(t, tt.shouldExecuteUpdate, shouldExecute, tt.description)
 
-			// Test the expected log message
+			// Actually execute the update logic (simulating the workflow code)
+			if shouldExecute {
+				testVolume.LargeVolumeAttributes.LargeVolumeConstituentCount = tt.volCreateResponse.ConstituentCount
+			}
+
+			// Verify the result of the update
 			if tt.shouldExecuteUpdate {
+				// Test the expected log message format
 				expectedLog := fmt.Sprintf("Updating CV count for auto-provisioned volume %s: %d",
-					tt.dbVolume.UUID, *tt.volCreateResponse.ConstituentCount)
+					testVolume.UUID, *tt.volCreateResponse.ConstituentCount)
 				assert.Equal(t, expectedLog, tt.expectedLogMessage, "Log message should match expected format")
 
-				// Test the updated large volume attributes structure
-				expectedAttributes := &datamodel.LargeVolumeAttributes{
-					LargeCapacity:               tt.dbVolume.LargeVolumeAttributes.LargeCapacity,
-					LargeVolumeConstituentCount: tt.volCreateResponse.ConstituentCount,
+				// Verify the field was actually updated
+				assert.NotNil(t, testVolume.LargeVolumeAttributes.LargeVolumeConstituentCount, "CV count should be set after update")
+				assert.Equal(t, *tt.volCreateResponse.ConstituentCount, *testVolume.LargeVolumeAttributes.LargeVolumeConstituentCount,
+					"CV count should match the value from ONTAP response")
+			} else {
+				// Verify no update occurred when it shouldn't
+				if testVolume.LargeVolumeAttributes != nil {
+					assert.Equal(t, tt.dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount,
+						testVolume.LargeVolumeAttributes.LargeVolumeConstituentCount,
+						"CV count should not be modified when update should not execute")
 				}
-				assert.Equal(t, expectedAttributes.LargeCapacity, tt.dbVolume.LargeVolumeAttributes.LargeCapacity)
-				assert.Equal(t, expectedAttributes.LargeVolumeConstituentCount, tt.volCreateResponse.ConstituentCount)
 			}
 		})
 	}

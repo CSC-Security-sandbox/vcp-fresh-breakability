@@ -46,6 +46,15 @@ func (s *VolumeUpdateTestSuite) SetupTest() {
 
 	// Register workflow
 	s.env.RegisterWorkflow(UpdateVolumeWorkflow)
+
+	// Register all activities that might be used across tests
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 }
 
 func (s *VolumeUpdateTestSuite) AfterTest() {
@@ -2566,6 +2575,10 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_AutoTier() {
 	s.env.RegisterWorkflow(UpdateVolumeWorkflow)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)

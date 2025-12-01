@@ -46,6 +46,9 @@ func UpdateVolumeWorkflow(ctx workflow.Context, params *common.UpdateVolumeParam
 		log.Errorf("Volume update workflow setup executed with error: %v", err)
 		return err
 	}
+	if err = volumeWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return err
+	}
 	volumeWf.Status = WorkflowStatusRunning
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {

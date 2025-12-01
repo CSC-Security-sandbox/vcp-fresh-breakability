@@ -491,6 +491,10 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 		log.Errorf("Failed to setup CreateVolumeWorkflow: %v", err)
 		return nil, err
 	}
+	if err = volumeWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, err
+	}
+
 	volumeWf.Status = WorkflowStatusRunning
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {

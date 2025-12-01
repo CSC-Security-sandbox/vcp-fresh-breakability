@@ -39,6 +39,10 @@ func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) error 
 		log.Errorf("Volume delete workflow setup executed with error: %v", err)
 		return err
 	}
+	if err = volumeWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return err
+	}
+
 	volumeWf.Status = WorkflowStatusRunning
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {

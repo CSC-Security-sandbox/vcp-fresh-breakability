@@ -353,6 +353,10 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 
 	// Mock activity responses with error
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "test-node-uuid"}}}, nil)
 	s.env.OnActivity(hybridReplicationActivity.GetDstBasePathForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
@@ -396,6 +400,10 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Hydr
 
 	// Mock activity responses with error
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "test-node-uuid"}}}, nil)
 	s.env.OnActivity(hybridReplicationActivity.GetDstBasePathForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{

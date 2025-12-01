@@ -124,12 +124,18 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		return nil
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateDONE),
-	}, nil)
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -299,12 +305,18 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 		return nil
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateDONE),
-	}, nil)
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -464,12 +476,18 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		return nil
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateDONE),
-	}, nil)
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -623,6 +641,11 @@ func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("subnet create failed"))
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
@@ -699,9 +722,15 @@ func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return error for subnet job (PollOnDBJob will fail)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(nil, errors.New("job poll failed")).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(nil, errors.New("job poll failed"))
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -776,12 +805,18 @@ func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateDONE),
-	}, nil)
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(nil, errors.New("get tenancy details failed"))
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -886,10 +921,16 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -1059,10 +1100,16 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -1241,10 +1288,16 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -1390,10 +1443,16 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -1475,10 +1534,16 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -1561,10 +1626,16 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -2035,6 +2106,11 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 
 	// Register activity mocks.
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
 			NumHAPair:       1,
@@ -2155,6 +2231,11 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 	// Register activity mocks.
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).
 		Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).
 		Return(nil, nil)
 
@@ -2243,6 +2324,11 @@ func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
 
 	// Register activity mocks.
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
 			NumHAPair:       1,
@@ -2371,6 +2457,11 @@ func TestUpdatePoolWorkflow_GetNodeFailure(t *testing.T) {
 
 	// Register activity mocks.
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
 			NumHAPair:       1,
@@ -2491,6 +2582,11 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 
 	// Register activity mocks.
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
 			NumHAPair:       1,
@@ -2547,6 +2643,92 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestUpdatePoolWorkflowFailsOnJobInErrorState(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	// Setup context propagation and header values
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	// Setup test input data for update workflow.
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              "Manual",
+		Description:          "Updated pool description",
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-id-foobar-rchilaka",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		// Set additional fields if required.
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		SizeInBytes: 456,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            10,
+			ThroughputMibps: 6,
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-auto-tier-bucket",
+		},
+		VLMConfig: "{\"deployment\": {\"vsa_instance_type\": \"foo-bar\"}}",
+	}
+
+	// Register activity mocks.
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateERROR),
+	}, nil).Maybe()
+
+	// Execute the workflow.
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	// Optionally query workflow status.
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert the workflow has completed successfully.
+	assert.True(t, env.IsWorkflowCompleted())
+	err = env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job default-test-workflow-id is in state ERROR; expected NEW")
+}
+
 func TestDeletePoolWorkflow(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -2600,6 +2782,11 @@ func TestDeletePoolWorkflow(t *testing.T) {
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2634,6 +2821,79 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
+}
+
+func TestDeletePoolWorkflowFailsOnJobInErrorState(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	ginLoggingFeatureFlag = true
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	enableMetrics = true
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+	}()
+
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+	// Set up test data
+	params := &common.DeletePoolParams{
+		PoolID:      "test-pool",
+		AccountName: "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-bucket",
+		},
+		Account:          &datamodel.Account{Name: "test-account"},
+		ServiceAccountId: "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-tenant",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		KmsConfig:     &datamodel.KmsConfig{},
+		KmsConfigID:   sql.NullInt64{Int64: 1, Valid: true},
+		APIAccessMode: ONTAPMode,
+	}
+
+	// Mock activity responses
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateERROR),
+	}, nil).Maybe()
+
+	// Execute workflow
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	err = env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job default-test-workflow-id is in state ERROR; expected NEW")
 }
 
 func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
@@ -2689,6 +2949,11 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 	disableVsaCleanupOnVLMFailure = false
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2776,6 +3041,11 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 	disableVsaCleanupOnVLMFailure = true
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2864,6 +3134,11 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 	disableVsaCleanupOnVLMFailure = true
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2950,6 +3225,11 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3042,6 +3322,11 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3129,6 +3414,11 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolEmpty, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3181,6 +3471,11 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolNonEmpty, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3260,10 +3555,16 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -3359,10 +3660,16 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -3496,10 +3803,16 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -3635,10 +3948,16 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -3785,10 +4104,16 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -3890,6 +4215,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 		pool := &datamodel.Pool{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil).Once()
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(errors.New("some error"))
@@ -3944,6 +4274,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 		pool := &datamodel.Pool{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil).Once()
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
@@ -3998,6 +4333,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		pool := &datamodel.Pool{}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, errors.New("some error")).Once()
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -4050,6 +4390,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 		pool := &datamodel.Pool{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil).Once()
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
@@ -4142,10 +4487,16 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -4287,10 +4638,16 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -4431,10 +4788,16 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
-		}, nil)
+		}, nil).Maybe()
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
@@ -4552,6 +4915,11 @@ func TestCreatePoolWorkflow_Failure_FindTenancyProject(t *testing.T) {
 		return nil
 	}
 
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
 
@@ -4622,6 +4990,11 @@ func TestCreatePoolWorkflow_InitialFailure_UpdateJobStatus(t *testing.T) {
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 
 	// Execute workflow
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -4713,10 +5086,16 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(1)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -4877,10 +5256,16 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -5042,10 +5427,16 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -5187,10 +5578,16 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -5329,10 +5726,16 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -5481,10 +5884,16 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -5634,10 +6043,16 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -5791,10 +6206,16 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -7570,10 +7991,16 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -7737,10 +8164,16 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -7855,10 +8288,16 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -8016,10 +8455,16 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-sn-project",
@@ -8104,10 +8549,16 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 		State:     string(models.JobsStateDONE),
-	}, nil)
+	}, nil).Maybe()
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-sn-project",
@@ -8210,6 +8661,10 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 
 			// Mock activity responses
 			env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+			env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+				BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+				State:     string(models.JobsStateNEW),
+			}, nil).Maybe()
 			env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(tt.pool, nil)
 			env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 			mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -8230,7 +8685,7 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 			env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
 				PoolID: 0,
 			}).Return(nil)
-			env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+			env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 			GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 				return mockVSAClientWorkflowManager

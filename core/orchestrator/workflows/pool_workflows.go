@@ -98,6 +98,10 @@ func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, p
 	if err != nil {
 		return err
 	}
+	if err = createPoolWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return err
+	}
+
 	createPoolWF.Status = WorkflowStatusRunning
 	err = createPoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -599,6 +603,10 @@ func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, p
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	if err = updatePoolWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
 	updatePoolWF.Status = WorkflowStatusRunning
 	err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -889,6 +897,10 @@ func DeletePoolWorkflow(ctx workflow.Context, params *common.DeletePoolParams, p
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	if err = deletePoolWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
 	deletePoolWF.Status = WorkflowStatusRunning
 	err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {

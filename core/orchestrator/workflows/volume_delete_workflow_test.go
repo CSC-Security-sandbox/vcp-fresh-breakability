@@ -44,6 +44,15 @@ func (s *VolumeDeleteTestSuite) SetupTest() {
 
 	// Register workflow
 	s.env.RegisterWorkflow(DeleteVolumeWorkflow)
+
+	// Register all activities that might be used across tests
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
 }
 
 func (s *VolumeDeleteTestSuite) AfterTest() {
@@ -105,6 +114,48 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_Success() {
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_WhenJobInErrorState() {
+	s.env = s.NewTestWorkflowEnvironment()
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	// Register activities
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateERROR),
+	}, nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "job default-test-workflow-id is in state ERROR; expected NEW")
 }
 
 func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_SuccessWithBP() {

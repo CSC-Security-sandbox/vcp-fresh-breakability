@@ -942,6 +942,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_EnsureJobStateError() {
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(&datamodel.Job{})
 
 	params := &common.BackupVaultParams{
 		Name:        bv.Name,
@@ -989,6 +990,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_EnsureJobStateError() {
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
 	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(&datamodel.Job{})
 
 	params := &common.BackupVaultParams{
 		Name:        bv.Name,
