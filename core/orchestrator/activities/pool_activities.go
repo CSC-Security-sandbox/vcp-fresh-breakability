@@ -2740,3 +2740,70 @@ type UpdatePoolComplianceActivityOutput struct {
 	Success  bool   `json:"success"`
 	Error    string `json:"error,omitempty"`
 }
+
+// CalculateBatchPlanActivityInput represents input for calculating batch plan
+type CalculateBatchPlanActivityInput struct {
+	NumHAPairs                  int `json:"num_ha_pairs"`
+	ParallelNumberOfNodesForITC int `json:"parallel_number_of_nodes_for_itc"`
+}
+
+// CalculateBatchPlanActivityOutput represents output for batch plan calculation
+type CalculateBatchPlanActivityOutput struct {
+	NumHAPairs       int     `json:"num_ha_pairs"`
+	BatchSize        int     `json:"batch_size"`
+	NumWorkflowCalls int     `json:"num_workflow_calls"`
+	BatchIndices     [][]int `json:"batch_indices"` // Each inner slice contains HA pair indices for that batch
+}
+
+// CalculateBatchPlanForUpdate calculates the batch plan for HA pair updates
+func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input CalculateBatchPlanActivityInput) (*CalculateBatchPlanActivityOutput, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Calculating update batch plan as per the parallel number of nodes for ITC", "numHAPairs", input.NumHAPairs, "parallelNumberOfNodesForITC", input.ParallelNumberOfNodesForITC)
+
+	if input.NumHAPairs <= 0 {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("invalid number of HA pairs: %d", input.NumHAPairs))
+	}
+
+	numHAPairs := input.NumHAPairs
+	parallelNumberOfNodesForITC := input.ParallelNumberOfNodesForITC
+
+	if parallelNumberOfNodesForITC <= 0 {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("invalid parallel number of nodes for ITC: %d", parallelNumberOfNodesForITC))
+	}
+
+	// Calculate batch size based on the batching strategy:
+	// - For 1-3 HA pairs: batch size = 1
+	// - For 4+ HA pairs: batch size = floor(numHAPairs / 2)
+
+	// floor((numHAPairs * 2) / parallelNumberOfNodesForITC) for integer division
+	batchSize := max(1, (numHAPairs*2)/parallelNumberOfNodesForITC)
+
+	// Calculate number of workflow calls needed: ceil(numHAPairs / batchSize)
+	numWorkflowCalls := (numHAPairs + batchSize - 1) / batchSize
+
+	// Generate batch indices for all batches
+	batchIndices := make([][]int, 0, numWorkflowCalls)
+	for batchNum := 0; batchNum < numWorkflowCalls; batchNum++ {
+		startIdx := batchNum * batchSize
+		endIdx := startIdx + batchSize
+		if endIdx > numHAPairs {
+			endIdx = numHAPairs
+		}
+
+		// Generate HAPairIndices for this batch (1-indexed)
+		indices := make([]int, endIdx-startIdx)
+		for i := 0; i < endIdx-startIdx; i++ {
+			indices[i] = startIdx + i + 1
+		}
+		batchIndices = append(batchIndices, indices)
+	}
+
+	logger.Info("Batch plan calculated", "numHAPairs", numHAPairs, "batchSize", batchSize, "numWorkflowCalls", numWorkflowCalls)
+
+	return &CalculateBatchPlanActivityOutput{
+		NumHAPairs:       numHAPairs,
+		BatchSize:        batchSize,
+		NumWorkflowCalls: numWorkflowCalls,
+		BatchIndices:     batchIndices,
+	}, nil
+}

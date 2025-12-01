@@ -10113,3 +10113,663 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 		assert.False(t, exists, "account_id label should not be set when account is nil")
 	})
 }
+
+// TestExecutePoolBatchUpdates_Success tests successful batch processing with multiple batches
+func TestExecutePoolBatchUpdates_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	// Create test batch plan with 3 batches
+	batchPlan := &activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       6,
+		BatchSize:        2,
+		NumWorkflowCalls: 3,
+		BatchIndices: [][]int{
+			{1, 2},
+			{3, 4},
+			{5, 6},
+		},
+	}
+
+	currentVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+		},
+	}
+
+	newVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-8",
+			NumHAPair:       6,
+			SPConfig: vlm.SPConfig{
+				Throughput: 100,
+				IOps:       1000,
+			},
+		},
+	}
+
+	credentials := &vlm.OntapCredentials{
+		AdminPassword: "test-password",
+	}
+
+	ontapVersion := "9.17.1"
+
+	// Mock responses for each batch - each response should have updated VLM config
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 1 && req.HAPairIndices[1] == 2
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-8",
+			},
+		},
+	}, nil).Once()
+
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 3 && req.HAPairIndices[1] == 4
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-8",
+			},
+		},
+	}, nil).Once()
+
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 5 && req.HAPairIndices[1] == 6
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-8",
+			},
+		},
+	}, nil).Once()
+
+	// Test workflow that calls executePoolBatchUpdates
+	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+		logger := util.GetLogger(ctx)
+		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result *vlm.UpdateVSAClusterDeploymentResponse
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "n1-standard-8", result.VLMConfig.Deployment.VSAInstanceType)
+
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+}
+
+// TestExecutePoolBatchUpdates_SingleBatch tests batch processing with a single batch
+func TestExecutePoolBatchUpdates_SingleBatch(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	// Create test batch plan with 1 batch
+	batchPlan := &activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       2,
+		BatchSize:        1,
+		NumWorkflowCalls: 2,
+		BatchIndices: [][]int{
+			{1},
+			{2},
+		},
+	}
+
+	currentVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+		},
+	}
+
+	newVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+			NumHAPair:       2,
+			SPConfig: vlm.SPConfig{
+				Throughput: 100,
+				IOps:       1000,
+			},
+		},
+	}
+
+	credentials := &vlm.OntapCredentials{
+		AdminPassword: "test-password",
+	}
+
+	ontapVersion := "9.17.1"
+
+	// Mock responses for each batch
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 1 && req.HAPairIndices[0] == 1
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-4",
+			},
+		},
+	}, nil).Once()
+
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 1 && req.HAPairIndices[0] == 2
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-4",
+			},
+		},
+	}, nil).Once()
+
+	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+		logger := util.GetLogger(ctx)
+		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result *vlm.UpdateVSAClusterDeploymentResponse
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+}
+
+// TestExecutePoolBatchUpdates_PartialFailure tests error handling when a batch fails mid-process
+func TestExecutePoolBatchUpdates_PartialFailure(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	// Create test batch plan with 3 batches
+	batchPlan := &activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       6,
+		BatchSize:        2,
+		NumWorkflowCalls: 3,
+		BatchIndices: [][]int{
+			{1, 2},
+			{3, 4},
+			{5, 6},
+		},
+	}
+
+	currentVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+		},
+	}
+
+	newVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-8",
+			NumHAPair:       6,
+			SPConfig: vlm.SPConfig{
+				Throughput: 100,
+				IOps:       1000,
+			},
+		},
+	}
+
+	credentials := &vlm.OntapCredentials{
+		AdminPassword: "test-password",
+	}
+
+	ontapVersion := "9.17.1"
+
+	// First batch succeeds
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 1 && req.HAPairIndices[1] == 2
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-8",
+			},
+		},
+	}, nil).Once()
+
+	// Second batch fails
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 3 && req.HAPairIndices[1] == 4
+	}), ontapVersion).Return(nil, fmt.Errorf("batch update failed")).Once()
+
+	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+		logger := util.GetLogger(ctx)
+		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "batch update failed")
+
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+}
+
+// TestExecutePoolBatchUpdates_ConfigUpdateBetweenBatches tests that currentConfig is updated between batches
+func TestExecutePoolBatchUpdates_ConfigUpdateBetweenBatches(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	// Create test batch plan with 2 batches
+	batchPlan := &activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       4,
+		BatchSize:        2,
+		NumWorkflowCalls: 2,
+		BatchIndices: [][]int{
+			{1, 2},
+			{3, 4},
+		},
+	}
+
+	currentVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+		},
+	}
+
+	newVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-8",
+			NumHAPair:       4,
+			SPConfig: vlm.SPConfig{
+				Throughput: 100,
+				IOps:       1000,
+			},
+		},
+	}
+
+	credentials := &vlm.OntapCredentials{
+		AdminPassword: "test-password",
+	}
+
+	ontapVersion := "9.17.1"
+
+	// First batch returns updated config
+	updatedConfig1 := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-8",
+			NumHAPair:       4,
+		},
+	}
+
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		// First batch should use initial currentConfig
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 1 && req.HAPairIndices[1] == 2 &&
+			req.VLMConfig.Deployment.VSAInstanceType == "n1-standard-4"
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: updatedConfig1,
+	}, nil).Once()
+
+	// Second batch should use updated config from first batch
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 3 && req.HAPairIndices[1] == 4 &&
+			req.VLMConfig.Deployment.VSAInstanceType == "n1-standard-8"
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-8",
+			},
+		},
+	}, nil).Once()
+
+	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+		logger := util.GetLogger(ctx)
+		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result *vlm.UpdateVSAClusterDeploymentResponse
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "n1-standard-8", result.VLMConfig.Deployment.VSAInstanceType)
+
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+}
+
+// TestExecutePoolBatchUpdates_FirstBatchFails tests error handling when the first batch fails immediately
+func TestExecutePoolBatchUpdates_FirstBatchFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	// Create test batch plan with 3 batches
+	batchPlan := &activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       6,
+		BatchSize:        2,
+		NumWorkflowCalls: 3,
+		BatchIndices: [][]int{
+			{1, 2},
+			{3, 4},
+			{5, 6},
+		},
+	}
+
+	currentVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+		},
+	}
+
+	newVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-8",
+			NumHAPair:       6,
+		},
+	}
+
+	credentials := &vlm.OntapCredentials{
+		AdminPassword: "test-password",
+	}
+
+	ontapVersion := "9.17.1"
+
+	// First batch fails immediately
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 1 && req.HAPairIndices[1] == 2
+	}), ontapVersion).Return(nil, fmt.Errorf("first batch failed")).Once()
+
+	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+		logger := util.GetLogger(ctx)
+		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "first batch failed")
+
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+}
+
+// TestExecutePoolBatchUpdates_LastBatchFails tests error handling when the last batch fails after all previous batches succeeded
+func TestExecutePoolBatchUpdates_LastBatchFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	// Create test batch plan with 3 batches
+	batchPlan := &activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       6,
+		BatchSize:        2,
+		NumWorkflowCalls: 3,
+		BatchIndices: [][]int{
+			{1, 2},
+			{3, 4},
+			{5, 6},
+		},
+	}
+
+	currentVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+		},
+	}
+
+	newVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-8",
+			NumHAPair:       6,
+		},
+	}
+
+	credentials := &vlm.OntapCredentials{
+		AdminPassword: "test-password",
+	}
+
+	ontapVersion := "9.17.1"
+
+	// First batch succeeds
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 1 && req.HAPairIndices[1] == 2
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-8",
+			},
+		},
+	}, nil).Once()
+
+	// Second batch succeeds
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 3 && req.HAPairIndices[1] == 4
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-8",
+			},
+		},
+	}, nil).Once()
+
+	// Third batch (last) fails
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 5 && req.HAPairIndices[1] == 6
+	}), ontapVersion).Return(nil, fmt.Errorf("last batch failed")).Once()
+
+	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+		logger := util.GetLogger(ctx)
+		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "last batch failed")
+
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+}
+
+// TestExecutePoolBatchUpdates_SingleBatchFails tests error handling when a single batch fails
+func TestExecutePoolBatchUpdates_SingleBatchFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	// Create test batch plan with 1 batch
+	batchPlan := &activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       1,
+		BatchSize:        1,
+		NumWorkflowCalls: 1,
+		BatchIndices: [][]int{
+			{1},
+		},
+	}
+
+	currentVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+		},
+	}
+
+	newVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-8",
+			NumHAPair:       1,
+		},
+	}
+
+	credentials := &vlm.OntapCredentials{
+		AdminPassword: "test-password",
+	}
+
+	ontapVersion := "9.17.1"
+
+	// Single batch fails
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return len(req.HAPairIndices) == 1 && req.HAPairIndices[0] == 1
+	}), ontapVersion).Return(nil, fmt.Errorf("single batch failed")).Once()
+
+	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+		logger := util.GetLogger(ctx)
+		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "single batch failed")
+
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+}

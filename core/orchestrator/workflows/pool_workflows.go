@@ -24,6 +24,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -60,6 +61,7 @@ var (
 	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "x-9-18-1rc1")
 	filesMediatorImage           = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1rc1")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
+	parallelNumberOfNodesForITC  = env.GetInt("PARALLEL_NUMBER_OF_NODES_FOR_ITC", 4) // As of now it's 4 as per the VLM design document
 
 	disableVsaCleanupOnVLMFailure     = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
 	enableAutoVolOfflineCronForGCPKMS = env.GetBool("ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS", true)
@@ -849,11 +851,19 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
 	ontapVersion := ExtractOntapVersion(pool.ClusterDetails.OntapVersion)
 
-	updateVSAClusterDeploymentRequest := &vlm.UpdateVSAClusterDeploymentRequest{}
-	prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest, *currentVlmConfig, *newVlmConfig, *credentials)
+	// Calculate batch plan using activity
+	batchPlanInput := &activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  newVlmConfig.Deployment.NumHAPair,
+		ParallelNumberOfNodesForITC: parallelNumberOfNodesForITC,
+	}
+	var batchPlan *activities.CalculateBatchPlanActivityOutput
+	err = workflow.ExecuteActivity(ctx, poolActivity.CalculateBatchPlanForUpdate, batchPlanInput).Get(ctx, &batchPlan)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 
-	// Update VSA cluster deployment
-	updateVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+	// Execute batch updates using reusable function
+	updateVSAClusterDeploymentResponse, err := executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, wf.Logger)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -1502,6 +1512,51 @@ func prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest 
 		// If we set this all the time, VLM will trigger a VM rotation even if we use the same instance type.
 		updateVSAClusterDeploymentRequest.NewInstanceType = newVLMConfig.Deployment.VSAInstanceType
 	}
+	// Note: HAPairIndices should be set by the caller based on the update sequence
+}
+
+// executePoolBatchUpdates processes HA pair updates in batches sequentially
+func executePoolBatchUpdates(ctx workflow.Context, batchPlan *activities.CalculateBatchPlanActivityOutput, currentVlmConfig *vlm.VLMConfig, newVlmConfig *vlm.VLMConfig, credentials *vlm.OntapCredentials, ontapVersion string, vsaClientWorkflowManager vlm.VlmWorkflowClient, logger log.Logger) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+	currentConfig := currentVlmConfig
+	var updateVSAClusterDeploymentResponse *vlm.UpdateVSAClusterDeploymentResponse
+
+	// Track completed batches for error reporting in case of partial completion
+	completedBatches := make([]int, 0, batchPlan.NumWorkflowCalls)
+
+	for batchNum := 0; batchNum < batchPlan.NumWorkflowCalls; batchNum++ {
+		// Get batch indices from the pre-calculated batch plan
+		batchIndices := batchPlan.BatchIndices[batchNum]
+
+		// Prepare update request
+		updateRequest := &vlm.UpdateVSAClusterDeploymentRequest{}
+		prepareUpdateVSAClusterDeploymentRequest(updateRequest, *currentConfig, *newVlmConfig, *credentials)
+		updateRequest.HAPairIndices = batchIndices
+
+		logger.Info("Starting update batch", "batchNumber", batchNum+1, "totalBatches", batchPlan.NumWorkflowCalls, "indices", batchIndices, "totalHAPairs", batchPlan.NumHAPairs, "batchSize", batchPlan.BatchSize)
+
+		// Execute the update
+		response, err := vsaClientWorkflowManager.UpdateVSAClusterDeployment(ctx, updateRequest, ontapVersion)
+		if err != nil {
+			// Log detailed partial completion state
+			logger.Errorf(
+				"Pool update failed at batch %d of %d. Partial completion detected - cluster is in mixed-version state. "+
+					"Completed batches: %v. Original error: %v",
+				batchNum+1, batchPlan.NumWorkflowCalls, completedBatches, err)
+
+			return nil, err
+		}
+
+		// Track successful batch completion
+		completedBatches = append(completedBatches, batchNum+1)
+
+		// Use the updated VLM config from this response as the current config for the next batch
+		currentConfig = &response.VLMConfig
+		updateVSAClusterDeploymentResponse = response
+
+		logger.Info("Completed update batch", "batchNumber", batchNum+1, "totalBatches", batchPlan.NumWorkflowCalls, "indices", batchIndices)
+	}
+
+	return updateVSAClusterDeploymentResponse, nil
 }
 
 func _waitForServiceNetworkOperationStatus(ctx workflow.Context, poolActivity *activities.PoolActivity, op string, timeout time.Duration) ([]byte, error) {

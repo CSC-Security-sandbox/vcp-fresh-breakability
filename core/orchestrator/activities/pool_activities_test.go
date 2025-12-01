@@ -11371,3 +11371,331 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 		mockNetworkingClient.AssertExpectations(tt)
 	})
 }
+
+// TestCalculateBatchPlan_Success_6HAPairs_4ParallelNodes tests successful batch plan calculation for 6 HA pairs with 4 parallel nodes
+func TestCalculateBatchPlan_Success_6HAPairs_4ParallelNodes(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  6,
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 6, result.NumHAPairs)
+	// batchSize = max(1, (6*2)/4) = max(1, 3) = 3
+	assert.Equal(t, 3, result.BatchSize)
+	// numWorkflowCalls = ceil(6/3) = 2
+	assert.Equal(t, 2, result.NumWorkflowCalls)
+	assert.Len(t, result.BatchIndices, 2)
+	// First batch: [1, 2, 3]
+	assert.Equal(t, []int{1, 2, 3}, result.BatchIndices[0])
+	// Second batch: [4, 5, 6]
+	assert.Equal(t, []int{4, 5, 6}, result.BatchIndices[1])
+}
+
+// TestCalculateBatchPlan_Success_2HAPairs_4ParallelNodes tests successful batch plan calculation for 2 HA pairs with 4 parallel nodes
+func TestCalculateBatchPlan_Success_2HAPairs_4ParallelNodes(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  2,
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 2, result.NumHAPairs)
+	// batchSize = max(1, (2*2)/4) = max(1, 1) = 1
+	assert.Equal(t, 1, result.BatchSize)
+	// numWorkflowCalls = ceil(2/1) = 2
+	assert.Equal(t, 2, result.NumWorkflowCalls)
+	assert.Len(t, result.BatchIndices, 2)
+	// First batch: [1]
+	assert.Equal(t, []int{1}, result.BatchIndices[0])
+	// Second batch: [2]
+	assert.Equal(t, []int{2}, result.BatchIndices[1])
+}
+
+// TestCalculateBatchPlan_Success_8HAPairs_4ParallelNodes tests successful batch plan calculation for 8 HA pairs with 4 parallel nodes
+func TestCalculateBatchPlan_Success_8HAPairs_4ParallelNodes(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  8,
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 8, result.NumHAPairs)
+	// batchSize = max(1, (8*2)/4) = max(1, 4) = 4
+	assert.Equal(t, 4, result.BatchSize)
+	// numWorkflowCalls = ceil(8/4) = 2
+	assert.Equal(t, 2, result.NumWorkflowCalls)
+	assert.Len(t, result.BatchIndices, 2)
+	// First batch: [1, 2, 3, 4]
+	assert.Equal(t, []int{1, 2, 3, 4}, result.BatchIndices[0])
+	// Second batch: [5, 6, 7, 8]
+	assert.Equal(t, []int{5, 6, 7, 8}, result.BatchIndices[1])
+}
+
+// TestCalculateBatchPlan_Success_7HAPairs_4ParallelNodes tests successful batch plan calculation with remainder
+func TestCalculateBatchPlan_Success_7HAPairs_4ParallelNodes(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  7,
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 7, result.NumHAPairs)
+	// batchSize = max(1, (7*2)/4) = max(1, 3) = 3
+	assert.Equal(t, 3, result.BatchSize)
+	// numWorkflowCalls = ceil(7/3) = ceil(2.33) = 3
+	assert.Equal(t, 3, result.NumWorkflowCalls)
+	assert.Len(t, result.BatchIndices, 3)
+	// First batch: [1, 2, 3]
+	assert.Equal(t, []int{1, 2, 3}, result.BatchIndices[0])
+	// Second batch: [4, 5, 6]
+	assert.Equal(t, []int{4, 5, 6}, result.BatchIndices[1])
+	// Third batch: [7]
+	assert.Equal(t, []int{7}, result.BatchIndices[2])
+}
+
+// TestCalculateBatchPlan_Success_1HAPair_4ParallelNodes tests successful batch plan calculation for single HA pair
+func TestCalculateBatchPlan_Success_1HAPair_4ParallelNodes(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  1,
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 1, result.NumHAPairs)
+	// batchSize = max(1, (1*2)/4) = max(1, 0) = 1
+	assert.Equal(t, 1, result.BatchSize)
+	// numWorkflowCalls = ceil(1/1) = 1
+	assert.Equal(t, 1, result.NumWorkflowCalls)
+	assert.Len(t, result.BatchIndices, 1)
+	// First batch: [1]
+	assert.Equal(t, []int{1}, result.BatchIndices[0])
+}
+
+// TestCalculateBatchPlan_Success_12HAPairs_6ParallelNodes tests successful batch plan calculation for larger configuration
+func TestCalculateBatchPlan_Success_12HAPairs_6ParallelNodes(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  12,
+		ParallelNumberOfNodesForITC: 6,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 12, result.NumHAPairs)
+	// batchSize = max(1, (12*2)/6) = max(1, 4) = 4
+	assert.Equal(t, 4, result.BatchSize)
+	// numWorkflowCalls = ceil(12/4) = 3
+	assert.Equal(t, 3, result.NumWorkflowCalls)
+	assert.Len(t, result.BatchIndices, 3)
+	// First batch: [1, 2, 3, 4]
+	assert.Equal(t, []int{1, 2, 3, 4}, result.BatchIndices[0])
+	// Second batch: [5, 6, 7, 8]
+	assert.Equal(t, []int{5, 6, 7, 8}, result.BatchIndices[1])
+	// Third batch: [9, 10, 11, 12]
+	assert.Equal(t, []int{9, 10, 11, 12}, result.BatchIndices[2])
+}
+
+// TestCalculateBatchPlan_Success_5HAPairs_8ParallelNodes tests when parallel nodes is larger than needed
+func TestCalculateBatchPlan_Success_5HAPairs_8ParallelNodes(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  5,
+		ParallelNumberOfNodesForITC: 8,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 5, result.NumHAPairs)
+	// batchSize = max(1, (5*2)/8) = max(1, 1) = 1
+	assert.Equal(t, 1, result.BatchSize)
+	// numWorkflowCalls = ceil(5/1) = 5
+	assert.Equal(t, 5, result.NumWorkflowCalls)
+	assert.Len(t, result.BatchIndices, 5)
+	// Verify all batches have single HA pair
+	for i := 0; i < 5; i++ {
+		assert.Equal(t, []int{i + 1}, result.BatchIndices[i])
+	}
+}
+
+// TestCalculateBatchPlan_Error_InvalidNumHAPairs_Zero tests error handling for zero HA pairs
+func TestCalculateBatchPlan_Error_InvalidNumHAPairs_Zero(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  0,
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "invalid number of HA pairs: 0")
+}
+
+// TestCalculateBatchPlan_Error_InvalidNumHAPairs_Negative tests error handling for negative HA pairs
+func TestCalculateBatchPlan_Error_InvalidNumHAPairs_Negative(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  -1,
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "invalid number of HA pairs: -1")
+}
+
+// TestCalculateBatchPlan_Error_InvalidParallelNodes_Zero tests error handling for zero parallel nodes
+func TestCalculateBatchPlan_Error_InvalidParallelNodes_Zero(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  6,
+		ParallelNumberOfNodesForITC: 0,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "invalid parallel number of nodes for ITC: 0")
+}
+
+// TestCalculateBatchPlan_Error_InvalidParallelNodes_Negative tests error handling for negative parallel nodes
+func TestCalculateBatchPlan_Error_InvalidParallelNodes_Negative(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  6,
+		ParallelNumberOfNodesForITC: -1,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "invalid parallel number of nodes for ITC: -1")
+}
+
+// TestCalculateBatchPlan_Success_IndicesAreOneIndexed tests that batch indices are 1-indexed (not 0-indexed)
+func TestCalculateBatchPlan_Success_IndicesAreOneIndexed(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	input := activities.CalculateBatchPlanActivityInput{
+		NumHAPairs:                  3,
+		ParallelNumberOfNodesForITC: 4,
+	}
+
+	// Act
+	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// With 3 HA pairs and 4 parallel nodes: batchSize = max(1, (3*2)/4) = 1
+	// So we get 3 batches: [1], [2], [3]
+	assert.Len(t, result.BatchIndices, 3)
+	assert.Equal(t, []int{1}, result.BatchIndices[0])
+	assert.Equal(t, []int{2}, result.BatchIndices[1])
+	assert.Equal(t, []int{3}, result.BatchIndices[2])
+	// Verify no zero indices
+	for _, batch := range result.BatchIndices {
+		for _, idx := range batch {
+			assert.Greater(t, idx, 0, "HA pair indices should be 1-indexed")
+		}
+	}
+}
