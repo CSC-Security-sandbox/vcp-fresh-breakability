@@ -63,6 +63,7 @@ var (
 	GetBackupVaultFromCVP                           = getBackupVaultFromCVP
 	enableAutoPoolScaling                           = env.GetBool("ENABLE_AUTO_POOL_SCALING", true)
 	autoPoolScalingLimits                           = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":246,\"max_volume_count\":495},\"c3-standard-16-lssd\":{\"min_volume_count\":496,\"max_volume_count\":995}}")
+	maxConstituentVolumesPerVolumePerAggregate      = env.GetInt64("MAX_CONSTITUENT_VOLUMES_PER_VOLUME_PER_AGGREGATE", 200)
 	verifyBackupRestoreCompatibilityForLargeVolumes = _verifyBackupRestoreCompatibilityForLargeVolumes
 	checkIsValidImmutableBackupPolicyWithRetry      = _checkIsValidImmutableBackupPolicyWithRetry
 )
@@ -1140,6 +1141,11 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			maxConstituentVolumesPerAggregate, err := getMaxConstituentVolumesPerAggregate(logger, pool.VLMConfig)
 			if err != nil {
 				return customerrors.NewTransientErr(fmt.Sprintf("error unmarshalling VLM config from pool: %v", err))
+			}
+
+			maxCVsPerVolumeLimit := numOfLvHAPairs * maxConstituentVolumesPerVolumePerAggregate
+			if int64(params.LargeVolumeConstituentCount) > maxCVsPerVolumeLimit {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Large Volume constituent count cannot be greater than %d for the current per-aggregate limit", maxCVsPerVolumeLimit))
 			}
 
 			// Subtracting 1 because there will always be root vol in the aggregate at start

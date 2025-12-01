@@ -61,6 +61,7 @@ data:
   MIN_QUOTA_IN_BYTES_LARGE_VOLUME: "{{ index .Values "minQuotaInBytesLargeVolume" }}"
   MAX_QUOTA_IN_BYTES_LARGE_VOLUME: "{{ index .Values "maxQuotaInBytesLargeVolume" }}"
   MAX_CONSTITUENTS_PER_AGGREGATE: "{{ index .Values "maxConstituentsPerAggregate" }}"
+  MAX_CONSTITUENTS_PER_VOLUME_PER_AGGREGATE: "{{ index .Values "maxConstituentsPerVolumePerAggregate" }}"
   MIN_SIZE_GRANULARITY: "{{ index .Values "minSizeGranularity" }}"
   MIN_CUSTOM_THROUGHPUT: "{{ index .Values "minCustomThroughput" }}"
   CREATE_COMMON_RESOURCES_IN_VCP: "{{ index .Values "createCommonResourcesInVCP" }}"
