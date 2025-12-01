@@ -9596,8 +9596,8 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 
 		// Verify default configuration is used: ILB support disabled and default images used
 		assert.False(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should remain false when file protocol is not supported")
-		assert.Equal(t, "x-9-17-1p1-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should use default image (vsaImageName) when file protocol is not supported")
-		assert.Equal(t, "cvo-mediator-x-9-17-1p1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image (mediatorImage) when file protocol is not supported")
+		assert.Equal(t, "x-9-17-1p2-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should use default image (vsaImageName) when file protocol is not supported")
+		assert.Equal(t, "cvo-mediator-x-9-17-1p2d1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image (mediatorImage) when file protocol is not supported")
 
 		// Verify other fields are still set correctly
 		assert.Equal(t, "test-pool-2", req.VLMConfig.Deployment.Labels["pool_name"])
@@ -9650,8 +9650,8 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 
 		// Verify default configuration is used when account is nil (file protocol config is skipped)
 		assert.False(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should remain false when account is nil")
-		assert.Equal(t, "x-9-17-1p1-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should use default image when account is nil")
-		assert.Equal(t, "cvo-mediator-x-9-17-1p1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image when account is nil")
+		assert.Equal(t, "x-9-17-1p2-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should use default image when account is nil")
+		assert.Equal(t, "cvo-mediator-x-9-17-1p2d1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image when account is nil")
 
 		// Verify account_id label is not set when account is nil
 		_, exists := req.VLMConfig.Deployment.Labels["account_id"]

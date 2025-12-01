@@ -55,8 +55,8 @@ var (
 	enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
 	Region                                               = env.GetString("LOCAL_REGION", "")
 
-	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "x-9-17-1p1-gcnv")
-	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1p1")
+	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "x-9-17-1p2-gcnv")
+	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1p2d1")
 	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "x-9-18-1rc1")
 	filesMediatorImage           = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1rc1")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)

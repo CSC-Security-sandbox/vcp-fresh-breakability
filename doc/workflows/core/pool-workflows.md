@@ -90,8 +90,8 @@ var (
     maxNodesPerGroup                                     = env.GetInt("MAX_NODES_PER_GROUP", 200)
     enableMetrics                                        = env.GetBool("ENABLE_METRICS", false)
     enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
-    vsaImageName                                         = env.GetString("VSA_IMAGE_NAME", "x-9-17-1p1-gcnv")
-    mediatorImage                                        = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1p1")    
+    vsaImageName                                         = env.GetString("VSA_IMAGE_NAME", "x-9-17-1p2-gcnv")
+    mediatorImage                                        = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1p2d1")    
     vsaFilesImageName                                    = env.GetString("VSA_FILES_IMAGE_NAME", "x-9-18-1rc1")
 	filesMediatorImage                                   = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1rc1")
     waitTimeForGCPOperationInSec                         = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
@@ -159,9 +159,9 @@ type poolDataSubnetWorkFlow struct {
 ### VSA Instance Configuration
 
 **Image Configuration**:
-- **VSA Image**: `x-9-17-1p1-gcnv` (default)
+- **VSA Image**: `x-9-17-1p2-gcnv` (default)
 - **VSA Files Image**: `x-9-18-1rc1` (default)
-- **Mediator Image**: `cvo-mediator-x-9-18-1rc1` (default)
+- **Mediator Image**: `cvo-mediator-x-9-17-1p2d1` (default)
 
 **Instance Settings**:
 - **Max Nodes Per Group**: 200 (configurable)

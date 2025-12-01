@@ -72,7 +72,7 @@ spec:
               value: local-temporal-frontend.default.svc.cluster.local:7233
       containers:
         - name: vlm-worker
-          image: ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:R9.17.1x_7855269
+          image: ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:R9.17.1x_7882520
           env:
             - name: PROVIDER
               value: "gcp"
