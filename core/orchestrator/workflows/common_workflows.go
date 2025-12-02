@@ -46,6 +46,7 @@ var (
 	StartToCloseTimeoutForReplicationActivities = env.GetInt("START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_ACTIVITIES", 300)
 	StartToCloseTimeoutDataSubnetCreate         = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_CREATE", "20m")
 	StartToCloseTimeoutDataSubnetDelete         = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_DELETE", "5m")
+	StartToCloseTimeoutForConfigureNetwork      = env.GetString("START_TO_CLOSE_TIMEOUT_FOR_CONFIGURE_NETWORK", "5m")
 	BackoffCoefficientForReplicationActivities  = env.GetFloat64("BACKOFF_COEFFICIENT_FOR_REPLICATION_ACTIVITIES", 1.5)
 	StartToCloseTimeoutUpgrade                  = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_UPGRADE", "300m")
 	RetryInterval                               = env.GetString("RETRY_INTERVAL", "5s")

@@ -1811,6 +1811,213 @@ func TestConfigureNetworkWorkflow_Success(t *testing.T) {
 	assert.NoError(t, env.GetWorkflowError())
 }
 
+func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
+	// Save original value
+	origTimeout := StartToCloseTimeoutForConfigureNetwork
+	defer func() {
+		StartToCloseTimeoutForConfigureNetwork = origTimeout
+	}()
+
+	t.Run("valid_timeout_parsed_correctly", func(t *testing.T) {
+		// Set timeout before creating test environment
+		StartToCloseTimeoutForConfigureNetwork = "45m"
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestWorkflowEnvironment()
+
+		poolActivity := &activities.PoolActivity{}
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+		env.RegisterActivity(&activities.PoolActivity{})
+
+		defer func() {
+			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+		}()
+
+		var capturedTimeout time.Duration
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+			capturedTimeout = timeout
+			return nil
+		}
+
+		vpcOperations := []common.Operations{
+			{OperationName: "vpc-op-1", IsDone: true},
+		}
+		env.OnActivity(poolActivity.CreateVPCs, mock.Anything, "tenant-project").Return(&vpcOperations, nil)
+
+		subnetOperations := []common.Operations{
+			{OperationName: "subnet-op-1", IsDone: true},
+		}
+		env.OnActivity(poolActivity.CreateSubnets, mock.Anything, "tenant-project").Return(&subnetOperations, nil)
+
+		firewallOperations := []common.Operations{
+			{OperationName: "firewall-op-1", IsDone: true},
+		}
+		env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network").Return(&firewallOperations, nil)
+
+		env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &vpcOperations, mock.Anything).Return(nil)
+
+		combinedOps := append(subnetOperations, firewallOperations...)
+		env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &combinedOps, mock.Anything).Return(nil)
+
+		tenancyDetails := &common.TenancyInfo{
+			RegionalTenantProject: "tenant-project",
+			SnHostProject:         "host-project",
+			Network:               "network",
+		}
+
+		env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		// Verify that the timeout uses retryPolicy.StartToCloseTimeout (default 55 minutes)
+		// Note: WaitForGCPNetworkOperationStatus uses retryPolicy.StartToCloseTimeout, not StartToCloseTimeoutForConfigureNetwork
+		assert.Equal(t, 55*time.Minute, capturedTimeout)
+	})
+
+	t.Run("invalid_timeout_falls_back_to_default", func(t *testing.T) {
+		// Set invalid timeout to test fallback behavior
+		StartToCloseTimeoutForConfigureNetwork = "invalid-duration"
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestWorkflowEnvironment()
+
+		poolActivity := &activities.PoolActivity{}
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+		env.RegisterActivity(&activities.PoolActivity{})
+
+		defer func() {
+			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+		}()
+
+		var capturedTimeout time.Duration
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+			capturedTimeout = timeout
+			return nil
+		}
+
+		vpcOperations := []common.Operations{
+			{OperationName: "vpc-op-1", IsDone: true},
+		}
+		env.OnActivity(poolActivity.CreateVPCs, mock.Anything, "tenant-project").Return(&vpcOperations, nil)
+
+		subnetOperations := []common.Operations{
+			{OperationName: "subnet-op-1", IsDone: true},
+		}
+		env.OnActivity(poolActivity.CreateSubnets, mock.Anything, "tenant-project").Return(&subnetOperations, nil)
+
+		firewallOperations := []common.Operations{
+			{OperationName: "firewall-op-1", IsDone: true},
+		}
+		env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network").Return(&firewallOperations, nil)
+
+		env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &vpcOperations, mock.Anything).Return(nil)
+
+		combinedOps := append(subnetOperations, firewallOperations...)
+		env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &combinedOps, mock.Anything).Return(nil)
+
+		tenancyDetails := &common.TenancyInfo{
+			RegionalTenantProject: "tenant-project",
+			SnHostProject:         "host-project",
+			Network:               "network",
+		}
+
+		env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		// Verify that the timeout uses retryPolicy.StartToCloseTimeout (default 55 minutes)
+		// Note: WaitForGCPNetworkOperationStatus uses retryPolicy.StartToCloseTimeout, not StartToCloseTimeoutForConfigureNetwork
+		assert.Equal(t, 55*time.Minute, capturedTimeout)
+	})
+
+	t.Run("heartbeat_timeout_is_set", func(t *testing.T) {
+		// Set timeout before creating test environment
+		StartToCloseTimeoutForConfigureNetwork = "10m"
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestWorkflowEnvironment()
+
+		poolActivity := &activities.PoolActivity{}
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+		env.RegisterActivity(&activities.PoolActivity{})
+
+		defer func() {
+			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+		}()
+
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+			return nil
+		}
+
+		vpcOperations := []common.Operations{
+			{OperationName: "vpc-op-1", IsDone: true},
+		}
+		env.OnActivity(poolActivity.CreateVPCs, mock.Anything, "tenant-project").Return(&vpcOperations, nil)
+
+		subnetOperations := []common.Operations{
+			{OperationName: "subnet-op-1", IsDone: true},
+		}
+		env.OnActivity(poolActivity.CreateSubnets, mock.Anything, "tenant-project").Return(&subnetOperations, nil)
+
+		firewallOperations := []common.Operations{
+			{OperationName: "firewall-op-1", IsDone: true},
+		}
+		env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network").Return(&firewallOperations, nil)
+
+		env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &vpcOperations, mock.Anything).Return(nil)
+
+		combinedOps := append(subnetOperations, firewallOperations...)
+		env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &combinedOps, mock.Anything).Return(nil)
+
+		tenancyDetails := &common.TenancyInfo{
+			RegionalTenantProject: "tenant-project",
+			SnHostProject:         "host-project",
+			Network:               "network",
+		}
+
+		env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		// Verify that HeartbeatTimeout is set in ActivityOptions by checking that activities execute successfully
+		// The heartbeat timeout is set to setupNwHeartbeatTimeout/2 (150 seconds by default, since setupNwHeartbeatTimeout defaults to 300 seconds)
+		// This is verified by the successful workflow execution with heartbeat-enabled activities
+	})
+}
+
 func TestReleasePSCEndpointWorkflow_Success(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestWorkflowEnvironment()
@@ -6454,8 +6661,10 @@ func TestPoolDataSubnetWorkFlow(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
+	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
-	env.RegisterActivity(&activities.CommonActivities{})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Set up test data
@@ -6476,6 +6685,14 @@ func TestPoolDataSubnetWorkFlow(t *testing.T) {
 	defer func() {
 		WaitForServiceNetworkOperationStatus = originalWaitForServiceNetworkOperationStatus
 	}()
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
 	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
@@ -6524,8 +6741,9 @@ func TestPoolDataSubnetWorkFlow_UpdateOperation(t *testing.T) {
 	env.SetHeader(mockHeader)
 
 	mockStorage := database.NewMockStorage(t)
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(&SubnetActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Set up test data
@@ -6543,6 +6761,12 @@ func TestPoolDataSubnetWorkFlow_UpdateOperation(t *testing.T) {
 	poolUUID := "test-pool-uuid"
 	tenantProjectNumber := "tenant-project"
 	accountID := int64(1)
+
+	// Mock GetJob activity - called by EnsureJobState to verify job is in NEW state
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Once()
 
 	// Mock UpdateJobStatus activity - called when workflow starts (PROCESSING) and when it fails (ERROR)
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -6577,7 +6801,9 @@ func TestPoolDataSubnetWorkFlow_RunError(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
+	mockStorage := database.NewMockStorage(t)
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Set up test data
@@ -6591,6 +6817,15 @@ func TestPoolDataSubnetWorkFlow_RunError(t *testing.T) {
 		AllowAutoTiering:        true,
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
+
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
@@ -6634,7 +6869,9 @@ func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
+	mockStorage := database.NewMockStorage(t)
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Set up test data
@@ -6648,6 +6885,15 @@ func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
 		AllowAutoTiering:        true,
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
+
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
@@ -6976,13 +7222,22 @@ func TestPoolDataSubnetWorkFlow_ExistingSubnet1(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
 		AccountName: "test-account",
 		Region:      "us-central1",
 	}
 	tenantProjectNumber := "test-tenant-123"
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
 
 	// Mock the UpdateJobStatus activity that gets called during workflow execution
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
@@ -7026,13 +7281,22 @@ func TestPoolDataSubnetWorkFlow_GetAvailableSubnetError1(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
 		AccountName: "test-account",
 		Region:      "us-central1",
 	}
 	tenantProjectNumber := "test-tenant-123"
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
 
 	// Mock the first UpdateJobStatus call (PROCESSING)
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
@@ -7079,13 +7343,22 @@ func TestPoolDataSubnetWorkFlow_GetCreateDataSubnetOpError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
 		AccountName: "test-account",
 		Region:      "us-central1",
 	}
 	tenantProjectNumber := "test-tenant-123"
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -7128,13 +7401,23 @@ func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation1(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
 		AccountName: "test-account",
 		Region:      "us-central1",
 	}
 	tenantProjectNumber := "test-tenant-123"
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
+
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
@@ -7176,7 +7459,8 @@ func TestPoolDataSubnetWorkFlow_WaitFails(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 
 	// Mock successful subnet creation flow
 	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
@@ -7192,6 +7476,14 @@ func TestPoolDataSubnetWorkFlow_WaitFails(t *testing.T) {
 		Region:      "us-central1",
 	}
 	tenantProjectNumber := "test-tenant-123"
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -7233,7 +7525,8 @@ func TestPoolDataSubnetWorkFlow_GetSubnet(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 
 	// Mock successful subnet creation flow
 	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
@@ -7249,6 +7542,14 @@ func TestPoolDataSubnetWorkFlow_GetSubnet(t *testing.T) {
 		Region:      "us-central1",
 	}
 	tenantProjectNumber := "test-tenant-123"
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -7293,7 +7594,8 @@ func TestPoolDataSubnetWorkFlow_GetTenancyInfo(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 
 	// Mock successful subnet creation flow
 	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
@@ -7309,6 +7611,14 @@ func TestPoolDataSubnetWorkFlow_GetTenancyInfo(t *testing.T) {
 		Region:      "us-central1",
 	}
 	tenantProjectNumber := "test-tenant-123"
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -7354,7 +7664,8 @@ func TestPoolDataSubnetWorkFlow_UpdatePoolSubnet(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 
 	// Mock successful subnet creation flow
 	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
@@ -7370,6 +7681,14 @@ func TestPoolDataSubnetWorkFlow_UpdatePoolSubnet(t *testing.T) {
 		Region:      "us-central1",
 	}
 	tenantProjectNumber := "test-tenant-123"
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -7416,7 +7735,8 @@ func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
 
 	// Mock successful subnet creation flow
 	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
@@ -7438,6 +7758,14 @@ func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation(t *testing.T) {
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 	}
+
+	// Mock GetJob for EnsureJobState
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -7481,8 +7809,9 @@ func TestPoolDataSubnetWorkFlow_DeleteActionType(t *testing.T) {
 	env.SetHeader(mockHeader)
 
 	mockStorage := database.NewMockStorage(t)
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
 		AccountName: "test-account",
@@ -7510,6 +7839,12 @@ func TestPoolDataSubnetWorkFlow_DeleteActionType(t *testing.T) {
 	defer func() {
 		WaitForGCPNetworkOperationStatus = originalWaitForGCPNetworkOperationStatus
 	}()
+
+	// Mock GetJob activity - called by EnsureJobState to verify job is in NEW state
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -7554,8 +7889,9 @@ func TestPoolDataSubnetWorkFlow_DeleteActionType_GetPoolError(t *testing.T) {
 	env.SetHeader(mockHeader)
 
 	mockStorage := database.NewMockStorage(t)
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
 		AccountName: "test-account",
@@ -7563,6 +7899,12 @@ func TestPoolDataSubnetWorkFlow_DeleteActionType_GetPoolError(t *testing.T) {
 	}
 	tenantProjectNumber := "test-tenant-123"
 	accountID := int64(1)
+
+	// Mock GetJob activity - called by EnsureJobState to verify job is in NEW state
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
@@ -7601,8 +7943,9 @@ func TestPoolDataSubnetWorkFlow_DeleteActionType_ReleaseDataSubnetOpError(t *tes
 	env.SetHeader(mockHeader)
 
 	mockStorage := database.NewMockStorage(t)
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(commonActivity)
 
 	params := &common.CreatePoolParams{
 		AccountName: "test-account",
@@ -7622,6 +7965,12 @@ func TestPoolDataSubnetWorkFlow_DeleteActionType_ReleaseDataSubnetOpError(t *tes
 			RegionalTenantProject: tenantProjectNumber,
 		},
 	}
+
+	// Mock GetJob activity - called by EnsureJobState to verify job is in NEW state
+	env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Once()
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{

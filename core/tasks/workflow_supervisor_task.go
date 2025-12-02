@@ -75,6 +75,7 @@ func runWorkflowSupervisorTask(ctx context.Context, storage database.Storage, te
 			supervisorhandler.NewBackupHandler(),
 			supervisorhandler.NewSnapshotHandler(),
 			supervisorhandler.NewReplicationHandler(),
+			supervisorhandler.NewNetworkHandler(),
 		)
 	}
 

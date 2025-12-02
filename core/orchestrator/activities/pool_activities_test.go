@@ -6484,10 +6484,22 @@ func TestPoolActivity_GetServiceNetOpStatus(t *testing.T) {
 			hyperscaler2.GetGCPService = original
 			activities.GetServiceNetOpStatus = originalGetServiceNetOpStatus
 		}()
-		ctx := context.Background()
-		op, err := activity.GetServiceNetOpStatus(ctx, "op-123")
+
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetServiceNetOpStatus)
+
+		result, err := env.ExecuteActivity(activity.GetServiceNetOpStatus, "op-123")
 		assert.NoError(t, err)
-		assert.Equal(t, expectedOp.Name, op.Name)
+		assert.NotNil(t, result)
+
+		// Get the actual result from the activity execution
+		var opResult *hyperscaler3.ComputeOperation
+		err = result.Get(&opResult)
+		assert.NoError(t, err)
+		assert.NotNil(t, opResult)
+		assert.Equal(t, expectedOp.Name, opResult.Name)
 	})
 
 	t.Run("GetGCPServiceFails", func(t *testing.T) {
@@ -6497,10 +6509,14 @@ func TestPoolActivity_GetServiceNetOpStatus(t *testing.T) {
 		}
 		defer func() { hyperscaler2.GetGCPService = original }()
 
-		ctx := context.Background()
-		op, err := activity.GetServiceNetOpStatus(ctx, "op-123")
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetServiceNetOpStatus)
+
+		result, err := env.ExecuteActivity(activity.GetServiceNetOpStatus, "op-123")
 		assert.Error(t, err)
-		assert.Nil(t, op)
+		assert.Nil(t, result)
 	})
 }
 
@@ -8380,6 +8396,101 @@ func Test_getComputeOpStatus(t *testing.T) {
 		assert.Nil(t, result)
 		assert.Equal(t, expectedError, err)
 		mockGCPService.AssertExpectations(t)
+	})
+}
+
+func TestPoolActivity_GetComputeOpStatus(t *testing.T) {
+	activity := &activities.PoolActivity{}
+	project := "test-project"
+	operation := "test-operation"
+
+	t.Run("Success_GlobalOperation_WithHeartbeat", func(t *testing.T) {
+		expectedOp := &hyperscaler3.ComputeOperation{
+			Name:   operation,
+			Status: "DONE",
+		}
+		original := hyperscaler2.GetGCPService
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		originalGetComputeOpStatus := activities.GetComputeOpStatus
+		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler3.ComputeOperation, error) {
+			return expectedOp, nil
+		}
+		defer func() {
+			hyperscaler2.GetGCPService = original
+			activities.GetComputeOpStatus = originalGetComputeOpStatus
+		}()
+
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetComputeOpStatus)
+
+		result, err := env.ExecuteActivity(activity.GetComputeOpStatus, project, false, operation)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Get the actual result from the activity execution
+		var opResult *hyperscaler3.ComputeOperation
+		err = result.Get(&opResult)
+		assert.NoError(t, err)
+		assert.NotNil(t, opResult)
+		assert.Equal(t, expectedOp.Name, opResult.Name)
+		assert.Equal(t, expectedOp.Status, opResult.Status)
+	})
+
+	t.Run("Success_RegionalOperation_WithHeartbeat", func(t *testing.T) {
+		expectedOp := &hyperscaler3.ComputeOperation{
+			Name:   operation,
+			Status: "RUNNING",
+		}
+		original := hyperscaler2.GetGCPService
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		originalGetComputeOpStatus := activities.GetComputeOpStatus
+		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler3.ComputeOperation, error) {
+			return expectedOp, nil
+		}
+		defer func() {
+			hyperscaler2.GetGCPService = original
+			activities.GetComputeOpStatus = originalGetComputeOpStatus
+		}()
+
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetComputeOpStatus)
+
+		result, err := env.ExecuteActivity(activity.GetComputeOpStatus, project, true, operation)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Get the actual result from the activity execution
+		var opResult *hyperscaler3.ComputeOperation
+		err = result.Get(&opResult)
+		assert.NoError(t, err)
+		assert.NotNil(t, opResult)
+		assert.Equal(t, expectedOp.Name, opResult.Name)
+		assert.Equal(t, expectedOp.Status, opResult.Status)
+	})
+
+	t.Run("GetGCPServiceFails", func(t *testing.T) {
+		original := hyperscaler2.GetGCPService
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, fmt.Errorf("service error")
+		}
+		defer func() { hyperscaler2.GetGCPService = original }()
+
+		// Use Temporal test suite to provide proper activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetComputeOpStatus)
+
+		result, err := env.ExecuteActivity(activity.GetComputeOpStatus, project, false, operation)
+		assert.Error(t, err)
+		assert.Nil(t, result)
 	})
 }
 

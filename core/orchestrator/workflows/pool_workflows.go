@@ -1213,6 +1213,9 @@ func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParam
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	if err = CreateOrGetSubnetworkWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 	CreateOrGetSubnetworkWF.Status = WorkflowStatusRunning
 	err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -1279,12 +1282,15 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	// Parse the configurable timeout for data poller activities
 	activityStartToCloseTimeout, err := time.ParseDuration(getStartToCloseTimeoutDataSubnet(actionType))
 	if err != nil {
-		return nil, ConvertToVSAError(err)
+		// Fallback to default 20 minutes if parsing fails
+		activityStartToCloseTimeout = 20 * time.Minute
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: activityStartToCloseTimeout,
+		HeartbeatTimeout:    activityStartToCloseTimeout / 2,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
@@ -1818,8 +1824,15 @@ func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.Tenan
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	// Parse the configurable timeout for ConfigureNetworkWorkflow activities
+	startToCloseTimeout, parseErr := time.ParseDuration(StartToCloseTimeoutForConfigureNetwork)
+	if parseErr != nil {
+		// Fallback to default 5 minutes if parsing fails
+		startToCloseTimeout = 5 * time.Minute
+	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: startToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(setupNwHeartbeatTimeout/2) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

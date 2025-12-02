@@ -2358,6 +2358,7 @@ func _checkAndUpdateFirewall(gService hyperscaler2.GoogleServices, existingFirew
 
 // GetServiceNetOpStatus returns the status (and result) of a Google's service networking operation
 func (j *PoolActivity) GetServiceNetOpStatus(ctx context.Context, operation string) (*hyperscaler_models.ComputeOperation, error) {
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Data Subnet creation in Hyperscaler: %s", operation))
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, err
@@ -2463,6 +2464,8 @@ func (j *PoolActivity) AllocateSVMName(ctx context.Context, pool *datamodel.Pool
 
 // GetComputeOpStatus returns the status (and result) of a Google's compute networking operation for global and regional operations
 func (j *PoolActivity) GetComputeOpStatus(ctx context.Context, project string, isRegionalResource bool, operation string) (*hyperscaler_models.ComputeOperation, error) {
+	// Record heartbeat to indicate progress during polling
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Hyperscaler operation status for operation name: %s in project: %s", operation, project))
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, err
