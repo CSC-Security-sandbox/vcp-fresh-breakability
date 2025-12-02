@@ -18,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/testsuite"
 )
 
 // Helper to create context with logger
@@ -89,6 +90,10 @@ func TestGetOrCreateCifsService(t *testing.T) {
 	externalSVMUUID := "svm-uuid"
 
 	t.Run("success_service_exists_and_needs_ddns", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetOrCreateCifsService)
+
 		// Mock password decryption
 		originalDecryptPassword := utils.DecryptPassword
 		utils.DecryptPassword = func(password log.Secret) (*string, error) {
@@ -129,9 +134,12 @@ func TestGetOrCreateCifsService(t *testing.T) {
 
 		overrideProvider(t, newOntapProvider(ctx))
 
-		result, err := activity.GetOrCreateCifsService(ctx, node, ad, svmName, externalSVMUUID)
+		val, err := env.ExecuteActivity(activity.GetOrCreateCifsService, node, ad, svmName, externalSVMUUID)
 		assert.NoError(t, err)
 		assert.True(t, ensureCalled)
+
+		var result *active_directory_activities.GetOrCreateCifsServiceResult
+		_ = val.Get(&result)
 		assert.NotNil(t, result)
 		assert.True(t, result.NeedsDDNS)
 		assert.Empty(t, result.FQDN)
@@ -143,6 +151,10 @@ func TestGetOrCreateCifsService(t *testing.T) {
 	})
 
 	t.Run("success_creates_service_when_missing", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetOrCreateCifsService)
+
 		// Mock password decryption
 		originalDecryptPassword := utils.DecryptPassword
 		utils.DecryptPassword = func(password log.Secret) (*string, error) {
@@ -171,7 +183,8 @@ func TestGetOrCreateCifsService(t *testing.T) {
 			},
 			CreateAndSetupCIFSServer: func(_ log.Logger, _ ontapRest.RESTClient, dir *vsa.ActiveDirectory, svmUUID, receivedSVM string) (string, error) {
 				createCalled = true
-				assert.Equal(t, ad, dir)
+				assert.Equal(t, ad.UUID, dir.UUID)
+				assert.Equal(t, ad.Domain, dir.Domain)
 				assert.Equal(t, externalSVMUUID, svmUUID)
 				assert.Equal(t, svmName, receivedSVM)
 				return expectedFQDN, nil
@@ -181,10 +194,13 @@ func TestGetOrCreateCifsService(t *testing.T) {
 
 		overrideProvider(t, newOntapProvider(ctx))
 
-		result, err := activity.GetOrCreateCifsService(ctx, node, ad, svmName, externalSVMUUID)
+		val, err := env.ExecuteActivity(activity.GetOrCreateCifsService, node, ad, svmName, externalSVMUUID)
 		assert.NoError(t, err)
 		assert.True(t, ensureCalled)
 		assert.True(t, createCalled)
+
+		var result *active_directory_activities.GetOrCreateCifsServiceResult
+		_ = val.Get(&result)
 		assert.NotNil(t, result)
 		assert.Equal(t, expectedFQDN, result.FQDN)
 		assert.False(t, result.NeedsDDNS)
@@ -196,6 +212,10 @@ func TestGetOrCreateCifsService(t *testing.T) {
 	})
 
 	t.Run("error_provider_not_ontap", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetOrCreateCifsService)
+
 		// Mock password decryption
 		originalDecryptPassword := utils.DecryptPassword
 		utils.DecryptPassword = func(password log.Secret) (*string, error) {
@@ -211,13 +231,16 @@ func TestGetOrCreateCifsService(t *testing.T) {
 		}
 		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
 
-		result, err := activity.GetOrCreateCifsService(ctx, node, ad, svmName, externalSVMUUID)
+		_, err := env.ExecuteActivity(activity.GetOrCreateCifsService, node, ad, svmName, externalSVMUUID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "provider is not OntapRestProvider")
-		assert.Nil(t, result)
 	})
 
 	t.Run("error_provider_lookup_fails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetOrCreateCifsService)
+
 		// Mock password decryption
 		originalDecryptPassword := utils.DecryptPassword
 		utils.DecryptPassword = func(password log.Secret) (*string, error) {
@@ -232,9 +255,8 @@ func TestGetOrCreateCifsService(t *testing.T) {
 		}
 		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
 
-		result, err := activity.GetOrCreateCifsService(ctx, node, ad, svmName, externalSVMUUID)
+		_, err := env.ExecuteActivity(activity.GetOrCreateCifsService, node, ad, svmName, externalSVMUUID)
 		assert.Error(t, err)
-		assert.Nil(t, result)
 	})
 }
 
@@ -247,6 +269,10 @@ func TestDdnsModify(t *testing.T) {
 	fqdn := "server.example.com"
 
 	t.Run("success_enables_ddns", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.DdnsModify)
+
 		mockClient := new(ontapRest.MockRESTClient)
 		mockNameServices := new(ontapRest.MockNameServicesClient)
 		mockClient.On("NameServices").Return(mockNameServices)
@@ -273,7 +299,7 @@ func TestDdnsModify(t *testing.T) {
 
 		overrideProvider(t, newOntapProvider(ctx))
 
-		err := activity.DdnsModify(ctx, node, externalSVMUUID, fqdn)
+		_, err := env.ExecuteActivity(activity.DdnsModify, node, externalSVMUUID, fqdn)
 		assert.NoError(t, err)
 
 		mockClient.AssertExpectations(t)
@@ -281,6 +307,10 @@ func TestDdnsModify(t *testing.T) {
 	})
 
 	t.Run("error_provider_not_ontap", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.DdnsModify)
+
 		mockProvider := vsa.NewMockProvider(t)
 		originalGetProvider := hyperscaler2.GetProviderByNode
 		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
@@ -288,19 +318,23 @@ func TestDdnsModify(t *testing.T) {
 		}
 		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
 
-		err := activity.DdnsModify(ctx, node, externalSVMUUID, fqdn)
+		_, err := env.ExecuteActivity(activity.DdnsModify, node, externalSVMUUID, fqdn)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "provider is not OntapRestProvider")
 	})
 
 	t.Run("error_provider_lookup_fails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.DdnsModify)
+
 		originalGetProvider := hyperscaler2.GetProviderByNode
 		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
 		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
 
-		err := activity.DdnsModify(ctx, node, externalSVMUUID, fqdn)
+		_, err := env.ExecuteActivity(activity.DdnsModify, node, externalSVMUUID, fqdn)
 		assert.Error(t, err)
 	})
 }
@@ -314,6 +348,10 @@ func TestCreateJunctionPathForCifsShare(t *testing.T) {
 	junctionPath := "/test/junction"
 
 	t.Run("success_creates_share", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
+
 		mockClient := new(ontapRest.MockRESTClient)
 		mockNAS := new(ontapRest.MockNASClient)
 		mockClient.On("NAS").Return(mockNAS)
@@ -332,36 +370,44 @@ func TestCreateJunctionPathForCifsShare(t *testing.T) {
 		})
 		t.Cleanup(cleanupHooks)
 
-	overrideProvider(t, newOntapProvider(ctx))
+		overrideProvider(t, newOntapProvider(ctx))
 
-	err := activity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath, []string{})
-	assert.NoError(t, err)
+		_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, node, svmName, junctionPath, []string{})
+		assert.NoError(t, err)
 
 		mockClient.AssertExpectations(t)
 		mockNAS.AssertExpectations(t)
 	})
 
 	t.Run("error_provider_not_ontap", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
+
 		mockProvider := vsa.NewMockProvider(t)
 		originalGetProvider := hyperscaler2.GetProviderByNode
 		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
-		return mockProvider, nil
-	}
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
 
-	err := activity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath, []string{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "provider is not OntapRestProvider")
+		_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, node, svmName, junctionPath, []string{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "provider is not OntapRestProvider")
 	})
 
 	t.Run("error_provider_lookup_fails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
+
 		originalGetProvider := hyperscaler2.GetProviderByNode
 		hyperscaler2.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
-		return nil, errors.New("provider error")
-	}
-	defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+			return nil, errors.New("provider error")
+		}
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
 
-	err := activity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath, []string{})
-	assert.Error(t, err)
+		_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, node, svmName, junctionPath, []string{})
+		assert.Error(t, err)
 	})
 }

@@ -23,7 +23,9 @@ import (
 )
 
 var (
-	thinCloneGASupport = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+	thinCloneGASupport           = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+	volumeStartToCloseTimeoutSec = env.GetUint64("VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC", 600)
+	volumeHeartbeatTimeoutSec    = env.GetUint64("VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC", 300)
 )
 
 type volumeCreateWorkflow struct {
@@ -124,7 +126,8 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 		return nil, err
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -190,7 +193,8 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 		return nil, err
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -316,7 +320,8 @@ func EnsureCIFSShareWorkflow(ctx workflow.Context, volume *datamodel.Volume, nod
 
 	// Set activity options
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			MaximumInterval:        retryPolicy.MaximumInterval,
@@ -392,7 +397,8 @@ var (
 
 func _getActivityOptionsForEnsureCIFSShareVolumeActivity(retryPolicy *WorkflowRetryPolicy) workflow.ActivityOptions {
 	return workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			MaximumInterval:        60 * time.Second,
@@ -412,7 +418,8 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 		return nil, err
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -558,7 +565,8 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

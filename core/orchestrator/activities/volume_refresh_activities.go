@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"gorm.io/gorm"
 )
 
@@ -50,6 +51,7 @@ func (a *VolumeRefreshActivity) GetDBVolumesForPool(ctx context.Context, pool *d
 func (a *VolumeRefreshActivity) GetOntapVolumes(ctx context.Context, pool *datamodel.Pool) (*GetOntapVolumesReturnValue, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting GetOntapVolumes activity")
 
 	provider, err := GetOntapRestProviderForPool(ctx, se, pool)
 	if err != nil || provider == nil {
@@ -68,6 +70,7 @@ func (a *VolumeRefreshActivity) GetOntapVolumes(ctx context.Context, pool *datam
 
 	ontapVolumeMap := getFilteredOntapVolumesMapByUUID(ontapVolumes)
 
+	activity.RecordHeartbeat(ctx, "Finished GetOntapVolumes activity")
 	return &GetOntapVolumesReturnValue{
 		OntapVolumeMap: ontapVolumeMap,
 	}, nil
@@ -110,6 +113,7 @@ type ProcessVolumePoolMappingResult struct {
 // This activity extracts and organizes pool information for efficient processing
 func (a *VolumeRefreshActivity) ProcessVolumePoolMapping(ctx context.Context, input *ProcessVolumePoolMappingInput) (*ProcessVolumePoolMappingResult, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting ProcessVolumePoolMapping activity")
 
 	if input == nil || len(input.Volumes) == 0 {
 		return &ProcessVolumePoolMappingResult{
@@ -147,6 +151,8 @@ func (a *VolumeRefreshActivity) ProcessVolumePoolMapping(ctx context.Context, in
 
 	logger.Infof("Processed %d unique pools from %d volumes", len(poolByUUID), len(input.Volumes))
 
+	activity.RecordHeartbeat(ctx, "Finished ProcessVolumePoolMapping activity")
+
 	return &ProcessVolumePoolMappingResult{
 		PoolByUUID: poolByUUID,
 		PoolUUIDs:  poolUUIDs,
@@ -173,6 +179,8 @@ type ProcessOntapVolumeMatchingResult struct {
 func (a *VolumeRefreshActivity) ProcessOntapVolumeMatching(ctx context.Context, input *ProcessOntapVolumeMatchingInput) (*ProcessOntapVolumeMatchingResult, error) {
 	logger := util.GetLogger(ctx)
 
+	activity.RecordHeartbeat(ctx, "Starting ProcessOntapVolumeMatching activity")
+
 	if input == nil {
 		return nil, fmt.Errorf("ProcessOntapVolumeMatching input cannot be nil")
 	}
@@ -197,6 +205,7 @@ func (a *VolumeRefreshActivity) ProcessOntapVolumeMatching(ctx context.Context, 
 	logger.Infof("Volume matching completed: %d matched, %d not found in ONTAP",
 		result.MatchedCount, result.NotFoundCount)
 
+	activity.RecordHeartbeat(ctx, "Finished ProcessOntapVolumeMatching activity")
 	return result, nil
 }
 
@@ -312,6 +321,7 @@ func (a *VolumeRefreshActivity) validateOntapVolume(ontapVolume *vsa.Volume) err
 
 func _syncUpdatedVolumesToDatabase(ctx context.Context, se database.Storage, dbVols map[string]*datamodel.Volume) error {
 	log := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting SyncUpdatedVolumesToDatabase activity")
 
 	if len(dbVols) == 0 {
 		log.Debugf("No volumes to update in the database")
@@ -345,7 +355,7 @@ func _syncUpdatedVolumesToDatabase(ctx context.Context, se database.Storage, dbV
 			return err
 		}
 	}
-
+	activity.RecordHeartbeat(ctx, "Finished SyncUpdatedVolumesToDatabase activity")
 	log.Debugf("Successfully updated %d volumes using field updates", len(dbVols))
 	return nil
 }
@@ -368,8 +378,8 @@ func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:           nodes,
-		DeploymentName:  pool.DeploymentName,
+		Nodes:            nodes,
+		DeploymentName:   pool.DeploymentName,
 		OntapCredentials: pool.PoolCredentials,
 	})
 
@@ -392,6 +402,7 @@ type UpdateAccountVolumeRefreshTimestampInput struct {
 func (a *VolumeRefreshActivity) UpdateAccountVolumeRefreshTimestamp(ctx context.Context, input *UpdateAccountVolumeRefreshTimestampInput) error {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting UpdateAccountVolumeRefreshTimestamp activity")
 
 	if input == nil {
 		return fmt.Errorf("UpdateAccountVolumeRefreshTimestamp input cannot be nil")
@@ -414,5 +425,6 @@ func (a *VolumeRefreshActivity) UpdateAccountVolumeRefreshTimestamp(ctx context.
 	logger.Infof("Successfully updated VolumeRefreshWorkflow completion timestamp for account %s",
 		input.AccountUUID)
 
+	activity.RecordHeartbeat(ctx, "Finished UpdateAccountVolumeRefreshTimestamp activity")
 	return nil
 }

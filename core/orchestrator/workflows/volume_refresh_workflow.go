@@ -100,6 +100,7 @@ func (wf *volumeMetricHydrationWorkflow) Run(ctx workflow.Context, args ...inter
 
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: startToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

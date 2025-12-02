@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"testing"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 	hgoogle "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -156,55 +156,87 @@ func TestGetNode(t *testing.T) {
 
 func TestUpdateSvmActiveDirectory(t *testing.T) {
 	t.Run("skips update when association already present", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := CommonActivities{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
-		svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}, ActiveDirectoryID: sql.NullInt64{Int64: 7, Valid: true}}
-		params := UpdateSvmActiveDirectoryParams{Svm: svm, ActiveDirectoryUUID: "ad-uuid"}
+		// Register the activity
+		env.RegisterActivity(activity.UpdateSvmActiveDirectory)
 
-		result, err := activity.UpdateSvmActiveDirectory(ctx, params)
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+			ActiveDirectoryID: sql.NullInt64{
+				Int64: 123,
+				Valid: true,
+			},
+		}
+		params := UpdateSvmActiveDirectoryParams{
+			Svm:                 svm,
+			ActiveDirectoryUUID: "ad-uuid",
+		}
+
+		// Execute with Temporal test environment
+		val, err := env.ExecuteActivity(activity.UpdateSvmActiveDirectory, params)
 
 		assert.NoError(tt, err)
+		var result *datamodel.Svm
+		_ = val.Get(&result)
 		assert.Equal(tt, svm, result)
-		mockStorage.AssertNotCalled(tt, "GetActiveDirectoryByUUID", mock.Anything, mock.Anything)
-		mockStorage.AssertNotCalled(tt, "UpdateSvmActiveDirectoryID", mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("returns error when Active Directory not found", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := CommonActivities{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Register the activity
+		env.RegisterActivity(activity.UpdateSvmActiveDirectory)
 
 		svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}}
 		params := UpdateSvmActiveDirectoryParams{Svm: svm, ActiveDirectoryUUID: "missing-ad"}
 
-		mockStorage.On("GetActiveDirectoryByUUID", ctx, "missing-ad").Return((*datamodel.ActiveDirectory)(nil), nil)
+		mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "missing-ad").Return((*datamodel.ActiveDirectory)(nil), nil)
 
-		result, err := activity.UpdateSvmActiveDirectory(ctx, params)
+		val, err := env.ExecuteActivity(activity.UpdateSvmActiveDirectory, params)
 
 		assert.Error(tt, err)
+		var result *datamodel.Svm
+		if val != nil {
+			_ = val.Get(&result)
+		}
 		assert.Nil(tt, result)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("associates SVM when Active Directory ID missing", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := CommonActivities{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Register the activity
+		env.RegisterActivity(activity.UpdateSvmActiveDirectory)
 
 		svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}}
 		params := UpdateSvmActiveDirectoryParams{Svm: svm, ActiveDirectoryUUID: "ad-uuid"}
 
 		ad := &datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 11, UUID: "ad-uuid"}}
 		updatedSvm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}, ActiveDirectoryID: sql.NullInt64{Int64: ad.ID, Valid: true}}
+		updatedSvm.ActiveDirectory = ad
 
-		mockStorage.On("GetActiveDirectoryByUUID", ctx, "ad-uuid").Return(ad, nil)
-		mockStorage.On("UpdateSvmActiveDirectoryID", ctx, svm, ad.ID).Return(updatedSvm, nil)
+		mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid").Return(ad, nil)
+		mockStorage.On("UpdateSvmActiveDirectoryID", mock.Anything, svm, ad.ID).Return(updatedSvm, nil)
 
-		result, err := activity.UpdateSvmActiveDirectory(ctx, params)
+		val, err := env.ExecuteActivity(activity.UpdateSvmActiveDirectory, params)
 
 		assert.NoError(tt, err)
+		var result *datamodel.Svm
+		_ = val.Get(&result)
 		assert.Equal(tt, updatedSvm, result)
 		assert.Equal(tt, ad, result.ActiveDirectory)
 		mockStorage.AssertExpectations(tt)
@@ -2096,31 +2128,49 @@ func Test_splitAndTrim_WithEmptyValues(t *testing.T) {
 }
 
 func TestCommonActivities_GetSVM_Error(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
-	mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(nil, errors.New("db error"))
+	// Register the activity
+	env.RegisterActivity(activity.GetSVM)
 
-	svm, err := activity.GetSVM(ctx, 1)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(nil, errors.New("db error"))
+
+	val, err := env.ExecuteActivity(activity.GetSVM, int64(1))
 	assert.Error(t, err)
+	var svm *datamodel.Svm
+	if val != nil {
+		_ = val.Get(&svm)
+	}
 	assert.Nil(t, svm)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestCommonActivities_GetSVM_NilSVM(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Register the activity
+	env.RegisterActivity(activity.GetSVM)
 
 	// When svm is nil but err is nil, the function wraps nil error
 	// This tests line 161 where WrapAsTemporalApplicationError is called with nil err
-	mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return((*datamodel.Svm)(nil), nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return((*datamodel.Svm)(nil), nil)
 
-	svm, err := activity.GetSVM(ctx, 1)
+	val, err := env.ExecuteActivity(activity.GetSVM, int64(1))
 	// The function checks `if err != nil || svm == nil`, so when svm is nil, it wraps the error
 	// WrapAsTemporalApplicationError(nil) returns nil, so err will be nil
 	// The important thing is that line 161 is covered
+	var svm *datamodel.Svm
+	if val != nil {
+		_ = val.Get(&svm)
+	}
 	assert.Nil(t, svm)
 	_ = err // err is nil when WrapAsTemporalApplicationError(nil) is called
 	mockStorage.AssertExpectations(t)
@@ -2128,107 +2178,155 @@ func TestCommonActivities_GetSVM_NilSVM(t *testing.T) {
 }
 
 func TestCommonActivities_UpdateSvmActiveDirectory_NilSVM(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Register the activity
+	env.RegisterActivity(activity.UpdateSvmActiveDirectory)
 
 	params := UpdateSvmActiveDirectoryParams{Svm: nil, ActiveDirectoryUUID: "ad-uuid"}
-	result, err := activity.UpdateSvmActiveDirectory(ctx, params)
+	val, err := env.ExecuteActivity(activity.UpdateSvmActiveDirectory, params)
 	assert.Error(t, err)
+	var result *datamodel.Svm
+	if val != nil {
+		_ = val.Get(&result)
+	}
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "svm is nil")
 }
 
 func TestCommonActivities_UpdateSvmActiveDirectory_EmptyADUUID(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Register the activity
+	env.RegisterActivity(activity.UpdateSvmActiveDirectory)
 
 	svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}}
 	params := UpdateSvmActiveDirectoryParams{Svm: svm, ActiveDirectoryUUID: ""}
-	result, err := activity.UpdateSvmActiveDirectory(ctx, params)
+	val, err := env.ExecuteActivity(activity.UpdateSvmActiveDirectory, params)
 	assert.Error(t, err)
+	var result *datamodel.Svm
+	if val != nil {
+		_ = val.Get(&result)
+	}
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "active directory uuid is empty")
 }
 
 func TestCommonActivities_UpdateSvmActiveDirectory_GetADError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Register the activity
+	env.RegisterActivity(activity.UpdateSvmActiveDirectory)
 
 	svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}}
 	params := UpdateSvmActiveDirectoryParams{Svm: svm, ActiveDirectoryUUID: "ad-uuid"}
-	mockStorage.On("GetActiveDirectoryByUUID", ctx, "ad-uuid").Return(nil, errors.New("db error"))
+	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid").Return(nil, errors.New("db error"))
 
-	result, err := activity.UpdateSvmActiveDirectory(ctx, params)
+	val, err := env.ExecuteActivity(activity.UpdateSvmActiveDirectory, params)
 	assert.Error(t, err)
+	var result *datamodel.Svm
+	if val != nil {
+		_ = val.Get(&result)
+	}
 	assert.Nil(t, result)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestCommonActivities_UpdateSvmActiveDirectory_UpdateError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Register the activity
+	env.RegisterActivity(activity.UpdateSvmActiveDirectory)
 
 	svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}}
 	params := UpdateSvmActiveDirectoryParams{Svm: svm, ActiveDirectoryUUID: "ad-uuid"}
 	ad := &datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 11, UUID: "ad-uuid"}}
-	mockStorage.On("GetActiveDirectoryByUUID", ctx, "ad-uuid").Return(ad, nil)
-	mockStorage.On("UpdateSvmActiveDirectoryID", ctx, svm, ad.ID).Return(nil, errors.New("update error"))
+	mockStorage.On("GetActiveDirectoryByUUID", mock.Anything, "ad-uuid").Return(ad, nil)
+	mockStorage.On("UpdateSvmActiveDirectoryID", mock.Anything, svm, ad.ID).Return(nil, errors.New("update error"))
 
-	result, err := activity.UpdateSvmActiveDirectory(ctx, params)
+	val, err := env.ExecuteActivity(activity.UpdateSvmActiveDirectory, params)
 	assert.Error(t, err)
+	var result *datamodel.Svm
+	if val != nil {
+		_ = val.Get(&result)
+	}
 	assert.Nil(t, result)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestCommonActivities_CreateFirewallRule_EmptyFirewallRuleName(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := CommonActivities{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateFirewallRule)
 
 	params := CreateFirewallRuleParams{
 		FirewallRuleName: "",
 		Project:          "project",
 		Network:          "network",
 	}
-	err := activity.CreateFirewallRule(ctx, params)
+	_, err := env.ExecuteActivity(activity.CreateFirewallRule, params)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "firewall rule name is empty")
 }
 
 func TestCommonActivities_CreateFirewallRule_EmptyProject(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := CommonActivities{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateFirewallRule)
 
 	params := CreateFirewallRuleParams{
 		FirewallRuleName: "rule-name",
 		Project:          "",
 		Network:          "network",
 	}
-	err := activity.CreateFirewallRule(ctx, params)
+	_, err := env.ExecuteActivity(activity.CreateFirewallRule, params)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "firewall project is empty")
 }
 
 func TestCommonActivities_CreateFirewallRule_EmptyNetwork(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := CommonActivities{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateFirewallRule)
 
 	params := CreateFirewallRuleParams{
 		FirewallRuleName: "rule-name",
 		Project:          "project",
 		Network:          "",
 	}
-	err := activity.CreateFirewallRule(ctx, params)
+	_, err := env.ExecuteActivity(activity.CreateFirewallRule, params)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "firewall network is empty")
 }
 
 func TestCommonActivities_CreateFirewallRule_GetGCPServiceError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := CommonActivities{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateFirewallRule)
 
 	origGetGCPService := hyperscaler2.GetGCPService
 	defer func() { hyperscaler2.GetGCPService = origGetGCPService }()
@@ -2242,14 +2340,17 @@ func TestCommonActivities_CreateFirewallRule_GetGCPServiceError(t *testing.T) {
 		Project:          "project",
 		Network:          "network",
 	}
-	err := activity.CreateFirewallRule(ctx, params)
+	_, err := env.ExecuteActivity(activity.CreateFirewallRule, params)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "gcp service error")
 }
 
 func TestCommonActivities_CreateFirewallRule_InsertFirewallError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := CommonActivities{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateFirewallRule)
 
 	origGetGCPService := hyperscaler2.GetGCPService
 	origInsertFirewall := InsertFirewall
@@ -2271,14 +2372,17 @@ func TestCommonActivities_CreateFirewallRule_InsertFirewallError(t *testing.T) {
 		Project:          "project",
 		Network:          "network",
 	}
-	err := activity.CreateFirewallRule(ctx, params)
+	_, err := env.ExecuteActivity(activity.CreateFirewallRule, params)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "insert firewall error")
 }
 
 func TestCommonActivities_CreateFirewallRule_WithILBHealthCheckFirewallName(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := CommonActivities{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateFirewallRule)
 
 	origGetGCPService := hyperscaler2.GetGCPService
 	origInsertFirewall := InsertFirewall
@@ -2301,13 +2405,16 @@ func TestCommonActivities_CreateFirewallRule_WithILBHealthCheckFirewallName(t *t
 		Project:          "project",
 		Network:          "network",
 	}
-	err := activity.CreateFirewallRule(ctx, params)
+	_, err := env.ExecuteActivity(activity.CreateFirewallRule, params)
 	assert.NoError(t, err)
 }
 
 func TestCommonActivities_CreateFirewallRule_WithEmptyOperation(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := CommonActivities{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateFirewallRule)
 
 	origGetGCPService := hyperscaler2.GetGCPService
 	origInsertFirewall := InsertFirewall
@@ -2329,7 +2436,7 @@ func TestCommonActivities_CreateFirewallRule_WithEmptyOperation(t *testing.T) {
 		Project:          "project",
 		Network:          "network",
 	}
-	err := activity.CreateFirewallRule(ctx, params)
+	_, err := env.ExecuteActivity(activity.CreateFirewallRule, params)
 	assert.NoError(t, err)
 }
 
@@ -2483,22 +2590,37 @@ func TestCommonActivities_ILBHealthCheckFirewall_WithEmptyOperation(t *testing.T
 
 // Unit tests for GetSVM and GetPoolBySvmPoolId
 func TestCommonActivities_GetSVM(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), "logger", struct{}{})
+
+	// Register the activity
+	env.RegisterActivity(activity.GetSVM)
 
 	svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}}
-	mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
-	result, err := activity.GetSVM(ctx, 1)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+	val, err := env.ExecuteActivity(activity.GetSVM, int64(1))
 	assert.NoError(t, err)
+	var result *datamodel.Svm
+	_ = val.Get(&result)
 	assert.Equal(t, svm, result)
 	mockStorage.AssertExpectations(t)
 
+	testSuite2 := &testsuite.WorkflowTestSuite{}
+	env2 := testSuite2.NewTestActivityEnvironment()
+
 	mockStorage2 := database.NewMockStorage(t)
 	activity2 := CommonActivities{SE: mockStorage2}
-	mockStorage2.On("GetSvmForPoolID", ctx, int64(2)).Return(nil, errors2.New("db error"))
-	result2, err2 := activity2.GetSVM(ctx, 2)
+	env2.RegisterActivity(activity2.GetSVM)
+	mockStorage2.On("GetSvmForPoolID", mock.Anything, int64(2)).Return(nil, errors2.New("db error"))
+	val2, err2 := env2.ExecuteActivity(activity2.GetSVM, int64(2))
 	assert.Error(t, err2)
+	var result2 *datamodel.Svm
+	if val2 != nil {
+		_ = val2.Get(&result2)
+	}
 	assert.Nil(t, result2)
 	mockStorage2.AssertExpectations(t)
 }
@@ -2525,37 +2647,60 @@ func TestCommonActivities_GetPoolBySvmPoolId(t *testing.T) {
 }
 
 func TestCommonActivities_UnsetSvmActiveDirectory_NilSVM(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
-	result, err := activity.UnsetSvmActiveDirectory(ctx, nil)
+	// Register the activity
+	env.RegisterActivity(activity.UnsetSvmActiveDirectory)
+
+	val, err := env.ExecuteActivity(activity.UnsetSvmActiveDirectory, (*datamodel.Svm)(nil))
 	assert.Error(t, err)
+	var result *datamodel.Svm
+	if val != nil {
+		_ = val.Get(&result)
+	}
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "svm is nil")
 }
 
 func TestCommonActivities_UnsetSvmActiveDirectory_Error(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Register the activity
+	env.RegisterActivity(activity.UnsetSvmActiveDirectory)
 
 	svm := &datamodel.Svm{
 		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
 		PoolID:    1,
 	}
-	mockStorage.On("UnsetSvmActiveDirectoryID", ctx, svm).Return(nil, errors.New("database error"))
+	mockStorage.On("UnsetSvmActiveDirectoryID", mock.Anything, svm).Return(nil, errors.New("database error"))
 
-	result, err := activity.UnsetSvmActiveDirectory(ctx, svm)
+	val, err := env.ExecuteActivity(activity.UnsetSvmActiveDirectory, svm)
 	assert.Error(t, err)
+	var result *datamodel.Svm
+	if val != nil {
+		_ = val.Get(&result)
+	}
 	assert.Nil(t, result)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestCommonActivities_UnsetSvmActiveDirectory_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Register the activity
+	env.RegisterActivity(activity.UnsetSvmActiveDirectory)
 
 	svm := &datamodel.Svm{
 		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
@@ -2565,10 +2710,12 @@ func TestCommonActivities_UnsetSvmActiveDirectory_Success(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
 		PoolID:    1,
 	}
-	mockStorage.On("UnsetSvmActiveDirectoryID", ctx, svm).Return(updatedSvm, nil)
+	mockStorage.On("UnsetSvmActiveDirectoryID", mock.Anything, svm).Return(updatedSvm, nil)
 
-	result, err := activity.UnsetSvmActiveDirectory(ctx, svm)
+	val, err := env.ExecuteActivity(activity.UnsetSvmActiveDirectory, svm)
 	assert.NoError(t, err)
+	var result *datamodel.Svm
+	_ = val.Get(&result)
 	assert.NotNil(t, result)
 	assert.Equal(t, updatedSvm, result)
 	mockStorage.AssertExpectations(t)

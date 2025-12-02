@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
 
 var getOntapRestProvider = _getOntapRestProvider
@@ -43,6 +44,7 @@ type GetOrCreateCifsServiceResult struct {
 // CreateOrModifyADDNS creates or modifies Active Directory DNS configuration
 func (a ActiveDirectoryActivity) CreateOrModifyADDNS(ctx context.Context, node *models.Node, ad *vsa.ActiveDirectory, svmName, externalSVMUUID string) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting CreateOrModifyADDNS activity")
 
 	ontapProvider, err := getOntapRestProvider(ctx, node)
 	if err != nil {
@@ -98,6 +100,7 @@ func (a ActiveDirectoryActivity) CreateOrModifyADDNS(ctx context.Context, node *
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished CreateOrModifyADDNS activity")
 	return nil
 }
 
@@ -118,6 +121,7 @@ func (a ActiveDirectoryActivity) GetCifsService(ctx context.Context, node *model
 // Returns information about the service state
 func (a ActiveDirectoryActivity) GetOrCreateCifsService(ctx context.Context, node *models.Node, ad *vsa.ActiveDirectory, svmName, externalSVMUUID string) (*GetOrCreateCifsServiceResult, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting GetOrCreateCifsService activity")
 
 	decryptedPassword, err := utils.DecryptPassword(ad.Password)
 	if err != nil {
@@ -178,13 +182,14 @@ func (a ActiveDirectoryActivity) GetOrCreateCifsService(ctx context.Context, nod
 	}
 
 	logger.Info("CIFS service already exists", "svm", externalSVMUUID, "name", cifs.Name, "needsDDNS", result.NeedsDDNS)
+	activity.RecordHeartbeat(ctx, "Finished GetOrCreateCifsService activity")
 	return result, nil
 }
 
 // DdnsModify enables DDNS (Dynamic DNS) for the CIFS service
 func (a ActiveDirectoryActivity) DdnsModify(ctx context.Context, node *models.Node, externalSVMUUID, fqdn string) error {
 	logger := util.GetLogger(ctx)
-
+	activity.RecordHeartbeat(ctx, "Starting DDnsModify activity")
 	ontapProvider, err := getOntapRestProvider(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -208,6 +213,7 @@ func (a ActiveDirectoryActivity) DdnsModify(ctx context.Context, node *models.No
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished DDnsModify activity")
 	logger.Info("Successfully enabled DDNS", "svm", externalSVMUUID, "fqdn", fqdn)
 	return nil
 }
@@ -215,6 +221,7 @@ func (a ActiveDirectoryActivity) DdnsModify(ctx context.Context, node *models.No
 // CreateJunctionPathForCifsShare creates a CIFS share for the junction path
 func (a ActiveDirectoryActivity) CreateJunctionPathForCifsShare(ctx context.Context, node *models.Node, svmName, junctionPath string, smbshareProperties []string) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting CreateJunctionPathForCifsShare activity")
 
 	ontapProvider, err := getOntapRestProvider(ctx, node)
 	if err != nil {
@@ -240,7 +247,7 @@ func (a ActiveDirectoryActivity) CreateJunctionPathForCifsShare(ctx context.Cont
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}
-
+	activity.RecordHeartbeat(ctx, "Finished CreateJunctionPathForCifsShare activity")
 	logger.Info("Successfully created CIFS share", "svm", svmName, "junctionPath", junctionPath)
 	return nil
 }

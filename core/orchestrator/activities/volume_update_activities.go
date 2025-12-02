@@ -18,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
 
 const (
@@ -41,6 +42,8 @@ type VolumeUpdateActivity struct {
 func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeInONTAP activity")
+
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -87,6 +90,8 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debugf("Volume %s updated successfully in ontap", volume.Name)
+
+	activity.RecordHeartbeat(ctx, "Finished UpdateVolumeInONTAP activity")
 	return nil
 }
 
@@ -153,6 +158,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeJunctionpath(ctx context.Context, vol
 // GetVolumeFromONTAP retrieves the volume from ONTAP
 func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting GetVolumeFromONTAP activity")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -173,12 +179,16 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 		logger.Errorf("Failed to get volume %s from ONTAP: %v", volume.Name, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
+	activity.RecordHeartbeat(ctx, "Finished GetVolumeFromONTAP activity")
 	return volumeRes, nil
 }
 
 // UpdateLun updates the LUN associated with the volume in the VSA cluster
 func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.Volume, volResponse *vsa.VolumeResponse, node *models.Node) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting UpdateLun activity")
+
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -222,11 +232,15 @@ func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrLunUpdate, err))
 	}
 	logger.Debugf("Lun %s updated successfully in vsa cluster", volume.Name)
+
+	activity.RecordHeartbeat(ctx, "Finished UpdateLun activity")
 	return LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
 }
 
 func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Context, volume *datamodel.Volume, iGroups []string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting EnsureHostGroupsExistsAndMapDisk activity")
+
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -246,12 +260,15 @@ func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Cont
 	}
 
 	for _, hostGroup := range hgs {
+		activity.RecordHeartbeat(ctx, "Ensuring HostGroup "+hostGroup.Name+" exists for volume "+volume.Name)
+
 		// Check if the hostGroup already exists
 		exists, _, err := provider.IgroupExists(hostGroup.Name, &volume.Svm.Name)
 		if err != nil {
 			return err
 		}
 		if !exists {
+			activity.RecordHeartbeat(ctx, "Creating HostGroup "+hostGroup.Name+" for volume "+volume.Name)
 			// Create the hostGroup if it doesn't exist
 			if _, err = provider.IgroupCreate(vsa.IgroupCreateParams{
 				IgroupName: hostGroup.Name,
@@ -278,12 +295,14 @@ func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Cont
 		return err
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished EnsureHostGroupsExistsAndMapDisk activity")
 	return nil
 }
 
 // UnmapHostGroupFromDisk deletes the Disk HostGroup map
 func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volume *datamodel.Volume, iGroupUUIDs []string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting UnmapHostGroupFromDisk activity")
 	se := a.SE
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -297,6 +316,8 @@ func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volum
 		lunUUID = volume.VolumeAttributes.BlockProperties.LunUUID
 	}
 	for _, iGroupUUID := range iGroupUUIDs {
+		activity.RecordHeartbeat(ctx, "Unmapping HostGroup "+iGroupUUID+" from volume "+volume.Name)
+
 		hgMapsToDelete, err := a.SE.GetHostGroup(ctx, iGroupUUID, volume.AccountID)
 		if err != nil {
 			return err
@@ -311,6 +332,7 @@ func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volum
 			logger.Debugf("IGroup %s not found in vsa cluster, skipping unmapping lun map and igroup delete", iGroupUUID)
 			continue
 		}
+		activity.RecordHeartbeat(ctx, "Deleting lun map for igroup "+iGroupUUID+" from volume "+volume.Name)
 		err = provider.LunMapDelete(vsa.LunMapDeleteParams{
 			LunUUID:    lunUUID,
 			IGroupUUID: *iGroupOntap.UUID,
@@ -320,6 +342,7 @@ func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volum
 			return err
 		}
 
+		activity.RecordHeartbeat(ctx, "Fetching all volumes for HostGroup "+iGroupUUID+" to check if it can be deleted for volume "+volume.Name)
 		// Fetch all volumes for the HG and delete the IGroup which doesn't have any volume in current pool
 		hgAttachedVolumes, err := se.GetAllVolumesForHG(ctx, iGroupUUID, volume.AccountID)
 		if err != nil {
@@ -334,8 +357,9 @@ func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volum
 				break
 			}
 		}
-
+		activity.RecordHeartbeat(ctx, "Checking if HostGroup "+iGroupUUID+" can be deleted for volume "+volume.Name)
 		if deleteIGroup {
+			activity.RecordHeartbeat(ctx, "Deleting igroup "+iGroupUUID+" from volume "+volume.Name)
 			err = provider.IgroupDelete(*iGroupOntap.UUID)
 			if err != nil {
 				logger.Errorf("Failed to delete igroup %s: %v", iGroupUUID, err)
@@ -343,6 +367,8 @@ func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volum
 			}
 		}
 	}
+
+	activity.RecordHeartbeat(ctx, "Finished UnmapHostGroupFromDisk activity")
 	return nil
 }
 
@@ -366,6 +392,8 @@ func _hostGroupsUpdateDiffForVolume(existingIGroups []string, newIGroups []strin
 // UpdateVolumeInDB updates the volume in the database with the new parameters
 func (a *VolumeUpdateActivity) UpdateVolumeInDB(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeInDB activity")
+
 	updatedFields, err := prepareFieldsForUpdate(ctx, a.SE, volume, params)
 	if err != nil {
 		logger.Errorf("Failed to prepareFieldsForUpdate for the volume %s in the database: %v", volume.UUID, err)
@@ -378,6 +406,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeInDB(ctx context.Context, volume *dat
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished UpdateVolumeInDB activity")
 	logger.Debugf("Volume %s updated successfully in the database", volume.UUID)
 	return nil
 }
@@ -686,6 +715,7 @@ func (a *VolumeUpdateActivity) CreateScheduleForBackupPolicy(ctx context.Context
 // UpdateJunctionPathInONTAP updates the junction path for a volume in ONTAP
 func (a *VolumeUpdateActivity) UpdateJunctionPathInONTAP(ctx context.Context, volume *datamodel.Volume, junctionPath string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting UpdateJunctionPathInONTAP activity")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -700,6 +730,7 @@ func (a *VolumeUpdateActivity) UpdateJunctionPathInONTAP(ctx context.Context, vo
 	// Only proceed if junction path is different
 	if currentJunctionPath != junctionPath {
 		// If volume is currently mounted (has existing junction path), unmount it first
+		activity.RecordHeartbeat(ctx, "Unmounting volume before updating junction path")
 		logger.Debugf("Unmounting volume %s from junction path %s", volume.Name, currentJunctionPath)
 		_, err := provider.UnmountVolume(volume.VolumeAttributes.ExternalUUID)
 		if err != nil {
@@ -710,8 +741,9 @@ func (a *VolumeUpdateActivity) UpdateJunctionPathInONTAP(ctx context.Context, vo
 	}
 
 	// Now mount the volume to the new junction path
-	logger.Debugf("Mounting volume %s to new junction path %s", volume.Name,
-		junctionPath)
+	logger.Debugf("Mounting volume %s to new junction path %s", volume.Name, junctionPath)
+
+	activity.RecordHeartbeat(ctx, "Mounting volume to new junction path")
 	_, err = provider.MountVolume(vsa.MountVolumeParams{
 		UUID:         volume.VolumeAttributes.ExternalUUID,
 		JunctionPath: junctionPath,
@@ -721,6 +753,7 @@ func (a *VolumeUpdateActivity) UpdateJunctionPathInONTAP(ctx context.Context, vo
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished UpdateJunctionPathInONTAP activity")
 	logger.Debugf("Junction path updated successfully for volume %s in ONTAP", volume.Name)
 	return nil
 }
@@ -728,6 +761,8 @@ func (a *VolumeUpdateActivity) UpdateJunctionPathInONTAP(ctx context.Context, vo
 // UpdateExportPolicyRulesInONTAP updates the export policy rules for a volume in ONTAP
 func (a *VolumeUpdateActivity) UpdateExportPolicyRulesInONTAP(ctx context.Context, volume *datamodel.Volume, exportPolicy *models.ExportPolicy, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting UpdateExportPolicyRulesInONTAP activity")
+
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -773,12 +808,15 @@ func (a *VolumeUpdateActivity) UpdateExportPolicyRulesInONTAP(ctx context.Contex
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished UpdateExportPolicyRulesInONTAP activity")
 	logger.Debugf("Export policy updated successfully for volume %s in ONTAP", volume.Name)
 	return nil
 }
 
 func (a *VolumeUpdateActivity) UpdateSMBShareSettings(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting UpdateSMBShareSettings activity")
+
 	if volume == nil || params == nil {
 		logger.Warn("Parameters are empty")
 		return nil
@@ -825,5 +863,6 @@ func (a *VolumeUpdateActivity) UpdateSMBShareSettings(ctx context.Context, volum
 		return nil
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished UpdateSMBShareSettings activity")
 	return provider.UpdateCIFSServer(volume.Svm.SvmDetails.ExternalUUID, cifsShareName, params.SMBShareSettings)
 }

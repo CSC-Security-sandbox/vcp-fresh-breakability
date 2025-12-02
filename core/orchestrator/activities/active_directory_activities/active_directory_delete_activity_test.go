@@ -23,25 +23,25 @@ func TestCheckDeletionAllowed(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	ad := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
-		AdName:    "test-ad",
-		AccountId: accountID,
-	}
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
+			AdName:    "test-ad",
+			AccountId: accountID,
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
-	mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).Return([]*datamodel.Svm{}, nil)
-	mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).Return([]*datamodel.Svm{}, nil)
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 
-	result, err := activity.CheckDeletionAllowed(ctx, params)
+		result, err := activity.CheckDeletionAllowed(ctx, params)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -56,20 +56,20 @@ func TestCheckDeletionAllowed(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "non-existent-ad",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "non-existent-ad",
+			ProjectNumber:       "test-project",
+		}
 
-	// When AD is not found, the GetActiveDirectoryByUuidAndAccountId should return a NotFoundErr
-	// The activity checks for IsNotFoundErr and returns ADExists=false, DeletionAllowed=true
-	notFoundErr := customerrors.NewNotFoundErr("Active Directory", nil)
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(nil, notFoundErr)
+		// When AD is not found, the GetActiveDirectoryByUuidAndAccountId should return a NotFoundErr
+		// The activity checks for IsNotFoundErr and returns ADExists=false, DeletionAllowed=true
+		notFoundErr := customerrors.NewNotFoundErr("Active Directory", nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(nil, notFoundErr)
 
-	result, err := activity.CheckDeletionAllowed(ctx, params)
+		result, err := activity.CheckDeletionAllowed(ctx, params)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -84,29 +84,29 @@ func TestCheckDeletionAllowed(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	ad := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
-		AdName:    "test-ad",
-		AccountId: accountID,
-	}
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
+			AdName:    "test-ad",
+			AccountId: accountID,
+		}
 
-	svms := []*datamodel.Svm{
-		{BaseModel: datamodel.BaseModel{UUID: "svm-1"}, Name: "svm-1-name"},
-		{BaseModel: datamodel.BaseModel{UUID: "svm-2"}, Name: "svm-2-name"},
-	}
+		svms := []*datamodel.Svm{
+			{BaseModel: datamodel.BaseModel{UUID: "svm-1"}, Name: "svm-1-name"},
+			{BaseModel: datamodel.BaseModel{UUID: "svm-2"}, Name: "svm-2-name"},
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
-	mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).Return(svms, nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).Return(svms, nil)
 
-	result, err := activity.CheckDeletionAllowed(ctx, params)
+		result, err := activity.CheckDeletionAllowed(ctx, params)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -121,18 +121,18 @@ func TestCheckDeletionAllowed(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).
-		Return(nil, errors.New("database connection error"))
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).
+			Return(nil, errors.New("database connection error"))
 
-	result, err := activity.CheckDeletionAllowed(ctx, params)
+		result, err := activity.CheckDeletionAllowed(ctx, params)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -146,25 +146,25 @@ func TestCheckDeletionAllowed(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	ad := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
-		AdName:    "test-ad",
-		AccountId: accountID,
-	}
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
+			AdName:    "test-ad",
+			AccountId: accountID,
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
-	mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).
-		Return(nil, errors.New("failed to query SVMs"))
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).
+			Return(nil, errors.New("failed to query SVMs"))
 
-	result, err := activity.CheckDeletionAllowed(ctx, params)
+		result, err := activity.CheckDeletionAllowed(ctx, params)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -178,30 +178,30 @@ func TestCheckDeletionAllowed(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	ad := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
-		AdName:    "test-ad",
-		AccountId: accountID,
-	}
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
+			AdName:    "test-ad",
+			AccountId: accountID,
+		}
 
-	pools := []*datamodel.PoolView{
-		{Pool: datamodel.Pool{Name: "pool-1"}},
-		{Pool: datamodel.Pool{Name: "pool-2"}},
-	}
+		pools := []*datamodel.PoolView{
+			{Pool: datamodel.Pool{Name: "pool-1"}},
+			{Pool: datamodel.Pool{Name: "pool-2"}},
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
-	mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).Return([]*datamodel.Svm{}, nil)
-	mockStorage.On("ListPools", ctx, mock.Anything).Return(pools, nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).Return([]*datamodel.Svm{}, nil)
+		mockStorage.On("ListPools", ctx, mock.Anything).Return(pools, nil)
 
-	result, err := activity.CheckDeletionAllowed(ctx, params)
+		result, err := activity.CheckDeletionAllowed(ctx, params)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -216,25 +216,25 @@ func TestCheckDeletionAllowed(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	ad := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
-		AdName:    "test-ad",
-		AccountId: accountID,
-	}
+		ad := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid-123"},
+			AdName:    "test-ad",
+			AccountId: accountID,
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
-	mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).Return([]*datamodel.Svm{}, nil)
-	mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("failed to query pools"))
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, ad.ID).Return([]*datamodel.Svm{}, nil)
+		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("failed to query pools"))
 
-	result, err := activity.CheckDeletionAllowed(ctx, params)
+		result, err := activity.CheckDeletionAllowed(ctx, params)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -251,27 +251,27 @@ func TestDeleteVcpActiveDirectory(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	ad := &datamodel.ActiveDirectory{
-		BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
-		AdName:         "test-ad",
-		AccountId:      accountID,
-		CredentialPath: "projects/test-project/secrets/ad-secret",
-	}
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
+			AdName:         "test-ad",
+			AccountId:      accountID,
+			CredentialPath: "projects/test-project/secrets/ad-secret",
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
-	mockStorage.On("DeleteActiveDirectory", ctx, params.ActiveDirectoryUUID).Return(nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
+		mockStorage.On("DeleteActiveDirectory", ctx, params.ActiveDirectoryUUID).Return(nil)
 
-	// Note: Secret deletion is tested separately in integration tests
-	// as it requires GCP service initialization
-	err := activity.DeleteVcpActiveDirectory(ctx, params)
+		// Note: Secret deletion is tested separately in integration tests
+		// as it requires GCP service initialization
+		err := activity.DeleteVcpActiveDirectory(ctx, params)
 
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
@@ -283,25 +283,25 @@ func TestDeleteVcpActiveDirectory(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	ad := &datamodel.ActiveDirectory{
-		BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
-		AdName:         "test-ad",
-		AccountId:      accountID,
-		CredentialPath: "", // No credential path
-	}
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
+			AdName:         "test-ad",
+			AccountId:      accountID,
+			CredentialPath: "", // No credential path
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
-	mockStorage.On("DeleteActiveDirectory", ctx, params.ActiveDirectoryUUID).Return(nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
+		mockStorage.On("DeleteActiveDirectory", ctx, params.ActiveDirectoryUUID).Return(nil)
 
-	err := activity.DeleteVcpActiveDirectory(ctx, params)
+		err := activity.DeleteVcpActiveDirectory(ctx, params)
 
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
@@ -313,18 +313,18 @@ func TestDeleteVcpActiveDirectory(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "non-existent-ad",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "non-existent-ad",
+			ProjectNumber:       "test-project",
+		}
 
-	notFoundErr := customerrors.NewNotFoundErr("Active Directory", nil)
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(nil, notFoundErr)
+		notFoundErr := customerrors.NewNotFoundErr("Active Directory", nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(nil, notFoundErr)
 
-	err := activity.DeleteVcpActiveDirectory(ctx, params)
+		err := activity.DeleteVcpActiveDirectory(ctx, params)
 
 		assert.NoError(t, err) // Should be considered success
 		mockStorage.AssertExpectations(t)
@@ -336,27 +336,27 @@ func TestDeleteVcpActiveDirectory(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	ad := &datamodel.ActiveDirectory{
-		BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
-		AdName:         "test-ad",
-		AccountId:      accountID,
-		CredentialPath: "projects/test-project/secrets/ad-secret",
-	}
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
+			AdName:         "test-ad",
+			AccountId:      accountID,
+			CredentialPath: "projects/test-project/secrets/ad-secret",
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
-	mockStorage.On("DeleteActiveDirectory", ctx, params.ActiveDirectoryUUID).Return(nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
+		mockStorage.On("DeleteActiveDirectory", ctx, params.ActiveDirectoryUUID).Return(nil)
 
-	// Note: Secret deletion failure scenario is tested in integration tests
-	// as the function continues execution even if secret deletion fails (only logs warning)
-	err := activity.DeleteVcpActiveDirectory(ctx, params)
+		// Note: Secret deletion failure scenario is tested in integration tests
+		// as the function continues execution even if secret deletion fails (only logs warning)
+		err := activity.DeleteVcpActiveDirectory(ctx, params)
 
 		// Should still succeed even if secret deletion fails
 		assert.NoError(t, err)
@@ -369,18 +369,18 @@ func TestDeleteVcpActiveDirectory(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).
-		Return(nil, errors.New("database error"))
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).
+			Return(nil, errors.New("database error"))
 
-	err := activity.DeleteVcpActiveDirectory(ctx, params)
+		err := activity.DeleteVcpActiveDirectory(ctx, params)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "database error")
@@ -393,25 +393,25 @@ func TestDeleteVcpActiveDirectory(t *testing.T) {
 			SE: mockStorage,
 		}
 
-	ctx := context.Background()
-	accountID := int64(42)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-123",
-		ProjectNumber:       "test-project",
-	}
+		ctx := context.Background()
+		accountID := int64(42)
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           accountID,
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
+		}
 
-	ad := &datamodel.ActiveDirectory{
-		BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
-		AdName:         "test-ad",
-		AccountId:      accountID,
-		CredentialPath: "",
-	}
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "ad-uuid-123"},
+			AdName:         "test-ad",
+			AccountId:      accountID,
+			CredentialPath: "",
+		}
 
-	mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
-	mockStorage.On("DeleteActiveDirectory", ctx, params.ActiveDirectoryUUID).Return(errors.New("failed to delete from DB"))
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", ctx, params.ActiveDirectoryUUID, accountID).Return(ad, nil)
+		mockStorage.On("DeleteActiveDirectory", ctx, params.ActiveDirectoryUUID).Return(errors.New("failed to delete from DB"))
 
-	err := activity.DeleteVcpActiveDirectory(ctx, params)
+		err := activity.DeleteVcpActiveDirectory(ctx, params)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to delete from DB")

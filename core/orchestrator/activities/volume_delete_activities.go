@@ -16,6 +16,7 @@ import (
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
 )
 
@@ -25,6 +26,7 @@ type VolumeDeleteActivity struct {
 
 func (va VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volumeExternalUUID, volumeName string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting DeleteVolumeInONTAP activity")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -41,13 +43,14 @@ func (va VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volumeEx
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debugf("Volume %s deleted successfully from the vsa cluster", volumeName)
-
+	activity.RecordHeartbeat(ctx, "Finished DeleteVolumeInONTAP activity")
 	return nil
 }
 
 func (va VolumeDeleteActivity) DeleteVolume(ctx context.Context, volume *datamodel.Volume) error {
 	logger := util.GetLogger(ctx)
 	se := va.SE
+	activity.RecordHeartbeat(ctx, "Starting DeleteVolume activity")
 
 	_, err := se.DeleteVolume(ctx, volume.UUID)
 	if err != nil {
@@ -58,6 +61,7 @@ func (va VolumeDeleteActivity) DeleteVolume(ctx context.Context, volume *datamod
 	}
 	logger.Debugf("Volume:%s marked deleted successfully in the db", volume.Name)
 
+	activity.RecordHeartbeat(ctx, "Finished DeleteVolume activity")
 	return nil
 }
 
@@ -258,6 +262,7 @@ func (va VolumeDeleteActivity) DeleteLDAPConfiguration(ctx context.Context, volu
 
 func (va VolumeDeleteActivity) DetermineSmbTeardownContext(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*SmbTeardownContext, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting DetermineSmbTeardownContext activity")
 	teardown := &SmbTeardownContext{}
 
 	if volume == nil || node == nil {
@@ -370,11 +375,13 @@ func (va VolumeDeleteActivity) DetermineSmbTeardownContext(ctx context.Context, 
 
 	teardown.ShouldDelete = true
 	logger.Debugf("SMB teardown context determined for volume %s in pool %d", volume.UUID, volume.PoolID)
+	activity.RecordHeartbeat(ctx, "Finished DetermineSmbTeardownContext activity")
 	return teardown, nil
 }
 
 func (va VolumeDeleteActivity) DeleteCifsServerIfUnused(ctx context.Context, teardownCtx *SmbTeardownContext, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting DeleteCifsServerIfUnused activity")
 
 	if teardownCtx == nil || node == nil {
 		return nil
@@ -422,12 +429,14 @@ func (va VolumeDeleteActivity) DeleteCifsServerIfUnused(ctx context.Context, tea
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished DeleteCifsServerIfUnused activity")
 	logger.Infof("Deleted CIFS server for SVM %s", teardownCtx.SvmExternalUUID)
 	return nil
 }
 
 func (va VolumeDeleteActivity) DeleteDnsRecordIfUnused(ctx context.Context, teardownCtx *SmbTeardownContext, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting DeleteDnsRecordIfUnused activity")
 
 	if teardownCtx == nil || node == nil {
 		return nil
@@ -473,7 +482,7 @@ func (va VolumeDeleteActivity) DeleteDnsRecordIfUnused(ctx context.Context, tear
 		logger.Errorf("failed to delete DNS record for SVM %s: %v", teardownCtx.SvmExternalUUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
+	activity.RecordHeartbeat(ctx, "Finished DeleteDnsRecordIfUnused activity")
 	logger.Infof("Deleted DNS record for SVM %s", teardownCtx.SvmExternalUUID)
 	return nil
 }
@@ -496,6 +505,7 @@ func getCifsServerProvider(ctx context.Context, node *models.Node) (cifsServerPr
 func (vda VolumeDeleteActivity) DeleteIgroupsFromBlockProperties(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	se := vda.SE
+	activity.RecordHeartbeat(ctx, "Starting DeleteIgroupsFromBlockProperties activity")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -525,6 +535,7 @@ func (vda VolumeDeleteActivity) DeleteIgroupsFromBlockProperties(ctx context.Con
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 
+		activity.RecordHeartbeat(ctx, "Fetching Igroup details")
 		igroup, err := provider.IgroupGet(&hostgroupDB.Name, nil)
 		if err != nil {
 			if utilErrors.IsNotFoundErr(err) {
@@ -544,11 +555,13 @@ func (vda VolumeDeleteActivity) DeleteIgroupsFromBlockProperties(ctx context.Con
 
 		logger.Debug("Igroup deleted successfully", "name", hostgroup.HostGroupUUID)
 	}
+	activity.RecordHeartbeat(ctx, "Finished DeleteIgroupsFromBlockProperties activity")
 	return nil
 }
 
 func (vda VolumeDeleteActivity) DeleteIgroups(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting DeleteIgroups activity")
 	se := vda.SE
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -581,6 +594,7 @@ func (vda VolumeDeleteActivity) DeleteIgroups(ctx context.Context, volume *datam
 				return vsaerrors.WrapAsTemporalApplicationError(err)
 			}
 
+			activity.RecordHeartbeat(ctx, "Fetching Igroup details")
 			igroup, err := provider.IgroupGet(&hostgroupDB.Name, nil)
 			if err != nil {
 				if utilErrors.IsNotFoundErr(err) {
@@ -601,11 +615,13 @@ func (vda VolumeDeleteActivity) DeleteIgroups(ctx context.Context, volume *datam
 			logger.Debug("Igroup deleted successfully", "name", hostgroup.HostGroupUUID)
 		}
 	}
+	activity.RecordHeartbeat(ctx, "Finished DeleteIgroups activity")
 	return nil
 }
 
 func (vda VolumeDeleteActivity) DeleteExportPolicy(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting DeleteExportPolicy activity")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -629,6 +645,7 @@ func (vda VolumeDeleteActivity) DeleteExportPolicy(ctx context.Context, volume *
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished DeleteExportPolicy activity")
 	logger.Infof("Export policy %s deleted successfully for volume %s", exportPolicyName, volume.Name)
 	return nil
 }

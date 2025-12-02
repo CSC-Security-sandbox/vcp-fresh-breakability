@@ -17,7 +17,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -4554,6 +4553,9 @@ func TestUpdateSMBShareSettings_WorkflowIntegration(t *testing.T) {
 		// This test verifies that the volume update workflow correctly calls
 		// the UpdateSMBShareSettings activity when SMB share settings are provided
 
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -4593,16 +4595,19 @@ func TestUpdateSMBShareSettings_WorkflowIntegration(t *testing.T) {
 		mockProvider.On("UpdateCIFSServer", "test-svm-uuid", "test_share", []string{"browsable", "encrypt_data", "oplocks"}).
 			Return(nil)
 
-		// Call the UpdateSMBShareSettings activity directly to verify the workflow integration
+		// Call the UpdateSMBShareSettings activity using Temporal test environment
 		activity := activities.VolumeUpdateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.UpdateSMBShareSettings)
 
-		err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+		_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("Returns error for volumes without FileProperties", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
 			Name:      "test-volume-without-file-properties",
@@ -4620,9 +4625,9 @@ func TestUpdateSMBShareSettings_WorkflowIntegration(t *testing.T) {
 
 		// Call the UpdateSMBShareSettings activity - should return error for missing FileProperties
 		activity := activities.VolumeUpdateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.UpdateSMBShareSettings)
 
-		err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+		_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "not found")
 	})

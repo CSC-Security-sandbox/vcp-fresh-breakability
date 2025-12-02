@@ -182,12 +182,14 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 // GetSVM retrieves the SVM associated with the given pool ID.
 func (ca CommonActivities) GetSVM(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
 	se := ca.SE
+	activity.RecordHeartbeat(ctx, "Starting GetSVM activity")
 
 	svm, err := se.GetSvmForPoolID(ctx, poolID)
 	if err != nil || svm == nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished GetSVM activity")
 	return svm, nil
 }
 
@@ -205,6 +207,8 @@ func (ca CommonActivities) GetPoolBySvmPoolId(ctx context.Context, poolID int64)
 
 func (ca CommonActivities) UpdateSvmActiveDirectory(ctx context.Context, params UpdateSvmActiveDirectoryParams) (*datamodel.Svm, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting UpdateSvmActiveDirectory activity")
+
 	if params.Svm == nil {
 		logger.Error("SVM not provided for UpdateSvmActiveDirectory activity")
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("svm is nil"))
@@ -238,11 +242,14 @@ func (ca CommonActivities) UpdateSvmActiveDirectory(ctx context.Context, params 
 	}
 	updatedSvm.ActiveDirectory = ad
 
+	activity.RecordHeartbeat(ctx, "Finished UpdateSvmActiveDirectory activity")
 	return updatedSvm, nil
 }
 
 func (ca CommonActivities) UnsetSvmActiveDirectory(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting UnsetSvmActiveDirectory activity")
+
 	if svm == nil {
 		logger.Error("SVM not provided for UnsetSvmActiveDirectory activity")
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("svm is nil"))
@@ -253,12 +260,13 @@ func (ca CommonActivities) UnsetSvmActiveDirectory(ctx context.Context, svm *dat
 		logger.Error("Failed to unset SVM Active Directory", "svmUUID", svm.UUID, "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
+	activity.RecordHeartbeat(ctx, "Finished UnsetSvmActiveDirectory activity")
 	return updatedSvm, nil
 }
 
 func (ca CommonActivities) CreateFirewallRule(ctx context.Context, params CreateFirewallRuleParams) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting CreateFirewallRule activity")
 
 	if params.FirewallRuleName == "" {
 		err := fmt.Errorf("firewall rule name is empty")
@@ -305,6 +313,7 @@ func (ca CommonActivities) CreateFirewallRule(ctx context.Context, params Create
 		logger.Debug("Firewall already present", "project", params.Project, "network", params.Network, "firewall-rule-name", params.FirewallRuleName)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished CreateFirewallRule activity")
 	return nil
 }
 

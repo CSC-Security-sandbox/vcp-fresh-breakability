@@ -243,6 +243,10 @@ workerConfig:
   startToCloseTimeoutForReplicationActivities: 300
   backoffCoefficientForReplicationActivities: 1.5
 
+  # Volume activities timeout configuration (in seconds)
+  volumeActivitiesStartToCloseTimeoutSec: "600"  # 10 minutes
+  volumeActivitiesHeartbeatTimeoutSec: "300"     # 5 minutes
+
   # Snapshot workflow timeout configuration (in seconds)
   snapshotStartToCloseTimeoutSec: "300"  # 5 minutes
   snapshotHeartbeatTimeoutSec: "150"     # 2.5 minutes

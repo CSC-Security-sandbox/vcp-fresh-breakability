@@ -81,6 +81,7 @@ const (
 	ErrVLMInvalidMachineImageUpdate            = 9017
 	ErrVLMWorkflowError                        = 9018
 	ErrVLMCloudVMOffline                       = 9019
+	ErrVLMConfigParseError                     = 9020
 
 	ErrVSAClusterCreateError           = 4001
 	ErrCouldNotFetchVSAClusterDetails  = 4002
@@ -297,15 +298,15 @@ const (
 	ErrUnencryptedVolume         = 10006
 
 	// Peering specific errors (11000-11999 range)
-	ErrClusterPeerError          = 11000
-	ErrClusterPeerTimeout        = 11001
-	ErrSVMPeerError              = 11002
-	ErrSVMPeerTimeout            = 11003
-	ErrDeletingClusterPeer       = 11004
-	ErrDeletingSVMPeer           = 11005
-	ErrEstablishPeeringJobFailed = 11006
-	ErrInternalPeeringJobFailed  = 11007
-	ErrClusterPeerNotFound       = 11008
+	ErrClusterPeerError                               = 11000
+	ErrClusterPeerTimeout                             = 11001
+	ErrSVMPeerError                                   = 11002
+	ErrSVMPeerTimeout                                 = 11003
+	ErrDeletingClusterPeer                            = 11004
+	ErrDeletingSVMPeer                                = 11005
+	ErrEstablishPeeringJobFailed                      = 11006
+	ErrInternalPeeringJobFailed                       = 11007
+	ErrClusterPeerNotFound                            = 11008
 	ErrorCreateClusterPeerCVISourceClusterUnreachable = 11009
 	ErrClusterPeerNotAvailable                        = 11010
 	ErrSVMPeerNotAvailable                            = 11011

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -18,7 +17,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	logmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
 
 type ActiveDirectoryActivity struct {
@@ -32,6 +33,8 @@ var (
 // GetActiveDirectoryForPool retrieves the Active Directory configuration associated with the pool ID.
 func (a ActiveDirectoryActivity) GetActiveDirectoryForPool(ctx context.Context, poolID int64) (*vsa.ActiveDirectory, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting GetActiveDirectoryForPool activity")
+
 	activeDirectory, err := a.SE.GetActiveDirectoryForPoolByPoolID(ctx, poolID)
 	if err != nil {
 		logger.Error("Failed to fetch Active Directory for the pool", "poolID", poolID, "error", err)
@@ -41,6 +44,8 @@ func (a ActiveDirectoryActivity) GetActiveDirectoryForPool(ctx context.Context, 
 		logger.Error("Active Directory not found for the pool", "poolID", poolID)
 		return nil, errors.New("active directory not found for the pool")
 	}
+
+	activity.RecordHeartbeat(ctx, "Finished GetActiveDirectoryForPool activity")
 	return validateAndGetVsaActiveDirectory(ctx, activeDirectory)
 }
 

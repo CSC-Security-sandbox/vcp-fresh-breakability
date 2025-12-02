@@ -719,6 +719,12 @@
     "retriable": false,
     "http_code": 503
   },
+  "9020": {
+    "description": "VLM Config Parse Error",
+    "message": "An error occurred during VLM config parsing. Please contact support.",
+    "retriable": false,
+    "http_code": 500
+  },
   "7006": {
     "description": "VolumeRevert failure",
     "message": "Error reverting volume - Cannot revert a Volume Replication Destination Volume",

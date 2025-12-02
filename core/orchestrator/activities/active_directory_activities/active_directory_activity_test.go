@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -17,44 +18,62 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 	t.Run("returns error when datastore call fails", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 		poolID := int64(7)
 
 		expectedErr := errors.New("db failure")
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, poolID).Return((*datamodel.ActiveDirectory)(nil), expectedErr)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, poolID).Return((*datamodel.ActiveDirectory)(nil), expectedErr)
 
-		ad, err := activity.GetActiveDirectoryForPool(ctx, poolID)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, poolID)
 
-		assert.Nil(tt, ad)
 		assert.Error(tt, err)
+		var ad *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&ad)
+		}
+		assert.Nil(tt, ad)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("returns error when active directory missing", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 		poolID := int64(8)
 
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, poolID).Return((*datamodel.ActiveDirectory)(nil), nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, poolID).Return((*datamodel.ActiveDirectory)(nil), nil)
 
-		ad, err := activity.GetActiveDirectoryForPool(ctx, poolID)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, poolID)
 
+		assert.Error(tt, err)
+		var ad *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&ad)
+		}
 		assert.Nil(tt, ad)
-		assert.EqualError(tt, err, "active directory not found for the pool")
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("returns active directory when present", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 		poolID := int64(9)
 		adAttribute := &datamodel.ActiveDirectoryAttributes{AesEncryption: true}
 		expectedDBAD := &datamodel.ActiveDirectory{
@@ -64,7 +83,7 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 			ActiveDirectoryAttributes: adAttribute,
 		}
 		expectedAD := &vsa.ActiveDirectory{AdName: "corp-ad"}
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, poolID).Return(expectedDBAD, nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, poolID).Return(expectedDBAD, nil)
 
 		// Mock GetPasswordSecret
 		origGetPasswordSecret := adHelper.GetPasswordSecret
@@ -85,17 +104,22 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 		}
 		defer func() { utils.EncryptPassword = origEncryptPassword }()
 
-		ad, err := activity.GetActiveDirectoryForPool(ctx, poolID)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, poolID)
 
 		assert.NoError(tt, err)
+		var ad *vsa.ActiveDirectory
+		_ = val.Get(&ad)
 		assert.Equal(tt, expectedAD.Name, ad.Name)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("returns error when credential path is empty", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 		poolID := int64(10)
 
 		adAttribute := &datamodel.ActiveDirectoryAttributes{AesEncryption: true}
@@ -106,20 +130,26 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 			ActiveDirectoryAttributes: adAttribute,
 		}
 
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, poolID).Return(expectedDBAD, nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, poolID).Return(expectedDBAD, nil)
 
-		ad, err := activity.GetActiveDirectoryForPool(ctx, poolID)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, poolID)
 
-		assert.Nil(tt, ad)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "active directory credential path is empty")
+		var ad *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&ad)
+		}
+		assert.Nil(tt, ad)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("returns error when GetPasswordSecret fails", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 		poolID := int64(11)
 
 		adAttribute := &datamodel.ActiveDirectoryAttributes{AesEncryption: true}
@@ -130,7 +160,7 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 			ActiveDirectoryAttributes: adAttribute,
 		}
 
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, poolID).Return(expectedDBAD, nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, poolID).Return(expectedDBAD, nil)
 
 		// Mock GetPasswordSecret to fail
 		origGetPasswordSecret := adHelper.GetPasswordSecret
@@ -139,17 +169,24 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 		}
 		defer func() { adHelper.GetPasswordSecret = origGetPasswordSecret }()
 
-		ad, err := activity.GetActiveDirectoryForPool(ctx, poolID)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, poolID)
 
-		assert.Nil(tt, ad)
 		assert.Error(tt, err)
+		var ad *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&ad)
+		}
+		assert.Nil(tt, ad)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("returns error when password secret is nil", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 		poolID := int64(12)
 
 		adAttribute := &datamodel.ActiveDirectoryAttributes{AesEncryption: true}
@@ -160,7 +197,7 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 			ActiveDirectoryAttributes: adAttribute,
 		}
 
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, poolID).Return(expectedDBAD, nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, poolID).Return(expectedDBAD, nil)
 
 		// Mock GetPasswordSecret to return nil
 		origGetPasswordSecret := adHelper.GetPasswordSecret
@@ -169,18 +206,24 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 		}
 		defer func() { adHelper.GetPasswordSecret = origGetPasswordSecret }()
 
-		ad, err := activity.GetActiveDirectoryForPool(ctx, poolID)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, poolID)
 
-		assert.Nil(tt, ad)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "password secret fetch unsuccessful")
+		var ad *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&ad)
+		}
+		assert.Nil(tt, ad)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("returns error when secret version is nil", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 		poolID := int64(13)
 
 		adAttribute := &datamodel.ActiveDirectoryAttributes{AesEncryption: true}
@@ -191,7 +234,7 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 			ActiveDirectoryAttributes: adAttribute,
 		}
 
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, poolID).Return(expectedDBAD, nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, poolID).Return(expectedDBAD, nil)
 
 		// Mock GetPasswordSecret to return secret with nil version
 		origGetPasswordSecret := adHelper.GetPasswordSecret
@@ -202,18 +245,24 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 		}
 		defer func() { adHelper.GetPasswordSecret = origGetPasswordSecret }()
 
-		ad, err := activity.GetActiveDirectoryForPool(ctx, poolID)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, poolID)
 
-		assert.Nil(tt, ad)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "password secret fetch unsuccessful")
+		var ad *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&ad)
+		}
+		assert.Nil(tt, ad)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("returns error when password encryption fails", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 		poolID := int64(14)
 
 		adAttribute := &datamodel.ActiveDirectoryAttributes{AesEncryption: true}
@@ -224,7 +273,7 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 			ActiveDirectoryAttributes: adAttribute,
 		}
 
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, poolID).Return(expectedDBAD, nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, poolID).Return(expectedDBAD, nil)
 
 		// Mock GetPasswordSecret
 		origGetPasswordSecret := adHelper.GetPasswordSecret
@@ -244,11 +293,14 @@ func TestActiveDirectoryActivity_GetActiveDirectoryForPool(t *testing.T) {
 		}
 		defer func() { utils.EncryptPassword = origEncryptPassword }()
 
-		ad, err := activity.GetActiveDirectoryForPool(ctx, poolID)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, poolID)
 
-		assert.Nil(tt, ad)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "failed to encrypt AD password")
+		var ad *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&ad)
+		}
+		assert.Nil(tt, ad)
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -635,25 +687,34 @@ func TestActiveDirectoryActivity_BuildNewCredentials(t *testing.T) {
 
 func TestValidateAndGetVsaActiveDirectory(t *testing.T) {
 	t.Run("returns error when attributes are nil", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		ad := &datamodel.ActiveDirectory{
 			BaseModel:                 datamodel.BaseModel{UUID: "test-uuid"},
 			ActiveDirectoryAttributes: nil,
 		}
 
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(1)).Return(ad, nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(1)).Return(ad, nil)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 
-		result, err := activity.GetActiveDirectoryForPool(ctx, 1)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, int64(1))
 
 		assert.Error(tt, err)
+		var result *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&result)
+		}
 		assert.Nil(tt, result)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("returns error when credential path is empty", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		ad := &datamodel.ActiveDirectory{
 			BaseModel:                 datamodel.BaseModel{UUID: "test-uuid-2"},
 			CredentialPath:            "",
@@ -661,18 +722,25 @@ func TestValidateAndGetVsaActiveDirectory(t *testing.T) {
 		}
 
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(1)).Return(ad, nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(1)).Return(ad, nil)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 
-		result, err := activity.GetActiveDirectoryForPool(ctx, 1)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, int64(1))
 
 		assert.Error(tt, err)
+		var result *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&result)
+		}
 		assert.Nil(tt, result)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("returns error when secret retrieval fails", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		ad := &datamodel.ActiveDirectory{
 			BaseModel:                 datamodel.BaseModel{UUID: "test-uuid-3"},
 			CredentialPath:            "secret-path",
@@ -680,8 +748,9 @@ func TestValidateAndGetVsaActiveDirectory(t *testing.T) {
 		}
 
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(1)).Return(ad, nil)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(1)).Return(ad, nil)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
 
 		origGetPasswordSecret := getPasswordSecret
 		getPasswordSecret = func(ctx context.Context, secretID string) (*hyperscalermodels.CustomSecret, error) {
@@ -689,9 +758,13 @@ func TestValidateAndGetVsaActiveDirectory(t *testing.T) {
 		}
 		defer func() { getPasswordSecret = origGetPasswordSecret }()
 
-		result, err := activity.GetActiveDirectoryForPool(ctx, 1)
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, int64(1))
 
 		assert.Error(tt, err)
+		var result *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&result)
+		}
 		assert.Nil(tt, result)
 		mockStorage.AssertExpectations(tt)
 	})

@@ -371,6 +371,45 @@ func (j *PoolActivity) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*
 	return pool, nil
 }
 
+func (j *PoolActivity) ParseVlmConfig(ctx context.Context, pool *datamodel.Pool) (*vlm.VLMConfig, error) {
+	log := util.GetLogger(ctx)
+
+	currentVlmConfig := &vlm.VLMConfig{}
+
+	// First attempt: unmarshal as-is
+	if err := json.Unmarshal([]byte(pool.VLMConfig), currentVlmConfig); err != nil {
+		log.Debugf("Initial VLM config unmarshal failed for pool %s: %v", pool.Name, err)
+
+		// Second attempt: apply known fixes for malformed JSON
+		fixedVlmConfig := patchVlmConfig(pool.VLMConfig)
+
+		if err := json.Unmarshal([]byte(fixedVlmConfig), currentVlmConfig); err != nil {
+			log.Errorf("VLM config unmarshal failed after patching for pool %s: %v", pool.Name, err)
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrVLMConfigParseError, err))
+		}
+		log.Infof("Successfully parsed VLM config after sanitization for pool %s", pool.Name)
+
+		// Update the database with the fixed config
+		updateErr := j.SE.UpdatePoolFields(ctx, pool.UUID, map[string]interface{}{
+			"vlm_config": fixedVlmConfig,
+		})
+		if updateErr != nil {
+			log.Errorf("Failed to update sanitized VLM config for pool %s: %v", pool.Name, updateErr)
+		}
+	}
+
+	return currentVlmConfig, nil
+}
+
+// patchVlmConfig applies known fixes for malformed VLM config JSON
+func patchVlmConfig(vlmConfig string) string {
+	// Fix: Empty string array values should be null
+	vlmConfig = strings.ReplaceAll(vlmConfig, `"negs":""`, `"negs":null`)
+	// Add other known fixes here as patterns are discovered
+	return vlmConfig
+}
+
 func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datamodel.Pool, vlmConfig vlm.VLMConfig, updatePoolParams *commonparams.UpdatePoolParams) (*datamodel.Pool, error) {
 	se := j.SE
 	marshalledVlmConfig, err := json.Marshal(vlmConfig)

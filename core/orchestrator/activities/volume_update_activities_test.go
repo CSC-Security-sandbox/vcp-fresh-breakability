@@ -22,9 +22,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestUpdateVolumeInONTAP_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -34,7 +38,8 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInONTAP)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -65,12 +70,15 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 		},
 	}).Return(nil)
 
-	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInONTAP, volume, params, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateVolumeInONTAPWithSnapshotPolicy_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -80,7 +88,8 @@ func TestUpdateVolumeInONTAPWithSnapshotPolicy_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInONTAP)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -115,12 +124,15 @@ func TestUpdateVolumeInONTAPWithSnapshotPolicy_Success(t *testing.T) {
 		},
 	}).Return(nil)
 
-	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInONTAP, volume, params, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateVolumeInONTAP_DataProtectionVolume_Snapshot_Skip(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -130,7 +142,8 @@ func TestUpdateVolumeInONTAP_DataProtectionVolume_Snapshot_Skip(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInONTAP)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -159,12 +172,15 @@ func TestUpdateVolumeInONTAP_DataProtectionVolume_Snapshot_Skip(t *testing.T) {
 		},
 	}).Return(nil)
 
-	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInONTAP, volume, params, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -174,7 +190,8 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInONTAP)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -203,13 +220,16 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 		},
 	}).Return(expectedErr)
 
-	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInONTAP, volume, params, node)
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedErr.Error())
+	assert.Contains(t, err.Error(), expectedErr.Error())
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateLun_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -219,7 +239,8 @@ func TestUpdateLun_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateLun)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -251,12 +272,17 @@ func TestUpdateLun_Success(t *testing.T) {
 		MetadataSize: 12345,
 	}
 
-	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+	val, err := env.ExecuteActivity(activity.UpdateLun, volume, ontapRes, node)
 	assert.NoError(t, err)
+	var result *vsa.LunResponse
+	_ = val.Get(&result)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateLunWithBD_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -266,7 +292,8 @@ func TestUpdateLunWithBD_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateLun)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -297,12 +324,17 @@ func TestUpdateLunWithBD_Success(t *testing.T) {
 		MetadataSize: 12345,
 	}
 
-	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+	val, err := env.ExecuteActivity(activity.UpdateLun, volume, ontapRes, node)
 	assert.NoError(t, err)
+	var result *vsa.LunResponse
+	_ = val.Get(&result)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateLun_Failure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -312,7 +344,8 @@ func TestUpdateLun_Failure(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateLun)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -347,16 +380,20 @@ func TestUpdateLun_Failure(t *testing.T) {
 		AFSSize:      BytesPerGB,
 		MetadataSize: 12345,
 	}
-	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+	_, err := env.ExecuteActivity(activity.UpdateLun, volume, ontapRes, node)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Error updating volume - Cannot update the volume with the specified size. Please increase the volume size")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateVolumeInDB_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeUpdateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInDB)
+
 	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"}, Name: "test-volume"}
 	params := &common.UpdateVolumeParams{QuotaInBytes: 4096,
 		AutoTieringPolicy: &common.AutoTieringPolicy{
@@ -376,17 +413,21 @@ func TestUpdateVolumeInDB_Success(t *testing.T) {
 	}
 	defer func() { prepareFieldsForUpdate = getUpdatedFieldsFromParams }()
 
-	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, updatedFields).Return(nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volume.UUID, updatedFields).Return(nil)
 
-	err := activity.UpdateVolumeInDB(ctx, volume, params)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInDB, volume, params)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestUpdateVolumeInDB_FailureWithPrepareField(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeUpdateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInDB)
+
 	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"}, Name: "test-volume"}
 	params := &common.UpdateVolumeParams{QuotaInBytes: 4096}
 
@@ -395,12 +436,16 @@ func TestUpdateVolumeInDB_FailureWithPrepareField(t *testing.T) {
 	}
 	defer func() { prepareFieldsForUpdate = getUpdatedFieldsFromParams }()
 
-	err := activity.UpdateVolumeInDB(ctx, volume, params)
-	assert.EqualError(t, err, "failed to prepare fields for update")
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInDB, volume, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to prepare fields for update")
 	mockStorage.AssertExpectations(t)
 }
 
 func TestUpdateLun_ConflictError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -410,7 +455,8 @@ func TestUpdateLun_ConflictError(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateLun)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -447,15 +493,19 @@ func TestUpdateLun_ConflictError(t *testing.T) {
 		AFSSize:      BytesPerGB,
 		MetadataSize: 12345,
 	}
-	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+	_, err := env.ExecuteActivity(activity.UpdateLun, volume, ontapRes, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateVolumeInDB_Failure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeUpdateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInDB)
+
 	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"}, Name: "test-volume"}
 	params := &common.UpdateVolumeParams{QuotaInBytes: 4096}
 	updatedFields := map[string]interface{}{"size": int64(4096), "state_details": models.LifeCycleStateAvailableDetails}
@@ -468,11 +518,11 @@ func TestUpdateVolumeInDB_Failure(t *testing.T) {
 	}
 	defer func() { prepareFieldsForUpdate = originalGetUpdatedFields }()
 
-	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, updatedFields).Return(expectedErr)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volume.UUID, updatedFields).Return(expectedErr)
 
-	err := activity.UpdateVolumeInDB(ctx, volume, params)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInDB, volume, params)
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedErr.Error())
+	assert.Contains(t, err.Error(), expectedErr.Error())
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1318,6 +1368,9 @@ func TestDeleteLunIGroupMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			testSuite := &testsuite.WorkflowTestSuite{}
+			env := testSuite.NewTestActivityEnvironment()
+
 			mockStorage := database.NewMockStorage(t)
 			mockProvider := vsa.NewMockProvider(t)
 
@@ -1332,8 +1385,9 @@ func TestDeleteLunIGroupMap(t *testing.T) {
 			activity := &VolumeUpdateActivity{
 				SE: mockStorage,
 			}
+			env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
-			err := activity.UnmapHostGroupFromDisk(context.Background(), tt.volume, tt.iGroupUUIDs, &models.Node{})
+			_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, tt.volume, tt.iGroupUUIDs, &models.Node{})
 			if tt.expectedError {
 				assert.Error(t, err)
 			} else {
@@ -1375,7 +1429,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 	}
 
 	t.Run("successfully ensures iGroups and maps LUN", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1388,8 +1444,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
 
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return(hostGroups, nil)
 		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
 		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
 			IgroupName: "igroup1",
@@ -1405,13 +1462,15 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 			IGroupName: []string{"igroup1", "igroup2"},
 		}).Return(nil)
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 	t.Run("successfully all igroups are created prev", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1423,8 +1482,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
 
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return(hostGroups, nil)
 		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
 		mockProvider.On("IgroupExists", "igroup2", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
 
@@ -1434,30 +1494,37 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 			IGroupName: []string{"igroup1", "igroup2"},
 		}).Return(nil)
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 	t.Run("returns error when GetMultipleHostGroups fails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockProvider := vsa.NewMockProvider(t)
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
+
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(nil, errors.New("failed to fetch host groups"))
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return(nil, errors.New("failed to fetch host groups"))
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
-		assert.EqualError(t, err, "failed to fetch host groups")
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to fetch host groups")
 		mockStorage.AssertExpectations(t)
 	})
 
 	t.Run("returns error when IgroupExists fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1468,17 +1535,22 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
+
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return(hostGroups, nil)
 		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, errors.New("failed to check igroup existence"))
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
-		assert.EqualError(t, err, "failed to check igroup existence")
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to check igroup existence")
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("returns error when IgroupCreate fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1489,7 +1561,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
+
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return(hostGroups, nil)
 		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
 		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
 			IgroupName: "igroup1",
@@ -1498,13 +1572,16 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 			Initiator:  []string{"iqn.1993-08.org.debian:01:123456789"},
 		}).Return("", errors.New("failed to create igroup"))
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
-		assert.Error(t, err, "failed to create igroup")
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create igroup")
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 	t.Run("returns error when LunMapCreate fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1515,7 +1592,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
+
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return(hostGroups, nil)
 		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
 		mockProvider.On("IgroupExists", "igroup2", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
 		mockProvider.On("LunMapCreate", vsa.LunMapCreateParams{
@@ -1524,13 +1603,16 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 			IGroupName: []string{"igroup1", "igroup2"},
 		}).Return(errors.New("failed to map lun"))
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
-		assert.EqualError(t, err, "failed to map lun")
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to map lun")
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 	t.Run("returns error when LunMapCreate fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1541,16 +1623,20 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return([]*datamodel.HostGroup{}, nil)
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return([]*datamodel.HostGroup{}, nil)
+
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("successfully ensures iGroups and maps LUN with BlockDevices", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1563,6 +1649,7 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
 
 		// Create volume with BlockDevices to test line 173
 		volumeWithBlockDevices := &datamodel.Volume{
@@ -1580,7 +1667,7 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volumeWithBlockDevices.AccountID).Return(hostGroups, nil)
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volumeWithBlockDevices.AccountID).Return(hostGroups, nil)
 		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
 		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
 			IgroupName: "igroup1",
@@ -1597,14 +1684,16 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 			IGroupName: []string{"igroup1", "igroup2"},
 		}).Return(nil)
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volumeWithBlockDevices, iGroups, mockNode)
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volumeWithBlockDevices, iGroups, mockNode)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("returns error when LunMapCreate fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1617,8 +1706,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
 
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return(hostGroups, nil)
 		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
 		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
 			IgroupName: "igroup1",
@@ -1635,14 +1725,17 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 			IGroupName: []string{"igroup1", "igroup2"},
 		}).Return(expectedError)
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
-		assert.EqualError(t, err, "failed to create lun map")
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create lun map")
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("returns error when IgroupCreate fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1655,8 +1748,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
 
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return(hostGroups, nil)
 		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
 		expectedError := errors.New("failed to create igroup")
 		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
@@ -1666,14 +1760,17 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 			Initiator:  []string{"iqn.1993-08.org.debian:01:123456789"},
 		}).Return("", expectedError)
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
-		assert.EqualError(t, err, "failed to create igroup")
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create igroup")
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("returns error when IgroupExists fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -1686,19 +1783,23 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
 
-		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockStorage.On("GetMultipleHostGroups", mock.Anything, iGroups, volume.AccountID).Return(hostGroups, nil)
 		expectedError := errors.New("failed to check igroup existence")
 		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, expectedError)
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
-		assert.EqualError(t, err, "failed to check igroup existence")
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to check igroup existence")
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("returns error when GetProviderByNode fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
@@ -1711,8 +1812,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.EnsureHostGroupsExistsAndMapDisk)
 
-		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		_, err := env.ExecuteActivity(activity.EnsureHostGroupsExistsAndMapDisk, volume, iGroups, mockNode)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get provider")
 	})
@@ -1739,6 +1841,9 @@ func TestGetHostGroup(t *testing.T) {
 }
 
 func TestGetVolumeFromONTAP_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -1747,7 +1852,8 @@ func TestGetVolumeFromONTAP_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetVolumeFromONTAP)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -1765,13 +1871,18 @@ func TestGetVolumeFromONTAP_Success(t *testing.T) {
 		IsRestore:  false,
 	}).Return(expectedRes, nil)
 
-	res, err := activity.GetVolumeFromONTAP(ctx, volume, node)
+	val, err := env.ExecuteActivity(activity.GetVolumeFromONTAP, volume, node)
 	assert.NoError(t, err)
+	var res *vsa.VolumeResponse
+	_ = val.Get(&res)
 	assert.Equal(t, expectedRes, res)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestGetVolumeFromONTAP_Error(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -1780,7 +1891,8 @@ func TestGetVolumeFromONTAP_Error(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetVolumeFromONTAP)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -1798,10 +1910,9 @@ func TestGetVolumeFromONTAP_Error(t *testing.T) {
 		IsRestore:  false,
 	}).Return(nil, expectedErr)
 
-	res, err := activity.GetVolumeFromONTAP(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.GetVolumeFromONTAP, volume, node)
 	assert.Error(t, err)
-	assert.Nil(t, res)
-	assert.EqualError(t, err, expectedErr.Error())
+	assert.Contains(t, err.Error(), expectedErr.Error())
 	mockProvider.AssertExpectations(t)
 }
 
@@ -1915,6 +2026,9 @@ func TestGetUpdatedFieldsFromParams_SnapReserve(t *testing.T) {
 
 func TestGetVolumeFromONTAP_NilVolumeAttributes(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -1926,7 +2040,7 @@ func TestGetVolumeFromONTAP_NilVolumeAttributes(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetVolumeFromONTAP)
 
 	volume := &datamodel.Volume{
 		Name:             "test-volume",
@@ -1935,11 +2049,11 @@ func TestGetVolumeFromONTAP_NilVolumeAttributes(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	// This should panic when trying to access volume.VolumeAttributes.ExternalUUID
-	// We need to handle this case gracefully or ensure it doesn't happen
-	assert.Panics(t, func() {
-		_, _ = activity.GetVolumeFromONTAP(ctx, volume, node)
-	})
+	// Act: ExecuteActivity - this will call the activity function
+	_, err := env.ExecuteActivity(activity.GetVolumeFromONTAP, volume, node)
+
+	// Assert: Temporal converts panics to errors
+	assert.Error(t, err)
 }
 
 func TestUpdateVolumeUsedBytes_Success(t *testing.T) {
@@ -2162,7 +2276,9 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 	}
 
 	t.Run("successfully unmaps host group with BlockProperties", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2175,6 +2291,7 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
@@ -2188,23 +2305,25 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
 		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
 		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 			LunUUID:    "test-lun-uuid",
 			IGroupUUID: "ontap-igroup-uuid",
 		}).Return(nil)
-		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetAllVolumesForHG", mock.Anything, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{}, nil)
 		mockProvider.On("IgroupDelete", "ontap-igroup-uuid").Return(nil)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("successfully unmaps host group with BlockDevices", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2217,6 +2336,7 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		// Create volume with BlockDevices to test line 199
 		volumeWithBlockDevices := &datamodel.Volume{
@@ -2248,24 +2368,26 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volumeWithBlockDevices.AccountID).Return(hostGroup, nil)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volumeWithBlockDevices.AccountID).Return(hostGroup, nil)
 		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
 		// Test that the block device lun uuid is used (line 199)
 		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 			LunUUID:    "block-device-lun-uuid",
 			IGroupUUID: "ontap-igroup-uuid",
 		}).Return(nil)
-		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volumeWithBlockDevices.AccountID).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetAllVolumesForHG", mock.Anything, "igroup-uuid-1", volumeWithBlockDevices.AccountID).Return([]*datamodel.Volume{}, nil)
 		mockProvider.On("IgroupDelete", "ontap-igroup-uuid").Return(nil)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volumeWithBlockDevices, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volumeWithBlockDevices, iGroupUUIDs, mockNode)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("skips when igroup does not exist", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2278,6 +2400,7 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
@@ -2285,17 +2408,19 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 			Name: "test-igroup",
 		}
 
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
 		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("returns error when IgroupExists fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2308,6 +2433,7 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
@@ -2316,10 +2442,10 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		}
 
 		expectedError := errors.New("failed to check igroup existence")
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
 		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(false, nil, expectedError)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to check igroup existence")
 		mockStorage.AssertExpectations(t)
@@ -2327,7 +2453,9 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 	})
 
 	t.Run("returns error when LunMapDelete fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2340,6 +2468,7 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
@@ -2354,14 +2483,14 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		}
 
 		expectedError := errors.New("failed to delete lun map")
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
 		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
 		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 			LunUUID:    "test-lun-uuid",
 			IGroupUUID: "ontap-igroup-uuid",
 		}).Return(expectedError)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to delete lun map")
 		mockStorage.AssertExpectations(t)
@@ -2369,7 +2498,9 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 	})
 
 	t.Run("skips igroup deletion when other volumes use same host group in same pool", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2382,6 +2513,7 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
@@ -2401,23 +2533,25 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 			PoolID:    1, // Same pool as the current volume
 		}
 
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
 		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
 		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 			LunUUID:    "test-lun-uuid",
 			IGroupUUID: "ontap-igroup-uuid",
 		}).Return(nil)
 		// Test lines 236-238: other volume uses same host group in same pool
-		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+		mockStorage.On("GetAllVolumesForHG", mock.Anything, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{volume, otherVolume}, nil)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("deletes igroup when no other volumes use same host group in same pool", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2430,6 +2564,7 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
@@ -2449,23 +2584,25 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 			PoolID:    2, // Different pool
 		}
 
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
 		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
 		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 			LunUUID:    "test-lun-uuid",
 			IGroupUUID: "ontap-igroup-uuid",
 		}).Return(nil)
-		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+		mockStorage.On("GetAllVolumesForHG", mock.Anything, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{volume, otherVolume}, nil)
 		mockProvider.On("IgroupDelete", "ontap-igroup-uuid").Return(nil)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("returns error when IgroupDelete fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2478,6 +2615,7 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
@@ -2492,16 +2630,16 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		}
 
 		expectedError := errors.New("failed to delete igroup")
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
 		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
 		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 			LunUUID:    "test-lun-uuid",
 			IGroupUUID: "ontap-igroup-uuid",
 		}).Return(nil)
-		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetAllVolumesForHG", mock.Anything, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{}, nil)
 		mockProvider.On("IgroupDelete", "ontap-igroup-uuid").Return(expectedError)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to delete igroup")
 		mockStorage.AssertExpectations(t)
@@ -2509,7 +2647,9 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 	})
 
 	t.Run("returns error when GetHostGroup fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2522,20 +2662,23 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
 		expectedError := errors.New("failed to get host group")
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(nil, expectedError)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(nil, expectedError)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get host group")
 		mockStorage.AssertExpectations(t)
 	})
 
 	t.Run("returns error when GetAllVolumesForHG fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
@@ -2548,6 +2691,7 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
@@ -2562,15 +2706,15 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		}
 
 		expectedError := errors.New("failed to get volumes for host group")
-		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
 		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
 		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 			LunUUID:    "test-lun-uuid",
 			IGroupUUID: "ontap-igroup-uuid",
 		}).Return(nil)
-		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return(nil, expectedError)
+		mockStorage.On("GetAllVolumesForHG", mock.Anything, "igroup-uuid-1", volume.AccountID).Return(nil, expectedError)
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get volumes for host group")
 		mockStorage.AssertExpectations(t)
@@ -2578,7 +2722,9 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 	})
 
 	t.Run("returns error when GetProviderByNode fails", func(t *testing.T) {
-		ctx := context.Background()
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		oldProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
@@ -2591,10 +2737,11 @@ func TestUnmapHostGroupFromDisk(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
+		env.RegisterActivity(activity.UnmapHostGroupFromDisk)
 
 		iGroupUUIDs := []string{"igroup-uuid-1"}
 
-		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		_, err := env.ExecuteActivity(activity.UnmapHostGroupFromDisk, volume, iGroupUUIDs, mockNode)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get provider")
 	})
@@ -2828,6 +2975,9 @@ func TestGetUpdatedFieldsFromParams_HotTierBypassModeComparisonLogic(t *testing.
 }
 
 func TestUpdateJunctionPathInONTAP_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2837,7 +2987,7 @@ func TestUpdateJunctionPathInONTAP_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateJunctionPathInONTAP)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -2854,12 +3004,15 @@ func TestUpdateJunctionPathInONTAP_Success(t *testing.T) {
 		JunctionPath: junctionPath,
 	}).Return(&vsa.OntapAsyncResponse{}, nil)
 
-	err := activity.UpdateJunctionPathInONTAP(ctx, volume, junctionPath, node)
+	_, err := env.ExecuteActivity(activity.UpdateJunctionPathInONTAP, volume, junctionPath, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateJunctionPathInONTAP_GetProviderError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -2869,17 +3022,20 @@ func TestUpdateJunctionPathInONTAP_GetProviderError(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateJunctionPathInONTAP)
 
 	volume := &datamodel.Volume{}
 	junctionPath := "/new/path"
 	node := &models.Node{}
 
-	err := activity.UpdateJunctionPathInONTAP(ctx, volume, junctionPath, node)
+	_, err := env.ExecuteActivity(activity.UpdateJunctionPathInONTAP, volume, junctionPath, node)
 	assert.Error(t, err)
 }
 
 func TestUpdateJunctionPathInONTAP_UnmountError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2889,7 +3045,7 @@ func TestUpdateJunctionPathInONTAP_UnmountError(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateJunctionPathInONTAP)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -2903,13 +3059,16 @@ func TestUpdateJunctionPathInONTAP_UnmountError(t *testing.T) {
 	expectedError := errors.New("unmount failed")
 	mockProvider.On("UnmountVolume", volume.VolumeAttributes.ExternalUUID).Return(nil, expectedError)
 
-	err := activity.UpdateJunctionPathInONTAP(ctx, volume, junctionPath, node)
+	_, err := env.ExecuteActivity(activity.UpdateJunctionPathInONTAP, volume, junctionPath, node)
 	assert.Error(t, err)
-	assert.Equal(t, expectedError, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateJunctionPathInONTAP_MountError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2919,7 +3078,7 @@ func TestUpdateJunctionPathInONTAP_MountError(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateJunctionPathInONTAP)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -2937,13 +3096,16 @@ func TestUpdateJunctionPathInONTAP_MountError(t *testing.T) {
 		JunctionPath: junctionPath,
 	}).Return(nil, expectedError)
 
-	err := activity.UpdateJunctionPathInONTAP(ctx, volume, junctionPath, node)
+	_, err := env.ExecuteActivity(activity.UpdateJunctionPathInONTAP, volume, junctionPath, node)
 	assert.Error(t, err)
-	assert.Equal(t, expectedError, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateExportPolicyRulesInONTAP_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2953,7 +3115,7 @@ func TestUpdateExportPolicyRulesInONTAP_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateExportPolicyRulesInONTAP)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -2984,12 +3146,15 @@ func TestUpdateExportPolicyRulesInONTAP_Success(t *testing.T) {
 			params.ExportPolicy.ExportPolicyName == exportPolicy.ExportPolicyName
 	})).Return(nil)
 
-	err := activity.UpdateExportPolicyRulesInONTAP(ctx, volume, exportPolicy, node)
+	_, err := env.ExecuteActivity(activity.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateExportPolicyRulesInONTAP_GetProviderError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -2999,17 +3164,20 @@ func TestUpdateExportPolicyRulesInONTAP_GetProviderError(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateExportPolicyRulesInONTAP)
 
 	volume := &datamodel.Volume{}
 	exportPolicy := &models.ExportPolicy{}
 	node := &models.Node{}
 
-	err := activity.UpdateExportPolicyRulesInONTAP(ctx, volume, exportPolicy, node)
+	_, err := env.ExecuteActivity(activity.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
 	assert.Error(t, err)
 }
 
 func TestUpdateExportPolicyRulesInONTAP_UpdateError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -3019,7 +3187,7 @@ func TestUpdateExportPolicyRulesInONTAP_UpdateError(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateExportPolicyRulesInONTAP)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3047,13 +3215,16 @@ func TestUpdateExportPolicyRulesInONTAP_UpdateError(t *testing.T) {
 	expectedError := errors.New("update export policy rules failed")
 	mockProvider.On("UpdateExportPolicyRules", mock.Anything).Return(expectedError)
 
-	err := activity.UpdateExportPolicyRulesInONTAP(ctx, volume, exportPolicy, node)
+	_, err := env.ExecuteActivity(activity.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
 	assert.Error(t, err)
-	assert.Equal(t, expectedError, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateExportPolicyRulesInONTAP_EmptyRules(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -3063,7 +3234,7 @@ func TestUpdateExportPolicyRulesInONTAP_EmptyRules(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateExportPolicyRulesInONTAP)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3089,17 +3260,19 @@ func TestUpdateExportPolicyRulesInONTAP_EmptyRules(t *testing.T) {
 			len(params.ExportPolicy.ExportRules) == 0
 	})).Return(nil)
 
-	err := activity.UpdateExportPolicyRulesInONTAP(ctx, volume, exportPolicy, node)
+	_, err := env.ExecuteActivity(activity.UpdateExportPolicyRulesInONTAP, volume, exportPolicy, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateLun_LunGetError(t *testing.T) {
-	// This test covers the case where LunGet returns an error (lines 126-127)
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
+	// This test covers the case where LunGet returns an error (lines 126-127)
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeUpdateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateLun)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3138,7 +3311,7 @@ func TestUpdateLun_LunGetError(t *testing.T) {
 	}
 
 	// Act
-	_, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+	_, err := env.ExecuteActivity(activity.UpdateLun, volume, ontapRes, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -3147,10 +3320,12 @@ func TestUpdateLun_LunGetError(t *testing.T) {
 }
 
 func TestUpdateLun_WithSnapReserveLogic(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeUpdateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateLun)
 
 	volume := &datamodel.Volume{
 		Name:        "test-volume",
@@ -3216,20 +3391,24 @@ func TestUpdateLun_WithSnapReserveLogic(t *testing.T) {
 		Size: expectedLunSize,
 	}, nil).Once()
 
-	result, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+	val, err := env.ExecuteActivity(activity.UpdateLun, volume, ontapRes, node)
 
 	assert.NoError(t, err)
+	var result *vsa.LunResponse
+	_ = val.Get(&result)
 	assert.NotNil(t, result)
 	assert.Equal(t, expectedLunSize, result.Size)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateLun_WithSnapReserveLogic_SizeUnchanged(t *testing.T) {
-	// This test covers the case where updatedLunSpace == currentLunSpace (line 136)
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
+	// This test covers the case where updatedLunSpace == currentLunSpace (line 136)
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeUpdateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateLun)
 
 	volume := &datamodel.Volume{
 		Name:        "test-volume",
@@ -3297,16 +3476,21 @@ func TestUpdateLun_WithSnapReserveLogic_SizeUnchanged(t *testing.T) {
 		AFSSize:      1000,
 		MetadataSize: 200,
 	}
-	result, err := activity.UpdateLun(ctx, volume, ontapRes, node)
+	val, err := env.ExecuteActivity(activity.UpdateLun, volume, ontapRes, node)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *vsa.LunResponse
+	_ = val.Get(&result)
 	assert.NotNil(t, result)
 	assert.Equal(t, expectedSize, result.Size)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateVolumeInONTAP_WithSnapshotDirectoryAccess_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -3316,7 +3500,7 @@ func TestUpdateVolumeInONTAP_WithSnapshotDirectoryAccess_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInONTAP)
 
 	// Create test volume
 	volume := &datamodel.Volume{
@@ -3350,7 +3534,7 @@ func TestUpdateVolumeInONTAP_WithSnapshotDirectoryAccess_Success(t *testing.T) {
 		SnapshotDirectoryAccess: params.SnapshotDirectoryAccess,
 	}).Return(nil)
 
-	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInONTAP, volume, params, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -3968,6 +4152,9 @@ func TestUpdateAutoTieringParams_WithSnapshotOnlyPolicySetForBlockVolume(t *test
 }
 
 func TestUpdateVolumeInONTAP_WithIncrementalSpaceInBytes_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -3977,7 +4164,8 @@ func TestUpdateVolumeInONTAP_WithIncrementalSpaceInBytes_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInONTAP)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -4004,12 +4192,15 @@ func TestUpdateVolumeInONTAP_WithIncrementalSpaceInBytes_Success(t *testing.T) {
 		SnapReserve: (*int64)(nil),
 	}).Return(nil)
 
-	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInONTAP, volume, params, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateVolumeInONTAP_WithIncrementalSpaceInBytesAndSnapReserveChange_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -4019,7 +4210,8 @@ func TestUpdateVolumeInONTAP_WithIncrementalSpaceInBytesAndSnapReserveChange_Suc
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInONTAP)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -4047,7 +4239,7 @@ func TestUpdateVolumeInONTAP_WithIncrementalSpaceInBytesAndSnapReserveChange_Suc
 		SnapReserve: &newSnapReserve,
 	}).Return(nil)
 
-	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInONTAP, volume, params, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -4109,6 +4301,9 @@ func TestGetUpdatedFieldsFromParams_WithIncrementalSpaceInBytesAndSnapReserveCha
 }
 
 func TestUpdateSMBShareSettings_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -4118,7 +4313,7 @@ func TestUpdateSMBShareSettings_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateSMBShareSettings)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -4148,12 +4343,15 @@ func TestUpdateSMBShareSettings_Success(t *testing.T) {
 	mockProvider.On("UpdateCIFSServer", "test-svm-uuid", "test-share", []string{"browsable", "encrypt_data"}).
 		Return(nil)
 
-	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateSMBShareSettings_EmptyJunctionPath(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -4163,7 +4361,7 @@ func TestUpdateSMBShareSettings_EmptyJunctionPath(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateSMBShareSettings)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -4185,13 +4383,16 @@ func TestUpdateSMBShareSettings_EmptyJunctionPath(t *testing.T) {
 
 	node := &models.Node{}
 
-	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateSMBShareSettings_GetProviderError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -4201,7 +4402,7 @@ func TestUpdateSMBShareSettings_GetProviderError(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateSMBShareSettings)
 
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -4222,11 +4423,14 @@ func TestUpdateSMBShareSettings_GetProviderError(t *testing.T) {
 
 	node := &models.Node{}
 
-	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 	assert.Error(t, err)
 }
 
 func TestUpdateSMBShareSettings_ShareNotFound(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -4236,7 +4440,7 @@ func TestUpdateSMBShareSettings_ShareNotFound(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateSMBShareSettings)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -4263,12 +4467,15 @@ func TestUpdateSMBShareSettings_ShareNotFound(t *testing.T) {
 	mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test-share", []string{"continuously_available"}).
 		Return(nil, notFoundErr)
 
-	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 	assert.NoError(t, err) // Should not return error when share not found
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateSMBShareSettings_ContinuouslyAvailableNotAllowed(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -4278,7 +4485,7 @@ func TestUpdateSMBShareSettings_ContinuouslyAvailableNotAllowed(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateSMBShareSettings)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -4304,13 +4511,16 @@ func TestUpdateSMBShareSettings_ContinuouslyAvailableNotAllowed(t *testing.T) {
 	mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test-share", []string{"continuously_available"}).
 		Return([]string{"browsable", "continuously_available"}, nil)
 
-	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "continuously_available share property cannot be modified")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateSMBShareSettings_NoChangesDetected(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -4320,7 +4530,7 @@ func TestUpdateSMBShareSettings_NoChangesDetected(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateSMBShareSettings)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -4347,12 +4557,15 @@ func TestUpdateSMBShareSettings_NoChangesDetected(t *testing.T) {
 		Return([]string{"browsable", "encrypt_data", "oplocks"}, nil)
 
 	// UpdateCIFSServer should NOT be called since no changes are needed
-	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateSMBShareSettings_CifsShareCollectionGetError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -4362,7 +4575,7 @@ func TestUpdateSMBShareSettings_CifsShareCollectionGetError(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateSMBShareSettings)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -4389,12 +4602,15 @@ func TestUpdateSMBShareSettings_CifsShareCollectionGetError(t *testing.T) {
 	mockProvider.On("CifsShareCollectionGet", "test-svm-uuid", "test-share", []string{"continuously_available"}).
 		Return(nil, expectedErr)
 
-	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 	assert.Error(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateSMBShareSettings_UpdateCIFSServerError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -4404,7 +4620,7 @@ func TestUpdateSMBShareSettings_UpdateCIFSServerError(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateSMBShareSettings)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -4435,7 +4651,7 @@ func TestUpdateSMBShareSettings_UpdateCIFSServerError(t *testing.T) {
 	mockProvider.On("UpdateCIFSServer", "test-svm-uuid", "test-share", []string{"browsable", "encrypt_data"}).
 		Return(expectedErr)
 
-	err := activity.UpdateSMBShareSettings(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 	assert.Error(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -4498,22 +4714,25 @@ func TestGetUpdatedFieldsFromParams_WithSMBSettings_InitializesVolumeAttributes(
 }
 
 func TestUpdateSMBShareSettings_NilParams(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateSMBShareSettings)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 	}
 
 	// Test with nil params
-	err := activity.UpdateSMBShareSettings(ctx, volume, nil, &models.Node{})
+	_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, nil, &models.Node{})
 	assert.NoError(t, err) // Should return nil without error
 
 	// Test with nil volume
 	params := &common.UpdateVolumeParams{
 		SMBShareSettings: []string{"browsable"},
 	}
-	err = activity.UpdateSMBShareSettings(ctx, nil, params, &models.Node{})
+	_, err = env.ExecuteActivity(activity.UpdateSMBShareSettings, nil, params, &models.Node{})
 	assert.NoError(t, err) // Should return nil without error
 }
 
@@ -4576,9 +4795,12 @@ func TestGetUpdatedFieldsFromParams_EmptySMBSettings(t *testing.T) {
 }
 
 func TestUpdateVolumeInDB_WithSMBSettings_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeUpdateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInDB)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
@@ -4595,7 +4817,7 @@ func TestUpdateVolumeInDB_WithSMBSettings_Success(t *testing.T) {
 	}
 
 	// Mock the UpdateVolumeFields call
-	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
 		// Verify that volume_attributes contains the SMB settings
 		volumeAttrs, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
 		if !ok {
@@ -4616,15 +4838,18 @@ func TestUpdateVolumeInDB_WithSMBSettings_Success(t *testing.T) {
 		return true
 	})).Return(nil)
 
-	err := activity.UpdateVolumeInDB(ctx, volume, params)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInDB, volume, params)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestUpdateVolumeInDB_WithSMBSettingsAndOtherFields_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeUpdateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeInDB)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
@@ -4645,7 +4870,7 @@ func TestUpdateVolumeInDB_WithSMBSettingsAndOtherFields_Success(t *testing.T) {
 	}
 
 	// Mock the UpdateVolumeFields call
-	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
 		// Verify that multiple fields are updated correctly
 		if fields["size_in_bytes"] != int64(5368709120) {
 			return false
@@ -4675,7 +4900,7 @@ func TestUpdateVolumeInDB_WithSMBSettingsAndOtherFields_Success(t *testing.T) {
 		return fields["state"] == models.LifeCycleStateREADY
 	})).Return(nil)
 
-	err := activity.UpdateVolumeInDB(ctx, volume, params)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInDB, volume, params)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }

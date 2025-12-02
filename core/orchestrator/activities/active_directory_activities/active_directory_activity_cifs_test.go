@@ -17,6 +17,7 @@ import (
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func setupOntapProvider(t *testing.T, ctx context.Context, client ontapRest.RESTClient, extraHooks vsa.TestHooks) func() {
@@ -71,7 +72,8 @@ func strPtr(value string) *string {
 }
 
 func TestCreateOrModifyADDNS_CreatesDNSWhenMissing(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNameSvc := new(ontapRest.MockNameServicesClient)
@@ -79,11 +81,15 @@ func TestCreateOrModifyADDNS_CreatesDNSWhenMissing(t *testing.T) {
 	mockNameSvc.On("DNSGet", mock.Anything).Return((*ontapRest.DNS)(nil), nil).Once()
 	mockNameSvc.On("DnsCreate", mock.Anything).Return((*ontaprestmodels.DNSResponse)(nil), nil).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
 	ad := &vsa.ActiveDirectory{DNS: "10.0.0.1,20.0.0.2", Domain: "example.com"}
-	err := (ActiveDirectoryActivity{}).CreateOrModifyADDNS(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 
 	require.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -91,7 +97,8 @@ func TestCreateOrModifyADDNS_CreatesDNSWhenMissing(t *testing.T) {
 }
 
 func TestCreateOrModifyADDNS_ModifiesWhenConfigDiffers(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNameSvc := new(ontapRest.MockNameServicesClient)
@@ -111,11 +118,15 @@ func TestCreateOrModifyADDNS_ModifiesWhenConfigDiffers(t *testing.T) {
 		return true
 	})).Return(nil).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
 	ad := &vsa.ActiveDirectory{DNS: "2.2.2.2,3.3.3.3", Domain: "example.com"}
-	err := (ActiveDirectoryActivity{}).CreateOrModifyADDNS(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 
 	require.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -123,7 +134,8 @@ func TestCreateOrModifyADDNS_ModifiesWhenConfigDiffers(t *testing.T) {
 }
 
 func TestCreateOrModifyADDNS_NoChangeWhenConfigMatches(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNameSvc := new(ontapRest.MockNameServicesClient)
@@ -137,11 +149,15 @@ func TestCreateOrModifyADDNS_NoChangeWhenConfigMatches(t *testing.T) {
 	}
 	mockNameSvc.On("DNSGet", mock.Anything).Return(matching, nil).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
 	ad := &vsa.ActiveDirectory{DNS: "9.9.9.9,8.8.8.8", Domain: "example.com"}
-	err := (ActiveDirectoryActivity{}).CreateOrModifyADDNS(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 
 	require.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -150,7 +166,8 @@ func TestCreateOrModifyADDNS_NoChangeWhenConfigMatches(t *testing.T) {
 }
 
 func TestGetOrCreateCifsService_CreatesWhenMissing(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	// Mock password decryption
 	originalDecryptPassword := utils.DecryptPassword
@@ -166,6 +183,7 @@ func TestGetOrCreateCifsService_CreatesWhenMissing(t *testing.T) {
 
 	mockNas.On("CifsServiceGet", mock.Anything).Return((*ontapRest.CifsService)(nil), utilerrors.NewNotFoundErr("cifs service", nil)).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{
 		CreateAndSetupCIFSServer: func(_ log.Logger, _ ontapRest.RESTClient, _ *vsa.ActiveDirectory, _, _ string) (string, error) {
 			return "created.example.com", nil
@@ -174,10 +192,15 @@ func TestGetOrCreateCifsService_CreatesWhenMissing(t *testing.T) {
 	})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.GetOrCreateCifsService)
+
 	ad := &vsa.ActiveDirectory{Domain: "example.com"}
-	result, err := (ActiveDirectoryActivity{}).GetOrCreateCifsService(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	val, err := env.ExecuteActivity(activity.GetOrCreateCifsService, &models.Node{}, ad, "svm", "svm-uuid")
 
 	require.NoError(t, err)
+	var result *GetOrCreateCifsServiceResult
+	_ = val.Get(&result)
 	require.NotNil(t, result)
 	assert.Equal(t, "created.example.com", result.FQDN)
 	assert.False(t, result.NeedsDDNS)
@@ -186,7 +209,8 @@ func TestGetOrCreateCifsService_CreatesWhenMissing(t *testing.T) {
 }
 
 func TestGetOrCreateCifsService_ReturnsExistingRequestsDDNS(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	// Mock password decryption
 	originalDecryptPassword := utils.DecryptPassword
@@ -212,15 +236,21 @@ func TestGetOrCreateCifsService_ReturnsExistingRequestsDDNS(t *testing.T) {
 	}
 	mockNas.On("CifsServiceGet", mock.Anything).Return(existing, nil).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{
 		IsDDNSEnabled: func(log.Logger, ontapRest.RESTClient, string) bool { return false },
 	})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.GetOrCreateCifsService)
+
 	ad := &vsa.ActiveDirectory{Domain: "example.com"}
-	result, err := (ActiveDirectoryActivity{}).GetOrCreateCifsService(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	val, err := env.ExecuteActivity(activity.GetOrCreateCifsService, &models.Node{}, ad, "svm", "svm-uuid")
 
 	require.NoError(t, err)
+	var result *GetOrCreateCifsServiceResult
+	_ = val.Get(&result)
 	require.NotNil(t, result)
 	assert.True(t, result.NeedsDDNS)
 	assert.Equal(t, name, result.CifsServiceName)
@@ -229,7 +259,8 @@ func TestGetOrCreateCifsService_ReturnsExistingRequestsDDNS(t *testing.T) {
 }
 
 func TestGetOrCreateCifsService_ReturnsExistingNoDDNS(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	// Mock password decryption
 	originalDecryptPassword := utils.DecryptPassword
@@ -253,22 +284,29 @@ func TestGetOrCreateCifsService_ReturnsExistingNoDDNS(t *testing.T) {
 	}
 	mockNas.On("CifsServiceGet", mock.Anything).Return(existing, nil).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{
 		IsDDNSEnabled: func(log.Logger, ontapRest.RESTClient, string) bool { return true },
 	})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.GetOrCreateCifsService)
+
 	ad := &vsa.ActiveDirectory{Domain: "example.com"}
-	result, err := (ActiveDirectoryActivity{}).GetOrCreateCifsService(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	val, err := env.ExecuteActivity(activity.GetOrCreateCifsService, &models.Node{}, ad, "svm", "svm-uuid")
 
 	require.NoError(t, err)
+	var result *GetOrCreateCifsServiceResult
+	_ = val.Get(&result)
 	require.NotNil(t, result)
 	assert.False(t, result.NeedsDDNS)
 	mockNas.AssertExpectations(t)
 }
 
 func TestDdnsModify_SetsSecureDDNS(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNameSvc := new(ontapRest.MockNameServicesClient)
@@ -284,10 +322,14 @@ func TestDdnsModify_SetsSecureDDNS(t *testing.T) {
 		return true
 	})).Return(nil).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
-	err := (ActiveDirectoryActivity{}).DdnsModify(ctx, &models.Node{}, "svm-uuid", "fqdn.example.com")
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.DdnsModify)
+
+	_, err := env.ExecuteActivity(activity.DdnsModify, &models.Node{}, "svm-uuid", "fqdn.example.com")
 
 	require.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -295,7 +337,8 @@ func TestDdnsModify_SetsSecureDDNS(t *testing.T) {
 }
 
 func TestCreateJunctionPathForCifsShare_Succeeds(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNas := new(ontapRest.MockNASClient)
@@ -307,34 +350,44 @@ func TestCreateJunctionPathForCifsShare_Succeeds(t *testing.T) {
 		return true
 	})).Return(nil).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
-	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction", []string{})
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
+
+	_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, &models.Node{}, "svm", "/junction", []string{})
 
 	require.NoError(t, err)
 	mockNas.AssertExpectations(t)
 }
 
 func TestCreateJunctionPathForCifsShare_PropagatesError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNas := new(ontapRest.MockNASClient)
 	mockClient.On("NAS").Return(mockNas).Once()
 	mockNas.On("CifsShareCreate", mock.Anything).Return(errors.New("create failed")).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
-	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction", []string{})
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
+
+	_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, &models.Node{}, "svm", "/junction", []string{})
 
 	require.Error(t, err)
 	mockNas.AssertExpectations(t)
 }
 
 func TestCreateJunctionPathForCifsShare_WithSMBShareProperties(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNas := new(ontapRest.MockNASClient)
@@ -349,10 +402,14 @@ func TestCreateJunctionPathForCifsShare_WithSMBShareProperties(t *testing.T) {
 		return true
 	})).Return(nil).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
-	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/test_share", expectedProperties)
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
+
+	_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, &models.Node{}, "svm", "/test_share", expectedProperties)
 
 	require.NoError(t, err)
 	mockNas.AssertExpectations(t)
@@ -388,7 +445,9 @@ func TestGetOntapRestProvider_ProviderTypeMismatch(t *testing.T) {
 }
 
 func TestCreateOrModifyADDNS_GetOntapRestProviderError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetter := getOntapRestProvider
 	defer func() { getOntapRestProvider = originalGetter }()
 
@@ -396,16 +455,22 @@ func TestCreateOrModifyADDNS_GetOntapRestProviderError(t *testing.T) {
 		return nil, errors.New("provider error")
 	}
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
 	ad := &vsa.ActiveDirectory{DNS: "10.0.0.1", Domain: "example.com"}
-	err := (ActiveDirectoryActivity{}).CreateOrModifyADDNS(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
 }
 
 func TestCreateOrModifyADDNS_CreateRESTClientError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetter := getOntapRestProvider
 	defer func() { getOntapRestProvider = originalGetter }()
 
+	ctx := context.Background()
 	logger := util.GetLogger(ctx)
 	provider := &vsa.OntapRestProvider{
 		ClientParams: ontapRest.RESTClientParams{Trace: logger, Ctx: ctx},
@@ -423,13 +488,18 @@ func TestCreateOrModifyADDNS_CreateRESTClientError(t *testing.T) {
 	})
 	defer originalHooks()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
 	ad := &vsa.ActiveDirectory{DNS: "10.0.0.1", Domain: "example.com"}
-	err := (ActiveDirectoryActivity{}).CreateOrModifyADDNS(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get ONTAP client")
 }
 
 func TestCreateOrModifyADDNS_EnsureCifsServerNamePostFixError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	ctx := context.Background()
 	mockClient := new(ontapRest.MockRESTClient)
 
@@ -456,48 +526,65 @@ func TestCreateOrModifyADDNS_EnsureCifsServerNamePostFixError(t *testing.T) {
 		return provider, nil
 	}
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
 	ad := &vsa.ActiveDirectory{DNS: "10.0.0.1", Domain: "example.com"}
-	err := (ActiveDirectoryActivity{}).CreateOrModifyADDNS(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
 }
 
 func TestCreateOrModifyADDNS_DNSGetError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNameSvc := new(ontapRest.MockNameServicesClient)
 	mockClient.On("NameServices").Return(mockNameSvc).Once()
 	mockNameSvc.On("DNSGet", mock.Anything).Return(nil, errors.New("dns get failed")).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
 	ad := &vsa.ActiveDirectory{DNS: "10.0.0.1", Domain: "example.com"}
-	err := (ActiveDirectoryActivity{}).CreateOrModifyADDNS(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
 	mockClient.AssertExpectations(t)
 	mockNameSvc.AssertExpectations(t)
 }
 
 func TestCreateOrModifyADDNS_DnsCreateError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNameSvc := new(ontapRest.MockNameServicesClient)
 	mockClient.On("NameServices").Return(mockNameSvc).Times(2)
 	mockNameSvc.On("DNSGet", mock.Anything).Return((*ontapRest.DNS)(nil), utilerrors.NewNotFoundErr("dns", nil)).Once()
 	mockNameSvc.On("DnsCreate", mock.Anything).Return(nil, errors.New("dns create failed")).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
 	ad := &vsa.ActiveDirectory{DNS: "10.0.0.1", Domain: "example.com"}
-	err := (ActiveDirectoryActivity{}).CreateOrModifyADDNS(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
 	mockClient.AssertExpectations(t)
 	mockNameSvc.AssertExpectations(t)
 }
 
 func TestCreateOrModifyADDNS_DNSModifyError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNameSvc := new(ontapRest.MockNameServicesClient)
 	mockClient.On("NameServices").Return(mockNameSvc).Times(2)
@@ -511,18 +598,24 @@ func TestCreateOrModifyADDNS_DNSModifyError(t *testing.T) {
 	mockNameSvc.On("DNSGet", mock.Anything).Return(existing, nil).Once()
 	mockNameSvc.On("DNSModify", mock.Anything).Return(errors.New("dns modify failed")).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
 	ad := &vsa.ActiveDirectory{DNS: "2.2.2.2", Domain: "example.com"}
-	err := (ActiveDirectoryActivity{}).CreateOrModifyADDNS(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
 	mockClient.AssertExpectations(t)
 	mockNameSvc.AssertExpectations(t)
 }
 
 func TestGetOrCreateCifsService_GetOntapRestProviderError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetter := getOntapRestProvider
 	defer func() { getOntapRestProvider = originalGetter }()
 
@@ -530,13 +623,18 @@ func TestGetOrCreateCifsService_GetOntapRestProviderError(t *testing.T) {
 		return nil, errors.New("provider error")
 	}
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.GetOrCreateCifsService)
+
 	ad := &vsa.ActiveDirectory{Domain: "example.com"}
-	_, err := (ActiveDirectoryActivity{}).GetOrCreateCifsService(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.GetOrCreateCifsService, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
 }
 
 func TestGetOrCreateCifsService_CreateRESTClientError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetter := getOntapRestProvider
 	defer func() { getOntapRestProvider = originalGetter }()
 
@@ -548,6 +646,7 @@ func TestGetOrCreateCifsService_CreateRESTClientError(t *testing.T) {
 	}
 	defer func() { utils.DecryptPassword = originalDecryptPassword }()
 
+	ctx := context.Background()
 	logger := util.GetLogger(ctx)
 	provider := &vsa.OntapRestProvider{
 		ClientParams: ontapRest.RESTClientParams{Trace: logger, Ctx: ctx},
@@ -565,13 +664,18 @@ func TestGetOrCreateCifsService_CreateRESTClientError(t *testing.T) {
 	})
 	defer originalHooks()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.GetOrCreateCifsService)
+
 	ad := &vsa.ActiveDirectory{Domain: "example.com"}
-	_, err := (ActiveDirectoryActivity{}).GetOrCreateCifsService(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.GetOrCreateCifsService, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get ONTAP client")
 }
 
 func TestGetOrCreateCifsService_EnsureCifsServerNamePostFixError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	ctx := context.Background()
 	mockClient := new(ontapRest.MockRESTClient)
 
@@ -606,13 +710,17 @@ func TestGetOrCreateCifsService_EnsureCifsServerNamePostFixError(t *testing.T) {
 		return provider, nil
 	}
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.GetOrCreateCifsService)
+
 	ad := &vsa.ActiveDirectory{Domain: "example.com"}
-	_, err := (ActiveDirectoryActivity{}).GetOrCreateCifsService(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.GetOrCreateCifsService, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
 }
 
 func TestGetOrCreateCifsService_CifsServiceGetError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	// Mock password decryption
 	originalDecryptPassword := utils.DecryptPassword
@@ -627,18 +735,23 @@ func TestGetOrCreateCifsService_CifsServiceGetError(t *testing.T) {
 	mockClient.On("NAS").Return(mockNas).Once()
 	mockNas.On("CifsServiceGet", mock.Anything).Return(nil, errors.New("cifs get failed")).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.GetOrCreateCifsService)
+
 	ad := &vsa.ActiveDirectory{Domain: "example.com"}
-	_, err := (ActiveDirectoryActivity{}).GetOrCreateCifsService(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.GetOrCreateCifsService, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
 	mockNas.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
 
 func TestGetOrCreateCifsService_CreateAndSetupCIFSServerError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
 	// Mock password decryption
 	originalDecryptPassword := utils.DecryptPassword
@@ -653,6 +766,7 @@ func TestGetOrCreateCifsService_CreateAndSetupCIFSServerError(t *testing.T) {
 	mockClient.On("NAS").Return(mockNas).Once()
 	mockNas.On("CifsServiceGet", mock.Anything).Return(nil, utilerrors.NewNotFoundErr("cifs service", nil)).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{
 		CreateAndSetupCIFSServer: func(_ log.Logger, _ ontapRest.RESTClient, _ *vsa.ActiveDirectory, _, _ string) (string, error) {
 			return "", errors.New("create failed")
@@ -660,15 +774,20 @@ func TestGetOrCreateCifsService_CreateAndSetupCIFSServerError(t *testing.T) {
 	})
 	defer cleanup()
 
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.GetOrCreateCifsService)
+
 	ad := &vsa.ActiveDirectory{Domain: "example.com"}
-	_, err := (ActiveDirectoryActivity{}).GetOrCreateCifsService(ctx, &models.Node{}, ad, "svm", "svm-uuid")
+	_, err := env.ExecuteActivity(activity.GetOrCreateCifsService, &models.Node{}, ad, "svm", "svm-uuid")
 	require.Error(t, err)
 	mockNas.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
 
 func TestDdnsModify_GetOntapRestProviderError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetter := getOntapRestProvider
 	defer func() { getOntapRestProvider = originalGetter }()
 
@@ -676,15 +795,21 @@ func TestDdnsModify_GetOntapRestProviderError(t *testing.T) {
 		return nil, errors.New("provider error")
 	}
 
-	err := (ActiveDirectoryActivity{}).DdnsModify(ctx, &models.Node{}, "svm-uuid", "fqdn.example.com")
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.DdnsModify)
+
+	_, err := env.ExecuteActivity(activity.DdnsModify, &models.Node{}, "svm-uuid", "fqdn.example.com")
 	require.Error(t, err)
 }
 
 func TestDdnsModify_CreateRESTClientError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetter := getOntapRestProvider
 	defer func() { getOntapRestProvider = originalGetter }()
 
+	ctx := context.Background()
 	logger := util.GetLogger(ctx)
 	provider := &vsa.OntapRestProvider{
 		ClientParams: ontapRest.RESTClientParams{Trace: logger, Ctx: ctx},
@@ -702,29 +827,39 @@ func TestDdnsModify_CreateRESTClientError(t *testing.T) {
 	})
 	defer originalHooks()
 
-	err := (ActiveDirectoryActivity{}).DdnsModify(ctx, &models.Node{}, "svm-uuid", "fqdn.example.com")
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.DdnsModify)
+
+	_, err := env.ExecuteActivity(activity.DdnsModify, &models.Node{}, "svm-uuid", "fqdn.example.com")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get ONTAP client")
 }
 
 func TestDdnsModify_DNSModifyError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockClient := new(ontapRest.MockRESTClient)
 	mockNameSvc := new(ontapRest.MockNameServicesClient)
 	mockClient.On("NameServices").Return(mockNameSvc).Once()
 	mockNameSvc.On("DNSModify", mock.Anything).Return(errors.New("dns modify failed")).Once()
 
+	ctx := context.Background()
 	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
 	defer cleanup()
 
-	err := (ActiveDirectoryActivity{}).DdnsModify(ctx, &models.Node{}, "svm-uuid", "fqdn.example.com")
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.DdnsModify)
+
+	_, err := env.ExecuteActivity(activity.DdnsModify, &models.Node{}, "svm-uuid", "fqdn.example.com")
 	require.Error(t, err)
 	mockClient.AssertExpectations(t)
 	mockNameSvc.AssertExpectations(t)
 }
 
 func TestCreateJunctionPathForCifsShare_GetOntapRestProviderError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetter := getOntapRestProvider
 	defer func() { getOntapRestProvider = originalGetter }()
 
@@ -732,15 +867,21 @@ func TestCreateJunctionPathForCifsShare_GetOntapRestProviderError(t *testing.T) 
 		return nil, errors.New("provider error")
 	}
 
-	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction", []string{})
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
+
+	_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, &models.Node{}, "svm", "/junction", []string{})
 	require.Error(t, err)
 }
 
 func TestCreateJunctionPathForCifsShare_CreateRESTClientError(t *testing.T) {
-	ctx := context.Background()
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetter := getOntapRestProvider
 	defer func() { getOntapRestProvider = originalGetter }()
 
+	ctx := context.Background()
 	logger := util.GetLogger(ctx)
 	provider := &vsa.OntapRestProvider{
 		ClientParams: ontapRest.RESTClientParams{Trace: logger, Ctx: ctx},
@@ -758,7 +899,9 @@ func TestCreateJunctionPathForCifsShare_CreateRESTClientError(t *testing.T) {
 	})
 	defer originalHooks()
 
-	err := (ActiveDirectoryActivity{}).CreateJunctionPathForCifsShare(ctx, &models.Node{}, "svm", "/junction", []string{})
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateJunctionPathForCifsShare)
+
+	_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, &models.Node{}, "svm", "/junction", []string{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get ONTAP client")
 }

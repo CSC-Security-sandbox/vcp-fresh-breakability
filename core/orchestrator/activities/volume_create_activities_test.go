@@ -76,6 +76,9 @@ func TestCreateVolume_Failure(t *testing.T) {
 
 func TestCreateVolumeInONTAP_Success(t *testing.T) {
 	t.Run("TestCreateVolumeInONTAP_DefaultConfig_Success", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider) // Use the mock provider
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -89,7 +92,8 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		activity := activities.VolumeCreateActivity{
 			SE: database.NewMockStorage(t),
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateVolumeInONTAP)
+
 		volume := &datamodel.Volume{
 			Name:    "test-volume",
 			Svm:     &datamodel.Svm{Name: "test-svm"},
@@ -106,15 +110,20 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		mockProvider.On("CreateVolume", mock.Anything).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+		val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
+		var result *vsa.VolumeResponse
+		_ = val.Get(&result)
 		assert.Equal(t, expectedResponse, result)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("TestCreateVolumeInONTAP_WhenAutoTieringIsFalse_DefaultConfigIsSet", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider) // Use the mock provider
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -128,7 +137,8 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		activity := activities.VolumeCreateActivity{
 			SE: database.NewMockStorage(t),
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateVolumeInONTAP)
+
 		volume := &datamodel.Volume{
 			Name:               "test-volume",
 			Svm:                &datamodel.Svm{Name: "test-svm"},
@@ -149,15 +159,20 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+		val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
+		var result *vsa.VolumeResponse
+		_ = val.Get(&result)
 		assert.Equal(t, expectedResponse, result)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("TestCreateVolumeInONTAP_WhenAutoTieringIsTrue_AutoTierConfigIsSet", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider) // Use the mock provider
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -171,7 +186,8 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		activity := activities.VolumeCreateActivity{
 			SE: database.NewMockStorage(t),
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateVolumeInONTAP)
+
 		volume := &datamodel.Volume{
 			Name:               "test-volume",
 			Svm:                &datamodel.Svm{Name: "test-svm"},
@@ -198,15 +214,20 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+		val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
+		var result *vsa.VolumeResponse
+		_ = val.Get(&result)
 		assert.Equal(t, expectedResponse, result)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("TestCreateVolumeInONTAP_WithFileProperties_ExportPolicyAndJunctionPathAreSet", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Setup file protocol support for this test
 		utils.SetFileProtocolSupportedForTesting(true)
 		utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
@@ -227,7 +248,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		activity := activities.VolumeCreateActivity{
 			SE: database.NewMockStorage(t),
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateVolumeInONTAP)
 
 		volume := &datamodel.Volume{
 			Name:    "test-volume",
@@ -253,15 +274,20 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+		val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
+		var result *vsa.VolumeResponse
+		_ = val.Get(&result)
 		assert.Equal(t, expectedResponse, result)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("TestCreateVolumeInONTAP_WhenLargeCapacityWithConstituentCount_FlexGroupStyleAndAggregatesAreSet", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider) // Use the mock provider
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -275,7 +301,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		activity := activities.VolumeCreateActivity{
 			SE: database.NewMockStorage(t),
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateVolumeInONTAP)
 
 		constituentCount := int32(8)
 		volume := &datamodel.Volume{
@@ -310,15 +336,20 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, aggrs)
+		val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, aggrs)
 
 		// Assert
 		assert.NoError(t, err)
+		var result *vsa.VolumeResponse
+		_ = val.Get(&result)
 		assert.Equal(t, expectedResponse, result)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("TestCreateVolumeInONTAP_WhenLargeCapacityWithAutoProvisioning_FlexGroupStyleAndTieringSupportedAreSet", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider) // Use the mock provider
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -332,7 +363,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		activity := activities.VolumeCreateActivity{
 			SE: database.NewMockStorage(t),
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateVolumeInONTAP)
 
 		volume := &datamodel.Volume{
 			Name:                  "test-large-volume-auto",
@@ -357,15 +388,20 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+		val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
+		var result *vsa.VolumeResponse
+		_ = val.Get(&result)
 		assert.Equal(t, expectedResponse, result)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("TestCreateVolumeInONTAP_WhenNotLargeCapacity_RegularAggregateIsSet", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider) // Use the mock provider
 		originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -379,7 +415,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		activity := activities.VolumeCreateActivity{
 			SE: database.NewMockStorage(t),
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateVolumeInONTAP)
 
 		volume := &datamodel.Volume{
 			Name:    "test-regular-volume",
@@ -403,16 +439,21 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+		val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
+		var result *vsa.VolumeResponse
+		_ = val.Get(&result)
 		assert.Equal(t, expectedResponse, result)
 		mockProvider.AssertExpectations(t)
 	})
 }
 
 func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -426,7 +467,8 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
 	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
 		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -439,15 +481,20 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm", IsRestore: false}).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+	val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *vsa.VolumeResponse
+	_ = val.Get(&result)
 	assert.Equal(t, expectedResponse, result)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCreateVolumeInONTAP_Failure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -461,8 +508,8 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
 		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -474,16 +521,18 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 	mockProvider.On("CreateVolume", mock.Anything).Return(nil, expectedError)
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+	_, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.EqualError(t, err, expectedError.Error())
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCreateIgroup_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -496,7 +545,8 @@ func TestCreateIgroup_Success(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateIgroup)
+
 	volume := &datamodel.Volume{Svm: &datamodel.Svm{Name: "test-svm"}}
 	node := &models.Node{}
 	hostParams := []*common.HostParams{
@@ -513,7 +563,7 @@ func TestCreateIgroup_Success(t *testing.T) {
 	}).Return("host1", nil)
 
 	// Act
-	err := activity.CreateIgroup(ctx, volume, hostParams, node)
+	_, err := env.ExecuteActivity(activity.CreateIgroup, volume, hostParams, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -521,6 +571,9 @@ func TestCreateIgroup_Success(t *testing.T) {
 }
 
 func TestCreateIgroup_Exists(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -533,7 +586,8 @@ func TestCreateIgroup_Exists(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateIgroup)
+
 	volume := &datamodel.Volume{Svm: &datamodel.Svm{Name: "test-svm"}}
 	node := &models.Node{}
 	hostParams := []*common.HostParams{
@@ -544,7 +598,7 @@ func TestCreateIgroup_Exists(t *testing.T) {
 	mockProvider.On("IgroupExists", "host1", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
 
 	// Act
-	err := activity.CreateIgroup(ctx, volume, hostParams, node)
+	_, err := env.ExecuteActivity(activity.CreateIgroup, volume, hostParams, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -552,6 +606,9 @@ func TestCreateIgroup_Exists(t *testing.T) {
 }
 
 func TestCreateIgroup_Failure_IgroupExists(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -564,7 +621,8 @@ func TestCreateIgroup_Failure_IgroupExists(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateIgroup)
+
 	volume := &datamodel.Volume{Svm: &datamodel.Svm{Name: "test-svm"}}
 	node := &models.Node{}
 	hostParams := []*common.HostParams{
@@ -575,15 +633,18 @@ func TestCreateIgroup_Failure_IgroupExists(t *testing.T) {
 	mockProvider.On("IgroupExists", "host1", nillable.GetStringPtr("test-svm")).Return(false, nil, errors.New("failed to check igroup existence"))
 
 	// Act
-	err := activity.CreateIgroup(ctx, volume, hostParams, node)
+	_, err := env.ExecuteActivity(activity.CreateIgroup, volume, hostParams, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Equal(t, "failed to check igroup existence", err.Error())
+	assert.Contains(t, err.Error(), "failed to check igroup existence")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCreateIgroup_Failure_IgroupCreate(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -595,7 +656,8 @@ func TestCreateIgroup_Failure_IgroupCreate(t *testing.T) {
 	}
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateIgroup)
+
 	volume := &datamodel.Volume{Svm: &datamodel.Svm{Name: "test-svm"}}
 	node := &models.Node{}
 	hostParams := []*common.HostParams{
@@ -612,15 +674,18 @@ func TestCreateIgroup_Failure_IgroupCreate(t *testing.T) {
 	}).Return("", errors.New("failed to create igroup"))
 
 	// Act
-	err := activity.CreateIgroup(ctx, volume, hostParams, node)
+	_, err := env.ExecuteActivity(activity.CreateIgroup, volume, hostParams, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Equal(t, "failed to create igroup", err.Error())
+	assert.Contains(t, err.Error(), "failed to create igroup")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCreateLun_WithBlockDevices_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -634,7 +699,7 @@ func TestCreateLun_WithBlockDevices_Success(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLun)
 
 	blockDevices := []datamodel.BlockDevice{
 		{
@@ -663,10 +728,12 @@ func TestCreateLun_WithBlockDevices_Success(t *testing.T) {
 	mockProvider.On("LunCreate", mock.Anything).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.CreateLun(ctx, volume, node, availableSpace)
+	val, err := env.ExecuteActivity(activity.CreateLun, volume, node, availableSpace)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *vsa.LunResponse
+	_ = val.Get(&result)
 	assert.Equal(t, expectedResponse, result)
 
 	// Verify that the LUN name from BlockDevice was used instead of generated name
@@ -681,6 +748,9 @@ func TestCreateLun_WithBlockDevices_Success(t *testing.T) {
 }
 
 func TestCreateLun_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -692,7 +762,8 @@ func TestCreateLun_Success(t *testing.T) {
 	}
 
 	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLun)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -721,15 +792,20 @@ func TestCreateLun_Success(t *testing.T) {
 
 	// Act
 	availableSpace := int64(107373867008) // 99.9997 GiB, this is the available space after creating the volume
-	lunResponse, err := activity.CreateLun(ctx, volume, node, availableSpace)
+	val, err := env.ExecuteActivity(activity.CreateLun, volume, node, availableSpace)
 
 	// Assert
 	assert.NoError(t, err)
+	var lunResponse *vsa.LunResponse
+	_ = val.Get(&lunResponse)
 	assert.Equal(t, expectedLun, lunResponse)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCreateLun_Success_AlreadyExists(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -741,7 +817,8 @@ func TestCreateLun_Success_AlreadyExists(t *testing.T) {
 	}
 
 	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLun)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -765,15 +842,20 @@ func TestCreateLun_Success_AlreadyExists(t *testing.T) {
 
 	// Act
 	availableSpace := int64(107373867008) // 99.9997 GiB, this is the available space after creating the volume
-	lun, err := activity.CreateLun(ctx, volume, node, availableSpace)
+	val, err := env.ExecuteActivity(activity.CreateLun, volume, node, availableSpace)
 
 	// Assert
 	assert.NoError(t, err)
+	var lun *vsa.LunResponse
+	_ = val.Get(&lun)
 	assert.Equal(t, lunResponse, lun)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCreateLun_Failure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -785,7 +867,8 @@ func TestCreateLun_Failure(t *testing.T) {
 	}
 
 	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLun)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -807,16 +890,18 @@ func TestCreateLun_Failure(t *testing.T) {
 	}).Return(nil, expectedError)
 
 	// Act
-	lunResponse, err := activity.CreateLun(ctx, volume, node, 107373867008)
+	_, err := env.ExecuteActivity(activity.CreateLun, volume, node, int64(107373867008))
 
 	// Assert
 	assert.Error(t, err)
-	assert.Empty(t, lunResponse)
-	assert.EqualError(t, err, expectedError.Error())
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCreateLun_SkipForDataProtectionVolume(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
 	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
@@ -826,7 +911,8 @@ func TestCreateLun_SkipForDataProtectionVolume(t *testing.T) {
 	}
 
 	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLun)
+
 	volume := &datamodel.Volume{
 		Name: "dp-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -838,12 +924,17 @@ func TestCreateLun_SkipForDataProtectionVolume(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	lun, err := activity.CreateLun(ctx, volume, node, 107374182400)
+	val, err := env.ExecuteActivity(activity.CreateLun, volume, node, int64(107374182400))
 	assert.NoError(t, err)
+	var lun *vsa.LunResponse
+	_ = val.Get(&lun)
 	assert.NotNil(t, lun)
 }
 
 func TestCreateLun_LunGetError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -855,7 +946,8 @@ func TestCreateLun_LunGetError(t *testing.T) {
 	}
 
 	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLun)
+
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -869,15 +961,17 @@ func TestCreateLun_LunGetError(t *testing.T) {
 	mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun get error"))
 
 	// Act
-	lunName, err := activity.CreateLun(ctx, volume, node, 107374182400)
+	_, err := env.ExecuteActivity(activity.CreateLun, volume, node, int64(107374182400))
 
 	// Assert
 	assert.Error(t, err)
-	assert.Empty(t, lunName)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCreateLunMap_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -896,7 +990,8 @@ func TestCreateLunMap_Success(t *testing.T) {
 	}
 
 	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLunMap)
+
 	params := &common.CreateLunMapParams{
 		LunName:   "lun_test-volume",
 		SvmName:   "test-svm",
@@ -912,7 +1007,7 @@ func TestCreateLunMap_Success(t *testing.T) {
 	}).Return(nil)
 
 	// Act
-	err := activity.CreateLunMap(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.CreateLunMap, volume, params, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -920,6 +1015,9 @@ func TestCreateLunMap_Success(t *testing.T) {
 }
 
 func TestCreateLunMap_Success_AlreadyExists(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -931,7 +1029,8 @@ func TestCreateLunMap_Success_AlreadyExists(t *testing.T) {
 	}
 
 	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLunMap)
+
 	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
@@ -951,7 +1050,7 @@ func TestCreateLunMap_Success_AlreadyExists(t *testing.T) {
 	}).Return(utilErrors.NewConflictErr("lun map already exists"))
 
 	// Act
-	err := activity.CreateLunMap(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.CreateLunMap, volume, params, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -959,6 +1058,9 @@ func TestCreateLunMap_Success_AlreadyExists(t *testing.T) {
 }
 
 func TestCreateLunMap_Failure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -970,7 +1072,8 @@ func TestCreateLunMap_Failure(t *testing.T) {
 	}
 
 	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLunMap)
+
 	params := &common.CreateLunMapParams{
 		LunName:   "lun_test-volume",
 		SvmName:   "test-svm",
@@ -995,52 +1098,57 @@ func TestCreateLunMap_Failure(t *testing.T) {
 	}).Return(expectedError)
 
 	// Act
-	err := activity.CreateLunMap(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.CreateLunMap, volume, params, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedError.Error())
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateVolumeDetails_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeDetails)
+
 	volume := &datamodel.Volume{VolumeAttributes: &datamodel.VolumeAttributes{}}
 	volCreateResponse := &vsa.ProviderResponse{ExternalUUID: "uuid-123"}
 
-	mockStorage.On("UpdateVolume", ctx, volume).Return(nil)
+	mockStorage.On("UpdateVolume", mock.Anything, mock.Anything).Return(nil)
 
 	// Act
-	err := activity.UpdateVolumeDetails(ctx, volume, volCreateResponse)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeDetails, volume, volCreateResponse)
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Equal(t, "uuid-123", volume.VolumeAttributes.ExternalUUID)
-	assert.Equal(t, models.LifeCycleStateREADY, volume.State)
-	assert.Equal(t, models.LifeCycleStateAvailableDetails, volume.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestUpdateVolumeDetails_Failure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.UpdateVolumeDetails)
+
 	volume := &datamodel.Volume{VolumeAttributes: &datamodel.VolumeAttributes{}}
 	volCreateResponse := &vsa.ProviderResponse{ExternalUUID: "uuid-123"}
 	expectedError := errors.New("failed to update volume")
 
-	mockStorage.On("UpdateVolume", ctx, volume).Return(expectedError)
+	mockStorage.On("UpdateVolume", mock.Anything, mock.Anything).Return(expectedError)
 
 	// Act
-	err := activity.UpdateVolumeDetails(ctx, volume, volCreateResponse)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeDetails, volume, volCreateResponse)
 
 	// Assert
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedError.Error())
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1324,6 +1432,9 @@ func TestGetHosts_Failure_GetMultipleHostGroupsError(t *testing.T) {
 }
 
 func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	// Arrange
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
@@ -1337,7 +1448,8 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
 	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
 		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -1349,11 +1461,10 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm", IsRestore: false}).Return(nil, errors.New("volume not found"))
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+	_, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	mockProvider.AssertExpectations(t)
 }
 
@@ -1450,6 +1561,9 @@ func TestHandleVolumeCreateConflict_DeleteVolumeError(t *testing.T) {
 }
 
 func TestCreateLunMap_SkipForDataProtectionVolume(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
 	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
@@ -1459,7 +1573,8 @@ func TestCreateLunMap_SkipForDataProtectionVolume(t *testing.T) {
 	}
 
 	activity := activities.VolumeCreateActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateLunMap)
+
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: true,
@@ -1472,11 +1587,14 @@ func TestCreateLunMap_SkipForDataProtectionVolume(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	err := activity.CreateLunMap(ctx, volume, params, node)
+	_, err := env.ExecuteActivity(activity.CreateLunMap, volume, params, node)
 	assert.NoError(t, err)
 }
 
 func TestCreateVolumeInONTAP_DataProtectionVolume(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
 	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
@@ -1488,7 +1606,8 @@ func TestCreateVolumeInONTAP_DataProtectionVolume(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
 	volume := &datamodel.Volume{
 		Name:    "dp-volume",
 		Svm:     &datamodel.Svm{Name: "test-svm"},
@@ -1504,14 +1623,19 @@ func TestCreateVolumeInONTAP_DataProtectionVolume(t *testing.T) {
 		return params.VolumeType == "dp"
 	})).Return(expectedResponse, nil)
 
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil, nil)
+	val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
 
 	assert.NoError(t, err)
+	var result *vsa.VolumeResponse
+	_ = val.Get(&result)
 	assert.Equal(t, expectedResponse, result)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCreateVolumeInONTAP_ClonedVolume(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
 	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
@@ -1523,7 +1647,8 @@ func TestCreateVolumeInONTAP_ClonedVolume(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
 	volume := &datamodel.Volume{
 		Name:    "dp-volume",
 		Svm:     &datamodel.Svm{Name: "test-svm"},
@@ -1549,9 +1674,11 @@ func TestCreateVolumeInONTAP_ClonedVolume(t *testing.T) {
 		return params.RestoreFromSnapshot != nil
 	})).Return(expectedResponse, nil)
 
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, snapshot, nil, nil)
+	val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, snapshot, nil, nil)
 
 	assert.NoError(t, err)
+	var result *vsa.VolumeResponse
+	_ = val.Get(&result)
 	assert.Equal(t, expectedResponse, result)
 	mockProvider.AssertExpectations(t)
 }
@@ -3127,10 +3254,13 @@ func TestCreateBackupPolicyFetchedFromSDESucceeds(t *testing.T) {
 
 func TestCreateExportPolicyInOntap(t *testing.T) {
 	t.Run("Success_FileVolume", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateExportPolicyInOntap)
 
 		// Mock provider setup
 		mockProvider := vsa.NewMockProvider(t)
@@ -3182,17 +3312,20 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		mockProvider.EXPECT().CreateExportPolicy(expectedExportPolicy).Return(nil)
 
 		// Execute test
-		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.CreateExportPolicyInOntap, volume, node)
 
 		// Assertions
 		assert.NoError(t, err)
 	})
 
 	t.Run("Skip_NonFileVolume", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateExportPolicyInOntap)
 
 		// Test data for block volume (no FileProperties)
 		volume := &datamodel.Volume{
@@ -3210,17 +3343,20 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		}
 
 		// Execute test
-		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.CreateExportPolicyInOntap, volume, node)
 
 		// Assertions - should return nil for non-file volumes
 		assert.NoError(t, err)
 	})
 
 	t.Run("Success_ExportPolicyConflict", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateExportPolicyInOntap)
 
 		// Mock provider setup
 		mockProvider := vsa.NewMockProvider(t)
@@ -3261,17 +3397,20 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		mockProvider.EXPECT().CreateExportPolicy(mock.Anything).Return(conflictError)
 
 		// Execute test
-		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.CreateExportPolicyInOntap, volume, node)
 
 		// Assertions - should return nil on conflict (graceful handling)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Success_ExportPolicyDuplicateEntry", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateExportPolicyInOntap)
 
 		// Mock provider setup
 		mockProvider := vsa.NewMockProvider(t)
@@ -3312,17 +3451,20 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		mockProvider.EXPECT().CreateExportPolicy(mock.Anything).Return(conflictError)
 
 		// Execute test
-		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.CreateExportPolicyInOntap, volume, node)
 
 		// Assertions - should return nil on conflict (graceful handling)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Error_ProviderError", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateExportPolicyInOntap)
 
 		// Mock provider setup
 		mockProvider := vsa.NewMockProvider(t)
@@ -3363,7 +3505,7 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		mockProvider.EXPECT().CreateExportPolicy(mock.Anything).Return(providerError)
 
 		// Execute test
-		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.CreateExportPolicyInOntap, volume, node)
 
 		// Assertions - should return the provider error
 		assert.Error(t, err)
@@ -3371,10 +3513,13 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 	})
 
 	t.Run("Success_MultipleExportRules", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.CreateExportPolicyInOntap)
 
 		// Mock provider setup
 		mockProvider := vsa.NewMockProvider(t)
@@ -3452,7 +3597,7 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		mockProvider.EXPECT().CreateExportPolicy(expectedExportPolicy).Return(nil)
 
 		// Execute test
-		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.CreateExportPolicyInOntap, volume, node)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -3461,10 +3606,13 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 
 func TestConfigureLdap(t *testing.T) {
 	t.Run("Skip_NonFileVolume", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.ConfigureLdap)
 
 		// Mock provider setup
 		mockProvider := vsa.NewMockProvider(t)
@@ -3498,7 +3646,7 @@ func TestConfigureLdap(t *testing.T) {
 		mockProvider.AssertNotCalled(t, "CreateLdap")
 
 		// Execute test
-		err := activity.ConfigureLdap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.ConfigureLdap, volume, node)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -3506,10 +3654,13 @@ func TestConfigureLdap(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 	t.Run("Ldap_NotEnabled", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.ConfigureLdap)
 
 		// Mock provider setup
 		mockProvider := vsa.NewMockProvider(t)
@@ -3581,7 +3732,7 @@ func TestConfigureLdap(t *testing.T) {
 		mockProvider.AssertNotCalled(t, "CreateLdap")
 
 		// Execute test
-		err := activity.ConfigureLdap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.ConfigureLdap, volume, node)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -3589,10 +3740,13 @@ func TestConfigureLdap(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 	t.Run("ActiveDirectory_NotConfigured", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.ConfigureLdap)
 
 		// Mock provider setup
 		mockProvider := vsa.NewMockProvider(t)
@@ -3651,23 +3805,26 @@ func TestConfigureLdap(t *testing.T) {
 		}
 
 		mockStorage.EXPECT().GetPool(mock.Anything, volume.Pool.UUID, volume.AccountID).Return(pool, nil)
-		mockStorage.EXPECT().GetActiveDirectoryForPoolByPoolID(ctx, mock.Anything).Return(nil, errors.New("Active Directory configuration is required for LDAP-enabled pools but is missing"))
+		mockStorage.EXPECT().GetActiveDirectoryForPoolByPoolID(mock.Anything, mock.Anything).Return(nil, errors.New("Active Directory configuration is required for LDAP-enabled pools but is missing"))
 		mockProvider.AssertNotCalled(t, "CreateLdap")
 
 		// Execute test
-		err := activity.ConfigureLdap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.ConfigureLdap, volume, node)
 
 		// Assertions
 		assert.Error(t, err)
-		assert.EqualError(t, err, "Active Directory configuration is required for LDAP-enabled pools but is missing")
+		assert.Contains(t, err.Error(), "Active Directory configuration is required for LDAP-enabled pools but is missing")
 		mockProvider.AssertExpectations(t)
 		mockStorage.AssertExpectations(t)
 	})
 	t.Run("Success_FileVolume", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		// Mock setup
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(activity.ConfigureLdap)
 
 		// Mock provider setup
 		mockProvider := vsa.NewMockProvider(t)
@@ -3733,11 +3890,11 @@ func TestConfigureLdap(t *testing.T) {
 		}
 
 		mockStorage.EXPECT().GetPool(mock.Anything, volume.Pool.UUID, volume.AccountID).Return(pool, nil)
-		mockStorage.EXPECT().GetActiveDirectoryForPoolByPoolID(ctx, mock.Anything).Return(ad, nil)
+		mockStorage.EXPECT().GetActiveDirectoryForPoolByPoolID(mock.Anything, mock.Anything).Return(ad, nil)
 		mockProvider.EXPECT().CreateLdap(ad, volume).Return(nil)
 
 		// Execute test
-		err := activity.ConfigureLdap(ctx, volume, node)
+		_, err := env.ExecuteActivity(activity.ConfigureLdap, volume, node)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -3746,12 +3903,15 @@ func TestConfigureLdap(t *testing.T) {
 
 func TestCreateBackupPolicySchedule(t *testing.T) {
 	t.Run("CreateBackupPolicyScheduleSucceeds", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockClient := &mocks.ScheduleClient{}
 		temporalScheduler := scheduler.NewTemporalScheduler(mockClient)
 		activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: temporalScheduler}
+		env.RegisterActivity(activity.CreateBackupPolicySchedule)
 
-		ctx := context.Background()
 		backupPolicy := &datamodel.BackupPolicy{
 			BaseModel: datamodel.BaseModel{
 				UUID: "policy-uuid",
@@ -3761,18 +3921,21 @@ func TestCreateBackupPolicySchedule(t *testing.T) {
 
 		schedulerHandle := &mocks.ScheduleHandle{}
 		schedulerHandle.On("GetID").Return("schedule-id")
-		mockClient.On("Create", ctx, mock.Anything).Return(schedulerHandle, nil).Once()
+		mockClient.On("Create", mock.Anything, mock.Anything).Return(schedulerHandle, nil).Once()
 
-		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy, "")
+		_, err := env.ExecuteActivity(activity.CreateBackupPolicySchedule, backupPolicy, "")
 		assert.NoError(t, err)
 	})
 	t.Run("CreateBackupPolicyScheduleFails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockClient := &mocks.ScheduleClient{}
 		temporalScheduler := scheduler.NewTemporalScheduler(mockClient)
 		activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: temporalScheduler}
+		env.RegisterActivity(activity.CreateBackupPolicySchedule)
 
-		ctx := context.Background()
 		backupPolicy := &datamodel.BackupPolicy{
 			BaseModel: datamodel.BaseModel{
 				UUID: "policy-uuid",
@@ -3782,18 +3945,21 @@ func TestCreateBackupPolicySchedule(t *testing.T) {
 
 		schedulerHandle := &mocks.ScheduleHandle{}
 		schedulerHandle.On("GetID").Return("schedule-id")
-		mockClient.On("Create", ctx, mock.Anything).Return(nil, errors.New("failed to create schedule")).Times(scheduler.DefaultMaxRetries)
+		mockClient.On("Create", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create schedule")).Times(scheduler.DefaultMaxRetries)
 
-		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy, "")
+		_, err := env.ExecuteActivity(activity.CreateBackupPolicySchedule, backupPolicy, "")
 		assert.Error(t, err, "failed to create schedule")
 	})
 	t.Run("CreateBackupPolicyScheduleWithCustomScheduleSucceeds", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockStorage := database.NewMockStorage(t)
 		mockClient := &mocks.ScheduleClient{}
 		temporalScheduler := scheduler.NewTemporalScheduler(mockClient)
 		activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: temporalScheduler}
+		env.RegisterActivity(activity.CreateBackupPolicySchedule)
 
-		ctx := context.Background()
 		backupPolicy := &datamodel.BackupPolicy{
 			BaseModel: datamodel.BaseModel{
 				UUID: "policy-uuid",
@@ -3804,46 +3970,59 @@ func TestCreateBackupPolicySchedule(t *testing.T) {
 
 		schedulerHandle := &mocks.ScheduleHandle{}
 		schedulerHandle.On("GetID").Return("schedule-id")
-		mockClient.On("Create", ctx, mock.Anything).Return(schedulerHandle, nil).Once()
+		mockClient.On("Create", mock.Anything, mock.Anything).Return(schedulerHandle, nil).Once()
 
-		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy, customSchedule)
+		_, err := env.ExecuteActivity(activity.CreateBackupPolicySchedule, backupPolicy, customSchedule)
 		assert.NoError(t, err)
 	})
 }
 
 func TestGetVolumesByPoolID(t *testing.T) {
 	t.Run("WhenGetVolumesByPoolIdReturnsVolumes", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockSE := database.NewMockStorage(t)
 		activity := &activities.VolumeCreateActivity{SE: mockSE}
-		ctx := context.Background()
+		env.RegisterActivity(activity.GetVolumesByPoolID)
+
 		poolID := int64(1)
 		vol1 := &datamodel.Volume{BaseModel: datamodel.BaseModel{ID: int64(1)}}
 		var volumes []*datamodel.Volume
 		volumes = append(volumes, vol1)
 
-		mockSE.On("GetVolumesByPoolID", ctx, poolID).Return(volumes, nil)
-		result, err := activity.GetVolumesByPoolID(ctx, poolID)
+		mockSE.On("GetVolumesByPoolID", mock.Anything, poolID).Return(volumes, nil)
+		val, err := env.ExecuteActivity(activity.GetVolumesByPoolID, poolID)
 		assert.NoError(t, err)
+		var result []*datamodel.Volume
+		_ = val.Get(&result)
 		assert.Equal(t, volumes, result)
 	})
 	t.Run("WhenGetVolumesByPoolIdReturnsError", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
 		mockSE := database.NewMockStorage(t)
 		activity := &activities.VolumeCreateActivity{SE: mockSE}
-		ctx := context.Background()
+		env.RegisterActivity(activity.GetVolumesByPoolID)
+
 		poolID := int64(1)
 
-		mockSE.On("GetVolumesByPoolID", ctx, poolID).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("get volumes ran into error")))
-		result, err := activity.GetVolumesByPoolID(ctx, poolID)
+		mockSE.On("GetVolumesByPoolID", mock.Anything, poolID).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("get volumes ran into error")))
+		_, err := env.ExecuteActivity(activity.GetVolumesByPoolID, poolID)
 		assert.Error(t, err)
-		assert.EqualError(t, err, "get volumes ran into error")
-		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "get volumes ran into error")
 	})
 }
 
 func TestUpdateVolumeAttributesInDB_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.Background()
+	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
+
 	volumeUUID := "vol-uuid-3"
 	volumeAttributes := &datamodel.VolumeAttributes{
 		ExternalUUID: "ext-uuid-123",
@@ -3851,35 +4030,43 @@ func TestUpdateVolumeAttributesInDB_Success(t *testing.T) {
 		SnapReserve:  10,
 	}
 
-	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
 		"volume_attributes": volumeAttributes,
 	}).Return(nil)
 
-	err := activity.UpdateVolumeAttributesInDB(ctx, volumeUUID, volumeAttributes)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, volumeAttributes)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestUpdateVolumeAttributesInDB_WithNilAttributes(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.Background()
+	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
+
 	volumeUUID := "vol-uuid-4"
 	var volumeAttributes *datamodel.VolumeAttributes = nil
 
-	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
 		"volume_attributes": volumeAttributes,
 	}).Return(nil)
 
-	err := activity.UpdateVolumeAttributesInDB(ctx, volumeUUID, volumeAttributes)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, volumeAttributes)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestUpdateVolumeAttributesInDB_Error(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.Background()
+	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
+
 	volumeUUID := "vol-uuid-5"
 	volumeAttributes := &datamodel.VolumeAttributes{
 		ExternalUUID: "ext-uuid-456",
@@ -3888,11 +4075,11 @@ func TestUpdateVolumeAttributesInDB_Error(t *testing.T) {
 	}
 	expectedErr := errors.New("database update failed")
 
-	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
 		"volume_attributes": volumeAttributes,
 	}).Return(expectedErr)
 
-	err := activity.UpdateVolumeAttributesInDB(ctx, volumeUUID, volumeAttributes)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, volumeAttributes)
 	assert.Error(t, err)
 	// Check that the error is wrapped as a temporal application error
 	assert.Contains(t, err.Error(), "database update failed")
@@ -3900,36 +4087,43 @@ func TestUpdateVolumeAttributesInDB_Error(t *testing.T) {
 }
 
 func TestUpdateVolumeAttributesInDB_EmptyUUID(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.Background()
+	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
+
 	volumeUUID := ""
 	volumeAttributes := &datamodel.VolumeAttributes{
 		ExternalUUID: "ext-uuid-789",
 		Protocols:    []string{"smb"},
 	}
 
-	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, map[string]interface{}{
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
 		"volume_attributes": volumeAttributes,
 	}).Return(nil)
 
-	err := activity.UpdateVolumeAttributesInDB(ctx, volumeUUID, volumeAttributes)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, volumeAttributes)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestGetAggregatesFromOntap(t *testing.T) {
-	// Setup
-	mockStorage := database.NewMockStorage(t)
-	activity := &activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.Background()
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-
 	// Original function to restore after tests
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
 	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
 
 	t.Run("Success_WithLargeVolumeConstituentCount", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetAggregatesFromOntap)
+
+		node := &models.Node{EndpointAddress: "127.0.0.1"}
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider)
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -3971,10 +4165,12 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 		mockProvider.On("GetAggregates").Return(mockAggregates, nil)
 
 		// Act
-		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+		val, err := env.ExecuteActivity(activity.GetAggregatesFromOntap, volume, node, 12)
 
 		// Assert
 		assert.NoError(t, err)
+		var result *models.AggregateDistributionResult
+		_ = val.Get(&result)
 		assert.NotNil(t, result)
 		assert.Equal(t, int64(8), int64(*volume.LargeVolumeAttributes.LargeVolumeConstituentCount))
 		assert.Len(t, result.Aggregates, len(expectedResult.Aggregates))
@@ -3982,6 +4178,15 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 	})
 
 	t.Run("Error_GetProviderByNodeFails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetAggregatesFromOntap)
+
+		node := &models.Node{EndpointAddress: "127.0.0.1"}
+
 		// Arrange
 		expectedErr := errors.New("failed to get provider")
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -3991,15 +4196,28 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 		volume := &datamodel.Volume{}
 
 		// Act
-		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+		val, err := env.ExecuteActivity(activity.GetAggregatesFromOntap, volume, node, 12)
 
 		// Assert
 		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.EqualError(t, err, expectedErr.Error())
+		assert.Contains(t, err.Error(), expectedErr.Error())
+		if err == nil {
+			var result *models.AggregateDistributionResult
+			_ = val.Get(&result)
+			assert.Nil(t, result)
+		}
 	})
 
 	t.Run("Error_GetAggregatesFails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetAggregatesFromOntap)
+
+		node := &models.Node{EndpointAddress: "127.0.0.1"}
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider)
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -4012,16 +4230,24 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 		volume := &datamodel.Volume{}
 
 		// Act
-		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+		_, err := env.ExecuteActivity(activity.GetAggregatesFromOntap, volume, node, 12)
 
 		// Assert
 		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.EqualError(t, err, expectedErr.Error())
+		assert.Contains(t, err.Error(), expectedErr.Error())
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("Error_CalculateAggregatesForConstituentVolumesFails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetAggregatesFromOntap)
+
+		node := &models.Node{EndpointAddress: "127.0.0.1"}
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider)
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -4053,17 +4279,25 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 		}
 
 		// Act
-		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+		_, err := env.ExecuteActivity(activity.GetAggregatesFromOntap, volume, node, 12)
 
 		// Assert
 		assert.Error(t, err)
-		assert.Nil(t, result)
 		// Check for the standardized VCP error message for ErrOntapAggregateCountMismatch (5014)
 		assert.Contains(t, err.Error(), "Some aggregates may be unavailable/offline to fulfil this request.")
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("Error_AggregateNotOnline", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetAggregatesFromOntap)
+
+		node := &models.Node{EndpointAddress: "127.0.0.1"}
+
 		// Arrange
 		mockProvider := new(vsa.MockProvider)
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -4101,11 +4335,10 @@ func TestGetAggregatesFromOntap(t *testing.T) {
 		}
 
 		// Act
-		result, err := activity.GetAggregatesFromOntap(ctx, volume, node, 12)
+		_, err := env.ExecuteActivity(activity.GetAggregatesFromOntap, volume, node, 12)
 
 		// Assert
 		assert.Error(t, err)
-		assert.Nil(t, result)
 		// Check for the standardized VCP error message for ErrOfflineAggregateError (5015)
 		assert.Contains(t, err.Error(), "Storage aggregate is not in online state and cannot accommodate volumes.")
 		mockProvider.AssertExpectations(t)

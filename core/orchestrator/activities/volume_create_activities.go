@@ -123,6 +123,7 @@ func (a VolumeCreateActivity) GetAggregatesFromOntap(ctx context.Context, volume
 
 func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot, backup *datamodel.Backup, aggrs *models.AggregateDistributionResult) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting CreateVolumeInONTAP activity")
 	se := a.SE
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -190,6 +191,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		}
 	}
 
+	activity.RecordHeartbeat(ctx, "Starting volume creation in ONTAP")
 	res, err := provider.CreateVolume(params)
 
 	if err != nil {
@@ -201,6 +203,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	}
 	logger.Debug("volume created successfully")
 
+	activity.RecordHeartbeat(ctx, "Finished CreateVolumeInONTAP activity")
 	return res, nil
 }
 
@@ -273,6 +276,7 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 
 func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting CreateExportPolicyInOntap activity")
 	if volume.VolumeAttributes.FileProperties == nil {
 		logger.Info("Skipping export policy creation for non-file volume")
 		return nil
@@ -308,6 +312,7 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 		}
 		return err
 	}
+	activity.RecordHeartbeat(ctx, "Finished CreateExportPolicyInOntap activity")
 	return nil
 }
 
@@ -336,11 +341,11 @@ func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider)
 
 func (a VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting CreateIgroup activity")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	// FixMe: What if a new host is added to the host group?
 	for _, host := range hostParams {
 		igroupExists, _, err := provider.IgroupExists(host.HostName, &volume.Svm.Name)
 		if err != nil {
@@ -361,11 +366,13 @@ func (a VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamode
 		}
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished CreateIgroup activity")
 	return nil
 }
 
 func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting CreateLun activity")
 	if volume.VolumeAttributes.IsDataProtection {
 		logger.Info("Skipping lun creation for data protection volume")
 		return &vsa.LunResponse{}, nil
@@ -396,8 +403,8 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 		}
 		return nil, err
 	}
+	activity.RecordHeartbeat(ctx, "Finished CreateLun activity")
 	logger.Debug("lun created successfully")
-
 	return lun, nil
 }
 
@@ -435,6 +442,7 @@ func LunGet(ctx context.Context, lunName, volumeName, svmName string, provider v
 
 func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamodel.Volume, params *common.CreateLunMapParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting CreateLunMap activity")
 	if volume.VolumeAttributes.IsDataProtection {
 		logger.Info("Skipping CreateLunMap for data protection volume")
 		return nil
@@ -454,13 +462,14 @@ func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamode
 		}
 		return err
 	}
+	activity.RecordHeartbeat(ctx, "Finished CreateLunMap activity")
 	logger.Debug("lun map created successfully")
-
 	return nil
 }
 
 func (a VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *datamodel.Volume, volCreateResponse *vsa.ProviderResponse) error {
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeDetails activity")
 
 	volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupPath != "" {
@@ -475,6 +484,7 @@ func (a VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *d
 		return err
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished UpdateVolumeDetails activity")
 	return nil
 }
 
@@ -1522,6 +1532,7 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 
 func (a VolumeCreateActivity) UpdateVolumeAttributesInDB(ctx context.Context, volumeUUID string, volumeAttributes *datamodel.VolumeAttributes) error {
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeAttributesInDB activity")
 
 	err := se.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
 		"volume_attributes": volumeAttributes,
@@ -1530,6 +1541,7 @@ func (a VolumeCreateActivity) UpdateVolumeAttributesInDB(ctx context.Context, vo
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished UpdateVolumeAttributesInDB activity")
 	return nil
 }
 
@@ -1694,6 +1706,8 @@ func (a VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, 
 
 func (a VolumeCreateActivity) ConfigureLdap(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting ConfigureLdap activity")
+
 	logger := util.GetLogger(ctx)
 	if volume.VolumeAttributes == nil || volume.VolumeAttributes.FileProperties == nil {
 		logger.Info("Skipping ldap configuration for non-file volume")
@@ -1738,6 +1752,7 @@ func (a VolumeCreateActivity) ConfigureLdap(ctx context.Context, volume *datamod
 		}
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Finished ConfigureLdap activity")
 	return nil
 }
 

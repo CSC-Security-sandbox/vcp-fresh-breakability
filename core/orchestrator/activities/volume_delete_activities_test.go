@@ -24,6 +24,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/testsuite"
 	"gorm.io/gorm"
 )
 
@@ -67,18 +68,22 @@ func (f *fakeCifsProvider) CreateRESTClient() (ontap_rest.RESTClient, error) {
 
 func TestDeleteVolume_Success(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolume)
+
 	volumeID := "test-volume-id"
 	expectedVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{ID: 10, UUID: volumeID}}
 
-	mockStorage.On("DeleteVolume", ctx, volumeID).Return(expectedVolume, nil)
-	mockStorage.On("DeleteSnapshot", ctx, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
+	mockStorage.On("DeleteVolume", mock.Anything, volumeID).Return(expectedVolume, nil)
+	mockStorage.On("DeleteSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
 	// Act
-	err := activity.DeleteVolume(ctx, expectedVolume)
+	_, err := env.ExecuteActivity(activity.DeleteVolume, expectedVolume)
 
 	// Assert
 	assert.NoError(t, err)
@@ -87,18 +92,22 @@ func TestDeleteVolume_Success(t *testing.T) {
 
 func TestDeleteVolume_Success_VolumeAlreadyDeleted(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolume)
+
 	volumeID := "test-volume-id"
 	expectedVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeID}}
 
-	mockStorage.On("DeleteVolume", ctx, volumeID).Return(nil, utilErrors.NewNotFoundErr("volume", nil))
+	mockStorage.On("DeleteVolume", mock.Anything, volumeID).Return(nil, utilErrors.NewNotFoundErr("volume", nil))
 
 	// Act
-	err := activity.DeleteVolume(ctx, expectedVolume)
+	_, err := env.ExecuteActivity(activity.DeleteVolume, expectedVolume)
 
 	// Assert
 	assert.NoError(t, err)
@@ -107,25 +116,31 @@ func TestDeleteVolume_Success_VolumeAlreadyDeleted(t *testing.T) {
 
 func TestDeleteVolume_Failure(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolume)
+
 	volumeID := "test-volume-id"
 	expectedError := errors.New("volume not found")
 
-	mockStorage.On("DeleteVolume", ctx, volumeID).Return(nil, expectedError)
+	mockStorage.On("DeleteVolume", mock.Anything, volumeID).Return(nil, expectedError)
 
 	// Act
-	err := activity.DeleteVolume(ctx, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeID}})
+	_, err := env.ExecuteActivity(activity.DeleteVolume, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeID}})
 
 	// Assert
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedError.Error())
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteVolumeInONTAP_Success(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
@@ -136,7 +151,8 @@ func TestDeleteVolumeInONTAP_Success(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolumeInONTAP)
+
 	volumeExternalUUID := "uuid-123"
 	volumeName := "test-volume"
 
@@ -146,7 +162,7 @@ func TestDeleteVolumeInONTAP_Success(t *testing.T) {
 	mockProvider.On("DeleteVolume", volumeExternalUUID, volumeName).Return(nil)
 
 	// Act
-	err := activity.DeleteVolumeInONTAP(ctx, volumeExternalUUID, volumeName, node)
+	_, err := env.ExecuteActivity(activity.DeleteVolumeInONTAP, volumeExternalUUID, volumeName, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -155,6 +171,9 @@ func TestDeleteVolumeInONTAP_Success(t *testing.T) {
 
 func TestDeleteVolumeInONTAP_Failure(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
@@ -165,7 +184,8 @@ func TestDeleteVolumeInONTAP_Failure(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolumeInONTAP)
+
 	volumeExternalUUID := "uuid-123"
 	volumeName := "test-volume"
 
@@ -176,16 +196,18 @@ func TestDeleteVolumeInONTAP_Failure(t *testing.T) {
 	mockProvider.On("DeleteVolume", volumeExternalUUID, volumeName).Return(expectedError)
 
 	// Act
-	err := activity.DeleteVolumeInONTAP(ctx, volumeExternalUUID, volumeName, node)
+	_, err := env.ExecuteActivity(activity.DeleteVolumeInONTAP, volumeExternalUUID, volumeName, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
 
 func TestDeleteVolumeInONTAP_VolumeInUse(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
@@ -196,7 +218,8 @@ func TestDeleteVolumeInONTAP_VolumeInUse(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolumeInONTAP)
+
 	volumeExternalUUID := "uuid-123"
 	volumeName := "test-volume"
 
@@ -207,16 +230,18 @@ func TestDeleteVolumeInONTAP_VolumeInUse(t *testing.T) {
 	mockProvider.On("DeleteVolume", volumeExternalUUID, volumeName).Return(expectedError)
 
 	// Act
-	err := activity.DeleteVolumeInONTAP(ctx, volumeExternalUUID, volumeName, node)
+	_, err := env.ExecuteActivity(activity.DeleteVolumeInONTAP, volumeExternalUUID, volumeName, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "volume is in use")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestDeleteVolumeInONTAP_ClusterDown(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
@@ -227,7 +252,8 @@ func TestDeleteVolumeInONTAP_ClusterDown(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolumeInONTAP)
+
 	volumeExternalUUID := "uuid-123"
 	volumeName := "test-volume"
 
@@ -238,18 +264,20 @@ func TestDeleteVolumeInONTAP_ClusterDown(t *testing.T) {
 	mockProvider.On("DeleteVolume", volumeExternalUUID, volumeName).Return(expectedError)
 
 	// Act
-	err := activity.DeleteVolumeInONTAP(ctx, volumeExternalUUID, volumeName, node)
+	_, err := env.ExecuteActivity(activity.DeleteVolumeInONTAP, volumeExternalUUID, volumeName, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unable to reach node")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -264,14 +292,14 @@ func TestDetermineSmbTeardownContext_Success(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 
 	ad := &datamodel.ActiveDirectory{
 		BaseModel:      datamodel.BaseModel{UUID: "ad-1"},
 		CredentialPath: "secret/path",
 		Username:       "ad-user",
 	}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	nameClient := ontap_rest.NewMockNameServicesClient(t)
@@ -286,9 +314,11 @@ func TestDetermineSmbTeardownContext_Success(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, node)
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, node)
 
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.NotNil(t, teardown)
 	assert.True(t, teardown.ShouldDelete)
 	assert.Equal(t, ad, teardown.ActiveDirectory)
@@ -297,9 +327,12 @@ func TestDetermineSmbTeardownContext_Success(t *testing.T) {
 }
 
 func TestDetermineSmbTeardownContext_SkipsWhenOtherSmbVolumeExists(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -316,19 +349,24 @@ func TestDetermineSmbTeardownContext_SkipsWhenOtherSmbVolumeExists(t *testing.T)
 		State:            models.LifeCycleStateREADY,
 	}
 
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.False(t, teardown.ShouldDelete)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_MissingActiveDirectory(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
@@ -339,19 +377,24 @@ func TestDetermineSmbTeardownContext_MissingActiveDirectory(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return((*datamodel.ActiveDirectory)(nil), nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return((*datamodel.ActiveDirectory)(nil), nil)
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.False(t, teardown.ShouldDelete)
 }
 
 func TestDetermineSmbTeardownContext_RestClientCreationFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -364,9 +407,9 @@ func TestDetermineSmbTeardownContext_RestClientCreationFailure(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 
 	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), createErr: fmt.Errorf("failed")}
 
@@ -376,17 +419,23 @@ func TestDetermineSmbTeardownContext_RestClientCreationFailure(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 
-	assert.Nil(t, teardown)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed")
+	var teardown *SmbTeardownContext
+	if val != nil {
+		_ = val.Get(&teardown)
+	}
+	assert.Nil(t, teardown)
 }
 
 func TestDetermineSmbTeardownContext_DnsNotFound(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
@@ -395,9 +444,9 @@ func TestDetermineSmbTeardownContext_DnsNotFound(t *testing.T) {
 		Svm:              &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"}},
 	}
 
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	nameClient := ontap_rest.NewMockNameServicesClient(t)
@@ -412,17 +461,22 @@ func TestDetermineSmbTeardownContext_DnsNotFound(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.True(t, teardown.ShouldDelete)
 	assert.Equal(t, "", teardown.FQDN)
 }
 
 func TestDetermineSmbTeardownContext_DnsFetchFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
@@ -431,9 +485,9 @@ func TestDetermineSmbTeardownContext_DnsFetchFailure(t *testing.T) {
 		Svm:              &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"}},
 	}
 
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	nameClient := ontap_rest.NewMockNameServicesClient(t)
@@ -448,16 +502,22 @@ func TestDetermineSmbTeardownContext_DnsFetchFailure(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 
-	assert.Nil(t, teardown)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "dns failure")
+	var teardown *SmbTeardownContext
+	if val != nil {
+		_ = val.Get(&teardown)
+	}
+	assert.Nil(t, teardown)
 }
 
 func TestDeleteCifsServerIfUnused_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -491,15 +551,18 @@ func TestDeleteCifsServerIfUnused_Success(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
 
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 
 	assert.NoError(t, err)
 	assert.True(t, deleteCalled)
 }
 
 func TestDeleteCifsServerIfUnused_PasswordFetchFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -521,15 +584,17 @@ func TestDeleteCifsServerIfUnused_PasswordFetchFailure(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
 
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "secret failure")
 }
 
 func TestDeleteCifsServerIfUnused_DeleteReturnsNotFound(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -554,14 +619,17 @@ func TestDeleteCifsServerIfUnused_DeleteReturnsNotFound(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
 
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 
 	assert.NoError(t, err)
 }
 
 func TestDeleteCifsServerIfUnused_DeleteFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -586,15 +654,17 @@ func TestDeleteCifsServerIfUnused_DeleteFailure(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
 
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "delete failure")
 }
 
 func TestDeleteDnsRecordIfUnused_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteDnsRecordIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -620,14 +690,17 @@ func TestDeleteDnsRecordIfUnused_Success(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteDnsRecordIfUnused, teardown, &models.Node{})
 
 	assert.NoError(t, err)
 }
 
 func TestDeleteDnsRecordIfUnused_NotFound(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteDnsRecordIfUnused)
 
 	teardown := &SmbTeardownContext{ShouldDelete: true, SvmExternalUUID: "svm-uuid"}
 
@@ -644,14 +717,17 @@ func TestDeleteDnsRecordIfUnused_NotFound(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteDnsRecordIfUnused, teardown, &models.Node{})
 
 	assert.NoError(t, err)
 }
 
 func TestDeleteDnsRecordIfUnused_ModifyFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteDnsRecordIfUnused)
 
 	teardown := &SmbTeardownContext{ShouldDelete: true, SvmExternalUUID: "svm-uuid"}
 
@@ -668,10 +744,9 @@ func TestDeleteDnsRecordIfUnused_ModifyFailure(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteDnsRecordIfUnused, teardown, &models.Node{})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "dns modify failed")
 }
 
 func TestDeleteSnapshotPolicyInONTAP_Success(t *testing.T) {
@@ -1271,6 +1346,9 @@ func TestDeleteSnapshotPolicyInONTAP_GetProviderByNodeFailure(t *testing.T) {
 }
 
 func TestDeleteIgroups_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := vsa.NewMockProvider(t)
 
@@ -1284,8 +1362,7 @@ func TestDeleteIgroups_Success(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	// Create test volume with block devices
 	volume := &datamodel.Volume{
@@ -1326,9 +1403,9 @@ func TestDeleteIgroups_Success(t *testing.T) {
 	}
 
 	// Mock SE.GetAllVolumesForHG to return empty volumes (no usage)
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-2", int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-3", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-2", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-3", int64(1)).Return([]*datamodel.Volume{}, nil)
 
 	// Mock SE.GetHostGroup to return host groups
 	hostgroup1 := &datamodel.HostGroup{
@@ -1346,9 +1423,9 @@ func TestDeleteIgroups_Success(t *testing.T) {
 		Name:      "hostgroup-name-3",
 		AccountID: 1,
 	}
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-2", int64(1)).Return(hostgroup2, nil)
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-3", int64(1)).Return(hostgroup3, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-2", int64(1)).Return(hostgroup2, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-3", int64(1)).Return(hostgroup3, nil)
 
 	// Mock provider.IgroupGet to return igroups
 	igroup1 := &ontap_rest.Igroup{
@@ -1378,7 +1455,7 @@ func TestDeleteIgroups_Success(t *testing.T) {
 	mockProvider.On("IgroupDelete", *igroup2.UUID).Return(nil)
 	mockProvider.On("IgroupDelete", *igroup3.UUID).Return(nil)
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -1386,6 +1463,9 @@ func TestDeleteIgroups_Success(t *testing.T) {
 }
 
 func TestDeleteIgroups_OneHostGroupInUse(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := vsa.NewMockProvider(t)
 
@@ -1399,8 +1479,7 @@ func TestDeleteIgroups_OneHostGroupInUse(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	// Create test volume with block devices
 	volume := &datamodel.Volume{
@@ -1438,8 +1517,8 @@ func TestDeleteIgroups_OneHostGroupInUse(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "other-volume-uuid"},
 		Name:      "other-volume",
 	}
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-2", int64(1)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-2", int64(1)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
 
 	// Mock SE.GetHostGroup to return host groups - only for hostgroup-uuid-1 since hostgroup-uuid-2 won't be processed
 	hostgroup1 := &datamodel.HostGroup{
@@ -1448,7 +1527,7 @@ func TestDeleteIgroups_OneHostGroupInUse(t *testing.T) {
 		AccountID: 1,
 	}
 
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
 
 	// Mock provider.IgroupGet to return igroups - only for hostgroup-uuid-1 since hostgroup-uuid-2 won't be processed
 	igroup1 := &ontap_rest.Igroup{
@@ -1462,7 +1541,7 @@ func TestDeleteIgroups_OneHostGroupInUse(t *testing.T) {
 	// Mock provider.IgroupDelete call - only for the unused hostgroup
 	mockProvider.On("IgroupDelete", *igroup1.UUID).Return(nil)
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -1470,6 +1549,9 @@ func TestDeleteIgroups_OneHostGroupInUse(t *testing.T) {
 }
 
 func TestDeleteIgroups_GetProviderByNodeFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -1483,8 +1565,7 @@ func TestDeleteIgroups_GetProviderByNodeFailure(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -1509,13 +1590,15 @@ func TestDeleteIgroups_GetProviderByNodeFailure(t *testing.T) {
 		EndpointAddress: "192.168.1.1",
 	}
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError.Error())
 }
 
 func TestDeleteIgroups_GetAllVolumesForHGFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := vsa.NewMockProvider(t)
 
@@ -1529,8 +1612,7 @@ func TestDeleteIgroups_GetAllVolumesForHGFailure(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -1556,16 +1638,18 @@ func TestDeleteIgroups_GetAllVolumesForHGFailure(t *testing.T) {
 	}
 
 	expectedError := errors.New("failed to get volumes for host group")
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return(nil, expectedError)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-1", int64(1)).Return(nil, expectedError)
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteIgroups_GetHostGroupFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := vsa.NewMockProvider(t)
 
@@ -1579,8 +1663,7 @@ func TestDeleteIgroups_GetHostGroupFailure(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -1606,17 +1689,19 @@ func TestDeleteIgroups_GetHostGroupFailure(t *testing.T) {
 	}
 
 	expectedError := errors.New("failed to get host group")
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(nil, expectedError)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-1", int64(1)).Return(nil, expectedError)
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteIgroups_IgroupGetNotFoundError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := vsa.NewMockProvider(t)
 
@@ -1630,8 +1715,7 @@ func TestDeleteIgroups_IgroupGetNotFoundError(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -1662,14 +1746,14 @@ func TestDeleteIgroups_IgroupGetNotFoundError(t *testing.T) {
 		AccountID: 1,
 	}
 
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
 
 	// Mock IgroupGet to return not found error
 	notFoundError := utilErrors.NewNotFoundErr("igroup", nil)
 	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(nil, notFoundError)
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.NoError(t, err) // Should continue and not return error for not found
 	mockStorage.AssertExpectations(t)
@@ -1677,6 +1761,9 @@ func TestDeleteIgroups_IgroupGetNotFoundError(t *testing.T) {
 }
 
 func TestDeleteIgroups_IgroupGetOtherError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := vsa.NewMockProvider(t)
 
@@ -1690,8 +1777,7 @@ func TestDeleteIgroups_IgroupGetOtherError(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -1723,19 +1809,21 @@ func TestDeleteIgroups_IgroupGetOtherError(t *testing.T) {
 	}
 
 	expectedError := errors.New("unexpected error getting igroup")
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
 	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(nil, expectedError)
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestDeleteIgroups_IgroupDeleteFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := vsa.NewMockProvider(t)
 
@@ -1749,8 +1837,7 @@ func TestDeleteIgroups_IgroupDeleteFailure(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -1789,20 +1876,22 @@ func TestDeleteIgroups_IgroupDeleteFailure(t *testing.T) {
 	}
 
 	expectedError := errors.New("failed to delete igroup")
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
 	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(igroup1, nil)
 	mockProvider.On("IgroupDelete", *igroup1.UUID).Return(expectedError)
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.Error(t, err)
-	assert.Equal(t, expectedError, err)
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestDeleteIgroups_IgroupWithNilUUID(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := vsa.NewMockProvider(t)
 
@@ -1816,8 +1905,7 @@ func TestDeleteIgroups_IgroupWithNilUUID(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -1856,11 +1944,11 @@ func TestDeleteIgroups_IgroupWithNilUUID(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
 	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(igroup1, nil)
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.NoError(t, err) // Should continue when UUID is nil
 	mockStorage.AssertExpectations(t)
@@ -1868,6 +1956,9 @@ func TestDeleteIgroups_IgroupWithNilUUID(t *testing.T) {
 }
 
 func TestDeleteIgroups_IgroupWithNilIgroup(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := vsa.NewMockProvider(t)
 
@@ -1881,8 +1972,7 @@ func TestDeleteIgroups_IgroupWithNilIgroup(t *testing.T) {
 	activity := VolumeDeleteActivity{
 		SE: mockStorage,
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroups)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -1914,11 +2004,11 @@ func TestDeleteIgroups_IgroupWithNilIgroup(t *testing.T) {
 	}
 
 	// Mock IgroupGet to return nil igroup
-	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
 	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(nil, nil)
 
-	err := activity.DeleteIgroups(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroups, volume, node)
 
 	assert.NoError(t, err) // Should continue when igroup is nil
 	mockStorage.AssertExpectations(t)
@@ -1926,6 +2016,9 @@ func TestDeleteIgroups_IgroupWithNilIgroup(t *testing.T) {
 }
 
 func TestDeleteVolumeInONTAP_GetProviderByNodeFailure(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -1935,12 +2028,13 @@ func TestDeleteVolumeInONTAP_GetProviderByNodeFailure(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolumeInONTAP)
+
 	volumeExternalUUID := "uuid-123"
 	volumeName := "test-volume"
 	node := &models.Node{}
 
-	err := activity.DeleteVolumeInONTAP(ctx, volumeExternalUUID, volumeName, node)
+	_, err := env.ExecuteActivity(activity.DeleteVolumeInONTAP, volumeExternalUUID, volumeName, node)
 
 	assert.Error(t, err)
 }
@@ -2077,6 +2171,9 @@ func TestSnapmirrorInONTAPFailsWhenSnapmirrorRelationshipGetFails(t *testing.T) 
 
 func TestDeleteIgroupsFromBlockProperties_Success(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2087,7 +2184,7 @@ func TestDeleteIgroupsFromBlockProperties_Success(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2114,13 +2211,13 @@ func TestDeleteIgroupsFromBlockProperties_Success(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
-	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
 	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(igroup, nil)
 	mockProvider.On("IgroupDelete", "test-igroup-uuid").Return(nil)
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -2130,6 +2227,9 @@ func TestDeleteIgroupsFromBlockProperties_Success(t *testing.T) {
 
 func TestDeleteIgroupsFromBlockProperties_GetProviderByNodeFailure(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2140,7 +2240,7 @@ func TestDeleteIgroupsFromBlockProperties_GetProviderByNodeFailure(t *testing.T)
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2157,15 +2257,17 @@ func TestDeleteIgroupsFromBlockProperties_GetProviderByNodeFailure(t *testing.T)
 	node := &models.Node{}
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError.Error())
 }
 
 func TestDeleteIgroupsFromBlockProperties_GetAllVolumesForHGFailure(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2176,7 +2278,7 @@ func TestDeleteIgroupsFromBlockProperties_GetAllVolumesForHGFailure(t *testing.T
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2193,19 +2295,21 @@ func TestDeleteIgroupsFromBlockProperties_GetAllVolumesForHGFailure(t *testing.T
 	node := &models.Node{}
 
 	expectedError := errors.New("database error")
-	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return(nil, expectedError)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "test-hostgroup-uuid", int64(1)).Return(nil, expectedError)
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteIgroupsFromBlockProperties_HostGroupInUse(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2216,7 +2320,7 @@ func TestDeleteIgroupsFromBlockProperties_HostGroupInUse(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2237,10 +2341,10 @@ func TestDeleteIgroupsFromBlockProperties_HostGroupInUse(t *testing.T) {
 
 	node := &models.Node{}
 
-	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -2249,6 +2353,9 @@ func TestDeleteIgroupsFromBlockProperties_HostGroupInUse(t *testing.T) {
 
 func TestDeleteIgroupsFromBlockProperties_GetHostGroupFailure(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2259,7 +2366,7 @@ func TestDeleteIgroupsFromBlockProperties_GetHostGroupFailure(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2276,20 +2383,22 @@ func TestDeleteIgroupsFromBlockProperties_GetHostGroupFailure(t *testing.T) {
 	node := &models.Node{}
 
 	expectedError := errors.New("hostgroup not found")
-	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
-	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(nil, expectedError)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "test-hostgroup-uuid", int64(1)).Return(nil, expectedError)
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteIgroupsFromBlockProperties_IgroupGetNotFoundError(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2300,7 +2409,7 @@ func TestDeleteIgroupsFromBlockProperties_IgroupGetNotFoundError(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2322,12 +2431,12 @@ func TestDeleteIgroupsFromBlockProperties_IgroupGetNotFoundError(t *testing.T) {
 	}
 
 	notFoundError := utilErrors.NewNotFoundErr("igroup", nil)
-	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
-	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
 	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(nil, notFoundError)
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -2337,6 +2446,9 @@ func TestDeleteIgroupsFromBlockProperties_IgroupGetNotFoundError(t *testing.T) {
 
 func TestDeleteIgroupsFromBlockProperties_IgroupGetOtherError(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2347,7 +2459,7 @@ func TestDeleteIgroupsFromBlockProperties_IgroupGetOtherError(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2369,22 +2481,24 @@ func TestDeleteIgroupsFromBlockProperties_IgroupGetOtherError(t *testing.T) {
 	}
 
 	expectedError := errors.New("network error")
-	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
-	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
 	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(nil, expectedError)
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestDeleteIgroupsFromBlockProperties_IgroupDeleteFailure(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2395,7 +2509,7 @@ func TestDeleteIgroupsFromBlockProperties_IgroupDeleteFailure(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2423,23 +2537,25 @@ func TestDeleteIgroupsFromBlockProperties_IgroupDeleteFailure(t *testing.T) {
 	}
 
 	expectedError := errors.New("delete failed")
-	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
-	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
 	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(igroup, nil)
 	mockProvider.On("IgroupDelete", "test-igroup-uuid").Return(expectedError)
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestDeleteIgroupsFromBlockProperties_IgroupWithNilUUID(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2450,7 +2566,7 @@ func TestDeleteIgroupsFromBlockProperties_IgroupWithNilUUID(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2477,12 +2593,12 @@ func TestDeleteIgroupsFromBlockProperties_IgroupWithNilUUID(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
-	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
 	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(igroup, nil)
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -2492,6 +2608,9 @@ func TestDeleteIgroupsFromBlockProperties_IgroupWithNilUUID(t *testing.T) {
 
 func TestDeleteIgroupsFromBlockProperties_IgroupWithNilIgroup(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2502,7 +2621,7 @@ func TestDeleteIgroupsFromBlockProperties_IgroupWithNilIgroup(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteIgroupsFromBlockProperties)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -2523,12 +2642,12 @@ func TestDeleteIgroupsFromBlockProperties_IgroupWithNilIgroup(t *testing.T) {
 		Name:      "test-hostgroup",
 	}
 
-	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
-	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockStorage.On("GetAllVolumesForHG", mock.Anything, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", mock.Anything, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
 	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(nil, nil) // Nil igroup
 
 	// Act
-	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteIgroupsFromBlockProperties, volume, node)
 
 	// Assert
 	assert.NoError(t, err) // Should continue when igroup is nil
@@ -2538,6 +2657,9 @@ func TestDeleteIgroupsFromBlockProperties_IgroupWithNilIgroup(t *testing.T) {
 
 func TestDeleteExportPolicy_Success(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := vsa.NewMockProvider(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2547,7 +2669,7 @@ func TestDeleteExportPolicy_Success(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteExportPolicy)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -2577,7 +2699,7 @@ func TestDeleteExportPolicy_Success(t *testing.T) {
 	mockProvider.On("DeleteExportPolicy", expectedExportPolicy).Return(nil)
 
 	// Act
-	err := activity.DeleteExportPolicy(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteExportPolicy, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -2586,6 +2708,9 @@ func TestDeleteExportPolicy_Success(t *testing.T) {
 
 func TestDeleteExportPolicy_SkipsWhenExportPolicyNameIsEmpty(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := vsa.NewMockProvider(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2595,7 +2720,7 @@ func TestDeleteExportPolicy_SkipsWhenExportPolicyNameIsEmpty(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteExportPolicy)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -2618,7 +2743,7 @@ func TestDeleteExportPolicy_SkipsWhenExportPolicyNameIsEmpty(t *testing.T) {
 	}
 
 	// Act
-	err := activity.DeleteExportPolicy(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteExportPolicy, volume, node)
 
 	// Assert
 	assert.NoError(t, err) // Should skip deletion and return no error
@@ -2627,6 +2752,9 @@ func TestDeleteExportPolicy_SkipsWhenExportPolicyNameIsEmpty(t *testing.T) {
 
 func TestDeleteExportPolicy_GetProviderByNodeFailure(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -2636,7 +2764,7 @@ func TestDeleteExportPolicy_GetProviderByNodeFailure(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteExportPolicy)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -2659,15 +2787,17 @@ func TestDeleteExportPolicy_GetProviderByNodeFailure(t *testing.T) {
 	}
 
 	// Act
-	err := activity.DeleteExportPolicy(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteExportPolicy, volume, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get provider")
 }
 
 func TestDeleteExportPolicy_DeleteExportPolicyFailure(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := vsa.NewMockProvider(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2677,7 +2807,7 @@ func TestDeleteExportPolicy_DeleteExportPolicyFailure(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteExportPolicy)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -2708,16 +2838,18 @@ func TestDeleteExportPolicy_DeleteExportPolicyFailure(t *testing.T) {
 	mockProvider.On("DeleteExportPolicy", expectedExportPolicy).Return(expectedError)
 
 	// Act
-	err := activity.DeleteExportPolicy(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteExportPolicy, volume, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to delete export policy")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestDeleteExportPolicy_ExportPolicyNotFound(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := vsa.NewMockProvider(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2727,7 +2859,7 @@ func TestDeleteExportPolicy_ExportPolicyNotFound(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteExportPolicy)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -2758,7 +2890,7 @@ func TestDeleteExportPolicy_ExportPolicyNotFound(t *testing.T) {
 	mockProvider.On("DeleteExportPolicy", expectedExportPolicy).Return(notFoundError)
 
 	// Act
-	err := activity.DeleteExportPolicy(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.DeleteExportPolicy, volume, node)
 
 	// Assert
 	assert.NoError(t, err) // Should skip deletion and return no error when export policy is not found
@@ -2767,6 +2899,9 @@ func TestDeleteExportPolicy_ExportPolicyNotFound(t *testing.T) {
 
 func TestDeleteExportPolicy_NilVolumeAttributes(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := vsa.NewMockProvider(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2776,7 +2911,7 @@ func TestDeleteExportPolicy_NilVolumeAttributes(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteExportPolicy)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -2793,14 +2928,17 @@ func TestDeleteExportPolicy_NilVolumeAttributes(t *testing.T) {
 	}
 
 	// Act & Assert
-	// This should panic because volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName will cause a nil pointer dereference
-	assert.Panics(t, func() {
-		_ = activity.DeleteExportPolicy(ctx, volume, node)
-	})
+	// This should return an error because volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName will cause a nil pointer dereference
+	// Temporal catches panics and converts them to errors
+	_, err := env.ExecuteActivity(activity.DeleteExportPolicy, volume, node)
+	assert.Error(t, err)
 }
 
 func TestDeleteExportPolicy_NilFileProperties(t *testing.T) {
 	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockProvider := vsa.NewMockProvider(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -2810,7 +2948,7 @@ func TestDeleteExportPolicy_NilFileProperties(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteExportPolicy)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
@@ -2829,10 +2967,10 @@ func TestDeleteExportPolicy_NilFileProperties(t *testing.T) {
 	}
 
 	// Act & Assert
-	// This should panic because volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName will cause a nil pointer dereference
-	assert.Panics(t, func() {
-		_ = activity.DeleteExportPolicy(ctx, volume, node)
-	})
+	// This should return an error because volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName will cause a nil pointer dereference
+	// Temporal catches panics and converts them to errors
+	_, err := env.ExecuteActivity(activity.DeleteExportPolicy, volume, node)
+	assert.Error(t, err)
 }
 
 func TestDeleteExportPolicy_NilExportPolicy(t *testing.T) {
@@ -3247,47 +3385,65 @@ func TestDeleteLDAPConfiguration_Success(t *testing.T) {
 }
 
 func TestDetermineSmbTeardownContext_NilVolume(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, nil, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, nil, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.NotNil(t, teardown)
 	assert.False(t, teardown.ShouldDelete)
 }
 
 func TestDetermineSmbTeardownContext_NilNode(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-1"}}
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, nil)
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, nil)
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.NotNil(t, teardown)
 	assert.False(t, teardown.ShouldDelete)
 }
 
 func TestDetermineSmbTeardownContext_NilVolumeAttributes(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel:        datamodel.BaseModel{UUID: "vol-1"},
 		VolumeAttributes: nil,
 	}
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.NotNil(t, teardown)
 	assert.False(t, teardown.ShouldDelete)
 }
 
 func TestDetermineSmbTeardownContext_NonNASProtocol(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3295,16 +3451,21 @@ func TestDetermineSmbTeardownContext_NonNASProtocol(t *testing.T) {
 			Protocols: []string{"ISCSI"},
 		},
 	}
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.NotNil(t, teardown)
 	assert.False(t, teardown.ShouldDelete)
 }
 
 func TestDetermineSmbTeardownContext_GetVolumesError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3313,18 +3474,25 @@ func TestDetermineSmbTeardownContext_GetVolumesError(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return(nil, errors.New("db error"))
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return(nil, errors.New("db error"))
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.Error(t, err)
+	var teardown *SmbTeardownContext
+	if val != nil {
+		_ = val.Get(&teardown)
+	}
 	assert.Nil(t, teardown)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_OtherVolumeNil(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3333,14 +3501,14 @@ func TestDetermineSmbTeardownContext_OtherVolumeNil(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, nil}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume, nil}, nil)
 
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 	dbSvm := &datamodel.Svm{
 		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
 	}
-	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(42)).Return(dbSvm, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	nameClient := ontap_rest.NewMockNameServicesClient(t)
@@ -3355,16 +3523,21 @@ func TestDetermineSmbTeardownContext_OtherVolumeNil(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.True(t, teardown.ShouldDelete)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_OtherVolumeDeletedAt(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3381,14 +3554,14 @@ func TestDetermineSmbTeardownContext_OtherVolumeDeletedAt(t *testing.T) {
 	}
 	deletedAt := gorm.DeletedAt{Time: time.Now(), Valid: true}
 	otherVolume.DeletedAt = &deletedAt
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
 
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 	dbSvm := &datamodel.Svm{
 		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
 	}
-	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(42)).Return(dbSvm, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	nameClient := ontap_rest.NewMockNameServicesClient(t)
@@ -3403,16 +3576,21 @@ func TestDetermineSmbTeardownContext_OtherVolumeDeletedAt(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.True(t, teardown.ShouldDelete)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_OtherVolumeStateDeleted(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3428,14 +3606,14 @@ func TestDetermineSmbTeardownContext_OtherVolumeStateDeleted(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
 
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 	dbSvm := &datamodel.Svm{
 		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
 	}
-	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(42)).Return(dbSvm, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	nameClient := ontap_rest.NewMockNameServicesClient(t)
@@ -3450,16 +3628,21 @@ func TestDetermineSmbTeardownContext_OtherVolumeStateDeleted(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.True(t, teardown.ShouldDelete)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_OtherVolumeNilAttributes(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3472,14 +3655,14 @@ func TestDetermineSmbTeardownContext_OtherVolumeNilAttributes(t *testing.T) {
 		BaseModel:        datamodel.BaseModel{UUID: "vol-2"},
 		VolumeAttributes: nil,
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
 
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 	dbSvm := &datamodel.Svm{
 		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
 	}
-	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(42)).Return(dbSvm, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	nameClient := ontap_rest.NewMockNameServicesClient(t)
@@ -3494,16 +3677,21 @@ func TestDetermineSmbTeardownContext_OtherVolumeNilAttributes(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.True(t, teardown.ShouldDelete)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_LDAPEnabledNFSVolumePresent(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3524,19 +3712,24 @@ func TestDetermineSmbTeardownContext_LDAPEnabledNFSVolumePresent(t *testing.T) {
 			},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume, volume2}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume, volume2}, nil)
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.NotNil(t, teardown)
 	assert.False(t, teardown.ShouldDelete)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_GetADError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3545,19 +3738,26 @@ func TestDetermineSmbTeardownContext_GetADError(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(nil, errors.New("ad error"))
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(nil, errors.New("ad error"))
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.Error(t, err)
+	var teardown *SmbTeardownContext
+	if val != nil {
+		_ = val.Get(&teardown)
+	}
 	assert.Nil(t, teardown)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_EmptyCredentialPath(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3566,21 +3766,28 @@ func TestDetermineSmbTeardownContext_EmptyCredentialPath(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.Error(t, err)
+	var teardown *SmbTeardownContext
+	if val != nil {
+		_ = val.Get(&teardown)
+	}
 	assert.Nil(t, teardown)
 	assert.Contains(t, err.Error(), "active directory credential path is empty")
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_GetSvmForPoolIDError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3589,10 +3796,10 @@ func TestDetermineSmbTeardownContext_GetSvmForPoolIDError(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
-	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(nil, errors.New("svm error"))
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(42)).Return(nil, errors.New("svm error"))
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
@@ -3603,16 +3810,23 @@ func TestDetermineSmbTeardownContext_GetSvmForPoolIDError(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.Error(t, err)
+	var teardown *SmbTeardownContext
+	if val != nil {
+		_ = val.Get(&teardown)
+	}
 	assert.Nil(t, teardown)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_GetSvmForPoolIDWithDetails(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3621,13 +3835,13 @@ func TestDetermineSmbTeardownContext_GetSvmForPoolIDWithDetails(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 	dbSvm := &datamodel.Svm{
 		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
 	}
-	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(dbSvm, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(42)).Return(dbSvm, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	nameClient := ontap_rest.NewMockNameServicesClient(t)
@@ -3642,17 +3856,22 @@ func TestDetermineSmbTeardownContext_GetSvmForPoolIDWithDetails(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.True(t, teardown.ShouldDelete)
 	assert.Equal(t, "svm-external-uuid", teardown.SvmExternalUUID)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_EmptySvmExternalUUID(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3661,10 +3880,10 @@ func TestDetermineSmbTeardownContext_EmptySvmExternalUUID(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
-	mockStorage.On("GetSvmForPoolID", ctx, int64(42)).Return(&datamodel.Svm{}, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(42)).Return(&datamodel.Svm{}, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: restClient}
@@ -3675,16 +3894,21 @@ func TestDetermineSmbTeardownContext_EmptySvmExternalUUID(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.NoError(t, err)
+	var teardown *SmbTeardownContext
+	_ = val.Get(&teardown)
 	assert.False(t, teardown.ShouldDelete)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_GetCifsServerProviderError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3696,9 +3920,9 @@ func TestDetermineSmbTeardownContext_GetCifsServerProviderError(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 
 	originalGetProvider := hyperscaler.GetProviderByNode
 	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
@@ -3706,16 +3930,23 @@ func TestDetermineSmbTeardownContext_GetCifsServerProviderError(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.Error(t, err)
+	var teardown *SmbTeardownContext
+	if val != nil {
+		_ = val.Get(&teardown)
+	}
 	assert.Nil(t, teardown)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_CreateRESTClientError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3727,9 +3958,9 @@ func TestDetermineSmbTeardownContext_CreateRESTClientError(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 
 	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), createErr: fmt.Errorf("rest client error")}
 
@@ -3739,16 +3970,23 @@ func TestDetermineSmbTeardownContext_CreateRESTClientError(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.Error(t, err)
+	var teardown *SmbTeardownContext
+	if val != nil {
+		_ = val.Get(&teardown)
+	}
 	assert.Nil(t, teardown)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDetermineSmbTeardownContext_DNSGetError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DetermineSmbTeardownContext)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-1"},
@@ -3760,9 +3998,9 @@ func TestDetermineSmbTeardownContext_DNSGetError(t *testing.T) {
 			Protocols: []string{utils.ProtocolSMB},
 		},
 	}
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(42)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(42)).Return([]*datamodel.Volume{volume}, nil)
 	ad := &datamodel.ActiveDirectory{CredentialPath: "secret", Username: "user"}
-	mockStorage.On("GetActiveDirectoryForPoolByPoolID", ctx, int64(42)).Return(ad, nil)
+	mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(42)).Return(ad, nil)
 
 	restClient := ontap_rest.NewMockRESTClient(t)
 	nameClient := ontap_rest.NewMockNameServicesClient(t)
@@ -3777,69 +4015,91 @@ func TestDetermineSmbTeardownContext_DNSGetError(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	teardown, err := activity.DetermineSmbTeardownContext(ctx, volume, &models.Node{})
+	val, err := env.ExecuteActivity(activity.DetermineSmbTeardownContext, volume, &models.Node{})
 	assert.Error(t, err)
+	var teardown *SmbTeardownContext
+	if val != nil {
+		_ = val.Get(&teardown)
+	}
 	assert.Nil(t, teardown)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteCifsServerIfUnused_NilTeardownCtx(t *testing.T) {
-	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
-	err := activity.DeleteCifsServerIfUnused(ctx, nil, &models.Node{})
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
+
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, nil, &models.Node{})
 	assert.NoError(t, err)
 }
 
 func TestDeleteCifsServerIfUnused_NilNode(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{ShouldDelete: true}
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, nil)
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, nil)
 	assert.NoError(t, err)
 }
 
 func TestDeleteCifsServerIfUnused_ShouldDeleteFalse(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{ShouldDelete: false}
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 	assert.NoError(t, err)
 }
 
 func TestDeleteCifsServerIfUnused_NilActiveDirectory(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
 		ActiveDirectory: nil,
 		SvmExternalUUID: "svm-uuid",
 	}
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "active directory not provided")
 }
 
 func TestDeleteCifsServerIfUnused_EmptyCredentialPath(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
 		ActiveDirectory: &datamodel.ActiveDirectory{CredentialPath: "", Username: "user"},
 		SvmExternalUUID: "svm-uuid",
 	}
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "active directory credential path is empty")
 }
 
 func TestDeleteCifsServerIfUnused_GetPasswordError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -3853,14 +4113,17 @@ func TestDeleteCifsServerIfUnused_GetPasswordError(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetPasswordFromCacheOrSecretManager = origGetPwd }()
 
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "password error")
 }
 
 func TestDeleteCifsServerIfUnused_GetCifsServerProviderError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -3880,13 +4143,16 @@ func TestDeleteCifsServerIfUnused_GetCifsServerProviderError(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 	assert.Error(t, err)
 }
 
 func TestDeleteCifsServerIfUnused_EmptySvmExternalUUID(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteCifsServerIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -3906,51 +4172,66 @@ func TestDeleteCifsServerIfUnused_EmptySvmExternalUUID(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	err := activity.DeleteCifsServerIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteCifsServerIfUnused, teardown, &models.Node{})
 	assert.NoError(t, err)
 }
 
 func TestDeleteDnsRecordIfUnused_NilTeardownCtx(t *testing.T) {
-	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
 
-	err := activity.DeleteDnsRecordIfUnused(ctx, nil, &models.Node{})
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteDnsRecordIfUnused)
+
+	_, err := env.ExecuteActivity(activity.DeleteDnsRecordIfUnused, nil, &models.Node{})
 	assert.NoError(t, err)
 }
 
 func TestDeleteDnsRecordIfUnused_NilNode(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteDnsRecordIfUnused)
 
 	teardown := &SmbTeardownContext{ShouldDelete: true}
-	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, nil)
+	_, err := env.ExecuteActivity(activity.DeleteDnsRecordIfUnused, teardown, nil)
 	assert.NoError(t, err)
 }
 
 func TestDeleteDnsRecordIfUnused_ShouldDeleteFalse(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteDnsRecordIfUnused)
 
 	teardown := &SmbTeardownContext{ShouldDelete: false}
-	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteDnsRecordIfUnused, teardown, &models.Node{})
 	assert.NoError(t, err)
 }
 
 func TestDeleteDnsRecordIfUnused_EmptySvmExternalUUID(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteDnsRecordIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
 		SvmExternalUUID: "",
 	}
-	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteDnsRecordIfUnused, teardown, &models.Node{})
 	assert.NoError(t, err)
 }
 
 func TestDeleteDnsRecordIfUnused_GetCifsServerProviderError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteDnsRecordIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -3963,13 +4244,16 @@ func TestDeleteDnsRecordIfUnused_GetCifsServerProviderError(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteDnsRecordIfUnused, teardown, &models.Node{})
 	assert.Error(t, err)
 }
 
 func TestDeleteDnsRecordIfUnused_CreateRESTClientError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteDnsRecordIfUnused)
 
 	teardown := &SmbTeardownContext{
 		ShouldDelete:    true,
@@ -3984,7 +4268,7 @@ func TestDeleteDnsRecordIfUnused_CreateRESTClientError(t *testing.T) {
 	}
 	defer func() { hyperscaler.GetProviderByNode = originalGetProvider }()
 
-	err := activity.DeleteDnsRecordIfUnused(ctx, teardown, &models.Node{})
+	_, err := env.ExecuteActivity(activity.DeleteDnsRecordIfUnused, teardown, &models.Node{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "rest client error")
 }

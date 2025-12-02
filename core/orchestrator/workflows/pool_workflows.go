@@ -3,7 +3,6 @@ package workflows
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -731,9 +730,11 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Retrieve the last known VLM config that was shared with us.
 	currentVlmConfig := &vlm.VLMConfig{}
-	if err := json.Unmarshal([]byte(pool.VLMConfig), currentVlmConfig); err != nil {
+	err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, pool).Get(ctx, &currentVlmConfig)
+	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+
 	// Determine VM scaling direction to decide the order of operations
 	currentInstanceType := currentVlmConfig.Deployment.VSAInstanceType
 
