@@ -23084,6 +23084,8 @@ func (s *ReplicationV1betaMirrorState) Decode(d *jx.Decoder) error {
 		*s = ReplicationV1betaMirrorStateBASELINETRANSFERRING
 	case ReplicationV1betaMirrorStateEXTERNALLYMANAGED:
 		*s = ReplicationV1betaMirrorStateEXTERNALLYMANAGED
+	case ReplicationV1betaMirrorStatePENDINGPEERING:
+		*s = ReplicationV1betaMirrorStatePENDINGPEERING
 	default:
 		*s = ReplicationV1betaMirrorState(v)
 	}

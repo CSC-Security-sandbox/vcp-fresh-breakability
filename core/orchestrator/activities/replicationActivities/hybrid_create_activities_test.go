@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -2683,8 +2682,8 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 		activity := HybridReplicationActivity{SE: mockStorage}
 
 		volumeReplication := &datamodel.VolumeReplication{
-			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
-			Name:      "test-replication",
+			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-uuid"},
+			Name:                        "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				// Empty attributes
 			},
@@ -3444,7 +3443,7 @@ func TestHybridReplicationActivity_HydrateVolumeReplicationForHybridReplication(
 	})
 }
 
-func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t *testing.T) {
+func TestHybridReplicationActivity_HydrateReplicationStateForHybridReplication(t *testing.T) {
 	t.Run("SuccessWhenHydrationIsDisabled", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -3461,7 +3460,7 @@ func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t 
 		hydrationEnabled = false
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
-		result, err := activity.HydrateReplicationSateForHybridReplication(ctx, &replicationResult)
+		result, err := activity.HydrateReplicationStateForHybridReplication(ctx, &replicationResult)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -3483,7 +3482,7 @@ func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t 
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name:  "test-replication",
-				State: cvpmodels.VolumeReplicationCVPV1betaLifeCycleStateAvailable,
+				State: models.LifeCycleStateAvailable,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationLocation:   "test-region",
 					DestinationVolumeName: "test-volume",
@@ -3497,7 +3496,7 @@ func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t 
 		hydrationEnabled = true
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
-		result, err := activity.HydrateReplicationSateForHybridReplication(ctx, &replicationResult)
+		result, err := activity.HydrateReplicationStateForHybridReplication(ctx, &replicationResult)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -3532,7 +3531,7 @@ func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t 
 		hydrationEnabled = true
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
-		result, err := activity.HydrateReplicationSateForHybridReplication(ctx, &replicationResult)
+		result, err := activity.HydrateReplicationStateForHybridReplication(ctx, &replicationResult)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -3577,7 +3576,7 @@ func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t 
 			hydrationEnabled = originalHydrationEnabled
 		}()
 
-		result, err := activity.HydrateReplicationSateForHybridReplication(ctx, &replicationResult)
+		result, err := activity.HydrateReplicationStateForHybridReplication(ctx, &replicationResult)
 
 		// Now the test should pass without authentication errors
 		assert.NoError(tt, err)
@@ -3600,7 +3599,7 @@ func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t 
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name:  "test-replication",
-				State: cvpmodels.VolumeReplicationCVPV1betaLifeCycleStateAvailable,
+				State: models.LifeCycleStateAvailable,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationLocation:   "test-region",
 					DestinationVolumeName: "test-volume",
@@ -3624,7 +3623,7 @@ func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t 
 			hydrationEnabled = originalHydrationEnabled
 		}()
 
-		result, err := activity.HydrateReplicationSateForHybridReplication(ctx, &replicationResult)
+		result, err := activity.HydrateReplicationStateForHybridReplication(ctx, &replicationResult)
 
 		// Now the test should pass without authentication errors
 		assert.NoError(tt, err)
@@ -3671,7 +3670,7 @@ func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t 
 			hydrationEnabled = originalHydrationEnabled
 		}()
 
-		result, err := activity.HydrateReplicationSateForHybridReplication(ctx, &replicationResult)
+		result, err := activity.HydrateReplicationStateForHybridReplication(ctx, &replicationResult)
 
 		// Now the test should pass without authentication errors
 		assert.NoError(tt, err)
@@ -3717,7 +3716,7 @@ func TestHybridReplicationActivity_HydrateReplicationSateForHybridReplication(t 
 			hydrationEnabled = originalHydrationEnabled
 		}()
 
-		result, err := activity.HydrateReplicationSateForHybridReplication(ctx, &replicationResult)
+		result, err := activity.HydrateReplicationStateForHybridReplication(ctx, &replicationResult)
 
 		// Now the test should pass without authentication errors
 		assert.NoError(tt, err)

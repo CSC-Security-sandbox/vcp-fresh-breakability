@@ -688,6 +688,7 @@ type VolumeReplication struct {
 	VolumeID                    int64                       `gorm:"column:volume_id"`
 	Volume                      *Volume                     `gorm:"ForeignKey:VolumeID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	ClusterPeerId               sql.NullInt64               `gorm:"column:cluster_peer_id"`
+	ClusterPeer                 *ClusterPeerings            `gorm:"ForeignKey:ClusterPeerId;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	HybridReplicationAttributes *HybridReplicationAttribute `gorm:"column:hybrid_replication_attributes;type:jsonb"`
 }
 
@@ -1143,7 +1144,7 @@ type CacheConfig struct {
 	WritebackEnabled        *bool  `json:"writeback_enabled"`
 
 	CachePrePopulate      *CachePrePopulate `json:"cache_pre_populate,omitempty"`
-	CachePrePopulateState string           `json:"cache_pre_populate_state,omitempty"`
+	CachePrePopulateState string            `json:"cache_pre_populate_state,omitempty"`
 }
 
 type CacheParameters struct {

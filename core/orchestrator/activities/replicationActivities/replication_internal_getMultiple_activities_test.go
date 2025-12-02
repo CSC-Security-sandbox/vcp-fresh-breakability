@@ -814,3 +814,265 @@ func TestUpdateReplicationsInDB(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestShouldRefreshReplication(t *testing.T) {
+	t.Run("ShouldRefreshWhenTimeSinceLastUpdateExceedsHourlySchedule", func(tt *testing.T) {
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-2 * time.Hour),
+			RelationshipStatus:   nil,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldRefreshWhenTimeSinceLastUpdateExceedsDailySchedule", func(tt *testing.T) {
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "daily",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-25 * time.Hour),
+			RelationshipStatus:   nil,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldRefreshWhenTimeSinceLastUpdateExceeds10MinutelySchedule", func(tt *testing.T) {
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "10minutely",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-15 * time.Minute),
+			RelationshipStatus:   nil,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldNotRefreshWhenTimeSinceLastUpdateWithinHourlySchedule", func(tt *testing.T) {
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-30 * time.Minute),
+			RelationshipStatus:   nil,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.False(tt, result)
+	})
+
+	t.Run("ShouldNotRefreshWhenTimeSinceLastUpdateWithinDailySchedule", func(tt *testing.T) {
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "daily",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-12 * time.Hour),
+			RelationshipStatus:   nil,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.False(tt, result)
+	})
+
+	t.Run("ShouldNotRefreshWhenTimeSinceLastUpdateWithin10MinutelySchedule", func(tt *testing.T) {
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "10minutely",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-5 * time.Minute),
+			RelationshipStatus:   nil,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.False(tt, result)
+	})
+
+	t.Run("ShouldRefreshWhenRelationshipStatusIsTransferring", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipTransferring
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now(),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldRefreshWhenRelationshipStatusIsFinalizing", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipFinalizing
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now(),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldNotRefreshWhenRelationshipStatusIsIdle", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipIdle
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now(),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.False(tt, result)
+	})
+
+	t.Run("ShouldNotRefreshWhenRelationshipStatusIsSuccess", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipSuccess
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now(),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.False(tt, result)
+	})
+
+	t.Run("ShouldNotRefreshWhenRelationshipStatusIsFailed", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipFailed
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now(),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.False(tt, result)
+	})
+
+	t.Run("ShouldNotRefreshWhenRelationshipStatusIsNil", func(tt *testing.T) {
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now(),
+			RelationshipStatus:   nil,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.False(tt, result)
+	})
+
+	t.Run("ShouldRefreshWhenBothTimeAndStatusConditionsAreTrue", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipTransferring
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-2 * time.Hour),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldRefreshWhenTimeConditionIsTrueButStatusIsFalse", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipIdle
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-2 * time.Hour),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldRefreshWhenStatusConditionIsTrueButTimeIsFalse", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipTransferring
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-30 * time.Minute),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldNotRefreshWhenBothConditionsAreFalse", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipIdle
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "hourly",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-30 * time.Minute),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.False(tt, result)
+	})
+
+	t.Run("ShouldRefreshWithUnknownScheduleAndRecentUpdate", func(tt *testing.T) {
+		// Unknown schedule returns 0 duration, so time.Since(lastUpdated) > 0 will be true
+		// for any time in the past, even a very recent one (like 1 second ago)
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "unknown",
+			},
+			LastUpdatedFromOntap: time.Now().Add(-1 * time.Second),
+			RelationshipStatus:   nil,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldRefreshWithUnknownScheduleButTransferringStatus", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipTransferring
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "unknown",
+			},
+			LastUpdatedFromOntap: time.Now(),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+
+	t.Run("ShouldRefreshWithEmptyScheduleButTransferringStatus", func(tt *testing.T) {
+		status := models.SnapmirrorRelationshipFinalizing
+		repl := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationSchedule: "",
+			},
+			LastUpdatedFromOntap: time.Now(),
+			RelationshipStatus:   &status,
+		}
+
+		result := shouldRefreshReplication(repl)
+		assert.True(tt, result)
+	})
+}

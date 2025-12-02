@@ -60,7 +60,7 @@ func (s *HybridCreateWorkflowTestSuite) registerHybridReplicationActivities(comm
 	s.env.RegisterActivity(hybridReplicationActivity.GetDstSignedTokenForHybridReplication)
 	s.env.RegisterActivity(hybridReplicationActivity.GetOrCreateClusterPeerForHybridReplication)
 	s.env.RegisterActivity(hybridReplicationActivity.CreateLocalHybridReplicationRow)
-	s.env.RegisterActivity(hybridReplicationActivity.HydrateReplicationSateForHybridReplication)
+	s.env.RegisterActivity(hybridReplicationActivity.HydrateReplicationStateForHybridReplication)
 	s.env.RegisterActivity(hybridReplicationActivity.UpdateClusterPeerDetailsOnErrorActivity)
 	s.env.RegisterActivity(hybridReplicationActivity.UpdateReplicationRowDetailsOnErrorActivity)
 	s.env.RegisterActivity(hybridReplicationActivity.CreateJobForHybridReplication)
@@ -74,7 +74,7 @@ func (s *HybridCreateWorkflowTestSuite) registerHybridReplicationActivities(comm
 	s.env.RegisterActivity(hybridReplicationActivity.CleanupReplicationIfNeeded)
 	s.env.RegisterActivity(hybridReplicationActivity.CreateHybridVolumeReplicationInternal)
 	s.env.RegisterActivity(hybridReplicationActivity.UpdateHybridVolumeReplicationDetailsAndSetPeeringStatusToPeered)
-	s.env.RegisterActivity(hybridReplicationActivity.HydrateReplicationSateForHybridReplication)
+	s.env.RegisterActivity(hybridReplicationActivity.HydrateReplicationStateForHybridReplication)
 	s.env.RegisterActivity(hybridReplicationActivity.UpdateClusterPeeringInReplication)
 	s.env.RegisterActivity(hybridReplicationActivity.HydrateVolumeReplicationForHybridReplication)
 	s.env.RegisterActivity(hybridReplicationActivity.GetOrCreateClusterPeerInOntapForHybridReplication)
@@ -201,7 +201,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Succ
 		DestinationRegion:        params.Region,
 		DestinationProjectNumber: params.AccountName,
 	}, nil)
-	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationSateForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
+	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationStateForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
 		DestinationVolume:        volume,
 		DestinationRegion:        params.Region,
 		DestinationProjectNumber: params.AccountName,
@@ -316,7 +316,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 	// Add mocks for CreateEstablishPeeringWorkflow child workflow activities
 	s.env.OnActivity(hybridReplicationActivity.UpdateClusterPeeringInReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.GetOrCreateClusterPeerInOntapForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
-	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationSateForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
+	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationStateForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.WaitForClusterPeerActivityForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.SetClusterPeeringStatusToPeeredForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.SetVolumeReplicationPeeringStatusToPendingSVMPeering, mock.Anything, mock.Anything).Return(replicationResult, nil)
@@ -426,7 +426,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Hydr
 		DestinationRegion:        params.Region,
 		DestinationProjectNumber: params.AccountName,
 	}, nil)
-	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationSateForHybridReplication, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate replication state"))
+	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationStateForHybridReplication, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate replication state"))
 	s.env.OnActivity(hybridReplicationActivity.UpdateClusterPeerDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(hybridReplicationActivity.UpdateReplicationRowDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
 
@@ -494,7 +494,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateEstablishPeeringWorkflow_Succe
 	s.env.OnActivity(hybridReplicationActivity.GetOrCreateClusterPeerInOntapForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 
 	// Add mocks for CreateInternalEstablishWorkflow child workflow
-	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationSateForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
+	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationStateForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.WaitForClusterPeerActivityForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.SetClusterPeeringStatusToPeeredForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.SetVolumeReplicationPeeringStatusToPendingSVMPeering, mock.Anything, mock.Anything).Return(replicationResult, nil)
@@ -542,7 +542,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateInternalEstablishWorkflow_Succ
 	// Mock successful activity responses
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 	s.env.OnActivity(hybridReplicationActivity.CreateJobForHybridReplication, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
-	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationSateForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
+	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationStateForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.WaitForClusterPeerActivityForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.SetClusterPeeringStatusToPeeredForHybridReplication, mock.Anything, mock.Anything).Return(replicationResult, nil)
 	s.env.OnActivity(hybridReplicationActivity.SetVolumeReplicationPeeringStatusToPendingSVMPeering, mock.Anything, mock.Anything).Return(replicationResult, nil)

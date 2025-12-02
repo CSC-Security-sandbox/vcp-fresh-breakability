@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
-	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -51,6 +50,8 @@ var defaultNoneRolePrivilege = []*vsa.RolePrivilege{
 }
 
 func (a *HybridReplicationActivity) CreateJobForHybridReplication(ctx context.Context, replicationResult replication.CreateHybridReplicationResult, jobType string) (*datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("CreateJobForHybridReplication")
 	se := a.SE
 	var resourceName string
 	// The job state is set to PROCESSING here because the workflow itself is creating the job
@@ -81,6 +82,8 @@ func (a *HybridReplicationActivity) CreateJobForHybridReplication(ctx context.Co
 }
 
 func (a *HybridReplicationActivity) GetDstBasePathForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("GetDstBasePathForHybridReplication")
 	dstBasePath, err := GetBasePath(ctx, result.DestinationRegion)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
@@ -90,6 +93,8 @@ func (a *HybridReplicationActivity) GetDstBasePathForHybridReplication(ctx conte
 }
 
 func (a *HybridReplicationActivity) GetDstSignedTokenForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("GetDstSignedTokenForHybridReplication")
 	dstJwt, err := GetSignedToken(ctx, result.DestinationProjectNumber)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
@@ -99,10 +104,11 @@ func (a *HybridReplicationActivity) GetDstSignedTokenForHybridReplication(ctx co
 }
 
 func (a *HybridReplicationActivity) DescribeJobForHybridReplicationWorkflow(ctx context.Context, result *replication.CreateHybridReplicationResult) error {
+	logger := util.GetLogger(ctx)
+	logger.Debug("DescribeJobForHybridReplicationWorkflow")
 	if result.JobId == nil {
 		return nil
 	}
-	logger := util.GetLogger(ctx)
 
 	// Query job from database
 	job, err := a.SE.GetJob(ctx, *result.JobId)
@@ -144,8 +150,10 @@ func (a *HybridReplicationActivity) DescribeJobForHybridReplicationWorkflow(ctx 
 	return errors.NewVCPError(errors.ErrJobNotFinished, fmt.Errorf("job not finished, current state: %s", job.State))
 }
 
-// GetNode retrieves the node associated with the given pool ID.
+// GetNodeForHybridReplication retrieves the node associated with the given pool ID.
 func (a *HybridReplicationActivity) GetNodeForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("GetNodeForHybridReplication")
 	se := a.SE
 	nodes, err := se.GetNodesByPoolID(ctx, result.DestinationVolume.Pool.ID)
 	if err != nil {
@@ -160,7 +168,7 @@ func (a *HybridReplicationActivity) GetNodeForHybridReplication(ctx context.Cont
 
 func (a *HybridReplicationActivity) CreateNodesForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("CreateNodes - creating destination node")
+	logger.Debug("CreateNodesForHybridReplication")
 
 	nodes := hyperscaler.NodeProviderInput{Nodes: result.DbNodes, DeploymentName: result.DestinationVolume.Pool.DeploymentName, OntapCredentials: result.DestinationVolume.Pool.PoolCredentials}
 	nodeProvider := hyperscaler.CreateNodeForProvider(nodes)
@@ -176,7 +184,7 @@ func (a *HybridReplicationActivity) CreateNodesForHybridReplication(ctx context.
 // This combines the logic of GetClusterPeerFromDatabase and CreateClusterPeeringInDatabaseForHybridReplication
 func (a *HybridReplicationActivity) GetOrCreateClusterPeerForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Infof("GetOrCreateClusterPeerForHybridReplication")
+	logger.Debug("GetOrCreateClusterPeerForHybridReplication")
 	se := a.SE
 	onPrempCluster := result.HybridReplicationParameters.PeerClusterName
 	// First, try to get existing cluster peer from database
@@ -221,7 +229,7 @@ func (a *HybridReplicationActivity) GetOrCreateClusterPeerForHybridReplication(c
 
 func (a *HybridReplicationActivity) CreateLocalHybridReplicationRow(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-
+	logger.Debug("CreateLocalHybridReplicationRow")
 	if result.DbVolReplication != nil {
 		logger.Debugf("Volume replication row already exists in database: %s", result.DbVolReplication.Name)
 		return result, nil
@@ -269,7 +277,7 @@ func (a *HybridReplicationActivity) CreateLocalHybridReplicationRow(ctx context.
 		SourceVolumeName:           result.HybridReplicationParameters.PeerVolumeName,
 		DestinationPoolUUID:        result.DestinationVolume.Pool.UUID,
 		DestinationVolumeUUID:      result.DestinationVolume.UUID,
-		DestinationLocation:        result.DestinationRegion,
+		DestinationLocation:        location,
 		DestinationHostName:        result.DestinationVolume.Pool.ClusterDetails.ExternalName,
 		DestinationReplicationUUID: utils.RandomUUID(),
 		DestinationVolumeName:      result.DestinationVolume.Name,
@@ -377,7 +385,7 @@ func modifyExternalVolumeReplicationSecurityRoleIfNeeded(provider vsa.Provider, 
 
 func (a *HybridReplicationActivity) GetOrCreateClusterPeerInOntapForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("GetOrCreateClusterPeerInOntapForHybridReplication")
+	logger.Debug("GetOrCreateClusterPeerInOntapForHybridReplication")
 
 	// Get the provider from the node
 	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
@@ -566,7 +574,7 @@ func (a *HybridReplicationActivity) GetOrCreateClusterPeerInOntapForHybridReplic
 
 func (a *HybridReplicationActivity) WaitForClusterPeerActivityForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("WaitForClusterPeerActivityForHybridReplication")
+	logger.Debug("WaitForClusterPeerActivityForHybridReplication")
 	// Get the provider from the node
 
 	if result.ClusterPeer != nil && result.ClusterPeer.Availability == models.AvailabilityAvailable {
@@ -644,7 +652,7 @@ func (a *HybridReplicationActivity) WaitForClusterPeerActivityForHybridReplicati
 
 func (a *HybridReplicationActivity) SetClusterPeeringStatusToPeeredForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("SetClusterPeeringStatusToPeeredForHybridReplication")
+	logger.Debug("SetClusterPeeringStatusToPeeredForHybridReplication")
 	se := a.SE
 
 	// Update cluster peering record with ONTAP cluster peer details
@@ -675,7 +683,7 @@ func (a *HybridReplicationActivity) SetClusterPeeringStatusToPeeredForHybridRepl
 
 func (a *HybridReplicationActivity) SetVolumeReplicationPeeringStatusToPendingSVMPeering(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("SetVolumeReplicationPeeringStatusToPendingSVMPeering")
+	logger.Debug("SetVolumeReplicationPeeringStatusToPendingSVMPeering")
 	se := a.SE
 	volumeRep := result.DbVolReplication
 	if volumeRep.HybridReplicationAttributes != nil {
@@ -695,6 +703,7 @@ func (a *HybridReplicationActivity) SetVolumeReplicationPeeringStatusToPendingSV
 // createSVMPeerForHybridReplication is a helper function to create SVM peer for hybrid replication
 func (a *HybridReplicationActivity) createSVMPeerForHybridReplication(ctx context.Context, provider vsa.Provider, result *replication.CreateHybridReplicationResult) error {
 	logger := util.GetLogger(ctx)
+	logger.Debug("createSVMPeerForHybridReplication")
 	snapmirrorApplication := ontaprestmodels.SvmPeerApplicationsSnapmirror
 	params := vsa.CreateSVMPeerParams{
 		LocalSVMName:    result.DestinationVolume.Svm.Name,
@@ -715,6 +724,7 @@ func (a *HybridReplicationActivity) createSVMPeerForHybridReplication(ctx contex
 // deleteSVMPeerForHybridReplication is a helper function to delete SVM peer for hybrid replication
 func (a *HybridReplicationActivity) deleteSVMPeerForHybridReplication(ctx context.Context, provider vsa.Provider, svmPeerUUID string) error {
 	logger := util.GetLogger(ctx)
+	logger.Debugf("deleteSVMPeerForHybridReplication")
 	err := provider.DeleteSVMPeer(svmPeerUUID, false)
 	if err != nil {
 		logger.Errorf("Failed to delete SVM peer: %v", err)
@@ -798,7 +808,7 @@ func (a *HybridReplicationActivity) SetVolumeReplicationSVMPeeringDetails(ctx co
 
 func (a *HybridReplicationActivity) SetSVMPeeringToPeered(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("SetVolumeReplicationSVMPeeringDetails")
+	logger.Debug("SetVolumeReplicationSVMPeeringDetails")
 	se := a.SE
 	volumeRep := result.DbVolReplication
 	if volumeRep.HybridReplicationAttributes != nil {
@@ -852,7 +862,7 @@ func (a *HybridReplicationActivity) WaitForSVMPeerForHybridReplication(ctx conte
 
 func (a *HybridReplicationActivity) GetReplicationForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("GetReplicationForHybridReplication")
+	logger.Debug("GetReplicationForHybridReplication")
 	if result.DbVolReplication == nil || result.DbVolReplication.ReplicationAttributes.ExternalUUID == "" {
 		logger.Debugf("DestinationReplicationUUID is empty, skipping replication retrieval")
 		return result, nil
@@ -902,7 +912,7 @@ func (a *HybridReplicationActivity) GetReplicationForHybridReplication(ctx conte
 
 func (a *HybridReplicationActivity) CleanupReplicationIfNeeded(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("CleanupReplicationIfNeeded - checking if replication cleanup is needed")
+	logger.Debug("CleanupReplicationIfNeeded - checking if replication cleanup is needed")
 	// Early return if no replication to cleanup
 	if result.DstReplication == nil {
 		logger.Debugf("No destination replication found, skipping cleanup")
@@ -1119,23 +1129,25 @@ func (a *HybridReplicationActivity) updateReplicationStateDetailsCode(ctx contex
 	return result, nil
 }
 
-func (a *HybridReplicationActivity) HydrateReplicationSateForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
+func (a *HybridReplicationActivity) HydrateReplicationStateForHybridReplication(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	if hydrationEnabled {
 		logger := util.GetLogger(ctx)
-		// Convert the database volume repl
-		logger.Debug("HydrateReplicationSateForHybridReplication")
+		logger.Debug("HydrateReplicationStateForHybridReplication")
 		if result.ClusterPeer.Availability != models.AvailabilityAvailable {
 			if !a.isSameAsCurrentHydrateState(result, models.VolumeReplicationHydrateStatePendingClusterPeering) {
 				a.setCurrentReplicationHydrateState(result, models.VolumeReplicationHydrateStatePendingClusterPeering)
+				logger.Debugf("hydrating to %s", models.VolumeReplicationHydrateStatePendingClusterPeering)
 				return a.HydrateLocalReplicationSateForHybridReplication(ctx, result, models.VolumeReplicationHydrateStatePendingClusterPeering)
 			}
-		} else if result.DbVolReplication != nil && result.DbVolReplication.State == cvpmodels.VolumeReplicationCVPV1betaLifeCycleStateAvailable {
+		} else if result.DbVolReplication != nil && result.DbVolReplication.State == models.LifeCycleStateAvailable {
 			if !a.isSameAsCurrentHydrateState(result, models.VolumeReplicationHydrateStateReady) {
 				a.setCurrentReplicationHydrateState(result, models.VolumeReplicationHydrateStateReady)
+				logger.Debugf("hydrating to %s", models.VolumeReplicationHydrateStateReady)
 				return a.HydrateLocalReplicationSateForHybridReplication(ctx, result, models.VolumeReplicationHydrateStateReady)
 			}
 		} else if !a.isSameAsCurrentHydrateState(result, models.VolumeReplicationHydrateStatePendingSvmPeering) {
 			a.setCurrentReplicationHydrateState(result, models.VolumeReplicationHydrateStatePendingSvmPeering)
+			logger.Debugf("hydrating to %s", models.VolumeReplicationHydrateStatePendingSvmPeering)
 			return a.HydrateLocalReplicationSateForHybridReplication(ctx, result, models.VolumeReplicationHydrateStatePendingSvmPeering)
 		}
 	}
@@ -1301,7 +1313,7 @@ func (a *HybridReplicationActivity) UpdateReplicationRowDetailsOnErrorActivity(c
 
 func (a *HybridReplicationActivity) MountReplicationAfterHybridReplicationCreate(ctx context.Context, result *replication.CreateHybridReplicationResult) (*replication.CreateHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("MountReplicationAfterResume")
+	logger.Debug("MountReplicationAfterResume")
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
 

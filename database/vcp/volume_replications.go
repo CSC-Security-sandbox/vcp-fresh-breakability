@@ -287,7 +287,7 @@ func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter
 	var volumeReplications []*datamodel.VolumeReplication
 	db = db.Preload("Volume").Preload("Volume.Pool")
 	if queryDepth == 1 {
-		db = db.Preload("Volume.Svm")
+		db = db.Preload("Volume.Svm").Preload("ClusterPeer")
 	}
 	err = db.Find(&volumeReplications).Error
 	if err != nil {

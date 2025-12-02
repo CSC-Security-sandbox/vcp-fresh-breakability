@@ -687,7 +687,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	filter := utils2.CreateFilterWithConditions(
 		utils2.NewFilterCondition("account_id", "=", account.ID),
 		utils2.NewFilterCondition("uri", "in", params.ReplicationURIs))
-	replications, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthZero)
+	replications, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthOne)
 	if err != nil {
 		logger.Errorf("Failed to list replications for account %s: %v", params.AccountName, err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
@@ -731,7 +731,8 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 		}
 
 		// Add source region to map (without replications) so we can get active jobs from both regions
-		if replication.ReplicationAttributes.SourceReplicationUUID != emptyUUID.String() && !nillable.IsNilOrEmpty(&replication.ReplicationAttributes.SourceLocation) {
+		if replication.ReplicationAttributes.SourceReplicationUUID != emptyUUID.String() &&
+			!nillable.IsNilOrEmpty(&replication.ReplicationAttributes.SourceLocation) {
 			srcRegion, _, err := utilParseRegionAndZone(replication.ReplicationAttributes.SourceLocation)
 			if err != nil {
 				logger.Error("Failed to parse source region", "error", err)
@@ -764,7 +765,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 
 	// Convert the internal replications to the response format
 	for _, repl := range list {
-		resp = append(resp, convertInternalReplicationToCCFEModel(*repl, currentLocation, &jobsList))
+		resp = append(resp, convertInternalReplicationToCCFEModel(*repl, currentLocation, &jobsList, regionReplicationMap))
 	}
 
 	return resp, nil
@@ -1069,9 +1070,81 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 	return convertDataStoreReplicationToModel(dbVolumeReplication), createdJob, nil
 }
 
-func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicationInternalV1beta, currentLocation string, jobsList *[]googleproxyclient.InternalJobV1beta) gcpgenserver.ReplicationV1beta {
+func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicationInternalV1beta, currentLocation string, jobsList *[]googleproxyclient.InternalJobV1beta, regionReplicationMap map[string][]*datamodel.VolumeReplication) gcpgenserver.ReplicationV1beta {
 	var srcVolUri, dstVolUri string
 	var role gcpgenserver.OptReplicationV1betaRole
+	emptyUUID := uuid.UUID{}
+
+	// Find the corresponding replication from regionReplicationMap
+	dbReplication := &datamodel.VolumeReplication{}
+	// Extract region from CcfeUri to search only in the relevant region
+	if in.SourceVolumeUuid.Value == emptyUUID.String() {
+		for _, replications := range regionReplicationMap {
+			for _, replication := range replications {
+				// Match by external UUID (VolumeReplicationUuid)
+				if replication.UUID == in.VolumeReplicationUuid.Value {
+					dbReplication = replication
+					break
+				}
+			}
+		}
+	}
+
+	var hybridPeeringDetails *gcpgenserver.HybridPeeringV1beta
+	var command string
+	var passphrase string
+	var commandExpiryTime time.Time
+	var stateDetailsCode gcpgenserver.OptInt32
+	var hybridReplicationType *string
+	var clusterLocation gcpgenserver.OptString
+	if dbReplication.HybridReplicationAttributes != nil {
+		stateDetailsCode = gcpgenserver.NewOptInt32(int32(dbReplication.HybridReplicationAttributes.StateDetailsCode))
+		hybridReplicationType = dbReplication.HybridReplicationAttributes.HybridReplicationType
+		if dbReplication.ClusterPeer != nil && dbReplication.ClusterPeer.ClusterPeeringAttributes != nil && dbReplication.ClusterPeer.ClusterPeeringAttributes.ClusterLocation != nil {
+			clusterLocation = gcpgenserver.NewOptString(*dbReplication.ClusterPeer.ClusterPeeringAttributes.ClusterLocation)
+		}
+		if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingClusterPeer {
+			if dbReplication.ClusterPeer != nil && dbReplication.ClusterPeer.ClusterPeeringAttributes != nil && dbReplication.ClusterPeer.ClusterPeeringAttributes.Command != nil {
+				command = *dbReplication.ClusterPeer.ClusterPeeringAttributes.Command
+				if dbReplication.ClusterPeer.ClusterPeeringAttributes.PassPhrase != nil {
+					passphrase = *dbReplication.ClusterPeer.ClusterPeeringAttributes.PassPhrase
+				}
+				if dbReplication.ClusterPeer.ClusterPeeringAttributes.ExpiryTime != nil {
+					commandExpiryTime = *dbReplication.ClusterPeer.ClusterPeeringAttributes.ExpiryTime
+				}
+			}
+			hybridPeeringDetails = &gcpgenserver.HybridPeeringV1beta{
+				Command:           gcpgenserver.NewOptString(command),
+				CommandExpiryTime: gcpgenserver.NewOptDateTime(commandExpiryTime),
+				Passphrase:        gcpgenserver.NewOptString(passphrase),
+			}
+		} else if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer {
+			var svmPeerCommand string
+			if dbReplication.HybridReplicationAttributes.SvmPeerCommand != nil {
+				svmPeerCommand = *dbReplication.HybridReplicationAttributes.SvmPeerCommand
+			}
+			hybridPeeringDetails = &gcpgenserver.HybridPeeringV1beta{
+				Command: gcpgenserver.NewOptString(svmPeerCommand),
+			}
+		} else if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusSVMPeered {
+			hybridPeeringDetails = &gcpgenserver.HybridPeeringV1beta{
+				Command:           gcpgenserver.NewOptString(command),
+				CommandExpiryTime: gcpgenserver.NewOptDateTime(commandExpiryTime),
+				Passphrase:        gcpgenserver.NewOptString(passphrase),
+			}
+		}
+		if hybridReplicationType != nil && (nillable.GetString(hybridReplicationType, "") == string(gcpgenserver.ReplicationV1betaHybridReplicationTypeMIGRATION) || nillable.GetString(hybridReplicationType, "") == string(gcpgenserver.ReplicationV1betaHybridReplicationTypeONPREMREPLICATION)) {
+			if hybridPeeringDetails == nil {
+				hybridPeeringDetails = &gcpgenserver.HybridPeeringV1beta{}
+			}
+			hybridPeeringDetails.PeerVolumeName = gcpgenserver.NewOptString(dbReplication.HybridReplicationAttributes.PeerVolumeName)
+			hybridPeeringDetails.PeerSvmName = gcpgenserver.NewOptString(dbReplication.HybridReplicationAttributes.PeerSvmName)
+			if dbReplication.ReplicationAttributes != nil {
+				hybridPeeringDetails.PeerClusterName = gcpgenserver.NewOptString(dbReplication.ReplicationAttributes.SourceHostName)
+			}
+		}
+	}
+
 	// Todo ADD handling when GCNV is Source for Hybrid Replication
 	if in.RemoteRegion == currentLocation {
 		role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleDESTINATION)
@@ -1083,9 +1156,12 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		dstVolUri = utilGetVolumeUriFromCcfeUri(in.CcfeUri.Value)
 	}
 
-	sourceReplication := gcpgenserver.ReplicationVolumeInformationV1beta{
-		VolumeName: gcpgenserver.NewOptString(srcVolUri),
-		VolumeId:   gcpgenserver.NewOptString(in.SourceVolumeUuid.Value),
+	var sourceReplication gcpgenserver.ReplicationVolumeInformationV1beta
+	if in.SourceVolumeUuid.Value != emptyUUID.String() {
+		sourceReplication = gcpgenserver.ReplicationVolumeInformationV1beta{
+			VolumeName: gcpgenserver.NewOptString(srcVolUri),
+			VolumeId:   gcpgenserver.NewOptString(in.SourceVolumeUuid.Value),
+		}
 	}
 
 	destinationReplication := gcpgenserver.ReplicationVolumeInformationV1beta{
@@ -1113,7 +1189,7 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		Destination:                   gcpgenserver.NewOptReplicationVolumeInformationV1beta(destinationReplication),
 		State:                         gcpgenserver.NewOptReplicationV1betaState(mapInternalReplicationStateToCCFEState(in.LifeCycleState.Value)),
 		StateDetails:                  gcpgenserver.NewOptString(in.LifeCycleStateDetails.Value),
-		StateDetailsCode:              gcpgenserver.NewOptInt32(0), // Fixme: add state codes mapping when hybrid replication support is added
+		StateDetailsCode:              stateDetailsCode,
 		ReplicationSchedule:           gcpgenserver.NewOptReplicationV1betaReplicationSchedule(mapInternalReplicationScheduleToCCFEReschedule(in.ReplicationSchedule.Value)),
 		MirrorState:                   gcpgenserver.NewOptReplicationV1betaMirrorState(mapInternalReplicationMirrorStateToCCFEMirrorState(in.MirrorState.Value)),
 		Healthy:                       gcpgenserver.NewOptBool(in.Healthy.Value),
@@ -1121,12 +1197,16 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		Created:                       gcpgenserver.NewOptDateTime(in.CreatedAt.Value),
 		Role:                          role,
 		Labels:                        gcpgenserver.NewOptReplicationV1betaLabels(gcpgenserver.ReplicationV1betaLabels(in.Labels.Value)),
-		ClusterLocation:               gcpgenserver.OptString{},
-		HybridReplicationType:         gcpgenserver.OptReplicationV1betaHybridReplicationType{},
-		HybridPeeringDetails:          gcpgenserver.OptHybridPeeringV1beta{},
+		ClusterLocation:               clusterLocation,
 		HybridReplicationUserCommands: gcpgenserver.OptHybridReplicationUserCommandsV1beta{},
 	}
 
+	if hybridReplicationType != nil {
+		out.HybridReplicationType = gcpgenserver.NewOptReplicationV1betaHybridReplicationType(gcpgenserver.ReplicationV1betaHybridReplicationType(*hybridReplicationType))
+	}
+	if hybridPeeringDetails != nil {
+		out.HybridPeeringDetails = gcpgenserver.NewOptHybridPeeringV1beta(*hybridPeeringDetails)
+	}
 	// Check active jobs and override state and mirror state if needed
 	replicationJobType, hasJob := replicationHasJob(in, jobsList)
 	if hasJob {
@@ -1146,6 +1226,11 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
 			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateStopping)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+
+		case string(models.JobTypeHybridReplicationInternalEstablish):
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateREADY)
+			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
 
 		case string(models.JobTypeReverseResumeVolumeReplication):
 			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
@@ -1168,6 +1253,24 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+		}
+	}
+
+	if dbReplication.HybridReplicationAttributes != nil {
+		if in.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED || in.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStatePREPARING {
+			if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingClusterPeer {
+				out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStatePENDINGCLUSTERPEERING)
+				out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePENDINGPEERING)
+				if dbReplication.ClusterPeer != nil && dbReplication.ClusterPeer.StateDetails != "" {
+					out.StateDetails = gcpgenserver.NewOptString(dbReplication.ClusterPeer.StateDetails)
+				} else {
+					out.StateDetails = gcpgenserver.NewOptString(dbReplication.HybridReplicationAttributes.StatusDetails)
+				}
+			} else if dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer || dbReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusSVMPeered {
+				out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStatePENDINGSVMPEERING)
+				out.StateDetails = gcpgenserver.NewOptString(dbReplication.HybridReplicationAttributes.StatusDetails)
+				out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePENDINGPEERING)
+			}
 		}
 	}
 

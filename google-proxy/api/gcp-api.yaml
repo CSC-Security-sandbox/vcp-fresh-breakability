@@ -9864,6 +9864,7 @@ components:
             - TRANSFERRING
             - BASELINE_TRANSFERRING
             - EXTERNALLY_MANAGED
+            - PENDING_PEERING
           readOnly: true
           example: MIRRORED
         healthy:

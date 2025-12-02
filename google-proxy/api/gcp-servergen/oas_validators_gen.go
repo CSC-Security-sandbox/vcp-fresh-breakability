@@ -8265,6 +8265,8 @@ func (s ReplicationV1betaMirrorState) Validate() error {
 		return nil
 	case "EXTERNALLY_MANAGED":
 		return nil
+	case "PENDING_PEERING":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

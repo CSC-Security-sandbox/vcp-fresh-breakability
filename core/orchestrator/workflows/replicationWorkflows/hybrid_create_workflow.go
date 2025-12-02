@@ -463,7 +463,7 @@ func (wf *createInternalEstablishWorkflow) Run(ctx workflow.Context, args ...int
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}
 	}()
-	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationSateForHybridReplication, &replicationResult).Get(ctx, &replicationResult)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationStateForHybridReplication, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -480,7 +480,7 @@ func (wf *createInternalEstablishWorkflow) Run(ctx workflow.Context, args ...int
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
-	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationSateForHybridReplication, &replicationResult).Get(ctx, &replicationResult)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationStateForHybridReplication, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -524,7 +524,7 @@ func (wf *createInternalEstablishWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationSateForHybridReplication, &replicationResult).Get(ctx, &replicationResult)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationStateForHybridReplication, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

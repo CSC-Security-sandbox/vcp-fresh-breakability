@@ -17260,6 +17260,7 @@ const (
 	ReplicationV1betaMirrorStateTRANSFERRING           ReplicationV1betaMirrorState = "TRANSFERRING"
 	ReplicationV1betaMirrorStateBASELINETRANSFERRING   ReplicationV1betaMirrorState = "BASELINE_TRANSFERRING"
 	ReplicationV1betaMirrorStateEXTERNALLYMANAGED      ReplicationV1betaMirrorState = "EXTERNALLY_MANAGED"
+	ReplicationV1betaMirrorStatePENDINGPEERING         ReplicationV1betaMirrorState = "PENDING_PEERING"
 )
 
 // AllValues returns all ReplicationV1betaMirrorState values.
@@ -17274,6 +17275,7 @@ func (ReplicationV1betaMirrorState) AllValues() []ReplicationV1betaMirrorState {
 		ReplicationV1betaMirrorStateTRANSFERRING,
 		ReplicationV1betaMirrorStateBASELINETRANSFERRING,
 		ReplicationV1betaMirrorStateEXTERNALLYMANAGED,
+		ReplicationV1betaMirrorStatePENDINGPEERING,
 	}
 }
 
@@ -17297,6 +17299,8 @@ func (s ReplicationV1betaMirrorState) MarshalText() ([]byte, error) {
 	case ReplicationV1betaMirrorStateBASELINETRANSFERRING:
 		return []byte(s), nil
 	case ReplicationV1betaMirrorStateEXTERNALLYMANAGED:
+		return []byte(s), nil
+	case ReplicationV1betaMirrorStatePENDINGPEERING:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -17332,6 +17336,9 @@ func (s *ReplicationV1betaMirrorState) UnmarshalText(data []byte) error {
 		return nil
 	case ReplicationV1betaMirrorStateEXTERNALLYMANAGED:
 		*s = ReplicationV1betaMirrorStateEXTERNALLYMANAGED
+		return nil
+	case ReplicationV1betaMirrorStatePENDINGPEERING:
+		*s = ReplicationV1betaMirrorStatePENDINGPEERING
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
