@@ -179,6 +179,12 @@ func (j *StartProjectEventActivity) PollStartProjectEventSDEOperationActivity(ct
 						fmt.Errorf("Too many requests while polling operation %s: %s", operationUUID, res.Error.Message)),
 				)
 
+			case common.HttpStatusNotImplemented:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
+						fmt.Errorf("Not implemented error while polling operation %s: %s", operationUUID, res.Error.Message)),
+				)
+
 			default:
 				logger.Warnf("Unknown error code while polling operation %s: %d - %s", operationUUID, int(res.Error.Code), res.Error.Message)
 				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(

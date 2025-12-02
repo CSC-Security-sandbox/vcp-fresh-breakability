@@ -236,7 +236,12 @@ func (a *ResourceEventsActivity) HandleResourceEventsForSDEActivity(ctx context.
 		case *resource_events.V1betaResourceStateUpdateTooManyRequests:
 			return nil, vsaerrors.WrapAsTemporalApplicationError(
 				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorTooManyRequests,
-					fmt.Errorf("Too many requests for project state update: %s", e.Error())),
+					fmt.Errorf("Too many requests for resource state update: %s", e.Error())),
+			)
+		case *resource_events.V1betaResourceStateUpdateNotImplemented:
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
+					fmt.Errorf("Not implemented error for resource state update %s: %s", params.ResourceId, e.Error())),
 			)
 		default:
 			logger.Warnf("Unknown error type for resource state update %s: %T - %s", params.ResourceId, err, err.Error())
@@ -332,6 +337,12 @@ func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx
 				return vsaerrors.WrapAsTemporalApplicationError(
 					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorTooManyRequests,
 						fmt.Errorf("Too many requests while polling operation %s for resource %s: %s", operationUUID, params.ResourceId, res.Error.Message)),
+				)
+
+			case common.HttpStatusNotImplemented:
+				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotImplemented,
+						fmt.Errorf("Not implemented error while polling operation %s for resource %s: %s", operationUUID, params.ResourceId, res.Error.Message)),
 				)
 
 			default:

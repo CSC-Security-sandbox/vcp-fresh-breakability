@@ -2386,6 +2386,45 @@ func Test_HandleResourceEventForSDEActivity_ErrorCoverage(t *testing.T) {
 		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
 
+	t.Run("HandleResourceEventForSDEActivity_NotImplementedError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		mockClient := resource_events.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{ResourceEvents: mockClient}
+		originalCreateClient := cvp.CreateClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		originalToken := auth.GetSignedJwtToken
+		defer func() { getSignedToken = originalToken }()
+		getSignedToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+
+		params := &common.HandleResourceEventParams{
+			State:          coremodels.StateOff,
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: "test-correlation-id",
+			ResourceType:   common.ResourceStateV1ResourceTypeVolume,
+			ResourceId:     "test-resource-id",
+		}
+
+		notImplementedErr := &resource_events.V1betaResourceStateUpdateNotImplemented{}
+		mockClient.EXPECT().V1betaResourceStateUpdate(mock.Anything).Return(nil, nil, nil, notImplementedErr)
+
+		activity := &ResourceEventsActivity{SE: mockSE}
+		_, err := activity.HandleResourceEventsForSDEActivity(ctx, params)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "Not implemented yet error")
+
+		var applicationError *temporal.ApplicationError
+		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, applicationError.NonRetryable())
+		assert.Equal(tt, "CustomError", applicationError.Type())
+	})
+
 	t.Run("HandleResourceEventForSDEActivity_TokenFailure", func(tt *testing.T) {
 		ctx := context.Background()
 		mockSE := database.NewMockStorage(t)
@@ -2656,6 +2695,54 @@ func Test_PollHandleResourceEventSDEOperationActivity_ErrorCoverage(t *testing.T
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
 		assert.False(tt, applicationError.NonRetryable()) // Should be retryable
+		assert.Equal(tt, "CustomError", applicationError.Type())
+	})
+
+	t.Run("PollHandleResourceEventSDEOperationActivity_NotImplementedError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		mockAsync := &async.MockClientService{}
+		mockCVP := &cvpapi.Cvp{Async: mockAsync}
+		originalCreateClient := cvp.CreateClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *mockCVP }
+		originalToken := auth.GetSignedJwtToken
+		defer func() { getSignedToken = originalToken }()
+		getSignedToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		params := &common.HandleResourceEventParams{
+			State:          coremodels.StateOff,
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: "test-correlation-id",
+			ResourceId:     "test-resource-id",
+		}
+		result := &common.HandleResourceEventResult{
+			Done: nillable.GetBoolPtr(false),
+			Name: nillable.GetStringPtr("test-operation-name"),
+		}
+
+		response := &async.V1betaDescribeOperationOK{
+			Payload: &cvpmodels.OperationV1beta{
+				Name: "test-operation-name",
+				Done: nillable.GetBoolPtr(true),
+				Error: &cvpmodels.StatusV1Beta{
+					Code:    float64(common.HttpStatusNotImplemented),
+					Message: "Not Implemented Message",
+				},
+			},
+		}
+		mockAsync.EXPECT().V1betaDescribeOperation(mock.Anything).Return(response, nil)
+
+		activity := &ResourceEventsActivity{SE: mockSE}
+		err := activity.PollHandleResourceEventSDEOperationActivity(ctx, params, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "Not implemented yet error")
+
+		var applicationError *temporal.ApplicationError
+		assert.True(tt, errors2.As(err, &applicationError))
+		assert.True(tt, applicationError.NonRetryable())
 		assert.Equal(tt, "CustomError", applicationError.Type())
 	})
 

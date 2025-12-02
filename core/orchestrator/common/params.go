@@ -18,6 +18,7 @@ const (
 	HTTPStatusNotFound            = 404
 	HTTPStatusInternalServerError = 500
 	HTTPStatusTooManyRequests     = 429
+	HttpStatusNotImplemented      = 501
 )
 
 // CreatePoolParams describes parameters supplied to CreatingPool

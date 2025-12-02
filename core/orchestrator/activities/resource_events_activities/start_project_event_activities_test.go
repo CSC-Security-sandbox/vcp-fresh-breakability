@@ -355,7 +355,7 @@ func Test_StartProjectEventForSDEActivity(t *testing.T) {
 		_, err := activity.StartProjectEventForSDEActivity(ctx, params)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Too many requests error")
-		
+
 		// This should be retryable error, not non-retryable
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
@@ -824,7 +824,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		activity := &StartProjectEventActivity{SE: mockSE}
 		err := activity.PollStartProjectEventSDEOperationActivity(ctx, params, result)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Client Error during StartProjectEvent")
+		assert.Contains(tt, err.Error(), "Not implemented yet error")
 	})
 
 	t.Run("PollStartProjectEventSDEOperationActivity_TooManyRequestsError", func(tt *testing.T) {
@@ -863,7 +863,7 @@ func Test_PollStartProjectEventSDEOperationActivity(t *testing.T) {
 		err := activity.PollStartProjectEventSDEOperationActivity(ctx, params, result)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Too many requests error")
-		
+
 		// This should be retryable error, not non-retryable
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
@@ -972,7 +972,7 @@ func TestListPoolsForAccount(t *testing.T) {
 		assert.Nil(tt, result)
 		assert.NotNil(tt, err)
 		assert.Contains(tt, err.Error(), "Invalid Operation Name")
-		
+
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
@@ -984,10 +984,10 @@ func TestListPoolsForAccount(t *testing.T) {
 		activity := &StartProjectEventActivity{SE: mockSE}
 
 		projectNumber := "test-project-number"
-		
+
 		// When isZone is true, the method should skip pool operations and return empty result
 		result, err := activity.ListPoolsForAccount(ctx, projectNumber, "OFF", true)
-		
+
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Empty(tt, result) // Should return empty slice for zone operations
@@ -1400,12 +1400,12 @@ func TestHTTPStatusConstants(t *testing.T) {
 func Test_HTTPStatusConstants_StartProjectEvent(t *testing.T) {
 	// Verify that constants from common package are used correctly
 	testCases := []struct {
-		name           string
-		statusCode     int32
+		name             string
+		statusCode       int32
 		expectedConstant int
 	}{
 		{"BadRequest", 400, common.HTTPStatusBadRequest},
-		{"Unauthorized", 401, common.HTTPStatusUnauthorized}, 
+		{"Unauthorized", 401, common.HTTPStatusUnauthorized},
 		{"Forbidden", 403, common.HTTPStatusForbidden},
 		{"NotFound", 404, common.HTTPStatusNotFound},
 		{"TooManyRequests", 429, common.HTTPStatusTooManyRequests},
@@ -1414,7 +1414,7 @@ func Test_HTTPStatusConstants_StartProjectEvent(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			assert.Equal(tt, int(tc.statusCode), tc.expectedConstant, 
+			assert.Equal(tt, int(tc.statusCode), tc.expectedConstant,
 				"Constant value should match HTTP status code")
 		})
 	}
