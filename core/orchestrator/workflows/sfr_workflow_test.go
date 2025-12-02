@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -35,7 +36,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		// Set default activity options to avoid "StartToCloseTimeout is not set" errors
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -96,6 +104,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
+			State:     string(models.JobsStateNEW),
 		}
 
 		// Mock activity responses
@@ -184,7 +193,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -258,7 +274,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -333,7 +356,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -430,7 +460,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -535,7 +572,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -666,7 +710,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -798,11 +849,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&activities.ADCActivity{})
-		env.RegisterActivity(&activities.BackupActivity{})
-		env.RegisterActivity(&activities.SFRActivity{})
-		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		mockStorage := database.NewMockStorage(t)
+		// Mock GetJob to fail - the activity will retry multiple times according to its retry policy
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get job")).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		// Set up test data
 		params := &common.RestoreFilesFromBackupParams{
@@ -854,62 +906,87 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			},
 		}
 
-		// Mock activity responses - GetJob fails but workflow should continue
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2) // Called for PROCESSING and DONE
-		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
-		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
-			AccessKey: "dGVzdC1hY2Nlc3Mta2V5",
-			SecretKey: "dGVzdC1zZWNyZXQta2V5",
-		}, nil)
-		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
-			OperationName: "operations/test-operation",
-			Status:        "RUNNING",
-		}, nil)
-		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
-		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://adc-svc-20231201120000abcd-abc123.run.app", nil)
-		fileInodeSizeMap := map[string]*activities.FileInodeAndSize{
-			"/backup.txt": {
-				Inode: "12345",
-				Size:  1024,
+		// Execute workflow
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+		// Assert workflow execution - should fail when GetJob fails
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("EnsureJobState_JobNotFound", func(t *testing.T) {
+		// Test lines 36-38: EnsureJobState fails when job is not found (GetJob returns nil, nil)
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
 			},
 		}
-		env.OnActivity("GetFileInodeNumbers", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fileInodeSizeMap, nil)
-		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
-			{
-				BaseModel: datamodel.BaseModel{UUID: "node-uuid"},
-				Name:      "node-1",
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		// Mock GetJob to return nil, nil (job not found)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+
+		// Set up test data
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					TenantProjectNumber: "123456789",
+				},
 			},
-		}, nil)
-		env.OnActivity("GetObjStoreNameFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return("obj-store-name", nil)
-		env.OnActivity("GetBucketDetailsFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
-			BucketName: "test-bucket",
-		}, nil)
-		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("/source/path", nil)
-		env.OnActivity("GetSmSourcePathForRestoreActivity", mock.Anything, mock.Anything, mock.Anything).Return("/restore/source/path", nil)
-		env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{
-			UUID: "obj-store-uuid",
-		}, nil)
-		env.OnActivity("SnapmirrorGetOrCreate", mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
-			UUID: "snapmirror-uuid",
-		}, nil)
-		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
-		env.OnActivity("DeleteObjectStoreForCrossVPC", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}, nil)
-		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{UUID: "test-job-uuid", State: "success"}, nil)
-		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
-			OperationName: "operations/cleanup-operation-123",
-			Status:        "RUNNING",
-		}, nil)
-		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(true, nil)
-		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get job"))
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				SnapshotName: "snapshot-name",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 1,
+			Account:   account,
+			PoolID:    1,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "deployment-name",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      1,
+				},
+			},
+		}
 
 		// Execute workflow
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
@@ -917,9 +994,97 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
 		}
-		// Assert workflow execution - should succeed even if GetJob fails
+		// Assert workflow execution - should fail when job is not found
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("EnsureJobState_WrongState", func(t *testing.T) {
+		// Test lines 36-38: EnsureJobState fails when job is in wrong state (not NEW)
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		// Mock GetJob to return a job with wrong state (PROCESSING instead of NEW)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStatePROCESSING), // Wrong state
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+
+		// Set up test data
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				SnapshotName: "snapshot-name",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 1,
+			Account:   account,
+			PoolID:    1,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "deployment-name",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      1,
+				},
+			},
+		}
+
+		// Execute workflow
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+		// Assert workflow execution - should fail when job is in wrong state
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		// Verify the error message contains state mismatch information
+		errMsg := env.GetWorkflowError().Error()
+		assert.Contains(t, errMsg, "state")
 		env.AssertExpectations(t)
 	})
 
@@ -935,7 +1100,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -992,6 +1164,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
+			State:     string(models.JobsStateNEW),
 		}
 
 		// Mock activity responses - PopulateSfrMetadataActivity fails but workflow should continue
@@ -1078,7 +1251,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1119,7 +1299,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1191,7 +1378,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1299,7 +1493,10 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 		// UpdateJobStatus should fail when trying to set DONE status
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.State == string(models.JobsStateDONE)
@@ -1324,7 +1521,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1374,7 +1578,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1440,7 +1651,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1506,7 +1724,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1577,7 +1802,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1647,7 +1879,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1719,7 +1958,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1791,7 +2037,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1867,7 +2120,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1949,7 +2209,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2030,7 +2297,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2132,7 +2406,15 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour * 25) // Set timeout longer than maxWaitTime
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2183,6 +2465,10 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			},
 		}
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2256,7 +2542,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2364,7 +2657,10 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// GetJob may or may not be called depending on workflow path
-		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
 		// Should fail because some files are missing (lines 564-567)
@@ -2386,7 +2682,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2509,7 +2812,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2617,7 +2927,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2726,7 +3043,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2838,7 +3162,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2951,7 +3282,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3065,7 +3403,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3182,7 +3527,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3287,7 +3639,10 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// GetJob may or may not be called depending on workflow path
-		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
 		assert.True(t, env.IsWorkflowCompleted())
@@ -3308,7 +3663,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3413,7 +3775,10 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// GetJob may or may not be called depending on workflow path
-		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
 		assert.True(t, env.IsWorkflowCompleted())
@@ -3434,7 +3799,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3539,7 +3911,10 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to delete service account"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// GetJob may or may not be called depending on workflow path
-		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
 		assert.True(t, env.IsWorkflowCompleted())
@@ -3560,7 +3935,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3627,7 +4009,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3687,6 +4076,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		job := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "job-uuid", ID: 100},
+			State:     string(models.JobsStateNEW),
 		}
 
 		// Mock activity responses - workflow succeeds but decrement fails
@@ -3777,7 +4167,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3909,7 +4306,14 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.SetTestTimeout(time.Hour)
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})

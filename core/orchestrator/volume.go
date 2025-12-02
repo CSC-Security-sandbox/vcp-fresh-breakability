@@ -2708,7 +2708,6 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 
 	originalState := volume.State
 	originalStateDetails := volume.StateDetails
-	workflowStarted := false
 	stateUpdated := false
 
 	// Update volume state to RESTORING
@@ -2733,9 +2732,9 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 	}
 
 	defer func() {
-		if err != nil && !workflowStarted {
-			// Only rollback if the state was successfully updated but workflow failed to start
-			// The workflow will handle its own error states
+		if err != nil {
+			// Rollback occurs for any error after a successful state update.
+			// WorkflowExecutor now handles retries and workflow error states internally.
 			if stateUpdated {
 				volume.State = originalState
 				volume.StateDetails = originalStateDetails
@@ -2762,23 +2761,20 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 	stateUpdated = true
 
 	// Execute the workflow
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
 		workflows.RestoreFilesFromBackupWorkflow,
 		params,
 		backup,
 		volume,
 	)
 	if err != nil {
-		logger.Error("Failed to start restore files from backup workflow: ", "error", err)
+		logger.Error("Failed to start restore files from backup workflow after retries: ", "error", err)
 		return "", err
 	}
-	workflowStarted = true
 	return createdJob.UUID, nil
 }
 

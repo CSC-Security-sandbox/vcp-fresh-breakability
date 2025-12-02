@@ -33,6 +33,9 @@ func RestoreFilesFromBackupWorkflow(ctx workflow.Context, params *commonparams.R
 		restoreWf.Logger.Errorf("Failed to setup RestoreFilesFromBackupWorkflow: %v", err)
 		return nil, err
 	}
+	if err := restoreWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 	restoreWf.Status = WorkflowStatusRunning
 	err = restoreWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
