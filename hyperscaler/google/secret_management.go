@@ -69,6 +69,12 @@ func (gcpService *GcpServices) GetSecretWithLatestVersion(projectID, secretID st
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
+
+	if version == nil {
+		gcpService.Logger.Warnf("GetSecretWithLatestVersion failed as no versions found for secret : %s", name)
+		return nil, nil
+	}
+
 	gcpService.Logger.Debug(fmt.Sprintf("GetSecretWithLatestVersion success with response :  %s", name))
 	customSecret, err := ConvertSecretToCustomSecret(secret, version)
 	if err != nil {

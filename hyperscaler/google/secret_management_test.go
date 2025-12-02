@@ -170,6 +170,93 @@ func Test_GetSecretWithLatestVersion(t *testing.T) {
 			tt.Errorf("Unexpected operation: %+v", secretName)
 		}
 	})
+
+	t.Run("WhenGetSecretWithLatestVersionFailsForNotFoundVersion", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		url := fmt.Sprintf("/v1/projects/%s/secrets/%s", projectId, secretName)
+		resp2 := &hyperscaler.CustomSecretVersion{Name: secretName, Value: secretName}
+		resp := &hyperscaler.CustomSecret{Name: secretName, SecretVersion: resp2}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url && req.Method == http.MethodGet {
+				response, _ := json.Marshal(&resp)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := secretmanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				secretManagerService: svc,
+			},
+			Ctx:                               ctx,
+			Logger:                            util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+		originalGetSecretVersion := GetSecretVersion
+		defer func() { GetSecretVersion = originalGetSecretVersion }()
+		GetSecretVersion = func(gService *GcpServices, projectId, secretName, versionId string) (*hyperscaler.CustomSecretVersion, error) {
+			return nil, nil
+		}
+		secret, err := gService.GetSecretWithLatestVersion(projectId, secretName)
+		if err != nil && secret != nil {
+			tt.Error("Expected nil for err and secret")
+		}
+	})
+	t.Run("WhenGetSecretWithLatestVersionFailsForFailedConvertSecretToCustomSecret", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		url := fmt.Sprintf("/v1/projects/%s/secrets/%s", projectId, secretName)
+		resp2 := &hyperscaler.CustomSecretVersion{Name: secretName, Value: secretName}
+		resp := &hyperscaler.CustomSecret{Name: secretName, SecretVersion: resp2}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url && req.Method == http.MethodGet {
+				response, _ := json.Marshal(&resp)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := secretmanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				secretManagerService: svc,
+			},
+			Ctx:                               ctx,
+			Logger:                            util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+		originalGetSecretVersion := GetSecretVersion
+		originalConvertSecretToCustomSecret := ConvertSecretToCustomSecret
+		defer func() {
+			GetSecretVersion = originalGetSecretVersion
+			ConvertSecretToCustomSecret = originalConvertSecretToCustomSecret
+		}()
+		GetSecretVersion = func(gService *GcpServices, projectId, secretName, versionId string) (*hyperscaler.CustomSecretVersion, error) {
+			return &hyperscaler.CustomSecretVersion{Name: secretName, Value: secretName}, nil
+		}
+
+		ConvertSecretToCustomSecret = func(secret *secretmanager.Secret, version *hyperscaler.CustomSecretVersion) (*hyperscaler.CustomSecret, error) {
+			return nil, fmt.Errorf("error")
+		}
+		secret, err := gService.GetSecretWithLatestVersion(projectId, secretName)
+		if err != nil && err.Error() == "error" {
+			tt.Error("Expected an error but got nothing")
+		} else if secret != nil {
+			tt.Errorf("Expected nil operation but got: %+v", secret)
+		}
+	})
 }
 
 func Test_CreateSecret(t *testing.T) {
