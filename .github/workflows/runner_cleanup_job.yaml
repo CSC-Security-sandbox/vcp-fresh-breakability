@@ -3,6 +3,10 @@ name: Runners Cleanup job
 on:
   schedule:
     - cron: "0 */3 * * *" # Runs every 3 hours
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   prune-docker:
@@ -10,6 +14,8 @@ jobs:
       matrix:
         runner_label: [cvs-u24-sunilt-01, cvs-u24-sunilt-02, cvs-u24-sunilt-03, cvs-u24-sunilt-04, cvs-u24-sunilt-05]
     runs-on: ${{ matrix.runner_label }}
+    env:
+      runner_workspace: /home/cvs/actions-runner/_work/
     steps:
       - name: Check Disk Usage
         id: check_disk
@@ -46,3 +52,7 @@ jobs:
         run: |
           go clean -cache
           go clean -modcache
+
+      - name: Cleanup all working Directory files
+        run: |
+          rm -rfv ${runner_workspace}*
