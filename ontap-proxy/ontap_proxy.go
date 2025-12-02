@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -21,14 +22,14 @@ import (
 )
 
 var (
-	extractOntapPath = utils.ExtractOntapPath
+	extractOntapPath              = utils.ExtractOntapPath
+	testOntapEndpointReachability = _testOntapEndpointReachability
 )
-
-type AuthTransport struct{}
 
 // ConnectionPool manages HTTP clients for different ONTAP clusters and auth types
 type ConnectionPool struct {
 	clients          map[string]*http.Client
+	clientEndpoints  map[string]string    // Maps pool key to selected endpoint
 	clientTimestamps map[string]time.Time // Track last used time
 	mutex            sync.RWMutex
 
@@ -56,6 +57,7 @@ func init() {
 func NewConnectionPool() *ConnectionPool {
 	pool := &ConnectionPool{
 		clients:          make(map[string]*http.Client),
+		clientEndpoints:  make(map[string]string),
 		clientTimestamps: make(map[string]time.Time),
 
 		// Configuration from environment variables with defaults
@@ -74,66 +76,196 @@ func NewConnectionPool() *ConnectionPool {
 	return pool
 }
 
-// GetClient returns a pooled HTTP client for the given ONTAP address and auth type
-func (p *ConnectionPool) GetClient(ontapAddress string, authData *models.AuthData) (*http.Client, error) {
-	key := p.generatePoolKey(ontapAddress, authData)
+// GetClient returns a pooled HTTP client for the given auth data
+func (p *ConnectionPool) GetClient(ctx context.Context, authData *models.AuthData) (*http.Client, string, error) {
+	key := p.generatePoolKey(authData)
 
-	// Try to get existing client
+	// Try to get existing client (fast path with read lock)
 	p.mutex.RLock()
 	if client, exists := p.clients[key]; exists {
 		p.mutex.RUnlock()
 		// Update last used timestamp
 		p.mutex.Lock()
 		p.clientTimestamps[key] = time.Now()
+		selectedEndpoint := p.clientEndpoints[key]
 		p.mutex.Unlock()
-		return client, nil
+		return client, selectedEndpoint, nil
 	}
 	p.mutex.RUnlock()
 
-	// Create new client
+	// Create new client (slow path with write lock)
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	// Double-check after acquiring write lock
+	// Double-check after acquiring write lock (prevents race condition)
 	if client, exists := p.clients[key]; exists {
 		p.clientTimestamps[key] = time.Now()
-		return client, nil
+		selectedEndpoint := p.clientEndpoints[key]
+		return client, selectedEndpoint, nil
 	}
 
 	// Create new client
-	client, err := p.createClient(ontapAddress, authData)
+	client, selectedEndpoint, err := p.createClient(ctx, authData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %w", err)
+		return nil, "", fmt.Errorf("failed to create client: %w", err)
 	}
 
-	// connectivity test
-
+	// Store client and the endpoint it's using
 	p.clients[key] = client
+	p.clientEndpoints[key] = selectedEndpoint
 	p.clientTimestamps[key] = time.Now()
-	return client, nil
+	return client, selectedEndpoint, nil
 }
 
-// generatePoolKey creates a unique key for the connection pool
-func (p *ConnectionPool) generatePoolKey(ontapAddress string, authData *models.AuthData) string {
-	return fmt.Sprintf("%s:%d:%s", ontapAddress, authData.AuthType, authData.PoolID)
+// generatePoolKey creates a unique key for the connection pool based on PoolID and AccountName
+func (p *ConnectionPool) generatePoolKey(authData *models.AuthData) string {
+	return fmt.Sprintf("%s:%s", authData.AccountName, authData.PoolID)
 }
 
 // createClient creates a new HTTP client with optimized transport
-func (p *ConnectionPool) createClient(ontapAddress string, authData *models.AuthData) (*http.Client, error) {
-	transport, err := p.buildOptimizedTransport(authData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build transport: %w", err)
+// It iterates through all endpoints and tests each one until it finds a reachable endpoint
+func (p *ConnectionPool) createClient(ctx context.Context, authData *models.AuthData) (*http.Client, string, error) {
+	logger := util.GetLogger(ctx)
+
+	if len(authData.OntapEndpoints) == 0 {
+		return nil, "", fmt.Errorf("no ONTAP endpoints found in authData")
 	}
 
-	return &http.Client{
-		Transport: transport,
-		Timeout:   time.Duration(env.GetInt("ONTAP_CLIENT_TIMEOUT_SECONDS", 60)) * time.Second,
-	}, nil
+	// Build transport once before the loop
+	transport, err := p.buildOptimizedTransport(authData)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to build transport: %w", err)
+	}
+
+	// Try each endpoint until we find a reachable one
+	var lastErr error
+	for _, endpoint := range authData.OntapEndpoints {
+		testAddress := endpoint.DNS
+		err = testOntapEndpointReachability(testAddress, authData, ctx, transport)
+
+		if err != nil {
+			logger.WarnContext(ctx, "ONTAP endpoint not reachable, trying next endpoint",
+				"endpoint", testAddress,
+				"poolID", authData.PoolID,
+				"error", err)
+			lastErr = err
+			continue
+		}
+
+		// Endpoint is reachable, create client
+		client := &http.Client{
+			Transport: transport,
+			Timeout:   time.Duration(env.GetInt("ONTAP_CLIENT_TIMEOUT_SECONDS", 60)) * time.Second,
+		}
+
+		return client, testAddress, nil
+	}
+
+	if lastErr != nil {
+		return nil, "", fmt.Errorf("failed to create client for any endpoint: %w", lastErr)
+	}
+
+	return nil, "", fmt.Errorf("no valid endpoints found in authData")
+}
+
+// GetStats returns connection pool statistics
+func (p *ConnectionPool) GetStats() map[string]interface{} {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	return map[string]interface{}{
+		"total_connections": len(p.clients),
+		"max_idle_conns":    p.maxIdleConns,
+		"max_idle_per_host": p.maxIdleConnsPerHost,
+		"idle_timeout":      p.idleConnTimeout.String(),
+	}
+}
+
+// Close closes the connection pool and cleans up resources
+func (p *ConnectionPool) Close() {
+	p.stopCleanup <- true
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	// Close all clients
+	for _, client := range p.clients {
+		if transport, ok := client.Transport.(*http.Transport); ok {
+			transport.CloseIdleConnections()
+		}
+	}
+
+	p.clients = make(map[string]*http.Client)
+	p.clientEndpoints = make(map[string]string)
+	p.clientTimestamps = make(map[string]time.Time)
+}
+
+// startCleanupRoutine starts the background cleanup routine
+func (p *ConnectionPool) startCleanupRoutine() {
+	p.cleanupTicker = time.NewTicker(time.Duration(env.GetInt("ONTAP_CLEANUP_INTERVAL_SECONDS", 60)) * time.Second)
+
+	go func() {
+		for {
+			select {
+			case <-p.cleanupTicker.C:
+				p.cleanup()
+			case <-p.stopCleanup:
+				p.cleanupTicker.Stop()
+				return
+			}
+		}
+	}()
+}
+
+// cleanup removes unused connections based on age and count
+func (p *ConnectionPool) cleanup() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	maxConnections := env.GetInt("ONTAP_MAX_TOTAL_CONNECTIONS", 1000)
+	now := time.Now()
+	threshold := now.Add(-p.cleanupThreshold)
+
+	// First, remove connections older than the threshold
+	for key, lastUsed := range p.clientTimestamps {
+		if lastUsed.Before(threshold) {
+			if client, exists := p.clients[key]; exists {
+				if transport, ok := client.Transport.(*http.Transport); ok {
+					transport.CloseIdleConnections()
+				}
+				delete(p.clients, key)
+			}
+			delete(p.clientEndpoints, key)
+			delete(p.clientTimestamps, key)
+		}
+	}
+
+	// If still over limit, remove oldest connections
+	if len(p.clients) > maxConnections {
+		oldestKey := ""
+		oldestTime := now
+		for key, lastUsed := range p.clientTimestamps {
+			if lastUsed.Before(oldestTime) {
+				oldestTime = lastUsed
+				oldestKey = key
+			}
+		}
+
+		if oldestKey != "" {
+			if client, exists := p.clients[oldestKey]; exists {
+				if transport, ok := client.Transport.(*http.Transport); ok {
+					transport.CloseIdleConnections()
+				}
+				delete(p.clients, oldestKey)
+			}
+			delete(p.clientEndpoints, oldestKey)
+			delete(p.clientTimestamps, oldestKey)
+		}
+	}
 }
 
 // buildOptimizedTransport creates an optimized HTTP transport based on auth type
 func (p *ConnectionPool) buildOptimizedTransport(authData *models.AuthData) (*http.Transport, error) {
-	// Add TLS configuration based on auth type
 	switch authData.AuthType {
 	case models.USER_CERTIFICATE:
 		return p.buildCertificateTransport(authData)
@@ -185,12 +317,11 @@ func (p *ConnectionPool) buildCertificateTransport(authData *models.AuthData) (*
 		RootCaCertificate:        authData.Certificate.RootCaCertificate,
 	}
 
-	rootCA, clientCert, err := _getAPICallCertificate(cert)
+	rootCA, clientCert, err := getAPICallCertificate(cert)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare certificate: %w", err)
 	}
 
-	// Create transport with base settings and certificate TLS config
 	return p.createBaseTransport(&tls.Config{
 		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: false,
@@ -201,109 +332,51 @@ func (p *ConnectionPool) buildCertificateTransport(authData *models.AuthData) (*
 
 // buildBasicAuthTransport creates transport with basic authentication
 func (p *ConnectionPool) buildBasicAuthTransport() (*http.Transport, error) {
-	// Create transport with base settings and basic auth TLS config
 	return p.createBaseTransport(&tls.Config{
 		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: true,
 	}), nil
 }
 
-// startCleanupRoutine starts the background cleanup routine
-func (p *ConnectionPool) startCleanupRoutine() {
-	p.cleanupTicker = time.NewTicker(time.Duration(env.GetInt("ONTAP_CLEANUP_INTERVAL_SECONDS", 60)) * time.Second)
+// _testOntapEndpointReachability tests if an ONTAP endpoint is reachable via HTTP
+func _testOntapEndpointReachability(endpoint string, authData *models.AuthData, ctx context.Context, transport *http.Transport) error {
+	testURL := fmt.Sprintf("https://%s/api/svm/svms?max_records=1", endpoint)
 
-	go func() {
-		for {
-			select {
-			case <-p.cleanupTicker.C:
-				p.cleanup()
-			case <-p.stopCleanup:
-				p.cleanupTicker.Stop()
-				return
-			}
+	testCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	testReq, err := http.NewRequestWithContext(testCtx, "GET", testURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create test request: %w", err)
+	}
+
+	// Configure authentication for test request
+	if authData.AuthType != models.USER_CERTIFICATE {
+		if authData.Username != "" && authData.Password != "" {
+			testReq.SetBasicAuth(authData.Username, authData.Password)
+		}
+	}
+
+	testClient := &http.Client{
+		Timeout:   10 * time.Second,
+		Transport: transport,
+	}
+
+	resp, err := testClient.Do(testReq)
+	if err != nil {
+		return fmt.Errorf("endpoint not reachable: %w", err)
+	}
+	defer func() {
+		if resp.Body != nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
 		}
 	}()
+
+	return nil
 }
 
-// cleanup removes unused connections based on age and count
-func (p *ConnectionPool) cleanup() {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	maxConnections := env.GetInt("ONTAP_MAX_TOTAL_CONNECTIONS", 1000)
-	now := time.Now()
-	threshold := now.Add(-p.cleanupThreshold)
-
-	// First, remove connections older than the threshold
-	for key, lastUsed := range p.clientTimestamps {
-		if lastUsed.Before(threshold) {
-			if client, exists := p.clients[key]; exists {
-				if transport, ok := client.Transport.(*http.Transport); ok {
-					transport.CloseIdleConnections()
-				}
-				delete(p.clients, key)
-			}
-			delete(p.clientTimestamps, key)
-		}
-	}
-
-	// If still over limit after time-based cleanup, remove oldest connections
-	if len(p.clients) > maxConnections {
-		// Find the oldest connection
-		oldestKey := ""
-		oldestTime := now
-		for key, lastUsed := range p.clientTimestamps {
-			if lastUsed.Before(oldestTime) {
-				oldestTime = lastUsed
-				oldestKey = key
-			}
-		}
-
-		// Remove the oldest connection
-		if oldestKey != "" {
-			if client, exists := p.clients[oldestKey]; exists {
-				if transport, ok := client.Transport.(*http.Transport); ok {
-					transport.CloseIdleConnections()
-				}
-				delete(p.clients, oldestKey)
-			}
-			delete(p.clientTimestamps, oldestKey)
-		}
-	}
-}
-
-// GetStats returns connection pool statistics
-func (p *ConnectionPool) GetStats() map[string]interface{} {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
-
-	return map[string]interface{}{
-		"total_connections": len(p.clients),
-		"max_idle_conns":    p.maxIdleConns,
-		"max_idle_per_host": p.maxIdleConnsPerHost,
-		"idle_timeout":      p.idleConnTimeout.String(),
-	}
-}
-
-// Close closes the connection pool and cleans up resources
-func (p *ConnectionPool) Close() {
-	p.stopCleanup <- true
-
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	// Close all clients
-	for _, client := range p.clients {
-		if transport, ok := client.Transport.(*http.Transport); ok {
-			transport.CloseIdleConnections()
-		}
-	}
-
-	p.clients = make(map[string]*http.Client)
-	p.clientTimestamps = make(map[string]time.Time)
-}
-
-// Enhanced AuthTransport with connection pooling
+// PooledAuthTransport implements http.RoundTripper with connection pooling
 type PooledAuthTransport struct {
 	pool *ConnectionPool
 }
@@ -329,31 +402,25 @@ func (pat *PooledAuthTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, fmt.Errorf("no authentication data found in cache for key: %s", cacheKey)
 	}
 
-	// Use ONTAP address from req.URL.Host (already set by Director)
-	// This avoids duplicating the extraction logic
-	ontapAddress := req.URL.Host
-	if ontapAddress == "" {
-		return nil, fmt.Errorf("could not extract ONTAP address from request URL")
-	}
-
-	// Get pooled client
-	client, err := pat.pool.GetClient(ontapAddress, authData)
+	client, selectedEndpoint, err := pat.pool.GetClient(req.Context(), authData)
 	if err != nil {
-		logger.ErrorContext(req.Context(), "Failed to get pooled client", "error", err, "ontapAddress", ontapAddress)
-		return nil, fmt.Errorf("failed to get pooled client: %w", err)
+		logger.ErrorContext(req.Context(), "Failed to get pool client", "error", err)
+		return nil, fmt.Errorf("failed to get pool client: %w", err)
 	}
 
-	// Create a new request from the existing one to avoid RequestURI issues
-	// This is necessary because httputil.ReverseProxy may set RequestURI which
-	// is not allowed for client requests
+	// Clone request to avoid RequestURI issues with httputil.ReverseProxy
 	newReq := req.Clone(req.Context())
-
-	// Clear RequestURI if it was set (not allowed for client requests)
 	newReq.RequestURI = ""
 
+	// Set URL scheme and host for the selected endpoint
+	if selectedEndpoint != "" {
+		newReq.URL.Scheme = "https"
+		newReq.URL.Host = selectedEndpoint
+		newReq.Host = selectedEndpoint
+	}
+
 	// Configure authentication
-	err = configureRequestAuthentication(newReq, authData)
-	if err != nil {
+	if err = configureRequestAuthentication(newReq, authData); err != nil {
 		logger.ErrorContext(req.Context(), "Failed to configure authentication", "error", err)
 		return nil, fmt.Errorf("failed to configure authentication: %w", err)
 	}
@@ -362,9 +429,11 @@ func (pat *PooledAuthTransport) RoundTrip(req *http.Request) (*http.Response, er
 	setCommonHeaders(newReq)
 
 	logger.DebugContext(req.Context(), "Using pooled connection",
-		"ontapAddress", ontapAddress,
+		"ontapAddress", selectedEndpoint,
 		"authType", authData.AuthType,
 		"poolID", authData.PoolID)
+
+	logCurlCommand(newReq, selectedEndpoint)
 
 	// Execute request using pooled connection
 	return client.Do(newReq)
@@ -398,89 +467,42 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 		Director: func(req *http.Request) {
 			logger := util.GetLogger(req.Context())
 
-			cacheKey := cache.GetAuthDataKeyFromContext(req.Context())
-			if cacheKey == "" {
-				logger.ErrorContext(req.Context(), "No cache key found in context")
-				return
-			}
-
-			authData, exists := cache.GetFromAuthDataCache(cacheKey)
-			if !exists || authData == nil {
-				logger.ErrorContext(req.Context(), "No authentication data found in cache", "cacheKey", cacheKey)
-				return
-			}
-
 			ontapPath := extractOntapPath(req.URL.Path)
 			if ontapPath == "" {
 				logger.ErrorContext(req.Context(), "Could not extract ONTAP path", "path", req.URL.Path)
 				return
 			}
 
-			var ontapAddress string
-			if len(authData.OntapEndpoints) > 0 {
-				ontapAddress = authData.OntapEndpoints[0].DNS
-			} else {
-				logger.ErrorContext(req.Context(), "No ONTAP endpoints found in authData", "cacheKey", cacheKey)
-				return
-			}
-
-			targetURL := buildTargetURL(ontapAddress, ontapPath, req.URL.RawQuery)
-			target, err := url.Parse(targetURL)
-			if err != nil {
-				logger.ErrorContext(req.Context(), "Error parsing target URL", "error", err, "targetURL", targetURL)
-				return
-			}
-
-			req.URL = target
-			req.Host = target.Host
-
-			logger.InfoContext(req.Context(), "Forwarding request",
-				"targetURL", targetURL,
-				"poolID", authData.PoolID,
-				"authType", authData.AuthType,
-				"method", req.Method,
-				"path", ontapPath)
-			logCurlCommand(req, targetURL)
+			req.URL.Path = ontapPath
 		},
-		Transport:      NewPooledAuthTransport(), // Use pooled transport
+		Transport:      NewPooledAuthTransport(),
 		ModifyResponse: actions.ProcessResponseModification,
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			logger := util.GetLogger(r.Context())
-			logger.ErrorContext(r.Context(), "Error handling request", "error", err, "path", r.URL.Path)
-
-			if strings.Contains(err.Error(), "context canceled") {
-				http.Error(w, "Request timeout - ONTAP cluster not responding", http.StatusGatewayTimeout)
-			} else if strings.Contains(err.Error(), "connection refused") {
-				http.Error(w, "Cannot connect to ONTAP cluster", http.StatusBadGateway)
-			} else if strings.Contains(err.Error(), "no such host") {
-				http.Error(w, "ONTAP cluster host not found", http.StatusBadGateway)
-			} else if strings.Contains(err.Error(), "Missing ONTAP credentials") {
-				http.Error(w, "ONTAP credentials not configured", http.StatusInternalServerError)
-			} else {
-				http.Error(w, "Proxy error: "+err.Error(), http.StatusBadGateway)
-			}
-		},
+		ErrorHandler:   handleProxyError,
 	}
 
 	return proxy
 }
 
-func buildTargetURL(ontapAddress, ontapPath, rawQuery string) string {
-	if !strings.HasPrefix(ontapAddress, "https://") && !strings.HasPrefix(ontapAddress, "http://") {
-		ontapAddress = "https://" + ontapAddress
+// handleProxyError handles errors from the reverse proxy
+func handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
+	logger := util.GetLogger(r.Context())
+	logger.ErrorContext(r.Context(), "Error handling request", "error", err, "path", r.URL.Path)
+
+	if strings.Contains(err.Error(), "context canceled") {
+		http.Error(w, "Request timeout - ONTAP cluster not responding", http.StatusGatewayTimeout)
+	} else if strings.Contains(err.Error(), "connection refused") {
+		http.Error(w, "Cannot connect to ONTAP cluster", http.StatusBadGateway)
+	} else if strings.Contains(err.Error(), "no such host") {
+		http.Error(w, "ONTAP cluster host not found", http.StatusBadGateway)
+	} else if strings.Contains(err.Error(), "Missing ONTAP credentials") {
+		http.Error(w, "ONTAP credentials not configured", http.StatusInternalServerError)
+	} else {
+		http.Error(w, "Proxy error: "+err.Error(), http.StatusBadGateway)
 	}
-
-	targetURL := ontapAddress + ontapPath
-
-	if rawQuery != "" {
-		targetURL += "?" + rawQuery
-	}
-
-	return targetURL
 }
 
 // logCurlCommand logs the equivalent curl command for debugging
-func logCurlCommand(req *http.Request, targetURL string) {
+func logCurlCommand(req *http.Request, endpoint string) {
 	logger := util.GetLogger(req.Context())
 
 	curlCmd := fmt.Sprintf("curl -X %s", req.Method)
@@ -497,13 +519,17 @@ func logCurlCommand(req *http.Request, targetURL string) {
 		curlCmd += " -u \"username:password\""
 	}
 
-	curlCmd += fmt.Sprintf(" \"%s\"", targetURL)
+	url := fmt.Sprintf("https://%s%s", endpoint, req.URL.Path)
+	if req.URL.RawQuery != "" {
+		url += "?" + req.URL.RawQuery
+	}
+	curlCmd += fmt.Sprintf(" \"%s\"", url)
 
-	logger.DebugContext(req.Context(), "Equivalent curl command", "command", curlCmd)
+	logger.InfoContext(req.Context(), "Equivalent curl command", "command", curlCmd)
 }
 
-// _getAPICallCertificate prepares certificates for API calls
-func _getAPICallCertificate(cert *models.Certificate) (*x509.CertPool, tls.Certificate, error) {
+// getAPICallCertificate prepares certificates for API calls
+func getAPICallCertificate(cert *models.Certificate) (*x509.CertPool, tls.Certificate, error) {
 	if len(cert.InterMediateCertificates) > 0 && cert.SignedCertificate != "" && cert.PrivateKey != "" {
 		rootCA, err := ontapProxyutils.ParsePEMCertificate(cert.InterMediateCertificates, "CERTIFICATE")
 		if err != nil {
