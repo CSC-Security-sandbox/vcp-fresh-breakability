@@ -2545,10 +2545,12 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 
 	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
 	job := &datamodel.Job{
-		Type:         string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationUpdate, poolCategory)),
-		State:        string(models.JobsStateNEW),
-		ResourceName: pool.UUID,
-		AccountID:    sql.NullInt64{Int64: pool.AccountID, Valid: true},
+		Type:          string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationUpdate, poolCategory)),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  pool.UUID,
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		AccountID:     sql.NullInt64{Int64: pool.AccountID, Valid: true},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)

@@ -318,10 +318,12 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 
 	poolCategory := models.GetPoolCategory(dbPool.LargeCapacity)
 	job := &datamodel.Job{
-		Type:         string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationUpdate, poolCategory)),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.PoolId,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationUpdate, poolCategory)),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.PoolId,
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)

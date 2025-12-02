@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -146,10 +147,12 @@ func (o *Orchestrator) UpdateHostGroup(ctx context.Context, params *common.Updat
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeUpdateHostGroup),
-		State:        string(models.JobsStateNEW),
-		ResourceName: hg.Name,
-		AccountID:    sql.NullInt64{Int64: hg.Account.ID, Valid: true},
+		Type:          string(models.JobTypeUpdateHostGroup),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  hg.Name,
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		AccountID:     sql.NullInt64{Int64: hg.Account.ID, Valid: true},
 	}
 	createdJob, err := o.storage.CreateJob(ctx, job)
 	if err != nil {
