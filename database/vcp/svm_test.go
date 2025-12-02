@@ -281,6 +281,60 @@ func TestCreateSVM(t *testing.T) {
 			tt.Fatalf("Expected a CustomError, got %v", err)
 		}
 	})
+	t.Run("WhenDatabaseErrorOccursDuringCheck", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1234},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-svm-uuid",
+			},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+
+		// Drop the table to simulate a database error during the First query
+		err = store.db.GORM().Exec("DROP TABLE svms").Error
+		assert.NoError(tt, err)
+
+		_, err = store.CreateSVM(context.Background(), svm)
+		assert.Error(tt, err, "Expected an error when database query fails")
+		var vcpErr *vsaerrors.CustomError
+		assert.True(tt, errors.As(err, &vcpErr), "Expected a CustomError")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "no such table")
+	})
 }
 
 func TestDeleteSVM(t *testing.T) {

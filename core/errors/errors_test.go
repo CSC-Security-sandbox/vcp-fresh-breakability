@@ -200,6 +200,51 @@ func TestWrapAsTemporalApplicationError(t *testing.T) {
 	}
 }
 
+func TestWrapAsTemporalApplicationErrorIncludesOriginalDetails(t *testing.T) {
+	originalErr := New("root cause")
+	customErr := &CustomError{TrackingID: ErrWorkflowConfigurationError, Message: "user visible", OriginalErr: originalErr}
+
+	wrapped := WrapAsTemporalApplicationError(customErr)
+	appErr, ok := wrapped.(*temporal.ApplicationError)
+	if !ok {
+		t.Fatalf("expected temporal.ApplicationError, got %T", wrapped)
+	}
+
+	var trackingID int
+	var originalMsg string
+	if err := appErr.Details(&trackingID, &originalMsg); err != nil {
+		t.Fatalf("expected details extraction to succeed: %v", err)
+	}
+	if trackingID != ErrWorkflowConfigurationError {
+		t.Errorf("expected trackingID %d, got %d", ErrWorkflowConfigurationError, trackingID)
+	}
+	if originalMsg != originalErr.Error() {
+		t.Errorf("expected original message %q, got %q", originalErr.Error(), originalMsg)
+	}
+}
+
+func TestWrapAsTemporalApplicationErrorFallsBackToCustomMessage(t *testing.T) {
+	customErr := &CustomError{TrackingID: ErrWorkflowConfigurationError, Message: "fallback message"}
+
+	wrapped := WrapAsTemporalApplicationError(customErr)
+	appErr, ok := wrapped.(*temporal.ApplicationError)
+	if !ok {
+		t.Fatalf("expected temporal.ApplicationError, got %T", wrapped)
+	}
+
+	var trackingID int
+	var originalMsg string
+	if err := appErr.Details(&trackingID, &originalMsg); err != nil {
+		t.Fatalf("expected details extraction to succeed: %v", err)
+	}
+	if trackingID != ErrWorkflowConfigurationError {
+		t.Errorf("expected trackingID %d, got %d", ErrWorkflowConfigurationError, trackingID)
+	}
+	if originalMsg != customErr.Message {
+		t.Errorf("expected original message %q, got %q", customErr.Message, originalMsg)
+	}
+}
+
 func TestExtractUserFriendlyErrorMessage_TemporalApplicationError(t *testing.T) {
 	// Setup errorMap for test
 	ctx := context.TODO()

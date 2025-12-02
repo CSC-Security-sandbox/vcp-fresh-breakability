@@ -563,9 +563,13 @@ func GetErrorMessageByTrackingID(trackingID int) *ErrorMessage {
 func WrapAsTemporalApplicationError(err error) error {
 	var customError *CustomError
 	if As(err, &customError) {
-		return temporal.NewApplicationError(err.Error(), "CustomError", customError.TrackingID, customError.OriginalErr.Error())
+		// If OriginalErr is nil, use the custom error message
+		originalErrMsg := customError.Message
+		if customError.OriginalErr != nil {
+			originalErrMsg = customError.OriginalErr.Error()
+		}
+		return temporal.NewApplicationError(err.Error(), CustomErrorType, customError.TrackingID, originalErrMsg)
 	}
-
 	return err
 }
 

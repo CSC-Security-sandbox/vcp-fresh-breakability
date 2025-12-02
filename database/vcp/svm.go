@@ -83,7 +83,7 @@ func (d *DataStoreRepository) CreateSVM(ctx context.Context, svm *datamodel.Svm)
 		return &dbSvm, nil
 	} else if err1 != nil {
 		logger.Errorf("Error while checking if svm exists: %v", err1)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
 	}
 	return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("svm already exists"))
 }
