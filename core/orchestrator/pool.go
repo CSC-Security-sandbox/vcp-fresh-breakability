@@ -703,9 +703,13 @@ func _getPoolByName(ctx context.Context, se database.Storage, poolName string, a
 func convertDatastorePoolToModelWithClusterDetails(pools *datamodel.PoolView, accountName string) *models.Pool {
 	pool := convertDatastorePoolToModel(pools, accountName)
 
-	pool.ClusterAttributes = &models.ClusterAttributes{
-		InterClusterLifs: pools.ClusterDetails.InterclusterLifIPs,
-		ExternalName:     pools.ClusterDetails.ExternalName,
+	pool.ClusterDetails = &models.ClusterDetails{
+		InterClusterLifs:      pools.ClusterDetails.InterclusterLifIPs,
+		ExternalName:          pools.ClusterDetails.ExternalName,
+		Network:               pools.ClusterDetails.Network,
+		SubnetNames:           pools.ClusterDetails.SubnetNames,
+		RegionalTenantProject: pools.ClusterDetails.RegionalTenantProject,
+		SnHostProject:         pools.ClusterDetails.SnHostProject,
 	}
 
 	return pool
@@ -793,9 +797,16 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			Throughput: float64(pool.PoolAttributes.ThroughputMibps),
 			Iops:       pool.PoolAttributes.Iops,
 		},
+		Account: &models.Account{
+			Name: accountName,
+		},
 		SatisfiesPzi:  pool.SatisfyZI,
 		SatisfiesPzs:  pool.SatisfyZS,
 		APIAccessMode: pool.APIAccessMode,
+	}
+
+	if pool.Account != nil && &pool.Account.ID != nil {
+		poolRes.Account.ID = pool.Account.ID
 	}
 
 	if pool.ActiveDirectory != nil {

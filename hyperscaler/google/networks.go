@@ -38,7 +38,7 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork, customerProject
 
 	tenantProjectsResp, err := gcpService.AdminGCPService.managementService.Services.TenancyUnits.List(parent).Context(gcpService.Ctx).Do()
 	if err != nil {
-		gcpService.Logger.Debugf("List TenancyUnits call failed : %s ", err.Error())
+		gcpService.Logger.Errorf("List TenancyUnits call failed for project : %s Region : %s Error : %s ", customerProjectNumber, tenantProjectRegion, err.Error())
 		return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 
@@ -51,7 +51,7 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork, customerProject
 			}
 		}
 	}
-	gcpService.Logger.Debugf("Tenancy not found : consumerNetwork: %s, customerProjectNumber: %s, tenantProjectRegion: %s , parent : %s ", consumerNetwork, customerProjectNumber, tenantProjectRegion, parent)
+	gcpService.Logger.Errorf("Tenancy not found : consumerNetwork: %s, customerProjectNumber: %s, tenantProjectRegion: %s , parent : %s ", consumerNetwork, customerProjectNumber, tenantProjectRegion, parent)
 	return "", vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, fmt.Errorf("vpc peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established", consumerNetwork)))
 }
 
@@ -90,29 +90,22 @@ func (gcpService *GcpServices) CreateTPSubnetOp(tenantProjectNumber, consumerNet
 }
 
 // ReleaseSubnetwork calls GCP releaseSubnetwork API and return a long-running operation.
-func (gcpService *GcpServices) ReleaseSubnetwork(region, projectName, subnetwork string) error {
-	op, err := gcpService.AdminGCPService.computeService.Subnetworks.Delete(projectName, region, subnetwork).Do()
+func (gcpService *GcpServices) ReleaseSubnetworkOp(region, projectId, subnetwork string) (string, error) {
+	op, err := gcpService.AdminGCPService.computeService.Subnetworks.Delete(projectId, region, subnetwork).Do()
 	if err != nil {
 		if strings.Contains(err.Error(), "notFound") {
 			// If the subnetwork is not found, it means it has already been deleted or never existed.
-			return nil
+			gcpService.Logger.Debugf("Subnet already deleted because it is not found in GCP. subnet name: %s, projectId: %s, region: %s, error : %s", subnetwork, projectId, region, err.Error())
+			return "", nil
 		}
 		if strings.Contains(err.Error(), "resourceInUseByAnotherResource") {
-			gcpService.Logger.Debugf("Failed to delete subnetwork because it is in use by another resource: %s, error : %s", subnetwork, err.Error())
-			return nil
+			gcpService.Logger.Debugf("Failed to delete subnetwork because it is in use by another resource: %s, projectId: %s, region: %s, error : %s", subnetwork, projectId, region, err.Error())
+			return "", nil
 		}
-		gcpService.Logger.Debug("Failed to delete subnetwork...")
-		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
+		gcpService.Logger.Errorf("Failed to delete subnetwork: %s, projectId: %s, region: %s, error : %s", subnetwork, projectId, region, err.Error())
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
-
-	err = waitForComputeOperation(*gcpService, projectName, region, fmt.Sprintf("(name=%s)", op.Name))
-	if err != nil {
-		// TODO: Add VCP Error for this
-		gcpService.Logger.Error(fmt.Sprintf("Failed to delete subnetwork %s in project %s with error: %v", subnetwork, projectName, err))
-		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
-	}
-
-	return nil
+	return op.Name, nil
 }
 
 // GetSnHost returns host project peered with the given service project

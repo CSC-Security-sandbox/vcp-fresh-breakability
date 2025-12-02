@@ -3,34 +3,35 @@ package models
 // Pool describes a pool in the cloud volume model
 type Pool struct {
 	BaseModel
-	Name                      string
-	Description               string
-	State                     string
-	StateDetails              string
-	ServiceLevel              string
-	SizeInBytes               uint64
-	AccountName               string
-	VendorID                  string
-	Region                    string
-	Zone                      string
-	TotalThroughputMibps      float64
-	UtilizedThroughputMibps   float64
-	Tags                      string
-	AllowAutoTiering          bool
-	VendorSubNetID            string
-	QosType                   string
-	PoolAttributes            *PoolAttributes
-	ClusterAttributes         *ClusterAttributes
-	CustomPerformanceParams   *CustomPerformanceParams
-	AutoTieringConfig         *AutoTieringConfig
-	SaAccountID               string
-	DeploymentName            string
-	SnHostProject             string
-	LargeCapacity             bool
-	KmsConfig                 *KmsConfig
-	SatisfiesPzi              bool
-	SatisfiesPzs              bool
-	AssetMetadata             *AssetMetadata
+	Name                    string
+	Description             string
+	State                   string
+	StateDetails            string
+	ServiceLevel            string
+	SizeInBytes             uint64
+	AccountName             string
+	VendorID                string
+	Region                  string
+	Zone                    string
+	TotalThroughputMibps    float64
+	UtilizedThroughputMibps float64
+	Tags                    string
+	AllowAutoTiering        bool
+	VendorSubNetID          string
+	QosType                 string
+	PoolAttributes          *PoolAttributes
+	ClusterDetails          *ClusterDetails
+	CustomPerformanceParams *CustomPerformanceParams
+	AutoTieringConfig       *AutoTieringConfig
+	SaAccountID             string
+	DeploymentName          string
+	SnHostProject           string
+	LargeCapacity           bool
+	Account                 *Account
+	KmsConfig               *KmsConfig
+	SatisfiesPzi            bool
+	SatisfiesPzs            bool
+	AssetMetadata           *AssetMetadata
 	ActiveDirectoryConfigId   string
 	ActiveDirectoryResourceId string
 	ActiveDirectoryChangeId   string
@@ -54,14 +55,19 @@ type PoolAttributes struct {
 	LdapEnabled     bool
 }
 
-// ClusterAttributes describes the attributes of a cluster model
-type ClusterAttributes struct {
+// ClusterDetails describes the attributes of a cluster model
+type ClusterDetails struct {
 	ExternalName      string
 	OntapVersion      string
 	InstanceType      string
 	ExternalIpAddress string
 	InternalIpAddress string
 	InterClusterLifs  []string
+
+	RegionalTenantProject string
+	SnHostProject         string
+	Network               string
+	SubnetNames           []string
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool

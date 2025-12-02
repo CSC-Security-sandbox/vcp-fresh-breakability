@@ -19,9 +19,9 @@ const (
 	// volume CREATE & DELETE operation and snapshot DELETE calls for a specific pool sequentially.
 	VolumeCreateDeleteSnapshotDeleteSeq = "Account_%d_Location_%s_Pool_%s_Ops_Volume-CD-Snapshot-D"
 
-	// PoolSubnetCreate is a placeholder used for sequence workflow instance that runs all
-	// subnet create operation for a specific account and VPC sequentially.
-	PoolSubnetCreate = "Account_%d_VPC_%s_Ops_PoolSubnet-C"
+	// PoolDataSubnetCreateDelete is a placeholder used for sequence workflow instance that runs all
+	// subnet create and delete operations for a specific account and VPC sequentially.
+	PoolDataSubnetCreateDelete = "Account_%d_VPC_%s_Ops_PoolDataSubnet-CD"
 
 	// Signal is the name of the signal used to call sequential workflows.
 	Signal = "req"

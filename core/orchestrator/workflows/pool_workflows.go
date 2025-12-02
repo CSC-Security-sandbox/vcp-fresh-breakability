@@ -152,7 +152,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	params := args[0].(*common.CreatePoolParams)
 	pool := args[1].(*datamodel.Pool)
 	poolActivity := &activities.PoolActivity{}
-	subnetActivity := SubnetActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams(params.LargeCapacity)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -195,27 +194,12 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	createSubnetJobUUID := new(string)
-	err = workflow.ExecuteActivity(ctx, subnetActivity.CreateSubnetJob, params, pool, tenantProjectNumber).Get(ctx, createSubnetJobUUID)
-	if err != nil {
-		wf.Logger.Errorf("Failed to start create subnet workflow for account: %s & vpc: %s, error: %v", params.AccountName, params.VendorSubNetID, err)
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Wait for the subnet creation job to complete using workflow.sleep.
-	err = PollOnDBJob(ctx, *createSubnetJobUUID, retryPolicy.StartToCloseTimeout)
-	if err != nil {
-		wf.Logger.Errorf("Failed to wait for create subnet job %s to complete, error: %v", *createSubnetJobUUID, err)
-		return nil, ConvertToVSAError(err)
-	}
-
 	tenancyDetails := &common.TenancyInfo{}
-	err = workflow.ExecuteActivity(ctx, subnetActivity.GetTenancyDetails, createSubnetJobUUID).Get(ctx, &tenancyDetails)
+	rollbackManager.AddWorkflow(workflowengine.CustomerTaskQueue, DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+	err = workflow.ExecuteChildWorkflow(ctx, DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationCreate).Get(ctx, &tenancyDetails)
 	if err != nil {
-		wf.Logger.Errorf("Failed to get tenancy details for job %s, error: %v", *createSubnetJobUUID, err)
 		return nil, ConvertToVSAError(err)
 	}
-	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
 
 	// persist cluster details (tenancy details - as it's required for cleaning up the resources in case of failure)
 	tenancyInfo := &datamodel.ClusterDetails{
@@ -505,7 +489,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool, &createSVMResponse.VLMConfig).Get(ctx, nil)
 	if err != nil {
@@ -714,7 +697,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		dbPool.SizeInBytes = int64(updatePoolParams.SizeInBytes)
 
 		// Update AutoTiering configuration
-		updateAutoTieringFields(dbPool, updatePoolParams, pool)
+		updateAutoTieringFields(dbPool, updatePoolParams)
 
 		rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
 		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, dbPool).Get(ctx, nil)
@@ -1102,6 +1085,11 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
+	err = workflow.ExecuteChildWorkflow(ctx, DataSubnetSequentialPoller, params, dbPool, dbPool.ClusterDetails.RegionalTenantProject, models.ResourceOperationDelete).Get(ctx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeletePoolResources, dbPool).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -1219,7 +1207,7 @@ type subnetWorkflowResult struct {
 }
 
 // PoolDataSubnetWorkFlow processes get pr create subnet for the pool related requests from a customer.
-func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParams, poolUUID, tenantProjectNumber string) (gcpgenserver.V1betaDescribePoolRes, error) {
+func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParams, poolUUID, tenantProjectNumber string, accountID int64, actionType models.ResourceOperation) (gcpgenserver.V1betaDescribePoolRes, error) {
 	CreateOrGetSubnetworkWF := new(poolDataSubnetWorkFlow)
 	err := CreateOrGetSubnetworkWF.Setup(ctx, params)
 	if err != nil {
@@ -1230,7 +1218,7 @@ func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParam
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	_, err = CreateOrGetSubnetworkWF.Run(ctx, params, poolUUID, tenantProjectNumber)
+	_, err = CreateOrGetSubnetworkWF.Run(ctx, params, poolUUID, tenantProjectNumber, accountID, actionType)
 	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		CreateOrGetSubnetworkWF.Status = WorkflowStatusFailed
 		upErr := CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
@@ -1272,18 +1260,31 @@ func (wf *poolDataSubnetWorkFlow) Setup(ctx workflow.Context, input interface{})
 	})
 }
 
+func getStartToCloseTimeoutDataSubnet(actionType models.ResourceOperation) string {
+	if actionType == models.ResourceOperationCreate {
+		return StartToCloseTimeoutDataSubnetCreate
+	}
+	return StartToCloseTimeoutDataSubnetDelete
+}
+
 func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*common.CreatePoolParams)
 	poolUUID := args[1].(string)
 	tenantProjectNumber := args[2].(string)
+	accountID := args[3].(int64)
+	actionType := args[4].(models.ResourceOperation)
 
 	poolActivity := &activities.PoolActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	activityStartToCloseTimeout, err := time.ParseDuration(getStartToCloseTimeoutDataSubnet(actionType))
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: activityStartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
@@ -1295,53 +1296,67 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	rollbackManager := common.NewRollbackManager()
-
-	defer func() {
-		if err != nil {
-			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-			rollbackManager.ExecuteRollback(disconnectedCtx, err)
-		}
-	}()
-
-	subnet := new(hyperscalermodels.Subnet)
-	err = workflow.ExecuteActivity(ctx, poolActivity.GetAvailableSubnet, params, tenantProjectNumber).Get(ctx, subnet)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	if subnet.Name == "" {
-		var operationName string
-		err = workflow.ExecuteActivity(ctx, poolActivity.GetCreateDataSubnetOp, params, tenantProjectNumber).Get(ctx, &operationName)
+	switch actionType {
+	case models.ResourceOperationCreate:
+		subnet := new(hyperscalermodels.Subnet)
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetAvailableSubnet, params, tenantProjectNumber).Get(ctx, subnet)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		if operationName == "" {
-			return nil, ConvertToVSAError(fmt.Errorf("failed to create subnet for tenant project: %s, operation name is empty", tenantProjectNumber))
-		}
-		// add retry only for Google timeout : strings.Contains(err.Error(), "Timeout while confirming service network google components")
-		opSubnetInBytes, err := WaitForServiceNetworkOperationStatus(ctx, poolActivity, operationName, retryPolicy.StartToCloseTimeout)
-		if err != nil {
-			return nil, ConvertToVSAError(fmt.Errorf("failed to create subnet for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err))
-		}
-		err = workflow.ExecuteActivity(ctx, poolActivity.GetSubnetFromOperation, opSubnetInBytes).Get(ctx, &subnet)
-		if err != nil {
-			return nil, ConvertToVSAError(fmt.Errorf("failed to get subnet from operation for tenant project: %s: %w", tenantProjectNumber, err))
-		}
-	}
-	tenancyDetails := &common.TenancyInfo{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.GetTenancyInfo, tenantProjectNumber, subnet).Get(ctx, &tenancyDetails)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolSubnet, poolUUID, tenancyDetails).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	// Adding the result to the workflow, which will be returned to the caller as Query after workflow completion
-	wf.TenancyDetails = tenancyDetails
+		if subnet.Name == "" {
+			var operationName string
+			err = workflow.ExecuteActivity(ctx, poolActivity.GetCreateDataSubnetOp, params, tenantProjectNumber).Get(ctx, &operationName)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+			if operationName == "" {
+				return nil, ConvertToVSAError(fmt.Errorf("failed to create subnet for tenant project: %s, operation name is empty", tenantProjectNumber))
+			}
+			// add retry only for Google timeout : strings.Contains(err.Error(), "Timeout while confirming service network google components")
+			opSubnetInBytes, err := WaitForServiceNetworkOperationStatus(ctx, poolActivity, operationName, retryPolicy.StartToCloseTimeout)
+			if err != nil {
+				return nil, ConvertToVSAError(fmt.Errorf("failed to create subnet for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err))
+			}
+			err = workflow.ExecuteActivity(ctx, poolActivity.GetSubnetFromOperation, opSubnetInBytes).Get(ctx, &subnet)
+			if err != nil {
+				return nil, ConvertToVSAError(fmt.Errorf("failed to get subnet from operation for tenant project: %s: %w", tenantProjectNumber, err))
+			}
+		}
+		tenancyDetails := &common.TenancyInfo{}
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetTenancyInfo, tenantProjectNumber, subnet).Get(ctx, &tenancyDetails)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 
+		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolSubnet, poolUUID, tenancyDetails).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		// Adding the result to the workflow, which will be returned to the caller as Query after workflow completion
+		wf.TenancyDetails = tenancyDetails
+
+	case models.ResourceOperationDelete:
+		// check the cases thoroughly when the accountID is empty like in case of delete pool
+		dbPool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}, AccountID: accountID}
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetPool, dbPool).Get(ctx, &dbPool)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		deleteSubnetOp := make([]common.Operations, 0)
+		err = workflow.ExecuteActivity(ctx, poolActivity.ReleaseDataSubnetOp, dbPool).Get(ctx, &deleteSubnetOp)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &deleteSubnetOp, retryPolicy.StartToCloseTimeout)
+		if err != nil {
+			return nil, ConvertToVSAError(vsaerror.Errorf("failed to release data subnet for pool: %s project: %s with error : %w", dbPool.Name, dbPool.Account.Name, err))
+		}
+	default:
+		// throw error for invalid action type
+		return nil, ConvertToVSAError(fmt.Errorf("invalid action type for pool data subnet workflow. Please send either Create or Delete. Current actionType: %s. poolUUID: %s", actionType, poolUUID))
+	}
 	return nil, nil
 }
 
@@ -1356,10 +1371,68 @@ func _fetchTemporalClient(ctx context.Context) client.Client {
 	return activity.GetClient(ctx)
 }
 
-// CreateSubnetJob is an activity that triggers PoolDataSubnetWorkFlow for the pool
+// DataSubnetSequentialPoller is a workflow that polls for the completion of subnet creation or deletion jobs. Hence making sure only one subnet operation
+// is in progress for a given account and VPC at any given time.
+// This is important because concurrent subnet creation or deletion requests for the same VPC causes race conditions and failures.
+// This workflow is invoked as a child workflow from Pool creation or deletion workflows.
+func DataSubnetSequentialPoller(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool, tenantProjectNumber string, actionType models.ResourceOperation) (*common.TenancyInfo, error) {
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError", "NonRetryableErr"},
+		},
+	}
+	subnetActivity := SubnetActivity{}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	rollbackManager := common.NewRollbackManager()
+
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
+	logger := util.GetLogger(ctx)
+	createDeleteSubnetJobUUID := new(string)
+	err = workflow.ExecuteActivity(ctx, subnetActivity.CreateDeleteDataSubnetJob, params, pool, tenantProjectNumber, actionType).Get(ctx, createDeleteSubnetJobUUID)
+	if err != nil {
+		logger.Errorf("Failed to start %s subnet workflow for account: %s, pool name: %s vpc: %s, error: %v", actionType, params.AccountName, params.Name, params.VendorSubNetID, err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	// Wait for the subnet creation job to complete using workflow.sleep.
+	err = PollOnDBJob(ctx, *createDeleteSubnetJobUUID, retryPolicy.StartToCloseTimeout)
+	if err != nil {
+		logger.Errorf("Failed to wait for create subnet job %s to complete, error: %s", *createDeleteSubnetJobUUID, err.Error())
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if actionType == models.ResourceOperationCreate {
+		tenancyDetails := &common.TenancyInfo{}
+		err = workflow.ExecuteActivity(ctx, subnetActivity.GetTenancyDetails, createDeleteSubnetJobUUID).Get(ctx, &tenancyDetails)
+		if err != nil {
+			logger.Errorf("Failed to get tenancy details for job %s, error: %v", *createDeleteSubnetJobUUID, err)
+			return nil, ConvertToVSAError(err)
+		}
+		return tenancyDetails, nil
+	}
+	return nil, nil
+}
+
+// CreateDeleteDataSubnetJob is an activity that triggers PoolDataSubnetWorkFlow for the pool
 // in a serialized way. Since we are using the SequenceWorkflow from the workflows pkg for queueing, we
 // have kept the activity implementation here to avoid cyclic imports.
-func (sa *SubnetActivity) CreateSubnetJob(ctx context.Context, params *common.CreatePoolParams, pool *datamodel.Pool, tenantProjectNumber string) (string, error) {
+func (sa *SubnetActivity) CreateDeleteDataSubnetJob(ctx context.Context, params *common.CreatePoolParams, pool *datamodel.Pool, tenantProjectNumber string, actionType models.ResourceOperation) (string, error) {
 	logger := util.GetLogger(ctx)
 	se := sa.SE
 	temporalClient := fetchTemporalClient(ctx)
@@ -1367,12 +1440,12 @@ func (sa *SubnetActivity) CreateSubnetJob(ctx context.Context, params *common.Cr
 
 	// Use appropriate job type based on pool capacity
 	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
-	jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationCreate, poolCategory)
+	jobType := models.GetResourceJobType(models.ResourceTypeSubnet, actionType, poolCategory)
 
 	job := &datamodel.Job{
 		Type:          string(jobType),
 		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name + "-subnet",
+		ResourceName:  pool.Name + "-subnet",
 		AccountID:     sql.NullInt64{Int64: pool.Account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -1383,10 +1456,11 @@ func (sa *SubnetActivity) CreateSubnetJob(ctx context.Context, params *common.Cr
 		logger.Error("Failed to create job in database", "error", err)
 		return "", err
 	}
+	logger.Infof("correlationID: %s, requestID: %s - Creating subnet job for account: %s & vpc: %s, pool name : %s", job.CorrelationID, job.RequestID, params.AccountName, vpcName, params.Name)
 
 	// controlWorkflowID defines the workflow ID for the control workflow
 	// This control workflow will be common per same Account & same VPC level.
-	controlWorkflowID := fmt.Sprintf(PoolSubnetCreate, pool.Account.ID, vpcName)
+	controlWorkflowID := fmt.Sprintf(PoolDataSubnetCreateDelete, pool.Account.ID, vpcName)
 	err = ExecuteWorkflowSequentially(
 		temporalClient,
 		ctx,
@@ -1404,6 +1478,8 @@ func (sa *SubnetActivity) CreateSubnetJob(ctx context.Context, params *common.Cr
 		params,
 		pool.UUID,
 		tenantProjectNumber,
+		pool.Account.ID,
+		actionType,
 	)
 	if err != nil {
 		logger.Errorf("Failed to start create subnet workflow for account: %s & vpc: %s, job: %s, error: %v", params.AccountName, vpcName, createdJob.UUID, err.Error())
@@ -1835,7 +1911,7 @@ func _waitForGCPNetworkOperationStatus(ctx workflow.Context, poolActivity *activ
 }
 
 // updateAutoTieringFields updates the AutoTiering configuration fields in the pool
-func updateAutoTieringFields(dbPool *datamodel.Pool, updatePoolParams *common.UpdatePoolParams, pool *datamodel.Pool) {
+func updateAutoTieringFields(dbPool *datamodel.Pool, updatePoolParams *common.UpdatePoolParams) {
 	if updatePoolParams.AllowAutoTiering {
 		dbPool.AllowAutoTiering = true
 		dbPool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.HotTierSizeInBytes)

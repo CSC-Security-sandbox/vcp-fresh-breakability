@@ -206,6 +206,7 @@ func initializeTemporalClient(logger log.Logger) (workflowEngine.WorkflowEngine,
 func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage, temporal client.Client) {
 	worker.RegisterWorkflow(workflows.SequenceWorkflow)
 	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
+	worker.RegisterWorkflow(workflows.DataSubnetSequentialPoller)
 	worker.RegisterWorkflow(workflows.PoolDataSubnetWorkFlow)
 	worker.RegisterWorkflow(workflows.ConfigureNetworkWorkflow)
 	worker.RegisterWorkflow(workflows.ConfigurePSCEndpointWorkflow)

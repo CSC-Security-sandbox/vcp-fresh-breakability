@@ -19,7 +19,7 @@ type Services interface {
 
 	CreateSubnetwork(request *models.Subnet) (string, error)
 	GetSubnetwork(projectName, region, subnetName string) (*models.Subnet, error)
-	ReleaseSubnetwork(region, projectNumber, subnetwork string) error
+	ReleaseSubnetworkOp(region, projectId, subnetwork string) (string, error)
 	ListSubnetworks(projectName, region string) (*[]models.Subnet, error)
 
 	InsertFirewall(firewallRule *models.Firewall) (string, error)

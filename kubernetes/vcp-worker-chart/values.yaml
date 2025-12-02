@@ -236,6 +236,8 @@ workerConfig:
 
   # Default Workflow Retry configuration
   startToCloseTimeout: "55m"
+  startToCloseTimeoutDataSubnetCreate: "20m"
+  startToCloseTimeoutDataSubnetDelete: "5m"
   retryInterval: "5s"
   retryMaxAttempts: "3"
   retryMaxInterval: "5m"

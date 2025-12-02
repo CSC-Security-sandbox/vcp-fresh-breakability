@@ -3118,50 +3118,60 @@ func (_c *MockGoogleServices_ReleaseAddress_Call) RunAndReturn(run func(string, 
 	return _c
 }
 
-// ReleaseSubnetwork provides a mock function with given fields: region, projectNumber, subnetwork
-func (_m *MockGoogleServices) ReleaseSubnetwork(region string, projectNumber string, subnetwork string) error {
-	ret := _m.Called(region, projectNumber, subnetwork)
+// ReleaseSubnetworkOp provides a mock function with given fields: region, projectId, subnetwork
+func (_m *MockGoogleServices) ReleaseSubnetworkOp(region string, projectId string, subnetwork string) (string, error) {
+	ret := _m.Called(region, projectId, subnetwork)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ReleaseSubnetwork")
+		panic("no return value specified for ReleaseSubnetworkOp")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
-		r0 = rf(region, projectNumber, subnetwork)
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (string, error)); ok {
+		return rf(region, projectId, subnetwork)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) string); ok {
+		r0 = rf(region, projectId, subnetwork)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(string)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(region, projectId, subnetwork)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
-// MockGoogleServices_ReleaseSubnetwork_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReleaseSubnetwork'
-type MockGoogleServices_ReleaseSubnetwork_Call struct {
+// MockGoogleServices_ReleaseSubnetworkOp_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReleaseSubnetworkOp'
+type MockGoogleServices_ReleaseSubnetworkOp_Call struct {
 	*mock.Call
 }
 
-// ReleaseSubnetwork is a helper method to define mock.On call
+// ReleaseSubnetworkOp is a helper method to define mock.On call
 //   - region string
-//   - projectNumber string
+//   - projectId string
 //   - subnetwork string
-func (_e *MockGoogleServices_Expecter) ReleaseSubnetwork(region interface{}, projectNumber interface{}, subnetwork interface{}) *MockGoogleServices_ReleaseSubnetwork_Call {
-	return &MockGoogleServices_ReleaseSubnetwork_Call{Call: _e.mock.On("ReleaseSubnetwork", region, projectNumber, subnetwork)}
+func (_e *MockGoogleServices_Expecter) ReleaseSubnetworkOp(region interface{}, projectId interface{}, subnetwork interface{}) *MockGoogleServices_ReleaseSubnetworkOp_Call {
+	return &MockGoogleServices_ReleaseSubnetworkOp_Call{Call: _e.mock.On("ReleaseSubnetworkOp", region, projectId, subnetwork)}
 }
 
-func (_c *MockGoogleServices_ReleaseSubnetwork_Call) Run(run func(region string, projectNumber string, subnetwork string)) *MockGoogleServices_ReleaseSubnetwork_Call {
+func (_c *MockGoogleServices_ReleaseSubnetworkOp_Call) Run(run func(region string, projectId string, subnetwork string)) *MockGoogleServices_ReleaseSubnetworkOp_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string), args[1].(string), args[2].(string))
 	})
 	return _c
 }
 
-func (_c *MockGoogleServices_ReleaseSubnetwork_Call) Return(_a0 error) *MockGoogleServices_ReleaseSubnetwork_Call {
-	_c.Call.Return(_a0)
+func (_c *MockGoogleServices_ReleaseSubnetworkOp_Call) Return(_a0 string, _a1 error) *MockGoogleServices_ReleaseSubnetworkOp_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockGoogleServices_ReleaseSubnetwork_Call) RunAndReturn(run func(string, string, string) error) *MockGoogleServices_ReleaseSubnetwork_Call {
+func (_c *MockGoogleServices_ReleaseSubnetworkOp_Call) RunAndReturn(run func(string, string, string) (string, error)) *MockGoogleServices_ReleaseSubnetworkOp_Call {
 	_c.Call.Return(run)
 	return _c
 }

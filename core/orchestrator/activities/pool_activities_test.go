@@ -6,11 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -42,6 +46,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
+	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/option"
 	"google.golang.org/api/servicenetworking/v1"
 	"gorm.io/gorm"
 )
@@ -2153,15 +2159,16 @@ func Test_ReturnsErrorWhenListPoolsFails(t *testing.T) {
 	}
 	mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("failed to list pools"))
 
-	err := activity.ReleaseSubnet(ctx, pool)
+	ops, err := activity.ReleaseDataSubnetOp(ctx, pool)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to list pools")
+	assert.Nil(t, ops)
 	mockStorage.AssertExpectations(t)
 }
 
-// Unit tests for ReleaseSubnet in core/orchestrator/activities/pool_activities.go
-func TestPoolActivity_ReleaseSubnetN(t *testing.T) {
+// Unit tests for ReleaseSubnetOp in core/orchestrator/activities/pool_activities.go
+func TestPoolActivity_ReleaseDataSubnetOp(t *testing.T) {
 	ctx := context.Background()
 	pool := datamodel.Pool{
 		AccountID:      1,
@@ -2184,9 +2191,10 @@ func TestPoolActivity_ReleaseSubnetN(t *testing.T) {
 
 		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
 		activity := activities.PoolActivity{SE: mockStorage}
-		err := activity.ReleaseSubnet(ctx, &pool)
+		ops, err := activity.ReleaseDataSubnetOp(ctx, &pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "list pools error")
+		assert.Nil(tt, ops)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -2195,7 +2203,7 @@ func TestPoolActivity_ReleaseSubnetN(t *testing.T) {
 
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{poolView, poolView2}, nil)
 		activity := activities.PoolActivity{SE: mockStorage}
-		err := activity.ReleaseSubnet(ctx, &pool)
+		_, err := activity.ReleaseDataSubnetOp(ctx, &pool)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -2210,7 +2218,7 @@ func TestPoolActivity_ReleaseSubnetN(t *testing.T) {
 		}()
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
 		activity := activities.PoolActivity{SE: mockStorage}
-		err := activity.ReleaseSubnet(ctx, &pool)
+		_, err := activity.ReleaseDataSubnetOp(ctx, &pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "initialisation of Google GCP service failed")
 		mockStorage.AssertExpectations(tt)
@@ -2226,13 +2234,13 @@ func TestPoolActivity_ReleaseSubnetN(t *testing.T) {
 		}
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
 		defer func() {}()
-		releaseSubnet := activities.ReleaseSubnet
-		defer func() { activities.ReleaseSubnet = releaseSubnet }()
-		activities.ReleaseSubnet = func(service hyperscaler2.GoogleServices, snHost, subnetName string) error {
-			return errors.New("release subnet error")
+		releaseSubnet := activities.ReleaseSubnetOp
+		defer func() { activities.ReleaseSubnetOp = releaseSubnet }()
+		activities.ReleaseSubnetOp = func(service hyperscaler2.GoogleServices, snHost, subnetName string) (string, error) {
+			return "", errors.New("release subnet error")
 		}
 		activity := activities.PoolActivity{SE: mockStorage}
-		err := activity.ReleaseSubnet(ctx, &pool)
+		_, err := activity.ReleaseDataSubnetOp(ctx, &pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "release subnet error")
 		mockStorage.AssertExpectations(tt)
@@ -2244,20 +2252,20 @@ func TestPoolActivity_ReleaseSubnetN(t *testing.T) {
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
 
 		originalGetGCPService := hyperscaler2.GetGCPService
-		releaseSubnet := activities.ReleaseSubnet
+		releaseSubnet := activities.ReleaseSubnetOp
 		defer func() {
-			activities.ReleaseSubnet = releaseSubnet
+			activities.ReleaseSubnetOp = releaseSubnet
 			hyperscaler2.GetGCPService = originalGetGCPService
 		}()
 
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		activities.ReleaseSubnet = func(service hyperscaler2.GoogleServices, snHost, subnetName string) error {
-			return nil
+		activities.ReleaseSubnetOp = func(service hyperscaler2.GoogleServices, snHost, subnetName string) (string, error) {
+			return "", nil
 		}
 		activity := activities.PoolActivity{SE: mockStorage}
-		err := activity.ReleaseSubnet(ctx, &pool)
+		_, err := activity.ReleaseDataSubnetOp(ctx, &pool)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -2298,8 +2306,9 @@ func TestPoolActivity_ReleaseSubnet(t *testing.T) {
 			SnHostProject: "sn-host-project",
 			SubnetNames:   []string{},
 		}
-		err := activity.ReleaseSubnet(ctx, &poolNoSubnet)
+		ops, err := activity.ReleaseDataSubnetOp(ctx, &poolNoSubnet)
 		assert.Nil(t, err)
+		assert.Nil(t, ops)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -2308,9 +2317,10 @@ func TestPoolActivity_ReleaseSubnet(t *testing.T) {
 		activity := activities.PoolActivity{SE: mockStorage}
 
 		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
-		err := activity.ReleaseSubnet(ctx, &rawPool)
+		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "list pools error")
+		assert.Nil(t, ops)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -2319,8 +2329,9 @@ func TestPoolActivity_ReleaseSubnet(t *testing.T) {
 		activity := activities.PoolActivity{SE: mockStorage}
 
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{pool, pool1}, nil)
-		err := activity.ReleaseSubnet(ctx, &rawPool)
+		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
 		assert.NoError(t, err)
+		assert.Nil(t, ops)
 		mockStorage.AssertExpectations(t)
 	})
 	t.Run("GetGCPServiceFails", func(tt *testing.T) {
@@ -2335,12 +2346,13 @@ func TestPoolActivity_ReleaseSubnet(t *testing.T) {
 		}
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
 		activity := activities.PoolActivity{SE: mockStorage}
-		err := activity.ReleaseSubnet(ctx, &rawPool)
+		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "initialisation of Google GCP service failed")
+		assert.Nil(tt, ops)
 		mockStorage.AssertExpectations(tt)
 	})
-	t.Run("ReleaseSubnet fails", func(tt *testing.T) {
+	t.Run("ReleaseDataSubnetOp fails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		GetGCPService := hyperscaler2.GetGCPService
 		defer func() {
@@ -2351,15 +2363,16 @@ func TestPoolActivity_ReleaseSubnet(t *testing.T) {
 		}
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
 		defer func() {}()
-		releaseSubnet := activities.ReleaseSubnet
-		defer func() { activities.ReleaseSubnet = releaseSubnet }()
-		activities.ReleaseSubnet = func(service hyperscaler2.GoogleServices, snHost, subnetName string) error {
-			return errors.New("release subnet error")
+		releaseSubnet := activities.ReleaseSubnetOp
+		defer func() { activities.ReleaseSubnetOp = releaseSubnet }()
+		activities.ReleaseSubnetOp = func(service hyperscaler2.GoogleServices, snHost, subnetName string) (string, error) {
+			return "", errors.New("release subnet error")
 		}
 		activity := activities.PoolActivity{SE: mockStorage}
-		err := activity.ReleaseSubnet(ctx, &rawPool)
+		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "release subnet error")
+		assert.Nil(tt, ops)
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -2374,14 +2387,16 @@ func TestPoolActivity_ReleaseSubnet(t *testing.T) {
 		}
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
 
-		releaseSubnet := activities.ReleaseSubnet
-		defer func() { activities.ReleaseSubnet = releaseSubnet }()
-		activities.ReleaseSubnet = func(service hyperscaler2.GoogleServices, snHost, subnetName string) error {
-			return nil
+		releaseSubnet := activities.ReleaseSubnetOp
+		defer func() { activities.ReleaseSubnetOp = releaseSubnet }()
+		activities.ReleaseSubnetOp = func(service hyperscaler2.GoogleServices, snHost, subnetName string) (string, error) {
+			return "operation", nil
 		}
 		activity := activities.PoolActivity{SE: mockStorage}
-		err := activity.ReleaseSubnet(ctx, &rawPool)
+		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
 		assert.NoError(tt, err)
+		assert.NotNil(tt, ops)
+		assert.Len(tt, *ops, 1)
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -2689,12 +2704,54 @@ func Test_getSubnetwork(t *testing.T) {
 			GatewayAddress: "10.0.0.1",
 		}
 
+		// Mock GCP service with httptest server for GetSnHost
+		origGetGCPService := hyperscaler2.GetGCPService
+		defer func() {
+			hyperscaler2.GetGCPService = origGetGCPService
+		}()
+
+		url := fmt.Sprintf("/projects/%s/getXpnHost", tenantProjectNumber)
+		resp := &compute.Project{Name: "sn-host"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, _ := json.Marshal(resp)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL), option.WithoutAuthentication())
+		if err != nil {
+			t.Fatalf("Error creating compute service: %v", err)
+		}
+
+		adminGcpService := &google.AdminGCPService{}
+		// Use reflection to set the unexported computeService field
+		rv := reflect.ValueOf(adminGcpService).Elem()
+		rf := rv.FieldByName("computeService")
+		reflect.NewAt(rf.Type(), unsafe.Pointer(rf.UnsafeAddr())).Elem().Set(reflect.ValueOf(computeSvc))
+
+		mockGcpService := &google.GcpServices{
+			AdminGCPService: adminGcpService,
+			Ctx:             ctx,
+			Logger:          util.GetLogger(ctx),
+		}
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
 		info, err := activity.GetTenancyInfo(ctx, tenantProjectNumber, expectedSubnet)
 		assert.NoError(t, err)
 		assert.Equal(t, tenantProjectNumber, info.RegionalTenantProject)
 		assert.Equal(t, "test-network", info.Network)
 		assert.Equal(t, []string{"subnet-1"}, info.SubnetworkNames)
 		assert.Equal(t, "10.0.0.1", info.Gateway)
+		assert.Equal(t, "sn-host", info.SnHostProject)
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -2879,11 +2936,12 @@ func Test_releaseSubnet_Error(t *testing.T) {
 	subnetName := "test-subnet"
 	expectedErr := errors.New("release failed")
 
-	mockSvc.On("ReleaseSubnetwork", "", snHost, subnetName).Return(expectedErr)
+	mockSvc.On("ReleaseSubnetworkOp", "", snHost, subnetName).Return("", expectedErr)
 
-	err := activities.ReleaseSubnet(mockSvc, snHost, subnetName)
+	operationName, err := activities.ReleaseSubnetOp(mockSvc, snHost, subnetName)
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
+	assert.Empty(t, operationName)
 	mockSvc.AssertExpectations(t)
 }
 
@@ -5805,6 +5863,48 @@ func TestPoolActivity_GetTenancyInfo(t *testing.T) {
 			SubnetworkNames:       []string{"subnet-1"},
 			Gateway:               "10.0.0.1",
 		}
+
+		// Mock GCP service with httptest server for GetSnHost
+		origGetGCPService := hyperscaler2.GetGCPService
+		defer func() {
+			hyperscaler2.GetGCPService = origGetGCPService
+		}()
+
+		url := fmt.Sprintf("/projects/%s/getXpnHost", tenantProjectNumber)
+		resp := &compute.Project{Name: "sn-host"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, _ := json.Marshal(resp)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL), option.WithoutAuthentication())
+		if err != nil {
+			t.Fatalf("Error creating compute service: %v", err)
+		}
+
+		adminGcpService := &google.AdminGCPService{}
+		// Use reflection to set the unexported computeService field
+		rv := reflect.ValueOf(adminGcpService).Elem()
+		rf := rv.FieldByName("computeService")
+		reflect.NewAt(rf.Type(), unsafe.Pointer(rf.UnsafeAddr())).Elem().Set(reflect.ValueOf(computeSvc))
+
+		mockGcpService := &google.GcpServices{
+			AdminGCPService: adminGcpService,
+			Ctx:             ctx,
+			Logger:          util.GetLogger(ctx),
+		}
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
 		result, err := activity.GetTenancyInfo(ctx, tenantProjectNumber, subnet)
 
 		assert.NoError(t, err)

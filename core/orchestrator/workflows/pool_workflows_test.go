@@ -70,6 +70,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -77,10 +78,6 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
-
-	// Mock child workflow activities
-	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
-	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	// Mock child workflow activities
 	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
@@ -135,7 +132,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -150,7 +147,6 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -238,6 +234,7 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -316,7 +313,7 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -422,6 +419,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -487,7 +485,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
@@ -561,10 +559,10 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-func TestCreateSubnetJob_JobTypeSelection(t *testing.T) {
+func TestCreateDeleteDataSubnetJob_JobTypeSelection(t *testing.T) {
 	// Test the job type selection using the generic GetResourceJobType function
 
-	t.Run("StandardCategory_ReturnsCreateSubnetJobType", func(tt *testing.T) {
+	t.Run("StandardCategory_ReturnsCreateDeleteDataSubnetJobType", func(tt *testing.T) {
 		// Test using the generic function with standard category
 		jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationCreate, models.PoolCategoryStandard)
 		assert.Equal(tt, models.JobTypeCreateSubnet, jobType, "Should use standard subnet job type for standard category")
@@ -576,14 +574,84 @@ func TestCreateSubnetJob_JobTypeSelection(t *testing.T) {
 		assert.Equal(tt, models.JobTypeCreateLargeSubnet, jobType, "Should use large subnet job type for large capacity category")
 	})
 
-	t.Run("DefaultCategory_ReturnsCreateSubnetJobType", func(tt *testing.T) {
+	t.Run("DefaultCategory_ReturnsCreateDeleteDataSubnetJobType", func(tt *testing.T) {
 		// Test using the generic function with default category
 		jobType := models.GetResourceJobType(models.ResourceTypeSubnet, models.ResourceOperationCreate, models.PoolCategoryDefault)
 		assert.Equal(tt, models.JobTypeCreateSubnet, jobType, "Should use standard subnet job type for default category (maps to standard)")
 	})
 }
 
-func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
+func TestDataSubnetSequentialPoller_Create_Success(t *testing.T) {
+	var suite testsuite.WorkflowTestSuite
+	env := suite.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		AccountName:    "test-account",
+		VendorSubNetID: "test-vpc",
+	}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 123}}
+	tenantProjectNumber := "tenant-123"
+	actionType := models.ResourceOperationCreate
+
+	subnetJobUUID := "job-uuid"
+	tenancyDetails := &common.TenancyInfo{RegionalTenantProject: "tenant-123"}
+
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, params, pool, tenantProjectNumber, actionType).
+		Return(subnetJobUUID, nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, subnetJobUUID).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: subnetJobUUID},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, subnetJobUUID).
+		Return(tenancyDetails, nil)
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, actionType)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result *common.TenancyInfo
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, tenancyDetails, result)
+	env.AssertExpectations(t)
+}
+
+func TestDataSubnetSequentialPoller_Create_ActivityError(t *testing.T) {
+	suite := &testsuite.WorkflowTestSuite{}
+	env := suite.NewTestWorkflowEnvironment()
+	env.RegisterActivity(&SubnetActivity{})
+
+	params := &common.CreatePoolParams{AccountName: "test-account"}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 123}}
+	tenantProjectNumber := "tenant-123"
+	actionType := models.ResourceOperationCreate
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, params, pool, tenantProjectNumber, actionType).
+		Return(nil, errors.New("activity error"))
+
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, actionType)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+func TestCreatePoolWorkflow_CreateDeleteDataSubnetJobFailure(t *testing.T) {
 	// Set enableSyncPoolZIZS to true for this test
 	cleanup := setEnableSyncPoolZIZSTrue()
 	defer cleanup()
@@ -605,9 +673,10 @@ func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
 	}()
 
 	mockStorage := database.NewMockStorage(t)
-	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -647,7 +716,7 @@ func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("subnet create failed"))
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("subnet create failed"))
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -687,6 +756,7 @@ func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
@@ -730,7 +800,7 @@ func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
 	// Mock GetJob activity - return error for subnet job (PollOnDBJob will fail)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(nil, errors.New("job poll failed")).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -770,6 +840,7 @@ func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
@@ -816,7 +887,7 @@ func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(nil, errors.New("get tenancy details failed"))
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -859,6 +930,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -920,7 +992,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -938,15 +1010,14 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
-	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil).Maybe()
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil).Maybe()
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -968,13 +1039,9 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
-	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
+	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -1035,6 +1102,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -1099,7 +1167,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -1169,7 +1237,11 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 				input.CustomerProjectID == "test-account" &&
 				input.MaxNodesPerGroup == 200 &&
 				input.TenantProjectID == "test-project"
-		})).Return(nil)
+		})).Return(nil).Maybe()
+
+		// Add storage mocks for rollback scenarios
+		mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+		mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -1216,6 +1288,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -1287,7 +1360,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -1314,8 +1387,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
 		subnetFirewallOperations = append(subnetFirewallOperations, firewallOperations...)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
-		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1327,7 +1399,12 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			// Set the pool ID to simulate successful save
+			if pool, ok := args[0].(*datamodel.Pool); ok {
+				pool.ID = 1
+			}
+		}).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
@@ -1401,6 +1478,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
@@ -1442,7 +1520,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil).Maybe()
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -1492,6 +1570,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
@@ -1533,7 +1612,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil).Maybe()
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -1552,7 +1631,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			Gateway:               "192.168.1.254",
 		}, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
-		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create subnets"))
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1584,6 +1663,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
@@ -1625,7 +1705,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil).Maybe()
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -1644,7 +1724,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			Gateway:               "192.168.1.254",
 		}, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
-		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create firewalls"))
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
@@ -1683,6 +1763,7 @@ func TestConfigureNetworkWorkflow_Success(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -2804,6 +2885,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		PoolID: 0,
 	}).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -2919,6 +3001,9 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	params := &common.DeletePoolParams{
@@ -2927,7 +3012,8 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 	}
 
 	pool := &datamodel.Pool{
-		Name: "test-pool",
+		BaseModel: datamodel.BaseModel{ID: 123},
+		Name:      "test-pool",
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-bucket",
 		},
@@ -2965,10 +3051,9 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
 
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
-		PoolID: 0,
-	}).Return(nil)
+	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -3011,6 +3096,9 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	params := &common.DeletePoolParams{
@@ -3019,7 +3107,8 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 	}
 
 	pool := &datamodel.Pool{
-		Name: "test-pool",
+		BaseModel: datamodel.BaseModel{ID: 123},
+		Name:      "test-pool",
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-bucket",
 		},
@@ -3057,10 +3146,9 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
 
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
-		PoolID: 0,
-	}).Return(nil)
+	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -3104,6 +3192,9 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	params := &common.DeletePoolParams{
@@ -3112,7 +3203,8 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 	}
 
 	pool := &datamodel.Pool{
-		Name: "test-pool",
+		BaseModel: datamodel.BaseModel{ID: 123},
+		Name:      "test-pool",
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-bucket",
 		},
@@ -3148,10 +3240,9 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
 
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
-		PoolID: 0,
-	}).Return(nil)
+	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -3196,6 +3287,9 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	// Set up test data
@@ -3205,7 +3299,8 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 	}
 
 	pool := &datamodel.Pool{
-		Name: "test-pool",
+		BaseModel: datamodel.BaseModel{ID: 123},
+		Name:      "test-pool",
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-bucket",
 		},
@@ -3241,10 +3336,9 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
 
-	// Mock child workflow
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
-		PoolID: 0,
-	}).Return(errors.New("un-register fails"))
+	// Mock child workflow - DataSubnetSequentialPoller is called first
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(errors.New("un-register fails"))
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
@@ -3289,10 +3383,14 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	pool := &datamodel.Pool{
-		Name: "test-pool",
+		BaseModel: datamodel.BaseModel{ID: 123},
+		Name:      "test-pool",
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-bucket",
 		},
@@ -3337,9 +3435,10 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 
-	// Mock child workflow
+	// Mock child workflow - DataSubnetSequentialPoller is called first
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
-		PoolID: 0,
+		PoolID: 123,
 	}).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
 
@@ -3391,10 +3490,14 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	poolEmpty := &datamodel.Pool{
-		Name: "test-pool",
+		BaseModel: datamodel.BaseModel{ID: 123},
+		Name:      "test-pool",
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-bucket",
 		},
@@ -3430,9 +3533,8 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
 
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
-		PoolID: 0,
-	}).Return(nil)
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
@@ -3451,7 +3553,8 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	poolNonEmpty := &datamodel.Pool{
-		Name: "test-pool",
+		BaseModel: datamodel.BaseModel{ID: 123},
+		Name:      "test-pool",
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-bucket",
 		},
@@ -3487,9 +3590,9 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
 
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
-		PoolID: 0,
-	}).Return(nil)
+	// Mock child workflows
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
@@ -3525,6 +3628,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -3554,7 +3658,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -3622,6 +3726,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
@@ -3659,7 +3764,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		svmName := "svmName"
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -3758,6 +3863,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
@@ -3802,7 +3908,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		// Mock all activities up to the GetInterClusterLifsFromVLMConfig failure
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -3820,7 +3926,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, tenancyDetails *common.TenancyInfo) error {
 				return nil
@@ -3901,6 +4007,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -3947,7 +4054,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -4055,6 +4162,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
@@ -4097,15 +4205,20 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		svmName := "svmName"
 
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil).Once()
-		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil).Maybe()
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil).Maybe()
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil).Maybe()
+		// Mock GetJob activity for rollback scenarios
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
 			State:     string(models.JobsStateDONE),
 		}, nil).Maybe()
@@ -4120,49 +4233,50 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
-		}, nil)
-		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
-		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
-		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
-		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
-		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
-		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
-		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
-		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("some error", kms_activities.ErrTypeKmsConfigNotFound, errors.New("some error"))).Once()
-		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		}, nil).Maybe()
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil).Maybe()
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil).Maybe()
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil).Maybe()
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
+		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil).Maybe()
+		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil).Maybe()
+		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil).Maybe()
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil).Maybe()
+		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil).Maybe()
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("some error", kms_activities.ErrTypeKmsConfigNotFound, errors.New("some error"))).Maybe()
+		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("An internal error occurred.")).Maybe()
+		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
 			MediatorZone:  "test-mediator-zone",
-		}, nil)
+		}, nil).Maybe()
 
-		env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+		env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -4196,6 +4310,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
@@ -4255,6 +4370,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
@@ -4313,6 +4429,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
@@ -4371,6 +4488,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
@@ -4438,6 +4556,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
@@ -4486,7 +4605,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -4523,7 +4642,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			// Set the pool ID to simulate successful save
+			if pool, ok := args[0].(*datamodel.Pool); ok {
+				pool.ID = 1
+			}
+		}).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
@@ -4535,6 +4659,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error"))
+		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("An internal error occurred."))
 		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4589,6 +4714,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
@@ -4637,7 +4763,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -4674,7 +4800,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			// Set the pool ID to simulate successful save
+			if pool, ok := args[0].(*datamodel.Pool); ok {
+				pool.ID = 1
+			}
+		}).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
@@ -4685,6 +4816,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("error"))
+		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("An internal error occurred."))
 		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4739,6 +4871,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
@@ -4787,7 +4920,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 		env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -4824,7 +4957,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			// Set the pool ID to simulate successful save
+			if pool, ok := args[0].(*datamodel.Pool); ok {
+				pool.ID = 1
+			}
+		}).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
@@ -4834,6 +4972,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(errors.New("error"))
+		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("An internal error occurred."))
 		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -5037,6 +5176,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -5045,7 +5185,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	// Mock child workflow activities
-	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{}).Maybe()
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
 	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
 
 	ginLoggingFeatureFlag = true
@@ -5083,9 +5223,12 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		return nil
 	}
 
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(1)
-	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	// Mock UpdateJobStatus for all calls except the final DONE status
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
+		return job != nil && job.State != string(models.JobsStateDONE)
+	})).Return(nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -5145,20 +5288,22 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		Region:        "test-region",
 		MediatorZone:  "test-mediator-zone",
 	}, nil)
-	// Simulate failure in final job status update
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
+	// Simulate failure in final job status update - match only the DONE status call
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
+		return job != nil && job.State == string(models.JobsStateDONE)
+	})).Return(errors.New("failed to update job status"))
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
 
-	// Mock child workflow execution
+	// Mock child workflow execution - may not be called if UpdateJobStatus fails early
 	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
 		return input.PoolID == 1 &&
 			input.CustomerProjectID == "test-account" &&
 			input.MaxNodesPerGroup == 200 &&
 			input.TenantProjectID == "test-project"
-	})).Return(nil)
+	})).Return(nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -5198,6 +5343,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -5255,7 +5401,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -5364,6 +5510,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -5426,7 +5573,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -5517,6 +5664,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -5577,7 +5725,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -5666,6 +5814,7 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -5725,7 +5874,7 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -5813,6 +5962,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -5883,7 +6033,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -5973,6 +6123,7 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -6042,7 +6193,7 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -6135,6 +6286,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -6205,7 +6357,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -6346,7 +6498,7 @@ func TestPoolDataSubnetWorkFlow(t *testing.T) {
 		},
 		State: "DONE",
 	}).Return(nil).Once()
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", "tenant-project")
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", "tenant-project", int64(1), models.ResourceOperationCreate)
 
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 	if err != nil {
@@ -6356,6 +6508,61 @@ func TestPoolDataSubnetWorkFlow(t *testing.T) {
 	// Assert workflow execution
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_UpdateOperation(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+	}
+
+	poolUUID := "test-pool-uuid"
+	tenantProjectNumber := "tenant-project"
+	accountID := int64(1)
+
+	// Mock UpdateJobStatus activity - called when workflow starts (PROCESSING) and when it fails (ERROR)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
+		return job.UUID == "default-test-workflow-id" && job.State == string(models.JobsStatePROCESSING)
+	})).Return(nil).Once()
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
+		return job.UUID == "default-test-workflow-id" && job.State == string(models.JobsStateERROR)
+	})).Return(nil).Once()
+
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, poolUUID, tenantProjectNumber, accountID, models.ResourceOperationUpdate)
+
+	// The workflow should complete with an error for invalid action type (UPDATE is not supported)
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	// Verify the error message contains the expected text about invalid action type
+	assert.Contains(t, err.Error(), "invalid action type for pool data subnet workflow")
+	assert.Contains(t, err.Error(), "UPDATE")
+	assert.Contains(t, err.Error(), poolUUID)
+	assert.Contains(t, err.Error(), "Create or Delete")
 	env.AssertExpectations(t)
 }
 
@@ -6403,7 +6610,7 @@ func TestPoolDataSubnetWorkFlow_RunError(t *testing.T) {
 		ErrorDetails: "activity error (type: GetCreateDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
 	}).Return(nil).Once()
 
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", "tenant-project")
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", "tenant-project", int64(1), models.ResourceOperationCreate)
 
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 	if err != nil {
@@ -6458,12 +6665,7 @@ func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
 		ErrorDetails: "activity error (type: GetCreateDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
 	}).Return(errors.New("failed to update job status"))
 
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", "tenant-project")
-
-	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
-	if err != nil {
-		t.Fatalf("Failed to query workflow: %v", err)
-	}
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", "tenant-project", int64(1), models.ResourceOperationCreate)
 
 	// Assert workflow execution
 	assert.True(t, env.IsWorkflowCompleted())
@@ -6471,7 +6673,7 @@ func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-func TestCreateSubnetJob_Success(t *testing.T) {
+func TestCreateDeleteDataSubnetJob_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
 	mockStorage := database.NewMockStorage(t)
@@ -6511,14 +6713,14 @@ func TestCreateSubnetJob_Success(t *testing.T) {
 	defer func() { ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
 	// Mock dependencies if any (none in this method directly)
-	env.RegisterActivity(subnetActivity.CreateSubnetJob)
+	env.RegisterActivity(subnetActivity.CreateDeleteDataSubnetJob)
 
 	mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 	}, nil)
 
 	// Execute activity
-	future, err := env.ExecuteActivity(subnetActivity.CreateSubnetJob, params, pool, tenantProjectNumber)
+	future, err := env.ExecuteActivity(subnetActivity.CreateDeleteDataSubnetJob, params, pool, tenantProjectNumber, models.ResourceOperationCreate)
 	assert.NoError(t, err)
 
 	var result string
@@ -6526,7 +6728,7 @@ func TestCreateSubnetJob_Success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCreateSubnetJob_WorkflowError(t *testing.T) {
+func TestCreateDeleteDataSubnetJob_WorkflowError(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
 	mockStorage := database.NewMockStorage(t)
@@ -6566,19 +6768,19 @@ func TestCreateSubnetJob_WorkflowError(t *testing.T) {
 	defer func() { ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
 	// Mock dependencies if any (none in this method directly)
-	env.RegisterActivity(subnetActivity.CreateSubnetJob)
+	env.RegisterActivity(subnetActivity.CreateDeleteDataSubnetJob)
 
 	mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 	}, nil)
 
 	// Execute activity
-	_, err := env.ExecuteActivity(subnetActivity.CreateSubnetJob, params, pool, tenantProjectNumber)
+	_, err := env.ExecuteActivity(subnetActivity.CreateDeleteDataSubnetJob, params, pool, tenantProjectNumber, models.ResourceOperationCreate)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "test workflow error")
 }
 
-func TestCreateSubnetJob_JobError(t *testing.T) {
+func TestCreateDeleteDataSubnetJob_JobError(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
 	mockStorage := database.NewMockStorage(t)
@@ -6611,12 +6813,12 @@ func TestCreateSubnetJob_JobError(t *testing.T) {
 	}()
 
 	// Mock dependencies if any (none in this method directly)
-	env.RegisterActivity(subnetActivity.CreateSubnetJob)
+	env.RegisterActivity(subnetActivity.CreateDeleteDataSubnetJob)
 
 	mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(nil, errors.New("test job error"))
 
 	// Execute activity
-	_, err := env.ExecuteActivity(subnetActivity.CreateSubnetJob, params, pool, tenantProjectNumber)
+	_, err := env.ExecuteActivity(subnetActivity.CreateDeleteDataSubnetJob, params, pool, tenantProjectNumber, models.ResourceOperationCreate)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "test job error")
 }
@@ -6803,7 +7005,7 @@ func TestPoolDataSubnetWorkFlow_ExistingSubnet1(t *testing.T) {
 		},
 		State: "DONE",
 	}).Return(nil).Once()
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, int64(1), models.ResourceOperationCreate)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
@@ -6851,7 +7053,7 @@ func TestPoolDataSubnetWorkFlow_GetAvailableSubnetError1(t *testing.T) {
 		ErrorDetails: "activity error (type: GetAvailableSubnet, scheduledEventID: 0, startedEventID: 0, identity: ): subnet lookup failed",
 	}).Return(nil).Once()
 
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, int64(1), models.ResourceOperationCreate)
 
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 	if err != nil {
@@ -6904,7 +7106,7 @@ func TestPoolDataSubnetWorkFlow_GetCreateDataSubnetOpError(t *testing.T) {
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "activity error (type: GetCreateDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): create subnet failed"}).Return(nil).Once()
 
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, int64(1), models.ResourceOperationCreate)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
@@ -6952,7 +7154,7 @@ func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation1(t *testing.T) {
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "failed to create subnet for tenant project: test-tenant-123, operation name is empty",
 	}).Return(nil).Once()
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, int64(1), models.ResourceOperationCreate)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
@@ -7009,7 +7211,7 @@ func TestPoolDataSubnetWorkFlow_WaitFails(t *testing.T) {
 		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "failed to create subnet for tenant project while waiting to get operation status: test-tenant-123: wait for operation failed"}).Return(nil).Once()
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, int64(1), models.ResourceOperationCreate)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
@@ -7069,7 +7271,7 @@ func TestPoolDataSubnetWorkFlow_GetSubnet(t *testing.T) {
 		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "failed to get subnet from operation for tenant project: test-tenant-123: activity error (type: GetSubnetFromOperation, scheduledEventID: 0, startedEventID: 0, identity: ): failed to get subnet from operation"}).Return(nil).Once()
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, int64(1), models.ResourceOperationCreate)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
@@ -7130,7 +7332,7 @@ func TestPoolDataSubnetWorkFlow_GetTenancyInfo(t *testing.T) {
 		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "activity error (type: GetTenancyInfo, scheduledEventID: 0, startedEventID: 0, identity: ): failed to get tenancy info"}).Return(nil).Once()
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, int64(1), models.ResourceOperationCreate)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
@@ -7192,7 +7394,7 @@ func TestPoolDataSubnetWorkFlow_UpdatePoolSubnet(t *testing.T) {
 		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "activity error (type: UpdatePoolSubnet, scheduledEventID: 0, startedEventID: 0, identity: ): failed to update pool subnet"}).Return(nil).Once()
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, int64(1), models.ResourceOperationCreate)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
@@ -7259,11 +7461,672 @@ func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation(t *testing.T) {
 		},
 		State: "DONE",
 	}).Return(nil).Once()
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, int64(1), models.ResourceOperationCreate)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_DeleteActionType(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+	accountID := int64(1)
+
+	pool := &datamodel.Pool{
+		Name:      "test-pool",
+		AccountID: accountID,
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			SubnetNames:           []string{"test-subnet"},
+			RegionalTenantProject: tenantProjectNumber,
+		},
+	}
+
+	originalWaitForGCPNetworkOperationStatus := WaitForGCPNetworkOperationStatus
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	defer func() {
+		WaitForGCPNetworkOperationStatus = originalWaitForGCPNetworkOperationStatus
+	}()
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	deleteSubnetOp := []common.Operations{
+		{
+			OperationName:      "name = test-operation-123",
+			Project:            tenantProjectNumber,
+			IsDone:             false,
+			IsRegionalResource: true,
+		},
+	}
+	env.OnActivity("ReleaseDataSubnetOp", mock.Anything, mock.Anything).Return(&deleteSubnetOp, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "DONE",
+	}).Return(nil).Once()
+
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, accountID, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_DeleteActionType_GetPoolError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+	accountID := int64(1)
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(nil, errors.New("pool not found"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "ERROR",
+		TrackingID:   vsaerrors.ErrInternalServerError,
+		ErrorDetails: "activity error (type: GetPool, scheduledEventID: 0, startedEventID: 0, identity: ): pool not found",
+	}).Return(nil).Once()
+
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, accountID, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool not found")
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_DeleteActionType_ReleaseDataSubnetOpError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+	accountID := int64(1)
+
+	pool := &datamodel.Pool{
+		Name:      "test-pool",
+		AccountID: accountID,
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			SubnetNames:           []string{"test-subnet"},
+			RegionalTenantProject: tenantProjectNumber,
+		},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("ReleaseDataSubnetOp", mock.Anything, mock.Anything).Return(nil, errors.New("failed to release subnet"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "ERROR",
+		TrackingID:   vsaerrors.ErrInternalServerError,
+		ErrorDetails: "activity error (type: ReleaseDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): failed to release subnet",
+	}).Return(nil).Once()
+
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber, accountID, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to release subnet")
+	env.AssertExpectations(t)
+}
+
+func TestDataSubnetSequentialPoller(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	tenancyDetails := &common.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-host-project",
+	}
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-job-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-job-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(tenancyDetails, nil)
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationCreate)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestDataSubnetSequentialPoller_DeleteActionType(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-job-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-job-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestDataSubnetSequentialPoller_CreateDeleteDataSubnetJobError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("failed to create subnet job"))
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationCreate)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to create subnet job")
+	env.AssertExpectations(t)
+}
+
+// TestDataSubnetSequentialPoller_DeleteActionType_PollOnDBJobTimeout tests timeout scenario for delete action
+func TestDataSubnetSequentialPoller_DeleteActionType_PollOnDBJobTimeout(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:           "test-pool",
+		AccountName:    "test-account",
+		Region:         "us-central1",
+		VendorSubNetID: "projects/test-project/regions/us-central1/subnetworks/test-subnet",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-123"
+	subnetJobUUID := "test-subnet-job-id"
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, models.ResourceOperationDelete).Return(subnetJobUUID, nil)
+
+	// Mock GetJob to return a job that's still in progress, causing timeout
+	mockStorage.EXPECT().GetJob(mock.Anything, subnetJobUUID).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: subnetJobUUID},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "timed out")
+	env.AssertExpectations(t)
+}
+
+// TestDataSubnetSequentialPoller_DeleteActionType_PollOnDBJobError tests error scenario for delete action
+func TestDataSubnetSequentialPoller_DeleteActionType_PollOnDBJobError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:           "test-pool",
+		AccountName:    "test-account",
+		Region:         "us-central1",
+		VendorSubNetID: "projects/test-project/regions/us-central1/subnetworks/test-subnet",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-123"
+	subnetJobUUID := "test-subnet-job-id"
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, models.ResourceOperationDelete).Return(subnetJobUUID, nil)
+
+	// Mock GetJob to return a job in ERROR state
+	mockStorage.EXPECT().GetJob(mock.Anything, subnetJobUUID).Return(&datamodel.Job{
+		BaseModel:    datamodel.BaseModel{UUID: subnetJobUUID},
+		State:        string(models.JobsStateERROR),
+		ErrorDetails: "subnet deletion failed",
+		TrackingID:   12345,
+	}, nil)
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestDataSubnetSequentialPoller_DeleteActionType_PollOnDBJobErrorDetails tests error details scenario for delete action
+func TestDataSubnetSequentialPoller_DeleteActionType_PollOnDBJobErrorDetails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:           "test-pool",
+		AccountName:    "test-account",
+		Region:         "us-central1",
+		VendorSubNetID: "projects/test-project/regions/us-central1/subnetworks/test-subnet",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-123"
+	subnetJobUUID := "test-subnet-job-id"
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, models.ResourceOperationDelete).Return(subnetJobUUID, nil)
+
+	// Mock GetJob to return a job in DONE state but with error details
+	mockStorage.EXPECT().GetJob(mock.Anything, subnetJobUUID).Return(&datamodel.Job{
+		BaseModel:    datamodel.BaseModel{UUID: subnetJobUUID},
+		State:        string(models.JobsStateDONE),
+		ErrorDetails: "job completed with error: subnet deletion failed",
+	}, nil)
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "job completed with error")
+	env.AssertExpectations(t)
+}
+
+// TestDataSubnetSequentialPoller_DeleteActionType_CreateDeleteDataSubnetJobError tests error when creating delete job fails
+func TestDataSubnetSequentialPoller_DeleteActionType_CreateDeleteDataSubnetJobError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:           "test-pool",
+		AccountName:    "test-account",
+		Region:         "us-central1",
+		VendorSubNetID: "projects/test-project/regions/us-central1/subnetworks/test-subnet",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, models.ResourceOperationDelete).Return("", errors.New("failed to create delete subnet job"))
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to create delete subnet job")
+	env.AssertExpectations(t)
+}
+
+// TestDataSubnetSequentialPoller_DeleteActionType_PollOnDBJobGetJobError tests GetJob activity failure for delete action
+func TestDataSubnetSequentialPoller_DeleteActionType_PollOnDBJobGetJobError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:           "test-pool",
+		AccountName:    "test-account",
+		Region:         "us-central1",
+		VendorSubNetID: "projects/test-project/regions/us-central1/subnetworks/test-subnet",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-123"
+	subnetJobUUID := "test-subnet-job-id"
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, models.ResourceOperationDelete).Return(subnetJobUUID, nil)
+
+	// Mock GetJob to return an error
+	mockStorage.EXPECT().GetJob(mock.Anything, subnetJobUUID).Return(nil, errors.New("database error")).Maybe()
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to get db job status")
+	env.AssertExpectations(t)
+}
+
+// TestDataSubnetSequentialPoller_DeleteActionType_Success tests successful deletion flow
+func TestDataSubnetSequentialPoller_DeleteActionType_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:           "test-pool",
+		AccountName:    "test-account",
+		Region:         "us-central1",
+		VendorSubNetID: "projects/test-project/regions/us-central1/subnetworks/test-subnet",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-123"
+	subnetJobUUID := "test-subnet-job-id"
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, models.ResourceOperationDelete).Return(subnetJobUUID, nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, subnetJobUUID).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: subnetJobUUID},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	// Delete action returns nil, so we don't need to check the result
+	env.AssertExpectations(t)
+}
+
+func TestCreateDeleteDataSubnetJob_DeleteActionType(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+	mockStorage := database.NewMockStorage(t)
+
+	subnetActivity := &SubnetActivity{SE: mockStorage}
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		Region:      "test-region",
+		PrimaryZone: "test-zone",
+	}
+	pool := &datamodel.Pool{
+		Name: "test-pool",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-project"
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() {
+		fetchTemporalClient = origFetchTemporalClient
+	}()
+
+	origExecuteWorkflowSeq := ExecuteWorkflowSeq
+	ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return nil
+	}
+	defer func() { ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	env.RegisterActivity(subnetActivity.CreateDeleteDataSubnetJob)
+
+	mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	}, nil)
+
+	future, err := env.ExecuteActivity(subnetActivity.CreateDeleteDataSubnetJob, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+	assert.NoError(t, err)
+
+	var result string
+	err = future.Get(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, "", result)
 }
 
 func WfTestWaitForServiceNetworkOperationStatus(ctx workflow.Context, operationName string, timeout time.Duration) ([]byte, error) {
@@ -7930,6 +8793,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -7990,7 +8854,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	// Mock activities up to service account creation
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -8127,6 +8991,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 	env.SetHeader(mockHeader)
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
@@ -8163,7 +9028,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 	// Mock activities up to service account creation
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -8254,6 +9119,7 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	// Don't register ConfigureNetworkWorkflow if it's already registered
 	// Instead, mock it as a child workflow
@@ -8287,7 +9153,7 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 	// Mock activities up to service account creation
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -8350,6 +9216,7 @@ func TestCreatePoolWorkflow_PopulateRetryPolicyParamsError(t *testing.T) {
 	defer func() { StartToCloseTimeout = originalStartToCloseTimeout }()
 
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.BackupActivity{})
@@ -8413,7 +9280,15 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -8454,7 +9329,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -8473,6 +9348,13 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 	}, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("network error"))
+	// Mock rollback workflows
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Mock rollback activities
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -8507,7 +9389,15 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -8548,7 +9438,7 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
 	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
 	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
@@ -8565,6 +9455,13 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 	}, nil)
+	// Mock rollback workflows
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Mock rollback activities
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("save error"))
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -8648,6 +9545,9 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 			}()
 
 			env.RegisterActivity(&activities.CommonActivities{})
+			env.RegisterWorkflow(DataSubnetSequentialPoller)
+			env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+			env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 			env.RegisterActivity(&activities.PoolActivity{})
 			env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
@@ -8680,8 +9580,10 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 			env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 			env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+			env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 			// Mock child workflow
+			env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 			env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
 				PoolID: 0,
 			}).Return(nil)
@@ -9084,7 +9986,7 @@ func TestUpdateAutoTieringFields(t *testing.T) {
 			}
 
 			// Execute the function under test
-			updateAutoTieringFields(&dbPoolCopy, tt.updatePoolParams, tt.originalPool)
+			updateAutoTieringFields(&dbPoolCopy, tt.updatePoolParams)
 
 			// Verify results
 			assert.Equal(t, tt.expectedAllowAutoTiering, dbPoolCopy.AllowAutoTiering,

@@ -77,7 +77,7 @@ func TestInternalDescribePool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				SecondaryZone: "test-secondary-zone",
 			},
-			ClusterAttributes: &models.ClusterAttributes{
+			ClusterDetails: &models.ClusterDetails{
 				ExternalName:     "test-external-name",
 				InterClusterLifs: []string{"10.0.0.1", "10.0.0.2"},
 			},
@@ -118,8 +118,8 @@ func TestInternalDescribePool(t *testing.T) {
 			AllowAutoTiering:         gcpgenserver.NewOptNilBool(pool.AllowAutoTiering),
 			SecondaryZone:            gcpgenserver.NewOptString(pool.PoolAttributes.SecondaryZone),
 			CustomPerformanceEnabled: gcpgenserver.NewOptBool(pool.CustomPerformanceParams.Enabled),
-			InterclusterLifs:         pool.ClusterAttributes.InterClusterLifs,
-			ClusterName:              gcpgenserver.NewOptString(pool.ClusterAttributes.ExternalName),
+			InterclusterLifs:         pool.ClusterDetails.InterClusterLifs,
+			ClusterName:              gcpgenserver.NewOptString(pool.ClusterDetails.ExternalName),
 			TotalIops:                gcpgenserver.NewOptNilFloat64(float64(pool.CustomPerformanceParams.Iops)),
 			SatisfiesPzs:             gcpgenserver.NewOptNilBool(false),
 			SatisfiesPzi:             gcpgenserver.NewOptNilBool(false),

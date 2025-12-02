@@ -206,9 +206,9 @@ func convertToPoolInternalV1Beta(pool *models.Pool) *gcpgenserver.PoolInternalV1
 		poolResp.CustomPerformanceEnabled = gcpgenserver.NewOptBool(pool.CustomPerformanceParams.Enabled)
 		poolResp.TotalIops = gcpgenserver.NewOptNilFloat64(float64(pool.CustomPerformanceParams.Iops))
 	}
-	if pool.ClusterAttributes != nil {
-		poolResp.InterclusterLifs = pool.ClusterAttributes.InterClusterLifs
-		poolResp.ClusterName = gcpgenserver.NewOptString(pool.ClusterAttributes.ExternalName)
+	if pool.ClusterDetails != nil {
+		poolResp.InterclusterLifs = pool.ClusterDetails.InterClusterLifs
+		poolResp.ClusterName = gcpgenserver.NewOptString(pool.ClusterDetails.ExternalName)
 	}
 	return poolResp
 }

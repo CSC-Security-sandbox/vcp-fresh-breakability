@@ -105,8 +105,57 @@ func createDBPools(t *testing.T, store database.Storage) ([]*datamodel.Pool, *da
 	return []*datamodel.Pool{pool1, deletedPool, pool2}, account
 }
 
+func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModelWIthAccountID(t *testing.T) {
+	deletedAt := gorm.DeletedAt{Time: time.Now(), Valid: true}
+	now := time.Now()
+	accountName := "test-account"
+	datastorePool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-uuid",
+			CreatedAt: now,
+			UpdatedAt: now,
+			DeletedAt: &deletedAt,
+		},
+		Name:             "Test Pool",
+		Description:      "Test Description",
+		SizeInBytes:      1024,
+		State:            "active",
+		StateDetails:     "running",
+		AllowAutoTiering: true,
+		Network:          "test-network",
+		ServiceLevel:     "FLEX",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 64,
+			Iops:            1024,
+			PrimaryZone:     "us-central1-a",
+			SecondaryZone:   "us-central1-b",
+			// Add all other fields that might be accessed in conversion
+			Labels: &datamodel.JSONB{"env": "test"}},
+		Account: &datamodel.Account{Name: accountName},
+		// Add any other fields that might be accessed in conversion
+	}
+
+	dbPoolView := database.ConvertPoolToPoolView(datastorePool)
+	result := convertDatastorePoolToModel(dbPoolView, accountName)
+
+	assert.Equal(t, datastorePool.UUID, result.UUID)
+	assert.Equal(t, datastorePool.CreatedAt, result.CreatedAt)
+	assert.Equal(t, datastorePool.UpdatedAt, result.UpdatedAt)
+	assert.Equal(t, &deletedAt.Time, result.DeletedAt)
+	assert.Equal(t, accountName, result.AccountName)
+	assert.Equal(t, datastorePool.Name, result.Name)
+	assert.Equal(t, datastorePool.Description, result.Description)
+	assert.Equal(t, uint64(datastorePool.SizeInBytes), result.SizeInBytes)
+	assert.Equal(t, datastorePool.State, result.State)
+	assert.Equal(t, datastorePool.StateDetails, result.StateDetails)
+	assert.Equal(t, datastorePool.AllowAutoTiering, result.AllowAutoTiering)
+	assert.Equal(t, datastorePool.Network, result.VendorSubNetID)
+	assert.Equal(t, datastorePool.ServiceLevel, result.ServiceLevel)
+}
+
 func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T) {
 	deletedAt := gorm.DeletedAt{Time: time.Now(), Valid: true}
+	accountName := "test-account"
 	datastorePool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
 			UUID:      "test-uuid",
@@ -127,9 +176,11 @@ func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T)
 			Iops:            1024, // datamodel.PoolAttributes expects int64, not pointer
 			PrimaryZone:     "us-central1-a",
 			SecondaryZone:   "us-central1-b",
-		},
+			// Add all other fields that might be accessed in conversion
+			Labels: &datamodel.JSONB{"env": "test"}},
+		Account: &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: accountName},
+		// Add any other fields that might be accessed in conversion
 	}
-	accountName := "test-account"
 
 	dbPoolView := database.ConvertPoolToPoolView(datastorePool)
 	result := convertDatastorePoolToModel(dbPoolView, accountName)

@@ -71,7 +71,7 @@ var (
 	VlmConfigFilePath                        = env.GetString("VLM_CONFIG_FILE_PATH", "/common/vsa_config/vlm-config.json")
 	ValidateVlmConfigInputs                  = _validateVlmConfigInputs
 	GetCreateSubnetworkOperation             = _getCreateSubnetworkOperation
-	ReleaseSubnet                            = _releaseSubnet
+	ReleaseSubnetOp                          = _releaseSubnetOp
 	CheckAndUpdateFirewall                   = _checkAndUpdateFirewall
 	LoadVlmConfigFromFile                    = loadVlmConfigFromFile
 	GetServiceNetOpStatus                    = _getServiceNetOpStatus
@@ -528,27 +528,40 @@ func _getCreateDataSubnetworkOp(service hyperscaler2.GoogleServices, params comm
 	consumerVPC := params.VendorSubNetID
 	logger := service.GetLogger()
 	// if snHost is not found or subnet found cannot be used, create a new subnetwork for the tenant project
+	logger.Debugf("Handling creation of new subnetwork for pool : %s, tenant project: %s ", params.Name, tenantProjectNumber)
 	operationName, err := GetCreateSubnetworkOperation(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion, params.LargeCapacity)
 	if err != nil {
-		logger.Errorf("Error creating subnetwork for tenant project: %s, Region %s. Error : %s", tenantProjectNumber, tenantProjectRegion, err.Error())
+		logger.Errorf("Error creating subnetwork for pool: %s tenant project: %s, Region %s. Error : %s", params.Name, tenantProjectNumber, tenantProjectRegion, err.Error())
 		return nil, err
 	}
 	return operationName, err
 }
 
-// GetTenancyInfo creates a subnetwork for the tenant project
+// GetTenancyInfo gets the SN host and populates values in TenancyInfo struct
 func (j *PoolActivity) GetTenancyInfo(ctx context.Context, tenantProjectNumber string, subnet *hyperscaler_models.Subnet) (*commonparams.TenancyInfo, error) {
-	snHostProject, network, err := utils.ParseProjectId(subnet.Network)
+	_, network, err := utils.ParseProjectId(subnet.Network)
 	if err != nil {
 		return nil, err
 	}
-	logger := util.GetLogger(ctx)
-	logger.Infof("Subnet used for tenant project: tenantProjectNumber: %s SN host project : %s IpCidrRange: %s, consumerPeeringNetwork: %s", tenantProjectNumber, snHostProject, subnet.IpCidrRange, subnet.Name)
+	service, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
+	}
+	logger := service.GetLogger()
+	snHostProjectID, err := service.GetSnHost(tenantProjectNumber)
+	if err != nil {
+		return nil, err
+	}
+	if snHostProjectID == "" {
+		logger.Errorf("Failed to find SN host project for tenant project: %s. IpCidrRange: %s, consumerPeeringNetwork: %s", tenantProjectNumber, subnet.IpCidrRange, subnet.Name)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, errors.New(fmt.Sprintf("SN host project not found for tenant project : %s ", tenantProjectNumber)))
+	}
+	logger.Infof("Subnet used for tenant project: tenantProjectNumber: %s SN host project : %s IpCidrRange: %s, consumerPeeringNetwork: %s", tenantProjectNumber, snHostProjectID, subnet.IpCidrRange, subnet.Name)
 	return &commonparams.TenancyInfo{
 		RegionalTenantProject: tenantProjectNumber,
 		Network:               network,
 		SubnetworkNames:       []string{subnet.Name},
-		SnHostProject:         snHostProject,
+		SnHostProject:         snHostProjectID,
 		Gateway:               subnet.GatewayAddress,
 	}, nil
 }
@@ -1769,39 +1782,49 @@ func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamode
 	return pool, nil
 }
 
-func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) error {
+func (j *PoolActivity) ReleaseDataSubnetOp(ctx context.Context, pool *datamodel.Pool) (*[]commonparams.Operations, error) {
 	logger := util.GetLogger(ctx)
+	logger.Infof("Handling conditions for releasing data subnet for pool: %s Account : %s Network : %s", pool.Name, pool.Account.Name, pool.Network)
 	// identify the subnet having totalIPPerHAPair IPs and release it
 	if len(pool.ClusterDetails.SubnetNames) == 0 {
-		logger.Infof("Subnet is not associated with the pool. Skipping release for network: Account : %s Network : %s", pool.Account.Name, pool.Network)
-		return nil
+		logger.Infof("Subnet is not associated with the pool: %s. Skipping release for network: Account : %s Network : %s", pool.Name, pool.Account.Name, pool.Network)
+		return nil, nil
 	}
 	se := j.SE
 	subnetName := pool.ClusterDetails.SubnetNames[len(pool.ClusterDetails.SubnetNames)-1]
-	poolsUsingSubnet, err := _getPoolsBySubnetwork(ctx, se, strconv.Itoa(int(pool.Account.ID)), subnetName, pool.Network)
+	poolsUsingSubnet, err := getPoolsBySubnetwork(ctx, se, strconv.Itoa(int(pool.Account.ID)), subnetName, pool.Network)
 	if err != nil {
-		logger.Errorf("Failed to list pools for subnetwork: %s for account: %s, network: %s, error: %s", subnetName, pool.Account.Name, pool.Network, err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		logger.Errorf("Failed to list pools for pool: %s subnetwork: %s for account: %s, network: %s, error: %s", pool.Name, subnetName, pool.Account.Name, pool.Network, err.Error())
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	logger.Infof("Found %d pools using the same subnetwork: %s for account: %s, network: %s", len(poolsUsingSubnet), subnetName, pool.Account.Name, pool.Network)
 	if len(poolsUsingSubnet) > 1 {
-		logger.Infof("Skipping release subnetwork as there are other pools using the same subnetwork: %s for account: %s, network: %s", subnetName, pool.Account.Name, pool.Network)
-		return nil
+		logger.Infof("Skipping release subnetwork as there are other pools using the same subnetwork: %s for account: %s, network: %s, pool : %s", subnetName, pool.Account.Name, pool.Network, pool.Name)
+		return nil, nil
 	}
 	service, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	err = ReleaseSubnet(service, poolsUsingSubnet[0].ClusterDetails.SnHostProject, subnetName)
+	operations := make([]commonparams.Operations, 0)
+	operationName, err := ReleaseSubnetOp(service, poolsUsingSubnet[0].ClusterDetails.SnHostProject, subnetName)
 	if err != nil {
-		logger.Errorf("Failed to release subnetwork: %s for account: %s, network: %s, error: %s", subnetName, pool.Account.Name, pool.Network, err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		logger.Errorf("Failed to create operation for release subnetwork: %s for account: %s, pool: %s, network: %s, error: %s", subnetName, pool.Account.Name, pool.Name, pool.Network, err.Error())
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return nil
+	if operationName != "" {
+		operations = append(operations, commonparams.Operations{
+			OperationName:      operationName,
+			Project:            poolsUsingSubnet[0].ClusterDetails.SnHostProject,
+			IsDone:             false,
+			IsRegionalResource: true,
+		})
+	}
+	return &operations, nil
 }
 
-func _releaseSubnet(service hyperscaler2.GoogleServices, snHost, subnetName string) error {
-	err := service.ReleaseSubnetwork(Region, snHost, subnetName)
-	return err
+func _releaseSubnetOp(service hyperscaler2.GoogleServices, projectId, subnetName string) (string, error) {
+	return service.ReleaseSubnetworkOp(Region, projectId, subnetName)
 }
 
 // DeletePoolResources deletes all pool resources and the pool record from the database.

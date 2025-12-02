@@ -207,6 +207,8 @@ data:
 
   START_TO_CLOSE_WORKFLOW_TIMEOUT: {{$.Values.workerConfig.startToCloseTimeout | quote }}
   START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_ACTIVITIES: {{$.Values.workerConfig.startToCloseTimeoutForReplicationActivities | quote }}
+  START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_CREATE: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetCreate | quote }}
+  START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_DELETE: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetDelete | quote }}
   RETRY_INTERVAL: {{$.Values.workerConfig.retryInterval | quote }}
   RETRY_MAX_ATTEMPTS: {{$.Values.workerConfig.retryMaxAttempts | quote }}
   RETRY_MAX_INTERVAL: {{$.Values.workerConfig.retryMaxInterval | quote }}

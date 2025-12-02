@@ -87,7 +87,7 @@ func TestGetResourceJobType(t *testing.T) {
 	})
 
 	t.Run("SubnetOperations", func(t *testing.T) {
-		// Test subnet operations (only CREATE is supported)
+		// Test subnet operations (CREATE and DELETE are supported)
 		testCases := []struct {
 			name            string
 			operation       ResourceOperation
@@ -97,6 +97,9 @@ func TestGetResourceJobType(t *testing.T) {
 			{"CreateSubnet_Standard", ResourceOperationCreate, PoolCategoryStandard, JobTypeCreateSubnet},
 			{"CreateSubnet_LargeCapacity", ResourceOperationCreate, PoolCategoryLargeCapacity, JobTypeCreateLargeSubnet},
 			{"CreateSubnet_Default", ResourceOperationCreate, PoolCategoryDefault, JobTypeCreateSubnet}, // Default maps to standard
+			{"DeleteSubnet_Standard", ResourceOperationDelete, PoolCategoryStandard, JobTypeDeleteSubnet},
+			{"DeleteSubnet_LargeCapacity", ResourceOperationDelete, PoolCategoryLargeCapacity, JobTypeCreatePool}, // Large capacity subnet delete not yet supported, falls back
+			{"DeleteSubnet_Default", ResourceOperationDelete, PoolCategoryDefault, JobTypeDeleteSubnet},           // Default maps to standard
 		}
 
 		for _, tc := range testCases {
@@ -134,9 +137,9 @@ func TestGetResourceJobType(t *testing.T) {
 			assert.Equal(t, JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for unsupported subnet update")
 		})
 
-		t.Run("UnsupportedSubnetDelete", func(t *testing.T) {
+		t.Run("SubnetDelete", func(t *testing.T) {
 			result := GetResourceJobType(ResourceTypeSubnet, ResourceOperationDelete, PoolCategoryStandard)
-			assert.Equal(t, JobTypeCreatePool, result, "Should fallback to JobTypeCreatePool for unsupported subnet delete")
+			assert.Equal(t, JobTypeDeleteSubnet, result, "Should return JobTypeDeleteSubnet for subnet delete")
 		})
 
 		// Test empty resource type
@@ -317,12 +320,12 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 		{ResourceTypePool, ResourceOperationDelete, PoolCategoryStandard, JobTypeDeletePool, true, "Pool delete standard"},
 		{ResourceTypePool, ResourceOperationDelete, PoolCategoryLargeCapacity, JobTypeDeleteLargePool, true, "Pool delete large capacity"},
 
-		// Subnet operations - only CREATE should succeed
+		// Subnet operations - only CREATE or DELETE should succeed
 		{ResourceTypeSubnet, ResourceOperationCreate, PoolCategoryStandard, JobTypeCreateSubnet, true, "Subnet create standard"},
 		{ResourceTypeSubnet, ResourceOperationCreate, PoolCategoryLargeCapacity, JobTypeCreateLargeSubnet, true, "Subnet create large capacity"},
 		{ResourceTypeSubnet, ResourceOperationCreate, PoolCategoryDefault, JobTypeCreateSubnet, true, "Subnet create default (maps to standard)"},
 		{ResourceTypeSubnet, ResourceOperationUpdate, PoolCategoryStandard, JobTypeCreatePool, false, "Subnet update not supported"},
-		{ResourceTypeSubnet, ResourceOperationDelete, PoolCategoryStandard, JobTypeCreatePool, false, "Subnet delete not supported"},
+		{ResourceTypeSubnet, ResourceOperationDelete, PoolCategoryStandard, JobTypeDeleteSubnet, true, "Subnet delete standard"},
 
 		// Invalid cases - should fallback to JobTypeCreatePool
 		{"INVALID", ResourceOperationCreate, PoolCategoryStandard, JobTypeCreatePool, false, "Invalid resource type"},

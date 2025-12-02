@@ -595,7 +595,7 @@ func ExtractCustomerFacingErrorMessage(ctx interface{}, err error) string {
 			)
 			err = applicationErr.Details(&trackingID, &errorDetails)
 			if err != nil {
-				logger.Warn("Could not extract trackingID from CustomError")
+				logger.Warnf("Could not extract trackingID from CustomError for trackingID: %d and errorDetails: %s", trackingID, errorDetails)
 			} else {
 				logger.Debugf("Extracted trackingID: %d and errorDetails: %s", trackingID, errorDetails)
 				errorMessage = GetErrorMessageByTrackingID(trackingID).Message
