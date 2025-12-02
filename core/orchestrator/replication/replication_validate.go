@@ -236,6 +236,13 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		return nil, typeErr
 	}
 
+	// Validate LargeCapacity pool type match
+	if destPool.LargeCapacity.Set && event.SourceVolume.Pool.LargeCapacity != destPool.LargeCapacity.Value {
+		typeErr := errors.NewVCPError(errors.ErrVolumePoolTypeMismatch, errors.New("CRR cannot be created between normal and large capacity pools"))
+		logger.Error("CRR cannot be created between normal and large capacity pools", "error", typeErr, "sourceLargeCapacity", event.SourceVolume.Pool.LargeCapacity, "destLargeCapacity", destPool.LargeCapacity.Value)
+		return nil, typeErr
+	}
+
 	err = replicationJobInProcess(ctx, event.SourceProjectNumber, event.DestinationProjectNumber, srcBasePath, destBasePath, event.LocationID, event.DestinationLocationID, token, dstToken, event.CCFEUri, "", event.SourcePool.UUID, destPool.PoolId.Value, event.XCorrelationID)
 	if err != nil {
 		return nil, err

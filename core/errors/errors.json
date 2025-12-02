@@ -1469,6 +1469,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "6220": {
+    "description": "CRR cannot be created between normal and large capacity pools",
+    "message": "CRR cannot be created between normal and large capacity pools",
+    "retriable": false,
+    "http_code": 400
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",
