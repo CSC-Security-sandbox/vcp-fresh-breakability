@@ -191,3 +191,26 @@ func TestGenerateDeterministicDeploymentNameForIntegrationTests(t *testing.T) {
 	name := GenerateDeterministicDeploymentName(accountID, poolID, region)
 	assert.Equal(t, name, "integration-test", "Expected deterministic output to be 'integration-test'")
 }
+
+// Unit test for GenerateUniqueUsername
+func TestGenerateUniqueUsername(t *testing.T) {
+	input := "testuser"
+	username1 := GenerateUniqueUsername(input)
+	username2 := GenerateUniqueUsername(input)
+
+	// Should be 8 characters
+	if len(username1) != 8 {
+		t.Errorf("Expected length 8, got %d", len(username1))
+	}
+
+	// Should be different for different timestamps
+	if username1 == username2 {
+		t.Errorf("Expected different usernames for different timestamps, got %s and %s", username1, username2)
+	}
+
+	// Should only contain hex characters
+	matched, err := regexp.MatchString("^[a-f0-9]{8}$", username1)
+	if err != nil || !matched {
+		t.Errorf("Username contains invalid characters: %s", username1)
+	}
+}

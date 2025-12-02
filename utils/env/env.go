@@ -42,17 +42,17 @@ func ParseCaURI(caURI string) (caPoolDeployedProjectID, caPoolName, caName strin
 		// Fallback to environment variables
 		return CaPoolDeployedProjectID, CaPoolName, CaName
 	}
-	
+
 	parts := strings.Split(caURI, "/")
 	if len(parts) != 3 {
 		// Invalid format, fallback to environment variables
 		return CaPoolDeployedProjectID, CaPoolName, CaName
 	}
-	
+
 	caPoolDeployedProjectID = parts[0]
 	caPoolName = parts[1]
 	caName = parts[2]
-	
+
 	// Fallback to environment variables for empty parts
 	if caPoolDeployedProjectID == "" {
 		caPoolDeployedProjectID = CaPoolDeployedProjectID
@@ -63,7 +63,7 @@ func ParseCaURI(caURI string) (caPoolDeployedProjectID, caPoolName, caName strin
 	if caName == "" {
 		caName = CaName
 	}
-	
+
 	return caPoolDeployedProjectID, caPoolName, caName
 }
 
@@ -338,7 +338,6 @@ const (
 	USERNAME_PWD         = 0 // Username/Password authentication
 	USERNAME_PWD_SEC_MGR = 1 // Username/Password authentication with secret manager
 	USER_CERTIFICATE     = 2 // Certificate authentication
-	VCP_ADMIN            = "vcp_admin"
 )
 
 var (

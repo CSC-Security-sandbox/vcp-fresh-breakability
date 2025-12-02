@@ -90,3 +90,21 @@ func GenerateDeterministicDeploymentName(accountID int64, poolID string, region 
 	hash := sha256.Sum256([]byte(data))
 	return "gcnv-" + hex.EncodeToString(hash[:8])[:15]
 }
+
+// GenerateUniqueUsername creates a 8-character hash from the input string combined with the current timestamp
+func GenerateUniqueUsername(input string) string {
+	// Get the current timestamp
+	currentTime := time.Now().UnixNano()
+	timestamp := fmt.Sprintf("%d", currentTime)
+
+	// Combine the input string with the current timestamp
+	combinedString := input + timestamp
+
+	sha256Hash := sha256.New()
+	sha256Hash.Write([]byte(combinedString))
+	fullHash := hex.EncodeToString(sha256Hash.Sum(nil))
+
+	// Truncate the hash to the first 8 characters
+	shortHash := fullHash[:8]
+	return shortHash
+}

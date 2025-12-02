@@ -3432,7 +3432,7 @@ func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 func TestGenerateCSR(t *testing.T) {
 	commonName := "test.example.com"
 	domains := []string{"test.example.com", "www.test.example.com"}
-	csrDER, key, err := hyperscaler2.GenerateCSR(commonName, domains)
+	csrDER, key, err := hyperscaler2.GenerateCSR(commonName, domains, true)
 	if err != nil {
 		t.Fatalf("GenerateCSR returned error: %v", err)
 	}
@@ -4357,14 +4357,16 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 
 	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
 		pool := &datamodel.Pool{
+			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
 				SecretID:      "secret-id",
 				Password:      "default-password",
 				AuthType:      env.USER_CERTIFICATE,
+				Username:      username,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
 			return &hyperscaler3.CustomCertificateResponse{
 				Certificate: &hyperscaler3.CustomCertificate{
 					SubjectCommonName:   "CN",
@@ -4381,7 +4383,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
+		creds, err := activity.CreateOnTapCredentials(ctx, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, "CN", creds.Certificate.CommonName)
 		assert.Equal(t, "cert", creds.Certificate.Certificate)
@@ -4392,14 +4394,16 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 
 	t.Run("USER_CERTIFICATE error due to secret failure", func(t *testing.T) {
 		pool := &datamodel.Pool{
+			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
 				SecretID:      "secret-id",
 				Password:      "password",
 				AuthType:      env.USER_CERTIFICATE,
+				Username:      username,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
 			return &hyperscaler3.CustomCertificateResponse{
 				Certificate: &hyperscaler3.CustomCertificate{
 					SubjectCommonName:   "CN",
@@ -4414,35 +4418,39 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
+		creds, err := activity.CreateOnTapCredentials(ctx, pool)
 		assert.Error(t, err)
 		assert.Nil(t, creds)
 	})
 
 	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
 		pool := &datamodel.Pool{
+			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
 				SecretID:      "secret-id",
 				Password:      "default-password",
 				AuthType:      env.USER_CERTIFICATE,
+				Username:      username,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
+		creds, err := activity.CreateOnTapCredentials(ctx, pool)
 		assert.Error(t, err)
 		assert.Nil(t, creds)
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
 		pool := &datamodel.Pool{
+			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
 				SecretID:      "secret-id",
 				Password:      "default-password",
 				AuthType:      env.USERNAME_PWD_SEC_MGR,
+				Username:      username,
 			},
 		}
 		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
@@ -4450,55 +4458,61 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
+		creds, err := activity.CreateOnTapCredentials(ctx, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, "pwd", creds.AdminPassword)
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
 		pool := &datamodel.Pool{
+			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
 				SecretID:      "secret-id",
 				Password:      "default-password",
 				AuthType:      env.USERNAME_PWD_SEC_MGR,
+				Username:      username,
 			},
 		}
 		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
+		creds, err := activity.CreateOnTapCredentials(ctx, pool)
 		assert.Error(t, err)
 		assert.Nil(t, creds)
 	})
 
 	t.Run("default password", func(t *testing.T) {
 		pool := &datamodel.Pool{
+			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
 				SecretID:      "secret-id",
 				Password:      "default-password",
 				AuthType:      env.USERNAME_PWD,
+				Username:      username,
 			},
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
+		creds, err := activity.CreateOnTapCredentials(ctx, pool)
 		assert.NoError(t, err)
 		assert.Equal(t, "default-password", creds.AdminPassword)
 	})
 
 	t.Run("GetGCPService error", func(t *testing.T) {
 		pool := &datamodel.Pool{
+			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
 				SecretID:      "secret-id",
 				Password:      "default-password",
 				AuthType:      env.USERNAME_PWD,
+				Username:      username,
 			},
 		}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("gcp error"))
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
+		creds, err := activity.CreateOnTapCredentials(ctx, pool)
 		assert.Error(t, err)
 		assert.Nil(t, creds)
 	})
@@ -4723,10 +4737,10 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			CertificateID: "test-cert-id",
 			SecretID:      "test-secret-id",
+			Username:      "admin",
 		},
+		DeploymentName: "test-cluster",
 	}
-	clusterName := "test-cluster"
-	username := "admin"
 
 	originalGetGCPService := hyperscaler2.GetGCPService
 	originalGenerateAndCreateCertificate := hyperscaler2.GenerateAndCreateCertificateForVSACluster
@@ -4743,7 +4757,7 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	// Mock certificate generation
-	hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
+	hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
 		return &hyperscaler3.CustomCertificateResponse{
 			Certificate: &hyperscaler3.CustomCertificate{
 				SubjectCommonName:   "test-cn",
@@ -4768,7 +4782,7 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
+	result, err := activity.CreateOnTapCredentials(ctx, pool)
 
 	// Assert
 	assert.NoError(t, err)
@@ -4786,10 +4800,12 @@ func TestPoolActivity_CreateOnTapCredentials_GetGCPServiceFails(t *testing.T) {
 			ID:   1,
 			UUID: "test-uuid",
 		},
-		Name: "test-pool",
+		Name:           "test-pool",
+		DeploymentName: "test-cluster",
+		PoolCredentials: &datamodel.PoolCredentials{
+			Username: "admin",
+		},
 	}
-	clusterName := "test-cluster"
-	username := "admin"
 
 	originalGetGCPService := hyperscaler2.GetGCPService
 	defer func() { hyperscaler2.GetGCPService = originalGetGCPService }()
@@ -4799,7 +4815,7 @@ func TestPoolActivity_CreateOnTapCredentials_GetGCPServiceFails(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CreateOnTapCredentials(ctx, pool, clusterName, username)
+	result, err := activity.CreateOnTapCredentials(ctx, pool)
 
 	// Assert
 	assert.Error(t, err)
@@ -10837,7 +10853,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
 			return &hyperscaler3.CustomCertificateResponse{
 				Certificate: &hyperscaler3.CustomCertificate{
 					SubjectCommonName:   "CN",
@@ -10882,7 +10898,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
 		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)

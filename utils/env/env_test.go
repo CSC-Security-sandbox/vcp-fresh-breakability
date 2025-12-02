@@ -1310,7 +1310,6 @@ func TestGlobalVariableDeclarations(t *testing.T) {
 		assert.Equal(tt, 0, USERNAME_PWD)
 		assert.Equal(tt, 1, USERNAME_PWD_SEC_MGR)
 		assert.Equal(tt, 2, USER_CERTIFICATE)
-		assert.Equal(tt, "vcp_admin", VCP_ADMIN)
 	})
 
 	t.Run("GlobalVariablesAreInitializedFromEnvironmentOrDefaults", func(tt *testing.T) {

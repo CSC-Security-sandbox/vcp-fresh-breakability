@@ -32,7 +32,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 	if node.AuthType == env.USER_CERTIFICATE {
 		// Create PoolCredentials from Node's CA URI for certificate retrieval
 		poolCredentials := &datamodel.PoolCredentials{
-			CaURI:        node.GetCaURIWithFallback(),
+			CaURI:         node.GetCaURIWithFallback(),
 			CertificateID: node.CertificateID,
 		}
 
@@ -88,7 +88,7 @@ func _getProviderByNodeWithFastConnection(ctx context.Context, node *models.Node
 	if node.AuthType == env.USER_CERTIFICATE {
 		// Create PoolCredentials from Node's CA URI for certificate retrieval
 		poolCredentials := &datamodel.PoolCredentials{
-			CaURI:        node.GetCaURIWithFallback(),
+			CaURI:         node.GetCaURIWithFallback(),
 			CertificateID: node.CertificateID,
 		}
 
@@ -172,11 +172,11 @@ var GetCertificateAndSecret = _getCertificateAndSecret
 var DeleteCertificateAndSecret = _deleteCertificateAndSecret
 
 // _generateAndCreateCertificateForVSACluster generates a CSR and creates a certificate in GCP Certificate Authority Service.
-func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscalermodels.CustomCertificateResponse, error) {
+func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscalermodels.CustomCertificateResponse, error) {
 	logger := gcpService.GetLogger()
 	certificateID := poolCredentials.CertificateID
 	// Get Both Certificate and Secret
-	certificate, secret, err := _getCertificateAndSecret(gcpService, poolCredentials)
+	certificate, secret, err := GetCertificateAndSecret(gcpService, poolCredentials)
 	if err != nil {
 		logger.Errorf("Failed to get Certificate and Secret for certificateID: %s, err: %v", certificateID, err)
 		return nil, err
@@ -198,7 +198,7 @@ func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, clust
 	}
 
 	// Delete the certificate and Secret if any exist
-	err = _deleteCertificateAndSecret(gcpService, certificate, secret, poolCredentials)
+	err = DeleteCertificateAndSecret(gcpService, certificate, secret, poolCredentials)
 	if err != nil {
 		logger.Errorf("Failed to delete certificate and private key for certificateID: %s, err: %v", certificateID, err)
 		return nil, err
@@ -206,13 +206,13 @@ func _generateAndCreateCertificateForVSACluster(gcpService GoogleServices, clust
 
 	// If certificate and secret are nil so create a CSR and request new certificate in CAS and store the private key in secret manager
 	logger.Debugf("Generating and creating certificate for cluster: %s with certificateID: %s", clusterName, certificateID)
-	certificate, secret, err = _createCertificateInCASAndPrivateKeyInSM(gcpService, certificateID, clusterName, username, poolCredentials)
+	certificate, secret, err = CreateCertificateInCASAndPrivateKeyInSM(gcpService, certificateID, clusterName, username, poolCredentials, isServerAuthEnabled)
 	if err != nil {
 		logger.Errorf("Failed to create certificate and store private key for cluster: %s with certificateID: %s", clusterName, certificateID)
 		return nil, err
 	}
 
-	logger.Debug("certificate created successfully for certificateID: %s", certificateID)
+	logger.Debugf("certificate created successfully for certificateID: %s", certificateID)
 	// Add the certificate to the cache
 	common.AddToCertAuthCache(certificateID, &models.Certificate{
 		CommonName:               certificate.SubjectCommonName,
@@ -286,7 +286,7 @@ func _getCertificateAndSecret(gcpService GoogleServices, poolCredentials *datamo
 	return cert, secret, nil
 }
 
-func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certificateID string, clusterName string, username string, poolCredentials *datamodel.PoolCredentials) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
+func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certificateID string, clusterName string, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscalermodels.CustomCertificate, *hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
 
 	// Use environment variables for Region (always from env)
@@ -306,7 +306,7 @@ func _createCertificateInCASAndPrivateKeyInSM(gcpService GoogleServices, certifi
 		CertOwningEntity: caPoolDeployedProjectID,
 	}
 	// Generate CSR
-	csrDER, key, err := GenerateCSR(certObj.CommonName, certObj.Domains)
+	csrDER, key, err := GenerateCSR(certObj.CommonName, certObj.Domains, isServerAuthEnabled)
 	if err != nil {
 		logger.Errorf("failed to generate CSR for commonName: %s, certificateId : %s, err : %v", certObj.CommonName, certObj.CertificateID, err)
 		return nil, nil, err
@@ -556,7 +556,7 @@ func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService GoogleServi
 }
 
 // _generateCSR generates a Certificate Signing Request (CSR) with the specified common name and domains.
-func _generateCSR(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+func _generateCSR(commonName string, domains []string, isServerAuthEnabled bool) ([]byte, *rsa.PrivateKey, error) {
 	// Generate an RSA private key.
 	key, err := rsa.GenerateKey(rand.Reader, env.PrivateKeyBits)
 	if err != nil {
@@ -577,13 +577,13 @@ func _generateCSR(commonName string, domains []string) ([]byte, *rsa.PrivateKey,
 	}
 
 	// --- Build Extended Key Usage extension ---
-	// We want clientAuth for all certificates, and serverAuth for VCP_ADMIN certificates.
+	// We want clientAuth for all certificates, and serverAuth for VCP_ADMIN_CERT_UN_SUFFIX certificates.
 	ekuOIDs := []asn1.ObjectIdentifier{
 		{1, 3, 6, 1, 5, 5, 7, 3, 2},
 	}
 
-	// If the common name is VCP_ADMIN, add serverAuth as well.
-	if commonName == env.VCP_ADMIN {
+	// If it is VCP_ADMIN_CERT_UN_SUFFIX, add serverAuth as well.
+	if isServerAuthEnabled {
 		ekuOIDs = append(ekuOIDs, asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 1})
 	}
 	rawEKU, err := asn1.Marshal(ekuOIDs)

@@ -698,7 +698,7 @@ func Test_GenerateCSR(t *testing.T) {
 	domains := []string{"*.test.example.com", "test.example.com"}
 
 	t.Run("success", func(t *testing.T) {
-		csrDER, key, err := GenerateCSR(commonName, domains)
+		csrDER, key, err := GenerateCSR(commonName, domains, true)
 		assert.NoError(t, err)
 		assert.NotNil(t, csrDER)
 		assert.NotNil(t, key)
@@ -707,21 +707,21 @@ func Test_GenerateCSR(t *testing.T) {
 	})
 
 	t.Run("empty common name", func(t *testing.T) {
-		csrDER, key, err := GenerateCSR("", domains)
+		csrDER, key, err := GenerateCSR("", domains, true)
 		assert.NoError(t, err) // Should still work with empty common name
 		assert.NotNil(t, csrDER)
 		assert.NotNil(t, key)
 	})
 
 	t.Run("empty domains", func(t *testing.T) {
-		csrDER, key, err := GenerateCSR(commonName, []string{})
+		csrDER, key, err := GenerateCSR(commonName, []string{}, true)
 		assert.NoError(t, err) // Should still work with empty domains
 		assert.NotNil(t, csrDER)
 		assert.NotNil(t, key)
 	})
 
 	t.Run("nil domains", func(t *testing.T) {
-		csrDER, key, err := GenerateCSR(commonName, nil)
+		csrDER, key, err := GenerateCSR(commonName, nil, true)
 		assert.NoError(t, err) // Should still work with nil domains
 		assert.NotNil(t, csrDER)
 		assert.NotNil(t, key)
@@ -1050,7 +1050,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			CreateCertificateInCAS = origCreateCertificateInCAS
 			CreatePrivateKeyInSecretManager = origCreatePrivateKeyInSecretManager
 		}()
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+		GenerateCSR = func(commonName string, domains []string, isServerAuthEnabled bool) ([]byte, *rsa.PrivateKey, error) {
 			assert.Equal(t, username, commonName)
 			assert.Equal(t, expectedDomains, domains)
 			return []byte("csr"), key, nil
@@ -1066,7 +1066,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "private-key"}}, nil
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil, true)
 		assert.NoError(t, err)
 		assert.NotNil(t, cert)
 		assert.NotNil(t, secret)
@@ -1079,11 +1079,11 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 		defer func() {
 			GenerateCSR = origGenerateCSR
 		}()
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+		GenerateCSR = func(commonName string, domains []string, isServerAuthEnabled bool) ([]byte, *rsa.PrivateKey, error) {
 			return nil, nil, fmt.Errorf("csr error")
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil, true)
 		assert.Error(t, err)
 		assert.Nil(t, cert)
 		assert.Nil(t, secret)
@@ -1098,14 +1098,14 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			GenerateCSR = origGenerateCSR
 			common2.ValidateAndConvertCertParams = origValidate
 		}()
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+		GenerateCSR = func(commonName string, domains []string, isServerAuthEnabled bool) ([]byte, *rsa.PrivateKey, error) {
 			return []byte("csr"), key, nil
 		}
 		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
 			return nil, fmt.Errorf("validate error")
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil, true)
 		assert.Error(t, err)
 		assert.Nil(t, cert)
 		assert.Nil(t, secret)
@@ -1122,7 +1122,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			common2.ValidateAndConvertCertParams = origValidate
 			CreateCertificateInCAS = origCreateCertificateInCAS
 		}()
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+		GenerateCSR = func(commonName string, domains []string, isServerAuthEnabled bool) ([]byte, *rsa.PrivateKey, error) {
 			return []byte("csr"), key, nil
 		}
 		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
@@ -1135,7 +1135,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			return nil, fmt.Errorf("cas error")
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil, true)
 		assert.Error(t, err)
 		assert.Nil(t, cert)
 		assert.Nil(t, secret)
@@ -1154,7 +1154,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			CreateCertificateInCAS = origCreateCertificateInCAS
 			CreatePrivateKeyInSecretManager = origCreatePrivateKeyInSecretManager
 		}()
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+		GenerateCSR = func(commonName string, domains []string, isServerAuthEnabled bool) ([]byte, *rsa.PrivateKey, error) {
 			return []byte("csr"), key, nil
 		}
 		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
@@ -1164,7 +1164,7 @@ func Test_CreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			return nil, fmt.Errorf("sm error")
 		}
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil)
+		cert, secret, err := CreateCertificateInCASAndPrivateKeyInSM(mockGCP, certificateID, clusterName, username, nil, true)
 		assert.Error(t, err)
 		assert.Nil(t, cert)
 		assert.Nil(t, secret)
@@ -1191,7 +1191,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 		mockGCP.On("GetCertificate", env.CaPoolDeployedProjectID, env.Region, env.CaPoolName, certificateID).Return(expectedCert, nil)
 		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, certificateID).Return(&hyperscaler3.CustomSecret{SecretVersion: expectedSecret.SecretVersion}, nil)
 		poolCreds := &datamodel.PoolCredentials{CertificateID: certificateID}
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds, true)
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.Equal(t, expectedCert, resp.Certificate)
@@ -1204,7 +1204,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 		// Mock GetCertificate to return error
 		mockGCP.On("GetCertificate", env.CaPoolDeployedProjectID, env.Region, env.CaPoolName, certificateID).Return(nil, fmt.Errorf("get cert error"))
 		poolCreds := &datamodel.PoolCredentials{CertificateID: certificateID}
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds, true)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1224,7 +1224,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			return cert != nil && cert.CertificateID == certificateID
 		})).Return("", fmt.Errorf("delete error"))
 		poolCreds := &datamodel.PoolCredentials{CertificateID: certificateID}
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds, true)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "delete error")
@@ -1249,7 +1249,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			CreateCertificateInCAS = originalCreateCertificateInCAS
 		}()
 		key, _ := rsa.GenerateKey(rand.Reader, 2048)
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+		GenerateCSR = func(commonName string, domains []string, isServerAuthEnabled bool) ([]byte, *rsa.PrivateKey, error) {
 			return []byte("csr"), key, nil
 		}
 		common2.ValidateAndConvertCertParams = func(param *hyperscaler3.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler3.CustomCertificate, error) {
@@ -1259,7 +1259,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			return nil, fmt.Errorf("create error")
 		}
 		poolCreds := &datamodel.PoolCredentials{CertificateID: certificateID}
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds, true)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "create error")
@@ -1294,7 +1294,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			CreatePrivateKeyInSecretManager = originalCreatePrivateKeyInSecretManager
 		}()
 		key, _ := rsa.GenerateKey(rand.Reader, 2048)
-		GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
+		GenerateCSR = func(commonName string, domains []string, isServerAuthEnabled bool) ([]byte, *rsa.PrivateKey, error) {
 			assert.Equal(t, username, commonName)
 			return []byte("csr"), key, nil
 		}
@@ -1309,7 +1309,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 			return expectedSecret, nil
 		}
 		poolCreds := &datamodel.PoolCredentials{CertificateID: certificateID}
-		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds)
+		resp, err := GenerateAndCreateCertificateForVSACluster(mockGCP, clusterName, username, poolCreds, true)
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.Equal(t, expectedCert, resp.Certificate)

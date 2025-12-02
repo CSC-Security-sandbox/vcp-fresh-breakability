@@ -37,7 +37,11 @@ import (
 	"gorm.io/gorm"
 )
 
-const VMsPerHAPair = 2
+const (
+	VMsPerHAPair                    = 2
+	EnableServerAuthInCSR           = true  // server auth will be enabled in the CSR(Certificate Signing Request), by default client is enabled
+	EnableServerAuthInCSRForExpMode = false // only client auth will be enabled in the CSR(Certificate Signing Request)
+)
 
 var (
 	DeploymentsInsert                        = common.DeploymentsInsert
@@ -753,7 +757,8 @@ func _getInternalVSANetworkForFirewalls(vpcName, firewallName string, sourceRang
 	}
 }
 
-func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool, clusterName, username string) (*vlm.OntapCredentials, error) {
+// CreateOnTapCredentials creates ONTAP admin credentials for the pool based on the authentication type
+func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
 	credentials := &vlm.OntapCredentials{}
 	gcpService, getGcpServiceErr := hyperscaler2.GetGCPService(ctx)
 	if getGcpServiceErr != nil {
@@ -763,7 +768,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
-		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, clusterName, username, pool.PoolCredentials)
+		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.DeploymentName, pool.PoolCredentials.Username, pool.PoolCredentials, EnableServerAuthInCSR)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -781,6 +786,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	return credentials, nil
 }
 
+// CreateExpertModeCredentials creates ONTAP expert mode credentials based on the authentication type
 func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *datamodel.Pool, clusterName, username string) (*vlm.OntapCredentials, error) {
 	credentials := &vlm.OntapCredentials{}
 	gcpService, getGcpServiceErr := hyperscaler2.GetGCPService(ctx)
@@ -801,7 +807,8 @@ func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *da
 		if pool.PoolCredentials != nil {
 			expertPoolCredentials.CaURI = pool.PoolCredentials.CaURI
 		}
-		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, clusterName, username, expertPoolCredentials)
+		// Generate and create certificate for expert mode, that has only client auth in CSR - server auth is not needed for expert mode. Hence, passing EnableServerAuthInCSRForExpMode as false
+		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, clusterName, username, expertPoolCredentials, EnableServerAuthInCSRForExpMode)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -828,6 +835,7 @@ func setPoolCredentials(certificate *hyperscaler_models.CustomCertificateRespons
 	return credentials
 }
 
+// DeleteOnTapCredentials deletes ONTAP admin credentials for the pool based on the authentication type
 func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamodel.Pool) error {
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
@@ -852,6 +860,7 @@ func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamod
 	return nil
 }
 
+// DeleteExpertModeCredentials DeleteOnTapCredentials deletes ONTAP expert mode credentials for the pool based on the authentication type
 func (j *PoolActivity) DeleteExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) error {
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
@@ -885,6 +894,7 @@ func (j *PoolActivity) DeleteExpertModeCredentials(ctx context.Context, pool *da
 	return nil
 }
 
+// GetOnTapCredentials fetches ONTAP admin credentials for the pool based on the authentication type
 func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
 	credentials, err := fetchOnTapCredentials(ctx, pool)
 	if err != nil {
@@ -893,6 +903,7 @@ func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.
 	return credentials, nil
 }
 
+// GetExpertModeCredentials fetches ONTAP expert mode credentials based on the authentication type
 func (j *PoolActivity) GetExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
 	credentials, err := fetchExpertModeCredentials(ctx, pool)
 	if err != nil {

@@ -42,6 +42,7 @@ const (
 	ServiceLevelNameFLEX                 = "FLEX"
 	QosTypeAuto                          = "auto"
 	TieringFullnessThresholdOntapDefault = 50
+	VCP_ADMIN_CERT_UN_SUFFIX             = "_admin" // Suffix for VCP admin user certificate
 )
 
 // CreatePool creates the specified pool and adds it to the list of pools belonging to the specified owner
@@ -183,6 +184,8 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 
 	poolObj.DeploymentName = utils.GenerateDeterministicDeploymentName(poolObj.AccountID, poolObj.UUID, params.Region)
 	logger.Infof("generated deployment name: %s", poolObj.DeploymentName)
+
+	userName := utils.GenerateUniqueUsername(poolObj.DeploymentName)
 	switch env.AuthType {
 	case env.USER_CERTIFICATE:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
@@ -194,7 +197,8 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			// Certificate-related configuration (stored from environment variables during pool creation)
 			// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
 			// Note: Region and VCPAdmin remain as environment variables
-			CaURI: env.BuildCaURI(env.CaPoolDeployedProjectID, env.CaPoolName, env.CaName),
+			CaURI:    env.BuildCaURI(env.CaPoolDeployedProjectID, env.CaPoolName, env.CaName),
+			Username: fmt.Sprintf("%s%s", userName, VCP_ADMIN_CERT_UN_SUFFIX),
 		}
 	case env.USERNAME_PWD_SEC_MGR:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
@@ -202,6 +206,7 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			CertificateID: "",
 			Password:      "",
 			AuthType:      env.USERNAME_PWD_SEC_MGR,
+			Username:      fmt.Sprintf("%s%s", userName, VCP_ADMIN_CERT_UN_SUFFIX),
 		}
 	default:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
@@ -209,6 +214,7 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			CertificateID: "",
 			Password:      env.NodePassword,
 			AuthType:      env.USERNAME_PWD,
+			Username:      fmt.Sprintf("%s%s", userName, VCP_ADMIN_CERT_UN_SUFFIX),
 		}
 	}
 
