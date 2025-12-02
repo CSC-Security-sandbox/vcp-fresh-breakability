@@ -39,6 +39,9 @@ func CreateVolumeReplicationWorkflow(ctx workflow.Context, params *common.Create
 	if err != nil {
 		return nil, err
 	}
+	if err = volumeRepWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
 	volumeRepWf.Status = workflows.WorkflowStatusRunning
 	err = volumeRepWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {

@@ -19,8 +19,8 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-func TestRun(t *testing.T) {
-	t.Run("TestCreateInternalVolumeReplicationWorkflow", func(tt *testing.T) {
+func TestCreateVolumeReplicationWorkflow(t *testing.T) {
+	t.Run("TestCreateVolumeReplicationWorkflow_Success", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -58,6 +58,7 @@ func TestRun(t *testing.T) {
 		env.RegisterActivity(volumeCreateReplicationActivity.UpdateReplicationDetails)
 		env.RegisterActivity(volumeCreateReplicationActivity.MountReplication)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -98,12 +99,16 @@ func TestRun(t *testing.T) {
 			Event:            event,
 		}
 		// Mocking the required activities
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     "NEW",
+		}, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSrcBasePath", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("GetDstBasePath", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("GetSignedSrcToken", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("GetSignedDstToken", mock.Anything, mock.Anything).Return(replicationResult, nil)
-		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(&datamodel.Node{EndpointAddress: "127.0.0.1"}, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSourceInterclusterLifs", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("GetDestinationPoolDetails", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("CreateSnapmirrorFirewall", mock.Anything, mock.Anything).Return(&replication.CreateReplicationResult{
@@ -143,5 +148,131 @@ func TestRun(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("TestCreateVolumeReplicationWorkflow_EnsureJobStateError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.CreateVolumeReplicationParams{
+			AccountName: "test-account",
+			Name:        "test-replication",
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			Name: params.Name,
+		}
+		event := &replication.CreateReplicationEvent{
+			SourceVolume: datamodel.Volume{
+				Name: "source-volume",
+			},
+		}
+
+		// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     "PROCESSING", // Wrong state to trigger error
+		}, nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(CreateVolumeReplicationWorkflow, params, replicationDb, event)
+
+		// Assert that the workflow failed due to EnsureJobState error
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+	})
+
+	t.Run("TestCreateVolumeReplicationWorkflow_EnsureJobState_JobNotFound", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.CreateVolumeReplicationParams{
+			AccountName: "test-account",
+			Name:        "test-replication",
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			Name: params.Name,
+		}
+		event := &replication.CreateReplicationEvent{
+			SourceVolume: datamodel.Volume{
+				Name: "source-volume",
+			},
+		}
+
+		// Mock GetJob to return nil (job not found) to trigger EnsureJobState error
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return((*datamodel.Job)(nil), nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(CreateVolumeReplicationWorkflow, params, replicationDb, event)
+
+		// Assert that the workflow failed due to EnsureJobState error
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+	})
+
+	t.Run("TestCreateVolumeReplicationWorkflow_EnsureJobState_GetJobError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.CreateVolumeReplicationParams{
+			AccountName: "test-account",
+			Name:        "test-replication",
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			Name: params.Name,
+		}
+		event := &replication.CreateReplicationEvent{
+			SourceVolume: datamodel.Volume{
+				Name: "source-volume",
+			},
+		}
+
+		// Mock GetJob to return an error
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return((*datamodel.Job)(nil), assert.AnError)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(CreateVolumeReplicationWorkflow, params, replicationDb, event)
+
+		// Assert that the workflow failed due to EnsureJobState error
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
 	})
 }
