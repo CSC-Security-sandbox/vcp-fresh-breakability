@@ -1098,6 +1098,12 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 
 	// HotTierSizeInBytes is required when enabling auto-tiering
 	if req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value {
+		if !existingPool.AllowAutoTiering {
+			return &gcpgenserver.V1betaUpdatePoolBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: "Enabling Auto-Tiering on a non-AT pool is not supported currently",
+			}
+		}
 		if !req.HotTierSizeInBytes.IsSet() || req.HotTierSizeInBytes.Value == 0 {
 			return &gcpgenserver.V1betaUpdatePoolBadRequest{
 				Code:    http.StatusBadRequest,

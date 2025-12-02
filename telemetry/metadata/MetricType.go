@@ -78,8 +78,8 @@ func init() {
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_read_data"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: ReadIo}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_write_data"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: WriteIo}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_other_data"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: OtherIo}
-	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_clinet_protocol_reads"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTier1DataReadSize}
-	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_cloud_bin_op_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTier1DataWriteSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_client_protocol_reads"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTier1DataReadSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_cloud_bin_operation_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTier1DataWriteSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_client_protocol_reads"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTier1DataReadSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_cloud_bin_operation_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTier1DataWriteSize}
 }

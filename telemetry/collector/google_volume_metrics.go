@@ -150,6 +150,12 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 					met.SetResourceDisplayName(resp.Metric.Labels["pool_name"])
 				}
 				met.SetRegionName(resp.Metric.Labels["datacenter"])
+				if metric.Metric == "wafl_volume_cloud_bin_operation_size" && resp.Metric.Labels["metric"] != "put" {
+					continue
+				}
+				if metric.Metric == "pool_cloud_bin_operation_size" && resp.Metric.Labels["metric"] != "put" {
+					continue
+				}
 				perfMetrics = append(perfMetrics, setupHydratedMetric(timestamp, met, measuredType, extractValue(resp.Points[0].Value)))
 				continue
 			}

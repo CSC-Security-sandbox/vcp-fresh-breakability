@@ -2350,6 +2350,11 @@ func TestV1betaCreatePool(t *testing.T) {
 }
 
 func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
+	// Save original autoTieringEnabled and restore at end of test
+	originalAutoTieringEnabled := autoTieringEnabled
+	defer func() { autoTieringEnabled = originalAutoTieringEnabled }()
+	autoTieringEnabled = false
+
 	validationErrorCases := []struct {
 		name    string
 		req     *gcpgenserver.PoolUpdateV1beta
@@ -4908,8 +4913,27 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 	t.Run("AutoTiering feature enabled - allows HotTierSizeInBytes with AllowAutoTiering enabled", func(tt *testing.T) {
 		autoTieringEnabled = true
 
+		// Create a pool that already has auto-tiering enabled
+		poolWithAutoTiering := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			AllowAutoTiering: true, // Pool already has auto-tiering enabled
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1073741824, // 1GB
+				EnableHotTierAutoResize: false,
+			},
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64,   // 64 MiBps
+				Iops:       1024, // 1024 IOPS
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(poolWithAutoTiering, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "updated-pool-uuid",
@@ -4991,7 +5015,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			State:            models.LifeCycleStateREADY,
 			SizeInBytes:      2147483648, // 2GB
 			QosType:          "auto",
-			AllowAutoTiering: false,
+			AllowAutoTiering: true, // Pool already has auto-tiering enabled
 			AutoTieringConfig: &models.AutoTieringConfig{
 				HotTierSizeInBytes:      1073741824, // 1GB
 				EnableHotTierAutoResize: false,
@@ -5178,8 +5202,8 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "pool-uuid",
 			},
-			AllowAutoTiering:  false,
-			AutoTieringConfig: nil, // No existing AutoTiering config
+			AllowAutoTiering:  true, // Pool has auto-tiering enabled
+			AutoTieringConfig: nil,  // No existing AutoTiering config (edge case)
 			CustomPerformanceParams: &models.CustomPerformanceParams{
 				Throughput: 64,   // 64 MiBps
 				Iops:       1024, // 1024 IOPS
@@ -5187,6 +5211,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
+			State: models.LifeCycleStateREADY,
 		}
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -5982,5 +6007,141 @@ func TestConvertToPoolV1Beta_WithActiveDirectoryFields(t *testing.T) {
 		// ActiveDirectory fields should not be set when zone parsing fails
 		assert.False(tt, result.ActiveDirectoryConfigId.IsSet())
 		assert.False(tt, result.ActiveDirectoryResourceId.IsSet())
+	})
+}
+
+// TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool tests the validation
+// that prevents enabling auto-tiering on pools that were not created with auto-tiering enabled.
+func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
+	// Save original autoTieringEnabled and restore at end of test
+	originalAutoTieringEnabled := autoTieringEnabled
+	defer func() { autoTieringEnabled = originalAutoTieringEnabled }()
+	autoTieringEnabled = true
+
+	t.Run("RejectsEnablingAutoTieringOnNonATPool", func(tt *testing.T) {
+		// Pool created without auto-tiering
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			AllowAutoTiering: false, // Pool does not have auto-tiering enabled
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+			State: models.LifeCycleStateREADY,
+		}
+
+		// Request to enable auto-tiering
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+			HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(1073741824), // 1GB
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+
+		// Should return BadRequest error
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolBadRequest response")
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Equal(tt, "Enabling Auto-Tiering on a non-AT pool is not supported currently", badReq.Message)
+	})
+
+	t.Run("AllowsUpdatingAutoTieringParamsOnATPool", func(tt *testing.T) {
+		// Pool created with auto-tiering enabled
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			AllowAutoTiering: true, // Pool already has auto-tiering enabled
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+			State: models.LifeCycleStateREADY,
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      1073741824, // 1GB
+				EnableHotTierAutoResize: false,
+			},
+		}
+
+		// Request to update auto-tiering params (increase hot tier size)
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+			HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(2147483648), // 2GB
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+
+		// Should not return error for this specific validation
+		// (other validations might return errors, but not the one we're testing)
+		if result != nil {
+			_, isAutoTieringError := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			if isAutoTieringError {
+				badReq := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+				assert.NotEqual(tt, "Enabling Auto-Tiering on a non-AT pool is not supported currently", badReq.Message,
+					"Should not reject enabling auto-tiering on pool that already has it enabled")
+			}
+		}
+	})
+
+	t.Run("RejectsEnablingAutoTieringWithoutHotTierSize", func(tt *testing.T) {
+		// Pool created with auto-tiering enabled
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			AllowAutoTiering: true, // Pool has auto-tiering enabled
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+			State: models.LifeCycleStateREADY,
+		}
+
+		// Request to enable auto-tiering without HotTierSizeInBytes
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering: gcpgenserver.NewOptNilBool(true),
+			// HotTierSizeInBytes not set
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+
+		// Should return BadRequest error
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolBadRequest response")
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Equal(tt, "HotTierSizeInBytes is required when enabling auto-tiering", badReq.Message)
+	})
+
+	t.Run("AllowsNonAutoTieringUpdatesOnNonATPool", func(tt *testing.T) {
+		// Pool created without auto-tiering
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			AllowAutoTiering: false,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 1099511627776, // 1TB
+		}
+
+		// Request to update non-auto-tiering params
+		req := &gcpgenserver.PoolUpdateV1beta{
+			Description:          gcpgenserver.NewOptNilString("Updated description"),
+			SizeInBytes:          gcpgenserver.NewOptNilFloat64(2199023255552), // 2TB
+			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
+			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+
+		// Should not return the auto-tiering specific error
+		if result != nil {
+			badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			if ok {
+				assert.NotEqual(tt, "Enabling Auto-Tiering on a non-AT pool is not supported currently", badReq.Message,
+					"Should not reject non-auto-tiering updates on non-AT pool")
+			}
+		}
 	})
 }

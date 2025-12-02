@@ -26,3 +26,15 @@ metrics:
   - metric: volume_other_data
     resourceType: custom.googleapis.com
     metricType: performance
+  - metric: wafl_volume_client_protocol_reads
+    resourceType: custom.googleapis.com
+    metricType: performance
+  - metric: wafl_volume_cloud_bin_operation_size
+    resourceType: custom.googleapis.com
+    metricType: performance
+  - metric: pool_client_protocol_reads
+    resourceType: custom.googleapis.com
+    metricType: performance
+  - metric: pool_cloud_bin_operation_size
+    resourceType: custom.googleapis.com
+    metricType: performance
