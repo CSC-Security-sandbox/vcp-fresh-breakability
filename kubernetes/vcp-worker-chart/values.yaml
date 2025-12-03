@@ -263,6 +263,14 @@ workerConfig:
   backgroundWorkflowStartToCloseTimeoutSec: "300"  # 5 minutes
   backgroundWorkflowHeartbeatTimeoutSec: "150"     # 2.5 minutes
 
+  # Auto-Tiering workflow timeout configuration
+  syncVSAAutoTieringWorkflowStartToCloseTimeoutSec: "300"
+  autoTieringPauseResumeWorkflowStartToCloseTimeoutSec: "300"
+  autoTieringHotTierAutoResizeWorkflowStartToCloseTimeoutSec: "300"
+  syncVSAAutoTieringWorkflowHeartbeatTimeoutSec: "150"
+  autoTieringPauseResumeWorkflowHeartbeatTimeoutSec: "150"
+  autoTieringHotTierAutoResizeWorkflowHeartbeatTimeoutSec: "150"
+
   # SA Creation Retry Configuration
   saRetryStartToCloseTimeout: "25m"
   saRetryInitialInterval: "10s"

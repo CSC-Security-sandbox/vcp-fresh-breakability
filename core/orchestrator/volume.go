@@ -24,6 +24,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
+	dbUtils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -528,6 +529,27 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if err != nil {
 		logger.Error("Failed to fetch volume for the given account ID", "error", err)
 		return nil, "", err
+	}
+
+	// Check if volume is in REVERTING state - if so, check for existing revert jobs for idempotency
+	if volume.State == models.LifeCycleStateReverting {
+		filter := dbUtils.CreateFilterWithConditions(
+			dbUtils.NewFilterCondition("resource_name", "=", volume.Name),
+			dbUtils.NewFilterCondition("account_id", "=", volume.AccountID),
+			dbUtils.NewFilterCondition("type", "=", string(models.JobTypeRevertVolume)),
+			dbUtils.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
+			dbUtils.NewFilterCondition("state", "!=", string(models.JobsStateERROR)),
+			dbUtils.NewFilterCondition("job_attributes ->> 'resource_uuid'", "=", volume.UUID))
+
+		jobs, err := se.GetJobsWithCondition(ctx, *filter)
+		if err != nil {
+			logger.Errorf("Failed to get jobs with conditions: %v. Error: %v", filter, err)
+			return nil, "", err
+		}
+		if len(jobs) > 0 {
+			logger.Infof("Found ongoing volume revert job for account %s with volume %s. Job UUID: %s", params.AccountName, volume.Name, jobs[0].UUID)
+			return convertDatastoreVolumeToModel(volume, nil), jobs[0].UUID, nil
+		}
 	}
 
 	if utils.IsTransitionalState(volume.State) {

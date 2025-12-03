@@ -93,9 +93,11 @@ var (
 )
 
 func (ca CommonActivities) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
+	activity.RecordHeartbeat(ctx, "Initializing job creation")
 	logger := util.GetLogger(ctx)
 	se := ca.SE
 	logger.Infof("creating job: %s with status: %s", job.UUID, job.State)
+	activity.RecordHeartbeat(ctx, "Creating job in database")
 	return se.CreateJob(ctx, job)
 }
 
@@ -429,11 +431,13 @@ func (j CommonActivities) GetAuthJWTToken(ctx context.Context, accountName strin
 }
 
 func (j CommonActivities) ListPoolsUUID(ctx context.Context) ([]*database.PoolIdentifier, error) {
+	activity.RecordHeartbeat(ctx, "Initializing pool UUID listing")
 	logger := util.GetLogger(ctx)
 	se := j.SE
 
 	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
 	pools, err := se.ListPoolUUIDs(ctx, filter)
+	activity.RecordHeartbeat(ctx, "Listed pool UUIDs from database")
 	if err != nil {
 		logger.Errorf("Failed to list pools: %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
@@ -698,12 +702,14 @@ type WFLastExecutionActivity struct {
 // GetWorkflowLastExecutionTime retrieves the completion time of the last run workflow using its workflowID.
 // The workflow being queried must have a query handler registered for "status", which returns the completion time of the workflow.
 func (wle *WFLastExecutionActivity) GetWorkflowLastExecutionTime(ctx context.Context, workflowID string) (*time.Time, error) {
+	activity.RecordHeartbeat(ctx, "Initializing workflow last execution time retrieval")
 	temporalClient := wle.TemporalClient
 	logger := util.GetLogger(ctx)
 	var wfCompletionTime time.Time
 
 	// Query the workflow status using the workflow ID.
 	queryResult, err := temporalClient.QueryWorkflow(ctx, workflowID, "", "status")
+	activity.RecordHeartbeat(ctx, "Queried workflow execution time from Temporal")
 	if err != nil {
 		logger.Errorf("Failed to query workflow completion time: %v", err)
 		// If the workflow is not found, return default time (0) without error.

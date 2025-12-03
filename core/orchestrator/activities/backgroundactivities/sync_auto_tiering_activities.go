@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
 
 const (
@@ -37,12 +38,15 @@ type AutoTierSyncActivity struct {
 }
 
 func (a *AutoTierSyncActivity) UpdateAggregateInOntap(ctx context.Context, node *models.Node, tieringFullnessThreshold int64) error {
+	activity.RecordHeartbeat(ctx, "Initializing aggregate update in ONTAP")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	activity.RecordHeartbeat(ctx, "Retrieved provider for node")
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	err = getAndUpdateAggregate(provider, tieringFullnessThreshold)
+	activity.RecordHeartbeat(ctx, "Updated aggregate in ONTAP")
 	if err != nil {
 		return err
 	}
@@ -71,6 +75,7 @@ func getAndUpdateAggregate(provider vsa.Provider, tieringFullnessThreshold int64
 // SegregatePools takes a list of pools and separates them into auto-tier-resume and auto-tier-paused pools
 // based on the hot-tier provisioned & cold-tier consumption.
 func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*database.PoolIdentifier, poolConsumptionsMap map[string]map[string]float64) (map[string][]*database.PoolIdentifier, error) {
+	activity.RecordHeartbeat(ctx, "Initializing pool segregation")
 	logger := util.GetLogger(ctx)
 	se := a.SE
 	poolsToPause := make([]*database.PoolIdentifier, 0)
@@ -86,6 +91,7 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 			defer wg.Done()
 			// Fetch the complete pool details using pool UUID and account ID
 			pool, err := se.GetPool(ctx, poolIdentifier.UUID, poolIdentifier.AccountID)
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetched pool details for segregation: %s", poolIdentifier.UUID))
 			if err != nil {
 				logger.Errorf("Failed to get pool, error: %v", err)
 				return
@@ -134,6 +140,7 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 				// 5. New hot tier provisioned size + cold tier consumption < logical pool size.
 				if pool.AutoTieringConfig.EnableHotTierAutoResize && pool.AutoTieringConfig.HotTierSizeInBytes != 0 {
 					exists, err := checkPoolVolumesWithBypassModeEnabled(ctx, se, pool)
+					activity.RecordHeartbeat(ctx, fmt.Sprintf("Checked pool volumes for bypass mode: %s", pool.UUID))
 					if err != nil {
 						logger.Errorf("Failed to check pool volumes for bypass mode, poolUUID: %s, error: %v", pool.UUID, err)
 						return
@@ -159,6 +166,7 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 	}
 	wg.Wait()
 
+	activity.RecordHeartbeat(ctx, "Completed pool segregation")
 	return map[string][]*database.PoolIdentifier{
 		PoolsToPauseKey:      poolsToPause,
 		PoolsToResumeKey:     poolsToResume,
@@ -184,6 +192,7 @@ func checkPoolVolumesWithBypassModeEnabled(ctx context.Context, se database.Stor
 }
 
 func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context, pools []*database.PoolIdentifier) (map[string]map[string]float64, error) {
+	activity.RecordHeartbeat(ctx, "Initializing pool tiering info fetch and save")
 	logger := util.GetLogger(ctx)
 	se := a.SE
 	poolsConsumptionsMap := make(map[string]map[string]float64)
@@ -197,6 +206,7 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 			defer wg.Done()
 			// Fetch the complete pool details using pool UUID and account ID
 			pool, err := se.GetPool(ctx, poolIdentifier.UUID, poolIdentifier.AccountID)
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetched pool details for pool: %s", poolIdentifier.UUID))
 			if err != nil {
 				logger.Errorf("Failed to get pool, error: %v", err)
 				return
@@ -208,6 +218,7 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 			}
 
 			provider, err := GetOntapRestProviderForPool(ctx, se, database.ConvertPoolViewToPool(pool))
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Retrieved ONTAP provider for pool: %s", pool.UUID))
 			if err != nil || provider == nil {
 				logger.Errorf("Failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)
 				return
@@ -217,11 +228,13 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 			// These pools need to have their tiering fullness threshold set to 0
 			if pool.AutoTieringConfig != nil && pool.AutoTieringConfig.TieringFullnessThreshold == 50 && !pool.AutoTieringConfig.TieringPaused {
 				err = getAndUpdateAggregate(provider, 0)
+				activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated aggregate threshold for pool: %s", pool.UUID))
 				if err != nil {
 					// Logging error and skipping. Will retry in next sync.
 					logger.Warnf("Failed to set aggregate threshold to 0 in ontap for pool %s, Error: %v", pool.Name, err)
 				} else {
 					err = se.UpdatePoolTieringConfig(ctx, poolIdentifier.UUID, nil, nil, nillable.GetInt64Ptr(0))
+					activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated pool tiering config in database for pool: %s", pool.UUID))
 					if err != nil {
 						// Logging error and skipping. Will retry in next sync.
 						logger.Warnf("Failed to set thresholdPercentage field to 0 in db for pool %s, Error: %v", pool.Name, err)
@@ -230,6 +243,7 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 			}
 
 			ontapVolumes, err := provider.GetVolumes()
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Retrieved volumes from ONTAP for pool: %s", pool.UUID))
 			if err != nil {
 				logger.Errorf("Failed to get ONTAP volumes for the pool: %s, %v", pool.UUID, err)
 				return
@@ -237,6 +251,7 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 
 			// Get DB volumes for the pool to create a mapping from external UUID to database UUID
 			dbVolumes, err := se.GetVolumesByPoolID(ctx, pool.ID)
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Retrieved volumes from database for pool: %s", pool.UUID))
 			if err != nil {
 				logger.Errorf("Failed to get volumes from database for pool %s: %v", pool.UUID, err)
 				return
@@ -253,6 +268,7 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 			expectedVolCount := int64(len(dbVolumes))
 
 			hotTierConsumption, coldTierConsumption, err := calculateAndUpdateHotColdTierConsumption(ctx, ontapVolumes, expectedVolCount, se, dbVolumeMap)
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Calculated hot/cold tier consumption for pool: %s", pool.UUID))
 			if err != nil {
 				logger.Errorf("Failed to calculate hot/cold tier consumption for the pool: %s, %v", pool.UUID, err)
 				return
@@ -270,6 +286,7 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 	}
 	wg.Wait()
 
+	activity.RecordHeartbeat(ctx, "Completed fetching and saving pool tiering info")
 	return poolsConsumptionsMap, nil
 }
 
@@ -344,16 +361,19 @@ func calculateAndUpdateHotColdTierConsumption(ctx context.Context, ontapVolumes 
 }
 
 func (a *AutoTierSyncActivity) ToggleHotTierBypassModeForPoolVolumes(ctx context.Context, pool *datamodel.Pool) error {
+	activity.RecordHeartbeat(ctx, "Initializing hot tier bypass mode toggle for pool volumes")
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
 	provider, err := GetOntapRestProviderForPool(ctx, se, pool)
+	activity.RecordHeartbeat(ctx, "Retrieved ONTAP provider for pool")
 	if err != nil || provider == nil {
 		logger.Errorf("Failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	volumes, err := se.GetVolumesByPoolID(ctx, pool.ID)
+	activity.RecordHeartbeat(ctx, "Retrieved volumes from database for pool")
 	if err != nil {
 		logger.Errorf("Failed to list volumes for pool: %s, error: %v", pool.UUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -376,14 +396,17 @@ func (a *AutoTierSyncActivity) ToggleHotTierBypassModeForPoolVolumes(ctx context
 				logger.Errorf("Failed to change tiering policy to: %s for volume: %s, error: %v", updateParams.TieringPolicy.CoolAccessTieringPolicy, vol.UUID, err)
 				return vsaerrors.WrapAsTemporalApplicationError(err)
 			}
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated tiering policy for volume: %s", vol.UUID))
 
 			logger.Infof("Tiering policy changed to: %s for volume: %s", updateParams.TieringPolicy.CoolAccessTieringPolicy, vol.UUID)
 		}
 	}
+	activity.RecordHeartbeat(ctx, "Completed hot tier bypass mode toggle for pool volumes")
 	return nil
 }
 
 func (a *AutoTierSyncActivity) UpdatePoolTieringConsumptionInDB(ctx context.Context, poolsConsumptionsMap map[string]map[string]float64) error {
+	activity.RecordHeartbeat(ctx, "Initializing pool tiering consumption update in database")
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
@@ -392,11 +415,13 @@ func (a *AutoTierSyncActivity) UpdatePoolTieringConsumptionInDB(ctx context.Cont
 		coldTierConsumption := int64(consumptionMap[PoolConsumptionColdTier])
 
 		err := se.UpdatePoolTieringConfig(ctx, poolUUID, nillable.GetInt64Ptr(hotTierConsumption), nillable.GetInt64Ptr(coldTierConsumption), nil)
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated pool tiering consumption in DB for pool: %s", poolUUID))
 		if err != nil {
 			return fmt.Errorf("failed to update pool tiering consumption in DB for poolUUID: %s, error: %v", poolUUID, err)
 		}
 
 		logger.Infof("Updated pool tiering consumption in DB, poolUUID: %s, hotTierConsumption: %d, coldTierConsumption: %d", poolUUID, hotTierConsumption, coldTierConsumption)
 	}
+	activity.RecordHeartbeat(ctx, "Completed updating pool tiering consumption in database")
 	return nil
 }

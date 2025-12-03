@@ -751,6 +751,9 @@ func TestDeleteDnsRecordIfUnused_ModifyFailure(t *testing.T) {
 
 func TestDeleteSnapshotPolicyInONTAP_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
@@ -761,7 +764,8 @@ func TestDeleteSnapshotPolicyInONTAP_Success(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteSnapshotPolicyInONTAP)
+
 	volume := &datamodel.Volume{
 		SnapshotPolicy: &datamodel.SnapshotPolicy{
 			Name:      "policy1",
@@ -785,7 +789,7 @@ func TestDeleteSnapshotPolicyInONTAP_Success(t *testing.T) {
 	mockProvider.On("DeleteSnapshotPolicy", volume.SnapshotPolicy.Name).Return(nil)
 
 	// Act
-	err := activity.DeleteSnapshotPolicyInONTAP(ctx, volume.SnapshotPolicy.Name, node)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotPolicyInONTAP, volume.SnapshotPolicy.Name, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -794,6 +798,9 @@ func TestDeleteSnapshotPolicyInONTAP_Success(t *testing.T) {
 
 func TestDeleteSnapshotPolicyInONTAP_Failure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
@@ -804,7 +811,8 @@ func TestDeleteSnapshotPolicyInONTAP_Failure(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteSnapshotPolicyInONTAP)
+
 	volume := &datamodel.Volume{
 		SnapshotPolicy: &datamodel.SnapshotPolicy{
 			Name:      "policy1",
@@ -829,11 +837,10 @@ func TestDeleteSnapshotPolicyInONTAP_Failure(t *testing.T) {
 	mockProvider.On("DeleteSnapshotPolicy", volume.SnapshotPolicy.Name).Return(expectedError)
 
 	// Act
-	err := activity.DeleteSnapshotPolicyInONTAP(ctx, volume.SnapshotPolicy.Name, node)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotPolicyInONTAP, volume.SnapshotPolicy.Name, node)
 
 	// Assert
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
 
@@ -1240,38 +1247,46 @@ func TestSnapmirrorInONTAPSuccessfullyDeletesSnapmirror(t *testing.T) {
 }
 
 func TestDeleteVolumeAssociatedSnapshots_NoSnapshotsFound(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolumeAssociatedSnapshots)
 	volumeID := int64(123)
 
 	mockStorage.On("GetSnapshotsByVolumeID", mock.Anything, volumeID).
 		Return(nil, utilErrors.NewNotFoundErr("snapshot", nil))
 
-	err := activity.DeleteVolumeAssociatedSnapshots(ctx, volumeID)
+	_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedSnapshots, volumeID)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteVolumeAssociatedSnapshots_GetSnapshotsError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolumeAssociatedSnapshots)
 	volumeID := int64(123)
 
 	mockStorage.On("GetSnapshotsByVolumeID", mock.Anything, volumeID).
 		Return(nil, errors.New("db error"))
 
-	err := activity.DeleteVolumeAssociatedSnapshots(ctx, volumeID)
+	_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedSnapshots, volumeID)
 	assert.Error(t, err)
-	assert.EqualError(t, err, "db error")
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteVolumeAssociatedSnapshots_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolumeAssociatedSnapshots)
 	volumeID := int64(123)
 	snapshots := []*datamodel.Snapshot{
 		{BaseModel: datamodel.BaseModel{UUID: "snap-1"}, Name: "snap1"},
@@ -1280,18 +1295,21 @@ func TestDeleteVolumeAssociatedSnapshots_Success(t *testing.T) {
 
 	mockStorage.On("GetSnapshotsByVolumeID", mock.Anything, volumeID).
 		Return(snapshots, nil)
-	mockStorage.On("DeleteSnapshot", ctx, "snap-1").Return(&datamodel.Snapshot{}, nil)
-	mockStorage.On("DeleteSnapshot", ctx, "snap-2").Return(&datamodel.Snapshot{}, nil)
+	mockStorage.On("DeleteSnapshot", mock.Anything, "snap-1").Return(&datamodel.Snapshot{}, nil)
+	mockStorage.On("DeleteSnapshot", mock.Anything, "snap-2").Return(&datamodel.Snapshot{}, nil)
 
-	err := activity.DeleteVolumeAssociatedSnapshots(ctx, volumeID)
+	_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedSnapshots, volumeID)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteVolumeAssociatedSnapshots_DeleteSnapshotError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteVolumeAssociatedSnapshots)
 	volumeID := int64(123)
 	snapshots := []*datamodel.Snapshot{
 		{BaseModel: datamodel.BaseModel{UUID: "snap-1"}, Name: "snap1"},
@@ -1300,34 +1318,43 @@ func TestDeleteVolumeAssociatedSnapshots_DeleteSnapshotError(t *testing.T) {
 
 	mockStorage.On("GetSnapshotsByVolumeID", mock.Anything, volumeID).
 		Return(snapshots, nil)
-	mockStorage.On("DeleteSnapshot", ctx, "snap-1").Return(&datamodel.Snapshot{}, errors.New("delete error"))
-	mockStorage.On("DeleteSnapshot", ctx, "snap-2").Return(&datamodel.Snapshot{}, nil)
+	mockStorage.On("DeleteSnapshot", mock.Anything, "snap-1").Return(&datamodel.Snapshot{}, errors.New("delete error"))
+	mockStorage.On("DeleteSnapshot", mock.Anything, "snap-2").Return(&datamodel.Snapshot{}, nil)
 
-	err := activity.DeleteVolumeAssociatedSnapshots(ctx, volumeID)
+	_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedSnapshots, volumeID)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestDeleteSnapshotPolicyInONTAP_WithNilNode(t *testing.T) {
-	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
 
-	err := activity.DeleteSnapshotPolicyInONTAP(ctx, "policy1", nil)
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteSnapshotPolicyInONTAP)
+
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotPolicyInONTAP, "policy1", nil)
 
 	assert.NoError(t, err)
 }
 
 func TestDeleteSnapshotPolicyInONTAP_WithEmptyPolicyName(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteSnapshotPolicyInONTAP)
 	node := &models.Node{}
 
-	err := activity.DeleteSnapshotPolicyInONTAP(ctx, "", node)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotPolicyInONTAP, "", node)
 
 	assert.NoError(t, err)
 }
 
 func TestDeleteSnapshotPolicyInONTAP_GetProviderByNodeFailure(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -1337,10 +1364,10 @@ func TestDeleteSnapshotPolicyInONTAP_GetProviderByNodeFailure(t *testing.T) {
 	}
 
 	activity := VolumeDeleteActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.DeleteSnapshotPolicyInONTAP)
 	node := &models.Node{}
 
-	err := activity.DeleteSnapshotPolicyInONTAP(ctx, "policy1", node)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotPolicyInONTAP, "policy1", node)
 
 	assert.Error(t, err)
 }

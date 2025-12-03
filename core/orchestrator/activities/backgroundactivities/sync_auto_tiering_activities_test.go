@@ -15,14 +15,18 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
-	ctx := context.TODO()
-
 	t.Run("UpdateAggregateInOntapSuccess", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateAggregateInOntap)
 
 		node := &models.Node{
 			EndpointAddress: "test-endpoint",
@@ -48,7 +52,7 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			return params.UUID == aggregate.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
 		})).Return(nil)
 
-		err := activity.UpdateAggregateInOntap(ctx, node, tieringFullnessThreshold)
+		_, err := env.ExecuteActivity(activity.UpdateAggregateInOntap, node, tieringFullnessThreshold)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -56,6 +60,11 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 	t.Run("UpdateAggregateInOntap_GetProviderFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateAggregateInOntap)
 
 		node := &models.Node{
 			EndpointAddress: "test-endpoint",
@@ -69,13 +78,18 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			return nil, errors.New("failed to get provider")
 		}
 
-		err := activity.UpdateAggregateInOntap(ctx, node, tieringFullnessThreshold)
+		_, err := env.ExecuteActivity(activity.UpdateAggregateInOntap, node, tieringFullnessThreshold)
 		assert.Error(tt, err)
 	})
 
 	t.Run("UpdateAggregateInOntap_GetAggregateFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateAggregateInOntap)
 
 		node := &models.Node{
 			EndpointAddress: "test-endpoint",
@@ -93,7 +107,7 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 
 		mockProvider.On("GetAggregateByName", activities.AggregateName).Return(nil, errors.New("failed to get aggregate"))
 
-		err := activity.UpdateAggregateInOntap(ctx, node, tieringFullnessThreshold)
+		_, err := env.ExecuteActivity(activity.UpdateAggregateInOntap, node, tieringFullnessThreshold)
 		assert.Error(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -101,6 +115,11 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 	t.Run("UpdateAggregateInOntap_UpdateAggregateFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateAggregateInOntap)
 
 		node := &models.Node{
 			EndpointAddress: "test-endpoint",
@@ -123,18 +142,21 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 		mockProvider.On("GetAggregateByName", activities.AggregateName).Return(aggregate, nil)
 		mockProvider.On("UpdateAggregate", mock.AnythingOfType("vsa.UpdateAggregateParams")).Return(errors.New("failed to update aggregate"))
 
-		err := activity.UpdateAggregateInOntap(ctx, node, tieringFullnessThreshold)
+		_, err := env.ExecuteActivity(activity.UpdateAggregateInOntap, node, tieringFullnessThreshold)
 		assert.Error(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
 }
 
 func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
-	ctx := context.TODO()
-
 	t.Run("SegregatePoolsSuccess", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -223,13 +245,16 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "pool-to-pause-uuid", int64(123)).Return(pausePool, nil)
-		mockStorage.On("GetPool", ctx, "pool-to-resume-uuid", int64(124)).Return(resumePool, nil)
-		mockStorage.On("GetPool", ctx, "pool-to-autoresize-uuid", int64(125)).Return(autoResizePool, nil)
-		mockStorage.On("GetPool", ctx, "pool-not-ready-uuid", int64(126)).Return(notReadyPool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(3)).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetPool", mock.Anything, "pool-to-pause-uuid", int64(123)).Return(pausePool, nil)
+		mockStorage.On("GetPool", mock.Anything, "pool-to-resume-uuid", int64(124)).Return(resumePool, nil)
+		mockStorage.On("GetPool", mock.Anything, "pool-to-autoresize-uuid", int64(125)).Return(autoResizePool, nil)
+		mockStorage.On("GetPool", mock.Anything, "pool-not-ready-uuid", int64(126)).Return(notReadyPool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(3)).Return([]*datamodel.Volume{}, nil)
 
-		result, err := activity.SegregatePools(ctx, pools, poolConsumptionsMap)
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 1)
 		assert.Equal(tt, "pool-to-pause-uuid", result[PoolsToPauseKey][0].UUID)
@@ -244,10 +269,18 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
+
 		pools := []*database.PoolIdentifier{}
 		poolConsumptionsMap := map[string]map[string]float64{}
 
-		result, err := activity.SegregatePools(ctx, pools, poolConsumptionsMap)
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 0)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
@@ -257,6 +290,11 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 	t.Run("SegregatePoolsGetPoolFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -273,9 +311,12 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "failed-pool-uuid", int64(123)).Return(nil, errors.New("failed to get pool"))
+		mockStorage.On("GetPool", mock.Anything, "failed-pool-uuid", int64(123)).Return(nil, errors.New("failed to get pool"))
 
-		result, err := activity.SegregatePools(ctx, pools, poolConsumptionsMap)
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 0)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
@@ -286,6 +327,11 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 	t.Run("SegregatePoolsAutoTieringDisabled", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -310,9 +356,12 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "disabled-pool-uuid", int64(123)).Return(disabledPool, nil)
+		mockStorage.On("GetPool", mock.Anything, "disabled-pool-uuid", int64(123)).Return(disabledPool, nil)
 
-		result, err := activity.SegregatePools(ctx, pools, poolConsumptionsMap)
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 0)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
@@ -323,6 +372,11 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 	t.Run("SegregatePoolsPoolNotReady", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -347,9 +401,12 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "not-ready-pool-uuid", int64(123)).Return(notReadyPool, nil)
+		mockStorage.On("GetPool", mock.Anything, "not-ready-pool-uuid", int64(123)).Return(notReadyPool, nil)
 
-		result, err := activity.SegregatePools(ctx, pools, poolConsumptionsMap)
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 0)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
@@ -360,6 +417,11 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 	t.Run("SegregatePoolsNoConsumptionData", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -379,9 +441,12 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "no-consumption-pool-uuid", int64(123)).Return(noConsumptionPool, nil)
+		mockStorage.On("GetPool", mock.Anything, "no-consumption-pool-uuid", int64(123)).Return(noConsumptionPool, nil)
 
-		result, err := activity.SegregatePools(ctx, pools, poolConsumptionsMap)
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 0)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
@@ -392,6 +457,11 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 	t.Run("SegregatePoolsCheckBypassModeFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -422,10 +492,13 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "bypass-check-failed-pool-uuid", int64(123)).Return(bypassCheckFailedPool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(nil, errors.New("failed to get volumes"))
+		mockStorage.On("GetPool", mock.Anything, "bypass-check-failed-pool-uuid", int64(123)).Return(bypassCheckFailedPool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(nil, errors.New("failed to get volumes"))
 
-		result, err := activity.SegregatePools(ctx, pools, poolConsumptionsMap)
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 0)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
@@ -436,6 +509,11 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 	t.Run("SegregatePoolsWithBypassModeDisabled", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -466,10 +544,13 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "bypass-disabled-pool-uuid", int64(123)).Return(bypassDisabledPool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetPool", mock.Anything, "bypass-disabled-pool-uuid", int64(123)).Return(bypassDisabledPool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Volume{}, nil)
 
-		result, err := activity.SegregatePools(ctx, pools, poolConsumptionsMap)
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 0)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
@@ -481,6 +562,11 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 	t.Run("SegregatePoolsAutoResizeNotMeetingThreshold", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -511,10 +597,13 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "low-usage-pool-uuid", int64(123)).Return(lowUsagePool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetPool", mock.Anything, "low-usage-pool-uuid", int64(123)).Return(lowUsagePool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Volume{}, nil)
 
-		result, err := activity.SegregatePools(ctx, pools, poolConsumptionsMap)
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 0)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
@@ -591,11 +680,14 @@ func TestCheckPoolVolumesWithBypassModeEnabled(t *testing.T) {
 }
 
 func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
-	ctx := context.TODO()
-
 	t.Run("FetchAndSavePoolsTieringInfoSuccess", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -639,9 +731,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(dbVolumes, nil)
-		mockStorage.On("BatchUpdateVolumeTieringFields", ctx, mock.Anything).Return(nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock GetOntapRestProviderForPool
@@ -651,7 +743,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Contains(tt, result, "test-pool-uuid")
 		assert.Equal(tt, float64(100000000000), result["test-pool-uuid"][PoolConsumptionColdTier])
@@ -664,6 +759,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
+
 		pools := []*database.PoolIdentifier{
 			{
 				UUID:      "test-pool-uuid",
@@ -672,9 +772,12 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(nil, errors.New("failed to get pool"))
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(nil, errors.New("failed to get pool"))
 
-		_, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -682,6 +785,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_PoolNotAutoTiering", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -699,9 +807,12 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.NotContains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -710,6 +821,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_PoolNotReady", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -727,9 +843,12 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.NotContains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -738,6 +857,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_GetOntapProviderFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -755,7 +879,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
 
 		// Mock GetOntapRestProviderForPool to return error
 		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
@@ -764,7 +888,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return nil, errors.New("failed to get provider")
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.NotContains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -773,6 +900,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_GetVolumesFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -791,7 +923,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
 		mockProvider.On("GetVolumes").Return(nil, errors.New("failed to get volumes"))
 
 		// Mock GetOntapRestProviderForPool
@@ -801,7 +933,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.NotContains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -811,6 +946,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_GetVolumesByPoolIDFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -841,8 +981,8 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(nil, errors.New("failed to get volumes"))
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(nil, errors.New("failed to get volumes"))
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock GetOntapRestProviderForPool
@@ -852,7 +992,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.NotContains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -862,6 +1005,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_CalculateConsumptionFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -911,8 +1059,8 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(dbVolumes, nil) // Returns 2 volumes but ONTAP has 1
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil) // Returns 2 volumes but ONTAP has 1
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock GetOntapRestProviderForPool
@@ -922,7 +1070,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.NotContains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -933,6 +1084,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_TieringThresholdMigration_ThresholdIs50AndNotPaused", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -980,9 +1136,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(dbVolumes, nil)
-		mockStorage.On("BatchUpdateVolumeTieringFields", ctx, mock.Anything).Return(nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock aggregate operations - should be called to update threshold to 0
@@ -998,7 +1154,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 
 		// Mock UpdatePoolTieringConfig - should be called with threshold 0
 		thresholdZero := int64(0)
-		mockStorage.On("UpdatePoolTieringConfig", ctx, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero).Return(nil)
 
 		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
 		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
@@ -1006,7 +1162,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Contains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -1016,6 +1175,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_TieringThresholdMigration_ThresholdIs50ButPaused", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -1063,9 +1227,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(dbVolumes, nil)
-		mockStorage.On("BatchUpdateVolumeTieringFields", ctx, mock.Anything).Return(nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock aggregate operations - should NOT be called because pool is paused
@@ -1080,7 +1244,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Contains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -1090,6 +1257,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_TieringThresholdMigration_ThresholdIsNot50", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -1137,9 +1309,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(dbVolumes, nil)
-		mockStorage.On("BatchUpdateVolumeTieringFields", ctx, mock.Anything).Return(nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock aggregate operations - should NOT be called because threshold is not 50
@@ -1151,7 +1323,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Contains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -1161,6 +1336,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_TieringThresholdMigration_AutoTieringConfigIsNil", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -1205,9 +1385,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(dbVolumes, nil)
-		mockStorage.On("BatchUpdateVolumeTieringFields", ctx, mock.Anything).Return(nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock aggregate operations - should NOT be called because AutoTieringConfig is nil
@@ -1219,7 +1399,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Contains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
@@ -1229,6 +1412,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_TieringThresholdMigration_AggregateUpdateFails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -1277,9 +1465,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(dbVolumes, nil)
-		mockStorage.On("BatchUpdateVolumeTieringFields", ctx, mock.Anything).Return(nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock aggregate operations - should fail
@@ -1299,8 +1487,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
 		assert.NoError(tt, err) // Should not error, just log warning
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
 		assert.Contains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
 		mockProvider.AssertExpectations(tt)
@@ -1309,6 +1500,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 	t.Run("FetchAndSavePoolsTieringInfo_TieringThresholdMigration_DBUpdateFails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
 
 		pools := []*database.PoolIdentifier{
 			{
@@ -1357,9 +1553,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		}
 
 		mockProvider := new(vsa.MockProvider)
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(123)).Return(pool, nil)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(dbVolumes, nil)
-		mockStorage.On("BatchUpdateVolumeTieringFields", ctx, mock.Anything).Return(nil)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock aggregate operations - should succeed
@@ -1372,7 +1568,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 
 		// Mock UpdatePoolTieringConfig - should fail
 		thresholdZero := int64(0)
-		mockStorage.On("UpdatePoolTieringConfig", ctx, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero).Return(errors.New("database error"))
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero).Return(errors.New("database error"))
 
 		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
 		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
@@ -1380,8 +1576,11 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		result, err := activity.FetchAndSavePoolsTieringInfo(ctx, pools)
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
 		assert.NoError(tt, err) // Should not error, just log warning
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
 		assert.Contains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
 		mockProvider.AssertExpectations(tt)
@@ -1590,11 +1789,14 @@ func TestCalculateAndUpdateHotColdTierConsumption(t *testing.T) {
 }
 
 func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T) {
-	ctx := context.TODO()
-
 	t.Run("ToggleHotTierBypassModeForPoolVolumes_Success_PauseMode", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ToggleHotTierBypassModeForPoolVolumes)
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
@@ -1624,7 +1826,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		}
 
 		mockProvider := vsa.NewMockProvider(tt)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(volumes, nil)
 		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
 			return params.UUID == "external-vol-1-uuid" &&
 				params.TieringPolicy.CoolAccessTieringPolicy == ontaprestmodel.VolumeInlineTieringPolicyNone
@@ -1637,7 +1839,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 			return mockProvider, nil
 		}
 
-		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		_, err := env.ExecuteActivity(activity.ToggleHotTierBypassModeForPoolVolumes, pool)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 		mockProvider.AssertExpectations(tt)
@@ -1646,6 +1848,11 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 	t.Run("ToggleHotTierBypassModeForPoolVolumes_Success_ResumeMode", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ToggleHotTierBypassModeForPoolVolumes)
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
@@ -1668,7 +1875,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		}
 
 		mockProvider := vsa.NewMockProvider(tt)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(volumes, nil)
 		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
 			return params.UUID == "external-vol-1-uuid" &&
 				params.TieringPolicy.CoolAccessTieringPolicy == ontaprestmodel.VolumeInlineTieringPolicyAll
@@ -1681,7 +1888,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 			return mockProvider, nil
 		}
 
-		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		_, err := env.ExecuteActivity(activity.ToggleHotTierBypassModeForPoolVolumes, pool)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 		mockProvider.AssertExpectations(tt)
@@ -1690,6 +1897,11 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 	t.Run("ToggleHotTierBypassModeForPoolVolumes_NoVolumesWithBypassMode", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ToggleHotTierBypassModeForPoolVolumes)
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
@@ -1709,7 +1921,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		}
 
 		mockProvider := vsa.NewMockProvider(tt)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(volumes, nil)
 
 		// Mock GetOntapRestProviderForPool
 		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
@@ -1718,7 +1930,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 			return mockProvider, nil
 		}
 
-		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		_, err := env.ExecuteActivity(activity.ToggleHotTierBypassModeForPoolVolumes, pool)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 		// Provider should not be called since no volumes need updating
@@ -1727,6 +1939,11 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 	t.Run("ToggleHotTierBypassModeForPoolVolumes_GetProviderFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ToggleHotTierBypassModeForPoolVolumes)
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
@@ -1742,13 +1959,18 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 			return nil, errors.New("failed to get provider")
 		}
 
-		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		_, err := env.ExecuteActivity(activity.ToggleHotTierBypassModeForPoolVolumes, pool)
 		assert.Error(tt, err)
 	})
 
 	t.Run("ToggleHotTierBypassModeForPoolVolumes_GetVolumesFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ToggleHotTierBypassModeForPoolVolumes)
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
@@ -1758,7 +1980,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		}
 
 		mockProvider := vsa.NewMockProvider(tt)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(nil, errors.New("failed to get volumes"))
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(nil, errors.New("failed to get volumes"))
 
 		// Mock GetOntapRestProviderForPool
 		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
@@ -1767,7 +1989,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 			return mockProvider, nil
 		}
 
-		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		_, err := env.ExecuteActivity(activity.ToggleHotTierBypassModeForPoolVolumes, pool)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1775,6 +1997,11 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 	t.Run("ToggleHotTierBypassModeForPoolVolumes_UpdateVolumeFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ToggleHotTierBypassModeForPoolVolumes)
 
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
@@ -1797,7 +2024,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		}
 
 		mockProvider := vsa.NewMockProvider(tt)
-		mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(volumes, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(volumes, nil)
 		mockProvider.On("UpdateVolume", mock.Anything).Return(errors.New("failed to update volume"))
 
 		// Mock GetOntapRestProviderForPool
@@ -1807,7 +2034,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 			return mockProvider, nil
 		}
 
-		err := activity.ToggleHotTierBypassModeForPoolVolumes(ctx, pool)
+		_, err := env.ExecuteActivity(activity.ToggleHotTierBypassModeForPoolVolumes, pool)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 		mockProvider.AssertExpectations(tt)
@@ -1815,11 +2042,14 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 }
 
 func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
-	ctx := context.TODO()
-
 	t.Run("UpdatePoolTieringConsumptionInDB_Success", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdatePoolTieringConsumptionInDB)
 
 		poolsConsumptionsMap := map[string]map[string]float64{
 			"pool-1-uuid": {
@@ -1836,10 +2066,10 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 		cold1 := int64(600000000000)
 		hot2 := int64(300000000000)
 		cold2 := int64(400000000000)
-		mockStorage.On("UpdatePoolTieringConfig", ctx, "pool-1-uuid", &hot1, &cold1, (*int64)(nil)).Return(nil)
-		mockStorage.On("UpdatePoolTieringConfig", ctx, "pool-2-uuid", &hot2, &cold2, (*int64)(nil)).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "pool-1-uuid", &hot1, &cold1, (*int64)(nil)).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "pool-2-uuid", &hot2, &cold2, (*int64)(nil)).Return(nil)
 
-		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1848,9 +2078,14 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdatePoolTieringConsumptionInDB)
+
 		poolsConsumptionsMap := map[string]map[string]float64{}
 
-		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1858,6 +2093,11 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 	t.Run("UpdatePoolTieringConsumptionInDB_UpdateFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdatePoolTieringConsumptionInDB)
 
 		poolsConsumptionsMap := map[string]map[string]float64{
 			"pool-1-uuid": {
@@ -1868,9 +2108,9 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 
 		hot := int64(500000000000)
 		cold := int64(600000000000)
-		mockStorage.On("UpdatePoolTieringConfig", ctx, "pool-1-uuid", &hot, &cold, (*int64)(nil)).Return(errors.New("database error"))
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "pool-1-uuid", &hot, &cold, (*int64)(nil)).Return(errors.New("database error"))
 
-		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to update pool tiering consumption in DB")
 		assert.Contains(tt, err.Error(), "pool-1-uuid")
@@ -1881,6 +2121,11 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdatePoolTieringConsumptionInDB)
+
 		poolsConsumptionsMap := map[string]map[string]float64{
 			"single-pool-uuid": {
 				PoolConsumptionHotTier:  100000000000, // 100GB
@@ -1890,9 +2135,9 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 
 		hot := int64(100000000000)
 		cold := int64(200000000000)
-		mockStorage.On("UpdatePoolTieringConfig", ctx, "single-pool-uuid", &hot, &cold, (*int64)(nil)).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "single-pool-uuid", &hot, &cold, (*int64)(nil)).Return(nil)
 
-		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1900,6 +2145,11 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 	t.Run("UpdatePoolTieringConsumptionInDB_ZeroConsumption", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdatePoolTieringConsumptionInDB)
 
 		poolsConsumptionsMap := map[string]map[string]float64{
 			"zero-pool-uuid": {
@@ -1909,9 +2159,9 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 		}
 
 		zero := int64(0)
-		mockStorage.On("UpdatePoolTieringConfig", ctx, "zero-pool-uuid", &zero, &zero, (*int64)(nil)).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "zero-pool-uuid", &zero, &zero, (*int64)(nil)).Return(nil)
 
-		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1919,6 +2169,11 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 	t.Run("UpdatePoolTieringConsumptionInDB_MultiplePoolsWithOneFailure", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdatePoolTieringConsumptionInDB)
 
 		poolsConsumptionsMap := map[string]map[string]float64{
 			"failing-pool-uuid": {
@@ -1930,9 +2185,9 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 		// Mock to return error for this specific pool
 		hot := int64(500000000000)
 		cold := int64(600000000000)
-		mockStorage.On("UpdatePoolTieringConfig", ctx, "failing-pool-uuid", &hot, &cold, (*int64)(nil)).Return(errors.New("database error"))
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "failing-pool-uuid", &hot, &cold, (*int64)(nil)).Return(errors.New("database error"))
 
-		err := activity.UpdatePoolTieringConsumptionInDB(ctx, poolsConsumptionsMap)
+		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		// Should fail when encountering the error
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failing-pool-uuid")

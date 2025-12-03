@@ -310,16 +310,24 @@ func TestEnsureSmbIngressFirewall(t *testing.T) {
 func TestCreateJob_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := CommonActivities{SE: mockStorage}
-	ctx := context.Background()
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CreateJob)
+
 	job := &datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
 		State:     "PROCESSING",
 	}
 
-	mockStorage.On("CreateJob", ctx, job).Return(job, nil)
+	mockStorage.On("CreateJob", mock.Anything, job).Return(job, nil)
 
-	result, err := activity.CreateJob(ctx, job)
+	encodedValue, err := env.ExecuteActivity(activity.CreateJob, job)
 
+	assert.NoError(t, err)
+	var result *datamodel.Job
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, job, result)
 	mockStorage.AssertExpectations(t)
@@ -1589,19 +1597,26 @@ func (m mockTimeEncodedValue) HasValue() bool {
 
 // TestGetWorkflowLastExecutionTime tests the GetWorkflowLastExecutionTime method
 func TestGetWorkflowLastExecutionTime(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	workflowID := "test-workflow-id"
 
 	t.Run("Success - workflow completion time returned", func(t *testing.T) {
 		mockClient := workflow_engine.NewMockTemporalTestClient(t)
 		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetWorkflowLastExecutionTime)
+
 		expectedTime := time.Date(2023, 10, 15, 14, 30, 0, 0, time.UTC)
 		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
 			Return(mockTimeEncodedValue{err: false, value: expectedTime}, nil)
 
-		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+		encodedValue, err := env.ExecuteActivity(activity.GetWorkflowLastExecutionTime, workflowID)
 
+		assert.NoError(t, err)
+		var result *time.Time
+		err = encodedValue.Get(&result)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, expectedTime, *result)
@@ -1612,12 +1627,20 @@ func TestGetWorkflowLastExecutionTime(t *testing.T) {
 		mockClient := workflow_engine.NewMockTemporalTestClient(t)
 		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetWorkflowLastExecutionTime)
+
 		expectedError := errors.New("workflow not found")
 		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
 			Return(nil, expectedError)
 
-		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+		encodedValue, err := env.ExecuteActivity(activity.GetWorkflowLastExecutionTime, workflowID)
 
+		assert.NoError(t, err)
+		var result *time.Time
+		err = encodedValue.Get(&result)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, result.IsZero(), "Expected zero time when workflow is not found")
@@ -1628,13 +1651,17 @@ func TestGetWorkflowLastExecutionTime(t *testing.T) {
 		mockClient := workflow_engine.NewMockTemporalTestClient(t)
 		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetWorkflowLastExecutionTime)
+
 		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
 			Return(mockTimeEncodedValue{err: true}, nil)
 
-		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+		_, err := env.ExecuteActivity(activity.GetWorkflowLastExecutionTime, workflowID)
 
 		assert.Error(t, err)
-		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to decode workflow completion time")
 		mockClient.AssertExpectations(t)
 	})
@@ -1643,11 +1670,19 @@ func TestGetWorkflowLastExecutionTime(t *testing.T) {
 		mockClient := workflow_engine.NewMockTemporalTestClient(t)
 		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetWorkflowLastExecutionTime)
+
 		mockClient.On("QueryWorkflow", mock.Anything, "", "", "status").
 			Return(nil, errors.New("invalid workflow ID"))
 
-		result, err := activity.GetWorkflowLastExecutionTime(ctx, "")
+		encodedValue, err := env.ExecuteActivity(activity.GetWorkflowLastExecutionTime, "")
 
+		assert.NoError(t, err)
+		var result *time.Time
+		err = encodedValue.Get(&result)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, result.IsZero(), "Expected zero time for empty workflow ID")
@@ -1658,12 +1693,20 @@ func TestGetWorkflowLastExecutionTime(t *testing.T) {
 		mockClient := workflow_engine.NewMockTemporalTestClient(t)
 		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetWorkflowLastExecutionTime)
+
 		zeroTime := time.Time{}
 		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
 			Return(mockTimeEncodedValue{err: false, value: zeroTime}, nil)
 
-		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+		encodedValue, err := env.ExecuteActivity(activity.GetWorkflowLastExecutionTime, workflowID)
 
+		assert.NoError(t, err)
+		var result *time.Time
+		err = encodedValue.Get(&result)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, result.IsZero(), "Expected zero time to be returned as is")
@@ -1674,13 +1717,21 @@ func TestGetWorkflowLastExecutionTime(t *testing.T) {
 		mockClient := workflow_engine.NewMockTemporalTestClient(t)
 		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetWorkflowLastExecutionTime)
+
 		connectionError := errors.New("connection refused")
 		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
 			Return(nil, connectionError)
 
-		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+		encodedValue, err := env.ExecuteActivity(activity.GetWorkflowLastExecutionTime, workflowID)
 
 		assert.NoError(t, err, "Connection errors should return zero time, not propagate as error")
+		var result *time.Time
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, result.IsZero(), "Connection error should return zero time")
 		mockClient.AssertExpectations(t)
@@ -1690,12 +1741,20 @@ func TestGetWorkflowLastExecutionTime(t *testing.T) {
 		mockClient := workflow_engine.NewMockTemporalTestClient(t)
 		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetWorkflowLastExecutionTime)
+
 		expectedTime := time.Date(2023, 12, 25, 10, 15, 30, 123456789, time.UTC)
 		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
 			Return(mockTimeEncodedValue{err: false, value: expectedTime}, nil)
 
-		result, err := activity.GetWorkflowLastExecutionTime(ctx, workflowID)
+		encodedValue, err := env.ExecuteActivity(activity.GetWorkflowLastExecutionTime, workflowID)
 
+		assert.NoError(t, err)
+		var result *time.Time
+		err = encodedValue.Get(&result)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, expectedTime, *result)
@@ -1704,20 +1763,24 @@ func TestGetWorkflowLastExecutionTime(t *testing.T) {
 	})
 
 	t.Run("Error - context timeout", func(t *testing.T) {
-		timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Nanosecond)
-		defer cancel()
-		time.Sleep(2 * time.Nanosecond) // Ensure context is expired
-
 		mockClient := workflow_engine.NewMockTemporalTestClient(t)
 		activity := &WFLastExecutionActivity{TemporalClient: mockClient}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetWorkflowLastExecutionTime)
 
 		contextError := context.DeadlineExceeded
 		mockClient.On("QueryWorkflow", mock.Anything, workflowID, "", "status").
 			Return(nil, contextError)
 
-		result, err := activity.GetWorkflowLastExecutionTime(timeoutCtx, workflowID)
+		encodedValue, err := env.ExecuteActivity(activity.GetWorkflowLastExecutionTime, workflowID)
 
 		assert.NoError(t, err, "Context timeout should not propagate as error, should return zero time")
+		var result *time.Time
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, result.IsZero(), "Context timeout should return zero time")
 		mockClient.AssertExpectations(t)
@@ -1725,11 +1788,14 @@ func TestGetWorkflowLastExecutionTime(t *testing.T) {
 }
 
 func TestCommonActivity_ListPoolsUUID(t *testing.T) {
-	ctx := context.TODO()
-
 	t.Run("ListPoolsUUID_Success", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := CommonActivities{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ListPoolsUUID)
 
 		expectedPools := []*database.PoolIdentifier{
 			{
@@ -1746,9 +1812,12 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return(expectedPools, nil)
+		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.AnythingOfType("*utils.Filter")).Return(expectedPools, nil)
 
-		result, err := activity.ListPoolsUUID(ctx)
+		encodedValue, err := env.ExecuteActivity(activity.ListPoolsUUID)
+		assert.NoError(tt, err)
+		var result []*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result, 2)
 		assert.Equal(tt, expectedPools[0].Name, result[0].Name)
@@ -1766,9 +1835,17 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := CommonActivities{SE: mockStorage}
 
-		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*database.PoolIdentifier{}, nil)
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ListPoolsUUID)
 
-		result, err := activity.ListPoolsUUID(ctx)
+		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.AnythingOfType("*utils.Filter")).Return([]*database.PoolIdentifier{}, nil)
+
+		encodedValue, err := env.ExecuteActivity(activity.ListPoolsUUID)
+		assert.NoError(tt, err)
+		var result []*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result, 0)
 		mockStorage.AssertExpectations(tt)
@@ -1778,11 +1855,15 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := CommonActivities{SE: mockStorage}
 
-		mockStorage.On("ListPoolUUIDs", ctx, mock.AnythingOfType("*utils.Filter")).Return(nil, errors.New("database connection failed"))
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ListPoolsUUID)
 
-		result, err := activity.ListPoolsUUID(ctx)
+		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.AnythingOfType("*utils.Filter")).Return(nil, errors.New("database connection failed"))
+
+		_, err := env.ExecuteActivity(activity.ListPoolsUUID)
 		assert.Error(tt, err)
-		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "An internal error occurred.")
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1790,6 +1871,11 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 	t.Run("ListPoolsUUID_WithFilterConditions", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := CommonActivities{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ListPoolsUUID)
 
 		expectedPools := []*database.PoolIdentifier{
 			{
@@ -1800,7 +1886,7 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("ListPoolUUIDs", ctx, mock.MatchedBy(func(filter *dbUtils.Filter) bool {
+		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.MatchedBy(func(filter *dbUtils.Filter) bool {
 			// Verify that the filter contains the expected condition for state = "ready"
 			for _, condition := range filter.Conditions {
 				if condition.Field == "state" && condition.Op == "=" && condition.Value == models2.LifeCycleStateREADY {
@@ -1810,7 +1896,10 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 			return false
 		})).Return(expectedPools, nil)
 
-		result, err := activity.ListPoolsUUID(ctx)
+		encodedValue, err := env.ExecuteActivity(activity.ListPoolsUUID)
+		assert.NoError(tt, err)
+		var result []*database.PoolIdentifier
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Len(tt, result, 1)
 		assert.Equal(tt, expectedPools[0].Name, result[0].Name)

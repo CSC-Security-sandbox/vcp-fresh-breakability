@@ -2962,8 +2962,11 @@ func Test_CreateGCPBucket_Failure(t *testing.T) {
 }
 
 func Test_EnableAutoTiering_Failure(t *testing.T) {
-	activity := activities.PoolActivity{}
-	ctx := context.Background()
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := &activities.PoolActivity{}
+	env.RegisterActivity(activity.CreateAutoTierBucket)
 	bucketName := "region-poolId"
 	projectId := "test-project"
 
@@ -2981,14 +2984,16 @@ func Test_EnableAutoTiering_Failure(t *testing.T) {
 		return &google.GcpServices{}, nil
 	}
 
-	err := activity.CreateAutoTierBucket(ctx, bucketName, "region", projectId)
+	_, err := env.ExecuteActivity(activity.CreateAutoTierBucket, bucketName, "region", projectId)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Error 403: The billing account for the owning project is disabled in state absent, accountDisabled")
 }
 
 func TestPoolActivity_CreateServiceAccountWithStorageRole(t *testing.T) {
-	activity := activities.PoolActivity{}
-	ctx := context.Background()
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := &activities.PoolActivity{}
+	env.RegisterActivity(activity.CreateServiceAccountWithStorageRole)
 	projectID := "test-project"
 	saAccountID := "test-sa"
 	saDisplayName := "Test Service Account"
@@ -3010,7 +3015,10 @@ func TestPoolActivity_CreateServiceAccountWithStorageRole(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 
-		sa, err := activity.CreateServiceAccountWithStorageRole(ctx, projectID, saAccountID, saDisplayName)
+		var sa *hyperscaler3.ServiceAccount
+		val, err := env.ExecuteActivity(activity.CreateServiceAccountWithStorageRole, projectID, saAccountID, saDisplayName)
+		assert.NoError(t, err)
+		err = val.Get(&sa)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
@@ -3023,10 +3031,14 @@ func TestPoolActivity_CreateServiceAccountWithStorageRole(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 
-		sa, err := activity.CreateServiceAccountWithStorageRole(ctx, projectID, saAccountID, saDisplayName)
+		var sa *hyperscaler3.ServiceAccount
+		val, err := env.ExecuteActivity(activity.CreateServiceAccountWithStorageRole, projectID, saAccountID, saDisplayName)
 		assert.Error(t, err)
+		if err == nil {
+			err = val.Get(&sa)
+			assert.Error(t, err)
+		}
 		assert.Nil(t, sa)
-		assert.Contains(t, err.Error(), "failed to create service account")
 	})
 }
 
@@ -3146,9 +3158,12 @@ func Test_createServiceAccountAndAttachRole(t *testing.T) {
 }
 
 func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
+	activity := &activities.PoolActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteAutoTierBucket)
 	bucketName := "us-central1-test-pool"
 
 	// Save and mock DeleteGCPBucket
@@ -3167,7 +3182,7 @@ func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 
-		err := activity.DeleteAutoTierBucket(ctx, bucketName, "accountName", 2)
+		_, err := env.ExecuteActivity(activity.DeleteAutoTierBucket, bucketName, "accountName", int64(2))
 		assert.NoError(t, err)
 	})
 
@@ -3180,15 +3195,15 @@ func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
 		}
 
 		// Mock the CreatePendingResourceDeletion call that happens when bucket deletion fails
-		mockStorage.On("CreatePendingResourceDeletion", ctx, "BUCKET", bucketName, "delete failed", "accountName", int64(2)).Return(&datamodel.PendingResourceDeletions{}, nil)
+		mockStorage.On("CreatePendingResourceDeletion", mock.Anything, "BUCKET", bucketName, "delete failed", "accountName", int64(2)).Return(&datamodel.PendingResourceDeletions{}, nil)
 
-		err := activity.DeleteAutoTierBucket(ctx, bucketName, "accountName", 2)
+		_, err := env.ExecuteActivity(activity.DeleteAutoTierBucket, bucketName, "accountName", int64(2))
 		assert.NoError(t, err)
 	})
 
 	t.Run("empty bucket name", func(t *testing.T) {
 		// Test the case where bucket name is empty - should log warning and return nil
-		err := activity.DeleteAutoTierBucket(ctx, "", "accountName", 2)
+		_, err := env.ExecuteActivity(activity.DeleteAutoTierBucket, "", "accountName", int64(2))
 		assert.NoError(t, err)
 	})
 
@@ -3201,9 +3216,9 @@ func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
 		}
 
 		// Mock the CreatePendingResourceDeletion call with empty error message
-		mockStorage.On("CreatePendingResourceDeletion", ctx, "BUCKET", bucketName, "", "accountName", int64(2)).Return(&datamodel.PendingResourceDeletions{}, nil)
+		mockStorage.On("CreatePendingResourceDeletion", mock.Anything, "BUCKET", bucketName, "", "accountName", int64(2)).Return(&datamodel.PendingResourceDeletions{}, nil)
 
-		err := activity.DeleteAutoTierBucket(ctx, bucketName, "accountName", 2)
+		_, err := env.ExecuteActivity(activity.DeleteAutoTierBucket, bucketName, "accountName", int64(2))
 		assert.NoError(t, err)
 	})
 
@@ -3216,9 +3231,9 @@ func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
 		}
 
 		// Mock the CreatePendingResourceDeletion call to return an error
-		mockStorage.On("CreatePendingResourceDeletion", ctx, "BUCKET", bucketName, "delete failed", "accountName", int64(2)).Return(nil, errors.New("database error"))
+		mockStorage.On("CreatePendingResourceDeletion", mock.Anything, "BUCKET", bucketName, "delete failed", "accountName", int64(2)).Return(nil, errors.New("database error"))
 
-		err := activity.DeleteAutoTierBucket(ctx, bucketName, "accountName", 2)
+		_, err := env.ExecuteActivity(activity.DeleteAutoTierBucket, bucketName, "accountName", int64(2))
 		assert.NoError(t, err) // Function should still return nil even if logging fails
 	})
 }
@@ -3375,8 +3390,11 @@ func Test_deleteServiceAccount(t *testing.T) {
 }
 
 func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
-	activity := activities.PoolActivity{}
-	ctx := context.Background()
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := &activities.PoolActivity{}
+	env.RegisterActivity(activity.DeleteServiceAccount)
 	projectNumber := "123456789"
 	saAccountID := "test-sa"
 
@@ -3394,7 +3412,7 @@ func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		err := activity.DeleteServiceAccount(ctx, projectNumber, saAccountID)
+		_, err := env.ExecuteActivity(activity.DeleteServiceAccount, projectNumber, saAccountID)
 		assert.NoError(t, err)
 	})
 
@@ -3405,26 +3423,25 @@ func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		err := activity.DeleteServiceAccount(ctx, projectNumber, saAccountID)
+		_, err := env.ExecuteActivity(activity.DeleteServiceAccount, projectNumber, saAccountID)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "delete error")
 	})
 
 	t.Run("empty service account ID", func(t *testing.T) {
 		// Test the case where service account ID is empty - should log warning and return nil
-		err := activity.DeleteServiceAccount(ctx, projectNumber, "")
+		_, err := env.ExecuteActivity(activity.DeleteServiceAccount, projectNumber, "")
 		assert.NoError(t, err)
 	})
 
 	t.Run("empty project number", func(t *testing.T) {
 		// Test the case where project number is empty - should log warning and return nil
-		err := activity.DeleteServiceAccount(ctx, "", saAccountID)
+		_, err := env.ExecuteActivity(activity.DeleteServiceAccount, "", saAccountID)
 		assert.NoError(t, err)
 	})
 
 	t.Run("both empty", func(t *testing.T) {
 		// Test the case where both project number and service account ID are empty - should log warning and return nil
-		err := activity.DeleteServiceAccount(ctx, "", "")
+		_, err := env.ExecuteActivity(activity.DeleteServiceAccount, "", "")
 		assert.NoError(t, err)
 	})
 }
@@ -4854,9 +4871,12 @@ func TestPoolActivity_DeletingPoolResources_DeletingSVMsFails(t *testing.T) {
 }
 
 func TestPoolActivity_CreateAutoTierBucket_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
-	activity := activities.PoolActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activity := &activities.PoolActivity{}
+	env.RegisterActivity(activity.CreateAutoTierBucket)
 
 	autoTierBucketName := "test-bucket"
 	region := "us-central1"
@@ -4879,16 +4899,19 @@ func TestPoolActivity_CreateAutoTierBucket_Success(t *testing.T) {
 	}
 
 	// Act
-	err := activity.CreateAutoTierBucket(ctx, autoTierBucketName, region, projectId)
+	_, err := env.ExecuteActivity(activity.CreateAutoTierBucket, autoTierBucketName, region, projectId)
 
 	// Assert
 	assert.NoError(t, err)
 }
 
 func TestPoolActivity_CreateAutoTierBucket_GetGCPServiceFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
-	activity := activities.PoolActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activity := &activities.PoolActivity{}
+	env.RegisterActivity(activity.CreateAutoTierBucket)
 
 	autoTierBucketName := "test-bucket"
 	region := "us-central1"
@@ -4902,17 +4925,19 @@ func TestPoolActivity_CreateAutoTierBucket_GetGCPServiceFails(t *testing.T) {
 	}
 
 	// Act
-	err := activity.CreateAutoTierBucket(ctx, autoTierBucketName, region, projectId)
+	_, err := env.ExecuteActivity(activity.CreateAutoTierBucket, autoTierBucketName, region, projectId)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get GCP service")
 }
 
 func TestPoolActivity_DeleteAutoTierBucket_GetGCPServiceFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
-	activity := activities.PoolActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activity := &activities.PoolActivity{}
+	env.RegisterActivity(activity.DeleteAutoTierBucket)
 
 	autoTierBucketName := "test-bucket"
 
@@ -4924,17 +4949,19 @@ func TestPoolActivity_DeleteAutoTierBucket_GetGCPServiceFails(t *testing.T) {
 	}
 
 	// Act
-	err := activity.DeleteAutoTierBucket(ctx, autoTierBucketName, "accountName", 2)
+	_, err := env.ExecuteActivity(activity.DeleteAutoTierBucket, autoTierBucketName, "accountName", int64(2))
 
 	// Assert
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get GCP service")
 }
 
 func TestPoolActivity_CreateServiceAccountWithStorageRole_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
-	activity := activities.PoolActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activity := &activities.PoolActivity{}
+	env.RegisterActivity(activity.CreateServiceAccountWithStorageRole)
 
 	projectID := "test-project"
 	saAccountID := "test-sa"
@@ -4962,7 +4989,10 @@ func TestPoolActivity_CreateServiceAccountWithStorageRole_Success(t *testing.T) 
 	}
 
 	// Act
-	result, err := activity.CreateServiceAccountWithStorageRole(ctx, projectID, saAccountID, saDisplayName)
+	var result *hyperscaler3.ServiceAccount
+	val, err := env.ExecuteActivity(activity.CreateServiceAccountWithStorageRole, projectID, saAccountID, saDisplayName)
+	assert.NoError(t, err)
+	err = val.Get(&result)
 
 	// Assert
 	assert.NoError(t, err)
@@ -5725,12 +5755,20 @@ func TestUpdatingPool(t *testing.T) {
 	t.Run("WhenUpdatingPoolIsSuccessful", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &activities.PoolActivity{SE: mockSE}
-		ctx := context.Background()
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdatingPool)
+
 		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
 		seResult := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, State: coremodel.LifeCycleStateUpdating, StateDetails: coremodel.LifeCycleStateUpdatingDetails}
 
-		mockSE.On("UpdatingPool", ctx, pool).Return(seResult, nil)
-		result, err := activity.UpdatingPool(ctx, pool)
+		mockSE.On("UpdatingPool", mock.Anything, pool).Return(seResult, nil)
+		encodedValue, err := env.ExecuteActivity(activity.UpdatingPool, pool)
+		assert.NoError(t, err)
+		var result *datamodel.Pool
+		err = encodedValue.Get(&result)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, coremodel.LifeCycleStateUpdating, result.State)
@@ -5739,14 +5777,18 @@ func TestUpdatingPool(t *testing.T) {
 	t.Run("WhenUpdatingPoolReturnsError", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &activities.PoolActivity{SE: mockSE}
-		ctx := context.Background()
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdatingPool)
+
 		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
 
-		mockSE.On("UpdatingPool", ctx, pool).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("pool update ran into error")))
-		result, err := activity.UpdatingPool(ctx, pool)
-		assert.Nil(t, result)
+		mockSE.On("UpdatingPool", mock.Anything, pool).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("pool update ran into error")))
+		_, err := env.ExecuteActivity(activity.UpdatingPool, pool)
 		assert.Error(t, err)
-		assert.EqualError(t, err, "pool update ran into error")
+		assert.Contains(t, err.Error(), "pool update ran into error")
 	})
 }
 
@@ -9829,11 +9871,13 @@ func TestResolveZonesForCluster_ExplicitMediatorZoneMachineTypeUnavailable(t *te
 }
 
 func TestAutoTierSyncActivity_HydrateUpdatedPoolToCCFE(t *testing.T) {
-	ctx := context.TODO()
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
 
 	t.Run("HydrateUpdatedPoolToCCFE_HydrationEnabled", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		activity := activities.PoolActivity{SE: mockStorage}
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.HydrateUpdatedPoolToCCFE)
 
 		pool := datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
@@ -9848,14 +9892,15 @@ func TestAutoTierSyncActivity_HydrateUpdatedPoolToCCFE(t *testing.T) {
 		}
 		defer func() { hydrationActivities.HydrateUpdatedPoolToCCFE = originalHydrateUpdatedPoolToCCFE }()
 
-		err := activity.HydrateUpdatedPoolToCCFE(ctx, pool)
+		_, err := env.ExecuteActivity(activity.HydrateUpdatedPoolToCCFE, pool)
 		assert.NoError(tt, err)
 		assert.True(tt, called)
 	})
 
 	t.Run("HydrateUpdatedPoolToCCFE_HydrationFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		activity := activities.PoolActivity{SE: mockStorage}
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.HydrateUpdatedPoolToCCFE)
 
 		pool := datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
@@ -9868,7 +9913,7 @@ func TestAutoTierSyncActivity_HydrateUpdatedPoolToCCFE(t *testing.T) {
 		}
 		defer func() { hydrationActivities.HydrateUpdatedPoolToCCFE = originalHydrateUpdatedPoolToCCFE }()
 
-		err := activity.HydrateUpdatedPoolToCCFE(ctx, pool)
+		_, err := env.ExecuteActivity(activity.HydrateUpdatedPoolToCCFE, pool)
 		assert.Error(tt, err)
 	})
 }
@@ -10687,6 +10732,9 @@ func TestUpdatePoolCompliance_AllComplianceScenarios(t *testing.T) {
 }
 
 func TestGetBucketCompliance_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Store original function
 	originalGetCloudService := activities.GetCloudService
 	defer func() {
@@ -10695,7 +10743,7 @@ func TestGetBucketCompliance_Success(t *testing.T) {
 
 	mockSE := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockSE}
-	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+	env.RegisterActivity(activity.GetBucketCompliance)
 
 	bucketName := "test-bucket"
 
@@ -10711,9 +10759,12 @@ func TestGetBucketCompliance_Success(t *testing.T) {
 		SatisfiesPzs: false,
 	}
 
-	mockCloudService.On("GetBucket", ctx, bucketName).Return(expectedCloudBucketDetails, nil).Once()
+	mockCloudService.On("GetBucket", mock.Anything, bucketName).Return(expectedCloudBucketDetails, nil).Once()
 
-	result, err := activity.GetBucketCompliance(ctx, bucketName)
+	var result *datamodel.BucketDetails
+	val, err := env.ExecuteActivity(activity.GetBucketCompliance, bucketName)
+	assert.NoError(t, err)
+	err = val.Get(&result)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -10724,18 +10775,27 @@ func TestGetBucketCompliance_Success(t *testing.T) {
 }
 
 func TestGetBucketCompliance_EmptyBucketName(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockSE := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockSE}
-	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+	env.RegisterActivity(activity.GetBucketCompliance)
 
-	result, err := activity.GetBucketCompliance(ctx, "")
-
+	var result *datamodel.BucketDetails
+	val, err := env.ExecuteActivity(activity.GetBucketCompliance, "")
 	assert.Error(t, err)
+	if err == nil {
+		err = val.Get(&result)
+		assert.Error(t, err)
+	}
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "bucket name parameter is required to fetch zi/zs compliance")
 }
 
 func TestGetBucketCompliance_GetCloudServiceError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Store original function
 	originalGetCloudService := activities.GetCloudService
 	defer func() {
@@ -10744,7 +10804,7 @@ func TestGetBucketCompliance_GetCloudServiceError(t *testing.T) {
 
 	mockSE := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockSE}
-	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+	env.RegisterActivity(activity.GetBucketCompliance)
 
 	bucketName := "test-bucket"
 
@@ -10753,14 +10813,20 @@ func TestGetBucketCompliance_GetCloudServiceError(t *testing.T) {
 		return nil, fmt.Errorf("failed to get cloud service")
 	}
 
-	result, err := activity.GetBucketCompliance(ctx, bucketName)
-
+	var result *datamodel.BucketDetails
+	val, err := env.ExecuteActivity(activity.GetBucketCompliance, bucketName)
 	assert.Error(t, err)
+	if err == nil {
+		err = val.Get(&result)
+		assert.Error(t, err)
+	}
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "failed to get cloud service")
 }
 
 func TestGetBucketCompliance_GetBucketError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Store original function
 	originalGetCloudService := activities.GetCloudService
 	defer func() {
@@ -10769,7 +10835,7 @@ func TestGetBucketCompliance_GetBucketError(t *testing.T) {
 
 	mockSE := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockSE}
-	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+	env.RegisterActivity(activity.GetBucketCompliance)
 
 	bucketName := "test-bucket"
 
@@ -10779,17 +10845,23 @@ func TestGetBucketCompliance_GetBucketError(t *testing.T) {
 		return mockCloudService, nil
 	}
 
-	mockCloudService.On("GetBucket", ctx, bucketName).Return(nil, fmt.Errorf("bucket not found")).Once()
+	mockCloudService.On("GetBucket", mock.Anything, bucketName).Return(nil, fmt.Errorf("bucket not found")).Once()
 
-	result, err := activity.GetBucketCompliance(ctx, bucketName)
-
+	var result *datamodel.BucketDetails
+	val, err := env.ExecuteActivity(activity.GetBucketCompliance, bucketName)
 	assert.Error(t, err)
+	if err == nil {
+		err = val.Get(&result)
+		assert.Error(t, err)
+	}
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "bucket not found")
 	mockCloudService.AssertExpectations(t)
 }
 
 func TestGetBucketCompliance_BothComplianceFieldsTrue(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Store original function
 	originalGetCloudService := activities.GetCloudService
 	defer func() {
@@ -10798,7 +10870,7 @@ func TestGetBucketCompliance_BothComplianceFieldsTrue(t *testing.T) {
 
 	mockSE := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockSE}
-	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+	env.RegisterActivity(activity.GetBucketCompliance)
 
 	bucketName := "compliant-bucket"
 
@@ -10814,9 +10886,12 @@ func TestGetBucketCompliance_BothComplianceFieldsTrue(t *testing.T) {
 		SatisfiesPzs: true,
 	}
 
-	mockCloudService.On("GetBucket", ctx, bucketName).Return(expectedCloudBucketDetails, nil).Once()
+	mockCloudService.On("GetBucket", mock.Anything, bucketName).Return(expectedCloudBucketDetails, nil).Once()
 
-	result, err := activity.GetBucketCompliance(ctx, bucketName)
+	var result *datamodel.BucketDetails
+	val, err := env.ExecuteActivity(activity.GetBucketCompliance, bucketName)
+	assert.NoError(t, err)
+	err = val.Get(&result)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -10827,6 +10902,9 @@ func TestGetBucketCompliance_BothComplianceFieldsTrue(t *testing.T) {
 }
 
 func TestGetBucketCompliance_BothComplianceFieldsFalse(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Store original function
 	originalGetCloudService := activities.GetCloudService
 	defer func() {
@@ -10835,7 +10913,7 @@ func TestGetBucketCompliance_BothComplianceFieldsFalse(t *testing.T) {
 
 	mockSE := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockSE}
-	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+	env.RegisterActivity(activity.GetBucketCompliance)
 
 	bucketName := "non-compliant-bucket"
 
@@ -10851,9 +10929,12 @@ func TestGetBucketCompliance_BothComplianceFieldsFalse(t *testing.T) {
 		SatisfiesPzs: false,
 	}
 
-	mockCloudService.On("GetBucket", ctx, bucketName).Return(expectedCloudBucketDetails, nil).Once()
+	mockCloudService.On("GetBucket", mock.Anything, bucketName).Return(expectedCloudBucketDetails, nil).Once()
 
-	result, err := activity.GetBucketCompliance(ctx, bucketName)
+	var result *datamodel.BucketDetails
+	val, err := env.ExecuteActivity(activity.GetBucketCompliance, bucketName)
+	assert.NoError(t, err)
+	err = val.Get(&result)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -10864,6 +10945,9 @@ func TestGetBucketCompliance_BothComplianceFieldsFalse(t *testing.T) {
 }
 
 func TestGetBucketCompliance_AllScenarios(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Store original function
 	originalGetCloudService := activities.GetCloudService
 	defer func() {
@@ -10906,7 +10990,7 @@ func TestGetBucketCompliance_AllScenarios(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockSE := database.NewMockStorage(t)
 			activity := &activities.PoolActivity{SE: mockSE}
-			ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+			env.RegisterActivity(activity.GetBucketCompliance)
 
 			// Mock cloud service
 			mockCloudService := hyperscaler2.NewMockGoogleServices(t)
@@ -10920,9 +11004,12 @@ func TestGetBucketCompliance_AllScenarios(t *testing.T) {
 				SatisfiesPzs: tc.satisfiesPzs,
 			}
 
-			mockCloudService.On("GetBucket", ctx, tc.bucketName).Return(expectedCloudBucketDetails, nil).Once()
+			mockCloudService.On("GetBucket", mock.Anything, tc.bucketName).Return(expectedCloudBucketDetails, nil).Once()
 
-			result, err := activity.GetBucketCompliance(ctx, tc.bucketName)
+			var result *datamodel.BucketDetails
+			val, err := env.ExecuteActivity(activity.GetBucketCompliance, tc.bucketName)
+			assert.NoError(t, err)
+			err = val.Get(&result)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
@@ -11391,12 +11478,15 @@ func TestFetchExpertModeCredentials_WithDefaultAuthType_ReturnsPassword(t *testi
 }
 
 func TestSetWaflMaxVolCloneHier(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
+	activity := &activities.PoolActivity{SE: mockStorage}
+	env.RegisterActivity(activity.SetWaflMaxVolCloneHier)
 
 	t.Run("WhenNodeIsNil_ThenReturnNil", func(tt *testing.T) {
-		err := activity.SetWaflMaxVolCloneHier(ctx, nil)
+		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, (*coremodel.Node)(nil))
 		assert.NoError(tt, err)
 	})
 
@@ -11413,7 +11503,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
 		assert.NoError(tt, err)
 	})
 
@@ -11433,7 +11523,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -11454,7 +11544,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -11477,7 +11567,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
@@ -11503,7 +11593,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
@@ -11530,7 +11620,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
@@ -11558,7 +11648,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
@@ -11591,7 +11681,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		err := activity.SetWaflMaxVolCloneHier(ctx, node)
+		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)

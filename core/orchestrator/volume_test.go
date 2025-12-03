@@ -11296,7 +11296,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			LargeCapacity:           false,
 			IsClone:                 true,                  // MUST be true for cloneSharedBytes to be set
 			CreationToken:           "test-creation-token", // Required for file volumes
-			FileProperties: &models.FileProperties{
+			FileProperties:          &models.FileProperties{
 				// Required for NAS volumes (can be minimal)
 			},
 		}
@@ -18504,6 +18504,122 @@ func TestRevertVolume(t *testing.T) {
 		if !customerrors.IsNotFoundErr(jobErr) {
 			assert.Contains(tt, jobErr.Error(), "not found")
 		}
+	})
+
+	t.Run("WhenRevertVolumeReturnsOngoingJob", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		pool.PoolAttributes = &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		}
+		err = store.DB().Save(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to update pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			Account:   account,
+			State:     models.LifeCycleStateReverting,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		// Reload volume with relationships for convertDatastoreVolumeToModel
+		volume, err = store.GetVolumeWithAccountID(ctx, volume.UUID, account.ID)
+		if err != nil {
+			tt.Fatalf("Failed to reload volume: %v", err)
+		}
+		// Ensure PoolAttributes is set on the Pool
+		if volume.Pool != nil {
+			volume.Pool.PoolAttributes = pool.PoolAttributes
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		// Create an ongoing revert job for the volume
+		job := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "test-revert-job-uuid"},
+			Type:         string(models.JobTypeRevertVolume),
+			State:        string(models.JobsStatePROCESSING),
+			ResourceName: volume.Name,
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: volume.UUID, // Volume UUID
+			},
+		}
+		err = store.DB().Create(job).Error
+		assert.NoError(tt, err)
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+			SnapshotID:  snapshot.UUID,
+		}
+
+		resultVolume, jobUUID, err := orch.RevertVolume(ctx, params)
+		assert.NoError(tt, err, "Failed to revert volume")
+		assert.Equal(tt, "test-revert-job-uuid", jobUUID, "Expected job UUID to be returned")
+		assert.NotNil(tt, resultVolume, "Expected volume to be returned")
+		assert.Equal(tt, volume.UUID, resultVolume.UUID)
+		assert.Equal(tt, volume.Name, resultVolume.DisplayName)
+		assert.Equal(tt, models.LifeCycleStateReverting, resultVolume.LifeCycleState)
 	})
 }
 

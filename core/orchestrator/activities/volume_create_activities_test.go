@@ -2301,7 +2301,6 @@ func TestCreateSnapshotPolicyInONTAP(t *testing.T) {
 		return mockProvider, nil
 	}
 
-	ctx := context.Background()
 	activity := activities.VolumeCreateActivity{}
 	node := &models.Node{}
 	volume := &datamodel.Volume{
@@ -2323,18 +2322,31 @@ func TestCreateSnapshotPolicyInONTAP(t *testing.T) {
 
 	t.Run("Success", func(tt *testing.T) {
 		mockProvider.On("CreateSnapshotPolicy", mock.Anything).Return(nil)
-		err := activity.CreateSnapshotPolicyInONTAP(ctx, volume, node)
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateSnapshotPolicyInONTAP)
+
+		_, err := env.ExecuteActivity(activity.CreateSnapshotPolicyInONTAP, volume, node)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("NilNodeOrVolumeOrPolicy", func(tt *testing.T) {
-		err := activity.CreateSnapshotPolicyInONTAP(ctx, nil, node)
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateSnapshotPolicyInONTAP)
+
+		_, err := env.ExecuteActivity(activity.CreateSnapshotPolicyInONTAP, nil, node)
 		assert.NoError(tt, err)
-		err = activity.CreateSnapshotPolicyInONTAP(ctx, volume, nil)
+
+		_, err = env.ExecuteActivity(activity.CreateSnapshotPolicyInONTAP, volume, nil)
 		assert.NoError(tt, err)
+
 		volNoPolicy := &datamodel.Volume{}
-		err = activity.CreateSnapshotPolicyInONTAP(ctx, volNoPolicy, node)
+		_, err = env.ExecuteActivity(activity.CreateSnapshotPolicyInONTAP, volNoPolicy, node)
 		assert.NoError(tt, err)
 	})
 }
@@ -2423,7 +2435,6 @@ func TestUpdateVolumeStateInDB_Error(t *testing.T) {
 }
 
 func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
-	ctx := context.Background()
 	activity := activities.VolumeCreateActivity{}
 	node := &models.Node{}
 	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"}}
@@ -2459,7 +2470,13 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
-		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.InitiateSplitForVolume)
+
+		_, err := env.ExecuteActivity(activity.InitiateSplitForVolume, volume, node, snapshot)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "provider error")
 		mockProvider.AssertExpectations(tt)
@@ -2483,7 +2500,12 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 				params.SnapReserve == nil
 		})).Return(nil).Once()
 
-		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.InitiateSplitForVolume)
+
+		_, err := env.ExecuteActivity(activity.InitiateSplitForVolume, volume, node, snapshot)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -2502,15 +2524,18 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 			return params.InitiateSplit == true
 		})).Return(errors.New("failed to initiate split")).Once()
 
-		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.InitiateSplitForVolume)
+
+		_, err := env.ExecuteActivity(activity.InitiateSplitForVolume, volume, node, snapshot)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to initiate split")
 		mockProvider.AssertExpectations(tt)
 	})
 }
 func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
 	// Set up file protocol support for testing
 	utils.SetFileProtocolSupportedForTesting(true)
 	utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
@@ -2606,8 +2631,13 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *
 		return mockProvider, nil
 	}
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateClonedVolumeBeforeSplit)
+
 	// Act
-	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateClonedVolumeBeforeSplit, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -2620,8 +2650,6 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *
 
 func TestUpdateClonedVolumeBeforeSplit_WithNonFileVolume_Success(t *testing.T) {
 	// This test covers the case where file protocol is not supported
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
 	mockStorage := database.NewMockStorage(t)
 	mockScheduler := &scheduler.TemporalScheduler{}
 	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -2698,8 +2726,13 @@ func TestUpdateClonedVolumeBeforeSplit_WithNonFileVolume_Success(t *testing.T) {
 		return mockProvider, nil
 	}
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateClonedVolumeBeforeSplit)
+
 	// Act
-	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateClonedVolumeBeforeSplit, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -2712,8 +2745,6 @@ func TestUpdateClonedVolumeBeforeSplit_WithNonFileVolume_Success(t *testing.T) {
 
 func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeButNoExportPolicy_Success(t *testing.T) {
 	// This test covers the case where file protocol is supported but ExportPolicy is nil
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
 	mockStorage := database.NewMockStorage(t)
 	mockScheduler := &scheduler.TemporalScheduler{}
 	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -2792,8 +2823,13 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeButNoExportPolicy_Success(t
 		return mockProvider, nil
 	}
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateClonedVolumeBeforeSplit)
+
 	// Act
-	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateClonedVolumeBeforeSplit, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -2806,8 +2842,6 @@ func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeButNoExportPolicy_Success(t
 
 func TestUpdateClonedVolumeBeforeSplit_ProviderError(t *testing.T) {
 	// This test covers the case where GetProviderByNode returns an error (line 822)
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
 	mockStorage := database.NewMockStorage(t)
 	mockScheduler := &scheduler.TemporalScheduler{}
 	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -2840,8 +2874,13 @@ func TestUpdateClonedVolumeBeforeSplit_ProviderError(t *testing.T) {
 		return nil, errors.New("provider error")
 	}
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateClonedVolumeBeforeSplit)
+
 	// Act
-	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateClonedVolumeBeforeSplit, volume, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -2850,8 +2889,6 @@ func TestUpdateClonedVolumeBeforeSplit_ProviderError(t *testing.T) {
 
 func TestUpdateClonedVolumeBeforeSplit_UpdateVolumeError(t *testing.T) {
 	// This test covers the case where updateVolume returns an error (line 837)
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
 	mockStorage := database.NewMockStorage(t)
 	mockScheduler := &scheduler.TemporalScheduler{}
 	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -2888,8 +2925,13 @@ func TestUpdateClonedVolumeBeforeSplit_UpdateVolumeError(t *testing.T) {
 		return mockProvider, nil
 	}
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateClonedVolumeBeforeSplit)
+
 	// Act
-	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateClonedVolumeBeforeSplit, volume, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -2899,8 +2941,6 @@ func TestUpdateClonedVolumeBeforeSplit_UpdateVolumeError(t *testing.T) {
 
 func TestUpdateClonedVolumeBeforeSplit_GetVolumeError(t *testing.T) {
 	// This test covers the case where GetVolume returns an error (lines 847-848)
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
 	mockStorage := database.NewMockStorage(t)
 	mockScheduler := &scheduler.TemporalScheduler{}
 	activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: mockScheduler}
@@ -2942,8 +2982,13 @@ func TestUpdateClonedVolumeBeforeSplit_GetVolumeError(t *testing.T) {
 		return mockProvider, nil
 	}
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateClonedVolumeBeforeSplit)
+
 	// Act
-	_, err := activity.UpdateClonedVolumeBeforeSplit(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateClonedVolumeBeforeSplit, volume, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -2961,7 +3006,6 @@ func TestUpdateLunName(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		ctx := context.Background()
 		activity := activities.VolumeCreateActivity{}
 		node := &models.Node{}
 		volume := &datamodel.Volume{
@@ -2983,12 +3027,21 @@ func TestUpdateLunName(t *testing.T) {
 			AFSSize:      1073741824,
 			MetadataSize: 12345,
 		}
-		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, lun)
-		assert.Equal(t, lunResponse, lun)
-		mockProvider.AssertExpectations(t)
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateLunName)
+
+		encodedValue, err := env.ExecuteActivity(activity.UpdateLunName, volume, node, ontapRes)
+		assert.NoError(tt, err)
+
+		var lun *vsa.LunResponse
+		err = encodedValue.Get(&lun)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, lun)
+		assert.Equal(tt, lunResponse, lun)
+		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("TestUpdateLunNameLunNotFoundInitially", func(tt *testing.T) {
@@ -3000,7 +3053,6 @@ func TestUpdateLunName(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		ctx := context.Background()
 		activity := activities.VolumeCreateActivity{}
 		node := &models.Node{}
 		volume := &datamodel.Volume{
@@ -3014,11 +3066,16 @@ func TestUpdateLunName(t *testing.T) {
 			AFSSize:      1073741824,
 			MetadataSize: 12345,
 		}
-		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
 
-		assert.Error(t, err)
-		assert.Nil(t, lun)
-		mockProvider.AssertExpectations(t)
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateLunName)
+
+		_, err := env.ExecuteActivity(activity.UpdateLunName, volume, node, ontapRes)
+
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("TestUpdateLunNameLunUpdateFails", func(tt *testing.T) {
@@ -3030,7 +3087,6 @@ func TestUpdateLunName(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		ctx := context.Background()
 		activity := activities.VolumeCreateActivity{}
 		node := &models.Node{}
 		volume := &datamodel.Volume{
@@ -3051,11 +3107,15 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 		mockProvider.On("LunUpdate", mock.Anything).Return(errors.New("failed to update lun"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateLunName)
 
-		assert.Error(t, err)
-		assert.Nil(t, lun)
-		mockProvider.AssertExpectations(t)
+		_, err := env.ExecuteActivity(activity.UpdateLunName, volume, node, ontapRes)
+
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("TestUpdateLunNameLunNotFoundAfterUpdate", func(tt *testing.T) {
@@ -3067,7 +3127,6 @@ func TestUpdateLunName(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		ctx := context.Background()
 		activity := activities.VolumeCreateActivity{}
 		node := &models.Node{}
 		volume := &datamodel.Volume{
@@ -3090,11 +3149,15 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
 		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateLunName)
 
-		assert.Error(t, err)
-		assert.Nil(t, lun)
-		mockProvider.AssertExpectations(t)
+		_, err := env.ExecuteActivity(activity.UpdateLunName, volume, node, ontapRes)
+
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("TestUpdateLunNameWhenLunSpaceLessThanLunSize", func(tt *testing.T) {
@@ -3106,7 +3169,6 @@ func TestUpdateLunName(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		ctx := context.Background()
 		activity := activities.VolumeCreateActivity{}
 		node := &models.Node{}
 		volume := &datamodel.Volume{
@@ -3140,8 +3202,17 @@ func TestUpdateLunName(t *testing.T) {
 		// Mock the second LunGet call
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateLunName)
+
 		// Act
-		lun, err := activity.UpdateLunName(ctx, volume, node, ontapRes)
+		encodedValue, err := env.ExecuteActivity(activity.UpdateLunName, volume, node, ontapRes)
+		assert.NoError(tt, err)
+
+		var lun *vsa.LunResponse
+		err = encodedValue.Get(&lun)
 
 		// Assert
 		assert.NoError(tt, err)
@@ -4081,6 +4152,8 @@ func TestUpdateVolumeAttributesInDB_Success(t *testing.T) {
 		"volume_attributes": volumeAttributes,
 	}).Return(nil)
 
+	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
+
 	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, volumeAttributes)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -4100,6 +4173,8 @@ func TestUpdateVolumeAttributesInDB_WithNilAttributes(t *testing.T) {
 	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
 		"volume_attributes": volumeAttributes,
 	}).Return(nil)
+
+	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
 
 	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, volumeAttributes)
 	assert.NoError(t, err)
@@ -4126,6 +4201,8 @@ func TestUpdateVolumeAttributesInDB_Error(t *testing.T) {
 		"volume_attributes": volumeAttributes,
 	}).Return(expectedErr)
 
+	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
+
 	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, volumeAttributes)
 	assert.Error(t, err)
 	// Check that the error is wrapped as a temporal application error
@@ -4151,6 +4228,7 @@ func TestUpdateVolumeAttributesInDB_EmptyUUID(t *testing.T) {
 		"volume_attributes": volumeAttributes,
 	}).Return(nil)
 
+	env.RegisterActivity(activity.UpdateVolumeAttributesInDB)
 	_, err := env.ExecuteActivity(activity.UpdateVolumeAttributesInDB, volumeUUID, volumeAttributes)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -4405,7 +4483,6 @@ func TestLunSizeUpdateValidation_Success(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -4426,8 +4503,13 @@ func TestLunSizeUpdateValidation_Success(t *testing.T) {
 		Size: lunSize,
 	}, nil)
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.LunSizeUpdateValidation)
+
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.LunSizeUpdateValidation, volume, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -4446,7 +4528,6 @@ func TestLunSizeUpdateValidation_ProviderError(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -4455,8 +4536,14 @@ func TestLunSizeUpdateValidation_ProviderError(t *testing.T) {
 		},
 	}
 	node := &models.Node{}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.LunSizeUpdateValidation)
+
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.LunSizeUpdateValidation, volume, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -4476,7 +4563,6 @@ func TestLunSizeUpdateValidation_LunNotFound(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -4493,8 +4579,13 @@ func TestLunSizeUpdateValidation_LunNotFound(t *testing.T) {
 		LunName:    "",
 	}).Return(nil, errors.New("lun not found"))
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.LunSizeUpdateValidation)
+
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.LunSizeUpdateValidation, volume, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -4515,7 +4606,6 @@ func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveZero(t *testing.T) 
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -4535,8 +4625,13 @@ func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveZero(t *testing.T) 
 		Size: lunSize,
 	}, nil)
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.LunSizeUpdateValidation)
+
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.LunSizeUpdateValidation, volume, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -4557,7 +4652,6 @@ func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveGreaterThanZero(t *
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -4577,8 +4671,13 @@ func TestLunSizeUpdateValidation_SizeReductionWithSnapReserveGreaterThanZero(t *
 		Size: lunSize,
 	}, nil)
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.LunSizeUpdateValidation)
+
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.LunSizeUpdateValidation, volume, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -4599,7 +4698,6 @@ func TestLunSizeUpdateValidation_ExactSizeMatch(t *testing.T) {
 	activity := activities.VolumeCreateActivity{
 		SE: database.NewMockStorage(t),
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{
 		Name: "test-volume",
 		Svm:  &datamodel.Svm{Name: "test-svm"},
@@ -4620,8 +4718,13 @@ func TestLunSizeUpdateValidation_ExactSizeMatch(t *testing.T) {
 		Size: lunSize,
 	}, nil)
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.LunSizeUpdateValidation)
+
 	// Act
-	err := activity.LunSizeUpdateValidation(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.LunSizeUpdateValidation, volume, node)
 
 	// Assert
 	assert.NoError(t, err)

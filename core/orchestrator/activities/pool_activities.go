@@ -281,18 +281,21 @@ func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool, vl
 
 // SetWaflMaxVolCloneHier sets the wafl.maxvolclonehier option on the ONTAP cluster
 func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.Node) error {
+	activity.RecordHeartbeat(ctx, "Initializing WAFL maxvolclonehier configuration")
 	logger := util.GetLogger(ctx)
 	if node == nil {
 		logger.Warnf("SetWaflMaxVolCloneHier: node is nil, skipping")
 		return nil
 	}
 
+	activity.RecordHeartbeat(ctx, "Getting ONTAP provider")
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("SetWaflMaxVolCloneHier failed to get provider: %v", err)
 		return nil
 	}
 
+	activity.RecordHeartbeat(ctx, "Creating REST client")
 	restClient, err := provider.CreateRESTClient()
 	if err != nil {
 		logger.Errorf("SetWaflMaxVolCloneHier failed to create REST client: %v", err)
@@ -303,12 +306,14 @@ func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.
 		return nil
 	}
 
+	activity.RecordHeartbeat(ctx, "Getting networking client")
 	networkingClient := restClient.Networking()
 	if networkingClient == nil {
 		logger.Warnf("SetWaflMaxVolCloneHier: networking client is nil")
 		return nil
 	}
 
+	activity.RecordHeartbeat(ctx, "Executing CLI command to set WAFL maxvolclonehier")
 	nodeName := "*" // Applying maxvolclonehier to all the available nodes
 	cliInput := fmt.Sprintf("system node run -node %s -command options wafl.maxvolclonehier %d", nodeName, maxNestedCloneLimit)
 	cliPrivilege := "admin"
@@ -330,6 +335,7 @@ func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.
 		logger.Warnf("SetWaflMaxVolCloneHier received empty response")
 		return nil
 	}
+	activity.RecordHeartbeat(ctx, "WAFL maxvolclonehier configured successfully")
 
 	logger.Infof("wafl.maxvolclonehier updated successfully for node %s to %d, response: %s", nodeName, maxNestedCloneLimit, response.Payload.Output)
 	return nil
@@ -446,8 +452,10 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 }
 
 func (j *PoolActivity) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	activity.RecordHeartbeat(ctx, "Initializing pool update operation")
 	se := j.SE
 	pool, err := se.UpdatingPool(ctx, pool)
+	activity.RecordHeartbeat(ctx, "Updated pool state in database")
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1872,14 +1880,17 @@ func (j *PoolActivity) DeletePoolResources(ctx context.Context, pool *datamodel.
 // Returns:
 // - An error if the bucket creation fails or if there is an issue initializing GCP services.
 func (j *PoolActivity) CreateAutoTierBucket(ctx context.Context, autoTierBucketName string, region string, projectId string) error {
+	activity.RecordHeartbeat(ctx, "Initializing auto-tier bucket creation")
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Creating auto-tier bucket in GCP")
 	err = CreateGCPBucket(ctx, projectId, autoTierBucketName, region, gcpService)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Auto-tier bucket created successfully")
 
 	return nil
 }
@@ -1888,6 +1899,7 @@ func (j *PoolActivity) CreateAutoTierBucket(ctx context.Context, autoTierBucketN
 // It initializes a GCP service client and attempts to delete the bucket.
 // Returns an error if the deletion fails or if GCP service initialization fails.
 func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketName string, accountName string, poolID int64) error {
+	activity.RecordHeartbeat(ctx, "Initializing auto-tier bucket deletion")
 	logger := util.GetLogger(ctx)
 	if autoTierBucketName == "" {
 		// If the bucket name is empty, log a warning and return nil
@@ -1899,9 +1911,11 @@ func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketN
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Deleting auto-tier bucket from GCP")
 	logger.Debugf("Deleting autoTiering bucket %v", autoTierBucketName)
 	isDeleted, err := DeleteGCPBucket(ctx, autoTierBucketName, gcpService)
 	if !isDeleted {
+		activity.RecordHeartbeat(ctx, "Bucket deletion pending, creating pending resource deletion entry")
 		var errorMessage string
 		if err != nil {
 			errorMessage = err.Error()
@@ -1915,6 +1929,7 @@ func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketN
 			// TODO: Alert about persistent failure to insert pending resource deletion for auto-tiering bucket.
 		}
 	}
+	activity.RecordHeartbeat(ctx, "DeleteAutoTierBucket activity completed successfully")
 
 	return nil
 }
@@ -1953,20 +1968,24 @@ func _deleteGCPBucket(ctx context.Context, bucketName string, gcpService hypersc
 // Returns:
 // - The created *iam.ServiceAccount, or an error if creation or role attachment fails.
 func (j *PoolActivity) CreateServiceAccountWithStorageRole(ctx context.Context, projectID string, saAccountID string, saDisplayName string) (*hyperscaler_models.ServiceAccount, error) {
+	activity.RecordHeartbeat(ctx, "Initializing service account creation with storage role")
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Creating service account and attaching storage role")
 	sa, err := CreateServiceAccountAndAttachRole(ctx, projectID, saAccountID, saDisplayName, gcpService)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Service account created successfully with storage role")
 	return sa, nil
 }
 
 func (j *PoolActivity) DeleteServiceAccount(ctx context.Context, projectID string, saAccountID string) error {
+	activity.RecordHeartbeat(ctx, "Initializing service account deletion")
 	logger := util.GetLogger(ctx)
 	if saAccountID == "" || projectID == "" {
 		// If the service account ID or project ID is empty, log a warning and return nil
@@ -1978,11 +1997,13 @@ func (j *PoolActivity) DeleteServiceAccount(ctx context.Context, projectID strin
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Removing storage role and deleting service account")
 	err = DeleteServiceAccountAndRemoveStorageRole(ctx, projectID, saAccountID, gcpService)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Service account deleted successfully")
 	return nil
 }
 
@@ -2631,6 +2652,7 @@ func _createLargeVolumeVMRSConfig(originalConfig *vmrs.VMRSConfig) *vmrs.VMRSCon
 }
 
 func (j *PoolActivity) HydrateUpdatedPoolToCCFE(ctx context.Context, dbPool datamodel.Pool) error {
+	activity.RecordHeartbeat(ctx, "Initializing pool hydration to CCFE")
 	logger := util.GetLogger(ctx)
 
 	if !hydrationEnabled {
@@ -2638,11 +2660,13 @@ func (j *PoolActivity) HydrateUpdatedPoolToCCFE(ctx context.Context, dbPool data
 		return nil
 	}
 
+	activity.RecordHeartbeat(ctx, "Hydrating updated pool to CCFE")
 	err := hydrationActivities.HydrateUpdatedPoolToCCFE(ctx, dbPool)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Pool hydrated to CCFE successfully")
 	return nil
 }
 
@@ -2754,6 +2778,7 @@ func (a *PoolActivity) UpdatePoolCompliance(ctx context.Context, input UpdatePoo
 }
 
 func (a *PoolActivity) GetBucketCompliance(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+	activity.RecordHeartbeat(ctx, "Initializing bucket compliance check")
 	logger := util.GetLogger(ctx)
 
 	if bucketName == "" {
@@ -2761,6 +2786,7 @@ func (a *PoolActivity) GetBucketCompliance(ctx context.Context, bucketName strin
 		return nil, fmt.Errorf("bucket name parameter is required to fetch zi/zs compliance")
 	}
 
+	activity.RecordHeartbeat(ctx, "Getting cloud service")
 	// Get cloud service
 	cloudService, err := GetCloudService(ctx)
 	if err != nil {
@@ -2768,6 +2794,7 @@ func (a *PoolActivity) GetBucketCompliance(ctx context.Context, bucketName strin
 		return nil, err
 	}
 
+	activity.RecordHeartbeat(ctx, "Retrieving bucket compliance details from GCP")
 	// Get bucket details from GCP API
 	cloudBucketDetails, err := cloudService.GetBucket(ctx, bucketName)
 	if err != nil {
@@ -2775,6 +2802,7 @@ func (a *PoolActivity) GetBucketCompliance(ctx context.Context, bucketName strin
 		return nil, err
 	}
 
+	activity.RecordHeartbeat(ctx, "Bucket compliance check completed successfully")
 	logger.Infof("Successfully retrieved bucket details from GCP for fetching zi/zs compliance, bucketName: %s", bucketName)
 	logger.Infof("Received bucket compliance details from GCP - satisfiesPzi: %t, satisfiesPzs: %t", cloudBucketDetails.SatisfiesPzi, cloudBucketDetails.SatisfiesPzs)
 

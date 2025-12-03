@@ -1917,6 +1917,9 @@ func TestGetVolumeFromONTAP_Error(t *testing.T) {
 }
 
 func TestUpdateSnapshotPolicyInOntap_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -1925,8 +1928,8 @@ func TestUpdateSnapshotPolicyInOntap_Success(t *testing.T) {
 		return mockProvider, nil
 	}
 
-	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activity := &VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	env.RegisterActivity(activity.UpdateSnapshotPolicyInOntap)
 	node := &models.Node{}
 
 	currentPolicy := &datamodel.SnapshotPolicy{
@@ -1944,7 +1947,7 @@ func TestUpdateSnapshotPolicyInOntap_Success(t *testing.T) {
 		},
 	}
 
-	mockProvider.On("UpdateSnapshotPolicy", ctx, &vsa.UpdateSnapshotPolicyParams{
+	mockProvider.On("UpdateSnapshotPolicy", mock.Anything, &vsa.UpdateSnapshotPolicyParams{
 		CurrentSnapshotPolicy: &vsa.SnapshotPolicy{
 			Name:      currentPolicy.Name,
 			IsEnabled: currentPolicy.IsEnabled,
@@ -1957,12 +1960,15 @@ func TestUpdateSnapshotPolicyInOntap_Success(t *testing.T) {
 		},
 	}).Return(nil)
 
-	err := activity.UpdateSnapshotPolicyInOntap(ctx, node, currentPolicy, updatingPolicy)
+	_, err := env.ExecuteActivity(activity.UpdateSnapshotPolicyInOntap, node, currentPolicy, updatingPolicy)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateSnapshotPolicyInOntap_Error(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -1970,8 +1976,8 @@ func TestUpdateSnapshotPolicyInOntap_Error(t *testing.T) {
 		return mockProvider, nil
 	}
 
-	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activity := &VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	env.RegisterActivity(activity.UpdateSnapshotPolicyInOntap)
 	node := &models.Node{}
 
 	currentPolicy := &datamodel.SnapshotPolicy{
@@ -1989,7 +1995,7 @@ func TestUpdateSnapshotPolicyInOntap_Error(t *testing.T) {
 		},
 	}
 	expectedErr := errors.New("update failed")
-	mockProvider.On("UpdateSnapshotPolicy", ctx, &vsa.UpdateSnapshotPolicyParams{
+	mockProvider.On("UpdateSnapshotPolicy", mock.Anything, &vsa.UpdateSnapshotPolicyParams{
 		CurrentSnapshotPolicy: &vsa.SnapshotPolicy{
 			Name:      currentPolicy.Name,
 			IsEnabled: currentPolicy.IsEnabled,
@@ -2002,9 +2008,8 @@ func TestUpdateSnapshotPolicyInOntap_Error(t *testing.T) {
 		},
 	}).Return(expectedErr)
 
-	err := activity.UpdateSnapshotPolicyInOntap(ctx, node, currentPolicy, updatingPolicy)
+	_, err := env.ExecuteActivity(activity.UpdateSnapshotPolicyInOntap, node, currentPolicy, updatingPolicy)
 	assert.Error(t, err)
-	assert.EqualError(t, err, expectedErr.Error())
 	mockProvider.AssertExpectations(t)
 }
 

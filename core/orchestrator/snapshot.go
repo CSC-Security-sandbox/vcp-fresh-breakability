@@ -121,7 +121,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 			utils2.NewFilterCondition("type", "=", string(models.JobTypeCreateSnapshot)),
 			utils2.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
 			utils2.NewFilterCondition("state", "!=", string(models.JobsStateERROR)),
-			utils2.NewFilterCondition("job_attributes ->> 'resource_uuid'", "=", volume.UUID))
+			utils2.NewFilterCondition("job_attributes ->> 'volume_uuid'", "=", volume.UUID))
 
 		jobs, err := se.GetJobsWithCondition(ctx, *filter)
 		if err != nil {
@@ -146,19 +146,8 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		}
 	}
 
-	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateSnapshot),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name,
-		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
-		RequestID:     utils.GetRequestIDFromContext(ctx),
-		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: volume.UUID, // Storing the snapshot's volume UUID for idempotency check
-		},
-	}
-
 	var dbSnapshot *datamodel.Snapshot
+	var job *datamodel.Job
 	// Cleanup in case of error
 	defer func() {
 		if err != nil {
@@ -177,12 +166,6 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		}
 	}()
 
-	job, err = se.CreateJob(ctx, job)
-	if err != nil {
-		logger.Errorf("Failed to create job in database. Error: %v", err)
-		return nil, "", err
-	}
-
 	snapshot := &datamodel.Snapshot{
 		Name:               params.Name,
 		Description:        params.Description,
@@ -198,6 +181,25 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	dbSnapshot, err = se.CreatingSnapshot(ctx, snapshot)
 	if err != nil {
 		logger.Errorf("Failed to create snapshot in database. Error: %v", err)
+		return nil, "", err
+	}
+
+	job = &datamodel.Job{
+		Type:          string(models.JobTypeCreateSnapshot),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbSnapshot.UUID, // Storing the snapshot UUID
+			VolumeUUID:   volume.UUID,     // Storing the volume UUID for idempotency check
+		},
+	}
+
+	job, err = se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create job in database. Error: %v", err)
 		return nil, "", err
 	}
 
@@ -641,7 +643,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		utils2.NewFilterCondition("type", "=", string(models.JobTypeDeleteSnapshot)),
 		utils2.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
 		utils2.NewFilterCondition("state", "!=", string(models.JobsStateERROR)),
-		utils2.NewFilterCondition("job_attributes ->> 'resource_uuid'", "=", volume.UUID))
+		utils2.NewFilterCondition("job_attributes ->> 'volume_uuid'", "=", volume.UUID))
 
 	jobs, err := se.GetJobsWithCondition(ctx, *filter)
 	if err != nil {
@@ -661,7 +663,8 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: volume.UUID, // Storing the snapshot's volume UUID for idempotency check
+			ResourceUUID: snapshot.UUID, // Storing the snapshot UUID
+			VolumeUUID:   volume.UUID,   // Storing the volume UUID for idempotency check
 		},
 	}
 

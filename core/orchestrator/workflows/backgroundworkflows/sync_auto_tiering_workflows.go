@@ -31,8 +31,14 @@ const (
 )
 
 var (
-	ConsecutiveUpdatePoolTimeGapAllowedMinutes = env.GetFloat64("CONSECUTIVE_UPDATE_POOL_TIME_GAP_ALLOWED_MINUTES", 240)
-	AutoTieringSyncActivityMaxAttempts         = env.GetInt("AUTO_TIERING_SYNC_ACTIVITY_MAX_ATTEMPTS", 1)
+	ConsecutiveUpdatePoolTimeGapAllowedMinutes                 = env.GetFloat64("CONSECUTIVE_UPDATE_POOL_TIME_GAP_ALLOWED_MINUTES", 240)
+	AutoTieringSyncActivityMaxAttempts                         = env.GetInt("AUTO_TIERING_SYNC_ACTIVITY_MAX_ATTEMPTS", 1)
+	syncVSAAutoTieringWorkflowStartToCloseTimeoutSec           = env.GetUint64("SYNC_VSA_AUTO_TIERING_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 300)
+	autoTieringPauseResumeWorkflowStartToCloseTimeoutSec       = env.GetUint64("AUTO_TIERING_PAUSE_RESUME_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 300)
+	autoTieringHotTierAutoResizeWorkflowStartToCloseTimeoutSec = env.GetUint64("AUTO_TIERING_HOT_TIER_AUTO_RESIZE_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 300)
+	syncVSAAutoTieringWorkflowHeartbeatTimeoutSec              = env.GetUint64("SYNC_VSA_AUTO_TIERING_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
+	autoTieringPauseResumeWorkflowHeartbeatTimeoutSec          = env.GetUint64("AUTO_TIERING_PAUSE_RESUME_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
+	autoTieringHotTierAutoResizeWorkflowHeartbeatTimeoutSec    = env.GetUint64("AUTO_TIERING_HOT_TIER_AUTO_RESIZE_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
 )
 
 // SyncVSAAutoTieringWorkflow is a workflow that synchronizes auto-tiering for all pools.
@@ -49,7 +55,8 @@ func SyncVSAAutoTieringWorkflow(ctx workflow.Context) error {
 		return err
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(syncVSAAutoTieringWorkflowStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(syncVSAAutoTieringWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -216,7 +223,8 @@ func AutoTieringPauseResumeWorkflow(ctx workflow.Context, poolIdentifier databas
 		return err
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(autoTieringPauseResumeWorkflowStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(autoTieringPauseResumeWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -271,8 +279,8 @@ func AutoTieringPauseResumeWorkflow(ctx workflow.Context, poolIdentifier databas
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:           dbNodes,
-		DeploymentName:  pool.DeploymentName,
+		Nodes:            dbNodes,
+		DeploymentName:   pool.DeploymentName,
 		OntapCredentials: pool.PoolCredentials,
 	})
 
@@ -348,7 +356,8 @@ func (wf *autoTieringHotTierAutoResizeWorkflow) Run(ctx workflow.Context, args .
 		return nil, err
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(autoTieringHotTierAutoResizeWorkflowStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(autoTieringHotTierAutoResizeWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

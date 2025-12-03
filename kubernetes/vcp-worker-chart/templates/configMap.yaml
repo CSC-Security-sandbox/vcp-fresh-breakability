@@ -233,6 +233,14 @@ data:
   BACKGROUND_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.backgroundWorkflowStartToCloseTimeoutSec | quote }}
   BACKGROUND_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.backgroundWorkflowHeartbeatTimeoutSec | quote }}
 
+  # Auto-Tiering workflow timeout configuration
+  SYNC_VSA_AUTO_TIERING_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.syncVSAAutoTieringWorkflowStartToCloseTimeoutSec | quote }}
+  AUTO_TIERING_PAUSE_RESUME_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.autoTieringPauseResumeWorkflowStartToCloseTimeoutSec | quote }}
+  AUTO_TIERING_HOT_TIER_AUTO_RESIZE_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.autoTieringHotTierAutoResizeWorkflowStartToCloseTimeoutSec | quote }}
+  SYNC_VSA_AUTO_TIERING_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.syncVSAAutoTieringWorkflowHeartbeatTimeoutSec | quote }}
+  AUTO_TIERING_PAUSE_RESUME_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.autoTieringPauseResumeWorkflowHeartbeatTimeoutSec | quote }}
+  AUTO_TIERING_HOT_TIER_AUTO_RESIZE_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.autoTieringHotTierAutoResizeWorkflowHeartbeatTimeoutSec | quote }}
+
   SA_RETRY_START_TO_CLOSE_TIMEOUT: {{$.Values.workerConfig.saRetryStartToCloseTimeout | quote }}
   SA_RETRY_INTERVAL: {{$.Values.workerConfig.saRetryInitialInterval | quote }}
   SA_RETRY_MAXIMUM_ATTEMPTS: {{$.Values.workerConfig.saRetryMaximumAttempts | quote }}

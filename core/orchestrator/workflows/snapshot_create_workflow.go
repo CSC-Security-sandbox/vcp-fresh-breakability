@@ -116,6 +116,17 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 	dbSnapshot.Description = wf.ID                // Storing the job UUID in the comments param while requesting ONTAP
 
 	logger.Infof("Starting the snapshot creation workflow for snapshot: %s", dbSnapshot.Name)
+
+	var snapshotCreateResponse *vsa.SnapshotProviderResponse
+	defer func() {
+		dbSnapshot.Description = snapshotDescription
+		updateErr := workflow.ExecuteActivity(ctx, snapshotActivity.UpdateSnapshotDetails, &dbSnapshot, snapshotCreateResponse).Get(ctx, nil)
+		if updateErr != nil {
+			// Since activity has failed, activity will reflect the error in the temporal workflow.
+			logger.Errorf("Error updating snapshot details: %v", updateErr)
+		}
+	}()
+
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
@@ -128,15 +139,6 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 		OntapCredentials: dbSnapshot.Volume.Pool.PoolCredentials,
 	})
 
-	var snapshotCreateResponse *vsa.SnapshotProviderResponse
-	defer func() {
-		dbSnapshot.Description = snapshotDescription
-		updateErr := workflow.ExecuteActivity(ctx, snapshotActivity.UpdateSnapshotDetails, &dbSnapshot, snapshotCreateResponse).Get(ctx, nil)
-		if updateErr != nil {
-			// Since activity has failed, activity will reflect the error in the temporal workflow.
-			logger.Errorf("Error updating snapshot details: %v", updateErr)
-		}
-	}()
 	err = workflow.ExecuteActivity(ctx, snapshotActivity.CreateSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, &snapshotCreateResponse)
 	if err != nil {
 		logger.Errorf("Failed to update snapshot details: %v", err)

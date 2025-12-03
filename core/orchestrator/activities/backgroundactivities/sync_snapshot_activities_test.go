@@ -858,11 +858,14 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool(t *testing.T) {
 }
 
 func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
-	ctx := context.TODO()
-
 	t.Run("FetchPoolByUUID_Success", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchPoolByUUID)
 
 		poolUUID := "test-pool-uuid"
 		accountID := int64(123)
@@ -882,9 +885,12 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(expectedPoolView, nil)
+		mockStorage.On("GetPool", mock.Anything, poolUUID, accountID).Return(expectedPoolView, nil)
 
-		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		encodedValue, err := env.ExecuteActivity(activity.FetchPoolByUUID, poolUUID, accountID)
+		assert.NoError(tt, err)
+		var result *datamodel.Pool
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, expectedPoolView.Pool.ID, result.ID)
@@ -901,14 +907,18 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := SyncSnapshotActivity{SE: mockStorage}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchPoolByUUID)
+
 		poolUUID := "non-existent-pool-uuid"
 		accountID := int64(123)
 
-		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(nil, gorm.ErrRecordNotFound)
+		mockStorage.On("GetPool", mock.Anything, poolUUID, accountID).Return(nil, gorm.ErrRecordNotFound)
 
-		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		_, err := env.ExecuteActivity(activity.FetchPoolByUUID, poolUUID, accountID)
 		assert.Error(tt, err)
-		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "An internal error occurred.")
 		mockStorage.AssertExpectations(tt)
 	})
@@ -917,14 +927,18 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := SyncSnapshotActivity{SE: mockStorage}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchPoolByUUID)
+
 		poolUUID := "test-pool-uuid"
 		accountID := int64(123)
 
-		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(nil, errors.New("database connection failed"))
+		mockStorage.On("GetPool", mock.Anything, poolUUID, accountID).Return(nil, errors.New("database connection failed"))
 
-		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		_, err := env.ExecuteActivity(activity.FetchPoolByUUID, poolUUID, accountID)
 		assert.Error(tt, err)
-		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "An internal error occurred.")
 		mockStorage.AssertExpectations(tt)
 	})
@@ -932,6 +946,11 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 	t.Run("FetchPoolByUUID_WithFullPoolData", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchPoolByUUID)
 
 		poolUUID := "full-pool-uuid"
 		accountID := int64(456)
@@ -955,9 +974,12 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(expectedPoolView, nil)
+		mockStorage.On("GetPool", mock.Anything, poolUUID, accountID).Return(expectedPoolView, nil)
 
-		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		encodedValue, err := env.ExecuteActivity(activity.FetchPoolByUUID, poolUUID, accountID)
+		assert.NoError(tt, err)
+		var result *datamodel.Pool
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, expectedPoolView.Pool.ID, result.ID)
@@ -978,14 +1000,18 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := SyncSnapshotActivity{SE: mockStorage}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchPoolByUUID)
+
 		poolUUID := ""
 		accountID := int64(123)
 
-		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(nil, errors.New("invalid pool UUID"))
+		mockStorage.On("GetPool", mock.Anything, poolUUID, accountID).Return(nil, errors.New("invalid pool UUID"))
 
-		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		_, err := env.ExecuteActivity(activity.FetchPoolByUUID, poolUUID, accountID)
 		assert.Error(tt, err)
-		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "An internal error occurred.")
 		mockStorage.AssertExpectations(tt)
 	})
@@ -993,6 +1019,11 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 	t.Run("FetchPoolByUUID_ZeroAccountID", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := SyncSnapshotActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchPoolByUUID)
 
 		poolUUID := "test-pool-uuid"
 		accountID := int64(0)
@@ -1009,9 +1040,12 @@ func TestSyncSnapshotActivity_FetchPoolByUUID(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetPool", ctx, poolUUID, accountID).Return(expectedPoolView, nil)
+		mockStorage.On("GetPool", mock.Anything, poolUUID, accountID).Return(expectedPoolView, nil)
 
-		result, err := activity.FetchPoolByUUID(ctx, poolUUID, accountID)
+		encodedValue, err := env.ExecuteActivity(activity.FetchPoolByUUID, poolUUID, accountID)
+		assert.NoError(tt, err)
+		var result *datamodel.Pool
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, expectedPoolView.Pool.ID, result.ID)
@@ -1303,13 +1337,28 @@ func TestSyncSnapshotActivity_SyncSnapshotsForPoolBatch_Comprehensive(t *testing
 	})
 }
 
+// testProcessPoolSnapshotSyncWrapper is a test helper that wraps processPoolSnapshotSync
+// to be used with Temporal test activity environment
+func testProcessPoolSnapshotSyncWrapper(ctx context.Context, activity *SyncSnapshotActivity, poolIdentifier *database.PoolIdentifier) error {
+	return activity.processPoolSnapshotSync(ctx, poolIdentifier)
+}
+
 func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_Comprehensive(t *testing.T) {
 	t.Run("ValidPoolIdentifier_ReturnsError", func(tt *testing.T) {
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
 		activity := &SyncSnapshotActivity{
 			SE: mockStorage,
 		}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		// Create a function reference that we'll use for both registration and execution
+		activityFunc := func(ctx context.Context, poolIdentifier *database.PoolIdentifier) error {
+			return testProcessPoolSnapshotSyncWrapper(ctx, activity, poolIdentifier)
+		}
+		env.RegisterActivity(activityFunc)
 
 		poolIdentifier := &database.PoolIdentifier{
 			UUID:      "test-pool-uuid",
@@ -1318,40 +1367,58 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_Comprehensive(t *testing.T
 		}
 
 		// Mock the GetPool call
-		mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(1)).Return(nil, errors.New("pool not found"))
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(1)).Return(nil, errors.New("pool not found"))
 
 		// This will fail due to uninitialized dependencies, but we can test the structure
-		err := activity.processPoolSnapshotSync(ctx, poolIdentifier)
+		_, err := env.ExecuteActivity(activityFunc, poolIdentifier)
 
 		// Should return error due to uninitialized dependencies
 		assert.Error(tt, err)
 	})
 
 	t.Run("EmptyPoolIdentifier_ReturnsError", func(tt *testing.T) {
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
 		activity := &SyncSnapshotActivity{
 			SE: mockStorage,
 		}
 
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		// Create a function reference that we'll use for both registration and execution
+		activityFunc := func(ctx context.Context, poolIdentifier *database.PoolIdentifier) error {
+			return testProcessPoolSnapshotSyncWrapper(ctx, activity, poolIdentifier)
+		}
+		env.RegisterActivity(activityFunc)
+
 		poolIdentifier := &database.PoolIdentifier{}
 
 		// Mock the GetPool call
-		mockStorage.On("GetPool", ctx, "", int64(0)).Return(nil, errors.New("pool not found"))
+		mockStorage.On("GetPool", mock.Anything, "", int64(0)).Return(nil, errors.New("pool not found"))
 
 		// This will fail due to uninitialized dependencies, but we can test the structure
-		err := activity.processPoolSnapshotSync(ctx, poolIdentifier)
+		_, err := env.ExecuteActivity(activityFunc, poolIdentifier)
 
 		// Should return error due to uninitialized dependencies
 		assert.Error(tt, err)
 	})
 
 	t.Run("PoolWithSpecialCharacters_ReturnsError", func(tt *testing.T) {
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
 		activity := &SyncSnapshotActivity{
 			SE: mockStorage,
 		}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		// Create a function reference that we'll use for both registration and execution
+		activityFunc := func(ctx context.Context, poolIdentifier *database.PoolIdentifier) error {
+			return testProcessPoolSnapshotSyncWrapper(ctx, activity, poolIdentifier)
+		}
+		env.RegisterActivity(activityFunc)
 
 		poolIdentifier := &database.PoolIdentifier{
 			UUID:      "test-pool-uuid-with-special-chars-!@#$%",
@@ -1360,10 +1427,10 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_Comprehensive(t *testing.T
 		}
 
 		// Mock the GetPool call
-		mockStorage.On("GetPool", ctx, "test-pool-uuid-with-special-chars-!@#$%", int64(1)).Return(nil, errors.New("pool not found"))
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid-with-special-chars-!@#$%", int64(1)).Return(nil, errors.New("pool not found"))
 
 		// This will fail due to uninitialized dependencies, but we can test the structure
-		err := activity.processPoolSnapshotSync(ctx, poolIdentifier)
+		_, err := env.ExecuteActivity(activityFunc, poolIdentifier)
 
 		// Should return error due to uninitialized dependencies
 		assert.Error(tt, err)
@@ -1648,11 +1715,20 @@ func TestSyncSnapshotActivity_SyncSnapshotsForPoolBatchActivity_SuccessfulPool(t
 }
 
 func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_GetOntapDataFails(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 	activity := &SyncSnapshotActivity{
 		SE: mockStorage,
 	}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	// Create a function reference that we'll use for both registration and execution
+	activityFunc := func(ctx context.Context, poolIdentifier *database.PoolIdentifier) error {
+		return testProcessPoolSnapshotSyncWrapper(ctx, activity, poolIdentifier)
+	}
+	env.RegisterActivity(activityFunc)
 
 	poolIdentifier := &database.PoolIdentifier{
 		UUID:      "test-pool-uuid",
@@ -1668,7 +1744,7 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_GetOntapDataFails(t *testi
 	}
 
 	// Mock successful pool fetch
-	mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(1)).Return(&datamodel.PoolView{Pool: *pool}, nil)
+	mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(1)).Return(&datamodel.PoolView{Pool: *pool}, nil)
 
 	// Mock provider to return error for GetVolumes
 	mockProvider := new(vsa.MockProvider)
@@ -1680,7 +1756,7 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_GetOntapDataFails(t *testi
 	}
 	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
 
-	err := activity.processPoolSnapshotSync(ctx, poolIdentifier)
+	_, err := env.ExecuteActivity(activityFunc, poolIdentifier)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "GetOntapVolumesAndSnapshotsForPool Failed")
@@ -1689,11 +1765,20 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_GetOntapDataFails(t *testi
 }
 
 func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_GetDBDataFails(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 	activity := &SyncSnapshotActivity{
 		SE: mockStorage,
 	}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	// Create a function reference that we'll use for both registration and execution
+	activityFunc := func(ctx context.Context, poolIdentifier *database.PoolIdentifier) error {
+		return testProcessPoolSnapshotSyncWrapper(ctx, activity, poolIdentifier)
+	}
+	env.RegisterActivity(activityFunc)
 
 	poolIdentifier := &database.PoolIdentifier{
 		UUID:      "test-pool-uuid",
@@ -1709,8 +1794,8 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_GetDBDataFails(t *testing.
 	}
 
 	// Mock successful pool fetch and ONTAP data
-	mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(1)).Return(&datamodel.PoolView{Pool: *pool}, nil)
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return(nil, errors.New("failed to get volumes from database"))
+	mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(1)).Return(&datamodel.PoolView{Pool: *pool}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(nil, errors.New("failed to get volumes from database"))
 
 	// Mock provider
 	mockProvider := new(vsa.MockProvider)
@@ -1722,7 +1807,7 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_GetDBDataFails(t *testing.
 	}
 	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
 
-	err := activity.processPoolSnapshotSync(ctx, poolIdentifier)
+	_, err := env.ExecuteActivity(activityFunc, poolIdentifier)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "GetDBVolumeAndSnapshotsForPool Failed")
@@ -1731,11 +1816,20 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_GetDBDataFails(t *testing.
 }
 
 func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_ProcessSnapshotsFails(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 	activity := &SyncSnapshotActivity{
 		SE: mockStorage,
 	}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	// Create a function reference that we'll use for both registration and execution
+	activityFunc := func(ctx context.Context, poolIdentifier *database.PoolIdentifier) error {
+		return testProcessPoolSnapshotSyncWrapper(ctx, activity, poolIdentifier)
+	}
+	env.RegisterActivity(activityFunc)
 
 	poolIdentifier := &database.PoolIdentifier{
 		UUID:      "test-pool-uuid",
@@ -1751,9 +1845,9 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_ProcessSnapshotsFails(t *t
 	}
 
 	// Mock successful pool fetch and data retrieval
-	mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(1)).Return(&datamodel.PoolView{Pool: *pool}, nil)
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetSnapshotsByVolumeIDs", ctx, mock.AnythingOfType("[]int64")).Return([]*datamodel.Snapshot{}, nil)
+	mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(1)).Return(&datamodel.PoolView{Pool: *pool}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.AnythingOfType("[]int64")).Return([]*datamodel.Snapshot{}, nil)
 
 	// Mock provider
 	mockProvider := new(vsa.MockProvider)
@@ -1767,7 +1861,7 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_ProcessSnapshotsFails(t *t
 
 	// This test will pass because the actual ProcessSnapshots method will work correctly
 	// The error handling is tested through the integration test
-	err := activity.processPoolSnapshotSync(ctx, poolIdentifier)
+	_, err := env.ExecuteActivity(activityFunc, poolIdentifier)
 
 	// This should succeed since we're not actually causing an error in ProcessSnapshots
 	assert.NoError(t, err)
@@ -1776,11 +1870,20 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_ProcessSnapshotsFails(t *t
 }
 
 func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_SuccessfulExecution(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 	activity := &SyncSnapshotActivity{
 		SE: mockStorage,
 	}
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	// Create a function reference that we'll use for both registration and execution
+	activityFunc := func(ctx context.Context, poolIdentifier *database.PoolIdentifier) error {
+		return testProcessPoolSnapshotSyncWrapper(ctx, activity, poolIdentifier)
+	}
+	env.RegisterActivity(activityFunc)
 
 	poolIdentifier := &database.PoolIdentifier{
 		UUID:      "test-pool-uuid",
@@ -1796,9 +1899,9 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_SuccessfulExecution(t *tes
 	}
 
 	// Mock successful pool fetch and data retrieval
-	mockStorage.On("GetPool", ctx, "test-pool-uuid", int64(1)).Return(&datamodel.PoolView{Pool: *pool}, nil)
-	mockStorage.On("GetVolumesByPoolID", ctx, int64(1)).Return([]*datamodel.Volume{}, nil)
-	mockStorage.On("GetSnapshotsByVolumeIDs", ctx, mock.AnythingOfType("[]int64")).Return([]*datamodel.Snapshot{}, nil)
+	mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(1)).Return(&datamodel.PoolView{Pool: *pool}, nil)
+	mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.AnythingOfType("[]int64")).Return([]*datamodel.Snapshot{}, nil)
 
 	// Mock provider
 	mockProvider := new(vsa.MockProvider)
@@ -1811,7 +1914,7 @@ func TestSyncSnapshotActivity_ProcessPoolSnapshotSync_SuccessfulExecution(t *tes
 	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
 
 	// This test verifies successful execution path
-	err := activity.processPoolSnapshotSync(ctx, poolIdentifier)
+	_, err := env.ExecuteActivity(activityFunc, poolIdentifier)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)

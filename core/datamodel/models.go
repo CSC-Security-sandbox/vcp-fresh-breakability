@@ -562,6 +562,7 @@ type Job struct {
 type JobAttributes struct {
 	ResourceUUID         string                 `json:"resource_uuid"`
 	PoolUUID             string                 `json:"pool_uuid"`
+	VolumeUUID           string                 `json:"volume_uuid,omitempty"`
 	CurrentRetryCount    int                    `json:"current_retry_count"`
 	Location             string                 `json:"location"`
 	SupervisorAttributes *SupervisorAttributes  `json:"supervisor_attributes,omitempty"`

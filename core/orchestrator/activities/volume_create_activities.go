@@ -240,11 +240,13 @@ func CreateAutoTieringParams(ctx context.Context, se database.Storage, params *v
 }
 
 func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, restoreVolCreateResponse *vsa.VolumeResponse) (*vsa.LunResponse, error) {
+	activity.RecordHeartbeat(ctx, "Initializing LUN name update")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Retrieving existing LUN")
 	lunName := utils.GetLunName(volume.Name)
 
 	lun, err := LunGet(ctx, "", volume.Name, volume.Svm.Name, provider)
@@ -267,16 +269,19 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 	} else {
 		lunUpdateParams.Size = lunSpace
 	}
+	activity.RecordHeartbeat(ctx, "Updating LUN in ONTAP")
 	err = provider.LunUpdate(lunUpdateParams)
 	if err != nil {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrRestoreVolumeValidation, err))
 	}
 	logger.Debug("lun updated successfully")
+	activity.RecordHeartbeat(ctx, "Retrieving updated LUN")
 	lun, err = LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
 	if err != nil {
 		logger.Debug("lun not found !")
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "LUN name updated successfully")
 	return lun, nil
 }
 
@@ -1229,11 +1234,13 @@ func _getResourceNamesForBackup(gcpRegion, region, tenantProjectNumber, bvID str
 
 func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	if node != nil && volume != nil && volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
+		activity.RecordHeartbeat(ctx, "Initializing snapshot policy creation")
 		logger := util.GetLogger(ctx)
 		provider, err := hyperscaler.GetProviderByNode(ctx, node)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
+		activity.RecordHeartbeat(ctx, "Creating snapshot policy in ONTAP")
 		err = provider.CreateSnapshotPolicy(&vsa.SnapshotPolicy{
 			Name:      volume.SnapshotPolicy.Name,
 			IsEnabled: volume.SnapshotPolicy.IsEnabled,
@@ -1243,34 +1250,40 @@ func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, v
 			logger.Errorf("failed to create snapshot policy: %v", err)
 			return err
 		}
+		activity.RecordHeartbeat(ctx, "Snapshot policy created successfully")
 	}
 	return nil
 }
 
 // LunSizeUpdateValidation Validates if the LUN size can be updated based on the available space and SnapReserve constraints.
 func (a VolumeCreateActivity) LunSizeUpdateValidation(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	activity.RecordHeartbeat(ctx, "Initializing LUN size validation")
 	logger := util.GetLogger(ctx)
 	requiredLunSpace := volume.SizeInBytes * (100 - int64(volume.VolumeAttributes.SnapReserve)) / 100
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Retrieving LUN for validation")
 	lun, err := LunGet(ctx, "", volume.Name, volume.Svm.Name, provider)
 	if err != nil {
 		logger.Debug("lun not found !")
 		return err
 	}
+	activity.RecordHeartbeat(ctx, "Validating LUN size constraints")
 	// Check if the available space is less than the current LUN size
 	if requiredLunSpace < lun.Size {
 		logger.Errorf("Lun size %d cannot be reduced to %d", lun.Size, requiredLunSpace)
 		err = vsaerrors.NewVCPError(vsaerrors.ErrRestoreVolumeValidation, fmt.Errorf("Error restoring volume - Cannot restore a volume with this given size and snapReserve. Please consider increasing the volume size to at least of size %.2f GB along with this snapReserve", float64(lun.Size)/float64(BytesPerGB)*(utils.PercentageBase/float64(utils.PercentageBase-volume.VolumeAttributes.SnapReserve))))
 		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "LUN size validation completed successfully")
 	return nil
 }
 
 // UpdateClonedVolumeBeforeSplit updates the size, snapReserve of the cloned volume before split in ONTAP.
 func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
+	activity.RecordHeartbeat(ctx, "Initializing cloned volume update before split")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -1278,6 +1291,7 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 	}
 	// By initializing snapReserve to 0, we avoid inheriting the parent's snapReserve and can safely update it to the customer-specified value after cloning.
 	// Reason: ONTAP restricts increasing snapReserve beyond the parent's availableSpace if the parent volume's available space is fully consumed.
+	activity.RecordHeartbeat(ctx, "Resetting snapReserve to 0 for cloned volume")
 	err = updateVolume(ctx, provider, vsa.UpdateVolumeParams{
 		UUID:        volume.VolumeAttributes.ExternalUUID,
 		SnapReserve: nillable.GetInt64Ptr(0),
@@ -1286,6 +1300,7 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 		logger.Errorf("Failed to update snapReserve of cloned volume %s in ontap before split: %v", volume.Name, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Preparing volume update parameters")
 	preSplitUpdateParams := vsa.UpdateVolumeParams{
 		UUID:               volume.VolumeAttributes.ExternalUUID,
 		Size:               volume.SizeInBytes,
@@ -1297,6 +1312,7 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 		preSplitUpdateParams.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
 		preSplitUpdateParams.SnapshotDirectoryAccess = &volume.VolumeAttributes.SnapshotDirectory
 	}
+	activity.RecordHeartbeat(ctx, "Updating cloned volume in ONTAP")
 	err = updateVolume(ctx, provider, preSplitUpdateParams)
 	if err != nil {
 		logger.Errorf("Failed to update cloned volume %s in ontap before split: %v", volume.Name, err)
@@ -1304,6 +1320,7 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 	}
 
 	logger.Debugf("Cloned volume %s updated successfully in ontap", volume.Name)
+	activity.RecordHeartbeat(ctx, "Retrieving updated volume from ONTAP")
 	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
 		UUID:       volume.VolumeAttributes.ExternalUUID,
 		VolumeName: volume.Name,
@@ -1313,11 +1330,13 @@ func (a VolumeCreateActivity) UpdateClonedVolumeBeforeSplit(ctx context.Context,
 		logger.Errorf("Failed to get volume %s from ontap after pre-split update: %v", volume.Name, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Cloned volume updated successfully before split")
 	return volumeRes, nil
 }
 
 // InitiateSplitForVolume initiates a split for the given volume in ONTAP.
 func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) error {
+	activity.RecordHeartbeat(ctx, "Initializing volume split operation")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -1327,6 +1346,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 		UUID:          volume.VolumeAttributes.ExternalUUID,
 		InitiateSplit: true,
 	}
+	activity.RecordHeartbeat(ctx, "Initiating split in ONTAP")
 	err = updateVolume(ctx, provider, *updateVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to initiate split %s in ontap: %v", volume.Name, err)
@@ -1336,6 +1356,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 	var cloneSnapshot *datamodel.Snapshot
 	// Get the clone volume snapshot that has the same name as the parent snapshot
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil && volume.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID != "" && volume.VolumeAttributes.CloneParentInfo.ParentVolumeUUID != "" {
+		activity.RecordHeartbeat(ctx, "Retrieving parent volume information")
 		// Get the parent volume to access its account ID and volume ID
 		parentVolume, err := a.SE.GetVolume(ctx, volume.VolumeAttributes.CloneParentInfo.ParentVolumeUUID)
 		if err != nil {
@@ -1343,6 +1364,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 			return nil
 		}
 
+		activity.RecordHeartbeat(ctx, "Retrieving parent snapshot information")
 		// Get the parent snapshot by UUID to retrieve its name
 		parentSnapshot, err := a.SE.GetSnapshotByUUID(ctx, volume.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID, parentVolume.AccountID, parentVolume.ID)
 		if err != nil {
@@ -1350,6 +1372,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 			return nil
 		}
 
+		activity.RecordHeartbeat(ctx, "Retrieving clone volume snapshot")
 		// Get the clone volume snapshot that has the same name as the parent snapshot
 		cloneSnapshot, err = a.SE.GetSnapshotByNameAndVolumeId(ctx, parentSnapshot.Name, volume.AccountID, volume.ID)
 		if err != nil {
@@ -1359,6 +1382,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 		logger.Debugf("Found clone volume snapshot %s (UUID: %s) with same name as parent snapshot %s", cloneSnapshot.Name, cloneSnapshot.UUID, parentSnapshot.Name)
 
 		if cloneSnapshot != nil {
+			activity.RecordHeartbeat(ctx, "Deleting clone snapshot")
 			_, err := a.SE.DeleteSnapshot(ctx, cloneSnapshot.UUID)
 			if err != nil {
 				logger.Warnf("Snapshot %s not found, assuming it is already deleted", cloneSnapshot.Name)
@@ -1367,6 +1391,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 
 			logger.Debugf("Snapshot %s (UUID: %s) marked as deleted successfully in the db", cloneSnapshot.Name, cloneSnapshot.UUID)
 
+			activity.RecordHeartbeat(ctx, "Hydrating snapshot to CCFE")
 			// Hydrate the clone snapshot to CCFE after split
 			hydrateErr := hydrationActivities.HydrateBatchSnapshotstoCCFE(ctx, nil, []*datamodel.Snapshot{cloneSnapshot})
 			if hydrateErr != nil {
@@ -1375,6 +1400,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 		}
 	}
 
+	activity.RecordHeartbeat(ctx, "Volume split initiated successfully")
 	logger.Debugf("Split %s initiated successfully in ontap", volume.Name)
 	return nil
 }
@@ -1543,15 +1569,18 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 }
 
 func (a VolumeCreateActivity) UpdateVolumeAttributesInDB(ctx context.Context, volumeUUID string, volumeAttributes *datamodel.VolumeAttributes) error {
+	activity.RecordHeartbeat(ctx, "Initializing volume attributes update")
 	se := a.SE
 	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeAttributesInDB activity")
 
+	activity.RecordHeartbeat(ctx, "Updating volume attributes in database")
 	err := se.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
 		"volume_attributes": volumeAttributes,
 	})
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Volume attributes updated successfully")
 
 	activity.RecordHeartbeat(ctx, "Finished UpdateVolumeAttributesInDB activity")
 	return nil

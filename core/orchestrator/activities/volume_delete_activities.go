@@ -83,11 +83,13 @@ type cifsServerProvider interface {
 // DeleteSnapshotPolicyInONTAP deletes the snapshot policy associated with a volume in ONTAP.
 func (va VolumeDeleteActivity) DeleteSnapshotPolicyInONTAP(ctx context.Context, SnapshotPolicyName string, node *models.Node) error {
 	if node != nil && SnapshotPolicyName != "" {
+		activity.RecordHeartbeat(ctx, "Initializing snapshot policy deletion")
 		logger := util.GetLogger(ctx)
 		provider, err := hyperscaler.GetProviderByNode(ctx, node)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
+		activity.RecordHeartbeat(ctx, "Deleting snapshot policy in ONTAP")
 		op := func() error {
 			return provider.DeleteSnapshotPolicy(SnapshotPolicyName)
 		}
@@ -96,6 +98,7 @@ func (va VolumeDeleteActivity) DeleteSnapshotPolicyInONTAP(ctx context.Context, 
 			logger.Errorf("failed to delete snapshot policy: %v", err)
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
+		activity.RecordHeartbeat(ctx, "Snapshot policy deleted successfully")
 	}
 	return nil
 }
@@ -163,8 +166,10 @@ func (va VolumeDeleteActivity) DeleteSnapmirrorInONTAP(ctx context.Context, volu
 }
 
 func (va VolumeDeleteActivity) DeleteVolumeAssociatedSnapshots(ctx context.Context, volumeID int64) error {
+	activity.RecordHeartbeat(ctx, "Initializing volume associated snapshots deletion")
 	logger := util.GetLogger(ctx)
 	se := va.SE
+	activity.RecordHeartbeat(ctx, "Retrieving snapshots for volume")
 	snapshots, err := se.GetSnapshotsByVolumeID(ctx, volumeID)
 	if err != nil {
 		if utilErrors.IsNotFoundErr(err) {
@@ -175,12 +180,14 @@ func (va VolumeDeleteActivity) DeleteVolumeAssociatedSnapshots(ctx context.Conte
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Deleting volume associated snapshots")
 	for _, snapshot := range snapshots {
 		_, err = se.DeleteSnapshot(ctx, snapshot.UUID)
 		if err != nil {
 			logger.Warnf("failed to mark snapshot %s as deleted because of error: %v", snapshot.Name, err)
 		}
 	}
+	activity.RecordHeartbeat(ctx, "Volume associated snapshots deleted successfully")
 	return nil
 }
 

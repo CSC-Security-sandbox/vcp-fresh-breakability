@@ -93,10 +93,12 @@ func (a *SyncSnapshotActivity) GetTotalPoolCount(ctx context.Context) (int, erro
 }
 
 func (a *SyncSnapshotActivity) FetchPoolByUUID(ctx context.Context, poolUUID string, accountID int64) (*datamodel.Pool, error) {
+	activity.RecordHeartbeat(ctx, "Initializing pool fetch by UUID")
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
 	pool, err := se.GetPool(ctx, poolUUID, accountID)
+	activity.RecordHeartbeat(ctx, "Fetched pool from database")
 	if err != nil {
 		logger.Errorf("Failed to get pool, error: %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)

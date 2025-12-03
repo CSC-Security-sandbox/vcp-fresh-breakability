@@ -182,7 +182,8 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
-				ResourceUUID: volume.UUID,
+				ResourceUUID: existingSnapshot.UUID, // Snapshot UUID
+				VolumeUUID:   volume.UUID,           // Volume UUID for idempotency check
 			},
 		}
 		err = store.DB().Create(job).Error
@@ -562,7 +563,8 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
-				ResourceUUID: volume1.UUID,
+				ResourceUUID: existingSnapshot1.UUID, // Snapshot UUID
+				VolumeUUID:   volume1.UUID,           // Volume UUID for idempotency check
 			},
 		}
 		err = store.DB().Create(job1).Error
@@ -590,7 +592,8 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
-				ResourceUUID: volume2.UUID,
+				ResourceUUID: existingSnapshot2.UUID, // Snapshot UUID
+				VolumeUUID:   volume2.UUID,           // Volume UUID for idempotency check
 			},
 		}
 		err = store.DB().Create(job2).Error
@@ -2173,7 +2176,8 @@ func TestDeleteSnapshot(t *testing.T) {
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
-				ResourceUUID: volume.UUID,
+				ResourceUUID: snapshot.UUID, // Snapshot UUID
+				VolumeUUID:   volume.UUID,   // Volume UUID for idempotency check
 			},
 		}
 		err = store.DB().Create(job).Error
@@ -2357,7 +2361,8 @@ func TestDeleteSnapshot(t *testing.T) {
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
-				ResourceUUID: volume1.UUID,
+				ResourceUUID: snapshot1.UUID, // Snapshot UUID
+				VolumeUUID:   volume1.UUID,   // Volume UUID for idempotency check
 			},
 		}
 		err = store.DB().Create(job1).Error
@@ -2370,7 +2375,8 @@ func TestDeleteSnapshot(t *testing.T) {
 			ResourceName: "test_snapshot",
 			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 			JobAttributes: &datamodel.JobAttributes{
-				ResourceUUID: volume2.UUID,
+				ResourceUUID: snapshot2.UUID, // Snapshot UUID
+				VolumeUUID:   volume2.UUID,   // Volume UUID for idempotency check
 			},
 		}
 		err = store.DB().Create(job2).Error

@@ -620,12 +620,14 @@ func _getHostGroup(se database.Storage, ctx context.Context, uuid string, accoun
 
 // UpdateSnapshotPolicyInOntap updates the snapshot policy for the given volume in ONTAP.
 func (a *VolumeUpdateActivity) UpdateSnapshotPolicyInOntap(ctx context.Context, node *models.Node, currentPolicy, updatingPolicy *datamodel.SnapshotPolicy) error {
+	activity.RecordHeartbeat(ctx, "Initializing snapshot policy update")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Updating snapshot policy in ONTAP")
 	err = provider.UpdateSnapshotPolicy(ctx, &vsa.UpdateSnapshotPolicyParams{
 		CurrentSnapshotPolicy: &vsa.SnapshotPolicy{
 			Name:      currentPolicy.Name,
@@ -643,6 +645,7 @@ func (a *VolumeUpdateActivity) UpdateSnapshotPolicyInOntap(ctx context.Context, 
 		return err
 	}
 
+	activity.RecordHeartbeat(ctx, "Snapshot policy updated successfully")
 	logger.Debugf("Snapshot policy %s updated successfully in ONTAP", updatingPolicy.Name)
 	return nil
 }
