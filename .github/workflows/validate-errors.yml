@@ -13,7 +13,7 @@ jobs:
   validate-errors:
     runs-on: [self-hosted]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v2
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
       options: --user root
 
     steps:

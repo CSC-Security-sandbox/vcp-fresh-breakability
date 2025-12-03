@@ -4,168 +4,77 @@ name: Setup vsacictl (Reusable Workflow)
 
 on:
   workflow_call:
-    inputs:
-      is-update-workflow:
-        description: "Set to true when called from update-vsacictl workflow to build branch artifacts"
-        required: false
-        type: boolean
-        default: false
     outputs:
-      vsacictl-artifact-name:
-        description: "Name of the vsacictl binary artifact (either cached or newly built)"
-        value: ${{ jobs.determine-artifact.outputs.artifact-name }}
+      cache-key:
+        description: "The cache key used for the vsacictl binary"
+        value: ${{ jobs.build-vsacictl.outputs.cache-key }}
 
 permissions:
   contents: read
   actions: read
 
 jobs:
-  detect-changes:
-    name: Detect vsacictl Changes
+  compute-cache-key:
+    name: Compute Cache Key
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.changes.outputs.cicd }}
+      cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Check for cicd changes
-        id: changes
+      - name: Compute cache key
+        id: cache-key
         run: |
-          # Check if cicd/ directory has changes
-          # For PRs: compare against base branch
-          # For push events: compare against previous commit
-          if [ -n "${{ github.base_ref }}" ]; then
-            # Pull request event
-            BASE="origin/${{ github.base_ref }}"
-          else
-            # Push event - use previous commit or HEAD^ as fallback
-            BASE="${{ github.event.before }}"
-            if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
-              BASE="HEAD^"
-            fi
-          fi
-          
-          echo "Comparing against: $BASE"
-          
-          if git diff --name-only "$BASE"...${{ github.sha }} | grep -q '^cicd/'; then
-            echo "cicd=true" >> $GITHUB_OUTPUT
-            echo "✅ Detected changes in cicd/ directory"
-          else
-            echo "cicd=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ No changes detected in cicd/ directory"
-          fi
-
-  determine-artifact:
-    name: Determine Artifact Strategy
-    needs: detect-changes
-    runs-on: ubuntu-latest
-    outputs:
-      needs-build: ${{ steps.check.outputs.needs-build }}
-      artifact-name: ${{ steps.check.outputs.artifact-name }}
-    steps:
-      - name: Set artifact names
-        id: names
-        run: |
-          TARGET_BRANCH="${{ github.base_ref || github.ref_name }}"
-          CICD_CHANGED="${{ needs.detect-changes.outputs.changed }}"
-          
-          # Normalize branch name for artifact (replace / with -)
-          NORMALIZED_BRANCH=$(echo "$TARGET_BRANCH" | sed 's/\//-/g')
-          BRANCH_ARTIFACT="vsacictl-$NORMALIZED_BRANCH"
-          RUN_ARTIFACT="vsacictl-binary-${{ github.run_id }}"
-          
-          echo "branch-artifact=$BRANCH_ARTIFACT" >> $GITHUB_OUTPUT
-          echo "run-artifact=$RUN_ARTIFACT" >> $GITHUB_OUTPUT
-          echo "cicd-changed=$CICD_CHANGED" >> $GITHUB_OUTPUT
-          
-          echo "Target branch: $TARGET_BRANCH"
-          echo "Normalized: $NORMALIZED_BRANCH"
-          echo "Branch artifact name: $BRANCH_ARTIFACT"
-          echo "Run artifact name: $RUN_ARTIFACT"
-          echo "CICD changed: $CICD_CHANGED"
-          echo "Is update workflow: ${{ inputs.is-update-workflow }}"
-
-      - name: Try to download existing branch artifact
-        if: steps.names.outputs.cicd-changed != 'true'
-        id: download
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: ${{ steps.names.outputs.branch-artifact }}
-          path: /tmp/vsacictl-check
-
-      - name: Determine build necessity
-        id: check
-        run: |
-          CICD_CHANGED="${{ steps.names.outputs.cicd-changed }}"
-          BRANCH_ARTIFACT="${{ steps.names.outputs.branch-artifact }}"
-          RUN_ARTIFACT="${{ steps.names.outputs.run-artifact }}"
-          NEW_ARTIFACT_NAME="$RUN_ARTIFACT"
-          
-          # Use branch artifact name always if update workflow
-          if [ "${{inputs.is-update-workflow}}" == "true" ]; then
-            NEW_ARTIFACT_NAME="$BRANCH_ARTIFACT"
-          fi
-          
-          if [ "$CICD_CHANGED" == "true" ]; then
-            echo "needs-build=true" >> $GITHUB_OUTPUT
-            echo "artifact-name=$NEW_ARTIFACT_NAME" >> $GITHUB_OUTPUT
-            echo "🔨 Building new binary (cicd changed) → $NEW_ARTIFACT_NAME"
-            exit 0
-          fi
-          
-          # Check if download succeeded
-          if [ "${{ steps.download.outcome }}" == "success" ]; then
-            echo "needs-build=false" >> $GITHUB_OUTPUT
-            echo "artifact-name=$BRANCH_ARTIFACT" >> $GITHUB_OUTPUT
-            echo "✅ Using cached artifact: $BRANCH_ARTIFACT"
-          else
-            echo "needs-build=true" >> $GITHUB_OUTPUT
-            echo "artifact-name=$NEW_ARTIFACT_NAME" >> $GITHUB_OUTPUT
-            echo "🔨 Building new binary (no cache found) → $NEW_ARTIFACT_NAME"
-          fi
+          # Create a hash based on the cicd directory contents
+          HASH=$(find cicd -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
+          CACHE_KEY="vsacictl-${HASH}"
+          echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
+          echo "Cache key: $CACHE_KEY"
 
   build-vsacictl:
     name: Build vsacictl Binary
-    needs: [detect-changes, determine-artifact]
-    if: needs.determine-artifact.outputs.needs-build == 'true'
+    needs: compute-cache-key
     runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ needs.compute-cache-key.outputs.cache-key }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version-file: cicd/go.mod
-
-      - name: Cache Go modules for vsacictl
+      - name: Cache vsacictl binary
+        id: cache-vsacictl
         uses: actions/cache@v4
         with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: vsacictl-${{ runner.os }}-go-${{ hashFiles('cicd/go.sum') }}
-          restore-keys: |
-            vsacictl-${{ runner.os }}-go-
+          path: bin/vsacictl
+          key: ${{ needs.compute-cache-key.outputs.cache-key }}
+
+      - name: Set up Go
+        if: steps.cache-vsacictl.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cicd/go.mod
+          cache-dependency-path: cicd/go.sum
 
       - name: Configure Git for private modules
+        if: steps.cache-vsacictl.outputs.cache-hit != 'true'
         run: |
           git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
 
       - name: Build vsacictl binary
+        if: steps.cache-vsacictl.outputs.cache-hit != 'true'
         working-directory: cicd
         run: |
           go mod download
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o vsacictl .
-          chmod +x vsacictl
+          mkdir -p ../bin
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ../bin/vsacictl .
+          chmod +x ../bin/vsacictl
+          echo "✅ Built new vsacictl binary"
 
-      - name: Upload vsacictl binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ needs.determine-artifact.outputs.artifact-name }}
-          path: cicd/vsacictl
-          retention-days: 180
+      - name: Report cache status
+        run: |
+          if [ "${{ steps.cache-vsacictl.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Using cached vsacictl binary with key: ${{ needs.compute-cache-key.outputs.cache-key }}"
+          else
+            echo "🔨 Built and cached new vsacictl binary with key: ${{ needs.compute-cache-key.outputs.cache-key }}"
+          fi

@@ -16,11 +16,16 @@ permissions:
 
 
 jobs:
+  setup-vsacictl:
+    name: Setup vsacictl
+    uses: ./.github/workflows/setup-vsacictl.yaml
+    secrets: inherit
+
   obtain_pr_details:
     name: Obtain PR details
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:${{ vars.VSACICTL_VERSION }}
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
       options: --user root
 
     steps:
@@ -81,9 +86,9 @@ jobs:
 
   generate_tag:
     runs-on: [ self-hosted, linux ]
-    needs: obtain_pr_details
+    needs: [ obtain_pr_details, setup-vsacictl ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:${{ vars.VSACICTL_VERSION }}
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
     permissions:
       contents: read
@@ -93,6 +98,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
 
       - name: Set up Go
         uses: actions/setup-go@v3

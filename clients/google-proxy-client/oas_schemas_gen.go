@@ -65,8 +65,8 @@ type ActiveDirectoryUpdateV1beta struct {
 	// if one or more entries are invalid.
 	BackupOperators []string `json:"backupOperators"`
 	// Users to be added to the built-in administrators Active-directory group. The usernames must be
-	// unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole
-	// if one or more entries are invalid.
+	// unique, and entries cannot include @. The entire list will be validated and rejected as whole if
+	// one or more entries are invalid.
 	Administrators []string `json:"administrators"`
 	// If enabled, AES encryption will be enabled for SMB communication.
 	AesEncryption OptBool `json:"aesEncryption"`
@@ -300,8 +300,8 @@ type ActiveDirectoryV1beta struct {
 	// if one or more entries are invalid.
 	BackupOperators []string `json:"backupOperators"`
 	// Users to be added to the built-in administrators Active-directory group. The usernames must be
-	// unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole
-	// if one or more entries are invalid.
+	// unique, and entries cannot include @. The entire list will be validated and rejected as whole if
+	// one or more entries are invalid.
 	Administrators []string `json:"administrators"`
 	// If enabled, AES encryption will be enabled for SMB communication.
 	AesEncryption OptBool `json:"aesEncryption"`

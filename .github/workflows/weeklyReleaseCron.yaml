@@ -6,6 +6,11 @@ on:
   workflow_dispatch:
 
 jobs:
+  setup-vsacictl:
+    name: Setup vsacictl
+    uses: ./.github/workflows/setup-vsacictl.yaml
+    secrets: inherit
+
   release_branch:
     permissions:
       contents: write
@@ -13,8 +18,9 @@ jobs:
       packages: write
 
     runs-on: [ self-hosted ,linux ]
+    needs: setup-vsacictl
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:${{ vars.VSACICTL_VERSION }}
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
       options: --user root
 
     steps:
@@ -22,6 +28,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GHVSA_PAT }}
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
 
       - name: Set up Go
         uses: actions/setup-go@v3

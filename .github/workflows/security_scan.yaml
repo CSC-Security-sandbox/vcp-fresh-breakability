@@ -20,7 +20,7 @@ jobs:
     name: Prepare for Security Scan
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:${{ vars.VSACICTL_VERSION }}
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
       options: --user root
     env:
       base_branch: origin/main
