@@ -2656,6 +2656,57 @@ type NameMappingCollectionGetParams struct {
 	SvmName     *string
 }
 
+// KerberosRealm is a simple wrapper of models.KerberosRealm
+type KerberosRealm struct {
+	models.KerberosRealm
+}
+
+// KerberosRealmGetParams is the input params for nas.KerberosRealmGetParams
+type KerberosRealmGetParams struct {
+	SvmUUID string
+	Realm   string
+}
+
+// KerberosRealmCreateParams is the input params for nas.KerberosRealmCreateParams
+type KerberosRealmCreateParams struct {
+	SvmUUID            string
+	Realm              string
+	KdcIP              string
+	RealmKDCPort       *int64
+	RealmClockSkew     *int64
+	RealmKDCVendor     *string
+	AdminServerIP      *string
+	AdminServerPort    *int64
+	PasswordServerIP   *string
+	PasswordServerPort *int64
+	ADServerIP         *string
+	ADServerName       *string
+}
+
+// KerberosInterface is a simple wrapper of models.KerberosInterface
+type KerberosInterface struct {
+	models.KerberosInterface
+}
+
+// KerberosInterfaceCollectionGetParams is the input params for nas.KerberosInterfaceCollectionGetParams
+type KerberosInterfaceCollectionGetParams struct {
+	SvmUUID       *string
+	SvmName       *string
+	InterfaceName *string
+}
+
+// KerberosInterfaceModifyParams is the input params for nas.KerberosInterfaceModifyParams
+type KerberosInterfaceModifyParams struct {
+	SvmUUID           string
+	InterfaceUUID     *string
+	IsKerberosEnabled *bool
+	Spn               *string
+	MachineAccount    *string
+	AdminUsername     *string
+	AdminPassword     *string
+	OU                *string
+}
+
 // Iscsi is the iscsi service
 type Iscsi struct {
 	models.IscsiService
@@ -4023,7 +4074,7 @@ type CifsShareACLDeleteParams struct {
 // =============================================================================
 
 // exportPolicyCreateParamsToONTAP converts ExportPolicyCreateParams to ONTAP API parameters
-func exportPolicyCreateParamsToONTAP(params *ExportPolicyCreateParams) *nas.ExportPolicyCreateParams {
+func exportPolicyCreateParamsToONTAP(params *ExportPolicyCreateParams, trace log.Logger) *nas.ExportPolicyCreateParams {
 	otParams := nas.NewExportPolicyCreateParams()
 	if params == nil {
 		return otParams
@@ -4038,19 +4089,28 @@ func exportPolicyCreateParamsToONTAP(params *ExportPolicyCreateParams) *nas.Expo
 		}
 
 		// Convert authentication flavors
-		roRule := make([]*models.ExportAuthenticationFlavor, 1)
-		roRule[0] = (*models.ExportAuthenticationFlavor)(&rule.ReadOnlyRule)
+		readOnlyRules := strings.Split(strings.TrimSpace(rule.ReadOnlyRule), ",")
+		roRules := make([]*models.ExportAuthenticationFlavor, 0)
+		for _, readOnlyRule := range readOnlyRules {
+			if readOnlyRule != "" {
+				readOnlyRuleExportAuthFlavor := models.ExportAuthenticationFlavor(readOnlyRule)
+				roRules = append(roRules, &readOnlyRuleExportAuthFlavor)
+			}
+		}
 
-		rwRule := make([]*models.ExportAuthenticationFlavor, 1)
-		rwRule[0] = (*models.ExportAuthenticationFlavor)(&rule.ReadWriteRule)
-
+		readWriteRules := strings.Split(strings.TrimSpace(rule.ReadWriteRule), ",")
+		rwRules := make([]*models.ExportAuthenticationFlavor, 0)
+		for _, readWriteRule := range readWriteRules {
+			readWriteRuleExportAuthFlavor := models.ExportAuthenticationFlavor(readWriteRule)
+			rwRules = append(rwRules, &readWriteRuleExportAuthFlavor)
+		}
 		superuser := make([]*models.ExportAuthenticationFlavor, 1)
 		superuser[0] = (*models.ExportAuthenticationFlavor)(&rule.SuperUserRule)
 
 		rules[i] = &models.ExportRules{
 			ExportRulesInlineClients:   []*models.ExportClients{{Match: &rule.ClientMatch}},
-			ExportRulesInlineRoRule:    roRule,
-			ExportRulesInlineRwRule:    rwRule,
+			ExportRulesInlineRoRule:    roRules,
+			ExportRulesInlineRwRule:    rwRules,
 			ExportRulesInlineSuperuser: superuser,
 			AnonymousUser:              &rule.AnonymousUser,
 			Protocols:                  protocols,
@@ -4631,6 +4691,90 @@ func objectStoreEndpointInfoGetParamsToONTAP(params *ObjectStoreEndpointInfoGetP
 	return otParams
 }
 
+func kerberosRealmGetParamsToONTAP(params *KerberosRealmGetParams) *nas.KerberosRealmGetParams {
+	otParams := nas.NewKerberosRealmGetParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetSvmUUID(params.SvmUUID)
+	otParams.SetName(params.Realm)
+	return otParams
+}
+
+func kerberosRealmCreateParamsToONTAP(params *KerberosRealmCreateParams) *nas.KerberosRealmCreateParams {
+	otParams := nas.NewKerberosRealmCreateParams()
+	if params == nil {
+		return otParams
+	}
+	info := &models.KerberosRealm{
+		Name: &params.Realm,
+		Svm: &models.KerberosRealmInlineSvm{
+			UUID: &params.SvmUUID,
+		},
+		Kdc: &models.KerberosRealmInlineKdc{
+			IP:     &params.KdcIP,
+			Port:   params.RealmKDCPort,
+			Vendor: params.RealmKDCVendor,
+		},
+		ClockSkew: params.RealmClockSkew,
+	}
+	if params.AdminServerIP != nil {
+		info.AdminServer = &models.KerberosRealmInlineAdminServer{
+			Address: params.AdminServerIP,
+			Port:    params.AdminServerPort,
+		}
+	}
+	if params.PasswordServerIP != nil {
+		info.PasswordServer = &models.KerberosRealmInlinePasswordServer{
+			Address: params.PasswordServerIP,
+			Port:    params.PasswordServerPort,
+		}
+	}
+	if params.ADServerIP != nil && params.ADServerName != nil {
+		info.AdServer = &models.KerberosRealmInlineAdServer{
+			Address: params.ADServerIP,
+			Name:    params.ADServerName,
+		}
+	}
+	otParams.SetInfo(info)
+	return otParams
+}
+
+func kerberosInterfaceCollectionGetParamsToONTAP(params *KerberosInterfaceCollectionGetParams) *nas.KerberosInterfaceCollectionGetParams {
+	otParams := nas.NewKerberosInterfaceCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+	if params.SvmUUID != nil {
+		otParams.SetSvmUUID(params.SvmUUID)
+	}
+	if params.SvmName != nil {
+		otParams.SetSvmName(params.SvmName)
+	}
+	if params.InterfaceName != nil {
+		otParams.SetInterfaceName(params.InterfaceName)
+	}
+	return otParams
+}
+
+func kerberosInterfaceModifyParamsToONTAP(params *KerberosInterfaceModifyParams) *nas.KerberosInterfaceModifyParams {
+	otParams := nas.NewKerberosInterfaceModifyParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetInterfaceUUID(*params.InterfaceUUID)
+	info := &models.KerberosInterface{
+		Enabled:            params.IsKerberosEnabled,
+		Spn:                params.Spn,
+		MachineAccount:     params.MachineAccount,
+		OrganizationalUnit: params.OU,
+		User:               params.AdminUsername,
+		Password:           params.AdminPassword,
+	}
+	otParams.SetInfo(info)
+	return otParams
+}
+
 // TransferState returns the transfer status on a Snapmirror relationship if it exists
 func (s *SnapmirrorRelationship) TransferState() string {
 	if s == nil || s.Transfer == nil || s.Transfer.State == nil {
@@ -4658,5 +4802,56 @@ func ldapModifyParamsToONTAP(params *LdapModifyParams) *name_services.LdapModify
 			Schema:                              params.Schema,
 			LdapServiceInlineServers:            params.LdapServers,
 		})
+	return otParams
+}
+
+func nameMappingCollectionGetParamsToONTAP(params *NameMappingCollectionGetParams) *name_services.NameMappingCollectionGetParams {
+	otParams := name_services.NewNameMappingCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+	if params.SvmUUID != nil {
+		otParams.SetSvmUUID(params.SvmUUID)
+	}
+	if params.SvmName != nil {
+		otParams.SetSvmName(params.SvmName)
+	}
+	if params.Pattern != nil {
+		otParams.SetPattern(params.Pattern)
+	}
+	if params.Replacement != nil {
+		otParams.SetReplacement(params.Replacement)
+	}
+	if params.Direction != nil {
+		otParams.SetDirection(params.Direction)
+	}
+	otParams.SetFields(params.Fields)
+	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+	return otParams
+}
+
+func nameMappingCreateParamsToONTAP(params *NameMappingCreateParams) *name_services.NameMappingCreateParams {
+	otParams := name_services.NewNameMappingCreateParams()
+	if params == nil {
+		return otParams
+	}
+	info := &models.NameMapping{
+		Index:       &params.Index,
+		Pattern:     params.Pattern,
+		Replacement: params.Replacement,
+		Direction:   params.Direction,
+	}
+	if params.SvmUUID != nil {
+		info.Svm = &models.NameMappingInlineSvm{
+			UUID: params.SvmUUID,
+		}
+	}
+	if params.SvmName != nil {
+		if info.Svm == nil {
+			info.Svm = &models.NameMappingInlineSvm{}
+		}
+		info.Svm.Name = params.SvmName
+	}
+	otParams.SetInfo(info)
 	return otParams
 }

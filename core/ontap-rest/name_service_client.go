@@ -20,6 +20,8 @@ type NameServicesClient interface { // generate:mock
 	LdapSchemaModify(params *LdapSchemaModifyParams) error
 	LdapModify(params *LdapModifyParams) error
 	LdapModifyPreferredAdServers(params *LdapModifyParams) error
+	NameMappingCollectionGet(params *NameMappingCollectionGetParams) ([]*NameMapping, error)
+	NameMappingCreate(params *NameMappingCreateParams) error
 }
 
 type nameServicesClient struct {
@@ -113,5 +115,30 @@ func (nsc *nameServicesClient) LdapModifyPreferredAdServers(params *LdapModifyPa
 		return err
 	}
 	_, err = (*nsc.api).LdapModify(ldapModifyParams, nil, clientRequestWriter)
+	return err
+}
+
+// NameMappingCollectionGet invokes pkg/ontap-rest/client/name_services/Client.NameMappingCollectionGet
+func (nsc *nameServicesClient) NameMappingCollectionGet(params *NameMappingCollectionGetParams) ([]*NameMapping, error) {
+	otParams := nameMappingCollectionGetParamsToONTAP(params)
+	response, err := (*nsc.api).NameMappingCollectionGet(otParams, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Payload == nil || response.Payload.NameMappingResponseInlineRecords == nil {
+		return []*NameMapping{}, nil
+	}
+
+	result := make([]*NameMapping, len(response.Payload.NameMappingResponseInlineRecords))
+	for i, record := range response.Payload.NameMappingResponseInlineRecords {
+		result[i] = &NameMapping{NameMapping: *record}
+	}
+	return result, nil
+}
+
+// NameMappingCreate invokes pkg/ontap-rest/client/name_services/Client.NameMappingCreate
+func (nsc *nameServicesClient) NameMappingCreate(params *NameMappingCreateParams) error {
+	_, err := (*nsc.api).NameMappingCreate(nameMappingCreateParamsToONTAP(params), nil)
 	return err
 }

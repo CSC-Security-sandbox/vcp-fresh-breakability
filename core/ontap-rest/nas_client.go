@@ -10,6 +10,7 @@ import (
 	privmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -45,6 +46,10 @@ type NASClient interface { // generate:mock
 	CifsServiceCollectionGetPrivilegedMembers(params *CifsServiceCollectionGetPrivilegedMembersParams, ucbf UserCallbackFunc[[]string]) error
 	CifsServiceRemoveSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error
 	NfsModify(params *NfsModifyParams) error
+	KerberosRealmGet(params *KerberosRealmGetParams) ([]*KerberosRealm, error)
+	KerberosRealmCreate(params *KerberosRealmCreateParams) error
+	KerberosInterfaceCollectionGet(params *KerberosInterfaceCollectionGetParams) ([]*KerberosInterface, error)
+	KerberosInterfaceModify(params *KerberosInterfaceModifyParams) error
 }
 
 var (
@@ -56,12 +61,13 @@ var (
 type nasClient struct {
 	api     nas.ClientService
 	apiPriv *priv.ClientService
+	Trace   log.Logger
 	poller  Poller
 }
 
 // ExportPolicyCreate invokes clients/ontap-rest/client/n_a_s/Client.ExportPolicyCreate to create an export policy
 func (t *nasClient) ExportPolicyCreate(params *ExportPolicyCreateParams) (string, error) {
-	response, err := t.api.ExportPolicyCreate(exportPolicyCreateParamsToONTAP(params), nil)
+	response, err := t.api.ExportPolicyCreate(exportPolicyCreateParamsToONTAP(params, t.Trace), nil)
 	if err != nil {
 		return "", err
 	}
@@ -547,4 +553,52 @@ func nfsModifyParamsToONTAP(params *NfsModifyParams) *nas.NfsModifyParams {
 	otParams.SetSvmUUID(params.SvmUUID)
 
 	return otParams
+}
+
+// KerberosRealmGet invokes clients/ontap-rest/client/n_a_s/Client.KerberosRealmGet to get Kerberos realm
+func (nc *nasClient) KerberosRealmGet(params *KerberosRealmGetParams) ([]*KerberosRealm, error) {
+	response, err := nc.api.KerberosRealmGet(kerberosRealmGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Payload == nil {
+		return []*KerberosRealm{}, nil
+	}
+
+	result := []*KerberosRealm{}
+	if response.Payload.Name != nil {
+		result = append(result, &KerberosRealm{KerberosRealm: *response.Payload})
+	}
+	return result, nil
+}
+
+// KerberosRealmCreate invokes clients/ontap-rest/client/n_a_s/Client.KerberosRealmCreate to create Kerberos realm
+func (nc *nasClient) KerberosRealmCreate(params *KerberosRealmCreateParams) error {
+	_, err := nc.api.KerberosRealmCreate(kerberosRealmCreateParamsToONTAP(params), nil)
+	return err
+}
+
+// KerberosInterfaceCollectionGet invokes clients/ontap-rest/client/n_a_s/Client.KerberosInterfaceCollectionGet to get Kerberos interfaces
+func (nc *nasClient) KerberosInterfaceCollectionGet(params *KerberosInterfaceCollectionGetParams) ([]*KerberosInterface, error) {
+	response, err := nc.api.KerberosInterfaceCollectionGet(kerberosInterfaceCollectionGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Payload == nil || response.Payload.KerberosInterfaceResponseInlineRecords == nil {
+		return []*KerberosInterface{}, nil
+	}
+
+	result := make([]*KerberosInterface, len(response.Payload.KerberosInterfaceResponseInlineRecords))
+	for i, record := range response.Payload.KerberosInterfaceResponseInlineRecords {
+		result[i] = &KerberosInterface{KerberosInterface: *record}
+	}
+	return result, nil
+}
+
+// KerberosInterfaceModify invokes clients/ontap-rest/client/n_a_s/Client.KerberosInterfaceModify to modify Kerberos interface
+func (nc *nasClient) KerberosInterfaceModify(params *KerberosInterfaceModifyParams) error {
+	_, err := nc.api.KerberosInterfaceModify(kerberosInterfaceModifyParamsToONTAP(params), nil)
+	return err
 }

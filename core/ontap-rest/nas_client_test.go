@@ -231,15 +231,27 @@ func (m *mockNASClient) ExportPolicyGet(params *nas.ExportPolicyGetParams, authI
 }
 
 func (m *mockNASClient) KerberosInterfaceCollectionGet(params *nas.KerberosInterfaceCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.KerberosInterfaceCollectionGetOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	if resp, ok := m.response.(*nas.KerberosInterfaceCollectionGetOK); ok {
+		return resp, nil
+	}
+	return &nas.KerberosInterfaceCollectionGetOK{}, nil
 }
 
 func (m *mockNASClient) KerberosInterfaceModify(params *nas.KerberosInterfaceModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.KerberosInterfaceModifyOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &nas.KerberosInterfaceModifyOK{}, nil
 }
 
 func (m *mockNASClient) KerberosRealmCreate(params *nas.KerberosRealmCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.KerberosRealmCreateCreated, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &nas.KerberosRealmCreateCreated{}, nil
 }
 
 func (m *mockNASClient) KerberosRealmDelete(params *nas.KerberosRealmDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.KerberosRealmDeleteOK, error) {
@@ -247,7 +259,13 @@ func (m *mockNASClient) KerberosRealmDelete(params *nas.KerberosRealmDeleteParam
 }
 
 func (m *mockNASClient) KerberosRealmGet(params *nas.KerberosRealmGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.KerberosRealmGetOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	if resp, ok := m.response.(*nas.KerberosRealmGetOK); ok {
+		return resp, nil
+	}
+	return &nas.KerberosRealmGetOK{}, nil
 }
 
 func (m *mockNASClient) KerberosRealmModify(params *nas.KerberosRealmModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.KerberosRealmModifyOK, error) {
@@ -1551,5 +1569,272 @@ func TestCifsDomainGet(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, discoveryMode, *result.ServerDiscoveryMode)
+	})
+}
+
+func TestKerberosRealmGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		params := &KerberosRealmGetParams{
+			SvmUUID: "test-uuid",
+			Realm:   "EXAMPLE.COM",
+		}
+		result, err := client.KerberosRealmGet(params)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenPayloadIsNil_ThenReturnEmptySlice", func(tt *testing.T) {
+		api := &mockNASClient{response: &nas.KerberosRealmGetOK{Payload: nil}}
+		client := &nasClient{api: api}
+		params := &KerberosRealmGetParams{
+			SvmUUID: "test-uuid",
+			Realm:   "EXAMPLE.COM",
+		}
+		result, err := client.KerberosRealmGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+
+	t.Run("WhenRealmExists_ThenReturnRealm", func(tt *testing.T) {
+		realmName := "EXAMPLE.COM"
+		resp := &nas.KerberosRealmGetOK{
+			Payload: &models.KerberosRealm{
+				Name: &realmName,
+			},
+		}
+		api := &mockNASClient{response: resp}
+		client := &nasClient{api: api}
+		params := &KerberosRealmGetParams{
+			SvmUUID: "test-uuid",
+			Realm:   "EXAMPLE.COM",
+		}
+		result, err := client.KerberosRealmGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, realmName, *result[0].Name)
+	})
+
+	t.Run("WhenRealmNameIsNil_ThenReturnEmptySlice", func(tt *testing.T) {
+		resp := &nas.KerberosRealmGetOK{
+			Payload: &models.KerberosRealm{
+				Name: nil,
+			},
+		}
+		api := &mockNASClient{response: resp}
+		client := &nasClient{api: api}
+		params := &KerberosRealmGetParams{
+			SvmUUID: "test-uuid",
+			Realm:   "EXAMPLE.COM",
+		}
+		result, err := client.KerberosRealmGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+}
+
+func TestKerberosRealmCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		kdcPort := int64(88)
+		clockSkew := int64(5)
+		kdcVendor := "microsoft"
+		adminPort := int64(749)
+		passwordPort := int64(464)
+		kdcIP := "192.168.1.1"
+		adName := "ad-server"
+		params := &KerberosRealmCreateParams{
+			SvmUUID:            "test-uuid",
+			Realm:              "EXAMPLE.COM",
+			KdcIP:              kdcIP,
+			RealmKDCPort:       &kdcPort,
+			RealmClockSkew:     &clockSkew,
+			RealmKDCVendor:     &kdcVendor,
+			AdminServerIP:      &kdcIP,
+			AdminServerPort:    &adminPort,
+			PasswordServerIP:   &kdcIP,
+			PasswordServerPort: &passwordPort,
+			ADServerIP:         &kdcIP,
+			ADServerName:       &adName,
+		}
+		err := client.KerberosRealmCreate(params)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		kdcPort := int64(88)
+		clockSkew := int64(5)
+		kdcVendor := "microsoft"
+		adminPort := int64(749)
+		passwordPort := int64(464)
+		kdcIP := "192.168.1.1"
+		adName := "ad-server"
+		params := &KerberosRealmCreateParams{
+			SvmUUID:            "test-uuid",
+			Realm:              "EXAMPLE.COM",
+			KdcIP:              kdcIP,
+			RealmKDCPort:       &kdcPort,
+			RealmClockSkew:     &clockSkew,
+			RealmKDCVendor:     &kdcVendor,
+			AdminServerIP:      &kdcIP,
+			AdminServerPort:    &adminPort,
+			PasswordServerIP:   &kdcIP,
+			PasswordServerPort: &passwordPort,
+			ADServerIP:         &kdcIP,
+			ADServerName:       &adName,
+		}
+		err := client.KerberosRealmCreate(params)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestKerberosInterfaceCollectionGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		svmUUID := "test-uuid"
+		svmName := "test-svm"
+		interfaceName := "test-interface"
+		params := &KerberosInterfaceCollectionGetParams{
+			SvmUUID:       &svmUUID,
+			SvmName:       &svmName,
+			InterfaceName: &interfaceName,
+		}
+		result, err := client.KerberosInterfaceCollectionGet(params)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenPayloadIsNil_ThenReturnEmptySlice", func(tt *testing.T) {
+		api := &mockNASClient{response: &nas.KerberosInterfaceCollectionGetOK{Payload: nil}}
+		client := &nasClient{api: api}
+		svmUUID := "test-uuid"
+		svmName := "test-svm"
+		interfaceName := "test-interface"
+		params := &KerberosInterfaceCollectionGetParams{
+			SvmUUID:       &svmUUID,
+			SvmName:       &svmName,
+			InterfaceName: &interfaceName,
+		}
+		result, err := client.KerberosInterfaceCollectionGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+
+	t.Run("WhenRecordsIsNil_ThenReturnEmptySlice", func(tt *testing.T) {
+		resp := &nas.KerberosInterfaceCollectionGetOK{
+			Payload: &models.KerberosInterfaceResponse{
+				KerberosInterfaceResponseInlineRecords: nil,
+			},
+		}
+		api := &mockNASClient{response: resp}
+		client := &nasClient{api: api}
+		svmUUID := "test-uuid"
+		svmName := "test-svm"
+		interfaceName := "test-interface"
+		params := &KerberosInterfaceCollectionGetParams{
+			SvmUUID:       &svmUUID,
+			SvmName:       &svmName,
+			InterfaceName: &interfaceName,
+		}
+		result, err := client.KerberosInterfaceCollectionGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+
+	t.Run("WhenInterfacesExist_ThenReturnInterfaces", func(tt *testing.T) {
+		enabled := true
+		interfaceUUID := "interface-uuid"
+		interfaceNameStr := "test-interface"
+		resp := &nas.KerberosInterfaceCollectionGetOK{
+			Payload: &models.KerberosInterfaceResponse{
+				KerberosInterfaceResponseInlineRecords: []*models.KerberosInterface{
+					{
+						Enabled: &enabled,
+						Interface: &models.KerberosInterfaceInlineInterface{
+							UUID: &interfaceUUID,
+							Name: &interfaceNameStr,
+						},
+					},
+				},
+			},
+		}
+		api := &mockNASClient{response: resp}
+		client := &nasClient{api: api}
+		svmUUID := "test-uuid"
+		svmName := "test-svm"
+		interfaceName := "test-interface"
+		params := &KerberosInterfaceCollectionGetParams{
+			SvmUUID:       &svmUUID,
+			SvmName:       &svmName,
+			InterfaceName: &interfaceName,
+		}
+		result, err := client.KerberosInterfaceCollectionGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, enabled, *result[0].Enabled)
+		assert.Equal(tt, interfaceUUID, *result[0].Interface.UUID)
+	})
+}
+
+func TestKerberosInterfaceModify(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		interfaceUUID := "interface-uuid"
+		enabled := true
+		spn := "nfs/server.example.com@EXAMPLE.COM"
+		machineAccount := "NFS-SERVER"
+		svmUUID := "test-uuid"
+		adminUsername := "admin"
+		adminPassword := "password"
+		ou := "OU=test"
+		params := &KerberosInterfaceModifyParams{
+			SvmUUID:        svmUUID,
+			InterfaceUUID:  &interfaceUUID,
+			IsKerberosEnabled: &enabled,
+			Spn:            &spn,
+			MachineAccount: &machineAccount,
+			AdminUsername:  &adminUsername,
+			AdminPassword:  &adminPassword,
+			OU:             &ou,
+		}
+		err := client.KerberosInterfaceModify(params)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		interfaceUUID := "interface-uuid"
+		enabled := true
+		spn := "nfs/server.example.com@EXAMPLE.COM"
+		machineAccount := "NFS-SERVER"
+		svmUUID := "test-uuid"
+		adminUsername := "admin"
+		adminPassword := "password"
+		ou := "OU=test"
+		params := &KerberosInterfaceModifyParams{
+			SvmUUID:        svmUUID,
+			InterfaceUUID:  &interfaceUUID,
+			IsKerberosEnabled: &enabled,
+			Spn:            &spn,
+			MachineAccount: &machineAccount,
+			AdminUsername:  &adminUsername,
+			AdminPassword:  &adminPassword,
+			OU:             &ou,
+		}
+		err := client.KerberosInterfaceModify(params)
+		assert.NoError(tt, err)
 	})
 }

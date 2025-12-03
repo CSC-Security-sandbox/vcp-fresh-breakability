@@ -528,6 +528,110 @@ func (_c *MockNameServicesClient_LdapSchemaModify_Call) RunAndReturn(run func(*L
 	return _c
 }
 
+// NameMappingCollectionGet provides a mock function with given fields: params
+func (_m *MockNameServicesClient) NameMappingCollectionGet(params *NameMappingCollectionGetParams) ([]*NameMapping, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NameMappingCollectionGet")
+	}
+
+	var r0 []*NameMapping
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*NameMappingCollectionGetParams) ([]*NameMapping, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*NameMappingCollectionGetParams) []*NameMapping); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*NameMapping)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*NameMappingCollectionGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNameServicesClient_NameMappingCollectionGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NameMappingCollectionGet'
+type MockNameServicesClient_NameMappingCollectionGet_Call struct {
+	*mock.Call
+}
+
+// NameMappingCollectionGet is a helper method to define mock.On call
+//   - params *NameMappingCollectionGetParams
+func (_e *MockNameServicesClient_Expecter) NameMappingCollectionGet(params interface{}) *MockNameServicesClient_NameMappingCollectionGet_Call {
+	return &MockNameServicesClient_NameMappingCollectionGet_Call{Call: _e.mock.On("NameMappingCollectionGet", params)}
+}
+
+func (_c *MockNameServicesClient_NameMappingCollectionGet_Call) Run(run func(params *NameMappingCollectionGetParams)) *MockNameServicesClient_NameMappingCollectionGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*NameMappingCollectionGetParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_NameMappingCollectionGet_Call) Return(_a0 []*NameMapping, _a1 error) *MockNameServicesClient_NameMappingCollectionGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNameServicesClient_NameMappingCollectionGet_Call) RunAndReturn(run func(*NameMappingCollectionGetParams) ([]*NameMapping, error)) *MockNameServicesClient_NameMappingCollectionGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NameMappingCreate provides a mock function with given fields: params
+func (_m *MockNameServicesClient) NameMappingCreate(params *NameMappingCreateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NameMappingCreate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*NameMappingCreateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNameServicesClient_NameMappingCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NameMappingCreate'
+type MockNameServicesClient_NameMappingCreate_Call struct {
+	*mock.Call
+}
+
+// NameMappingCreate is a helper method to define mock.On call
+//   - params *NameMappingCreateParams
+func (_e *MockNameServicesClient_Expecter) NameMappingCreate(params interface{}) *MockNameServicesClient_NameMappingCreate_Call {
+	return &MockNameServicesClient_NameMappingCreate_Call{Call: _e.mock.On("NameMappingCreate", params)}
+}
+
+func (_c *MockNameServicesClient_NameMappingCreate_Call) Run(run func(params *NameMappingCreateParams)) *MockNameServicesClient_NameMappingCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*NameMappingCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockNameServicesClient_NameMappingCreate_Call) Return(_a0 error) *MockNameServicesClient_NameMappingCreate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNameServicesClient_NameMappingCreate_Call) RunAndReturn(run func(*NameMappingCreateParams) error) *MockNameServicesClient_NameMappingCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockNameServicesClient creates a new instance of MockNameServicesClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockNameServicesClient(t interface {

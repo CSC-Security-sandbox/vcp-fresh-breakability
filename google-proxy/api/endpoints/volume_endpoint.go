@@ -456,11 +456,17 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				continue
 			}
 			exportRules = append(exportRules, &models.ExportRule{
-				AllowedClients: rule.GetAllowedClients(),
-				AccessType:     string(accessType),
-				NFSv3:          rule.Nfsv3.Value,
-				NFSv4:          rule.Nfsv4.Value,
-				Index:          index + 1, // adding 1 as 0 index is not supported by ontap
+				AllowedClients:      rule.GetAllowedClients(),
+				AccessType:          string(accessType),
+				NFSv3:               rule.Nfsv3.Value,
+				NFSv4:               rule.Nfsv4.Value,
+				Index:               index + 1, // adding 1 as 0 index is not supported by ontap
+				Kerberos5ReadOnly:   rule.Kerberos5ReadOnly.Value,
+				Kerberos5ReadWrite:  rule.Kerberos5ReadWrite.Value,
+				Kerberos5iReadOnly:  rule.Kerberos5iReadOnly.Value,
+				Kerberos5iReadWrite: rule.Kerberos5iReadWrite.Value,
+				Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
+				Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
 			})
 		}
 		param.FileProperties.ExportPolicy.ExportRules = exportRules

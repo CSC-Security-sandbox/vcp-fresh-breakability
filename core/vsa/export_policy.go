@@ -2,6 +2,7 @@ package vsa
 
 import (
 	"fmt"
+	"strings"
 
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -25,6 +26,11 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 	var roRules, rwRules string
 	roRules = models.ExportAuthenticationFlavorSys
 	rwRules = models.AnyAccessProtocol
+	if utils.IsRuleKerberosSupported(rule.NFSv4, rule.Kerberos5ReadWrite, rule.Kerberos5ReadOnly, rule.Kerberos5pReadWrite,
+		rule.Kerberos5pReadOnly, rule.Kerberos5iReadOnly, rule.Kerberos5iReadWrite) {
+		roRules, rwRules = convertStorageExportPolicyAuthenticationFlavorToONTAP(rule)
+	}
+
 	if !rule.CIFS && !rule.NFSv3 && !rule.NFSv4 {
 		roRules = *nillable.ToPointer(models.ExportAuthenticationFlavorNever)
 		rwRules = *nillable.ToPointer(models.ExportAuthenticationFlavorNever)
@@ -63,6 +69,46 @@ func isDefaultRule(rule *ontaprestmodels.ExportRules) bool {
 		len(rule.ExportRulesInlineRoRule) == 1 && *rule.ExportRulesInlineRoRule[0] == ontaprestmodels.ExportAuthenticationFlavorNone &&
 		len(rule.ExportRulesInlineRwRule) == 1 && *rule.ExportRulesInlineRwRule[0] == ontaprestmodels.ExportAuthenticationFlavorNone &&
 		len(rule.ExportRulesInlineSuperuser) == 1 && *rule.ExportRulesInlineSuperuser[0] == ontaprestmodels.ExportAuthenticationFlavorNone
+}
+
+var convertStorageExportPolicyAuthenticationFlavorToONTAP = _convertStorageExportPolicyAuthenticationFlavorToONTAP
+
+func _convertStorageExportPolicyAuthenticationFlavorToONTAP(rule ExportRule) (roRules, rwRules string) {
+	if !rule.CIFS && !rule.NFSv3 && !rule.NFSv4 {
+		return models.ExportAuthenticationFlavorNever, models.ExportAuthenticationFlavorAny
+	}
+
+	// Revert mutual exclusivity of read-only vs read-write
+	accessUnixRead := rule.UnixReadOnly || rule.UnixReadWrite
+	accessKerberos5Read := rule.Kerberos5ReadOnly || rule.Kerberos5ReadWrite
+	accessKerberos5iRead := rule.Kerberos5iReadOnly || rule.Kerberos5iReadWrite
+	accessKerberos5pRead := rule.Kerberos5pReadOnly || rule.Kerberos5pReadWrite
+
+	return convertStorageExportPolicyAuthenticationFlavorAccessToONTAP(accessUnixRead, accessKerberos5Read, accessKerberos5iRead, accessKerberos5pRead),
+		convertStorageExportPolicyAuthenticationFlavorAccessToONTAP(rule.UnixReadWrite, rule.Kerberos5ReadWrite, rule.Kerberos5iReadWrite, rule.Kerberos5pReadWrite)
+}
+
+var convertStorageExportPolicyAuthenticationFlavorAccessToONTAP = _convertStorageExportPolicyAuthenticationFlavorAccessToONTAP
+
+func _convertStorageExportPolicyAuthenticationFlavorAccessToONTAP(unix, kerberos5, kerberos5i, kerberos5p bool) (rules string) {
+	if !unix && !kerberos5 && !kerberos5i && !kerberos5p {
+		return models.ExportAuthenticationFlavorNever
+	}
+	combinedRules := make([]string, 0)
+	if unix {
+		combinedRules = append(combinedRules, models.ExportAuthenticationFlavorSys)
+	}
+	if kerberos5 {
+		combinedRules = append(combinedRules, models.ExportAuthenticationFlavorKrb5)
+	}
+	if kerberos5i {
+		combinedRules = append(combinedRules, models.ExportAuthenticationFlavorKrb5i)
+	}
+	if kerberos5p {
+		combinedRules = append(combinedRules, models.ExportAuthenticationFlavorKrb5p)
+	}
+
+	return strings.Join(combinedRules, ",")
 }
 
 // ExportPolicyEnsureDefault ensures default export policy
@@ -113,6 +159,7 @@ func (rc *OntapRestProvider) CreateExportPolicy(params *ExportPolicy) error {
 	ontapExportRules := make([]*ontapRest.ExportRule, 0)
 	for _, rule := range params.ExportRules {
 		ontapExportRule := convertStorageExportPolicyRuleToONTAP(*rule)
+		rc.Logger.Info("Creating export policy rule", "ontapExportRule", ontapExportRule)
 		ontapExportRules = append(ontapExportRules, ontapExportRule)
 	}
 	err = rc.ExportPolicyEnsureDefault(params.SvmName)

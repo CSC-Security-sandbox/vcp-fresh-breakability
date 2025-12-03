@@ -221,6 +221,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(workflows.PreFileVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.PostFileVolumeWorkflowForSMB)
 	worker.RegisterWorkflow(workflows.PostFileVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.EnsureKerberosConfigWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.RevertVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)

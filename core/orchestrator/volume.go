@@ -290,12 +290,18 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			exportRules := make([]*datamodel.ExportRule, 0, len(params.FileProperties.ExportPolicy.ExportRules))
 			for _, rule := range params.FileProperties.ExportPolicy.ExportRules {
 				exportRules = append(exportRules, &datamodel.ExportRule{
-					AllowedClients: rule.AllowedClients,
-					AccessType:     rule.AccessType,
-					CIFS:           rule.CIFS,
-					NFSv3:          rule.NFSv3,
-					NFSv4:          rule.NFSv4,
-					Index:          rule.Index,
+					AllowedClients:      rule.AllowedClients,
+					AccessType:          rule.AccessType,
+					CIFS:                rule.CIFS,
+					NFSv3:               rule.NFSv3,
+					NFSv4:               rule.NFSv4,
+					Index:               rule.Index,
+					Kerberos5iReadOnly:  rule.Kerberos5iReadOnly,
+					Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
+					Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
+					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
+					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
+					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
 				})
 			}
 			volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{

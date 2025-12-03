@@ -294,13 +294,19 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 	vsaExportRules := make([]*vsa.ExportRule, 0)
 	for _, rule := range volume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules {
 		vsaExportRule := &vsa.ExportRule{
-			AccessType:     rule.AccessType,
-			AllowedClients: rule.AllowedClients,
-			CIFS:           rule.CIFS,
-			NFSv3:          rule.NFSv3,
-			NFSv4:          rule.NFSv4,
-			Index:          rule.Index,
-			AnonymousUser:  rule.AnonymousUser,
+			AccessType:          rule.AccessType,
+			AllowedClients:      rule.AllowedClients,
+			CIFS:                rule.CIFS,
+			NFSv3:               rule.NFSv3,
+			NFSv4:               rule.NFSv4,
+			Index:               rule.Index,
+			AnonymousUser:       rule.AnonymousUser,
+			Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
+			Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
+			Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
+			Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
+			Kerberos5iReadOnly:  rule.Kerberos5iReadOnly,
+			Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
 		}
 		vsaExportRules = append(vsaExportRules, vsaExportRule)
 	}

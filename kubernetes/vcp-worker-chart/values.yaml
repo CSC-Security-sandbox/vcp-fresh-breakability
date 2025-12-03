@@ -115,6 +115,7 @@ workerConfig:
   restoreVolumeBufferEnabled: "false"
   enableLdap: "false"
   enableSmb: "false"
+  enableKerberos: "false"
   vsaDeployedDnsName: "au-se1.vsa"
   vsaManagedZone: "au-se1-vsa"
   vsaSecretCacheCleanupIntervalHours: 24

@@ -130,6 +130,8 @@ func validateAndGetVsaActiveDirectory(ctx context.Context, activeDirectory *data
 		EncryptDCConnections:    &attributes.EncryptDCConnections,
 		ServerRootCaCertificate: &attributes.ServerRootCaCertificate,
 		LdapSigning:             &attributes.LdapSigning,
+		KdcIP:                   attributes.KdcIP,
+		AdName:                  activeDirectory.AdName,
 	}
 
 	return ad, nil

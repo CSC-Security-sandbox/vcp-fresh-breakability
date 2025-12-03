@@ -124,6 +124,7 @@ data:
   RESTORE_VOLUME_BUFFER_ENABLED: {{$.Values.workerConfig.restoreVolumeBufferEnabled | quote }}
   ENABLE_LDAP: {{$.Values.workerConfig.enableLdap | quote }}
   ENABLE_SMB: {{$.Values.workerConfig.enableSmb | quote }}
+  ENABLE_KERBEROS: {{$.Values.workerConfig.enableKerberos | quote }}
   PROBER_PROJECT_LIST: {{$.Values.workerConfig.proberProjectList | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
   CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.cmekWorkflowGlobalTimeoutMinutes | quote }}

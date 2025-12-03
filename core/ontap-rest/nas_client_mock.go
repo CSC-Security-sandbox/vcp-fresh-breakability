@@ -1286,6 +1286,214 @@ func (_c *MockNASClient_ExportPolicyModify_Call) RunAndReturn(run func(*ExportPo
 	return _c
 }
 
+// KerberosInterfaceCollectionGet provides a mock function with given fields: params
+func (_m *MockNASClient) KerberosInterfaceCollectionGet(params *KerberosInterfaceCollectionGetParams) ([]*KerberosInterface, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for KerberosInterfaceCollectionGet")
+	}
+
+	var r0 []*KerberosInterface
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*KerberosInterfaceCollectionGetParams) ([]*KerberosInterface, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*KerberosInterfaceCollectionGetParams) []*KerberosInterface); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*KerberosInterface)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*KerberosInterfaceCollectionGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNASClient_KerberosInterfaceCollectionGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'KerberosInterfaceCollectionGet'
+type MockNASClient_KerberosInterfaceCollectionGet_Call struct {
+	*mock.Call
+}
+
+// KerberosInterfaceCollectionGet is a helper method to define mock.On call
+//   - params *KerberosInterfaceCollectionGetParams
+func (_e *MockNASClient_Expecter) KerberosInterfaceCollectionGet(params interface{}) *MockNASClient_KerberosInterfaceCollectionGet_Call {
+	return &MockNASClient_KerberosInterfaceCollectionGet_Call{Call: _e.mock.On("KerberosInterfaceCollectionGet", params)}
+}
+
+func (_c *MockNASClient_KerberosInterfaceCollectionGet_Call) Run(run func(params *KerberosInterfaceCollectionGetParams)) *MockNASClient_KerberosInterfaceCollectionGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*KerberosInterfaceCollectionGetParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_KerberosInterfaceCollectionGet_Call) Return(_a0 []*KerberosInterface, _a1 error) *MockNASClient_KerberosInterfaceCollectionGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNASClient_KerberosInterfaceCollectionGet_Call) RunAndReturn(run func(*KerberosInterfaceCollectionGetParams) ([]*KerberosInterface, error)) *MockNASClient_KerberosInterfaceCollectionGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// KerberosInterfaceModify provides a mock function with given fields: params
+func (_m *MockNASClient) KerberosInterfaceModify(params *KerberosInterfaceModifyParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for KerberosInterfaceModify")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*KerberosInterfaceModifyParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNASClient_KerberosInterfaceModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'KerberosInterfaceModify'
+type MockNASClient_KerberosInterfaceModify_Call struct {
+	*mock.Call
+}
+
+// KerberosInterfaceModify is a helper method to define mock.On call
+//   - params *KerberosInterfaceModifyParams
+func (_e *MockNASClient_Expecter) KerberosInterfaceModify(params interface{}) *MockNASClient_KerberosInterfaceModify_Call {
+	return &MockNASClient_KerberosInterfaceModify_Call{Call: _e.mock.On("KerberosInterfaceModify", params)}
+}
+
+func (_c *MockNASClient_KerberosInterfaceModify_Call) Run(run func(params *KerberosInterfaceModifyParams)) *MockNASClient_KerberosInterfaceModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*KerberosInterfaceModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_KerberosInterfaceModify_Call) Return(_a0 error) *MockNASClient_KerberosInterfaceModify_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNASClient_KerberosInterfaceModify_Call) RunAndReturn(run func(*KerberosInterfaceModifyParams) error) *MockNASClient_KerberosInterfaceModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// KerberosRealmCreate provides a mock function with given fields: params
+func (_m *MockNASClient) KerberosRealmCreate(params *KerberosRealmCreateParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for KerberosRealmCreate")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*KerberosRealmCreateParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNASClient_KerberosRealmCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'KerberosRealmCreate'
+type MockNASClient_KerberosRealmCreate_Call struct {
+	*mock.Call
+}
+
+// KerberosRealmCreate is a helper method to define mock.On call
+//   - params *KerberosRealmCreateParams
+func (_e *MockNASClient_Expecter) KerberosRealmCreate(params interface{}) *MockNASClient_KerberosRealmCreate_Call {
+	return &MockNASClient_KerberosRealmCreate_Call{Call: _e.mock.On("KerberosRealmCreate", params)}
+}
+
+func (_c *MockNASClient_KerberosRealmCreate_Call) Run(run func(params *KerberosRealmCreateParams)) *MockNASClient_KerberosRealmCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*KerberosRealmCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_KerberosRealmCreate_Call) Return(_a0 error) *MockNASClient_KerberosRealmCreate_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNASClient_KerberosRealmCreate_Call) RunAndReturn(run func(*KerberosRealmCreateParams) error) *MockNASClient_KerberosRealmCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// KerberosRealmGet provides a mock function with given fields: params
+func (_m *MockNASClient) KerberosRealmGet(params *KerberosRealmGetParams) ([]*KerberosRealm, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for KerberosRealmGet")
+	}
+
+	var r0 []*KerberosRealm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*KerberosRealmGetParams) ([]*KerberosRealm, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*KerberosRealmGetParams) []*KerberosRealm); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*KerberosRealm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*KerberosRealmGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockNASClient_KerberosRealmGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'KerberosRealmGet'
+type MockNASClient_KerberosRealmGet_Call struct {
+	*mock.Call
+}
+
+// KerberosRealmGet is a helper method to define mock.On call
+//   - params *KerberosRealmGetParams
+func (_e *MockNASClient_Expecter) KerberosRealmGet(params interface{}) *MockNASClient_KerberosRealmGet_Call {
+	return &MockNASClient_KerberosRealmGet_Call{Call: _e.mock.On("KerberosRealmGet", params)}
+}
+
+func (_c *MockNASClient_KerberosRealmGet_Call) Run(run func(params *KerberosRealmGetParams)) *MockNASClient_KerberosRealmGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*KerberosRealmGetParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_KerberosRealmGet_Call) Return(_a0 []*KerberosRealm, _a1 error) *MockNASClient_KerberosRealmGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockNASClient_KerberosRealmGet_Call) RunAndReturn(run func(*KerberosRealmGetParams) ([]*KerberosRealm, error)) *MockNASClient_KerberosRealmGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NfsModify provides a mock function with given fields: params
 func (_m *MockNASClient) NfsModify(params *NfsModifyParams) error {
 	ret := _m.Called(params)

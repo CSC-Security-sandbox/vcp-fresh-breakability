@@ -1605,8 +1605,9 @@ func TestGcpKmsModifyParamsToONTAP(t *testing.T) {
 }
 
 func TestExportPolicyCreateParamsToONTAP(t *testing.T) {
+	logger := log.NewLogger()
 	t.Run("WhenParamsNil", func(tt *testing.T) {
-		otParams := exportPolicyCreateParamsToONTAP(nil)
+		otParams := exportPolicyCreateParamsToONTAP(nil, logger)
 		assert.NotNil(tt, otParams)
 	})
 	t.Run("WhenParamsSet", func(tt *testing.T) {
@@ -1626,7 +1627,7 @@ func TestExportPolicyCreateParamsToONTAP(t *testing.T) {
 			},
 		}
 
-		otParams := exportPolicyCreateParamsToONTAP(params)
+		otParams := exportPolicyCreateParamsToONTAP(params, logger)
 		assert.Equal(tt, "test-policy", *otParams.Info.Name)
 		assert.Equal(tt, "test-svm", *otParams.Info.Svm.Name)
 		assert.Len(tt, otParams.Info.ExportPolicyInlineRules, 1)

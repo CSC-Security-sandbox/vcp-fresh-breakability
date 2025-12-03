@@ -220,3 +220,182 @@ func TestNameServicesClient_LdapModifyPreferredAdServers(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestNameServicesClient_NameMappingCollectionGet(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("api error")}
+		n := name_services.New(transport, nil)
+		client := &nameServicesClient{api: &n}
+		svmUUID := "test-uuid"
+		pattern := "(.+)\\$@EXAMPLE.COM"
+		direction := "krb-unix"
+		params := &NameMappingCollectionGetParams{
+			SvmUUID:   &svmUUID,
+			Pattern:   &pattern,
+			Direction: &direction,
+		}
+		result, err := client.NameMappingCollectionGet(params)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenPayloadIsNil_ThenReturnEmptySlice", func(tt *testing.T) {
+		transport := &mockTransport{response: &name_services.NameMappingCollectionGetOK{Payload: nil}}
+		n := name_services.New(transport, nil)
+		client := &nameServicesClient{api: &n}
+		svmUUID := "test-uuid"
+		pattern := "(.+)\\$@EXAMPLE.COM"
+		direction := "krb-unix"
+		params := &NameMappingCollectionGetParams{
+			SvmUUID:   &svmUUID,
+			Pattern:   &pattern,
+			Direction: &direction,
+		}
+		result, err := client.NameMappingCollectionGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+
+	t.Run("WhenRecordsIsNil_ThenReturnEmptySlice", func(tt *testing.T) {
+		resp := &name_services.NameMappingCollectionGetOK{
+			Payload: &models.NameMappingResponse{
+				NameMappingResponseInlineRecords: nil,
+			},
+		}
+		transport := &mockTransport{response: resp}
+		n := name_services.New(transport, nil)
+		client := &nameServicesClient{api: &n}
+		svmUUID := "test-uuid"
+		pattern := "(.+)\\$@EXAMPLE.COM"
+		direction := "krb-unix"
+		params := &NameMappingCollectionGetParams{
+			SvmUUID:   &svmUUID,
+			Pattern:   &pattern,
+			Direction: &direction,
+		}
+		result, err := client.NameMappingCollectionGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+
+	t.Run("WhenMappingsExist_ThenReturnMappings", func(tt *testing.T) {
+		pattern := "(.+)\\$@EXAMPLE.COM"
+		replacement := "root"
+		direction := "krb-unix"
+		index := int64(1)
+		resp := &name_services.NameMappingCollectionGetOK{
+			Payload: &models.NameMappingResponse{
+				NameMappingResponseInlineRecords: []*models.NameMapping{
+					{
+						Pattern:     &pattern,
+						Replacement: &replacement,
+						Direction:   &direction,
+						Index:       &index,
+					},
+				},
+			},
+		}
+		transport := &mockTransport{response: resp}
+		n := name_services.New(transport, nil)
+		client := &nameServicesClient{api: &n}
+		svmUUID := "test-uuid"
+		params := &NameMappingCollectionGetParams{
+			SvmUUID:   &svmUUID,
+			Pattern:   &pattern,
+			Direction: &direction,
+		}
+		result, err := client.NameMappingCollectionGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, pattern, *result[0].Pattern)
+		assert.Equal(tt, replacement, *result[0].Replacement)
+		assert.Equal(tt, direction, *result[0].Direction)
+		assert.Equal(tt, index, *result[0].Index)
+	})
+
+	t.Run("WhenMultipleMappingsExist_ThenReturnAllMappings", func(tt *testing.T) {
+		pattern1 := "(.+)\\$@EXAMPLE.COM"
+		pattern2 := "(.+)\\$@TEST.COM"
+		replacement := "root"
+		direction := "krb-unix"
+		index1 := int64(1)
+		index2 := int64(2)
+		resp := &name_services.NameMappingCollectionGetOK{
+			Payload: &models.NameMappingResponse{
+				NameMappingResponseInlineRecords: []*models.NameMapping{
+					{
+						Pattern:     &pattern1,
+						Replacement: &replacement,
+						Direction:   &direction,
+						Index:       &index1,
+					},
+					{
+						Pattern:     &pattern2,
+						Replacement: &replacement,
+						Direction:   &direction,
+						Index:       &index2,
+					},
+				},
+			},
+		}
+		transport := &mockTransport{response: resp}
+		n := name_services.New(transport, nil)
+		client := &nameServicesClient{api: &n}
+		svmUUID := "test-uuid"
+		params := &NameMappingCollectionGetParams{
+			SvmUUID:   &svmUUID,
+			Direction: &direction,
+		}
+		result, err := client.NameMappingCollectionGet(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, pattern1, *result[0].Pattern)
+		assert.Equal(tt, pattern2, *result[1].Pattern)
+	})
+}
+
+func TestNameServicesClient_NameMappingCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("api error")}
+		n := name_services.New(transport, nil)
+		client := &nameServicesClient{api: &n}
+		svmUUID := "test-uuid"
+		pattern := "(.+)\\$@EXAMPLE.COM"
+		replacement := "root"
+		direction := "krb-unix"
+		index := int64(1)
+		params := &NameMappingCreateParams{
+			SvmUUID:     &svmUUID,
+			Pattern:     &pattern,
+			Replacement: &replacement,
+			Direction:   &direction,
+			Index:       index,
+		}
+		err := client.NameMappingCreate(params)
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		transport := &mockTransport{response: &name_services.NameMappingCreateCreated{}}
+		n := name_services.New(transport, nil)
+		client := &nameServicesClient{api: &n}
+		svmUUID := "test-uuid"
+		pattern := "(.+)\\$@EXAMPLE.COM"
+		replacement := "root"
+		direction := "krb-unix"
+		index := int64(1)
+		params := &NameMappingCreateParams{
+			SvmUUID:     &svmUUID,
+			Pattern:     &pattern,
+			Replacement: &replacement,
+			Direction:   &direction,
+			Index:       index,
+		}
+		err := client.NameMappingCreate(params)
+		assert.NoError(t, err)
+	})
+}

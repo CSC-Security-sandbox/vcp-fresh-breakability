@@ -72,7 +72,17 @@ const (
 	AnyAccessProtocol               = "any"
 	NoneAccessProtocol              = "none"
 	ExportAuthenticationFlavorNever = "never"
-	ExportAuthenticationFlavorSys   = "Sys"
+	// ExportAuthenticationFlavorAny captures enum value "any"
+	ExportAuthenticationFlavorAny = "any"
+	ExportAuthenticationFlavorSys = "Sys"
+	// ExportAuthenticationFlavorKrb5 captures enum value "krb5"
+	ExportAuthenticationFlavorKrb5 = "krb5"
+
+	// ExportAuthenticationFlavorKrb5i captures enum value "krb5i"
+	ExportAuthenticationFlavorKrb5i = "krb5i"
+
+	// ExportAuthenticationFlavorKrb5p captures enum value "krb5p"
+	ExportAuthenticationFlavorKrb5p = "krb5p"
 	RootAnonymousUser               = "root"
 	ChownModeRestricted             = "restricted"
 	DefaultExportPolicyName         = "default"
@@ -166,7 +176,7 @@ type UserCredentials struct {
 	AuthType       int             `json:"auth_type"`
 	OntapEndpoints []OntapEndpoint `json:"ontap_endpoints"`
 	// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
-	CaURI          string          `json:"ca_uri,omitempty"`
+	CaURI string `json:"ca_uri,omitempty"`
 }
 
 // GetCaURIWithFallback gets ca_uri from UserCredentials, falling back to environment variables if not set.

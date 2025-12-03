@@ -26,6 +26,7 @@ var (
 	thinCloneGASupport           = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
 	volumeStartToCloseTimeoutSec = env.GetUint64("VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC", 600)
 	volumeHeartbeatTimeoutSec    = env.GetUint64("VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC", 300)
+	enableKerberos     = env.GetBool("ENABLE_KERBEROS", false)
 )
 
 type volumeCreateWorkflow struct {
@@ -429,6 +430,60 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	// Check if Kerberos needs to be configured for NFSv4 volumes
+	hasNFSv4 := false
+	if dbVolume.VolumeAttributes != nil {
+		for _, protocol := range dbVolume.VolumeAttributes.Protocols {
+			if protocol == utils.ProtocolNFSv4 {
+				hasNFSv4 = true
+				break
+			}
+		}
+	}
+	hasKerberosFlags := false
+	if dbVolume.VolumeAttributes != nil && dbVolume.VolumeAttributes.FileProperties != nil &&
+		dbVolume.VolumeAttributes.FileProperties.ExportPolicy != nil &&
+		dbVolume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules != nil {
+		for _, rule := range dbVolume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules {
+			if rule.Kerberos5ReadOnly || rule.Kerberos5ReadWrite || rule.Kerberos5iReadOnly ||
+				rule.Kerberos5iReadWrite || rule.Kerberos5pReadOnly || rule.Kerberos5pReadWrite {
+				hasKerberosFlags = true
+				break
+			}
+		}
+	}
+
+	if enableKerberos && hasNFSv4 && hasKerberosFlags {
+		log.Info("Configuring Kerberos for NFSv4 volume", "volume", dbVolume.Name)
+		if dbVolume.Pool == nil {
+			err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
+			log.Error("Pool details missing during PostFileVolumeWorkflow with error: ", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		var dbSvm *datamodel.Svm
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetSVM, &dbVolume.PoolID).Get(ctx, &dbSvm)
+		if err != nil {
+			log.Error("Failed to get SVM info during PostFileVolumeWorkflow with error: ", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		var activeDirectory *vsa.ActiveDirectory
+		err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.GetActiveDirectoryForPool, &dbVolume.PoolID).Get(ctx, &activeDirectory)
+		if err != nil {
+			log.Error("Failed to get active directory during PostFileVolumeWorkflow with error: ", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Configure Kerberos for NFSv4 using workflow
+		err = workflow.ExecuteChildWorkflow(ctx, EnsureKerberosConfigWorkflow, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID).Get(ctx, nil)
+		if err != nil {
+			log.Error("Failed to configure Kerberos during PostFileVolumeWorkflow with error: ", err)
+			return nil, ConvertToVSAError(err)
+		}
+		log.Info("Successfully configured Kerberos for NFSv4 volume", "volume", dbVolume.Name)
+	}
 
 	if enableLdap {
 		if dbVolume.Pool == nil {

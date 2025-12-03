@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -191,6 +192,32 @@ func (m *MockNASClient) CifsServiceRemoveSecurityPrivilege(params *ontapRest.Cif
 }
 
 func (m *MockNASClient) NfsModify(params *ontapRest.NfsModifyParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) KerberosRealmGet(params *ontapRest.KerberosRealmGetParams) ([]*ontapRest.KerberosRealm, error) {
+	args := m.Called(params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*ontapRest.KerberosRealm), args.Error(1)
+}
+
+func (m *MockNASClient) KerberosRealmCreate(params *ontapRest.KerberosRealmCreateParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
+func (m *MockNASClient) KerberosInterfaceCollectionGet(params *ontapRest.KerberosInterfaceCollectionGetParams) ([]*ontapRest.KerberosInterface, error) {
+	args := m.Called(params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*ontapRest.KerberosInterface), args.Error(1)
+}
+
+func (m *MockNASClient) KerberosInterfaceModify(params *ontapRest.KerberosInterfaceModifyParams) error {
 	args := m.Called(params)
 	return args.Error(0)
 }
@@ -606,7 +633,7 @@ func TestExportPolicyEnsureDefault_Success_DefaultRuleExists(t *testing.T) {
 	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
 		return mockRESTClient, nil
 	}
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 	svmName := "testSVM"
 
 	// Mock export policy with default rule
@@ -648,7 +675,7 @@ func TestExportPolicyEnsureDefault_Success_CreatesDefaultRule(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 	svmName := "testSVM"
 
 	// Mock export policy without default rule
@@ -687,7 +714,7 @@ func TestExportPolicyEnsureDefault_Error_PolicyNotFound(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 	svmName := "testSVM"
 
 	mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
@@ -711,7 +738,7 @@ func TestExportPolicyEnsureDefault_Error_GetFails(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 	svmName := "testSVM"
 
 	mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
@@ -735,7 +762,7 @@ func TestExportPolicyEnsureDefault_Error_ModifyFails(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 	svmName := "testSVM"
 
 	// Mock export policy without default rule
@@ -769,7 +796,7 @@ func TestCreateExportPolicy_Success(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 
 	exportPolicy := &ExportPolicy{
 		ExportPolicyName: "test-policy",
@@ -836,7 +863,7 @@ func TestCreateExportPolicy_Error_EnsureDefaultFails(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 
 	exportPolicy := &ExportPolicy{
 		ExportPolicyName: "test-policy",
@@ -872,7 +899,7 @@ func TestCreateExportPolicy_Error_CreateFails(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 
 	exportPolicy := &ExportPolicy{
 		ExportPolicyName: "test-policy",
@@ -929,7 +956,7 @@ func TestCreateExportPolicy_Success_EmptyRules(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 
 	exportPolicy := &ExportPolicy{
 		ExportPolicyName: "test-policy",
@@ -1280,7 +1307,7 @@ func TestExportPolicyEnsureDefault_ErrorEdgeCases(t *testing.T) {
 				return mockRESTClient, nil
 			}
 
-			rc := &OntapRestProvider{}
+			rc := &OntapRestProvider{Logger: log.NewLogger()}
 			svmName := "testSVM"
 
 			tt.setup(mockNASClient)
@@ -1409,7 +1436,7 @@ func TestCreateExportPolicy_ExtensiveEdgeCases(t *testing.T) {
 				return mockRESTClient, nil
 			}
 
-			rc := &OntapRestProvider{}
+			rc := &OntapRestProvider{Logger: log.NewLogger()}
 
 			tt.setup(mockNASClient)
 
@@ -1440,7 +1467,7 @@ func TestCreateExportPolicy_NilPolicy(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 
 	// This should cause a panic if we try to access params fields
 	defer func() {
@@ -1562,7 +1589,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_AuthenticationRules(t *testing.T)
 
 func TestOntapRestProvider_UpdateExportPolicyRules(t *testing.T) {
 	t.Run("WhenGetOntapClientFuncFails_ShouldReturnError", func(t *testing.T) {
-		provider := &OntapRestProvider{}
+		provider := &OntapRestProvider{Logger: log.NewLogger()}
 
 		// Mock getOntapClientFunc to return error
 		originalFunc := getOntapClientFunc
@@ -1602,7 +1629,7 @@ func TestOntapRestProvider_UpdateExportPolicyRules(t *testing.T) {
 			return params.Name != nil && *params.Name == "test-policy" && params.SvmName != nil && *params.SvmName == "test-svm"
 		})).Return(nil, errors.New("export policy get failed"))
 
-		provider := &OntapRestProvider{}
+		provider := &OntapRestProvider{Logger: log.NewLogger()}
 
 		params := UpdateExportPolicyRulesParams{
 			VolumeName: "test-volume",
@@ -1636,7 +1663,7 @@ func TestOntapRestProvider_UpdateExportPolicyRules(t *testing.T) {
 			return params.Name != nil && *params.Name == "test-policy" && params.SvmName != nil && *params.SvmName == "test-svm"
 		})).Return(nil, nil) // Return nil for both policy and error to indicate policy doesn't exist
 
-		provider := &OntapRestProvider{}
+		provider := &OntapRestProvider{Logger: log.NewLogger()}
 
 		params := UpdateExportPolicyRulesParams{
 			VolumeName: "test-volume",
@@ -1686,7 +1713,7 @@ func TestOntapRestProvider_UpdateExportPolicyRules(t *testing.T) {
 		mockNASClient.On("ExportPolicyCreate", mock.Anything).
 			Return("", errors.New("create failed"))
 
-		provider := &OntapRestProvider{}
+		provider := &OntapRestProvider{Logger: log.NewLogger()}
 
 		params := UpdateExportPolicyRulesParams{
 			VolumeName: "test-volume",
@@ -1738,7 +1765,7 @@ func TestOntapRestProvider_UpdateExportPolicyRules(t *testing.T) {
 			return params.Name != nil && *params.Name == "same-policy" && params.SvmName != nil && *params.SvmName == "test-svm"
 		})).Return(nil, errors.New("get policy failed"))
 
-		provider := &OntapRestProvider{}
+		provider := &OntapRestProvider{Logger: log.NewLogger()}
 
 		params := UpdateExportPolicyRulesParams{
 			VolumeName: "test-volume",
@@ -1799,7 +1826,7 @@ func TestOntapRestProvider_UpdateExportPolicyRules(t *testing.T) {
 		mockNASClient.On("ExportPolicyModify", mock.Anything).
 			Return(errors.New("modify failed"))
 
-		provider := &OntapRestProvider{}
+		provider := &OntapRestProvider{Logger: log.NewLogger()}
 
 		params := UpdateExportPolicyRulesParams{
 			VolumeName: "test-volume",
@@ -1860,7 +1887,7 @@ func TestOntapRestProvider_UpdateExportPolicyRules(t *testing.T) {
 		mockNASClient.On("ExportPolicyModify", mock.Anything).
 			Return(nil)
 
-		provider := &OntapRestProvider{}
+		provider := &OntapRestProvider{Logger: log.NewLogger()}
 
 		params := UpdateExportPolicyRulesParams{
 			VolumeName: "test-volume",
@@ -1896,7 +1923,7 @@ func TestDeleteExportPolicy_Success(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 
 	exportPolicy := &ExportPolicy{
 		ExportPolicyName: "test-policy",
@@ -1922,7 +1949,7 @@ func TestDeleteExportPolicy_GetClientFailure(t *testing.T) {
 		return nil, expectedError
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 
 	exportPolicy := &ExportPolicy{
 		ExportPolicyName: "test-policy",
@@ -1946,7 +1973,7 @@ func TestDeleteExportPolicy_DeleteFailure(t *testing.T) {
 		return mockRESTClient, nil
 	}
 
-	rc := &OntapRestProvider{}
+	rc := &OntapRestProvider{Logger: log.NewLogger()}
 
 	exportPolicy := &ExportPolicy{
 		ExportPolicyName: "test-policy",
