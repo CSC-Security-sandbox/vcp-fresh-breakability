@@ -141,7 +141,9 @@ func (a *FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx con
 	if err != nil {
 		volume.CacheParameters.CacheStateDetailsCode = coremodels.ErrorDuringClusterPeerCode
 		volume.CacheParameters.CacheStateDetails = coremodels.ErrorDuringClusterPeer
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerError, err),
+		)
 	}
 
 	result.ClusterPeer = clusterPeer

@@ -198,8 +198,7 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	// This is needed to set the CommandExpiryTime in DBVolume cache parameters
 	// as we are using same workflow for establish peering, we can override the values here
 	// if user has provided different values during create flexcache volume
-	// We copy only these two parameters, other parameters are set during volume creation
-	// and should not be overwritten
+	// we copy expiry time and peer ips from input params to DBVolume cache parameters
 	if params != nil && params.CacheParameters != nil && dbVolume.CacheParameters != nil {
 		flexcacheResult = *copyInputCacheParameters(params, &flexcacheResult)
 	}
@@ -506,5 +505,8 @@ func copyInputCacheParameters(params *common.CreateVolumeParams,
 	} else {
 		out.CommandExpiryTime = nil
 	}
+
+	// Copy peer IPs
+	out.PeerIpAddresses = in.PeerIPAddresses
 	return flexcacheResult
 }

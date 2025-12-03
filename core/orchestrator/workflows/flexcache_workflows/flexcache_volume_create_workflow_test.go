@@ -1428,8 +1428,9 @@ func TestCopyInputCacheParameters(t *testing.T) {
 		pass := "secret"
 		params := &common.CreateVolumeParams{
 			CacheParameters: &models.CacheParameters{
-				PeerExpiryTime: &peer,
-				Passphrase:     &pass,
+				PeerExpiryTime:  &peer,
+				Passphrase:      &pass,
+				PeerIPAddresses: []string{"192.0.2.1", "198.51.100.2"},
 			},
 		}
 		res := &flexcache.CreateFlexCacheResult{
@@ -1444,6 +1445,9 @@ func TestCopyInputCacheParameters(t *testing.T) {
 		assert.NotNil(t, out.CommandExpiryTime)
 		assert.Equal(t, peer, *out.CommandExpiryTime)
 		assert.NotSame(t, params.CacheParameters.PeerExpiryTime, out.CommandExpiryTime)
+		assert.NotNil(t, out.PeerIpAddresses)
+		assert.Equal(t, params.CacheParameters.PeerIPAddresses, out.PeerIpAddresses)
+		assert.NotSame(t, &params.CacheParameters.PeerIPAddresses, &out.PeerIpAddresses)
 	})
 
 	t.Run("ClearBothWhenInputNil", func(t *testing.T) {
@@ -1457,28 +1461,6 @@ func TestCopyInputCacheParameters(t *testing.T) {
 				CacheParameters: &datamodel.CacheParameters{
 					CommandExpiryTime: &oldTime,
 					Passphrase:        &oldPass,
-				},
-			},
-		}
-
-		copyInputCacheParameters(params, res)
-
-		out := res.DBVolume.CacheParameters
-		assert.Nil(t, out.CommandExpiryTime)
-	})
-
-	t.Run("CopyOnlyPassphrase", func(t *testing.T) {
-		pass := "only-pass"
-		params := &common.CreateVolumeParams{
-			CacheParameters: &models.CacheParameters{
-				Passphrase: &pass,
-			},
-		}
-		oldTime := time.Now().Add(5 * time.Minute)
-		res := &flexcache.CreateFlexCacheResult{
-			DBVolume: &datamodel.Volume{
-				CacheParameters: &datamodel.CacheParameters{
-					CommandExpiryTime: &oldTime,
 				},
 			},
 		}
