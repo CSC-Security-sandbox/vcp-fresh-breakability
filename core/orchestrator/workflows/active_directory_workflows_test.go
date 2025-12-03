@@ -2,26 +2,26 @@ package workflows
 
 import (
 	"fmt"
-	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/sdk/converter"
@@ -45,7 +45,8 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryCreateActivity{})
+		adCreateActivity := active_directory_activities.ActiveDirectoryCreateActivity{SE: mockStorage}
+		env.RegisterActivity(adCreateActivity.CreateVcpActiveDirectory)
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -71,8 +72,8 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
 
-		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, params, adRecord).Return(nil)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(adCreateActivity.CreateVcpActiveDirectory, mock.Anything, params, adRecord).Return(nil)
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 
@@ -94,7 +95,8 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryCreateActivity{})
+		adCreateActivity := active_directory_activities.ActiveDirectoryCreateActivity{SE: mockStorage}
+		env.RegisterActivity(adCreateActivity.CreateSdeActiveDirectory)
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -125,8 +127,8 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
 		}()
 
-		env.OnActivity("CreateSdeActiveDirectory", mock.Anything, params).Return(nil)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(adCreateActivity.CreateSdeActiveDirectory, mock.Anything, params).Return(nil)
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 
@@ -148,7 +150,8 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryCreateActivity{})
+		adCreateActivity := active_directory_activities.ActiveDirectoryCreateActivity{SE: mockStorage}
+		env.RegisterActivity(adCreateActivity.CreateVcpActiveDirectory)
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -176,8 +179,8 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 		defer func() { cvp.CVP_HOST = originalHost }()
 
 		expectedError := vsaerrors.New("Error")
-		env.OnActivity("CreateVcpActiveDirectory", mock.Anything, params, adRecord).Return(expectedError)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(adCreateActivity.CreateVcpActiveDirectory, mock.Anything, params, adRecord).Return(expectedError)
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 	})
@@ -195,7 +198,8 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryCreateActivity{})
+		adCreateActivity := active_directory_activities.ActiveDirectoryCreateActivity{SE: mockStorage}
+		env.RegisterActivity(adCreateActivity.CreateSdeActiveDirectory)
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -222,8 +226,8 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 		defer func() { cvp.CVP_HOST = originalHost }()
 
 		expectedError := vsaerrors.New("Error")
-		env.OnActivity("CreateSdeActiveDirectory", mock.Anything, params).Return(expectedError)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(adCreateActivity.CreateSdeActiveDirectory, mock.Anything, params).Return(expectedError)
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 	})
@@ -636,8 +640,14 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		adUpdateActivity := active_directory_activities.ActiveDirectoryUpdateActivity{SE: mockStorage}
+		env.RegisterActivity(adUpdateActivity.UpdateSdeActiveDirectory)
+		env.RegisterActivity(adUpdateActivity.PollSdeUpdateActivity)
+		env.RegisterActivity(adUpdateActivity.MarkVcpAdToUpdatingActivity)
+		env.RegisterActivity(adUpdateActivity.UpdateVcpActiveDirectory)
+
+		adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+		env.RegisterActivity(adActivity.GetSvmsForAd)
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -667,12 +677,12 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 			Name: "update-ad-operation",
 		}
 
-		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
-		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(nil)
-		env.OnActivity("MarkVcpAdToUpdatingActivity", mock.Anything, params, adRecord).Return(nil)
-		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSvmsForAd", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(sdeResult, nil)
+		env.OnActivity(adUpdateActivity.PollSdeUpdateActivity, mock.Anything, params, sdeResult).Return(nil)
+		env.OnActivity(adUpdateActivity.MarkVcpAdToUpdatingActivity, mock.Anything, params, adRecord).Return(nil)
+		env.OnActivity(adUpdateActivity.UpdateVcpActiveDirectory, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil)
 
 		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, adRecord)
 
@@ -715,14 +725,19 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
 			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
-		env.RegisterActivity(&activities.CommonActivities{})
+		adUpdateActivity := active_directory_activities.ActiveDirectoryUpdateActivity{SE: mockStorage}
+		env.RegisterActivity(adUpdateActivity.UpdateSdeActiveDirectory)
+
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		oldAd := &models.ActiveDirectory{
 			AdName: "test-ad-sde-error",
@@ -735,8 +750,8 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(nil, vsaerrors.New("SDE update failed"))
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(nil, vsaerrors.New("SDE update failed"))
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
 
@@ -758,14 +773,20 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
 			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
-		env.RegisterActivity(&activities.CommonActivities{})
+		adUpdateActivity := active_directory_activities.ActiveDirectoryUpdateActivity{SE: mockStorage}
+		env.RegisterActivity(adUpdateActivity.UpdateSdeActiveDirectory)
+		env.RegisterActivity(adUpdateActivity.PollSdeUpdateActivity)
+
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		oldAd := &models.ActiveDirectory{
 			AdName: "test-ad-poll-error",
@@ -782,9 +803,9 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 			Name: "operations/op-123",
 		}
 
-		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
-		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(vsaerrors.New("polling failed"))
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(sdeResult, nil)
+		env.OnActivity(adUpdateActivity.PollSdeUpdateActivity, mock.Anything, params, sdeResult).Return(vsaerrors.New("polling failed"))
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
 
@@ -796,15 +817,23 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 	t.Run("Failure_VcpUpdateError", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
 			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
 		}
 		env.SetHeader(mockHeader)
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
-		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
-		env.RegisterActivity(&activities.CommonActivities{})
+		adUpdateActivity := active_directory_activities.ActiveDirectoryUpdateActivity{SE: mockStorage}
+		env.RegisterActivity(adUpdateActivity.UpdateVcpActiveDirectory)
+		env.RegisterActivity(adUpdateActivity.MarkVcpAdToErrorActivity)
+
+		adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+		env.RegisterActivity(adActivity.GetSvmsForAd)
+
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		oldAd := &models.ActiveDirectory{
 			AdName: "test-ad-vcp-error",
@@ -817,10 +846,10 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
-		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(vsaerrors.New("VCP update failed"))
-		env.OnActivity("MarkVcpAdToErrorActivity", mock.Anything, params, oldAd).Return(nil)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity(adUpdateActivity.UpdateVcpActiveDirectory, mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(vsaerrors.New("VCP update failed"))
+		env.OnActivity(adUpdateActivity.MarkVcpAdToErrorActivity, mock.Anything, params, oldAd).Return(nil)
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
 
