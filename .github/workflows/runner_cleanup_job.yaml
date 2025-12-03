@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   prune-docker:
@@ -14,8 +15,6 @@ jobs:
       matrix:
         runner_label: [cvs-u24-sunilt-01, cvs-u24-sunilt-02, cvs-u24-sunilt-03, cvs-u24-sunilt-04, cvs-u24-sunilt-05]
     runs-on: ${{ matrix.runner_label }}
-    env:
-      runner_workspace: /home/cvs/actions-runner/_work/
     steps:
       - name: Check Disk Usage
         id: check_disk
@@ -52,7 +51,21 @@ jobs:
         run: |
           go clean -cache
           go clean -modcache
+          go clean -testcache
+          echo "Go caches cleaned."
+    
 
+  cleanup-workspace:
+    strategy:
+      matrix:
+        runner_label: [cvs-u24-sunilt-01, cvs-u24-sunilt-02, cvs-u24-sunilt-03, cvs-u24-sunilt-04, cvs-u24-sunilt-05]
+    runs-on: ${{ matrix.runner_label }}
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
+      options: --user root
+      volumes:
+        - /home/cvs/actions-runner/_work/:/_work/
+    steps:
       - name: Cleanup all working Directory files
         run: |
-          rm -rfv ${runner_workspace}*
+          find /_work/_temp/ -mindepth 1 -maxdepth 1 ! -name '_github_home' -exec rm -rfv {} +
