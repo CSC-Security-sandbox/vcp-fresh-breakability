@@ -272,9 +272,15 @@ jobs:
           
           IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
           for IMAGE in "${IMAGES[@]}"; do
-            digest=$(curl -s -H "Authorization: Bearer $token_value" \
+            # Retrieve the manifest digest from Docker-Content-Digest header instead of config digest.
+            # Cosign v3 requires the manifest digest for signing operations.
+            digest=$(curl -sI -H "Authorization: Bearer $token_value" \
             -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-            https://ghcr.io/v2/VCP-VSA-control-Plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}/manifests/${{ inputs.tag }} | jq -r '.config.digest')
+            https://ghcr.io/v2/VCP-VSA-control-Plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}/manifests/${{ inputs.tag }} | grep -i docker-content-digest | awk '{print $2}' | tr -d '\r')
+            
+            # Validate that the digest was successfully retrieved
+            [[ -n "$digest" ]] || { echo "Error: Failed to retrieve manifest digest for ${IMAGE}"; exit 1; }
+            
             echo "${IMAGE}-digest=$digest" >> $GITHUB_ENV
           done
         shell: bash -e {0}
