@@ -42,17 +42,157 @@ func TestClusterDetails_Value(t *testing.T) {
 }
 
 func TestVolumeAttributes_Scan(t *testing.T) {
-	var va VolumeAttributes
-	err := va.Scan([]byte(`{"creation_token": "token"}`))
-	assert.NoError(t, err)
-	assert.Equal(t, "token", va.CreationToken)
+	t.Run("WithCreationToken", func(t *testing.T) {
+		var va VolumeAttributes
+		err := va.Scan([]byte(`{"creation_token": "token"}`))
+		assert.NoError(t, err)
+		assert.Equal(t, "token", va.CreationToken)
+	})
+
+	t.Run("WithSecurityStyle", func(t *testing.T) {
+		var va VolumeAttributes
+		err := va.Scan([]byte(`{"creation_token": "token", "security_style": "unix"}`))
+		assert.NoError(t, err)
+		assert.Equal(t, "token", va.CreationToken)
+		assert.Equal(t, "unix", va.SecurityStyle)
+	})
+
+	t.Run("WithAllFields", func(t *testing.T) {
+		var va VolumeAttributes
+		err := va.Scan([]byte(`{
+			"creation_token": "token",
+			"security_style": "ntfs",
+			"mounted": true,
+			"snap_reserve": 5
+		}`))
+		assert.NoError(t, err)
+		assert.Equal(t, "token", va.CreationToken)
+		assert.Equal(t, "ntfs", va.SecurityStyle)
+		assert.True(t, va.Mounted)
+		assert.Equal(t, int64(5), va.SnapReserve)
+	})
 }
 
 func TestVolumeAttributes_Value(t *testing.T) {
-	va := VolumeAttributes{CreationToken: "token"}
-	val, err := va.Value()
-	assert.NoError(t, err)
-	assert.Equal(t, `{"creation_token":"token","protocols":null,"vendor_subnet_id":"","external_uuid":"","block_properties":null,"block_devices":null,"file_properties":null,"is_data_protection":false,"mounted":false,"snap_reserve":0,"snapshot_directory":false,"labels":null,"restored_backup_id":"","restored_backup_path":"","clone_parent_info":null}`, string(val.([]byte)))
+	t.Run("WithEmptySecurityStyle", func(t *testing.T) {
+		va := VolumeAttributes{CreationToken: "token"}
+		val, err := va.Value()
+		assert.NoError(t, err)
+		assert.Equal(t, `{"creation_token":"token","protocols":null,"vendor_subnet_id":"","external_uuid":"","block_properties":null,"block_devices":null,"file_properties":null,"is_data_protection":false,"mounted":false,"snap_reserve":0,"snapshot_directory":false,"labels":null,"restored_backup_id":"","restored_backup_path":"","clone_parent_info":null,"security_style":""}`, string(val.([]byte)))
+	})
+
+	t.Run("WithSecurityStyle", func(t *testing.T) {
+		va := VolumeAttributes{
+			CreationToken: "token",
+			SecurityStyle: "unix",
+		}
+		val, err := va.Value()
+		assert.NoError(t, err)
+		assert.Contains(t, string(val.([]byte)), `"security_style":"unix"`)
+
+		// Verify round-trip
+		var va2 VolumeAttributes
+		err = va2.Scan(val)
+		assert.NoError(t, err)
+		assert.Equal(t, "unix", va2.SecurityStyle)
+		assert.Equal(t, "token", va2.CreationToken)
+	})
+}
+
+func TestFileProperties_JSON(t *testing.T) {
+	t.Run("WithSecurityStyle", func(t *testing.T) {
+		fp := FileProperties{
+			SecurityStyle: "unix",
+			JunctionPath:  "/vol1",
+		}
+		jsonData, err := json.Marshal(fp)
+		assert.NoError(t, err)
+		assert.Contains(t, string(jsonData), `"security_style":"unix"`)
+		assert.Contains(t, string(jsonData), `"junction_path":"/vol1"`)
+
+		// Verify round-trip
+		var fp2 FileProperties
+		err = json.Unmarshal(jsonData, &fp2)
+		assert.NoError(t, err)
+		assert.Equal(t, "unix", fp2.SecurityStyle)
+		assert.Equal(t, "/vol1", fp2.JunctionPath)
+	})
+
+	t.Run("WithAllFields", func(t *testing.T) {
+		fp := FileProperties{
+			SecurityStyle:    "ntfs",
+			JunctionPath:     "/vol2",
+			Fqdn:             "example.com",
+			SMBShareSettings: []string{"share1", "share2"},
+			ExportPolicy: &ExportPolicy{
+				ExportPolicyName: "policy1",
+			},
+		}
+		jsonData, err := json.Marshal(fp)
+		assert.NoError(t, err)
+		jsonStr := string(jsonData)
+		assert.Contains(t, jsonStr, `"security_style":"ntfs"`)
+		assert.Contains(t, jsonStr, `"junction_path":"/vol2"`)
+		assert.Contains(t, jsonStr, `"fqdn":"example.com"`)
+		assert.Contains(t, jsonStr, `"smb_share_settings":["share1","share2"]`)
+
+		// Verify round-trip
+		var fp2 FileProperties
+		err = json.Unmarshal(jsonData, &fp2)
+		assert.NoError(t, err)
+		assert.Equal(t, "ntfs", fp2.SecurityStyle)
+		assert.Equal(t, "/vol2", fp2.JunctionPath)
+		assert.Equal(t, "example.com", fp2.Fqdn)
+		assert.Equal(t, []string{"share1", "share2"}, fp2.SMBShareSettings)
+		assert.NotNil(t, fp2.ExportPolicy)
+		assert.Equal(t, "policy1", fp2.ExportPolicy.ExportPolicyName)
+	})
+
+	t.Run("WithEmptySecurityStyle", func(t *testing.T) {
+		fp := FileProperties{
+			JunctionPath: "/vol3",
+		}
+		jsonData, err := json.Marshal(fp)
+		assert.NoError(t, err)
+		assert.Contains(t, string(jsonData), `"security_style":""`)
+	})
+
+	t.Run("UnmarshalFromJSON", func(t *testing.T) {
+		jsonData := []byte(`{
+			"security_style": "unix",
+			"junction_path": "/vol4",
+			"fqdn": "test.example.com"
+		}`)
+		var fp FileProperties
+		err := json.Unmarshal(jsonData, &fp)
+		assert.NoError(t, err)
+		assert.Equal(t, "unix", fp.SecurityStyle)
+		assert.Equal(t, "/vol4", fp.JunctionPath)
+		assert.Equal(t, "test.example.com", fp.Fqdn)
+	})
+
+	t.Run("WithinVolumeAttributes", func(t *testing.T) {
+		va := VolumeAttributes{
+			CreationToken: "token",
+			FileProperties: &FileProperties{
+				SecurityStyle: "unix",
+				JunctionPath:  "/vol1",
+			},
+		}
+		val, err := va.Value()
+		assert.NoError(t, err)
+		jsonStr := string(val.([]byte))
+		assert.Contains(t, jsonStr, `"security_style":"unix"`)
+		assert.Contains(t, jsonStr, `"junction_path":"/vol1"`)
+
+		// Verify round-trip
+		var va2 VolumeAttributes
+		err = va2.Scan(val)
+		assert.NoError(t, err)
+		assert.NotNil(t, va2.FileProperties)
+		assert.Equal(t, "unix", va2.FileProperties.SecurityStyle)
+		assert.Equal(t, "/vol1", va2.FileProperties.JunctionPath)
+	})
 }
 
 func TestReplicationDetails_Scan(t *testing.T) {

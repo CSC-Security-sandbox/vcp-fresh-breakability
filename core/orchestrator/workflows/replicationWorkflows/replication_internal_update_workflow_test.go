@@ -108,7 +108,7 @@ func TestUpdateInternalVolumeReplicationWorkflow(t *testing.T) {
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity("UpdateVolumeReplicationOntap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
+		env.OnActivity("UpdateVolumeReplicationOntap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(replicationUpdateResponseONTAP, nil)
 		env.OnActivity("UpdateVolumeReplicationDetails", mock.Anything, replicationDb, replicationUpdateResponseONTAP, params).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(UpdateInternalVolumeReplicationWorkflow, params, replicationDb)

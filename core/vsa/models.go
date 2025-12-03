@@ -338,6 +338,7 @@ type CreateVolumeParams struct {
 	JunctionPath        *string
 	Style               *string // Volume style, e.g., "flexvol", "flexgroup"
 	TieringSupported    *bool
+	SecurityStyle       *string
 }
 
 type CreateFlexCacheVolumeParams struct {

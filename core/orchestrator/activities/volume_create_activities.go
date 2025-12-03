@@ -160,6 +160,12 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		TieringPolicy: &vsa.TieringPolicy{
 			CoolAccessTieringPolicy: ontapModels.VolumeInlineTieringPolicyNone,
 		},
+		SecurityStyle: func() *string {
+			if volume.VolumeAttributes.SecurityStyle != "" {
+				return &volume.VolumeAttributes.SecurityStyle
+			}
+			return nil
+		}(),
 	}
 
 	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {

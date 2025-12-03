@@ -73,6 +73,7 @@ type FileProperties struct {
 	ExportPolicy     *ExportPolicy
 	Fqdn             string
 	SMBShareSettings []string
+	SecurityStyle    string
 }
 
 type ExportPolicy struct {

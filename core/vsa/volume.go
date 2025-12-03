@@ -38,6 +38,9 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		JunctionPath:                   params.JunctionPath,
 		TieringSupported:               params.TieringSupported,
 	}
+	if params.SecurityStyle != nil {
+		volumeCreateParams.SecurityStyle = *params.SecurityStyle
+	}
 	if params.RestoreFromSnapshot != nil && params.RestoreFromSnapshot.SnapshotUUID != "" {
 		volumeCreateParams.RestoreFromSnapshot = &ontapRest.RestoreFromSnapshotParams{
 			ParentVolumeExternalUUID: params.RestoreFromSnapshot.ParentVolumeExternalUUID,

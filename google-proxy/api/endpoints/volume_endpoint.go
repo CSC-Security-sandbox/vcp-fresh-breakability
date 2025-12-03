@@ -443,6 +443,9 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			}
 			param.FileProperties.SMBShareSettings = getSMBShareSettings(req.Volume.SmbSettings)
 		}
+		if req.Volume.SecurityStyle.Set {
+			param.FileProperties.SecurityStyle = string(req.Volume.SecurityStyle.Value)
+		}
 	}
 
 	if req.Volume.ExportPolicy.IsSet() {
@@ -1309,6 +1312,9 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		}
 		if len(volume.FileProperties.SMBShareSettings) > 0 {
 			res.SmbSettings = convertSMBShareSettingToVCP(volume.FileProperties.SMBShareSettings)
+		}
+		if volume.FileProperties.SecurityStyle != "" {
+			res.SecurityStyle = gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyle(volume.FileProperties.SecurityStyle))
 		}
 	}
 

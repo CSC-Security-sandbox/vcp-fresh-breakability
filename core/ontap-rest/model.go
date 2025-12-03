@@ -2458,7 +2458,8 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 			ExportPolicy: &models.VolumeInlineNasInlineExportPolicy{
 				Name: params.ExportPolicy,
 			},
-			Path: params.JunctionPath,
+			Path:          params.JunctionPath,
+			SecurityStyle: &params.SecurityStyle,
 		},
 		Guarantee: &models.VolumeInlineGuarantee{
 			Type: nillable.ToPointer(GuaranteeTypeNone),

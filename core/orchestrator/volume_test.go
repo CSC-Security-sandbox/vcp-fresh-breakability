@@ -16291,6 +16291,51 @@ func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 		assert.NotNil(tt, result.FileProperties.SMBShareSettings)
 		assert.ElementsMatch(tt, []string{"browsable", "encrypt_data", "oplocks"}, result.FileProperties.SMBShareSettings)
 	})
+
+	t.Run("ConvertVolumeWithSecurityStyle", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:        "test-security-style-volume",
+			Description: "test volume with security style",
+			SizeInBytes: 107374182400,
+			Account:     account,
+			Pool:        pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolNFSv3},
+				FileProperties: &datamodel.FileProperties{
+					JunctionPath:  "/test-path",
+					SecurityStyle: "unix",
+				},
+			},
+		}
+
+		// Test conversion with SecurityStyle
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, "/test-path", result.FileProperties.JunctionPath)
+		assert.Equal(tt, "unix", result.FileProperties.SecurityStyle)
+	})
 }
 
 func TestConvertDatastoreVolumeToModelAutoTieringPolicy(t *testing.T) {

@@ -481,6 +481,53 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.Equal(tt, expected, result)
 	})
 
+	t.Run("ValidInputWithSecurityStyle", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+				SecurityStyle: gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyleUNIX),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:   "test-project",
+			Region:        "test-region",
+			Zone:          "test-zone",
+			Name:          "testvolume",
+			PoolID:        "test-pool",
+			QuotaInBytes:  1024,
+			Network:       "",
+			CreationToken: "test-token",
+			VendorID:      "/projects/test-project/locations/test-location/volumes/testvolume",
+			Protocols: []string{
+				"NFSV3",
+			},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: req.Volume.CreationToken.Value,
+					ExportRules:      nil,
+				},
+				SecurityStyle: "UNIX",
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+		assert.Equal(tt, "UNIX", result.FileProperties.SecurityStyle)
+	})
+
 	t.Run("ValidInputWithMultipleProtocols", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
@@ -2569,7 +2616,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 			ResourceID:                  nillable.GetStringPtr("resource-id"),
 			RestrictedActions:           []string{"action1", "action2"},
 			SecondaryZone:               nillable.GetStringPtr("secondary-zone"),
-			SecurityStyle:               "unix",
+			SecurityStyle:               "UNIX",
 			ServiceLevel:                cvpmodels.ServiceLevelV1betaNameFLEX,
 			SmbSettings:                 []string{"smb1", "smb2"},
 			SnapReserve:                 nillable.GetFloat64Ptr(100),
@@ -2648,7 +2695,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 			VolumeID:           "volume-456",
 			VolumeState:        "ACTIVE",
 			VolumeStateDetails: "Volume is healthy",
-			SecurityStyle:      "unix",
+			SecurityStyle:      "UNIX",
 			ServiceLevel:       "FLEX",
 		}
 
@@ -3070,7 +3117,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		input := &cvpmodels.VolumeV1beta{
 			VolumeID:       "vol-123",
 			VolumeState:    "active",
-			SecurityStyle:  "unix",
+			SecurityStyle:  "UNIX",
 			ServiceLevel:   "FLEX",
 			EncryptionType: "SOFTWARE",
 			StorageClass:   "BASIC",
@@ -3084,7 +3131,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 
 		// These fields should be properly set when input values are non-empty
 		assert.True(tt, result.SecurityStyle.IsSet(), "SecurityStyle should be set for non-empty string")
-		assert.Equal(tt, gcpgenserver.VolumeV1betaSecurityStyle("unix"), result.SecurityStyle.Value)
+		assert.Equal(tt, gcpgenserver.VolumeV1betaSecurityStyle("UNIX"), result.SecurityStyle.Value)
 
 		assert.True(tt, result.ServiceLevel.IsSet(), "ServiceLevel should be set for non-empty string")
 		assert.Equal(tt, gcpgenserver.VolumeV1betaServiceLevel("FLEX"), result.ServiceLevel.Value)
@@ -11003,6 +11050,29 @@ func TestConvertModelToVolumeV1beta_WithSMBSettings(t *testing.T) {
 		require.NotNil(tt, result, "convertModelToVCPVolume returned nil for volume without FileProperties")
 		// Volumes without FileProperties should not have SmbSettings
 		assert.Nil(tt, result.SmbSettings)
+	})
+}
+
+func TestConvertModelToVolumeV1beta_WithSecurityStyle(t *testing.T) {
+	t.Run("Success_WithSecurityStyle", func(tt *testing.T) {
+		volume := &models.Volume{
+			BaseModel:     models.BaseModel{UUID: "test-uuid"},
+			DisplayName:   "test-volume",
+			ProtocolTypes: []string{"NFSV4"},
+			FileProperties: &models.FileProperties{
+				JunctionPath:  "/test-path",
+				SecurityStyle: "UNIX",
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules:      []*models.ExportRule{},
+				},
+			},
+		}
+
+		result := convertModelToVCPVolume(volume)
+		require.NotNil(tt, result, "convertModelToVCPVolume returned nil")
+		assert.True(tt, result.SecurityStyle.IsSet(), "SecurityStyle should be set")
+		assert.Equal(tt, gcpgenserver.VolumeV1betaSecurityStyle("UNIX"), result.SecurityStyle.Value)
 	})
 }
 

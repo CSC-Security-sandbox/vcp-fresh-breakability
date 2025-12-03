@@ -391,6 +391,7 @@ type VolumeAttributes struct {
 	RestoredBackupID   string           `json:"restored_backup_id"`
 	RestoredBackupPath string           `json:"restored_backup_path"`
 	CloneParentInfo    *CloneParentInfo `json:"clone_parent_info"`
+	SecurityStyle      string           `json:"security_style"`
 }
 
 type BlockProperties struct {
@@ -416,6 +417,7 @@ type FileProperties struct {
 	JunctionPath     string        `json:"junction_path"`
 	Fqdn             string        `json:"fqdn"`
 	SMBShareSettings []string      `json:"smb_share_settings"`
+	SecurityStyle    string        `json:"security_style"`
 }
 
 type ExportPolicy struct {

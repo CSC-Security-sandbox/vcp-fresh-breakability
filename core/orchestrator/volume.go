@@ -303,7 +303,8 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 					ExportPolicyName: params.FileProperties.ExportPolicy.ExportPolicyName,
 					ExportRules:      exportRules,
 				},
-				JunctionPath: junctionPath,
+				JunctionPath:  junctionPath,
+				SecurityStyle: params.FileProperties.SecurityStyle,
 			}
 		}
 		if len(params.FileProperties.SMBShareSettings) > 0 {
@@ -1576,6 +1577,9 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		}
 		if attributes.FileProperties.SMBShareSettings != nil {
 			res.FileProperties.SMBShareSettings = attributes.FileProperties.SMBShareSettings
+		}
+		if attributes.FileProperties.SecurityStyle != "" {
+			res.FileProperties.SecurityStyle = attributes.FileProperties.SecurityStyle
 		}
 	}
 
