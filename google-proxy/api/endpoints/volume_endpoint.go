@@ -1370,14 +1370,10 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			primaryDevice := (*volume.BlockDevices)[0]
 			if primaryDevice.OSType != "" && primaryDevice.Identifier != "" {
 				res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
-				ipAddress := ""
-				if len(volume.IPAddresses) > 0 {
-					ipAddress = volume.IPAddresses[0]
-				}
 				res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
 					IpAddress:    gcpgenserver.NewOptString(strings.Join(volume.IPAddresses, ",")),
 					Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaISCSI),
-					Instructions: getMountInstructions(primaryDevice.OSType, ipAddress, primaryDevice.Identifier),
+					Instructions: getMountInstructions(primaryDevice.OSType, volume.IPAddresses, primaryDevice.Identifier),
 				})
 			}
 		}
@@ -1397,14 +1393,10 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		// Only show mount points if volume is ready and has valid LUN name
 		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) && volume.BlockProperties.LunName != "" {
 			res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
-			ipAddress := ""
-			if len(volume.IPAddresses) > 0 {
-				ipAddress = volume.IPAddresses[0]
-			}
 			res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
 				IpAddress:    gcpgenserver.NewOptString(strings.Join(volume.IPAddresses, ",")),
 				Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaISCSI),
-				Instructions: getMountInstructions(volume.BlockProperties.OSType, ipAddress, volume.BlockProperties.LunName),
+				Instructions: getMountInstructions(volume.BlockProperties.OSType, volume.IPAddresses, volume.BlockProperties.LunName),
 			})
 		}
 	}
@@ -1518,42 +1510,51 @@ Click Finish.`, exportFull)
 	return gcpgenserver.NewOptString(instructions)
 }
 
-func getMountInstructions(osType string, ipAddress string, lunName string) gcpgenserver.OptString {
+func getMountInstructions(osType string, ipAddresses []string, lunName string) gcpgenserver.OptString {
 	instructions := ""
 	switch osType {
 	case "LINUX":
+
+		providedIpAddresses := ""
+		if len(ipAddresses) >= 2 {
+			providedIpAddresses = fmt.Sprintf("The provided IP addresses are %s and %s.", ipAddresses[0], ipAddresses[1])
+		} else if len(ipAddresses) == 1 {
+			providedIpAddresses = fmt.Sprintf("The provided IP address is %s.", ipAddresses[0])
+		}
+
+		ipAddress := ""
+		if len(ipAddresses) > 0 {
+			ipAddress = ipAddresses[0]
+		}
+
 		instructions = fmt.Sprintf(`Prerequisites
-Ensure the open-iscsi and device-mapper-multipath packages are installed:
-
-# Debian/Ubuntu
-sudo apt-get install open-iscsi multipath-tools
-
-# RHEL/CentOS
-sudo yum install iscsi-initiator-utils device-mapper-multipath
+Ensure the iSCSI initiator, multipath and sg3 utils packages are installed.
 
 1. Install the iSCSI initiator
 
-First, install the iSCSI initiator and sg3 utils package on your system. This software enables your host to connect to the iSCSI target.
+Install and enable the iSCSI initiator and sg3 utils package on your system. This software enables your host to connect to the iSCSI target.
 
 On Red Hat Enterprise Linux or SUSE Linux:
-$ sudo yum install -y iscsi-initiator-utils sg3_utils
+$ sudo yum install -y iscsi-initiator-utils device-mapper-multipath sg3_utils
+$ sudo systemctl enable iscsid --now
 
 On Ubuntu or Debian instances:
-$ sudo apt-get install open-iscsi sg3-utils
+$ sudo apt-get install -y open-iscsi multipath-tools sg3-utils
+$ sudo systemctl enable iscsid --now
 
 2. Discover the iSCSI target
 
-Next, discover the available iSCSI targets by specifying the target's IP address and port. The default iSCSI port is 3260.
+Discover the available iSCSI targets by specifying the target's IP address and port. The default iSCSI port is 3260. %s
 
 $ sudo iscsiadm -m discovery -t sendtargets -p %s:3260
 
-This command will list the discovered targets, including their IQN (iSCSI Qualified Name).
+This command lists the discovered targets, including their IQN (iSCSI Qualified Name).
 
 3. Log in to the iSCSI target
 
-Now, log in to the specific target using its IQN, which you discovered in the previous step. Replace <<target-iqn>> with the actual IQN.
+Log in to the specific target using its IQN that you discovered in the previous step. Replace <<target-iqn>> with the actual IQN.
 
-$ sudo iscsiadm -m node -T <<target-iqn>> -p %s:3260 -l
+$ sudo iscsiadm -m node -T <<target-iqn>> -l
 
 4. Identify the LUN on your host
 
@@ -1562,20 +1563,23 @@ After logging in, your host needs to rescan its SCSI bus to detect the newly con
 Rescan for new devices:
 $ rescan-scsi-bus.sh
 
-Check for the new device (e.g., /dev/sdb). The output will show a new block device.
+Check for the new device (e.g., /dev/sdb). The output displays a new block device.
 $ lsblk
 
-5. Format and mount the LUN (if needed)
+5. Format and mount the LUN
 
-If the LUN doesn't have a filesystem, create one (e.g., ext4):
-$ sudo mkfs.ext4 /dev/sdb
+If a filesystem is needed, format it with the required filesystem. Then, you can create a mount point and mount the device.
+
+Create a filesystem (e.g., ext4) on the new device. For example, /dev/sdb:
+$ sudo mkfs.ext4 /dev/mapper/mpathX
 
 Create a mount point and mount the device:
 $ sudo mkdir /mnt/%s
 $ sudo mount /dev/sdb /mnt/%s
 
-To mount automatically on reboot, add to /etc/fstab:
-/dev/sdb /mnt/%s ext4 defaults 0 0`, ipAddress, ipAddress, lunName, lunName, lunName)
+To ensure the drive mounts automatically after a reboot, add the following line to the /etc/fstab file:
+$ /dev/sdb /mnt/%s ext4 defaults 0 0`, providedIpAddresses, ipAddress, lunName, lunName, lunName)
+
 		return gcpgenserver.NewOptString(instructions)
 	case "WINDOWS":
 		instructions = `Mount instruction for iSCSI target on Windows
@@ -1584,28 +1588,32 @@ Prerequisites
 • Windows Server with iSCSI Initiator and Multipath I/O (MPIO) features installed.
 
 1. iSCSI Target Discovery and Login
-• Open iSCSI Initiator (iscsicpl.exe)
+• Open the iSCSI Initiator (iscsicpl.exe)
   If prompted to start the service, click Yes to enable the Microsoft iSCSI Initiator Service.
-• Under Discovery tab, click Discover Portal
-  Enter the IP address of the target and click OK. Repeat this for both IP addresses reported by target.
-• Under Targets tab, select on each of the discovered target portals and click Connect.
-  In the Connect dialog, check Enable multi-path (if using multipathing) and click OK.
+• In the Discovery tab, click Discover Portal.
+• Enter the IP address of the target and click OK. Repeat this for both IP addresses reported by target,
+• In the Targets tab, select the target and click Connect.
+• For each of the Target portal IPs, do the following:
+  In the Connect to Target dialog, check Enable multi-path (if using multipathing).
+  Click Advanced to open a new dialog box.
+  In the General tab of the Advanced dialog, select the target portal IP from the dropdown for Target portal IP and click OK.
+  In the Connect to Target dialog, click OK.
 
 2. Multipath Configuration
-• Enable MPIO Feature:
+• Enable the MPIO feature:
   Open Server Manager > Manage > Add Roles and Features.
   Under Features, select Multipath I/O and install.
-• Configure MPIO for iSCSI Devices:
-  Open MPIO from Control Panel or Server Manager.
-  Go to Discover Multi-Paths tab.
+• Configure MPIO for iSCSI devices:
+  Open MPIO from the Control Panel or Server Manager.
+  Click the Discover Multi-Paths tab.
   Check Add support for iSCSI devices and click Add.
   Reboot if prompted.
 • Verify Multipath:
-  Open Device Manager and expand Disk drives.
-  Your iSCSI disk should appear as a multi-path device.
+  Open the Device Manager and expand Disk drives.
+  Your iSCSI disk should be displayed as a multi-path device.
   In MPIO Properties, under Devices, you should see your iSCSI device listed.
 
-3. Configure Volume as Usual
+3. Configure the volume as usual
 • Use Disk Management to initialize, partition, and format the disk.`
 		return gcpgenserver.NewOptString(instructions)
 

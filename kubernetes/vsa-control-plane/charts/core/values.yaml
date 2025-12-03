@@ -45,7 +45,7 @@ global:
     migrationPath: ""
     minQuotaInBytesPool: "10000000"
     minQuotaInBytesVolume: "10000000"
-    maxHostsPerHostgroup: "64"
+    maxHostsPerHostgroup: "128"
     msiEnabled: "false"
     ontapRestIdempotentTransportEnabled: ""
     ontapRestLogVerbose: ""

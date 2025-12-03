@@ -336,11 +336,17 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaCreateHostGroupInternalServerError).Code)
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaCreateHostGroupInternalServerError).Message)
 	})
-	t.Run("WhenCreateHostGroupWithHosts>64", func(tt *testing.T) {
+	t.Run("WhenCreateHostGroupWithHosts>128", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
+		}
+
+		// Create 129 hosts (one more than maxHostsPerHG limit of 128)
+		hosts := make([]string, 129)
+		for i := 0; i < 129; i++ {
+			hosts[i] = fmt.Sprintf("host%d", i+1)
 		}
 
 		req := &gcpgenserver.HostGroupV1beta{
@@ -348,7 +354,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			Description: gcpgenserver.NewOptString("test description"),
 			OsType:      gcpgenserver.HostGroupV1betaOsTypeLINUX,
 			Type:        gcpgenserver.NewOptHostGroupV1betaType(gcpgenserver.HostGroupV1betaTypeISCSIINITIATOR),
-			Hosts:       []string{"host1", "host2", "host3", "host4", "host5", "host6", "host7", "host8", "host9", "host10", "host11", "host12", "host13", "host14", "host15", "host16", "host17", "host18", "host19", "host20", "host21", "host22", "host23", "host24", "host25", "host26", "host27", "host28", "host29", "host30", "host31", "host32", "host33", "host34", "host35", "host36", "host37", "host38", "host39", "host40", "host41", "host42", "host43", "host44", "host45", "host46", "host47", "host48", "host49", "host50", "host51", "host52", "host53", "host54", "host55", "host56", "host57", "host58", "host59", "host60", "host61", "host62", "host63", "host64", "host65"},
+			Hosts:       hosts,
 		}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -619,7 +625,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Code)
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Message)
 	})
-	t.Run("WhenUpdateHostGroupHosts>64Fails", func(tt *testing.T) {
+	t.Run("WhenUpdateHostGroupHosts>128Fails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "valid-location-id",
@@ -627,9 +633,15 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 			HostGroupId:   "host-group-id",
 		}
 
+		// Create 129 hosts (one more than maxHostsPerHG limit of 128)
+		hosts := make([]string, 129)
+		for i := 0; i < 129; i++ {
+			hosts[i] = fmt.Sprintf("host%d", i+1)
+		}
+
 		req := &gcpgenserver.HostGroupUpdateV1beta{
 			Description: gcpgenserver.NewOptString("updated description"),
-			Hosts:       []string{"host1", "host2", "host3", "host4", "host5", "host6", "host7", "host8", "host9", "host10", "host11", "host12", "host13", "host14", "host15", "host16", "host17", "host18", "host19", "host20", "host21", "host22", "host23", "host24", "host25", "host26", "host27", "host28", "host29", "host30", "host31", "host32", "host33", "host34", "host35", "host36", "host37", "host38", "host39", "host40", "host41", "host42", "host43", "host44", "host45", "host46", "host47", "host48", "host49", "host50", "host51", "host52", "host53", "host54", "host55", "host56", "host57", "host58", "host59", "host60", "host61", "host62", "host63", "host64", "host65"},
+			Hosts:       hosts,
 		}
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {

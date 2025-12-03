@@ -58,6 +58,7 @@ maxConstituentsPerVolumePerAggregate: "200" # 200 constituents per aggregate per
 minSizeGranularity: "1073741824" # 1GiB in bytes
 jwkKidsUrl: "https://www.googleapis.com/service_accounts/v1/metadata/x509/"
 workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
+maxHostsPerHostgroup: "128"
 cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
 workflowGlobalTimeoutForReplicationMinutes: 10
 maxHostsPerHostgroup: "64"

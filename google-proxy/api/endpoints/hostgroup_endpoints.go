@@ -19,7 +19,7 @@ import (
 
 var (
 	operationPathFormat = "/v1beta/projects/%s/locations/%s/operations/%s"
-	maxHostsPerHG       = env.GetInt("MAX_HOSTS_PER_HOSTGROUP", 64)
+	maxHostsPerHG       = env.GetInt("MAX_HOSTS_PER_HOSTGROUP", 128)
 )
 
 func (h Handler) V1betaDescribeHostGroup(ctx context.Context, params gcpgenserver.V1betaDescribeHostGroupParams) (gcpgenserver.V1betaDescribeHostGroupRes, error) {
