@@ -111,6 +111,8 @@ func (a BackupActivity) IsSnapmirrorDeleted(ctx context.Context, node *models.No
 	}
 	_, err = provider.SnapmirrorRelationshipGet(params.DestinationPath, params.SourcePath)
 	if err != nil {
+		// Convert any error containing "not found" to a proper NotFoundErr
+		err = errors.ConvertToNotFoundErrIfContainsMessage(err, "not found", "snapmirror relationship", nil)
 		if errors.IsNotFoundErr(err) {
 			return true, nil
 		}

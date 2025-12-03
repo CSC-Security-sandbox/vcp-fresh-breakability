@@ -3473,6 +3473,32 @@ func TestIsSnapmirrorDeleted_ReturnsTrueWhenNotFound(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+// TestIsSnapmirrorDeleted_ReturnsTrueWhenLegacyNotFoundError tests the case where error message contains "not found" but isn't a proper NotFoundErr.
+func TestIsSnapmirrorDeleted_ReturnsTrueWhenLegacyNotFoundError(t *testing.T) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	// Simulate the legacy error format from production logs
+	legacyErr := errors.New("snapmirror relationship not found for destination: vsa-backup:/objstore/uuid and source: svm:volume")
+	mockProvider.On("SnapmirrorRelationshipGet", "/dest/path", "/src/path").Return(nil, legacyErr)
+
+	activity := BackupActivity{}
+	ctx := context.Background()
+	node := &models.Node{}
+	params := &commonparams.SnapmirrorRelationshipParams{
+		DestinationPath: "/dest/path",
+		SourcePath:      "/src/path",
+	}
+	deleted, err := activity.IsSnapmirrorDeleted(ctx, node, params)
+	assert.True(t, deleted)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
 // TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs tests error wrapping for non not-found errors.
 func TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs(t *testing.T) {
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
