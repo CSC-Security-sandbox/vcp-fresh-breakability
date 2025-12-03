@@ -3577,7 +3577,7 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 	assert.True(t, result.SourceVolume.IsSet())
 	assert.True(t, result.SourceSnapshot.IsSet())
 	assert.True(t, result.BackupRegion.IsSet())
-	assert.Equal(t, "us-central1", result.BackupRegion.Value)
+	assert.Equal(t, "us-east1", result.BackupRegion.Value)
 	assert.True(t, result.VolumeRegion.IsSet())
 	assert.Equal(t, "us-central1", result.VolumeRegion.Value)
 	assert.True(t, result.SatisfiesPzs.IsSet())

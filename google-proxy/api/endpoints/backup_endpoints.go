@@ -739,9 +739,11 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		}
 	}
 
-	backupRegion := *backup.BackupVault.SourceRegionName
-	if backupRegion == "" {
+	var backupRegion string
+	if backup.BackupVault.BackupRegionName != nil && *backup.BackupVault.BackupRegionName != "" {
 		backupRegion = *backup.BackupVault.BackupRegionName
+	} else if backup.BackupVault.SourceRegionName != nil {
+		backupRegion = *backup.BackupVault.SourceRegionName
 	}
 
 	backupV1 := gcpgenserver.BackupV1beta{
@@ -791,7 +793,7 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		},
 		BackupRegion: gcpgenserver.OptString{
 			Value: backupRegion,
-			Set:   true,
+			Set:   backupRegion != "",
 		},
 		VolumeRegion: gcpgenserver.OptString{
 			Value: *backup.BackupVault.SourceRegionName,

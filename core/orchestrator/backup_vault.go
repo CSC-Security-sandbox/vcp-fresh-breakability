@@ -415,11 +415,11 @@ func (o *Orchestrator) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Conte
 }
 
 // CreateBackupVaultEntryInVCP creates a BackupVault entry directly in the VCP database for cross-region operations
-func (o *Orchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+func (o *Orchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, accountName string) (*datamodel.BackupVault, error) {
 	se := o.storage
 	logger := util.GetLogger(ctx)
 
-	account, err := getOrCreateAccount(ctx, se, bv.AccountVendorID)
+	account, err := getOrCreateAccount(ctx, se, accountName)
 	if err != nil {
 		return nil, err
 	}

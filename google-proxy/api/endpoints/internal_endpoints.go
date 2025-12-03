@@ -747,7 +747,7 @@ func (h Handler) V1betaInternalCreateBackupVault(ctx context.Context, req *gcpge
 	backupVault.ExternalUUID = &req.BackupVaultId                             // Setting External UUID CRB destination case
 	backupVault.CrossRegionBackupVaultName = cvpBackupVault.SourceBackupVault // overriding for CRB destination case
 
-	createdBackupVault, err := h.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault)
+	createdBackupVault, err := h.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault, params.ProjectNumber)
 	if err != nil {
 		if errors.IsConflictErr(err) {
 			logger.Info("BackupVault already exists in VCP", "uuid", backupVault.UUID)
