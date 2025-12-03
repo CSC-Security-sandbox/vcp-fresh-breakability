@@ -61,7 +61,6 @@ workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
 maxHostsPerHostgroup: "128"
 cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
 workflowGlobalTimeoutForReplicationMinutes: 10
-maxHostsPerHostgroup: "64"
 gcpKmsKeyRotationEnabled: "false" # Flag to enable GCP KMS key rotation
 minCustomIops: "1024"
 minCustomThroughput: "64"
