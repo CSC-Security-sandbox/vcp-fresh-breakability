@@ -783,3 +783,36 @@ func (d *DataStoreRepository) CreateSfrMetadata(ctx context.Context, sfrMetadata
 
 	return sfrMetadata, nil
 }
+
+// GetSfrMetricsByTimeRange fetches SFR metadata records between startTime and endTime,
+// aggregates them by volume UUID, and returns a map of volume UUID to aggregated metrics
+func (d *DataStoreRepository) GetSfrMetricsByTimeRange(ctx context.Context, startTime, endTime time.Time) (map[string]datamodel.SfrMetricsAggregate, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	var results []struct {
+		VolumeUUID string `gorm:"column:volume_uuid"`
+		TotalSize  int64  `gorm:"column:total_size"`
+		TotalCount int64  `gorm:"column:total_count"`
+	}
+
+	err := db.Model(&datamodel.SfrMetadata{}).
+		Select("volume_uuid, SUM(files_size) as total_size, SUM(file_count) as total_count").
+		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
+		Group("volume_uuid").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert results to map
+	sfrMetricsMap := make(map[string]datamodel.SfrMetricsAggregate)
+	for _, result := range results {
+		sfrMetricsMap[result.VolumeUUID] = datamodel.SfrMetricsAggregate{
+			TotalSize:  result.TotalSize,
+			TotalCount: result.TotalCount,
+		}
+	}
+
+	return sfrMetricsMap, nil
+}

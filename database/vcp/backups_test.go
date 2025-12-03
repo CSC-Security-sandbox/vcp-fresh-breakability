@@ -3885,3 +3885,142 @@ func TestCreateSfrMetadata_DatabaseCreateError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
+
+func TestGetSfrMetricsByTimeRange_Success(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Create test SFR metadata records
+	now := time.Now()
+	startTime := now.Add(-10 * time.Minute)
+	endTime := now
+
+	// Create SFR metadata for volume 1
+	sfrMetadata1 := &datamodel.SfrMetadata{
+		FilesSize:  1024,
+		FileCount:  5,
+		VolumeName: "test-volume-1",
+		VolumeUUID: "volume-uuid-1",
+		BackupUUID: "backup-uuid-1",
+		AccountID:  sql.NullInt64{Int64: 1, Valid: true},
+		CreatedAt:  now.Add(-5 * time.Minute), // Within time range
+	}
+	err = store.db.Create(sfrMetadata1).Error()
+	assert.NoError(t, err)
+
+	// Create another SFR metadata for volume 1 (to test aggregation)
+	sfrMetadata2 := &datamodel.SfrMetadata{
+		FilesSize:  2048,
+		FileCount:  3,
+		VolumeName: "test-volume-1",
+		VolumeUUID: "volume-uuid-1",
+		BackupUUID: "backup-uuid-2",
+		AccountID:  sql.NullInt64{Int64: 1, Valid: true},
+		CreatedAt:  now.Add(-3 * time.Minute), // Within time range
+	}
+	err = store.db.Create(sfrMetadata2).Error()
+	assert.NoError(t, err)
+
+	// Create SFR metadata for volume 2
+	sfrMetadata3 := &datamodel.SfrMetadata{
+		FilesSize:  4096,
+		FileCount:  10,
+		VolumeName: "test-volume-2",
+		VolumeUUID: "volume-uuid-2",
+		BackupUUID: "backup-uuid-3",
+		AccountID:  sql.NullInt64{Int64: 2, Valid: true},
+		CreatedAt:  now.Add(-2 * time.Minute), // Within time range
+	}
+	err = store.db.Create(sfrMetadata3).Error()
+	assert.NoError(t, err)
+
+	// Create SFR metadata outside time range (should not be included)
+	sfrMetadata4 := &datamodel.SfrMetadata{
+		FilesSize:  8192,
+		FileCount:  20,
+		VolumeName: "test-volume-3",
+		VolumeUUID: "volume-uuid-3",
+		BackupUUID: "backup-uuid-4",
+		AccountID:  sql.NullInt64{Int64: 3, Valid: true},
+		CreatedAt:  now.Add(-15 * time.Minute), // Outside time range
+	}
+	err = store.db.Create(sfrMetadata4).Error()
+	assert.NoError(t, err)
+
+	// Call GetSfrMetricsByTimeRange
+	result, err := store.GetSfrMetricsByTimeRange(ctx, startTime, endTime)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Verify results
+	// Volume 1 should have aggregated metrics: 1024 + 2048 = 3072 total size, 5 + 3 = 8 total count
+	assert.Contains(t, result, "volume-uuid-1")
+	assert.Equal(t, int64(3072), result["volume-uuid-1"].TotalSize)
+	assert.Equal(t, int64(8), result["volume-uuid-1"].TotalCount)
+
+	// Volume 2 should have its metrics
+	assert.Contains(t, result, "volume-uuid-2")
+	assert.Equal(t, int64(4096), result["volume-uuid-2"].TotalSize)
+	assert.Equal(t, int64(10), result["volume-uuid-2"].TotalCount)
+
+	// Volume 3 should not be in results (outside time range)
+	assert.NotContains(t, result, "volume-uuid-3")
+}
+
+func TestGetSfrMetricsByTimeRange_EmptyResults(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	now := time.Now()
+	startTime := now.Add(-10 * time.Minute)
+	endTime := now
+
+	// Call GetSfrMetricsByTimeRange with no data
+	result, err := store.GetSfrMetricsByTimeRange(ctx, startTime, endTime)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Empty(t, result)
+}
+
+func TestGetSfrMetricsByTimeRange_DatabaseError(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Close the database connection to simulate an error
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+
+	now := time.Now()
+	startTime := now.Add(-10 * time.Minute)
+	endTime := now
+
+	// Call GetSfrMetricsByTimeRange with closed connection
+	result, err := store.GetSfrMetricsByTimeRange(ctx, startTime, endTime)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}

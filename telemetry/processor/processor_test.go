@@ -1813,3 +1813,99 @@ func (m *MockUsageSink) DeliverMetrics(ctx context.Context, metrics []metricsdm.
 	args := m.Called(ctx, metrics)
 	return args.Int(0), args.Error(1)
 }
+
+// Test to cover missing line 140: SFR metrics aggregation
+func TestMetricsProcessor_ProcessPerformanceMetrics_SFRMetricsEnabled(t *testing.T) {
+	ctx := context.Background()
+	vcpStore := &database.MockStorage{}
+	telemetryStore := &metricdb.MockStorage{}
+	sink := &performance.MockSink{}
+
+	// Setup test data
+	testPool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-sfr"},
+			Name:      "sfr-pool",
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "account-uuid-sfr"},
+				Name:      "sfr-account",
+			},
+			PoolAttributes: &datamodel.PoolAttributes{},
+			ClusterDetails: datamodel.ClusterDetails{},
+		},
+	}
+
+	backupChainBytes := int64(1024)
+	testVolume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-sfr"},
+		Name:        "sfr-volume",
+		SizeInBytes: 2048,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid-sfr"},
+			Name:      "sfr-account",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-sfr"},
+			DeploymentName: "sfr-deployment",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: &backupChainBytes,
+		},
+	}
+
+	// Mock pool metrics collection
+	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
+
+	// Mock volume metrics collection
+	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{testVolume}, nil)
+
+	// Mock SFR metrics
+	sfrMetricsMap := map[string]datamodel.SfrMetricsAggregate{
+		"volume-uuid-sfr": {
+			TotalSize:  10240,
+			TotalCount: 25,
+		},
+	}
+	vcpStore.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(sfrMetricsMap, nil)
+
+	// Set environment variable to enable SFR metrics
+	originalValue := os.Getenv("ENABLE_SFR_METRICS")
+	defer func() {
+		if originalValue == "" {
+			_ = os.Unsetenv("ENABLE_SFR_METRICS")
+		} else {
+			_ = os.Setenv("ENABLE_SFR_METRICS", originalValue)
+		}
+	}()
+	_ = os.Setenv("ENABLE_SFR_METRICS", "true")
+
+	sink.On("DeliverMetrics", mock.Anything, mock.MatchedBy(func(metrics []entity.HydratedMetric) bool {
+		// Check that SFR metrics are included in the delivered metrics
+		hasSFRSizeMetric := false
+		hasSFRCountMetric := false
+		for _, metric := range metrics {
+			if metric.MeasuredType == metadata.SFRTotalSizeRestoredBytes {
+				hasSFRSizeMetric = true
+			}
+			if metric.MeasuredType == metadata.SFRTotalFilesRestoredCount {
+				hasSFRCountMetric = true
+			}
+		}
+		return hasSFRSizeMetric && hasSFRCountMetric
+	})).Return(1)
+
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
+	err := mp.ProcessPerformanceMetrics(ctx)
+
+	// Since the method is now asynchronous, it should return nil immediately
+	assert.NoError(t, err)
+
+	// Wait for async operations to complete
+	waitForAsyncOperations(t, 200*time.Millisecond)
+
+	// Verify that SFR metrics were included in the delivered metrics
+	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything)
+}

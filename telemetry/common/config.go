@@ -24,6 +24,7 @@ type TelemetryConfig struct {
 	EnableBackupMetrics             bool
 	EnableBackupBillingMetrics      bool
 	EnableReplicationBillingMetrics bool
+	SFRMetricsEnabled               bool
 	PushBatchSize                   int64
 	Environment                     string
 	MaxGoogleBillingPushRetry       int64
@@ -61,6 +62,7 @@ func LoadConfig() *TelemetryConfig {
 	enableBackupMetrics := env.GetBool("ENABLE_BACKUP_METRICS", false)
 	enableBackupBillingMetrics := env.GetBool("ENABLE_BACKUP_BILLING_METRICS", false)
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
+	sfrMetricsEnabled := env.GetBool("ENABLE_SFR_METRICS", false)
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
 	environment := env.GetString("ENVIRONMENT", Dev)
 	maxGoogleBillingPushRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
@@ -89,6 +91,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableBackupMetrics:             enableBackupMetrics,
 		EnableBackupBillingMetrics:      enableBackupBillingMetrics,
 		EnableReplicationBillingMetrics: enableReplicationBillingMetrics,
+		SFRMetricsEnabled:               sfrMetricsEnabled,
 		NumWorkersPerformance:           numWorkersPerformance,
 		NumWorkersUsage:                 numWorkersUsage,
 		NumWorkersCollection:            numWorkersCollection,

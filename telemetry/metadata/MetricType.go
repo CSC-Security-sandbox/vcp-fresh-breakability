@@ -40,6 +40,8 @@ const (
 	BackupEnabledVolumeAllocatedSize                     MeasuredType = "BACKUP_ENABLED_VOLUME_ALLOCATED_SIZE"
 	TotalLogicalSize                                     MeasuredType = "TOTAL_LOGICAL_SIZE"
 	VolumeAllocatedThroughput                            MeasuredType = "VOLUME_ALLOCATED_THROUGHPUT"
+	SFRTotalSizeRestoredBytes                            MeasuredType = "SFR_TOTAL_SIZE_RESTORED_BYTES"
+	SFRTotalFilesRestoredCount                           MeasuredType = "SFR_TOTAL_FILES_RESTORED_COUNT"
 	AverageReadLatency                                   MeasuredType = "AVERAGE_READ_LATENCY"
 	AverageWriteLatency                                  MeasuredType = "AVERAGE_WRITE_LATENCY"
 	AverageOtherLatency                                  MeasuredType = "AVERAGE_OTHER_LATENCY"

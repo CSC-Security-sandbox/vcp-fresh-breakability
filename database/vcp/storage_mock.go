@@ -9100,6 +9100,66 @@ func (_c *MockStorage_GetServiceAccountFromEmail_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// GetSfrMetricsByTimeRange provides a mock function with given fields: ctx, startTime, endTime
+func (_m *MockStorage) GetSfrMetricsByTimeRange(ctx context.Context, startTime time.Time, endTime time.Time) (map[string]datamodel.SfrMetricsAggregate, error) {
+	ret := _m.Called(ctx, startTime, endTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSfrMetricsByTimeRange")
+	}
+
+	var r0 map[string]datamodel.SfrMetricsAggregate
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) (map[string]datamodel.SfrMetricsAggregate, error)); ok {
+		return rf(ctx, startTime, endTime)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) map[string]datamodel.SfrMetricsAggregate); ok {
+		r0 = rf(ctx, startTime, endTime)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]datamodel.SfrMetricsAggregate)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
+		r1 = rf(ctx, startTime, endTime)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetSfrMetricsByTimeRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSfrMetricsByTimeRange'
+type MockStorage_GetSfrMetricsByTimeRange_Call struct {
+	*mock.Call
+}
+
+// GetSfrMetricsByTimeRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - startTime time.Time
+//   - endTime time.Time
+func (_e *MockStorage_Expecter) GetSfrMetricsByTimeRange(ctx interface{}, startTime interface{}, endTime interface{}) *MockStorage_GetSfrMetricsByTimeRange_Call {
+	return &MockStorage_GetSfrMetricsByTimeRange_Call{Call: _e.mock.On("GetSfrMetricsByTimeRange", ctx, startTime, endTime)}
+}
+
+func (_c *MockStorage_GetSfrMetricsByTimeRange_Call) Run(run func(ctx context.Context, startTime time.Time, endTime time.Time)) *MockStorage_GetSfrMetricsByTimeRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetSfrMetricsByTimeRange_Call) Return(_a0 map[string]datamodel.SfrMetricsAggregate, _a1 error) *MockStorage_GetSfrMetricsByTimeRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetSfrMetricsByTimeRange_Call) RunAndReturn(run func(context.Context, time.Time, time.Time) (map[string]datamodel.SfrMetricsAggregate, error)) *MockStorage_GetSfrMetricsByTimeRange_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSnapshotByNameAndVolumeId provides a mock function with given fields: ctx, snapshotName, accountID, volumeID
 func (_m *MockStorage) GetSnapshotByNameAndVolumeId(ctx context.Context, snapshotName string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, snapshotName, accountID, volumeID)

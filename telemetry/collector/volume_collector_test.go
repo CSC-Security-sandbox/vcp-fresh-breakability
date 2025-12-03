@@ -28,6 +28,14 @@ func (m *mockVolumeStorage) ListVolumesWithAccounts(ctx context.Context) ([]*dat
 	return args.Get(0).([]*datamodel.Volume), args.Error(1)
 }
 
+func (m *mockVolumeStorage) GetSfrMetricsByTimeRange(ctx context.Context, startTime, endTime time.Time) (map[string]datamodel.SfrMetricsAggregate, error) {
+	args := m.Called(ctx, startTime, endTime)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]datamodel.SfrMetricsAggregate), args.Error(1)
+}
+
 func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
@@ -1021,4 +1029,175 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 
 	// Check that only positive backup chain byte volume is included for backup billing
 	assert.Equal(t, "VolumeOne", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
+}
+
+func Test_GetVolumeMetrics_SFRMetricsEnabled(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	config.SFRMetricsEnabled = true
+
+	// Create poolMetadataMap for testing
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+	poolMetadataMap[1] = metadata.ResourceMetadata{
+		ResourceType: metadata.Volume,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+				Name:      "Account1",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment",
+			},
+			PoolID: 1,
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	// Mock GetSfrMetricsByTimeRange to return SFR metrics
+	sfrMetricsMap := map[string]datamodel.SfrMetricsAggregate{
+		"volume-uuid-1": {
+			TotalSize:  10240,
+			TotalCount: 25,
+		},
+	}
+	m.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(sfrMetricsMap, nil)
+
+	config.EnableBackupBillingMetrics = true
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Verify SFR metrics are included
+	assert.Len(t, result.SFRHydratedMetrics, 2) // One for TotalSize, one for TotalCount
+
+	// Check SFR Total Size Restored Bytes metric
+	var sizeMetric *entity.HydratedMetric
+	var countMetric *entity.HydratedMetric
+	for i := range result.SFRHydratedMetrics {
+		if result.SFRHydratedMetrics[i].MeasuredType == metadata.SFRTotalSizeRestoredBytes {
+			sizeMetric = &result.SFRHydratedMetrics[i]
+		}
+		if result.SFRHydratedMetrics[i].MeasuredType == metadata.SFRTotalFilesRestoredCount {
+			countMetric = &result.SFRHydratedMetrics[i]
+		}
+	}
+
+	assert.NotNil(t, sizeMetric, "SFR Total Size Restored Bytes metric should be present")
+	assert.Equal(t, float64(10240), sizeMetric.Quantity)
+	assert.Equal(t, "volume-uuid-1", derefString(sizeMetric.Metadata.ResourceUUID))
+
+	assert.NotNil(t, countMetric, "SFR Total Files Restored Count metric should be present")
+	assert.Equal(t, float64(25), countMetric.Quantity)
+	assert.Equal(t, "volume-uuid-1", derefString(countMetric.Metadata.ResourceUUID))
+}
+
+func Test_GetVolumeMetrics_SFRMetricsEnabled_Error(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	config.SFRMetricsEnabled = true
+
+	// Create poolMetadataMap for testing
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+	poolMetadataMap[1] = metadata.ResourceMetadata{
+		ResourceType: metadata.Volume,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+				Name:      "Account1",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment",
+			},
+			PoolID: 1,
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	// Mock GetSfrMetricsByTimeRange to return error
+	m.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+	config.EnableBackupBillingMetrics = true
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err) // Error is logged but doesn't fail the function
+	assert.NotNil(t, result)
+
+	// SFR metrics should be empty when error occurs
+	assert.Empty(t, result.SFRHydratedMetrics)
+}
+
+func Test_GetVolumeMetrics_SFRMetricsEnabled_NoMetricsForVolume(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	config.SFRMetricsEnabled = true
+
+	// Create poolMetadataMap for testing
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+	poolMetadataMap[1] = metadata.ResourceMetadata{
+		ResourceType: metadata.Volume,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+				Name:      "Account1",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+				DeploymentName: "test-deployment",
+			},
+			PoolID: 1,
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	// Mock GetSfrMetricsByTimeRange to return empty map (no metrics for this volume)
+	sfrMetricsMap := map[string]datamodel.SfrMetricsAggregate{}
+	m.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(sfrMetricsMap, nil)
+
+	config.EnableBackupBillingMetrics = true
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// SFR metrics should be empty when volume not in map
+	assert.Empty(t, result.SFRHydratedMetrics)
 }

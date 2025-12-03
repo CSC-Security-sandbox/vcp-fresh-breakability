@@ -43,6 +43,18 @@ func CreateMetricsMappingMap() map[metadata.CombinedKeyResourceTypeMeasuredType]
 		{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.VolumeAllocatedThroughput}: {
 			Left: "throughput_limit", Middle: "", Right: "",
 		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.SFRTotalSizeRestoredBytes}: {
+			Left: "files_restored_bytes", Middle: "", Right: "",
+		},
+		{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.SFRTotalSizeRestoredBytes}: {
+			Left: "files_restored_bytes", Middle: "", Right: "",
+		},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.SFRTotalFilesRestoredCount}: {
+			Left: "files_restored_count", Middle: "", Right: "",
+		},
+		{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.SFRTotalFilesRestoredCount}: {
+			Left: "files_restored_count", Middle: "", Right: "",
+		},
 		{ResourceType: metadata.Volume, MeasuredType: metadata.AverageReadLatency}: {
 			Left: "average_latency", Middle: "method", Right: "read",
 		},

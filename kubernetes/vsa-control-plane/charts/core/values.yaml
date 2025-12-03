@@ -252,6 +252,7 @@ telemetryDeployer:
   pusherServiceProject: "netapp-au-se1-autopush-sde-tst"
   enableVolumeMetrics: false
   enableBackupMetrics: false
+  enableSfrMetrics: false
   enableBackupBillingMetrics: false
   enableReplicationBillingMetrics: false
   enableBatchUsageUpdates: false  # Feature flag for high-performance batch usage updates (PostgreSQL bulk operations)

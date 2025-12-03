@@ -23,6 +23,8 @@ type VolumeMetricsResult struct {
 	HydratedMetricsDataModel []datamodel2.HydratedMetrics
 	// VolumeAllocatedThroughputHydratedMetrics contains volume allocated throughput metrics
 	VolumeAllocatedThroughputHydratedMetrics []entity.HydratedMetric
+	// SFRHydratedMetrics contains sfr metrics
+	SFRHydratedMetrics []entity.HydratedMetric
 }
 
 // GetVolumeMetrics retrieves volume allocated size metrics for volumes with backup data from the database and returns them in a structured result.
@@ -42,7 +44,23 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	// Initialize a slice to hold the hydrated metrics
 	var metrics []entity.HydratedMetric
 	var volumeAllocatedThroughputMetrics []entity.HydratedMetric
+	var sfrMetrics []entity.HydratedMetric
 	var hydratedMetrics []datamodel2.HydratedMetrics
+
+	var sfrMetricsMap map[string]datamodel.SfrMetricsAggregate
+	if config.SFRMetricsEnabled {
+		startTime := timestamp.Add(-5 * time.Minute)
+		endTime := timestamp
+		logger.Infof("fetching sfr metrics from start time %v and end time %v", startTime, endTime)
+		var err error
+		sfrMetricsMap, err = vcpDB.GetSfrMetricsByTimeRange(ctx, startTime, endTime)
+		if err != nil {
+			logger.Error("Failed to get SFR metrics", "error", err.Error())
+			// Continue processing even if SFR metrics fetch fails
+			sfrMetricsMap = make(map[string]datamodel.SfrMetricsAggregate)
+		}
+		logger.Info(fmt.Sprintf("Found %d SFR metrics", len(sfrMetricsMap)))
+	}
 
 	// Iterate over all volumes and generate metrics
 	for _, volume := range volumes {
@@ -122,6 +140,23 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 				hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
 			}
 		}
+
+		// Process SFR metrics if enabled and volume exists in map
+		if config.SFRMetricsEnabled && len(sfrMetricsMap) > 0 {
+			if sfrData, exists := sfrMetricsMap[volume.UUID]; exists {
+				// Create SFR Total Size Restored Bytes metric
+				sizeMetric := setupHydratedMetric(timestamp, volumeMetadata, metadata.SFRTotalSizeRestoredBytes, float64(sfrData.TotalSize))
+				sizeMetric.Metadata.ResourceType = resourceType
+				sfrMetrics = append(sfrMetrics, sizeMetric)
+
+				// Create SFR Total Files Restored Count metric
+				countMetric := setupHydratedMetric(timestamp, volumeMetadata, metadata.SFRTotalFilesRestoredCount, float64(sfrData.TotalCount))
+				countMetric.Metadata.ResourceType = resourceType
+				sfrMetrics = append(sfrMetrics, countMetric)
+			} else {
+				logger.Infof("No SFR metrics found for volume UUID: %s", volume.UUID)
+			}
+		}
 	}
 
 	// Return the structured result
@@ -129,6 +164,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		HydratedMetrics:                          metrics,
 		HydratedMetricsDataModel:                 hydratedMetrics,
 		VolumeAllocatedThroughputHydratedMetrics: volumeAllocatedThroughputMetrics,
+		SFRHydratedMetrics:                       sfrMetrics,
 	}, nil
 }
 

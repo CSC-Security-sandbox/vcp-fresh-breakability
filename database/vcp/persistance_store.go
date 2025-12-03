@@ -1068,6 +1068,10 @@ func (s *PersistenceStore) CreateSfrMetadata(ctx context.Context, sfrMetadata *d
 	return s.dataStore.CreateSfrMetadata(ctx, sfrMetadata)
 }
 
+func (s *PersistenceStore) GetSfrMetricsByTimeRange(ctx context.Context, startTime, endTime time.Time) (map[string]datamodel.SfrMetricsAggregate, error) {
+	return s.dataStore.GetSfrMetricsByTimeRange(ctx, startTime, endTime)
+}
+
 func (s *PersistenceStore) CreateAdminJobSpec(ctx context.Context, spec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	return s.dataStore.CreateAdminJobSpec(ctx, spec)
 }

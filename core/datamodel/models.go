@@ -992,6 +992,12 @@ func (b *BackupAttributes) Value() (driver.Value, error) {
 	return json.Marshal(b)
 }
 
+// SfrMetricsAggregate holds aggregated SFR metrics for a volume in given range
+type SfrMetricsAggregate struct {
+	TotalSize  int64
+	TotalCount int64
+}
+
 // SfrMetadata represents metadata for Single File Restore operations
 type SfrMetadata struct {
 	ID         int64         `gorm:"column:id;primaryKey;autoIncrement" json:"id"`

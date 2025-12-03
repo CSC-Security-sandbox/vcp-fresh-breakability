@@ -3587,6 +3587,22 @@ func (re *retryEngine) CreateSfrMetadata(ctx context.Context, sfrMetadata *datam
 	return var0, err
 }
 
+func (re *retryEngine) GetSfrMetricsByTimeRange(ctx context.Context, startTime, endTime time.Time) (map[string]datamodel.SfrMetricsAggregate, error) {
+	var var0 map[string]datamodel.SfrMetricsAggregate
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSfrMetricsByTimeRange(ctx, startTime, endTime)
+		if err != nil {
+			re.logError("GetSfrMetricsByTimeRange", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	var var0 *datamodel.AdminJobSpec
 	err := retry.Do(func(attempt int) (bool, error) {

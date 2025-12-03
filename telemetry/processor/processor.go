@@ -136,13 +136,16 @@ func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, teleme
 		allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, volumeMetricsResult.HydratedMetricsDataModel...)
 	}
 
+	if telemetryConfig.SFRMetricsEnabled {
+		allHydratedMetrics = append(allHydratedMetrics, volumeMetricsResult.SFRHydratedMetrics...)
+	}
+
 	// Aggregate pool metrics for database storage
 	allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, poolMetricsResult.HydratedMetricsDataModel...)
 
 	// Aggregate pool and volume metrics for sink delivery
 	allHydratedMetrics = append(allHydratedMetrics, poolMetricsResult.HydratedMetrics...)
 	allHydratedMetrics = append(allHydratedMetrics, volumeMetricsResult.VolumeAllocatedThroughputHydratedMetrics...)
-
 	return allHydratedMetricsDataModel, allHydratedMetrics, nil
 }
 

@@ -210,6 +210,12 @@ func TestMetricsMappingMapCompleteness(t *testing.T) {
 		// Regional HA volume mappings
 		{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.VolumeAllocatedThroughput},
 
+		// SFR metrics mappings
+		{ResourceType: metadata.Volume, MeasuredType: metadata.SFRTotalSizeRestoredBytes},
+		{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.SFRTotalSizeRestoredBytes},
+		{ResourceType: metadata.Volume, MeasuredType: metadata.SFRTotalFilesRestoredCount},
+		{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.SFRTotalFilesRestoredCount},
+
 		// Backup mappings
 		{ResourceType: metadata.Backup, MeasuredType: metadata.BackupLogicalSize},
 	}

@@ -5849,3 +5849,76 @@ func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
 		assert.Equal(t, int64(0), emptyTotal, "Total size should be 0 for empty pool")
 	})
 }
+
+func TestPersistenceStore_GetSfrMetricsByTimeRange(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Create test SFR metadata records
+	now := time.Now()
+	startTime := now.Add(-10 * time.Minute)
+	endTime := now
+
+	// Create SFR metadata for volume 1
+	sfrMetadata1 := &datamodel.SfrMetadata{
+		FilesSize:  1024,
+		FileCount:  5,
+		VolumeName: "test-volume-1",
+		VolumeUUID: "volume-uuid-1",
+		BackupUUID: "backup-uuid-1",
+		AccountID:  sql.NullInt64{Int64: 1, Valid: true},
+		CreatedAt:  now.Add(-5 * time.Minute), // Within time range
+	}
+	err = store.DB().Create(sfrMetadata1).Error
+	require.NoError(t, err)
+
+	// Create another SFR metadata for volume 1 (to test aggregation)
+	sfrMetadata2 := &datamodel.SfrMetadata{
+		FilesSize:  2048,
+		FileCount:  3,
+		VolumeName: "test-volume-1",
+		VolumeUUID: "volume-uuid-1",
+		BackupUUID: "backup-uuid-2",
+		AccountID:  sql.NullInt64{Int64: 1, Valid: true},
+		CreatedAt:  now.Add(-3 * time.Minute), // Within time range
+	}
+	err = store.DB().Create(sfrMetadata2).Error
+	require.NoError(t, err)
+
+	// Create SFR metadata for volume 2
+	sfrMetadata3 := &datamodel.SfrMetadata{
+		FilesSize:  4096,
+		FileCount:  10,
+		VolumeName: "test-volume-2",
+		VolumeUUID: "volume-uuid-2",
+		BackupUUID: "backup-uuid-3",
+		AccountID:  sql.NullInt64{Int64: 2, Valid: true},
+		CreatedAt:  now.Add(-2 * time.Minute), // Within time range
+	}
+	err = store.DB().Create(sfrMetadata3).Error
+	require.NoError(t, err)
+
+	// Call GetSfrMetricsByTimeRange through PersistenceStore
+	result, err := store.GetSfrMetricsByTimeRange(ctx, startTime, endTime)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Verify results
+	// Volume 1 should have aggregated metrics: 1024 + 2048 = 3072 total size, 5 + 3 = 8 total count
+	assert.Contains(t, result, "volume-uuid-1")
+	assert.Equal(t, int64(3072), result["volume-uuid-1"].TotalSize)
+	assert.Equal(t, int64(8), result["volume-uuid-1"].TotalCount)
+
+	// Volume 2 should have its metrics
+	assert.Contains(t, result, "volume-uuid-2")
+	assert.Equal(t, int64(4096), result["volume-uuid-2"].TotalSize)
+	assert.Equal(t, int64(10), result["volume-uuid-2"].TotalCount)
+}
