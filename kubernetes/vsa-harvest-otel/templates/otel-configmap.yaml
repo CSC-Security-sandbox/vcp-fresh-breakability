@@ -16,6 +16,8 @@ data:
             metric:
                 prefix: custom.googleapis.com
                 skip_create_descriptor: true
+                service_resource_labels: false
+                instrumentation_library_labels: false
             sending_queue:
                 enabled: {{.Values.harvestConfig.sendingQueueEnabled}}
                 queue_size: 40000
