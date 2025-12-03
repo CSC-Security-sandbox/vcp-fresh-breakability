@@ -3,6 +3,7 @@ package validator
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -390,7 +391,7 @@ func TestActiveDirectoryValidator_ActiveDirectoryUsersValidator_Valid(t *testing
 	}
 
 	for i, users := range validUsers {
-		t.Run("valid_users_"+string(rune(i)), func(t *testing.T) {
+		t.Run("valid_users_"+strconv.Itoa(i), func(t *testing.T) {
 			type TestStruct struct {
 				Users []string `validate:"SecurityOperators"`
 			}
@@ -443,6 +444,130 @@ func TestActiveDirectoryValidator_ActiveDirectoryUsersValidator_Invalid(t *testi
 			assert.Equal(t, adUserValidationErr, translatedMsg, "should use custom error message")
 		})
 	}
+}
+
+func TestActiveDirectoryValidator_ActiveDirectoryAdminUsersValidator_Valid(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	require.NoError(t, err)
+
+	validUsers := [][]string{
+		{},                              // empty list
+		{"admin1"},                      // single user
+		{"admin1", "admin2", "admin3"},  // multiple users
+		{"Admin", "backup", "security"}, // typical users
+		{"user_with_underscore"},        // underscore allowed
+		{"user-with-hyphen"},            // hyphen allowed
+		{"user.with.dot"},               // dot allowed
+	}
+
+	for i, users := range validUsers {
+		t.Run("valid_admins_"+string(rune(i)), func(t *testing.T) {
+			type TestStruct struct {
+				Admins []string `validate:"Administrators"`
+			}
+			testObj := &TestStruct{Admins: users}
+			err := adValidator.validate.Struct(testObj)
+			assert.NoError(t, err, "Administrators %v should be valid", users)
+		})
+	}
+}
+
+func TestActiveDirectoryValidator_ActiveDirectoryAdminUsersValidator_Invalid(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	require.NoError(t, err)
+
+	invalidUsers := []struct {
+		name  string
+		users []string
+	}{
+		{
+			name:  "exact_duplicates",
+			users: []string{"admin1", "admin1"},
+		},
+		{
+			name:  "case_insensitive_duplicates",
+			users: []string{"Admin1", "admin1"},
+		},
+		{
+			name:  "user_with_at_symbol",
+			users: []string{"admin@domain.com"},
+		},
+		{
+			name:  "multiple_users_one_with_at",
+			users: []string{"admin1", "admin@domain.com", "admin2"},
+		},
+		{
+			name:  "duplicate_in_list",
+			users: []string{"admin1", "admin2", "admin1"},
+		},
+		{
+			name:  "at_symbol_in_middle",
+			users: []string{"user@host"},
+		},
+	}
+
+	for _, tc := range invalidUsers {
+		t.Run(tc.name, func(t *testing.T) {
+			type TestStruct struct {
+				Admins []string `validate:"Administrators"`
+			}
+			testObj := &TestStruct{Admins: tc.users}
+			err := adValidator.validate.Struct(testObj)
+			require.Error(t, err, "Administrators %v should be invalid", tc.users)
+
+			var validationErrs validator.ValidationErrors
+			ok := errors.As(err, &validationErrs)
+			require.True(t, ok, "error should be ValidationErrors type")
+			require.Len(t, validationErrs, 1, "should have exactly one validation error")
+
+			translatedMsg := validationErrs[0].Translate(adValidator.Translator)
+			assert.Contains(t, translatedMsg, "is not unique or contains invalid characters",
+				"should use custom error message for administrators")
+		})
+	}
+}
+
+func TestActiveDirectoryValidator_ActiveDirectoryAdminUsersValidator_EdgeCases(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	adValidator := NewActiveDirectoryValidator(ctx, mockStorage)
+	err := adValidator.RegisterValidators()
+	require.NoError(t, err)
+
+	t.Run("empty_list_is_valid", func(t *testing.T) {
+		type TestStruct struct {
+			Admins []string `validate:"Administrators"`
+		}
+		testObj := &TestStruct{Admins: []string{}}
+		err := adValidator.validate.Struct(testObj)
+		assert.NoError(t, err, "Empty administrator list should be valid")
+	})
+
+	t.Run("case_sensitivity_check", func(t *testing.T) {
+		type TestStruct struct {
+			Admins []string `validate:"Administrators"`
+		}
+		// Different case should be treated as duplicates
+		testObj := &TestStruct{Admins: []string{"ADMIN", "admin", "Admin"}}
+		err := adValidator.validate.Struct(testObj)
+		require.Error(t, err, "Case variations of same name should be invalid")
+	})
+
+	t.Run("special_characters_without_at", func(t *testing.T) {
+		type TestStruct struct {
+			Admins []string `validate:"Administrators"`
+		}
+		// Backslash is allowed now (only @ is forbidden)
+		testObj := &TestStruct{Admins: []string{"domain\\user"}}
+		err := adValidator.validate.Struct(testObj)
+		assert.NoError(t, err, "Backslash should be allowed for administrators")
+	})
 }
 
 func TestActiveDirectoryValidator_DNSValidator_Valid(t *testing.T) {

@@ -11723,7 +11723,7 @@ components:
         administrators:
           title: administrators
           description: Users to be added to the built-in administrators Active-directory
-            group. The usernames must be unique, and entries cannot include @ or \.
+            group. The usernames must be unique, and entries cannot include @.
             The entire list will be validated and rejected as whole if one or more entries
             are invalid.
           type: array
@@ -11870,7 +11870,7 @@ components:
         administrators:
           title: administrators
           description: Users to be added to the built-in administrators Active-directory
-            group. The usernames must be unique, and entries cannot include @ or \.
+            group. The usernames must be unique, and entries cannot include @.
             The entire list will be validated and rejected as whole if one or more entries
             are invalid.
           type: array

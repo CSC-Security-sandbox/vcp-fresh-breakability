@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"net"
 	"regexp"
 	"strings"
@@ -34,6 +35,7 @@ const (
 	kdcIpValidationErr       = "KdcIP must be at least 7 characters long to be valid"
 	kdcHostNameValidationErr = "KdcHostName must be at least 1 character long to be valid"
 	zonalAdNotSupportedErr   = "Active Directory cannot be created for a zone"
+	adminUserValidationErr   = `%s is not unique or contains invalid characters`
 )
 
 var (
@@ -90,7 +92,7 @@ func (adValidator *ActiveDirectoryValidator) RegisterValidators() error {
 	}
 	adValidator.AddTranslation("BackupOperators")
 
-	err = adValidator.validate.RegisterValidation("Administrators", adValidator.activeDirectoryUsersValidator)
+	err = adValidator.validate.RegisterValidation("Administrators", adValidator.activeDirectoryAdminUsersValidator)
 	if err != nil {
 		return err
 	}
@@ -253,6 +255,31 @@ func (adValidator *ActiveDirectoryValidator) regionValidator(fl validator.FieldL
 		key := fl.StructFieldName()
 		adValidator.dnErrorStore.Store(key, err.Message)
 		return false
+	}
+
+	// Clean up any previous error
+	adValidator.dnErrorStore.Delete(fl.StructFieldName())
+	return true
+}
+
+func (adValidator *ActiveDirectoryValidator) activeDirectoryAdminUsersValidator(fl validator.FieldLevel) bool {
+	users := fl.Field().Interface().([]string)
+	seen := make(map[string]bool, len(users))
+
+	for _, elem := range users {
+		// First, validate that @ symbol is not present
+		if strings.Contains(elem, `@`) {
+			adValidator.dnErrorStore.Store(fl.StructFieldName(), fmt.Sprintf(adminUserValidationErr, elem))
+			return false
+		}
+
+		// Then, check for duplicate usernames (case-insensitive)
+		lowerElem := strings.ToLower(elem)
+		if seen[lowerElem] {
+			adValidator.dnErrorStore.Store(fl.StructFieldName(), fmt.Sprintf(adminUserValidationErr, elem))
+			return false
+		}
+		seen[lowerElem] = true
 	}
 
 	// Clean up any previous error
