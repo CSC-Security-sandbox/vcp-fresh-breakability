@@ -1659,7 +1659,7 @@ func (a VolumeCreateActivity) DeleteRolesForServiceAccountInBackupTenantProject(
 }
 
 // DeleteObjectStoreForCrossVPC deletes object store if the target pool and backup are in different tenant projects
-func (a VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, targetPool *datamodel.Pool, backup *datamodel.Backup, node *models.Node, name string) (*vsa.OntapAsyncResponse, error) {
+func (a *VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, targetPool *datamodel.Pool, backup *datamodel.Backup, node *models.Node, name string) (*vsa.OntapAsyncResponse, error) {
 	log := util.GetLogger(ctx)
 
 	backupVault := backup.BackupVault

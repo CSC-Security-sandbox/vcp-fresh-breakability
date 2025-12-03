@@ -391,7 +391,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	})
 
 	var objStoreName string
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetObjStoreNameFromBackupActivity, backupVault, backup).Get(ctx, &objStoreName)
+	err = workflow.ExecuteActivity(ctx, backupActivity.GenerateObjectStoreNameForRestore, backupVault, backup).Get(ctx, &objStoreName)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -411,10 +411,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 
 	var smSourcePath string
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathForRestoreActivity, backupVault, backup).Get(ctx, &smSourcePath)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
+	smSourcePath = fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.Attributes.SnapshotID)
 
 	// Wait before starting snapmirror restore
 	err = workflow.Sleep(ctx, 60*time.Second)

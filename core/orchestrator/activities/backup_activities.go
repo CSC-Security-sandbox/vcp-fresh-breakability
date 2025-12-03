@@ -853,6 +853,18 @@ func (a *BackupActivity) UpdateBackup(ctx context.Context, backup *datamodel.Bac
 	return nil
 }
 
+// GenerateObjectStoreNameForRestore generates a unique object store name for restore operations.
+// It retrieves the base object store name from the backup and appends a random 4-character
+// alphanumeric suffix to ensure uniqueness. The returned name follows the format:
+// "{objectStore}-{4 random alphanumeric characters}".
+func (a *BackupActivity) GenerateObjectStoreNameForRestore(ctx context.Context, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
+	objectStore, err := GetObjStoreNameFromBackup(backupVault, backup)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s-%s", objectStore, utils.GenerateRandomAlphanumeric(4)), nil
+}
+
 func getObjStoreName(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (string, error) {
 	bucketDetails, err := getBucketDetails(backupVault, vol)
 	if err != nil {
@@ -936,14 +948,6 @@ func GetBucketDetailsFromBackup(backupVault *datamodel.BackupVault, backup *data
 	return nil, vsaerrors.ExtractCustomError(fmt.Errorf("no matching bucket details found for backup %s", backup.Name))
 }
 
-func GetSmSourcePathForRestore(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
-	objStoreName, err := GetObjStoreNameFromBackup(backupVault, backup)
-	if err != nil {
-		return "", fmt.Errorf("failed to get object store name: %w", err)
-	}
-	return fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.Attributes.SnapshotID), nil
-}
-
 // Activity methods for workflow execution
 
 func (a BackupActivity) GetObjStoreNameActivity(ctx context.Context, backupVault *datamodel.BackupVault, volume *datamodel.Volume) (string, error) {
@@ -968,10 +972,6 @@ func (a BackupActivity) GetSmSourcePathActivity(ctx context.Context, volume *dat
 
 func (a BackupActivity) GetSmDestinationPathActivity(ctx context.Context, backupVault *datamodel.BackupVault, volume *datamodel.Volume) (string, error) {
 	return GetSmDestinationPath(backupVault, volume)
-}
-
-func (a BackupActivity) GetSmSourcePathForRestoreActivity(ctx context.Context, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
-	return GetSmSourcePathForRestore(backupVault, backup)
 }
 
 // CleanupOldAdhocBackupSnapshotsActivity cleans up older adhoc-backup snapshots for a volume, keeping only the latest one

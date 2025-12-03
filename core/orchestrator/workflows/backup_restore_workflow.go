@@ -240,6 +240,13 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		})
 		backupActivitiesContext.Node = node
 
+		var objStoreName string
+		err := workflow.ExecuteActivity(ctx, backupActivity.GenerateObjectStoreNameForRestore, backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Backup).Get(ctx, &objStoreName)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		backupActivitiesContext.ObjStoreName = objStoreName
+
 		objStore := &common.CloudTarget{}
 		var smDestinationPath string
 		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, backupActivitiesContext.BackupWorkflowInit.Volume).Get(ctx, &smDestinationPath)
@@ -247,13 +254,9 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			return nil, ConvertToVSAError(err)
 		}
 		var smSourcePath string
-		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathForRestoreActivity, backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Backup).Get(ctx, &smSourcePath)
+		smSourcePath = fmt.Sprintf("%s:/objstore/%s", objStoreName, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID)
 		log.Debugf("\nsmDestinationPath: %v", smDestinationPath)
 		log.Debugf("\nsmSourcePath: %v", smSourcePath)
-
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
 
 		snapmirrorRelationship := &common.SnapmirrorRelationship{}
 		SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
@@ -262,12 +265,6 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			SourceUUID:      &backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.EndpointUUID,
 			IsRestore:       true,
 		}
-
-		objStoreName, err := activities.GetObjStoreNameFromBackup(backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Backup)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		backupActivitiesContext.ObjStoreName = objStoreName
 
 		bucketDetails, err := activities.GetBucketDetailsFromBackup(backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Backup)
 		if err != nil {

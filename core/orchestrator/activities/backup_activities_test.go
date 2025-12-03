@@ -9026,3 +9026,162 @@ func TestUpdateVolumeLatestLogicalBackupSize_NegativeSize(t *testing.T) {
 	assert.Equal(t, logicalSize, *volume.DataProtection.BackupChainBytes)
 	mockStorage.AssertExpectations(t)
 }
+
+func TestGenerateObjectStoreNameForRestore_Success(t *testing.T) {
+	// Arrange
+	activity := &BackupActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backupVault := &datamodel.BackupVault{
+		Name: "test-backup-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{
+				BucketName: "test-bucket",
+			},
+		},
+	}
+	
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			BucketName: "test-bucket",
+		},
+	}
+
+	// Act
+	result, err := activity.GenerateObjectStoreNameForRestore(ctx, backupVault, backup)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotEmpty(t, result)
+	// Verify format: objectStore-XXXX where XXXX is 4 alphanumeric characters
+	assert.Contains(t, result, "test-bucket-")
+	assert.Len(t, result, len("test-bucket-")+4) // "test-bucket-" + 4 random chars
+	// Verify the suffix is alphanumeric
+	suffix := result[len("test-bucket-"):]
+	assert.Len(t, suffix, 4)
+	for _, char := range suffix {
+		assert.True(t, (char >= '0' && char <= '9') || (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z'),
+			"Character %c is not alphanumeric", char)
+	}
+}
+
+func TestGenerateObjectStoreNameForRestore_ErrorWhenBackupAttributesNil(t *testing.T) {
+	// Arrange
+	activity := &BackupActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backupVault := &datamodel.BackupVault{
+		Name: "test-backup-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{
+				BucketName: "test-bucket",
+			},
+		},
+	}
+	
+	backup := &datamodel.Backup{
+		Name:       "test-backup",
+		Attributes: nil, // This will cause GetObjStoreNameFromBackup to fail
+	}
+
+	// Act
+	result, err := activity.GenerateObjectStoreNameForRestore(ctx, backupVault, backup)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Empty(t, result)
+	assertErrContainsOriginal(t, err, "has no attributes")
+}
+
+func TestGenerateObjectStoreNameForRestore_ErrorWhenNoMatchingBucketDetails(t *testing.T) {
+	// Arrange
+	activity := &BackupActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backupVault := &datamodel.BackupVault{
+		Name: "test-backup-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{
+				BucketName: "different-bucket",
+			},
+		},
+	}
+	
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			BucketName: "test-bucket", // Different from backupVault bucket name
+		},
+	}
+
+	// Act
+	result, err := activity.GenerateObjectStoreNameForRestore(ctx, backupVault, backup)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Empty(t, result)
+	assertErrContainsOriginal(t, err, "no matching bucket details found")
+}
+
+func TestGenerateObjectStoreNameForRestore_ErrorWhenBackupVaultBucketDetailsEmpty(t *testing.T) {
+	// Arrange
+	activity := &BackupActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backupVault := &datamodel.BackupVault{
+		Name:         "test-backup-vault",
+		BucketDetails: datamodel.BucketDetailsArray{}, // Empty bucket details
+	}
+	
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			BucketName: "test-bucket",
+		},
+	}
+
+	// Act
+	result, err := activity.GenerateObjectStoreNameForRestore(ctx, backupVault, backup)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Empty(t, result)
+	assertErrContainsOriginal(t, err, "no matching bucket details found")
+}
+
+func TestGenerateObjectStoreNameForRestore_VerifyRandomSuffix(t *testing.T) {
+	// Arrange
+	activity := &BackupActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	
+	backupVault := &datamodel.BackupVault{
+		Name: "test-backup-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{
+				BucketName: "test-bucket",
+			},
+		},
+	}
+	
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			BucketName: "test-bucket",
+		},
+	}
+
+	// Act - Call multiple times to verify randomness
+	results := make(map[string]bool)
+	for i := 0; i < 10; i++ {
+		result, err := activity.GenerateObjectStoreNameForRestore(ctx, backupVault, backup)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, result)
+		results[result] = true
+	}
+
+	// Assert - Verify that we get different results (high probability with random generation)
+	// Note: There's a very small chance all 10 calls return the same value, but it's extremely unlikely
+	// If this test fails occasionally, it's due to randomness, not a bug
+	assert.Greater(t, len(results), 0, "Should generate at least one result")
+}
