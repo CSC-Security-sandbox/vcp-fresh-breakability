@@ -38,7 +38,7 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		JunctionPath:                   params.JunctionPath,
 		TieringSupported:               params.TieringSupported,
 	}
-	if params.SecurityStyle != nil {
+	if params.SecurityStyle != nil && *params.SecurityStyle != "" {
 		volumeCreateParams.SecurityStyle = *params.SecurityStyle
 	}
 	if params.RestoreFromSnapshot != nil && params.RestoreFromSnapshot.SnapshotUUID != "" {
