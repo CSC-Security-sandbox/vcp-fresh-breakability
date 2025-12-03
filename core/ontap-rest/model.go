@@ -2445,7 +2445,7 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 	}
 
 	otParams := storage.NewVolumeCreateParams()
-	otParams.SetInfo(&models.Volume{
+	vol := &models.Volume{
 		Name:  &params.Name,
 		Type:  &params.Type,
 		State: nillable.ToPointer(VolumeStateOnline),
@@ -2458,8 +2458,7 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 			ExportPolicy: &models.VolumeInlineNasInlineExportPolicy{
 				Name: params.ExportPolicy,
 			},
-			Path:          params.JunctionPath,
-			SecurityStyle: &params.SecurityStyle,
+			Path: params.JunctionPath,
 		},
 		Guarantee: &models.VolumeInlineGuarantee{
 			Type: nillable.ToPointer(GuaranteeTypeNone),
@@ -2480,7 +2479,11 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 			Name: &params.SnapshotPolicy,
 		},
 		ConstituentsPerAggregate: params.ConstituentsPerAggregate,
-	})
+	}
+	if params.SecurityStyle != "" {
+		vol.Nas.SecurityStyle = &params.SecurityStyle
+	}
+	otParams.SetInfo(vol)
 
 	otParams.Info.SnapshotDirectoryAccessEnabled = &params.SnapshotDirectoryAccessEnabled
 

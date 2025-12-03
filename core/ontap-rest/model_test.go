@@ -975,6 +975,86 @@ func TestVolumeCreateParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestVolumeCreateParamsToONTAPWithSecurityStyle(t *testing.T) {
+	t.Run("WhenSecurityStyleIsEmpty_ThenSecurityStyleIsNotSet", func(tt *testing.T) {
+		params := &VolumeCreateParams{
+			Aggregates:                     []string{"aggr1"},
+			Name:                           "vol1",
+			Type:                           "rw",
+			Size:                           1024,
+			Svm:                            "svm1",
+			SnapshotReservePercent:         5,
+			SnapshotDirectoryAccessEnabled: true,
+			SecurityStyle:                  "", // Empty security style
+		}
+		result := volumeCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Nas)
+		assert.Nil(tt, result.Info.Nas.SecurityStyle, "SecurityStyle should not be set when empty")
+	})
+
+	t.Run("WhenSecurityStyleIsSet_ThenSecurityStyleIsSet", func(tt *testing.T) {
+		securityStyle := "unix"
+		params := &VolumeCreateParams{
+			Aggregates:                     []string{"aggr1"},
+			Name:                           "vol1",
+			Type:                           "rw",
+			Size:                           1024,
+			Svm:                            "svm1",
+			SnapshotReservePercent:         5,
+			SnapshotDirectoryAccessEnabled: true,
+			SecurityStyle:                  securityStyle,
+		}
+		result := volumeCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Nas)
+		assert.NotNil(tt, result.Info.Nas.SecurityStyle, "SecurityStyle should be set when provided")
+		assert.Equal(tt, securityStyle, *result.Info.Nas.SecurityStyle)
+	})
+
+	t.Run("WhenSecurityStyleIsMixed_ThenSecurityStyleIsSet", func(tt *testing.T) {
+		securityStyle := "mixed"
+		params := &VolumeCreateParams{
+			Aggregates:                     []string{"aggr1"},
+			Name:                           "vol1",
+			Type:                           "rw",
+			Size:                           1024,
+			Svm:                            "svm1",
+			SnapshotReservePercent:         5,
+			SnapshotDirectoryAccessEnabled: true,
+			SecurityStyle:                  securityStyle,
+		}
+		result := volumeCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Nas)
+		assert.NotNil(tt, result.Info.Nas.SecurityStyle, "SecurityStyle should be set when provided")
+		assert.Equal(tt, securityStyle, *result.Info.Nas.SecurityStyle)
+	})
+
+	t.Run("WhenSecurityStyleIsNtfs_ThenSecurityStyleIsSet", func(tt *testing.T) {
+		securityStyle := "ntfs"
+		params := &VolumeCreateParams{
+			Aggregates:                     []string{"aggr1"},
+			Name:                           "vol1",
+			Type:                           "rw",
+			Size:                           1024,
+			Svm:                            "svm1",
+			SnapshotReservePercent:         5,
+			SnapshotDirectoryAccessEnabled: true,
+			SecurityStyle:                  securityStyle,
+		}
+		result := volumeCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.Nas)
+		assert.NotNil(tt, result.Info.Nas.SecurityStyle, "SecurityStyle should be set when provided")
+		assert.Equal(tt, securityStyle, *result.Info.Nas.SecurityStyle)
+	})
+}
+
 func TestVolumeCreateParamsToONTAPWithTieringPolicy(t *testing.T) {
 	// Case 1: Both TieringPolicy and TieringSupported are set
 	t.Run("WhenBothTieringPolicyAndTieringSupportedAreSet", func(tt *testing.T) {
