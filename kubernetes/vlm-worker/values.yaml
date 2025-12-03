@@ -30,12 +30,20 @@ resources:
     memory: 500Mi
 
 # Ontap Version mapping with VLM. To support more ontap versions, similar block needs to be added below.
+# We should support previous versions as well, for backward compatibility.
 ontapVersionVlmImageMappings:
     # VLM worker to support ONTAP patch version 9.17.1P2
   - ontapVersion: "9.17.1P2"
     vlmImageName: "vlm-worker"
     vlmImageTag: "R9.17.1x_7882520"
     vlmImageDigest: "sha256:0b0a7f4063ba4e848af6f5d43c120c830ab1bcadf4f13e11710a3f15f066bf27"
+    secondary: true
+    pullPolicy: IfNotPresent
+  # VLM worker to support ONTAP patch version 9.17.1P1
+  - ontapVersion: "9.17.1P1"
+    vlmImageName: "vlm-worker"
+    vlmImageTag: "R9.17.1x_7855269"
+    vlmImageDigest: "sha256:07d042905f40dfc4c566919ebc539b617d9a1fc38773ab9a26e7749fd85c8405"
     secondary: true
     pullPolicy: IfNotPresent
     # VLM worker to support ONTAP test patch versions like 9.17.1X50 or any other test patch version
