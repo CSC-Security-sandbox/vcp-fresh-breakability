@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -103,21 +105,12 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 			// For counter aggregation and integral aggregation, we need:
 			// 1. All records from current aggregation window
 			// 2. Only the latest record from previous period (closest to aggregation start)
+			// 3. Only the earliest record from next period (closest to aggregation end)
 			metrics, err = p.fetchMetricsForCounterAndIntegralAggregation(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String())
-		} else {
-			// For other aggregation types, fetch only current window
-			filter := p.CreateFilterWithConditions(
-				aggregationStartTime,
-				aggregationEndTime,
-				key.ResourceType.String(),
-				key.MeasuredType.String(),
-			)
-			metrics, err = p.metricsDB.GetHydratedMetrics(ctx, filter)
-		}
-
-		if err != nil {
-			logger.Error("Failed to list hydrated metrics", "error", err.Error())
-			return err
+			if err != nil {
+				logger.Error("Failed to list hydrated metrics", "error", err.Error())
+				continue
+			}
 		}
 		logger.Debugf("Fetched %d metrics for aggregation - ResourceType: %s, MeasuredType: %s",
 			len(metrics), key.ResourceType.String(), key.MeasuredType.String())
@@ -126,9 +119,21 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 		// Process each resource group
 		for resourceIdentifier, resourceMetrics := range resourceGroups {
-			if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, resourceMetrics, jobDef, aggregationStartTime, aggregationEndTime, resourceCollection, &aggregatedRecords, logger); err != nil {
-				logger.Errorf("Failed to process metrics for resource %s and customer id %s : %v", resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID, err)
-				continue
+			// Format the raw metrics into time series using the job definition's formatter.
+			// The formatter groups metrics by metadata changes and applies trimming logic based on
+			// aggregation type (Counter/Integral/etc). For counter metrics, it includes the last
+			// datapoint from the previous period for delta calculation. For integral metrics, it
+			// may include the first datapoint from the next period. Returns a slice of TimeSeries,
+			// where each TimeSeries represents a continuous period with consistent metadata.
+			series := jobDef.TimeSeriesFormatter.Format(logger, resourceMetrics, aggregationStartTime, aggregationEndTime)
+
+			// loop through each series and process metrics
+			for _, metricseries := range series {
+				logger.Infof("Collected timeseries %s, %s, %v for resource %s and customer id %s ", metricseries.AggregationStart, metricseries.AggregationEnd, metricseries.DataPoints, resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID)
+				if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, metricseries, jobDef, metricseries.AggregationStart, metricseries.AggregationEnd, resourceCollection, &aggregatedRecords, logger); err != nil {
+					logger.Errorf("Failed to process metrics for resource %s and customer id %s : %v", resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID, err)
+					continue
+				}
 			}
 		}
 	}
@@ -735,8 +740,8 @@ func (p *BillingProvider) CreateComplexFilter(options map[string]interface{}) ma
 	return filter
 }
 
-func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMetrics) map[ResourceKey][]datamodel2.HydratedMetrics {
-	groups := make(map[ResourceKey][]datamodel2.HydratedMetrics)
+func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMetrics) map[ResourceKey][]entity.HydratedMetric {
+	groups := make(map[ResourceKey][]entity.HydratedMetric)
 	for _, metric := range metrics {
 		if metric.ResourceName != "" {
 			identifier := ResourceKey{
@@ -745,7 +750,19 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 				ConsumerID:     metric.ConsumerID,
 				ResourceType:   metric.ResourceType,
 			}
-			groups[identifier] = append(groups[identifier], metric)
+			hydratedMetric := entity.HydratedMetric{
+				Quantity:     metric.Quantity,
+				MeasuredType: metric.MeasuredType,
+				Timestamp:    entity.UnixNano(metric.MetricTimestamp.UnixNano()),
+				Metadata: metadata.ResourceMetadata{
+					ResourceType:   metric.ResourceType,
+					ResourceName:   &metric.ResourceName,
+					DeploymentName: &metric.DeploymentName,
+					AccountName:    &metric.ConsumerID,
+					RegionName:     &metric.Location,
+				},
+			}
+			groups[identifier] = append(groups[identifier], hydratedMetric)
 		}
 	}
 	return groups
@@ -755,9 +772,13 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 // This gets all records from the current aggregation window plus the latest record from the previous period
 func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceType, measuredType string) ([]datamodel2.HydratedMetrics, error) {
 	// Create a complex filter that sorts by resource and timestamp
+
+	//	Look ahead 1 hour before and after the currenbt aggregation cycle. This is used in Forward and Backward aggregation scenarios. Forward aggregation
+	//	is used for integral aggregation where we need the latest record after the aggregation end time. Backward aggregation is used for counter aggregation
+	//	where we need the latest record before the aggregation start time.
 	filter := p.CreateComplexFilter(map[string]interface{}{
-		"startTime":    aggregationStartTime.Add(-2 * time.Hour), // Look back 2 hours
-		"endTime":      aggregationEndTime,
+		"startTime":    aggregationStartTime.Add(-1 * time.Hour), // Look back 1 hour before aggregation start
+		"endTime":      aggregationEndTime.Add(1 * time.Hour),    // Look ahead 1 hour after aggregation end
 		"resourceType": resourceType,
 		"measuredType": measuredType,
 		"order":        "resource_name, deployment_name, consumer_id, metric_timestamp DESC", // Database sorts for us
@@ -768,19 +789,8 @@ func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx conte
 	if err != nil {
 		return nil, err
 	}
-
-	// Group by resource and filter to get only what we need
-	resourceGroups := p.groupMetricsByResource(allMetrics)
-	var finalMetrics []datamodel2.HydratedMetrics
-
-	for _, resourceMetrics := range resourceGroups {
-		// No need to sort - data is already sorted by the database
-		// Filter each resource group to get the desired records
-		filteredForResource := p.filterMetricsForCounterAndIntegralAggregationSorted(resourceMetrics, aggregationStartTime)
-		finalMetrics = append(finalMetrics, filteredForResource...)
-	}
-
-	return finalMetrics, nil
+	slices.Reverse(allMetrics) // Reverse to have ASC order
+	return allMetrics, nil
 }
 
 // filterMetricsForCounterAndIntegralAggregationSorted filters metrics to include only the latest record before
@@ -809,8 +819,8 @@ func (p *BillingProvider) filterMetricsForCounterAndIntegralAggregationSorted(me
 	return result
 }
 
-func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics []datamodel2.HydratedMetrics, jobDef common.AggregationJobDefinition, start, end time.Time, resourceCollection *ResourceCollection, aggregatedRecords *[]datamodel2.AggregatedUsage, logger log.Logger) error {
-	if len(metrics) == 0 {
+func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics common.TimeSeries, jobDef common.AggregationJobDefinition, start, end time.Time, resourceCollection *ResourceCollection, aggregatedRecords *[]datamodel2.AggregatedUsage, logger log.Logger) error {
+	if len(metrics.DataPoints) == 0 {
 		logger.Infof("No metrics found for resource key %s and customer id %s", resourceKey, resourceKey.ConsumerID)
 		return nil
 	}
@@ -819,26 +829,26 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	var quantity float64
 	switch jobDef.AggregationType {
 	case common.IntegralAggregation:
-		quantity = common.Integral(metrics)
+		quantity = common.Integral(metrics.DataPoints)
 	case common.CounterAggregation:
-		quantity = common.CounterDelta(metrics)
+		quantity = common.CounterDelta(metrics.DataPoints, logger)
 	case common.SumAggregation:
-		quantity = common.Sum(metrics)
+		quantity = common.Sum(metrics.DataPoints)
 	case common.FirstAggregation:
-		quantity = common.First(metrics)
+		quantity = common.First(metrics.DataPoints)
 	default:
 		return fmt.Errorf("unsupported job type: %s", jobDef.AggregationType)
 	}
 
-	// Get last counter value for counter metrics
+	// Get last counter value for counter metrics TODO Rishabh: verify if this is needed
 	var lastCounterValue *float64
-	if jobDef.AggregationType == common.CounterAggregation && len(metrics) > 0 {
-		val := metrics[len(metrics)-1].Quantity
+	if jobDef.AggregationType == common.CounterAggregation && len(metrics.DataPoints) > 0 {
+		val := metrics.DataPoints[len(metrics.DataPoints)-1].Quantity
 		lastCounterValue = &val
 	}
 
 	// Get resource data for the resource
-	resourceData := p.getResourceDataForAggregationUsage(resourceKey, metrics[0].ResourceType, resourceCollection)
+	resourceData := p.getResourceDataForAggregationUsage(resourceKey, metrics.Metadata.ResourceType, resourceCollection)
 
 	// Initialize with default values
 	var billingLabelsJSON *string
@@ -864,7 +874,7 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		return fmt.Errorf("skipping aggregation usage record as resource data not found for resource name : %s, deployment name : %s, customer ID : %s", resourceKey.ResourceName, resourceKey.DeploymentName, resourceKey.ConsumerID)
 	}
 
-	if metrics[0].MeasuredType != metadata.PoolTotalIops && metrics[0].MeasuredType != metadata.PoolTotalThroughputMibps {
+	if metrics.MeasuredType != metadata.PoolTotalIops && metrics.MeasuredType != metadata.PoolTotalThroughputMibps {
 		quantity = BytesToMiB(quantity)
 	}
 
@@ -875,13 +885,13 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		VendorCustomerID:       &resourceKey.ConsumerID,
 		AggregationStart:       start,
 		AggregationEnd:         end,
-		MeasuredType:           metrics[0].MeasuredType,
-		ResourceType:           metrics[0].ResourceType,
+		MeasuredType:           metrics.MeasuredType,
+		ResourceType:           resourceKey.ResourceType,
 		Quantity:               quantity,
-		ResourceName:           &metrics[0].ResourceName,
-		RegionName:             &metrics[0].Location,
+		ResourceName:           &resourceKey.ResourceName,
+		RegionName:             metrics.Metadata.RegionName,
 		LastCounterValue:       lastCounterValue,
-		SourceRegion:           &metrics[0].Location,
+		SourceRegion:           metrics.Metadata.RegionName,
 		DestinationRegion:      nil,
 		BillingLabels:          billingLabelsJSON,
 		ReplicationDstVolumeID: nil,
@@ -889,13 +899,13 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		State:                  datamodel2.Unsubmitted,
 		ErrorCount:             0,
 		ErrorMessage:           nil,
-		IsBillable:             common.IsBillableMetric(ctx, metrics[0].ResourceType, metrics[0].MeasuredType),
+		IsBillable:             common.IsBillableMetric(ctx, metrics.Metadata.ResourceType, metrics.MeasuredType),
 		AggregationType:        string(jobDef.AggregationType),
 		ServiceLevel:           unifiedServiceType,
 	}
 
 	if aggregated.MeasuredType == metadata.BackupLogicalSize {
-		aggregated.DestinationRegion = &metrics[0].Location
+		aggregated.DestinationRegion = metrics.Metadata.RegionName
 	}
 
 	if aggregated.ResourceType == metadata.VolumeReplicationRelationship {

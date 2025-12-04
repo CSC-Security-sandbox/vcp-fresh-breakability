@@ -13,6 +13,7 @@ type ResourceMetadata struct {
 	DeploymentName      *string
 	Throughput          *float64
 	ResourceID          *int64
+	ServiceLevel        *string
 }
 
 func (m *ResourceMetadata) SetResourceUUID(uuid string) {
@@ -53,4 +54,8 @@ func (m *ResourceMetadata) SetThroughput(throughput float64) {
 
 func (m *ResourceMetadata) SetResourceID(resourceID int64) {
 	m.ResourceID = &resourceID
+}
+
+func (m *ResourceMetadata) SetServiceLevel(serviceLevel string) {
+	m.ServiceLevel = &serviceLevel
 }

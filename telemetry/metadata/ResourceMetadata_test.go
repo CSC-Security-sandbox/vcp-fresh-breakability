@@ -93,3 +93,17 @@ func Test_ResourceMetadata_SetThroughputAndResourceID_Integration(t *testing.T) 
 	assert.Equal(t, throughput, *metadata.Throughput)
 	assert.Equal(t, resourceID, *metadata.ResourceID)
 }
+
+func Test_SetsResourceDisplayNameCorrectly(t *testing.T) {
+	metadata := ResourceMetadata{}
+	displayName := "test-display-name"
+	metadata.SetResourceDisplayName(displayName)
+	assert.Equal(t, &displayName, metadata.ResourceDisplayName)
+}
+
+func Test_SetsServiceLevelCorrectly(t *testing.T) {
+	metadata := ResourceMetadata{}
+	serviceLevel := "premium"
+	metadata.SetServiceLevel(serviceLevel)
+	assert.Equal(t, &serviceLevel, metadata.ServiceLevel)
+}

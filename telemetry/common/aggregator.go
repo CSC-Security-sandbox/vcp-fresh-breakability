@@ -1,12 +1,29 @@
 package common
 
 import (
-	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
-	"sort"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 // JobType is used to select the appropriate pipeline to process the job.
 type JobType string
+
+// DataPoint represents a data point in a time series.
+type DataPoint struct {
+	Timestamp time.Time
+	Quantity  float64
+}
+
+// TimeSeries is a collection of data points along with metadata that applies to these points.
+type TimeSeries struct {
+	AggregationStart time.Time
+	AggregationEnd   time.Time
+	Metadata         metadata.ResourceMetadata
+	MeasuredType     metadata.MeasuredType
+	DataPoints       []DataPoint
+}
 
 const (
 	// IntegralAggregation is the JobType for aggregating metrics saved in our database that require integral aggregation
@@ -22,23 +39,28 @@ const (
 // Integral calculates the area under the curve defined by time series data points. The area between two
 // data points is calculated by multiplying the value of the second data point by the difference in time
 // between the two points measured in hours. It is assumed that the data points are sorted in chronological order.
-func Integral(metrics []datamodel2.HydratedMetrics) float64 {
-	if len(metrics) < 2 {
+func Integral(points []DataPoint) float64 {
+	if len(points) < 2 {
 		return 0
 	}
 
-	// Sort metrics by timestamp
-	sort.Slice(metrics, func(i, j int) bool {
-		return metrics[i].MetricTimestamp.Before(metrics[j].MetricTimestamp)
-	})
+	var aggregate float64
+	var lastPoint *DataPoint
 
-	var integral float64
-	for i := 1; i < len(metrics); i++ {
-		duration := metrics[i].MetricTimestamp.Sub(metrics[i-1].MetricTimestamp).Hours()
-		integral += metrics[i].Quantity * duration
+	for _, point := range points {
+		point := point
+
+		if lastPoint == nil {
+			lastPoint = &point
+			continue
+		}
+
+		timeDelta := point.Timestamp.Sub(lastPoint.Timestamp).Hours()
+		aggregate += point.Quantity * timeDelta
+		lastPoint = &point
 	}
 
-	return integral
+	return aggregate
 }
 
 // CounterDelta accepts a collection of data points and returns the sum of the difference between consecutive
@@ -47,46 +69,42 @@ func Integral(metrics []datamodel2.HydratedMetrics) float64 {
 // function handles that by using the value of the current data point as long as it is less that 25% of the
 // previous data point. Otherwise, an anomalous dip has occurred and the data point is skipped. It is assumed
 // that the data points have been sorted in chronological order.
-func CounterDelta(metrics []datamodel2.HydratedMetrics) float64 {
-	if len(metrics) < 2 {
+func CounterDelta(points []DataPoint, logger log.Logger) float64 {
+	if len(points) < 2 {
 		return 0
 	}
 
 	var aggregate float64
-	var lastMetric *datamodel2.HydratedMetrics
+	var lastPoint *DataPoint
 
-	// Sort metrics by timestamp
-	sort.Slice(metrics, func(i, j int) bool {
-		return metrics[i].MetricTimestamp.Before(metrics[j].MetricTimestamp)
-	})
+	for _, point := range points {
+		point := point
 
-	// Iterate through the metrics
-	for _, metric := range metrics {
-		metric := metric
-
-		// Initialize the lastMetric if it's nil
-		if lastMetric == nil {
-			lastMetric = &metric
+		if lastPoint == nil {
+			lastPoint = &point
 			continue
 		}
 
-		// Calculate the difference in quantity
-		quantity := metric.Quantity - lastMetric.Quantity
+		quantity := point.Quantity - lastPoint.Quantity
 
 		// Check for counter reset
 		if quantity < 0 {
-			// If the current quantity is less than 25% of the previous quantity, assume a counter reset
-			// Otherwise, skip the current metric
-			if metric.Quantity < lastMetric.Quantity*0.25 {
-				quantity = metric.Quantity
+			// If the current quantity is less than 25% of the previous quantity, then we assume a counter
+			// reset and use the quantity of the current data point. Otherwise, we assume an anomalous dip
+			// and skip the current data point.
+			if point.Quantity < lastPoint.Quantity*0.25 {
+				logger.Warnf("Counter reset detected: previous value %.2f, current value %.2f at timestamp %v",
+					lastPoint.Quantity, point.Quantity, point.Timestamp)
+				quantity = point.Quantity
 			} else {
+				logger.Warnf("Anomalous counter dip detected and skipped: previous value %.2f, current value %.2f at timestamp %v",
+					lastPoint.Quantity, point.Quantity, point.Timestamp)
 				continue
 			}
 		}
 
-		// Add the quantity to the aggregate
 		aggregate += quantity
-		lastMetric = &metric
+		lastPoint = &point
 	}
 
 	return aggregate
@@ -94,24 +112,18 @@ func CounterDelta(metrics []datamodel2.HydratedMetrics) float64 {
 
 // First accepts a collection of data points and returns the quantity of the first data point. It is assumed
 // that the data points have been sorted in chronological order.
-func First(metrics []datamodel2.HydratedMetrics) float64 {
-	if len(metrics) < 1 {
+func First(points []DataPoint) float64 {
+	if len(points) < 1 {
 		return 0
 	}
 
-	// Sort metrics by timestamp
-	sort.Slice(metrics, func(i, j int) bool {
-		return metrics[i].MetricTimestamp.Before(metrics[j].MetricTimestamp)
-	})
-
-	// Return the first value
-	return metrics[0].Quantity
+	return points[0].Quantity
 }
 
 // Sum accepts a collection of data points and returns the sum of all the data point quantities.
-func Sum(metrics []datamodel2.HydratedMetrics) float64 {
+func Sum(points []DataPoint) float64 {
 	sum := 0.0
-	for _, m := range metrics {
+	for _, m := range points {
 		sum += m.Quantity
 	}
 	return sum
