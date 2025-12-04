@@ -11,6 +11,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// Test constants for image version tests
+const (
+	testOntapVersion = "9.17.1P2"
+	testVSAImagePath = "gcr.io/vsa-image:9.17.1p2"
+	testVSAName      = "x-9-17-1p2-gcnv"
+	testMediatorName = "cvo-mediator-x-9-17-1p2d1"
+)
+
 func TestDataStoreRepository_CreateImageVersion(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Test the DataStoreRepository implementation
@@ -23,20 +31,20 @@ func TestDataStoreRepository_CreateImageVersion(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
-			OntapVersion: "9.17.1",
-			VSAImagePath: "gcr.io/vsa-image:9.17.1",
-			VSAName:      "vsa-9.17.1",
-			MediatorName: "mediator-9.17.1",
+			OntapVersion: testOntapVersion,
+			VSAImagePath: testVSAImagePath,
+			VSAName:      testVSAName,
+			MediatorName: testMediatorName,
 			IsActive:     true,
 		}
 
 		// Test that the struct can be created
 		assert.NotNil(t, imageVersion)
 		assert.Equal(t, "test-image-version-uuid", imageVersion.UUID)
-		assert.Equal(t, "9.17.1", imageVersion.OntapVersion)
-		assert.Equal(t, "gcr.io/vsa-image:9.17.1", imageVersion.VSAImagePath)
-		assert.Equal(t, "vsa-9.17.1", imageVersion.VSAName)
-		assert.Equal(t, "mediator-9.17.1", imageVersion.MediatorName)
+		assert.Equal(t, testOntapVersion, imageVersion.OntapVersion)
+		assert.Equal(t, testVSAImagePath, imageVersion.VSAImagePath)
+		assert.Equal(t, testVSAName, imageVersion.VSAName)
+		assert.Equal(t, testMediatorName, imageVersion.MediatorName)
 		assert.True(t, imageVersion.IsActive)
 	})
 
@@ -164,17 +172,17 @@ func TestDataStoreRepository_UpdateImageVersion(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
-			OntapVersion: "9.17.1",
-			VSAImagePath: "gcr.io/vsa-image:9.17.1",
-			VSAName:      "vsa-9.17.1",
-			MediatorName: "mediator-9.17.1",
+			OntapVersion: testOntapVersion,
+			VSAImagePath: testVSAImagePath,
+			VSAName:      testVSAName,
+			MediatorName: testMediatorName,
 			IsActive:     false,
 		}
 
 		// Test that the struct can be created and updated
 		assert.NotNil(t, imageVersion)
 		assert.Equal(t, "test-image-version-uuid", imageVersion.UUID)
-		assert.Equal(t, "9.17.1", imageVersion.OntapVersion)
+		assert.Equal(t, testOntapVersion, imageVersion.OntapVersion)
 		assert.False(t, imageVersion.IsActive)
 	})
 
@@ -231,19 +239,19 @@ func TestImageVersionDataModel(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
-			OntapVersion: "9.17.1",
-			VSAImagePath: "gcr.io/vsa-image:9.17.1",
-			VSAName:      "vsa-9.17.1",
-			MediatorName: "mediator-9.17.1",
+			OntapVersion: testOntapVersion,
+			VSAImagePath: testVSAImagePath,
+			VSAName:      testVSAName,
+			MediatorName: testMediatorName,
 			IsActive:     true,
 		}
 
 		assert.NotNil(t, imageVersion)
 		assert.Equal(t, "test-uuid", imageVersion.UUID)
-		assert.Equal(t, "9.17.1", imageVersion.OntapVersion)
-		assert.Equal(t, "gcr.io/vsa-image:9.17.1", imageVersion.VSAImagePath)
-		assert.Equal(t, "vsa-9.17.1", imageVersion.VSAName)
-		assert.Equal(t, "mediator-9.17.1", imageVersion.MediatorName)
+		assert.Equal(t, testOntapVersion, imageVersion.OntapVersion)
+		assert.Equal(t, testVSAImagePath, imageVersion.VSAImagePath)
+		assert.Equal(t, testVSAName, imageVersion.VSAName)
+		assert.Equal(t, testMediatorName, imageVersion.MediatorName)
 		assert.True(t, imageVersion.IsActive)
 	})
 

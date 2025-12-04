@@ -3302,10 +3302,10 @@ func TestPersistenceStore_WrapperMethods(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
-			OntapVersion: "9.17.1",
+			OntapVersion: testOntapVersion,
 			VSAImagePath: "/path/to/vsa",
-			VSAName:      "vsa-9.17.1",
-			MediatorName: "mediator-9.17.1",
+			VSAName:      testVSAName,
+			MediatorName: testMediatorName,
 			IsActive:     true,
 		}
 
@@ -3314,7 +3314,7 @@ func TestPersistenceStore_WrapperMethods(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, imageVersion.UUID, result.UUID)
-		assert.Equal(t, "9.17.1", result.OntapVersion)
+		assert.Equal(t, testOntapVersion, result.OntapVersion)
 		assert.Equal(t, "/path/to/vsa", result.VSAImagePath)
 		assert.True(t, result.IsActive)
 	})

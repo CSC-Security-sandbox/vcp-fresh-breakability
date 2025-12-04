@@ -126,7 +126,7 @@ workerConfig:
   dataSubnetCidrBlock: 28
   cloudDnsCacheTtl: 300
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
-  ontapVersionDetails: "9.17.1P1"
+  ontapVersionDetails: "9.17.1P2"
   enforceMinSpConfig: "false"
   maxNodesPerGroup: 200
   maxNestedCloneLimit: 499
@@ -140,7 +140,7 @@ workerConfig:
   vsaImageProject: ""
   vsaMediatorImageProject: ""
   # VSA Image Bucket for signed URL generation
-  vsaImageBucket: "vsa-compute-images-tst"
+  vsaImageBucket: "gcnv-autopush-images-bucket"
   # VSA Signed URL duration in hours (1-24, default: 12)
   vsaSignedUrlDurationHours: 12
   vsaInstanceTypeOverride: false
