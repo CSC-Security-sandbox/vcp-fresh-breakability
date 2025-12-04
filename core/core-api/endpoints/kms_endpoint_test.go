@@ -3,16 +3,16 @@ package api
 import (
 	"context"
 	"errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"testing"
+	"time"
 )
 
 func TestV1RotateGcpKmsConfig_Success(t *testing.T) {
@@ -162,8 +162,8 @@ func TestV1RotateGcpKmsConfig_WithCorrelationID(t *testing.T) {
 		UUID: kmsConfigUUID,
 	}
 
-	// Set up context with correlation ID
-	ctx := context.WithValue(context.Background(), "X-Correlation-ID", correlationID)
+	// Set up context with correlation ID using the correct middleware key
+	ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, correlationID)
 
 	// Set up expectations
 	expectedParams := &common.RotateKmsConfigParams{

@@ -203,27 +203,41 @@ func TestMigrateKmsConfig(t *testing.T) {
 		assert.Equal(tt, "uuid99", params.SdeUUID)
 	})
 	t.Run("WhenTemporalWorkflowReturnsError", func(tt *testing.T) {
-		mockTemporall := new(workflow_engine.MockTemporalTestClient)
-		orchInstancee := Orchestrator{
+		mockTemporalNew := new(workflow_engine.MockTemporalTestClient)
+		orchInstanceNew := Orchestrator{
 			storage:  store,
-			temporal: mockTemporall,
+			temporal: mockTemporalNew,
 		}
+
+		fields := log.Fields{
+			string(middleware.RequestID):            "requestID",
+			string(middleware.RequestCorrelationID): "correlationID",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
 
 		params := common.MigrateKmsConfigParams{
-			LocationID:     "home-location",
-			ProjectNumber:  "my-project",
-			UUID:           "uuid3",
-			AccountName:    "account1",
-			XCorrelationID: "",
-			State:          models.LifeCycleStateREADY,
+			LocationID:    "home-location",
+			ProjectNumber: "my-project",
+			UUID:          "uuid3",
+			AccountName:   "account1",
+			State:         models.LifeCycleStateREADY,
 		}
-		mockTemporall.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, &params).Return(nil, errors.New("This is a Temporal error"))
+		mockTemporalNew.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, &params).Return(nil, errors.New("This is a Temporal error"))
 
-		result, errMigrate := orchInstancee.MigrateKmsConfig(ctx, &params)
+		result, errMigrate := orchInstanceNew.MigrateKmsConfig(ctx, &params)
+
+		// Verify the job was created with correct CorrelationID and RequestID
+		var createdJob datamodel.Job
+		err := store.DB().Where("type = ? AND correlation_id = ?", "MIGRATE_KMS_CONFIG", "correlationID").Order("created_at DESC").First(&createdJob).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, "correlationID", createdJob.CorrelationID)
+		assert.Equal(tt, "requestID", createdJob.RequestID)
+
 		assert.Error(tt, errMigrate)
 		assert.Equal(tt, "This is a Temporal error", errMigrate.Error())
 		assert.Equal(tt, "", result)
 	})
+
 	t.Run("WhenCreateJobReturnsError", func(tt *testing.T) {
 		params := common.MigrateKmsConfigParams{
 			LocationID:     "home-location",
@@ -1970,6 +1984,59 @@ func TestDeleteKmsConfig(t *testing.T) {
 		assert.Nil(tt, kmsConfig)
 		assert.Empty(tt, jobUUID)
 	})
+	t.Run("WhenDeleteKmsConfigSetsRequestID", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID:    "test-kms-config-id",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id-existing",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}, Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{ID: int64(123), UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			AccountID:      int64(1),
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+
+		// Set up context with RequestID
+		fields := log.Fields{
+			string(middleware.RequestID): "test-request-id-delete",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		// Verify job has both CorrelationID and RequestID
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.CorrelationID == "test-correlation-id-existing" && job.RequestID == "test-request-id-delete"
+		})).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "test-job-uuid", jobUUID)
+		assert.NotNil(tt, kmsConfig)
+		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestValidateKmsConfigState(t *testing.T) {
@@ -2186,6 +2253,74 @@ func TestRotateKmsConfig_AccountNotFound(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Nil(t, job)
 	assert.True(t, errors.IsNotFoundErr(err))
+
+	// Verify expectations
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
+}
+
+func TestRotateKmsConfig_SetsCorrelationIDAndRequestID(t *testing.T) {
+	// Setup mocks
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+	// Test data
+	params := &common.RotateKmsConfigParams{
+		KmsConfigID:    "test-kms-config-uuid",
+		AccountName:    "test-account",
+		XCorrelationID: "test-correlation-id-789",
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-account",
+	}
+
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-kms-config-uuid",
+		},
+		Name:  "test-kms-config",
+		State: string(cvpModels.KmsConfigV1betaKmsStateREADY),
+	}
+
+	// Set up context with RequestID
+	fields := log.Fields{
+		string(middleware.RequestID): "test-request-id-999",
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+	// Mock the getAccountFromUUID function
+	originalGetAccountFromUUID := getAccountFromUUID
+	getAccountFromUUID = func(ctx context.Context, se database.Storage, accountUUID string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountFromUUID = originalGetAccountFromUUID }()
+
+	// Set up expectations - verify job has CorrelationID and RequestID
+	mockStorage.On("GetKmsConfig", ctx, "test-kms-config-uuid").Return(kmsConfig, nil)
+	mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+		return job.CorrelationID == "test-correlation-id-789" && job.RequestID == "test-request-id-999"
+	})).Return(&datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
+		WorkflowID: "test-workflow-id",
+	}, nil)
+
+	mockTemporal.On("ExecuteWorkflow",
+		mock.Anything,
+		mock.Anything,
+		mock.AnythingOfType("func(internal.Context, *common.RotateKmsConfigParams) (interface {}, error)"),
+		mock.Anything,
+	).Return(nil, nil)
+
+	// Execute
+	result, job, err := rotateKmsConfig(ctx, mockStorage, mockTemporal, params)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotNil(t, job)
+	assert.Equal(t, "test-job-uuid", job.UUID)
 
 	// Verify expectations
 	mockStorage.AssertExpectations(t)

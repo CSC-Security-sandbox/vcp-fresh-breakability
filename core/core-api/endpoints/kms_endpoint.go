@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
@@ -28,12 +29,7 @@ func (h *Handler) V1RotateGcpKmsConfig(ctx context.Context, req *oasgenserver.Gc
 	accountName := req.OwnerID
 
 	// Extract correlation ID from context
-	correlationID := ""
-	if val := ctx.Value("X-Correlation-ID"); val != nil {
-		if str, ok := val.(string); ok {
-			correlationID = str
-		}
-	}
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
 
 	// Create rotation parameters
 	rotateParams := &common.RotateKmsConfigParams{

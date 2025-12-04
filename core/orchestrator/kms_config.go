@@ -355,6 +355,7 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: params.KmsConfigID},
 		CorrelationID: params.XCorrelationID,
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, err = se.CreateJob(ctx, job)
 	if err != nil {
@@ -429,10 +430,12 @@ func migrateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeMigrateKmsConfig),
-		State:        string(models.JobsStateNEW),
-		ResourceName: params.Name,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeMigrateKmsConfig),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 	createdJob, errJob := se.CreateJob(ctx, job)
 	if errJob != nil {
@@ -499,6 +502,8 @@ func rotateKmsConfig(ctx context.Context, se database.Storage, temporal client.C
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: params.KmsConfigID,
 		},
+		CorrelationID: params.XCorrelationID,
+		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
