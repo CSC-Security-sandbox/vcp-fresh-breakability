@@ -451,6 +451,8 @@ type CreateBackupParams struct {
 	ServiceAccountName       string
 	SnapshotCreationTime     string
 	ConstituentCountOfBackup int32
+	VolumeUsageBytes         int64
+	BackupChainBytes         int64
 }
 
 type GetBackupsParams struct {

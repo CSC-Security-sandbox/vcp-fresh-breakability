@@ -894,6 +894,18 @@ func (h Handler) V1betaInternalCreateBackup(ctx context.Context, req *gcpgenserv
 		logger.Error("Failed to get backup", "error", err.Error())
 		return &gcpgenserver.V1betaInternalCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
 	}
+
+	// Set LatestLogicalBackupSize to 0 for all previous backups of the same volume in a single query
+	// This ensures that only the latest backup has the correct size
+	// Update only if the latest logical backup size is not zero for the current backup
+	if dbBackup.LatestLogicalBackupSize != 0 {
+		err = h.Orchestrator.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, dbBackup.VolumeUUID, dbBackup.UUID)
+		if err != nil {
+			logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", dbBackup.VolumeUUID, err)
+			return &gcpgenserver.V1betaInternalCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+		}
+	}
+
 	resp := convertBackupDataModelToInternalBackupsV1beta(dbBackup, false) // isRestoring not needed for create
 
 	if jobId == "" {
@@ -973,7 +985,6 @@ func createInternalBackupParams(req *gcpgenserver.InternalBackupCreateV1beta, pa
 		VolumeUUID:    req.VolumeId,
 		BackupName:    req.ResourceId,
 		BackupUUID:    req.BackupUUID, // ExternalUUID for cross-region backups
-		BackupType:    utils.BackupTypeMANUAL,
 		LocationID:    params.LocationId,
 		// Volume information (required for cross-region)
 		VolumeName: req.VolumeName,
@@ -1067,6 +1078,24 @@ func createInternalBackupParams(req *gcpgenserver.InternalBackupCreateV1beta, pa
 		ConstituentCountOfBackup: func() int32 {
 			if req.ConstituentCountOfBackup.IsSet() {
 				return req.ConstituentCountOfBackup.Value
+			}
+			return 0
+		}(),
+		VolumeUsageBytes: func() int64 {
+			if req.VolumeUsageBytes.IsSet() {
+				return req.VolumeUsageBytes.Value
+			}
+			return 0
+		}(),
+		BackupType: func() string {
+			if req.BackupType.IsSet() {
+				return string(req.BackupType.Value)
+			}
+			return ""
+		}(),
+		BackupChainBytes: func() int64 {
+			if req.BackupChainBytes.IsSet() {
+				return req.BackupChainBytes.Value
 			}
 			return 0
 		}(),

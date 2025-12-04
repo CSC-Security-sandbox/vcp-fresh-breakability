@@ -8267,6 +8267,105 @@ func TestCreateRemoteBackupFromVCPActivity(t *testing.T) {
 		assert.Contains(t, err.Error(), "Not implemented creating remote backup")
 		mockInvoker.AssertExpectations(t)
 	})
+
+	t.Run("Success_WithAssetMetadata", func(t *testing.T) {
+		// Arrange
+		activity := BackupActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		backupActivitiesContext := &BackupActivitiesContext{
+			BackupWorkflowInit: &BackupWorkflowInput{
+				Backup: &datamodel.Backup{
+					BaseModel:   datamodel.BaseModel{UUID: backupUUID},
+					Name:        "test-backup",
+					VolumeUUID:  volumeUUID,
+					Description: "Test backup with asset metadata",
+					AssetMetadata: &datamodel.AssetMetadata{
+						ChildAssets: []datamodel.ChildAsset{
+							{
+								AssetType:  "storage.googleapis.com/Bucket",
+								AssetNames: []string{"bucket1", "bucket2"},
+							},
+							{
+								AssetType:  "compute.googleapis.com/Instance",
+								AssetNames: []string{"instance1"},
+							},
+						},
+					},
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: backupVaultUUID},
+					BackupVaultType:  "CROSS_REGION",
+					BackupRegionName: &region,
+					ExternalUUID:     func() *string { s := "external-vault-uuid"; return &s }(),
+				},
+				Volume: &datamodel.Volume{
+					Account: &datamodel.Account{
+						Name: projectNumber,
+					},
+				},
+			},
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := commonparams.GetRemoteRegionConfig
+		defer func() { commonparams.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		commonparams.GetRemoteRegionConfig = func(regionParam, projectNumberParam string) (string, string, error) {
+			return basePath, jwtToken, nil
+		}
+
+		// Mock googleproxyclient.GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		// Mock V1betaInternalCreateBackup
+		mockResponse := &googleproxyclient.InternalBackupV1beta{
+			ResourceId: googleproxyclient.NewOptString("test-backup"),
+		}
+		mockInvoker.On("V1betaInternalCreateBackup", mock.Anything, mock.MatchedBy(func(req *googleproxyclient.InternalBackupCreateV1beta) bool {
+			if !req.AssetLocationMetadata.Set {
+				return false
+			}
+			if len(req.AssetLocationMetadata.Value.ChildAssets) != 2 {
+				return false
+			}
+			firstAsset := req.AssetLocationMetadata.Value.ChildAssets[0]
+			if !firstAsset.AssetType.Set || firstAsset.AssetType.Value != "storage.googleapis.com/Bucket" {
+				return false
+			}
+			if len(firstAsset.AssetNames) != 2 || firstAsset.AssetNames[0] != "bucket1" || firstAsset.AssetNames[1] != "bucket2" {
+				return false
+			}
+			secondAsset := req.AssetLocationMetadata.Value.ChildAssets[1]
+			if !secondAsset.AssetType.Set || secondAsset.AssetType.Value != "compute.googleapis.com/Instance" {
+				return false
+			}
+			if len(secondAsset.AssetNames) != 1 || secondAsset.AssetNames[0] != "instance1" {
+				return false
+			}
+			return req.ResourceId == "test-backup" &&
+				req.BackupUUID == backupUUID &&
+				req.VolumeId == volumeUUID
+		}), mock.MatchedBy(func(params googleproxyclient.V1betaInternalCreateBackupParams) bool {
+			return params.ProjectNumber == projectNumber &&
+				params.LocationId == region &&
+				params.BackupVaultId == backupVaultUUID
+		})).Return(mockResponse, nil)
+
+		// Act
+		err := activity.CreateRemoteBackupFromVCPActivity(ctx, backupActivitiesContext)
+
+		// Assert
+		assert.NoError(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
 }
 
 func TestUpdateRemoteBackupFromVCPActivity(t *testing.T) {

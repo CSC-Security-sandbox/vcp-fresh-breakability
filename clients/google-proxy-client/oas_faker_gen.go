@@ -2134,6 +2134,31 @@ func (s *InternalBackupCreateV1beta) SetFake() {
 			s.ConstituentCountOfBackup.SetFake()
 		}
 	}
+	{
+		{
+			s.VolumeUsageBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupType.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupChainBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.AssetLocationMetadata.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *InternalBackupCreateV1betaBackupType) SetFake() {
+	*s = InternalBackupCreateV1betaBackupTypeMANUAL
 }
 
 // SetFake set fake values.
@@ -3210,6 +3235,15 @@ func (s *OptInt64) SetFake() {
 	var elem int64
 	{
 		elem = int64(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInternalBackupCreateV1betaBackupType) SetFake() {
+	var elem InternalBackupCreateV1betaBackupType
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }

@@ -4453,6 +4453,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 
 		mockOrchestrator.EXPECT().CreateBackupInternal(ctx, mock.Anything).Return(&models.Backup{}, "", nil)
 		mockOrchestrator.EXPECT().GetBackupByExternalUUID(ctx, params.BackupVaultId, req.BackupUUID, params.ProjectNumber).Return(backup, nil)
+		mockOrchestrator.EXPECT().UpdateBackupLatestLogicalBackupSizeByVolume(ctx, backup.VolumeUUID, backup.UUID).Return(nil)
 
 		resp, err := handler.V1betaInternalCreateBackup(ctx, req, params)
 		assert.NoError(tt, err)
@@ -4520,6 +4521,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 		jobID := "job-uuid-123"
 		mockOrchestrator.EXPECT().CreateBackupInternal(ctx, mock.Anything).Return(&models.Backup{}, jobID, nil)
 		mockOrchestrator.EXPECT().GetBackupByExternalUUID(ctx, params.BackupVaultId, req.BackupUUID, params.ProjectNumber).Return(backup, nil)
+		mockOrchestrator.EXPECT().UpdateBackupLatestLogicalBackupSizeByVolume(ctx, backup.VolumeUUID, backup.UUID).Return(nil)
 
 		resp, err := handler.V1betaInternalCreateBackup(ctx, req, params)
 		assert.NoError(tt, err)
@@ -4528,6 +4530,73 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 		assert.True(tt, operation.Name.IsSet())
 		assert.Contains(tt, operation.Name.Value, jobID)
 		assert.False(tt, operation.Done.Value)
+	})
+
+	t.Run("WhenUpdateBackupLatestLogicalBackupSizeByVolumeFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		req := &gcpgenserver.InternalBackupCreateV1beta{
+			ResourceId: "test-backup",
+			BackupUUID: "backup-uuid-123",
+			VolumeId:   "volume-uuid-456",
+			VolumeName: "test-volume",
+			Protocols:  []gcpgenserver.InternalBackupCreateV1betaProtocolsItem{gcpgenserver.InternalBackupCreateV1betaProtocolsItemNFSV3},
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupParams{
+			BackupVaultId:  "vault-123",
+			ProjectNumber:  "project-123",
+			LocationId:     "us-east4",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		sourceRegionName := "us-east4"
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "vault-123",
+			},
+			Name:             "test-backup-vault",
+			SourceRegionName: &sourceRegionName,
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", SatisfiesPzi: true, SatisfiesPzs: true}},
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-123",
+				CreatedAt: time.Now(),
+			},
+			State:         models.LifeCycleStateAvailable,
+			Name:          "test-backup",
+			VolumeUUID:    "volume-uuid-456",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				UseExistingSnapshot: false,
+				RestoreVolumeCount:  0,
+			},
+			SizeInBytes:             int64(1000),
+			LatestLogicalBackupSize: int64(500),
+			Description:             "Test backup description",
+			Type:                    "MANUAL",
+		}
+
+		mockOrchestrator.EXPECT().CreateBackupInternal(ctx, mock.Anything).Return(&models.Backup{}, "", nil)
+		mockOrchestrator.EXPECT().GetBackupByExternalUUID(ctx, params.BackupVaultId, req.BackupUUID, params.ProjectNumber).Return(backup, nil)
+		mockOrchestrator.EXPECT().UpdateBackupLatestLogicalBackupSizeByVolume(ctx, backup.VolumeUUID, backup.UUID).Return(errors.New("Database update error"))
+
+		resp, err := handler.V1betaInternalCreateBackup(ctx, req, params)
+		assert.Error(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalCreateBackupInternalServerError{}, resp)
+		internalErr := resp.(*gcpgenserver.V1betaInternalCreateBackupInternalServerError)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, err.Error(), "Database update error")
 	})
 }
 
@@ -4848,6 +4917,7 @@ func TestCreateInternalBackupParams(t *testing.T) {
 			ServiceAccountName:       gcpgenserver.NewOptString("sa-name"),
 			SnapshotCreationTime:     gcpgenserver.NewOptDateTime(snapshotCreationTime),
 			ConstituentCountOfBackup: gcpgenserver.NewOptInt32(5),
+			BackupType:               gcpgenserver.NewOptInternalBackupCreateV1betaBackupType("MANUAL"),
 		}
 		params := gcpgenserver.V1betaInternalCreateBackupParams{
 			BackupVaultId:  "vault-123",
@@ -4906,7 +4976,7 @@ func TestCreateInternalBackupParams(t *testing.T) {
 		assert.Equal(tt, req.VolumeId, result.VolumeUUID)
 		assert.Equal(tt, req.ResourceId, result.BackupName)
 		assert.Equal(tt, req.BackupUUID, result.BackupUUID)
-		assert.Equal(tt, utils.BackupTypeMANUAL, result.BackupType)
+		assert.Equal(tt, "", result.BackupType)
 		assert.Equal(tt, params.LocationId, result.LocationID)
 		assert.Equal(tt, req.VolumeName, result.VolumeName)
 		assert.Equal(tt, []string{"NFSV3"}, result.Protocols)

@@ -5275,6 +5275,13 @@ type InternalBackupCreateV1beta struct {
 	SnapshotCreationTime OptDateTime `json:"snapshotCreationTime"`
 	// Number of constituent volumes in the backup.
 	ConstituentCountOfBackup OptInt32 `json:"constituentCountOfBackup"`
+	// Current size for the backup in bytes.
+	VolumeUsageBytes OptInt64 `json:"volumeUsageBytes"`
+	// Type of backup, manually created or created by a backup policy.
+	BackupType OptInternalBackupCreateV1betaBackupType `json:"backupType"`
+	// Size in bytes of the backup of the volume.
+	BackupChainBytes      OptInt64                   `json:"backupChainBytes"`
+	AssetLocationMetadata OptAssetLocationMetadataV2 `json:"assetLocationMetadata"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -5372,6 +5379,26 @@ func (s *InternalBackupCreateV1beta) GetConstituentCountOfBackup() OptInt32 {
 	return s.ConstituentCountOfBackup
 }
 
+// GetVolumeUsageBytes returns the value of VolumeUsageBytes.
+func (s *InternalBackupCreateV1beta) GetVolumeUsageBytes() OptInt64 {
+	return s.VolumeUsageBytes
+}
+
+// GetBackupType returns the value of BackupType.
+func (s *InternalBackupCreateV1beta) GetBackupType() OptInternalBackupCreateV1betaBackupType {
+	return s.BackupType
+}
+
+// GetBackupChainBytes returns the value of BackupChainBytes.
+func (s *InternalBackupCreateV1beta) GetBackupChainBytes() OptInt64 {
+	return s.BackupChainBytes
+}
+
+// GetAssetLocationMetadata returns the value of AssetLocationMetadata.
+func (s *InternalBackupCreateV1beta) GetAssetLocationMetadata() OptAssetLocationMetadataV2 {
+	return s.AssetLocationMetadata
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *InternalBackupCreateV1beta) SetResourceId(val string) {
 	s.ResourceId = val
@@ -5465,6 +5492,68 @@ func (s *InternalBackupCreateV1beta) SetSnapshotCreationTime(val OptDateTime) {
 // SetConstituentCountOfBackup sets the value of ConstituentCountOfBackup.
 func (s *InternalBackupCreateV1beta) SetConstituentCountOfBackup(val OptInt32) {
 	s.ConstituentCountOfBackup = val
+}
+
+// SetVolumeUsageBytes sets the value of VolumeUsageBytes.
+func (s *InternalBackupCreateV1beta) SetVolumeUsageBytes(val OptInt64) {
+	s.VolumeUsageBytes = val
+}
+
+// SetBackupType sets the value of BackupType.
+func (s *InternalBackupCreateV1beta) SetBackupType(val OptInternalBackupCreateV1betaBackupType) {
+	s.BackupType = val
+}
+
+// SetBackupChainBytes sets the value of BackupChainBytes.
+func (s *InternalBackupCreateV1beta) SetBackupChainBytes(val OptInt64) {
+	s.BackupChainBytes = val
+}
+
+// SetAssetLocationMetadata sets the value of AssetLocationMetadata.
+func (s *InternalBackupCreateV1beta) SetAssetLocationMetadata(val OptAssetLocationMetadataV2) {
+	s.AssetLocationMetadata = val
+}
+
+// Type of backup, manually created or created by a backup policy.
+type InternalBackupCreateV1betaBackupType string
+
+const (
+	InternalBackupCreateV1betaBackupTypeMANUAL    InternalBackupCreateV1betaBackupType = "MANUAL"
+	InternalBackupCreateV1betaBackupTypeSCHEDULED InternalBackupCreateV1betaBackupType = "SCHEDULED"
+)
+
+// AllValues returns all InternalBackupCreateV1betaBackupType values.
+func (InternalBackupCreateV1betaBackupType) AllValues() []InternalBackupCreateV1betaBackupType {
+	return []InternalBackupCreateV1betaBackupType{
+		InternalBackupCreateV1betaBackupTypeMANUAL,
+		InternalBackupCreateV1betaBackupTypeSCHEDULED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InternalBackupCreateV1betaBackupType) MarshalText() ([]byte, error) {
+	switch s {
+	case InternalBackupCreateV1betaBackupTypeMANUAL:
+		return []byte(s), nil
+	case InternalBackupCreateV1betaBackupTypeSCHEDULED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InternalBackupCreateV1betaBackupType) UnmarshalText(data []byte) error {
+	switch InternalBackupCreateV1betaBackupType(data) {
+	case InternalBackupCreateV1betaBackupTypeMANUAL:
+		*s = InternalBackupCreateV1betaBackupTypeMANUAL
+		return nil
+	case InternalBackupCreateV1betaBackupTypeSCHEDULED:
+		*s = InternalBackupCreateV1betaBackupTypeSCHEDULED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InternalBackupCreateV1betaProtocolsItem string
@@ -9613,6 +9702,52 @@ func (o OptInt64) Get() (v int64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInternalBackupCreateV1betaBackupType returns new OptInternalBackupCreateV1betaBackupType with value set to v.
+func NewOptInternalBackupCreateV1betaBackupType(v InternalBackupCreateV1betaBackupType) OptInternalBackupCreateV1betaBackupType {
+	return OptInternalBackupCreateV1betaBackupType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInternalBackupCreateV1betaBackupType is optional InternalBackupCreateV1betaBackupType.
+type OptInternalBackupCreateV1betaBackupType struct {
+	Value InternalBackupCreateV1betaBackupType
+	Set   bool
+}
+
+// IsSet returns true if OptInternalBackupCreateV1betaBackupType was set.
+func (o OptInternalBackupCreateV1betaBackupType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInternalBackupCreateV1betaBackupType) Reset() {
+	var v InternalBackupCreateV1betaBackupType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInternalBackupCreateV1betaBackupType) SetTo(v InternalBackupCreateV1betaBackupType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInternalBackupCreateV1betaBackupType) Get() (v InternalBackupCreateV1betaBackupType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInternalBackupCreateV1betaBackupType) Or(d InternalBackupCreateV1betaBackupType) InternalBackupCreateV1betaBackupType {
 	if v, ok := o.Get(); ok {
 		return v
 	}

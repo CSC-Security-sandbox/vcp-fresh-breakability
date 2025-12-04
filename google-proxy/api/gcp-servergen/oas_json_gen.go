@@ -9671,9 +9671,33 @@ func (s *InternalBackupCreateV1beta) encodeFields(e *jx.Encoder) {
 			s.ConstituentCountOfBackup.Encode(e)
 		}
 	}
+	{
+		if s.VolumeUsageBytes.Set {
+			e.FieldStart("volumeUsageBytes")
+			s.VolumeUsageBytes.Encode(e)
+		}
+	}
+	{
+		if s.BackupType.Set {
+			e.FieldStart("backupType")
+			s.BackupType.Encode(e)
+		}
+	}
+	{
+		if s.BackupChainBytes.Set {
+			e.FieldStart("backupChainBytes")
+			s.BackupChainBytes.Encode(e)
+		}
+	}
+	{
+		if s.AssetLocationMetadata.Set {
+			e.FieldStart("assetLocationMetadata")
+			s.AssetLocationMetadata.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfInternalBackupCreateV1beta = [19]string{
+var jsonFieldsNameOfInternalBackupCreateV1beta = [23]string{
 	0:  "resourceId",
 	1:  "backupUUID",
 	2:  "volumeId",
@@ -9693,6 +9717,10 @@ var jsonFieldsNameOfInternalBackupCreateV1beta = [19]string{
 	16: "serviceAccountName",
 	17: "snapshotCreationTime",
 	18: "constituentCountOfBackup",
+	19: "volumeUsageBytes",
+	20: "backupType",
+	21: "backupChainBytes",
+	22: "assetLocationMetadata",
 }
 
 // Decode decodes InternalBackupCreateV1beta from json.
@@ -9701,6 +9729,7 @@ func (s *InternalBackupCreateV1beta) Decode(d *jx.Decoder) error {
 		return errors.New("invalid: unable to decode InternalBackupCreateV1beta to nil")
 	}
 	var requiredBitSet [3]uint8
+	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -9910,6 +9939,46 @@ func (s *InternalBackupCreateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"constituentCountOfBackup\"")
 			}
+		case "volumeUsageBytes":
+			if err := func() error {
+				s.VolumeUsageBytes.Reset()
+				if err := s.VolumeUsageBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"volumeUsageBytes\"")
+			}
+		case "backupType":
+			if err := func() error {
+				s.BackupType.Reset()
+				if err := s.BackupType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupType\"")
+			}
+		case "backupChainBytes":
+			if err := func() error {
+				s.BackupChainBytes.Reset()
+				if err := s.BackupChainBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupChainBytes\"")
+			}
+		case "assetLocationMetadata":
+			if err := func() error {
+				s.AssetLocationMetadata.Reset()
+				if err := s.AssetLocationMetadata.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"assetLocationMetadata\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -9964,6 +10033,46 @@ func (s *InternalBackupCreateV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InternalBackupCreateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InternalBackupCreateV1betaBackupType as json.
+func (s InternalBackupCreateV1betaBackupType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InternalBackupCreateV1betaBackupType from json.
+func (s *InternalBackupCreateV1betaBackupType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InternalBackupCreateV1betaBackupType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InternalBackupCreateV1betaBackupType(v) {
+	case InternalBackupCreateV1betaBackupTypeMANUAL:
+		*s = InternalBackupCreateV1betaBackupTypeMANUAL
+	case InternalBackupCreateV1betaBackupTypeSCHEDULED:
+		*s = InternalBackupCreateV1betaBackupTypeSCHEDULED
+	default:
+		*s = InternalBackupCreateV1betaBackupType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InternalBackupCreateV1betaBackupType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InternalBackupCreateV1betaBackupType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -14595,6 +14704,39 @@ func (s OptInt64) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptInt64) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InternalBackupCreateV1betaBackupType as json.
+func (o OptInternalBackupCreateV1betaBackupType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes InternalBackupCreateV1betaBackupType from json.
+func (o *OptInternalBackupCreateV1betaBackupType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptInternalBackupCreateV1betaBackupType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptInternalBackupCreateV1betaBackupType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptInternalBackupCreateV1betaBackupType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

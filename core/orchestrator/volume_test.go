@@ -11851,7 +11851,9 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 	})
 
 	tt.Run("WhenCrossRegionBackupVaultAssignedToVolumeInDestinationRegion", func(tt *testing.T) {
+		utils.SetCrossRegionBackupEnabledForTest(true)
 		// Create a cross-region backup vault with backup region matching the volume's region
+		sourceRegionName := "us-central1"
 		backupRegionName := "us-west1"
 		bv := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "test-cross-region-vault"},
@@ -11859,6 +11861,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			AccountID:        account.ID,
 			LifeCycleState:   models.LifeCycleStateREADY,
 			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.ToPointer(sourceRegionName),
 			BackupRegionName: nillable.ToPointer(backupRegionName),
 		}
 		err = store.DB().Create(bv).Error
@@ -13302,14 +13305,17 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 	})
 
 	t.Run("WhenAttachCrossRegionBackupVaultToVolumeInDestinationRegion", func(tt *testing.T) {
+		utils.SetCrossRegionBackupEnabledForTest(true)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 
 		// Setup: Cross-region backup vault with backup region matching the volume's region
+		sourceRegionName := "us-central1"
 		backupRegionName := "us-west1"
 		bv := &datamodel.BackupVault{
 			BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
 			BackupVaultType:  activities.CrossRegionBackupType,
+			SourceRegionName: nillable.GetStringPtr(sourceRegionName),
 			BackupRegionName: nillable.GetStringPtr(backupRegionName),
 			LifeCycleState:   models.LifeCycleStateREADY,
 		}
@@ -25856,4 +25862,154 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_ExistingKmsGrant(t *testing.T
 	err = validateUpdateVolumeRequest(ctx, store, volume, params, poolView)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Volumes cannot be updated with CMEK-enabled backup vaults")
+}
+
+// TestValidateCRBBackupVault tests the validateCRBBackupVault function
+func TestValidateCRBBackupVault(t *testing.T) {
+	// Store original cross-region backup enabled state and restore after test
+	originalCrossRegionEnabled := utils.IsCrossRegionBackupEnabled()
+	defer utils.SetCrossRegionBackupEnabledForTest(originalCrossRegionEnabled)
+
+	tests := []struct {
+		name              string
+		enableCrossRegion bool
+		backupVault       *datamodel.BackupVault
+		expectError       bool
+		expectedErrorMsg  string
+	}{
+		{
+			name:              "CrossRegionDisabled_ReturnsError",
+			enableCrossRegion: false,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType: activities.CrossRegionBackupType,
+			},
+			expectError:      true,
+			expectedErrorMsg: activities.CrossRegionBackupVaultErrMsg,
+		},
+		{
+			name:              "MissingSourceRegion_ReturnsError",
+			enableCrossRegion: true,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType:  activities.CrossRegionBackupType,
+				SourceRegionName: nil, // Missing source region
+				BackupRegionName: nillable.GetStringPtr("us-west1"),
+			},
+			expectError:      true,
+			expectedErrorMsg: "Source region must be specified for cross-region backup vault",
+		},
+		{
+			name:              "EmptySourceRegion_ReturnsError",
+			enableCrossRegion: true,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType:  activities.CrossRegionBackupType,
+				SourceRegionName: nillable.GetStringPtr(""), // Empty source region
+				BackupRegionName: nillable.GetStringPtr("us-west1"),
+			},
+			expectError:      true,
+			expectedErrorMsg: "Source region must be specified for cross-region backup vault",
+		},
+		{
+			name:              "MissingBackupRegion_ReturnsError",
+			enableCrossRegion: true,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType:  activities.CrossRegionBackupType,
+				SourceRegionName: nillable.GetStringPtr("us-central1"),
+				BackupRegionName: nil, // Missing backup region
+			},
+			expectError:      true,
+			expectedErrorMsg: "Backup region must be specified for cross-region backup vault",
+		},
+		{
+			name:              "EmptyBackupRegion_ReturnsError",
+			enableCrossRegion: true,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType:  activities.CrossRegionBackupType,
+				SourceRegionName: nillable.GetStringPtr("us-central1"),
+				BackupRegionName: nillable.GetStringPtr(""), // Empty backup region
+			},
+			expectError:      true,
+			expectedErrorMsg: "Backup region must be specified for cross-region backup vault",
+		},
+		{
+			name:              "SameSourceAndBackupRegions_ReturnsError",
+			enableCrossRegion: true,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType:  activities.CrossRegionBackupType,
+				SourceRegionName: nillable.GetStringPtr("us-central1"),
+				BackupRegionName: nillable.GetStringPtr("us-central1"), // Same region
+			},
+			expectError:      true,
+			expectedErrorMsg: "Backup region must be different from source region for cross-region backup vault",
+		},
+		{
+			name:              "BackupVaultNotInReadyState_ReturnsError",
+			enableCrossRegion: true,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType:  activities.CrossRegionBackupType,
+				SourceRegionName: nillable.GetStringPtr("us-central1"),
+				BackupRegionName: nillable.GetStringPtr("us-west1"),
+				LifeCycleState:   models.LifeCycleStateCreating, // Not READY state
+			},
+			expectError:      true,
+			expectedErrorMsg: "Cross-region backup vault must be in READY state",
+		},
+		{
+			name:              "AttachingDestinationBackupVaultToVolume_ReturnsError",
+			enableCrossRegion: true,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType:  activities.CrossRegionBackupType,
+				SourceRegionName: nillable.GetStringPtr("us-central1"),
+				BackupRegionName: nillable.GetStringPtr("us-west1"),
+				LifeCycleState:   models.LifeCycleStateREADY,
+			},
+			expectError:      true,
+			expectedErrorMsg: "cannot assign a cross-region backup vault to a volume in the destination region",
+		},
+		{
+			name:              "ValidCrossRegionBackupVault_Success",
+			enableCrossRegion: true,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType:  activities.CrossRegionBackupType,
+				SourceRegionName: nillable.GetStringPtr("us-central1"),
+				BackupRegionName: nillable.GetStringPtr("us-west1"),
+				LifeCycleState:   models.LifeCycleStateREADY,
+			},
+			expectError: false,
+		},
+		{
+			name:              "NonCrossRegionBackupVault_Success",
+			enableCrossRegion: true,
+			backupVault: &datamodel.BackupVault{
+				BackupVaultType: "IN-REGION", // Not cross-region type
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set cross-region backup enabled state for this test
+			utils.SetCrossRegionBackupEnabledForTest(tt.enableCrossRegion)
+
+			// Act - Test the validateCRBBackupVault function directly
+			// Use a test region that's different from backup region for most tests
+			testRegion := "us-central1"
+			if tt.name == "ValidCrossRegionBackupVault_Success" {
+				// For the success case, use a region different from backup region
+				testRegion = "us-east1"
+			} else if tt.name == "AttachingDestinationBackupVaultToVolume_ReturnsError" {
+				// For this test, use the same region as backup region to trigger the error
+				testRegion = "us-west1"
+			}
+			err := validateCRBBackupVault(tt.backupVault, testRegion)
+
+			// Assert
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErrorMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

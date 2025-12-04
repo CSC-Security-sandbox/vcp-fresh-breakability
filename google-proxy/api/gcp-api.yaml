@@ -11035,6 +11035,33 @@ components:
           description: Number of constituent volumes in the backup
           format: int32
           example: 0
+        volumeUsageBytes:
+          title: volumeUsageBytes
+          type: number
+          format: int64
+          readOnly: true
+          description: Current size for the backup in bytes
+          minimum: 0.00
+          default: 0.00
+          example: 101010.00
+          x-nullable: true
+        backupType:
+          title: backupType
+          type: string
+          readOnly: true
+          description: Type of backup, manually created or created by a backup policy
+          enum:
+            - MANUAL
+            - SCHEDULED
+        backupChainBytes:
+          title: backupChainBytes
+          type: integer
+          format: int64
+          readOnly: true
+          description: Size in bytes of the backup of the volume
+          x-nullable: true
+        assetLocationMetadata:
+          $ref: '#/components/schemas/AssetLocationMetadata_v2'
     BackupUpdate_v1beta:
       type: object
       title: BackupUpdate

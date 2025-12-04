@@ -4887,3 +4887,43 @@ func Test_updateBackupInternal(t *testing.T) {
 		store.AssertExpectations(tt)
 	})
 }
+
+func TestUpdateBackupLatestLogicalBackupSizeByVolume(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		volumeUUID := "test-volume-uuid"
+		backupUUID := "test-backup-uuid"
+
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, backupUUID).Return(nil)
+
+		err := orchestrator.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, backupUUID)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		volumeUUID := "test-volume-uuid"
+		backupUUID := "test-backup-uuid"
+		expectedError := errors.New("failed to update backup latest logical backup size")
+
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, backupUUID).Return(expectedError)
+
+		err := orchestrator.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, backupUUID)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}

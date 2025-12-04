@@ -1326,8 +1326,8 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			if bv.LifeCycleState == models.LifeCycleStateError {
 				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
 			}
-			if bv.BackupVaultType == activities.CrossRegionBackupType && *bv.BackupRegionName == params.Region {
-				return customerrors.NewUserInputValidationErr("cannot assign a cross-region backup vault to a volume in the destination region")
+			if err := validateCRBBackupVault(bv, params.Region); err != nil {
+				return err
 			}
 		}
 
@@ -2267,8 +2267,8 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 			if bv.LifeCycleState == models.LifeCycleStateError {
 				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
 			}
-			if bv.BackupVaultType == activities.CrossRegionBackupType && *bv.BackupRegionName == params.Region {
-				return customerrors.NewUserInputValidationErr("cannot assign a cross-region backup vault to a volume in the destination region")
+			if err := validateCRBBackupVault(bv, params.Region); err != nil {
+				return err
 			}
 		}
 	}
@@ -2378,6 +2378,32 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		// Allow snapReserve decrease as it increases available LUN space
 	}
 
+	return nil
+}
+
+// validateCRBBackupVault validates cross-region backup vault configuration
+// region is the region where the volume is being created/updated
+func validateCRBBackupVault(backupVault *datamodel.BackupVault, region string) error {
+	if backupVault.BackupVaultType == activities.CrossRegionBackupType {
+		if !utils.IsCrossRegionBackupEnabled() {
+			return customerrors.NewBadRequestErr(activities.CrossRegionBackupVaultErrMsg)
+		}
+		if backupVault.SourceRegionName == nil || *backupVault.SourceRegionName == "" {
+			return customerrors.NewBadRequestErr("Source region must be specified for cross-region backup vault")
+		}
+		if backupVault.BackupRegionName == nil || *backupVault.BackupRegionName == "" {
+			return customerrors.NewBadRequestErr("Backup region must be specified for cross-region backup vault")
+		}
+		if *backupVault.SourceRegionName == *backupVault.BackupRegionName {
+			return customerrors.NewBadRequestErr("Backup region must be different from source region for cross-region backup vault")
+		}
+		if backupVault.LifeCycleState != models.LifeCycleStateREADY {
+			return customerrors.NewBadRequestErr("Cross-region backup vault must be in READY state")
+		}
+		if *backupVault.BackupRegionName == region {
+			return customerrors.NewUserInputValidationErr("cannot assign a cross-region backup vault to a volume in the destination region")
+		}
+	}
 	return nil
 }
 

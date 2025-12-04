@@ -1498,6 +1498,18 @@ func (a *BackupActivity) CreateRemoteBackupFromVCPActivity(ctx context.Context, 
 			Value: backup.Description,
 			Set:   backup.Description != "",
 		},
+		VolumeUsageBytes: googleproxyclient.OptInt64{
+			Value: backup.SizeInBytes,
+			Set:   true,
+		},
+		BackupType: googleproxyclient.OptInternalBackupCreateV1betaBackupType{
+			Value: googleproxyclient.InternalBackupCreateV1betaBackupType(backup.Type),
+			Set:   true,
+		},
+		BackupChainBytes: googleproxyclient.OptInt64{
+			Value: backup.LatestLogicalBackupSize,
+			Set:   true,
+		},
 	}
 
 	// Include volume information (required for cross-region)
@@ -1553,6 +1565,24 @@ func (a *BackupActivity) CreateRemoteBackupFromVCPActivity(ctx context.Context, 
 		}
 		if backup.Attributes.ConstituentCountOfBackup > 0 {
 			backupCreate.ConstituentCountOfBackup = googleproxyclient.NewOptInt32(backup.Attributes.ConstituentCountOfBackup)
+		}
+	}
+
+	if backup.AssetMetadata != nil {
+		backupCreate.AssetLocationMetadata = googleproxyclient.OptAssetLocationMetadataV2{
+			Value: googleproxyclient.AssetLocationMetadataV2{
+				ChildAssets: func() []googleproxyclient.ChildAssetV2 {
+					var assets []googleproxyclient.ChildAssetV2
+					for _, asset := range backup.AssetMetadata.ChildAssets {
+						assets = append(assets, googleproxyclient.ChildAssetV2{
+							AssetType:  googleproxyclient.OptString{Value: asset.AssetType, Set: true},
+							AssetNames: asset.AssetNames,
+						})
+					}
+					return assets
+				}(),
+			},
+			Set: true,
 		}
 	}
 

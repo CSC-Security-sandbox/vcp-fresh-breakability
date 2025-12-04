@@ -85,6 +85,15 @@ func (o *Orchestrator) GetBackupsUnderBackupVault(ctx context.Context, backupVau
 	return o.GetBackups(ctx, params, conditions)
 }
 
+func (o *Orchestrator) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, backupUUID string) error {
+	se := o.storage
+	err := se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, backupUUID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func _createBackup(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateBackupParams) (*models.Backup, string, error) {
 	logger := util.GetLogger(ctx)
 	// Get the account
@@ -849,6 +858,16 @@ func _createBackupInternal(ctx context.Context, se database.Storage, temporal cl
 		Attributes:    &backupAttributes,
 		Description:   params.Description,
 		Type:          params.BackupType,
+		AssetMetadata: &datamodel.AssetMetadata{
+			ChildAssets: []datamodel.ChildAsset{
+				{
+					AssetType:  common.BackupAssetType,
+					AssetNames: []string{fmt.Sprintf("//storage.googleapis.com/%s", params.BucketName)},
+				},
+			},
+		},
+		LatestLogicalBackupSize: params.BackupChainBytes,
+		SizeInBytes:             params.VolumeUsageBytes,
 	}
 	dbBackup.State = models.LifeCycleStateAvailable
 	dbBackup.StateDetails = models.LifeCycleStateAvailableDetails

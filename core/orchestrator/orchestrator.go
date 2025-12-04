@@ -119,6 +119,7 @@ type OrchestratorFactory interface {
 	UpdateBackup(ctx context.Context, params *commonparams.UpdateBackupParams) (*models.Backup, string, error)
 	UpdateBackupInternal(ctx context.Context, params *commonparams.UpdateBackupParams) (*models.Backup, string, error)
 	GetBackupsUnderBackupVault(ctx context.Context, backupVaultID, ownerID string, backupUUIDs []string) ([]*datamodel.Backup, error)
+	UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, backupUUID string) error
 
 	CreateOrGetStartProjectEventJob(ctx context.Context, params *commonparams.StartProjectEventParams) (string, error)
 	CreateOrGetFinishProjectEventJob(ctx context.Context, params *commonparams.FinishProjectEventParams) (string, error)

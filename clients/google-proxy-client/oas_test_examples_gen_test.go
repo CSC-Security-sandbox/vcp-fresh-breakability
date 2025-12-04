@@ -1589,6 +1589,18 @@ func TestInternalBackupCreateV1beta_EncodeDecode(t *testing.T) {
 	var typ2 InternalBackupCreateV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestInternalBackupCreateV1betaBackupType_EncodeDecode(t *testing.T) {
+	var typ InternalBackupCreateV1betaBackupType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 InternalBackupCreateV1betaBackupType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestInternalBackupCreateV1betaProtocolsItem_EncodeDecode(t *testing.T) {
 	var typ InternalBackupCreateV1betaProtocolsItem
 	typ.SetFake()

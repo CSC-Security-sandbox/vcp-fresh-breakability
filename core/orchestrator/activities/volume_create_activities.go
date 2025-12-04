@@ -603,10 +603,6 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 				return nil, err
 			}
 		}
-		err := validateCRBBackupVault(backupVault)
-		if err != nil {
-			return nil, err
-		}
 		return backupVault, nil
 	}
 	bvParams := &datamodel.BackupVault{}
@@ -642,9 +638,11 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 			if err != nil {
 				return nil, err
 			}
-			err = validateCRBBackupVault(bvModel)
-			if err != nil {
-				return nil, err
+			// Validate CrossRegionBackupVaultName for cross-region backup vaults
+			if bvModel.BackupVaultType == CrossRegionBackupType {
+				if bvModel.CrossRegionBackupVaultName == nil || *bvModel.CrossRegionBackupVaultName == "" {
+					return nil, errors.NewBadRequestErr("Cross-region backup vault name must be specified for cross-region backup vault")
+				}
 			}
 			bvParams = bvModel
 			break
@@ -658,30 +656,6 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 	}
 
 	return createdBackupVault, nil
-}
-
-func validateCRBBackupVault(backupVault *datamodel.BackupVault) error {
-	if backupVault.BackupVaultType == CrossRegionBackupType {
-		if !utils.IsCrossRegionBackupEnabled() {
-			return errors.NewBadRequestErr(CrossRegionBackupVaultErrMsg)
-		}
-		if backupVault.SourceRegionName == nil || *backupVault.SourceRegionName == "" {
-			return errors.NewBadRequestErr("Source region must be specified for cross-region backup vault")
-		}
-		if backupVault.BackupRegionName == nil || *backupVault.BackupRegionName == "" {
-			return errors.NewBadRequestErr("Backup region must be specified for cross-region backup vault")
-		}
-		if *backupVault.SourceRegionName == *backupVault.BackupRegionName {
-			return errors.NewBadRequestErr("Backup region must be different from source region for cross-region backup vault")
-		}
-		if backupVault.CrossRegionBackupVaultName == nil || *backupVault.CrossRegionBackupVaultName == "" {
-			return errors.NewBadRequestErr("Cross-region backup vault name must be specified for cross-region backup vault")
-		}
-		if backupVault.LifeCycleState != models.LifeCycleStateREADY {
-			return errors.NewBadRequestErr("Cross-region backup vault must be in READY state")
-		}
-	}
-	return nil
 }
 
 func validateImmutableBackupVault(minRetentionDuration int64) error {

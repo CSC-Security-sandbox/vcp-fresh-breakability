@@ -4368,10 +4368,39 @@ func (s *InternalBackupCreateV1beta) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.BackupType.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupType",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InternalBackupCreateV1betaBackupType) Validate() error {
+	switch s {
+	case "MANUAL":
+		return nil
+	case "SCHEDULED":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InternalBackupCreateV1betaProtocolsItem) Validate() error {

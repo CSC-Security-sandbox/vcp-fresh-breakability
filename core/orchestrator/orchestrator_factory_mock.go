@@ -6617,6 +6617,54 @@ func (_c *MockOrchestratorFactory_UpdateBackupInternal_Call) RunAndReturn(run fu
 	return _c
 }
 
+// UpdateBackupLatestLogicalBackupSizeByVolume provides a mock function with given fields: ctx, volumeUUID, backupUUID
+func (_m *MockOrchestratorFactory) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID string, backupUUID string) error {
+	ret := _m.Called(ctx, volumeUUID, backupUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupLatestLogicalBackupSizeByVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, volumeUUID, backupUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupLatestLogicalBackupSizeByVolume'
+type MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupLatestLogicalBackupSizeByVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - backupUUID string
+func (_e *MockOrchestratorFactory_Expecter) UpdateBackupLatestLogicalBackupSizeByVolume(ctx interface{}, volumeUUID interface{}, backupUUID interface{}) *MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call {
+	return &MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call{Call: _e.mock.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, backupUUID)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call) Run(run func(ctx context.Context, volumeUUID string, backupUUID string)) *MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call) Return(_a0 error) *MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call) RunAndReturn(run func(context.Context, string, string) error) *MockOrchestratorFactory_UpdateBackupLatestLogicalBackupSizeByVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateBackupPolicy provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) UpdateBackupPolicy(ctx context.Context, params *common.UpdateBackupPolicyParams) (*models.BackupPolicy, string, error) {
 	ret := _m.Called(ctx, params)
