@@ -20,6 +20,7 @@ type SecurityClient interface { // generate:mock
 	RoleCreate(params *RoleCreateParams) (string, error)
 	RoleGet(params *RoleGetParams) (*Role, error)
 	RolePrivilegeModify(params *RolePrivilegeModifyParams) error
+	RolePrivilegeCreate(params *RolePrivilegeCreateParams) (string, error)
 	RoleCollectionGet(params *RoleCollectionGetParams) (*RoleCollectionGetResponse, error)
 	ServerRootCACertificateGet(params *ServerRootCAGetParams) (*ServerRootCACertificate, error)
 	ServerRootCACertificateInstall(params *ServerRootCAInstallParams) (*ServerRootCACertificate, error)
@@ -186,6 +187,15 @@ func (sc *securityClient) RolePrivilegeModify(params *RolePrivilegeModifyParams)
 		return err
 	}
 	return nil
+}
+
+// RolePrivilegeCreate invokes pkg/ontap-rest/client/security/Client.RolePrivilegeCreate
+func (sc *securityClient) RolePrivilegeCreate(params *RolePrivilegeCreateParams) (string, error) {
+	response, err := (*sc.api).RolePrivilegeCreate(rolePrivilegeCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return "", err
+	}
+	return response.Location, nil
 }
 
 // RoleCollectionGet invokes pkg/ontap-rest/client/security/Client.RoleCollectionGet

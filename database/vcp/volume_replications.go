@@ -88,7 +88,7 @@ func (d *DataStoreRepository) GetVolumeReplicationByProjectId(ctx context.Contex
 
 func _getVolumeReplicationDetails(db *gorm.DB, query *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
 	vr := &datamodel.VolumeReplication{}
-	err := db.Preload("Volume").Preload("Volume.Pool").Preload("Account").First(&vr, query).Error
+	err := db.Preload("Volume").Preload("Volume.Pool").Preload("Account").Preload("ClusterPeer").First(&vr, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.NewNotFoundErr("volume replication", nil)
@@ -285,7 +285,7 @@ func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter
 	var err error
 	db := d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
 	var volumeReplications []*datamodel.VolumeReplication
-	db = db.Preload("Volume").Preload("Volume.Pool")
+	db = db.Preload("Volume").Preload("Volume.Pool").Preload("ClusterPeer")
 	if queryDepth == 1 {
 		db = db.Preload("Volume.Svm").Preload("ClusterPeer")
 	}

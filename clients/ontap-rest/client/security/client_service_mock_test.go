@@ -587,6 +587,22 @@ func TestMockClientServiceRoleGet(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceRolePrivilegeCreate(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *RolePrivilegeCreateParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *RolePrivilegeCreateCreated
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.RolePrivilegeCreate(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertRolePrivilegeCreate(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceRolePrivilegeModify(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *RolePrivilegeModifyParams

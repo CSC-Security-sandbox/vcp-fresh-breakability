@@ -1306,6 +1306,62 @@ func (_c *MockProvider_CreateRole_Call) RunAndReturn(run func(CreateRoleParams) 
 	return _c
 }
 
+// CreateRolePrivilege provides a mock function with given fields: params
+func (_m *MockProvider) CreateRolePrivilege(params CreateRolePrivilegeParams) (string, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateRolePrivilege")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(CreateRolePrivilegeParams) (string, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(CreateRolePrivilegeParams) string); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(CreateRolePrivilegeParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CreateRolePrivilege_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateRolePrivilege'
+type MockProvider_CreateRolePrivilege_Call struct {
+	*mock.Call
+}
+
+// CreateRolePrivilege is a helper method to define mock.On call
+//   - params CreateRolePrivilegeParams
+func (_e *MockProvider_Expecter) CreateRolePrivilege(params interface{}) *MockProvider_CreateRolePrivilege_Call {
+	return &MockProvider_CreateRolePrivilege_Call{Call: _e.mock.On("CreateRolePrivilege", params)}
+}
+
+func (_c *MockProvider_CreateRolePrivilege_Call) Run(run func(params CreateRolePrivilegeParams)) *MockProvider_CreateRolePrivilege_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(CreateRolePrivilegeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateRolePrivilege_Call) Return(_a0 string, _a1 error) *MockProvider_CreateRolePrivilege_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CreateRolePrivilege_Call) RunAndReturn(run func(CreateRolePrivilegeParams) (string, error)) *MockProvider_CreateRolePrivilege_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSVM provides a mock function with given fields: params
 func (_m *MockProvider) CreateSVM(params CreateSvmParams) (*ProviderResponse, error) {
 	ret := _m.Called(params)
@@ -4821,6 +4877,64 @@ func (_c *MockProvider_ListSVMPeersByRemoteSVMName_Call) Return(_a0 []*SvmPeer, 
 }
 
 func (_c *MockProvider_ListSVMPeersByRemoteSVMName_Call) RunAndReturn(run func(*string) ([]*SvmPeer, error)) *MockProvider_ListSVMPeersByRemoteSVMName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListSnapmirrorDestinations provides a mock function with given fields: params
+func (_m *MockProvider) ListSnapmirrorDestinations(params *ontap_rest.SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorDestination, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListSnapmirrorDestinations")
+	}
+
+	var r0 []*SnapmirrorDestination
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*ontap_rest.SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorDestination, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*ontap_rest.SnapmirrorRelationshipListDestinationsParams) []*SnapmirrorDestination); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*SnapmirrorDestination)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*ontap_rest.SnapmirrorRelationshipListDestinationsParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_ListSnapmirrorDestinations_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListSnapmirrorDestinations'
+type MockProvider_ListSnapmirrorDestinations_Call struct {
+	*mock.Call
+}
+
+// ListSnapmirrorDestinations is a helper method to define mock.On call
+//   - params *ontap_rest.SnapmirrorRelationshipListDestinationsParams
+func (_e *MockProvider_Expecter) ListSnapmirrorDestinations(params interface{}) *MockProvider_ListSnapmirrorDestinations_Call {
+	return &MockProvider_ListSnapmirrorDestinations_Call{Call: _e.mock.On("ListSnapmirrorDestinations", params)}
+}
+
+func (_c *MockProvider_ListSnapmirrorDestinations_Call) Run(run func(params *ontap_rest.SnapmirrorRelationshipListDestinationsParams)) *MockProvider_ListSnapmirrorDestinations_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*ontap_rest.SnapmirrorRelationshipListDestinationsParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ListSnapmirrorDestinations_Call) Return(_a0 []*SnapmirrorDestination, _a1 error) *MockProvider_ListSnapmirrorDestinations_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_ListSnapmirrorDestinations_Call) RunAndReturn(run func(*ontap_rest.SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorDestination, error)) *MockProvider_ListSnapmirrorDestinations_Call {
 	_c.Call.Return(run)
 	return _c
 }

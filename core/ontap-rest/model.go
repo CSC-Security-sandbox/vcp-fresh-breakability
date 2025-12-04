@@ -2213,6 +2213,15 @@ type RolePrivilegeModifyParams struct {
 	Path    string
 }
 
+// RolePrivilegeCreateParams is the input param struct for securityClient.RolePrivilegeCreate
+type RolePrivilegeCreateParams struct {
+	OwnerID string
+	Name    string
+	Path    string
+	Access  string
+	Query   string
+}
+
 // QosPolicy is the model for QosPolicy
 type QosPolicy struct {
 	models.QosPolicy
@@ -3933,6 +3942,24 @@ func rolePrivilegeModifyParamsToONTAP(params *RolePrivilegeModifyParams) *securi
 	otParams.WithInfo(&models.RolePrivilege{
 		Access: &access,
 		Query:  &params.Query,
+	})
+	return otParams
+}
+
+func rolePrivilegeCreateParamsToONTAP(params *RolePrivilegeCreateParams) *security.RolePrivilegeCreateParams {
+	otParams := security.NewRolePrivilegeCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.WithOwnerUUID(params.OwnerID)
+	otParams.WithName(params.Name)
+
+	access := models.RolePrivilegeLevel(params.Access)
+	otParams.WithInfo(&models.RolePrivilege{
+		Path:   &params.Path,
+		Access: &access,
+		Query:  nillable.ToPointer(params.Query),
 	})
 	return otParams
 }

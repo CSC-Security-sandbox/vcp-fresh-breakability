@@ -1163,6 +1163,200 @@ func TestListVolumeReplications(t *testing.T) {
 		assert.Equal(t, clusterPeeringRow.UUID, replications[0].ClusterPeer.UUID, "Expected ClusterPeer UUID %v, got %v", clusterPeeringRow.UUID, replications[0].ClusterPeer.UUID)
 		assert.Equal(t, "test-cluster", replications[0].ClusterPeer.OnprempCluster, "Expected ClusterPeer OnprempCluster %v, got %v", "test-cluster", replications[0].ClusterPeer.OnprempCluster)
 	})
+
+	t.Run("WhenQueryDepthIsZeroAndClusterPeerIsPreloaded", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err, "Failed to clean up test database")
+
+		account, pool, volume, err := CreateTestData(store)
+		if err != nil {
+			t.Fatalf("Failed to create test data: %v", err)
+		}
+
+		// Create a cluster peering row
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid-zero"},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered",
+			OnprempCluster: "test-cluster-zero",
+			OntapPeerUUID:  "test-ontap-peer-uuid-zero",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		err = store.db.Create(clusterPeeringRow).Error()
+		if err != nil {
+			t.Fatalf("Failed to create cluster peering row: %v", err)
+		}
+
+		// Create volume replication with ClusterPeerId set
+		replication := &datamodel.VolumeReplication{
+			BaseModel:     datamodel.BaseModel{UUID: "replication-with-cluster-peer-zero"},
+			Name:          "replication_with_cluster_peer_zero",
+			AccountID:     account.ID,
+			Account:       account,
+			VolumeID:      volume.ID,
+			ClusterPeerId: sql.NullInt64{Int64: clusterPeeringRow.ID, Valid: true},
+		}
+		err = store.db.Create(replication).Error()
+		if err != nil {
+			t.Fatalf("Failed to create replication: %v", err)
+		}
+
+		replicationUUIDs := []string{replication.UUID}
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", account.ID),
+			utils.NewFilterCondition("uuid", "in", replicationUUIDs))
+
+		// Call with queryDepth=0 to test line 288
+		replications, err := store.ListVolumeReplications(context.Background(), *filter, 0)
+		assert.NoError(t, err, "Expected no error, got %v", err)
+		assert.Len(t, replications, 1, "Expected 1 volume replication, got %d", len(replications))
+		assert.Equal(t, replication.UUID, replications[0].UUID, "Expected replication UUID %v, got %v", replication.UUID, replications[0].UUID)
+
+		// Verify that ClusterPeer is preloaded (line 288)
+		assert.NotNil(t, replications[0].ClusterPeer, "ClusterPeer should be preloaded when queryDepth=0")
+		assert.Equal(t, clusterPeeringRow.ID, replications[0].ClusterPeer.ID, "Expected ClusterPeer ID %v, got %v", clusterPeeringRow.ID, replications[0].ClusterPeer.ID)
+		assert.Equal(t, clusterPeeringRow.UUID, replications[0].ClusterPeer.UUID, "Expected ClusterPeer UUID %v, got %v", clusterPeeringRow.UUID, replications[0].ClusterPeer.UUID)
+		assert.Equal(t, "test-cluster-zero", replications[0].ClusterPeer.OnprempCluster, "Expected ClusterPeer OnprempCluster %v, got %v", "test-cluster-zero", replications[0].ClusterPeer.OnprempCluster)
+		assert.Equal(t, models.CvpClusterPeeringStatusPEERED, replications[0].ClusterPeer.State, "Expected ClusterPeer State %v, got %v", models.CvpClusterPeeringStatusPEERED, replications[0].ClusterPeer.State)
+	})
+
+	t.Run("WhenClusterPeerIdIsNotSet", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		if err != nil {
+			t.Fatalf("Failed to create test data: %v", err)
+		}
+
+		// Create volume replication without ClusterPeerId set
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-without-cluster-peer"},
+			Name:      "replication_without_cluster_peer",
+			AccountID: account.ID,
+			Account:   account,
+			VolumeID:  volume.ID,
+			// ClusterPeerId is not set (nil)
+		}
+		err = store.db.Create(replication).Error()
+		if err != nil {
+			t.Fatalf("Failed to create replication: %v", err)
+		}
+
+		replicationUUIDs := []string{replication.UUID}
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", account.ID),
+			utils.NewFilterCondition("uuid", "in", replicationUUIDs))
+
+		// Call with queryDepth=0
+		replications, err := store.ListVolumeReplications(context.Background(), *filter, 0)
+		assert.NoError(t, err, "Expected no error, got %v", err)
+		assert.Len(t, replications, 1, "Expected 1 volume replication, got %d", len(replications))
+		assert.Equal(t, replication.UUID, replications[0].UUID, "Expected replication UUID %v, got %v", replication.UUID, replications[0].UUID)
+
+		// Verify that ClusterPeer is nil when ClusterPeerId is not set
+		assert.Nil(t, replications[0].ClusterPeer, "ClusterPeer should be nil when ClusterPeerId is not set")
+	})
+
+	t.Run("WhenMultipleReplicationsWithAndWithoutClusterPeer", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err, "Failed to clean up test database")
+
+		account, pool, volume, err := CreateTestData(store)
+		if err != nil {
+			t.Fatalf("Failed to create test data: %v", err)
+		}
+
+		// Create a cluster peering row
+		clusterPeeringRow := &datamodel.ClusterPeerings{
+			BaseModel:      datamodel.BaseModel{UUID: "test-cluster-peer-uuid-multi"},
+			State:          models.CvpClusterPeeringStatusPEERED,
+			StateDetails:   "Successfully peered",
+			OnprempCluster: "test-cluster-multi",
+			OntapPeerUUID:  "test-ontap-peer-uuid-multi",
+			AccountID:      account.ID,
+			PoolID:         pool.ID,
+		}
+		err = store.db.Create(clusterPeeringRow).Error()
+		if err != nil {
+			t.Fatalf("Failed to create cluster peering row: %v", err)
+		}
+
+		// Create first replication with ClusterPeerId set
+		replication1 := &datamodel.VolumeReplication{
+			BaseModel:     datamodel.BaseModel{UUID: "replication-1-with-peer"},
+			Name:          "replication_1_with_peer",
+			AccountID:     account.ID,
+			Account:       account,
+			VolumeID:      volume.ID,
+			ClusterPeerId: sql.NullInt64{Int64: clusterPeeringRow.ID, Valid: true},
+		}
+		err = store.db.Create(replication1).Error()
+		if err != nil {
+			t.Fatalf("Failed to create replication 1: %v", err)
+		}
+
+		// Create second replication without ClusterPeerId set
+		replication2 := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-2-without-peer"},
+			Name:      "replication_2_without_peer",
+			AccountID: account.ID,
+			Account:   account,
+			VolumeID:  volume.ID,
+			// ClusterPeerId is not set
+		}
+		err = store.db.Create(replication2).Error()
+		if err != nil {
+			t.Fatalf("Failed to create replication 2: %v", err)
+		}
+
+		replicationUUIDs := []string{replication1.UUID, replication2.UUID}
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", account.ID),
+			utils.NewFilterCondition("uuid", "in", replicationUUIDs))
+
+		// Call with queryDepth=0
+		replications, err := store.ListVolumeReplications(context.Background(), *filter, 0)
+		assert.NoError(t, err, "Expected no error, got %v", err)
+		assert.Len(t, replications, 2, "Expected 2 volume replications, got %d", len(replications))
+
+		// Find replications by UUID
+		var rep1, rep2 *datamodel.VolumeReplication
+		for _, rep := range replications {
+			if rep.UUID == replication1.UUID {
+				rep1 = rep
+			} else if rep.UUID == replication2.UUID {
+				rep2 = rep
+			}
+		}
+
+		assert.NotNil(t, rep1, "replication1 should be found")
+		assert.NotNil(t, rep2, "replication2 should be found")
+
+		// Verify that ClusterPeer is preloaded for replication1 (line 288)
+		assert.NotNil(t, rep1.ClusterPeer, "ClusterPeer should be preloaded for replication1")
+		assert.Equal(t, clusterPeeringRow.ID, rep1.ClusterPeer.ID, "Expected ClusterPeer ID %v, got %v", clusterPeeringRow.ID, rep1.ClusterPeer.ID)
+		assert.Equal(t, clusterPeeringRow.UUID, rep1.ClusterPeer.UUID, "Expected ClusterPeer UUID %v, got %v", clusterPeeringRow.UUID, rep1.ClusterPeer.UUID)
+
+		// Verify that ClusterPeer is nil for replication2
+		assert.Nil(t, rep2.ClusterPeer, "ClusterPeer should be nil for replication2 when ClusterPeerId is not set")
+	})
 }
 
 // TestUpdateVolumeReplicationFields tests the UpdateVolumeReplicationFields method

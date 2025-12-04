@@ -585,6 +585,17 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if hybridReplicationParameters.ReplicationSchedule.IsSet() {
 			replicationSchedule = string(replication.MapCCFERescheduleToInternalReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(hybridReplicationParameters.ReplicationSchedule.Value)))
 		}
+		replicationType := models.HybridReplicationParametersReplicationType(hybridReplicationParameters.HybridReplicationType)
+		// return error in case replication schedule not set from swagger
+		if replicationType == models.HybridReplicationParametersReplicationTypeONPREM {
+			if nillable.IsNilOrEmpty(&replicationSchedule) {
+				msg := "Can't have empty replicationSchedule for " + string(replicationType)
+				return nil, errors.NewUserInputValidationErr(msg)
+			}
+		}
+		if replicationType == models.HybridReplicationParametersReplicationTypeMIGRATION {
+			replicationSchedule = SnapshotScheduleLabelHourly
+		}
 		if hybridReplicationParameters.Labels.IsSet() {
 			labels = hybridReplicationParameters.Labels.Value
 		}
@@ -596,10 +607,6 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			clusterLocation = hybridReplicationParameters.ClusterLocation.Value
 		}
 
-		replicationType := models.HybridReplicationParametersReplicationType(hybridReplicationParameters.HybridReplicationType)
-		if replicationType == models.HybridReplicationParametersReplicationTypeMIGRATION {
-			replicationSchedule = SnapshotScheduleLabelHourly
-		}
 		param.HybridReplicationParameters = &models.HybridReplicationParameters{
 			ResourceID:          hybridReplicationParameters.ResourceId,
 			ReplicationType:     replicationType,

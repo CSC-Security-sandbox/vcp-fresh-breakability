@@ -153,6 +153,7 @@ quota_rule_modify
 role_collection_get
 role_create
 role_get
+role_privilege_create
 role_privilege_modify
 s3_bucket_create
 s3_bucket_delete

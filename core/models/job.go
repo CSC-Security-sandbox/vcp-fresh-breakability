@@ -133,6 +133,7 @@ const (
 	JobTypeCreateHybridReplication            JobType = "CREATE_HYBRID_REPLICATION"
 	JobTypeHybridReplicationEstablishPeering  JobType = "HYBRID_REPLICATION_ESTABLISH_PEERING"
 	JobTypeHybridReplicationInternalEstablish JobType = "HYBRID_REPLICATION_INTERNAL_ESTABLISH"
+	JobTypeReverseHybridReplicationInternal   JobType = "HYBRID_REPLICATION_INTERNAL_REVERSE"
 )
 
 // GetResourceJobType returns the appropriate job type based on the resource type, operation, and pool category

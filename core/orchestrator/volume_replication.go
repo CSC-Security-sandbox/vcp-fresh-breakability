@@ -2058,6 +2058,15 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 	if err != nil {
 		return nil, nil, err
 	}
+
+	var isHybridReplication bool
+	if event.ReplicationModel != nil && event.ReplicationModel.HybridReplicationAttributes != nil {
+		hybridReplicationAttributes := event.ReplicationModel.HybridReplicationAttributes
+		isHybridReplication = nillable.GetString(hybridReplicationAttributes.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeONPREM) || nillable.GetString(hybridReplicationAttributes.HybridReplicationType, "") == string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		if !isHybridReplication {
+			return nil, nil, errors.NewUserInputValidationErr("Reverse is not allowed for replications created by migration flow.")
+		}
+	}
 	if existingJobUuid != nil {
 		existingReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
 
@@ -2097,6 +2106,17 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 		}
 	}()
 
+	// Check if this is a hybrid replication and route to appropriate workflow
+	var workflowFunc interface{}
+	// We need to check the datamodel.VolumeReplication which has HybridReplicationAttributes of type *datamodel.HybridReplicationAttribute
+	if isHybridReplication {
+		logger.Infof("Detected hybrid reverse replication, routing to ReverseHybridReplicationWorkflow")
+		workflowFunc = replicationWorkflows.ReverseHybridReplicationWorkflow
+	} else {
+		logger.Infof("Standard reverse replication, routing to ReverseAndResumeVolumeReplicationWorkflow")
+		workflowFunc = replicationWorkflows.ReverseAndResumeVolumeReplicationWorkflow
+	}
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -2104,7 +2124,7 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
-		replicationWorkflows.ReverseAndResumeVolumeReplicationWorkflow,
+		workflowFunc,
 		params,
 		&event,
 	)

@@ -6736,6 +6736,160 @@ func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *test
 		assert.Equal(tt, models.HybridReplicationParametersReplicationTypeMIGRATION, hybridParams.ReplicationType)
 		assert.Equal(tt, SnapshotScheduleLabelHourly, hybridParams.ReplicationSchedule)
 	})
+
+	t.Run("WhenONPREMTypeWithEmptyReplicationSchedule_ReturnsError", func(tt *testing.T) {
+		// Mock hybridReplicationEnabled to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					// ReplicationSchedule is not set, which means it will be empty
+				},
+				Set: true,
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "test-location",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Can't have empty replicationSchedule for")
+		assert.Contains(tt, err.Error(), "ONPREM_REPLICATION")
+	})
+
+	t.Run("WhenONPREMTypeWithValidReplicationSchedule_Success", func(tt *testing.T) {
+		// Mock hybridReplicationEnabled to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					ReplicationSchedule:   gcpgenserver.NewOptHybridReplicationParametersV1betaReplicationSchedule(gcpgenserver.HybridReplicationParametersV1betaReplicationScheduleHOURLY),
+					ResourceId:            "resource-123",
+				},
+				Set: true,
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "test-location",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.HybridReplicationParameters)
+		assert.Equal(tt, models.HybridReplicationParametersReplicationTypeONPREM, result.HybridReplicationParameters.ReplicationType)
+		assert.Equal(tt, "hourly", result.HybridReplicationParameters.ReplicationSchedule)
+	})
+
+	t.Run("WhenMIGRATIONTypeWithEmptyReplicationSchedule_Success", func(tt *testing.T) {
+		// Mock hybridReplicationEnabled to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION,
+					// ReplicationSchedule is not set, but MIGRATION type sets it to hourly automatically
+					ResourceId: "resource-123",
+				},
+				Set: true,
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "test-location",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.HybridReplicationParameters)
+		assert.Equal(tt, models.HybridReplicationParametersReplicationTypeMIGRATION, result.HybridReplicationParameters.ReplicationType)
+		// MIGRATION type automatically sets replicationSchedule to hourly
+		assert.Equal(tt, SnapshotScheduleLabelHourly, result.HybridReplicationParameters.ReplicationSchedule)
+	})
+
+	t.Run("WhenONPREMTypeWithEmptyStringReplicationSchedule_ReturnsError", func(tt *testing.T) {
+		// Mock hybridReplicationEnabled to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					// ReplicationSchedule is set but will be empty after mapping
+					ReplicationSchedule: gcpgenserver.OptHybridReplicationParametersV1betaReplicationSchedule{},
+				},
+				Set: true,
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "test-location",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Can't have empty replicationSchedule for")
+		assert.Contains(tt, err.Error(), "ONPREM_REPLICATION")
+	})
 }
 
 func TestPrepareCreateVolumeParams_TieringPolicyWithoutTierAction(t *testing.T) {

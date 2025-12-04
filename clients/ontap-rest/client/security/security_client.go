@@ -136,6 +136,8 @@ type ClientService interface {
 
 	RoleGet(params *RoleGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleGetOK, error)
 
+	RolePrivilegeCreate(params *RolePrivilegeCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeCreateCreated, error)
+
 	RolePrivilegeModify(params *RolePrivilegeModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeModifyOK, error)
 
 	SecurityAuditGet(params *SecurityAuditGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityAuditGetOK, error)
@@ -1056,6 +1058,69 @@ func (a *Client) RoleGet(params *RoleGetParams, authInfo runtime.ClientAuthInfoW
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*RoleGetDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	RolePrivilegeCreate Adds a privilege tuple (of REST URI or command/command directory path, its access level and an optional query, if the "path" refers to a command/command directory path) to an existing role or creates a new role with the provided tuple.
+
+### Required parameters
+* `owner.uuid` - UUID of the SVM that houses this role.
+* `name` - Name of the role to be updated.
+* `path` - REST URI path (example: <i>/api/storage/volumes</i>) or command/command directory path (example: <i>snaplock compliance-clock</i>). Can be a resource-qualified endpoint (example: <i>/api/storage/volumes/43256a71-be02-474d-a2a9-9642e12a6a2c/snapshots</i>). Currently, resource-qualified endpoints are limited to the following&#58;
+#### Snapshots APIs
+&ndash; <i>/api/storage/volumes/{volume.uuid}/snapshots</i><br/>
+#### File System Analytics APIs
+&ndash; <i>/api/storage/volumes/{volume.uuid}/files</i>
+&ndash; <i>/api/storage/volumes/{volume.uuid}/top-metrics/clients</i>
+&ndash; <i>/api/storage/volumes/{volume.uuid}/top-metrics/directories</i>
+&ndash; <i>/api/storage/volumes/{volume.uuid}/top-metrics/files</i>
+&ndash; <i>/api/storage/volumes/{volume.uuid}/top-metrics/users</i>
+&ndash; <i>/api/svm/svms/{svm.uuid}/top-metrics/clients</i>
+&ndash; <i>/api/svm/svms/{svm.uuid}/top-metrics/directories</i>
+&ndash; <i>/api/svm/svms/{svm.uuid}/top-metrics/files</i>
+&ndash; <i>/api/svm/svms/{svm.uuid}/top-metrics/users</i><p/>
+In the above APIs, wildcard character &#42; could be used in place of <i>{volume.uuid}</i> or <i>{svm.uuid}</i> to denote <i>all</i> volumes or <i>all</i> SVMs, depending upon whether the REST endpoint references volumes or SVMs. The <i>{volume.uuid}</i> refers to the <i>-instance-uuid</i> field value in the \"volume show\" command output at diagnostic privilege level. It can also be fetched through REST endpoint <i>/api/storage/volumes</i>.<br/>
+* `access` - Desired access level for the REST URI path or command/command directory.
+### Related ONTAP commands
+* `security login rest-role create`
+* `security login role create`
+### Learn more
+* [`DOC /security/roles/{owner.uuid}/{name}/privileges`](#docs-security-security_roles_{owner.uuid}_{name}_privileges)
+* [`DOC /security/roles`](#docs-security-security_roles)
+*/
+func (a *Client) RolePrivilegeCreate(params *RolePrivilegeCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeCreateCreated, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewRolePrivilegeCreateParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "role_privilege_create",
+		Method:             "POST",
+		PathPattern:        "/security/roles/{owner.uuid}/{name}/privileges",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &RolePrivilegeCreateReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*RolePrivilegeCreateCreated)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*RolePrivilegeCreateDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

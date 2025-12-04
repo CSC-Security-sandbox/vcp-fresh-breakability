@@ -1928,7 +1928,7 @@ func TestListSnapmirrorDestinations(t *testing.T) {
 
 		mrc.On("Snapmirror").Return(msmc)
 		msmc.On("SnapmirrorRelationshipListDestinations", (*ontaprest.SnapmirrorRelationshipListDestinationsParams)(nil)).Return(nil, expectedError).Times(1)
-		res, err := _listSnapmirrorDestinations(prov)
+		res, err := prov.ListSnapmirrorDestinations(nil)
 		assert.EqualError(tt, err, expectedError.Error())
 		assert.Nil(tt, res)
 	})
@@ -1959,11 +1959,17 @@ func TestListSnapmirrorDestinations(t *testing.T) {
 
 		mrc.On("Snapmirror").Return(msmc)
 		msmc.On("SnapmirrorRelationshipListDestinations", (*ontaprest.SnapmirrorRelationshipListDestinationsParams)(nil)).Return(destinations, nil).Times(1)
-		res, err := listSnapmirrorDestinations(prov)
+		res, err := prov.ListSnapmirrorDestinations(nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, res, 1)
 		assert.Equal(tt, res[0].SourcePath, *destinations[0].Source.Path)
 		assert.Equal(tt, res[0].DestinationSVMName, *destinations[0].Destination.Svm.Name)
+		assert.Equal(tt, uuid.String(), res[0].RelationshipUUID)
+		assert.Equal(tt, *destinations[0].Destination.Path, res[0].DestinationPath)
+		assert.Equal(tt, *destinations[0].Source.Svm.Name, res[0].SourceSVMName)
+
+		mrc.AssertExpectations(tt)
+		msmc.AssertExpectations(tt)
 	})
 	t.Run("WhenNoSnapmirrorDestinationsExistSuccessful", func(tt *testing.T) {
 		mrc := new(ontaprest.MockRESTClient)
@@ -1976,10 +1982,216 @@ func TestListSnapmirrorDestinations(t *testing.T) {
 
 		mrc.On("Snapmirror").Return(msmc)
 		msmc.On("SnapmirrorRelationshipListDestinations", (*ontaprest.SnapmirrorRelationshipListDestinationsParams)(nil)).Return(destinations, nil).Times(1)
-		res, err := listSnapmirrorDestinations(prov)
+		res, err := prov.ListSnapmirrorDestinations(nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, res)
 		assert.Len(tt, res, 0)
+	})
+	t.Run("ErrorWhenGetOntapClientFails", func(tt *testing.T) {
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client creation failed")
+		}
+		prov := &OntapRestProvider{}
+
+		res, err := prov.ListSnapmirrorDestinations(nil)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, res)
+		assert.Contains(tt, err.Error(), "client creation failed")
+	})
+	t.Run("SuccessWithMultipleDestinations", func(tt *testing.T) {
+		mrc := new(ontaprest.MockRESTClient)
+		msmc := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mrc, nil
+		}
+		prov := &OntapRestProvider{}
+
+		uuid1 := strfmt.UUID("1")
+		uuid2 := strfmt.UUID("2")
+		destinations := []*ontaprest.SnapmirrorRelationship{
+			{
+				SnapmirrorRelationship: models.SnapmirrorRelationship{
+					UUID:  &uuid1,
+					State: nillable.ToPointer("initialized"),
+					Source: &models.SnapmirrorSourceEndpoint{
+						Path: nillable.ToPointer("src-svm:src-volume-1"),
+						Svm:  &models.SnapmirrorSourceEndpointInlineSvm{UUID: nillable.ToPointer("svm-1"), Name: nillable.ToPointer("src-svm")},
+					},
+					Destination: &models.SnapmirrorEndpoint{
+						Path: nillable.ToPointer("dst-svm:dst-volume-1"),
+						Svm:  &models.SnapmirrorEndpointInlineSvm{UUID: nillable.ToPointer("svm-2"), Name: nillable.ToPointer("dst-svm")},
+					},
+				},
+			},
+			{
+				SnapmirrorRelationship: models.SnapmirrorRelationship{
+					UUID:  &uuid2,
+					State: nillable.ToPointer("snapmirrored"),
+					Source: &models.SnapmirrorSourceEndpoint{
+						Path: nillable.ToPointer("src-svm:src-volume-2"),
+						Svm:  &models.SnapmirrorSourceEndpointInlineSvm{UUID: nillable.ToPointer("svm-1"), Name: nillable.ToPointer("src-svm")},
+					},
+					Destination: &models.SnapmirrorEndpoint{
+						Path: nillable.ToPointer("dst-svm:dst-volume-2"),
+						Svm:  &models.SnapmirrorEndpointInlineSvm{UUID: nillable.ToPointer("svm-2"), Name: nillable.ToPointer("dst-svm")},
+					},
+				},
+			},
+		}
+
+		mrc.On("Snapmirror").Return(msmc)
+		msmc.On("SnapmirrorRelationshipListDestinations", (*ontaprest.SnapmirrorRelationshipListDestinationsParams)(nil)).Return(destinations, nil).Times(1)
+
+		res, err := prov.ListSnapmirrorDestinations(nil)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Len(tt, res, 2)
+
+		// Check first destination
+		assert.Equal(tt, uuid1.String(), res[0].RelationshipUUID)
+		assert.Equal(tt, "src-svm:src-volume-1", res[0].SourcePath)
+		assert.Equal(tt, "src-svm", res[0].SourceSVMName)
+		assert.Equal(tt, "dst-svm:dst-volume-1", res[0].DestinationPath)
+		assert.Equal(tt, "dst-svm", res[0].DestinationSVMName)
+
+		// Check second destination
+		assert.Equal(tt, uuid2.String(), res[1].RelationshipUUID)
+		assert.Equal(tt, "src-svm:src-volume-2", res[1].SourcePath)
+		assert.Equal(tt, "src-svm", res[1].SourceSVMName)
+		assert.Equal(tt, "dst-svm:dst-volume-2", res[1].DestinationPath)
+		assert.Equal(tt, "dst-svm", res[1].DestinationSVMName)
+
+		mrc.AssertExpectations(tt)
+		msmc.AssertExpectations(tt)
+	})
+	t.Run("SuccessWithNilSourceAndDestination", func(tt *testing.T) {
+		mrc := new(ontaprest.MockRESTClient)
+		msmc := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mrc, nil
+		}
+		prov := &OntapRestProvider{}
+
+		uuid := strfmt.UUID("1")
+		destinations := []*ontaprest.SnapmirrorRelationship{
+			{
+				SnapmirrorRelationship: models.SnapmirrorRelationship{
+					UUID:        &uuid,
+					State:       nillable.ToPointer("initialized"),
+					Source:      nil,
+					Destination: nil,
+				},
+			},
+		}
+
+		mrc.On("Snapmirror").Return(msmc)
+		msmc.On("SnapmirrorRelationshipListDestinations", (*ontaprest.SnapmirrorRelationshipListDestinationsParams)(nil)).Return(destinations, nil).Times(1)
+
+		res, err := prov.ListSnapmirrorDestinations(nil)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Len(tt, res, 1)
+		assert.Equal(tt, uuid.String(), res[0].RelationshipUUID)
+		assert.Equal(tt, "", res[0].SourcePath)
+		assert.Equal(tt, "", res[0].SourceSVMName)
+		assert.Equal(tt, "", res[0].DestinationPath)
+		assert.Equal(tt, "", res[0].DestinationSVMName)
+
+		mrc.AssertExpectations(tt)
+		msmc.AssertExpectations(tt)
+	})
+	t.Run("SuccessWithNilSVM", func(tt *testing.T) {
+		mrc := new(ontaprest.MockRESTClient)
+		msmc := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mrc, nil
+		}
+		prov := &OntapRestProvider{}
+
+		uuid := strfmt.UUID("1")
+		destinations := []*ontaprest.SnapmirrorRelationship{
+			{
+				SnapmirrorRelationship: models.SnapmirrorRelationship{
+					UUID:  &uuid,
+					State: nillable.ToPointer("initialized"),
+					Source: &models.SnapmirrorSourceEndpoint{
+						Path: nillable.ToPointer("src-svm:src-volume"),
+						Svm:  nil,
+					},
+					Destination: &models.SnapmirrorEndpoint{
+						Path: nillable.ToPointer("dst-svm:dst-volume"),
+						Svm:  nil,
+					},
+				},
+			},
+		}
+
+		mrc.On("Snapmirror").Return(msmc)
+		msmc.On("SnapmirrorRelationshipListDestinations", (*ontaprest.SnapmirrorRelationshipListDestinationsParams)(nil)).Return(destinations, nil).Times(1)
+
+		res, err := prov.ListSnapmirrorDestinations(nil)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Len(tt, res, 1)
+		assert.Equal(tt, uuid.String(), res[0].RelationshipUUID)
+		assert.Equal(tt, "src-svm:src-volume", res[0].SourcePath)
+		assert.Equal(tt, "", res[0].SourceSVMName)
+		assert.Equal(tt, "dst-svm:dst-volume", res[0].DestinationPath)
+		assert.Equal(tt, "", res[0].DestinationSVMName)
+
+		mrc.AssertExpectations(tt)
+		msmc.AssertExpectations(tt)
+	})
+	t.Run("SuccessWithParams", func(tt *testing.T) {
+		mrc := new(ontaprest.MockRESTClient)
+		msmc := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mrc, nil
+		}
+		prov := &OntapRestProvider{}
+
+		uuid := strfmt.UUID("1")
+		destinations := []*ontaprest.SnapmirrorRelationship{
+			{
+				SnapmirrorRelationship: models.SnapmirrorRelationship{
+					UUID:  &uuid,
+					State: nillable.ToPointer("initialized"),
+					Source: &models.SnapmirrorSourceEndpoint{
+						Path: nillable.ToPointer("src-svm:src-volume"),
+						Svm:  &models.SnapmirrorSourceEndpointInlineSvm{UUID: nillable.ToPointer("svm-1"), Name: nillable.ToPointer("src-svm")},
+					},
+					Destination: &models.SnapmirrorEndpoint{
+						Path: nillable.ToPointer("dst-svm:dst-volume"),
+						Svm:  &models.SnapmirrorEndpointInlineSvm{UUID: nillable.ToPointer("svm-2"), Name: nillable.ToPointer("dst-svm")},
+					},
+				},
+			},
+		}
+
+		params := &ontaprest.SnapmirrorRelationshipListDestinationsParams{
+			SourcePath: nillable.ToPointer("src-svm:src-volume"),
+		}
+
+		mrc.On("Snapmirror").Return(msmc)
+		msmc.On("SnapmirrorRelationshipListDestinations", params).Return(destinations, nil).Times(1)
+
+		res, err := prov.ListSnapmirrorDestinations(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Len(tt, res, 1)
+		assert.Equal(tt, uuid.String(), res[0].RelationshipUUID)
+		assert.Equal(tt, "src-svm:src-volume", res[0].SourcePath)
+		assert.Equal(tt, "src-svm", res[0].SourceSVMName)
+		assert.Equal(tt, "dst-svm:dst-volume", res[0].DestinationPath)
+		assert.Equal(tt, "dst-svm", res[0].DestinationSVMName)
+
+		mrc.AssertExpectations(tt)
+		msmc.AssertExpectations(tt)
 	})
 }
 

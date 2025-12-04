@@ -1035,7 +1035,6 @@ func (a *HybridReplicationActivity) UpdateHybridVolumeReplicationDetailsAndSetPe
 		replication.HybridReplicationAttributes.SvmPeerCommand = nil
 		replication.HybridReplicationAttributes.Description = ""
 		replication.HybridReplicationAttributes.Labels = nil
-		replication.HybridReplicationAttributes.ReplicationSchedule = ""
 	}
 	// Update the replication in the database
 	if err := se.UpdateVolumeReplication(ctx, replication); err != nil {

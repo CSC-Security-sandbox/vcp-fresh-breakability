@@ -608,12 +608,12 @@ func modifyVsaVolumeReplication(provider *OntapRestProvider, volRep *VolumeRepli
 	return convertSnapMirrorToVolumeReplication(*snapMirror, volRep)
 }
 
-func _listSnapmirrorDestinations(provider *OntapRestProvider) ([]*SnapmirrorDestination, error) {
+func _listSnapmirrorDestinations(provider *OntapRestProvider, params *ontaprest.SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorDestination, error) {
 	client, err := getOntapClientFunc(provider.ClientParams)
 	if err != nil {
 		return nil, err
 	}
-	destinations, err := client.Snapmirror().SnapmirrorRelationshipListDestinations(nil)
+	destinations, err := client.Snapmirror().SnapmirrorRelationshipListDestinations(params)
 	if err != nil {
 		return nil, err
 	}
@@ -639,6 +639,12 @@ func _listSnapmirrorDestinations(provider *OntapRestProvider) ([]*SnapmirrorDest
 	}
 
 	return storageDestinations, nil
+}
+
+// ListSnapmirrorDestinations lists snapmirror destinations from ONTAP
+// If params is nil, lists all destinations. Otherwise, filters by the provided parameters.
+func (rc *OntapRestProvider) ListSnapmirrorDestinations(params *ontaprest.SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorDestination, error) {
+	return listSnapmirrorDestinations(rc, params)
 }
 
 // ReleaseVolumeReplication releases the Volume Replication

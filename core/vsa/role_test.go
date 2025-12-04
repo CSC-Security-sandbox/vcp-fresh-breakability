@@ -792,3 +792,169 @@ func TestGetRoleCollection(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 	})
 }
+
+func TestCreateRolePrivilege(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Security").Return(mockSecurity)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := CreateRolePrivilegeParams{
+			OwnerID: "owner-uuid",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+			Access:  "readonly",
+			Query:   "-fields name,state",
+		}
+
+		expectedLocation := "/api/security/roles/owner-uuid/test-role/privileges/api/storage/volumes"
+		mockSecurity.On("RolePrivilegeCreate", mock.Anything).Return(expectedLocation, nil)
+
+		location, err := rc.CreateRolePrivilege(params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedLocation, location)
+
+		mockSecurity.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("ErrorWhenGetOntapClientFails", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client creation failed")
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := CreateRolePrivilegeParams{
+			OwnerID: "owner-uuid",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+			Access:  "readonly",
+		}
+
+		location, err := rc.CreateRolePrivilege(params)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "", location)
+		assert.Contains(tt, err.Error(), "client creation failed")
+	})
+
+	t.Run("ErrorWhenRolePrivilegeCreateFails", func(tt *testing.T) {
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Security").Return(mockSecurity)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := CreateRolePrivilegeParams{
+			OwnerID: "owner-uuid",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+			Access:  "readonly",
+		}
+
+		mockSecurity.On("RolePrivilegeCreate", mock.Anything).Return("", errors.New("privilege create failed"))
+
+		location, err := rc.CreateRolePrivilege(params)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "", location)
+		assert.Contains(tt, err.Error(), "privilege create failed")
+
+		mockSecurity.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("SuccessWithEmptyQuery", func(tt *testing.T) {
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Security").Return(mockSecurity)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := CreateRolePrivilegeParams{
+			OwnerID: "owner-uuid",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+			Access:  "all",
+			Query:   "",
+		}
+
+		expectedLocation := "/api/security/roles/owner-uuid/test-role/privileges/api/storage/volumes"
+		mockSecurity.On("RolePrivilegeCreate", mock.Anything).Return(expectedLocation, nil)
+
+		location, err := rc.CreateRolePrivilege(params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedLocation, location)
+
+		mockSecurity.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("SuccessWithCommandPath", func(tt *testing.T) {
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Security").Return(mockSecurity)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := CreateRolePrivilegeParams{
+			OwnerID: "owner-uuid",
+			Name:    "test-role",
+			Path:    "snaplock compliance-clock",
+			Access:  "all",
+			Query:   "-fields name,state",
+		}
+
+		expectedLocation := "/api/security/roles/owner-uuid/test-role/privileges/snaplock%20compliance-clock"
+		mockSecurity.On("RolePrivilegeCreate", mock.Anything).Return(expectedLocation, nil)
+
+		location, err := rc.CreateRolePrivilege(params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedLocation, location)
+
+		mockSecurity.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}

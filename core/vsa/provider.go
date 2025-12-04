@@ -101,6 +101,7 @@ type Provider interface {
 	CloudTargetDelete(uuid string) (*OntapAsyncResponse, error)
 	SnapmirrorRelationshipCreate(params *commonparams.SnapmirrorRelationshipParams, smcToken *string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipGet(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
+	ListSnapmirrorDestinations(params *ontapRest.SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorDestination, error)
 	SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string, smcToken *string) error
 	SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName string, smcToken *string, files []*commonparams.SnapmirrorTransferFile) error
 	SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName string) (*ontapRest.SnapmirrorTransfer, error)
@@ -143,6 +144,7 @@ type Provider interface {
 	GetRole(params GetRoleParams) (*Role, error)
 	GetRoleCollection(params GetRoleCollectionParams) ([]*Role, error)
 	ModifyRolePrivilege(params ModifyRolePrivilegeParams) error
+	CreateRolePrivilege(params CreateRolePrivilegeParams) (string, error)
 	GetCIFSService(svmName, externalSVMUUID string) (*ontapRest.CifsService, error)
 	EnsureCIFSShare(params ConfigActiveDirectoryParams) (string, error)
 	EnsureCifsServerNamePostFix(client ontapRest.RESTClient, ad *ActiveDirectory, svmName string) error

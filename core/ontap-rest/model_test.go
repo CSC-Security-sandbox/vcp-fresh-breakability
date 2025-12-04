@@ -3438,6 +3438,203 @@ func TestRolePrivilegeModifyParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestRolePrivilegeCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := rolePrivilegeCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithAllAccess", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "owner-uuid-123",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+			Access:  "all",
+			Query:   "",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-123", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "/api/storage/volumes", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelAll, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "", *otParams.Info.Query) // nillable.ToPointer returns pointer to empty string, not nil
+	})
+
+	t.Run("WhenParamsSetWithReadonlyAccess", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "owner-uuid-456",
+			Name:    "test-role",
+			Path:    "/api/svm/svms",
+			Access:  "readonly",
+			Query:   "",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-456", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "/api/svm/svms", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelReadonly, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithReadCreateAccess", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "owner-uuid-789",
+			Name:    "test-role",
+			Path:    "/api/cluster",
+			Access:  "read_create",
+			Query:   "test-query",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-789", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "/api/cluster", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelReadCreate, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "test-query", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithReadModifyAccess", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "owner-uuid-101",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+			Access:  "read_modify",
+			Query:   "",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-101", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "/api/storage/volumes", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelReadModify, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithReadCreateModifyAccess", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "owner-uuid-202",
+			Name:    "test-role",
+			Path:    "/api/storage",
+			Access:  "read_create_modify",
+			Query:   "query-param",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-202", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "/api/storage", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelReadCreateModify, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "query-param", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithNoneAccess", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "owner-uuid-303",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+			Access:  "none",
+			Query:   "",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-303", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "/api/storage/volumes", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelNone, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithEmptyStrings", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "",
+			Name:    "",
+			Path:    "",
+			Access:  "all",
+			Query:   "",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", otParams.OwnerUUID)
+		assert.Equal(tt, "", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelAll, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithRESTEndpointPath", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "owner-uuid-404",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes/{volume.uuid}/snapshots",
+			Access:  "all",
+			Query:   "",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-404", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "/api/storage/volumes/{volume.uuid}/snapshots", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelAll, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithCommandPathAndQuery", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "owner-uuid-505",
+			Name:    "test-role",
+			Path:    "volume move start",
+			Access:  "read_create",
+			Query:   "-vserver vs1 -volume vol1 -destination-aggregate aggr1",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-505", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "volume move start", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelReadCreate, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "-vserver vs1 -volume vol1 -destination-aggregate aggr1", *otParams.Info.Query)
+	})
+
+	t.Run("WhenParamsSetWithLongQuery", func(tt *testing.T) {
+		params := &RolePrivilegeCreateParams{
+			OwnerID: "owner-uuid-606",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+			Access:  "read_modify",
+			Query:   "-vserver vs1|vs2|vs3 -destination-aggregate aggr1|aggr2 -force",
+		}
+		otParams := rolePrivilegeCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-606", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.NotNil(tt, otParams.Info)
+		assert.Equal(tt, "/api/storage/volumes", *otParams.Info.Path)
+		assert.Equal(tt, models.RolePrivilegeLevelReadModify, *otParams.Info.Access)
+		assert.NotNil(tt, otParams.Info.Query)
+		assert.Equal(tt, "-vserver vs1|vs2|vs3 -destination-aggregate aggr1|aggr2 -force", *otParams.Info.Query)
+	})
+}
+
 func TestServerRootCAGetParamsToONTAPCollectionGet(t *testing.T) {
 	t.Run("WhenParamsNil", func(tt *testing.T) {
 		otParams := serverRootCAGetParamsToONTAPCollectionGet(nil)

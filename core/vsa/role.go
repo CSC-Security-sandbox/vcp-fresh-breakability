@@ -40,6 +40,15 @@ type ModifyRolePrivilegeParams struct {
 	Query   string
 }
 
+// CreateRolePrivilegeParams represents parameters for creating a role privilege
+type CreateRolePrivilegeParams struct {
+	OwnerID string
+	Name    string
+	Path    string
+	Access  string
+	Query   string
+}
+
 // GetRoleCollectionParams represents parameters for getting a collection of roles
 type GetRoleCollectionParams struct {
 	Name *string
@@ -140,6 +149,31 @@ func (rc *OntapRestProvider) ModifyRolePrivilege(params ModifyRolePrivilegeParam
 	}
 
 	return nil
+}
+
+// CreateRolePrivilege creates a new role privilege in ONTAP
+func (rc *OntapRestProvider) CreateRolePrivilege(params CreateRolePrivilegeParams) (string, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return "", err
+	}
+
+	// Create privilege parameters
+	createParams := &ontapRest.RolePrivilegeCreateParams{
+		OwnerID: params.OwnerID,
+		Name:    params.Name,
+		Path:    params.Path,
+		Access:  params.Access,
+		Query:   params.Query,
+	}
+
+	// Create the role privilege
+	location, err := client.Security().RolePrivilegeCreate(createParams)
+	if err != nil {
+		return "", err
+	}
+
+	return location, nil
 }
 
 // GetRoleCollection retrieves a collection of roles from ONTAP

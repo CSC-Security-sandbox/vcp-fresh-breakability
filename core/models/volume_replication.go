@@ -184,12 +184,12 @@ type HybridReplicationParameters struct {
 type HybridReplicationStatus string
 
 var (
-	HybridReplicationStatusPendingClusterPeer   HybridReplicationStatus = "PENDING_CLUSTER_PEER"
-	HybridReplicationStatusPendingSVMPeer       HybridReplicationStatus = "PENDING_SVM_PEER"
-	HybridReplicationStatusSVMPeered            HybridReplicationStatus = "SVM_PEERED"
-	HybridReplicationStatusPeered               HybridReplicationStatus = "PEERED"
-	HybridReplicationStatusPendingReverseResume HybridReplicationStatus = "PENDING_REMOTE_RESYNC"
-	HybridReplicationStatusExternalManaged      HybridReplicationStatus = "EXTERNALLY_MANAGED_REPLICATION"
+	HybridReplicationStatusPendingClusterPeer  HybridReplicationStatus = "PENDING_CLUSTER_PEER"
+	HybridReplicationStatusPendingSVMPeer      HybridReplicationStatus = "PENDING_SVM_PEER"
+	HybridReplicationStatusSVMPeered           HybridReplicationStatus = "SVM_PEERED"
+	HybridReplicationStatusPeered              HybridReplicationStatus = "PEERED"
+	HybridReplicationStatusPendingRemoteResync HybridReplicationStatus = "PENDING_REMOTE_RESYNC"
+	HybridReplicationStatusExternalManaged     HybridReplicationStatus = "EXTERNALLY_MANAGED_REPLICATION"
 )
 
 type ClusterPeeringStatus string

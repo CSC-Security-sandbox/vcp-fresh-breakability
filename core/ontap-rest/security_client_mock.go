@@ -463,6 +463,62 @@ func (_c *MockSecurityClient_RoleGet_Call) RunAndReturn(run func(*RoleGetParams)
 	return _c
 }
 
+// RolePrivilegeCreate provides a mock function with given fields: params
+func (_m *MockSecurityClient) RolePrivilegeCreate(params *RolePrivilegeCreateParams) (string, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RolePrivilegeCreate")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*RolePrivilegeCreateParams) (string, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*RolePrivilegeCreateParams) string); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(*RolePrivilegeCreateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_RolePrivilegeCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RolePrivilegeCreate'
+type MockSecurityClient_RolePrivilegeCreate_Call struct {
+	*mock.Call
+}
+
+// RolePrivilegeCreate is a helper method to define mock.On call
+//   - params *RolePrivilegeCreateParams
+func (_e *MockSecurityClient_Expecter) RolePrivilegeCreate(params interface{}) *MockSecurityClient_RolePrivilegeCreate_Call {
+	return &MockSecurityClient_RolePrivilegeCreate_Call{Call: _e.mock.On("RolePrivilegeCreate", params)}
+}
+
+func (_c *MockSecurityClient_RolePrivilegeCreate_Call) Run(run func(params *RolePrivilegeCreateParams)) *MockSecurityClient_RolePrivilegeCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*RolePrivilegeCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_RolePrivilegeCreate_Call) Return(_a0 string, _a1 error) *MockSecurityClient_RolePrivilegeCreate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_RolePrivilegeCreate_Call) RunAndReturn(run func(*RolePrivilegeCreateParams) (string, error)) *MockSecurityClient_RolePrivilegeCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RolePrivilegeModify provides a mock function with given fields: params
 func (_m *MockSecurityClient) RolePrivilegeModify(params *RolePrivilegeModifyParams) error {
 	ret := _m.Called(params)

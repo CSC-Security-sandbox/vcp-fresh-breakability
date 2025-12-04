@@ -222,6 +222,23 @@ type ReverseReplicationResult struct {
 	ReplicationDetails *vsa.VolumeReplication
 }
 
+type ReverseHybridReplicationResult struct {
+	Event                         *ReverseReplicationEvent
+	DbVolReplication              *datamodel.VolumeReplication
+	ClusterPeeringRow             *datamodel.ClusterPeerings
+	ClusterPeer                   *vsa.ClusterPeer
+	HybridReplicationUserCommands []string
+	DstBasePath                   *string
+	SrcBasePath                   *string
+	DstProjectNumber              *string
+	SrcProjectNumber              *string
+	DstJwtToken                   *string
+	SrcJwtToken                   *string
+	NodeProvider                  *models.Node
+	FirstProblemStateTime         *time.Time
+	JobId                         *string
+}
+
 type UpdateVolumeReplicationAttributesEvent struct {
 	ReplicationEventBase
 	UpdateVolumeReplicationAttributesParams *models.UpdateVolumeReplicationAttributesParams
