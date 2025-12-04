@@ -65,12 +65,12 @@ func main() {
 	}()
 	// Register your custom metric
 	metrics.RegisterJobStatusCounter()
-	metrics.RegisterTotalVolumeCountGauge()
 	metrics.RegisterAutoTierEnabledGauge()
 	metrics.RegisterCRREnabledGauge()
 	metrics.RegisterLargeVolumeEnabledGauge()
 	metrics.RegisterCBSEnabledGauge()
 	metrics.RegisterEligibilityStringGauge()
+	metrics.RegisterBackupSizeGauge()
 	// Start metrics HTTP server
 	metricsPort := os.Getenv("METRICS_PORT")
 	if metricsPort == "" {
@@ -387,6 +387,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(workflows.RestoreBackupWorkflowWithContext)
 	worker.RegisterWorkflow(backgroundworkflows.UpdateBackupScheduleWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncFlexCachePrepopulateWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.BackupSizeDetailsWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})

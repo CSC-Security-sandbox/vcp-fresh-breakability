@@ -17,20 +17,18 @@ type VolumeDetails struct {
 	AccountName string
 }
 
+type BackupDetailForMetric struct {
+	VolName     string
+	AccountName string
+	Size        int64
+}
+
 var JobStatusCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "vcp_job_status_updates",
 		Help: "Total number of job status updates",
 	},
 	[]string{"project_id", "error_details", "state"},
-)
-
-// Gauge for total volume count
-var totalVolumeCountGauge = prometheus.NewGauge(
-	prometheus.GaugeOpts{
-		Name: "gcnv_vsa_total_volume_count",
-		Help: "Total number of volumes managed by VSA Control Plane",
-	},
 )
 
 // Gauge for AutoTier enabled
@@ -78,6 +76,15 @@ var eligibilityStringGauge = prometheus.NewGaugeVec(
 	[]string{"name", "state"},
 )
 
+// Gauge for backup size
+var backupSizeGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "gcnv_backup_size_bytes",
+		Help: "Total size of the backups in bytes",
+	},
+	[]string{"name", "account_name"},
+)
+
 func IncJobStatusCounter(ctx context.Context, errorDetails, state string) {
 	projectID := helper.GetProjectID(ctx)
 	if len(errorDetails) > 1024 {
@@ -97,17 +104,6 @@ func RegisterJobStatusCounter() {
 			JobStatusCounter = are.ExistingCollector.(*prometheus.CounterVec)
 		} else {
 			log.Printf("Failed to register JobStatusCounter: %v", err)
-		}
-	}
-}
-
-func RegisterTotalVolumeCountGauge() {
-	err := prometheus.Register(totalVolumeCountGauge)
-	if err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			totalVolumeCountGauge = are.ExistingCollector.(prometheus.Gauge)
-		} else {
-			log.Printf("Failed to register totalVolumeCountGauge: %v", err)
 		}
 	}
 }
@@ -167,10 +163,15 @@ func RegisterEligibilityStringGauge() {
 	}
 }
 
-// Emit metric for total volume count
-
-func EmitTotalVolumeCountMetric(count int) {
-	totalVolumeCountGauge.Set(float64(count))
+func RegisterBackupSizeGauge() {
+	err := prometheus.Register(backupSizeGauge)
+	if err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			backupSizeGauge = are.ExistingCollector.(*prometheus.GaugeVec)
+		} else {
+			log.Printf("Failed to register backupSizeGauge: %v", err)
+		}
+	}
 }
 
 // Aggregate and emit metrics for Autotier enabled volumes
@@ -338,5 +339,16 @@ func EmitEligibilityStringMetric(volumes []*datamodel.Volume) {
 			key.Name,
 			key.State,
 		).Set(float64(count))
+	}
+}
+
+// Aggregate and emit metrics for Backup Size
+func EmitBackupDetailsMetric(details []BackupDetailForMetric) {
+	backupSizeGauge.Reset()
+	for _, d := range details {
+		backupSizeGauge.WithLabelValues(
+			d.VolName,
+			d.AccountName,
+		).Set(float64(d.Size))
 	}
 }

@@ -66,26 +66,6 @@ func TestIncJobStatusCounter(t *testing.T) {
 	}
 }
 
-func TestEmitTotalVolumeCountMetric(t *testing.T) {
-	RegisterTotalVolumeCountGauge()
-	expectedValue := 10
-	totalVolumeCountGauge.Set(float64(expectedValue))
-	metrics, err := prometheus.DefaultGatherer.Gather()
-	if err != nil {
-		t.Errorf("Failed to gather metrics: %v", err)
-	}
-	var totalVolumeCount float64
-	for _, metricFamily := range metrics {
-		if *metricFamily.Name == "gcnv_vsa_total_volume_count" {
-			totalVolumeCount = *metricFamily.Metric[0].Gauge.Value
-			break
-		}
-	}
-	if totalVolumeCount != float64(expectedValue) {
-		t.Errorf("Total volume count gauge value not set correctly. Expected: %d, Actual: %f", expectedValue, totalVolumeCount)
-	}
-}
-
 func TestEmitAutoTierEnabledMetric(t *testing.T) {
 	RegisterAutoTierEnabledGauge()
 	volumes := getTestVolumes()
@@ -270,21 +250,6 @@ func TestRegisterAutoTierEnabledGauge(t *testing.T) {
 	}
 }
 
-func TestRegisterTotalVolumeCountGauge(t *testing.T) {
-	// Unregister first to ensure clean state
-	prometheus.Unregister(totalVolumeCountGauge)
-
-	// Should register without error
-	RegisterTotalVolumeCountGauge()
-	// Register again to trigger AlreadyRegisteredError
-	RegisterTotalVolumeCountGauge()
-
-	// Check that the collector is still a GaugeVec
-	if totalVolumeCountGauge == nil {
-		t.Error("totalVolumeCountGauge is nil after registration")
-	}
-}
-
 func TestRegisterLargeVolumeEnabledGauge(t *testing.T) {
 	// Unregister first to ensure clean state
 	prometheus.Unregister(largeVolumeEnabledGauge)
@@ -341,6 +306,21 @@ func TestRegisterEligibilityStringGauge(t *testing.T) {
 
 	// Check that the collector is still a GaugeVec
 	if eligibilityStringGauge == nil {
-		t.Error("cbsEnabledGauge is nil after registration")
+		t.Error("EligibilityString is nil after registration")
+	}
+}
+
+func TestRegisterBackupSizeGauge(t *testing.T) {
+	// Unregister first to ensure clean state
+	prometheus.Unregister(backupSizeGauge)
+
+	// Should register without error
+	RegisterBackupSizeGauge()
+	// Register again to trigger AlreadyRegisteredError
+	RegisterBackupSizeGauge()
+
+	// Check that the collector is still a GaugeVec
+	if backupSizeGauge == nil {
+		t.Error("backupSizeGauge is nil after registration")
 	}
 }

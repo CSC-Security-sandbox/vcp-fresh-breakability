@@ -3,6 +3,7 @@ package backgroundactivities
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -51,5 +52,49 @@ func (suite *CustomerAdoptionActivityUnitTestSuite) TestGetActiveVolumesActivity
 	result, err := suite.activity.GetActiveVolumesActivity(suite.ctx)
 	assert.Error(suite.T(), err)
 	assert.Nil(suite.T(), result)
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *CustomerAdoptionActivityUnitTestSuite) TestGetBackupDetailsActivity_Success() {
+	timestamp := time.Now()
+
+	// Sample backup data
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			AccountIdentifier: "test-account",
+			VolumeName:        "test-volume",
+		},
+		LatestLogicalBackupSize: 12345,
+	}
+	backups := []*datamodel.Backup{backup}
+
+	// First call returns backups, second call returns empty slice to break loop
+	suite.mockStorage.On("GetBackupMetrics", suite.ctx, mock.Anything, mock.Anything).Return(backups, nil).Once()
+	suite.mockStorage.On("GetBackupMetrics", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil).Once()
+
+	result, err := suite.activity.GetBackupDetailsActivity(suite.ctx, timestamp)
+	assert.NoError(suite.T(), err)
+	assert.NotNil(suite.T(), result)
+	assert.Equal(suite.T(), 1, len(result.Details))
+	assert.Equal(suite.T(), "test-volume", result.Details[0].VolName)
+	assert.Equal(suite.T(), int64(12345), result.Details[0].Size)
+	assert.Equal(suite.T(), "test-account", result.Details[0].AccountName)
+
+	// Verify that the mock method was called
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *CustomerAdoptionActivityUnitTestSuite) TestGetBackupDetailsActivity_Error() {
+	timestamp := time.Now()
+
+	// Mock the GetBackupMetrics method to return an error
+	suite.mockStorage.On("GetBackupMetrics", suite.ctx, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+	result, err := suite.activity.GetBackupDetailsActivity(suite.ctx, timestamp)
+	assert.Error(suite.T(), err)
+	assert.Nil(suite.T(), result)
+
+	// Verify that the mock method was called
 	suite.mockStorage.AssertExpectations(suite.T())
 }

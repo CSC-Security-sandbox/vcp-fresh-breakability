@@ -68,5 +68,10 @@
     "jobType": "SYNC_FLEXCACHE_PREPOPULATE_JOBS",
     "cronExpression": "*/3 * * * *",
     "state": "CREATING"
+  },
+  "BACKUP_SIZE_JOB": {
+    "jobType": "BACKUP_SIZE_JOB",
+    "cronExpression": "0 0 * * *",
+    "state": "CREATING"
   }
 }
