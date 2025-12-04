@@ -191,7 +191,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 				PoolConsumptionColdTier: 100000000000, // 100GB - under pool size
 			},
 			"pool-to-autoresize-uuid": {
-				PoolConsumptionHotTier:  450000000000, // 90% of 500GB hot tier
+				PoolConsumptionHotTier:  500000000000, // 100% of 500GB hot tier
 				PoolConsumptionColdTier: 50000000000,  // 50GB
 			},
 		}
@@ -525,7 +525,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 
 		poolConsumptionsMap := map[string]map[string]float64{
 			"bypass-disabled-pool-uuid": {
-				PoolConsumptionHotTier:  450000000000, // 90% of 500GB hot tier
+				PoolConsumptionHotTier:  500000000000, // 100% of 500GB hot tier
 				PoolConsumptionColdTier: 50000000000,  // 50GB
 			},
 		}

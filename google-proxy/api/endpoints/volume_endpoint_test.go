@@ -780,6 +780,45 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 
+	t.Run("WhenBlockVolumeWithHotTierBypassModeDisabled_ShouldNotError", func(tt *testing.T) {
+		// Test that when HotTierBypassModeEnabled=false for block volume, it should be ignored (no error)
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+				TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+					gcpgenserver.TieringPolicyV1beta{
+						TierAction:               gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+						CoolingThresholdDays:     gcpgenserver.OptNilInt32{Value: 30, Set: true},
+						HotTierBypassModeEnabled: gcpgenserver.NewOptNilBool(false),
+					},
+				),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-region"
+
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err, "HotTierBypassMode=false for block volume should be ignored, not cause an error")
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
+		// HotTierBypassModeEnabled should remain false (default) as it's ignored for block volumes
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
+	})
+
 	// Comprehensive tests for HotTierBypassModeEnabled logic
 	t.Run("HotTierBypassModeEnabled_ShouldSetTieringPolicyToAll", func(tt *testing.T) {
 		// Save and restore the original value
@@ -1672,6 +1711,45 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 		assert.NoError(tt, err, "HotTierBypassMode should be supported for file volumes")
 		assert.NotNil(tt, result)
 		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("HotTierBypassModeDisabledForBlockVolume_ShouldNotError", func(tt *testing.T) {
+		// Test that when HotTierBypassModeEnabled=false for block volume, it should be ignored (no error)
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					TierAction:               gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+					CoolingThresholdDays:     gcpgenserver.OptNilInt32{Value: 30, Set: true},
+					HotTierBypassModeEnabled: gcpgenserver.NewOptNilBool(false),
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolISCSI}, // Block volume
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       false,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "none",
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err, "HotTierBypassMode=false for block volume should be ignored, not cause an error")
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		// HotTierBypassModeEnabled should remain false (default) as it's ignored for block volumes
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
 	})
 }
 

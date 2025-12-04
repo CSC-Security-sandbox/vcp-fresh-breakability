@@ -395,7 +395,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 		}
 		isBlockVolume := len(param.Protocols) > 0 && utils.IsSanProtocols(param.Protocols)
-		if isBlockVolume && req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
+		if isBlockVolume && req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() && req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.Value {
 			return nil, errors.NewUserInputValidationErr("hotTierBypassMode is not supported for block volume")
 		}
 
@@ -422,7 +422,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		}
 
 		// Process HotTierBypassModeEnabled if provided. Supported only for file volume.
-		if req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
+		if req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() && !isBlockVolume {
 			param.AutoTieringPolicy.HotTierBypassModeEnabled = req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.Value
 			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
 				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAll
@@ -817,7 +817,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 
 		isBlockVolume := dbVolume != nil && len(dbVolume.ProtocolTypes) > 0 && utils.IsSanProtocols(dbVolume.ProtocolTypes)
-		if isBlockVolume && req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
+		if isBlockVolume && req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() && req.TieringPolicy.Value.HotTierBypassModeEnabled.Value {
 			return nil, errors.NewUserInputValidationErr("hotTierBypassMode is not supported for block volume")
 		}
 		param.AutoTieringPolicy = &common.AutoTieringPolicy{}
@@ -858,7 +858,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 
 		// Process HotTierBypassModeEnabled if provided. Supported only for file volume.
-		if req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() {
+		if req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() && !isBlockVolume {
 			param.AutoTieringPolicy.HotTierBypassModeEnabled = req.TieringPolicy.Value.HotTierBypassModeEnabled.Value
 			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
 				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAll

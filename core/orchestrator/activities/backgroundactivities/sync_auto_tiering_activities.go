@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	AutoTierHotTierAutoResizeThresholdPercent = env.GetInt64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_THRESHOLD_PERCENT", 90)
+	AutoTierHotTierAutoResizeThresholdPercent = env.GetInt64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_THRESHOLD_PERCENT", 100)
 	AutoTierHotTierAutoResizeIncreasePercent  = env.GetFloat64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_INCREASE_PERCENT", 10)
 )
 

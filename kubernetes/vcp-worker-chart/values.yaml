@@ -204,7 +204,7 @@ workerConfig:
   minHotTierSizeLV: "13194139533312"
   createCommonResourcesInVCP: true
   consecutiveUpdatePoolTimeGapAllowedMinutes: 240
-  autoTierHotTierAutoResizeThresholdPercent: 90
+  autoTierHotTierAutoResizeThresholdPercent: 100
   autoTierHotTierAutoResizeIncreasePercent: 10
   autoTieringSyncActivityMaxAttempts: 1
   hardDeleteResources: "true"
