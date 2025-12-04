@@ -316,6 +316,8 @@ const (
 	ErrImmutableValidationWithUpdatingBackupPolicy = 12001
 	ErrImmutableValidationWithUpdatingBackupVault  = 12002
 	ErrCreateInternalQuotaRule                     = 12003
+	ErrSFRFilesMissing                             = 12004
+	ErrNoSFRFilesFound                             = 12005
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.

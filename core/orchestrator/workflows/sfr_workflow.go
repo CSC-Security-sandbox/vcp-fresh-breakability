@@ -237,7 +237,8 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 
 	if !isCreated {
 		log.Errorf("Service account is not created")
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, fmt.Errorf("service account is not created"))
+		err = fmt.Errorf("service account is not created")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
 	}
 
 	// Step 3: Attach roles to service account
@@ -376,6 +377,13 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		return nil, ConvertToVSAError(err)
 	}
 
+	if len(fileInodeSizeMap) == 0 {
+		errorMsg := "No files found in backup for the specified file list"
+		log.Errorf("SFR workflow failed: %s", errorMsg)
+		err = fmt.Errorf("%s", errorMsg)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrNoSFRFilesFound, err)
+	}
+
 	// Step 9: Get nodes and prepare snapmirror restore
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
@@ -411,7 +419,11 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 
 	var smSourcePath string
-	smSourcePath = fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.Attributes.SnapshotID)
+	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity && volume.UUID == backup.VolumeUUID {
+		smSourcePath = fmt.Sprintf("%s:/objstore/%s_large", objStoreName, backup.VolumeUUID)
+	} else {
+		smSourcePath = fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.Attributes.SnapshotID)
+	}
 
 	// Wait before starting snapmirror restore
 	err = workflow.Sleep(ctx, 60*time.Second)
@@ -605,7 +617,8 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	if len(missingFiles) > 0 {
 		errorMsg := fmt.Sprintf("Transfer completed for %d file(s), but the following file(s) are not present in the backup: %s", len(transferFiles), strings.Join(missingFiles, ", "))
 		log.Errorf("SFR workflow failed: %s", errorMsg)
-		return nil, ConvertToVSAError(fmt.Errorf("%s", errorMsg))
+		err = fmt.Errorf("%s", errorMsg)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrSFRFilesMissing, err)
 	}
 
 	log.Infof("Restore files from backup workflow completed successfully for %d files", len(transferFiles))

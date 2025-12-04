@@ -1648,5 +1648,17 @@
     "message": "Failed to create quota rule on destination via VCP internal API",
     "retriable": false,
     "http_code": 500
+  },
+  "12004": {
+    "description": "Files missing in backup after transfer completion",
+    "message": "Transfer completed for %d file(s), but the following file(s) are not present in the backup: %s",
+    "retriable": false,
+    "http_code": 400
+  },
+  "12005": {
+    "description": "No Files Found in Backup for Specified File List",
+    "message": "No files found in backup for the specified file list",
+    "retriable": false,
+    "http_code": 400
   }
 }

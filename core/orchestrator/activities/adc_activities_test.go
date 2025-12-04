@@ -1790,17 +1790,11 @@ func TestGetFileInodeNumbers(t *testing.T) {
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
 
 		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
-		// Should return error because no files were successfully retrieved
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		// ExtractCustomError wraps the error, so check OriginalErr
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.Contains(t, customErr.OriginalErr.Error(), "failed to get inode numbers for any files")
-		} else {
-			// Fallback to checking error message directly
-			assert.Contains(t, err.Error(), "failed to get inode numbers for any files")
-		}
+		// When HTTP request fails, the function continues and returns empty map with nil error
+		// The workflow layer handles the empty map case and returns an error
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result))
 	})
 
 	t.Run("FileNotFound", func(t *testing.T) {
@@ -1837,17 +1831,11 @@ func TestGetFileInodeNumbers(t *testing.T) {
 		serviceURL := server.URL
 
 		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
-		// Should return error because no files were found
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		// ExtractCustomError wraps the error, so check OriginalErr
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.Contains(t, customErr.OriginalErr.Error(), "failed to get inode numbers for any files")
-		} else {
-			// Fallback to checking error message directly
-			assert.Contains(t, err.Error(), "failed to get inode numbers for any files")
-		}
+		// When file is not found (404), the function logs a warning and returns empty map with nil error
+		// The workflow layer handles the empty map case and returns an error
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result))
 	})
 
 	t.Run("TooManyRequests", func(t *testing.T) {
@@ -1884,9 +1872,10 @@ func TestGetFileInodeNumbers(t *testing.T) {
 		serviceURL := server.URL
 
 		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
-		// Should return error because no files were successfully retrieved
-		assert.Error(t, err)
-		assert.Nil(t, result)
+		// Should return empty map with no error when no files were successfully retrieved
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result))
 	})
 
 	t.Run("InvalidJSONResponse", func(t *testing.T) {
@@ -1925,9 +1914,10 @@ func TestGetFileInodeNumbers(t *testing.T) {
 		serviceURL := server.URL
 
 		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
-		// Should return error because no files were successfully retrieved
-		assert.Error(t, err)
-		assert.Nil(t, result)
+		// Should return empty map with no error when JSON parsing fails
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result))
 	})
 
 	t.Run("MultipleRecords", func(t *testing.T) {
@@ -1973,9 +1963,10 @@ func TestGetFileInodeNumbers(t *testing.T) {
 		serviceURL := server.URL
 
 		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
-		// Should return error because directory has multiple records
-		assert.Error(t, err)
-		assert.Nil(t, result)
+		// Should return empty map with no error when directory has multiple records
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result))
 	})
 
 	t.Run("ZeroInode", func(t *testing.T) {
@@ -2024,9 +2015,10 @@ func TestGetFileInodeNumbers(t *testing.T) {
 		serviceURL := server.URL
 
 		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
-		// Should return error because zero inode is invalid
-		assert.Error(t, err)
-		assert.Nil(t, result)
+		// Should return empty map with no error when zero inode is invalid
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result))
 	})
 
 	t.Run("PartialSuccess", func(t *testing.T) {
@@ -2227,13 +2219,11 @@ func TestGetFileInodeNumbers(t *testing.T) {
 		serviceURL := server.URL
 
 		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
-		// Should return error because no files were successfully retrieved
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.Contains(t, customErr.OriginalErr.Error(), "failed to get inode numbers for any files")
-		}
+		// When response body read fails, the function continues and returns empty map with nil error
+		// The workflow layer handles the empty map case and returns an error
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result))
 	})
 
 	t.Run("OtherStatusCode", func(t *testing.T) {
@@ -2271,13 +2261,11 @@ func TestGetFileInodeNumbers(t *testing.T) {
 		serviceURL := server.URL
 
 		result, err := activity.GetFileInodeNumbers(ctx, adcParams, serviceURL, filePaths)
-		// Should return error because no files were successfully retrieved
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.Contains(t, customErr.OriginalErr.Error(), "failed to get inode numbers for any files")
-		}
+		// When server returns non-OK status code, the function logs a warning and returns empty map with nil error
+		// The workflow layer handles the empty map case and returns an error
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result))
 	})
 
 	t.Run("ResponseBodyCloseError", func(t *testing.T) {

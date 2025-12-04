@@ -658,10 +658,6 @@ func (a *ADCActivity) GetFileInodeNumbers(ctx context.Context, adcParams *common
 		}
 	}
 
-	if len(fileInodeSizeMap) == 0 {
-		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to get inode numbers for any files"))
-	}
-
 	if len(fileInodeSizeMap) < len(filePaths) {
 		logger.Warnf("Successfully retrieved inode numbers for %d out of %d files", len(fileInodeSizeMap), len(filePaths))
 	}
