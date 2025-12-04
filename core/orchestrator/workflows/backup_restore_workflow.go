@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -26,7 +27,8 @@ const (
 )
 
 var (
-	WaitForRestore = time.Duration(10) * time.Second
+	WaitForRestore                           = time.Duration(10) * time.Second
+	backupRestoreWorkflowHeartbeatTimeoutSec = env.GetUint64("BACKUP_RESTORE_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
 )
 
 type restoreBackupWorkflow struct {
@@ -168,6 +170,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: RestoreStartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(backupRestoreWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,

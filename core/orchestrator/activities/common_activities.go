@@ -409,6 +409,7 @@ func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) ([]*datamo
 }
 
 func (j CommonActivities) GetOntapJob(ctx context.Context, jobUUID string, node *models.Node) (*vsa.OntapJob, error) {
+	activity.RecordHeartbeat(ctx, "Fetching ONTAP job")
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -417,6 +418,7 @@ func (j CommonActivities) GetOntapJob(ctx context.Context, jobUUID string, node 
 	if err != nil {
 		return nil, err
 	}
+	activity.RecordHeartbeat(ctx, "ONTAP job fetched successfully")
 	return job, nil
 }
 

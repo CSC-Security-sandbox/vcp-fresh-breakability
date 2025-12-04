@@ -141,6 +141,7 @@ func updateVolume(ctx context.Context, provider vsa.Provider, params vsa.UpdateV
 }
 
 func (a *VolumeUpdateActivity) UpdateVolumeJunctionpath(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	activity.RecordHeartbeat(ctx, "UpdateVolumeJunctionpath activity in progress")
 	if utils.IsSanProtocols(volume.VolumeAttributes.Protocols) {
 		return nil
 	}
@@ -149,10 +150,12 @@ func (a *VolumeUpdateActivity) UpdateVolumeJunctionpath(ctx context.Context, vol
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return updateVolume(ctx, provider, vsa.UpdateVolumeParams{
+	err = updateVolume(ctx, provider, vsa.UpdateVolumeParams{
 		UUID:         volume.VolumeAttributes.ExternalUUID,
 		JunctionPath: &volume.VolumeAttributes.FileProperties.JunctionPath,
 	})
+	activity.RecordHeartbeat(ctx, "UpdateVolumeJunctionpath activity completed")
+	return err
 }
 
 // GetVolumeFromONTAP retrieves the volume from ONTAP

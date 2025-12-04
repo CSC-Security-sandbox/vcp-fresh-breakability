@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -21,6 +22,10 @@ import (
 type RestoreFilesFromBackupWorkflowStruct struct {
 	BaseWorkflow
 }
+
+var (
+	sfrWorkflowHeartbeatTimeoutSec = env.GetUint64("SFR_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
+)
 
 // Enforcing the WorkflowInterface on RestoreFilesFromBackupWorkflowStruct
 var _ WorkflowInterface = &RestoreFilesFromBackupWorkflowStruct{}
@@ -129,6 +134,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(sfrWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

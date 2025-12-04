@@ -516,11 +516,13 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	}
 	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
-	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
+	volume := &datamodel.Volume{
+		Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
 		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
-		}}
+		},
+	}
 	node := &models.Node{}
 	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024, State: "online"}
 
@@ -557,11 +559,13 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 	}
 	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
-	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
+	volume := &datamodel.Volume{
+		Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
 		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
-		}}
+		},
+	}
 	node := &models.Node{}
 	expectedError := errors.New("failed to create volume in ONTAP")
 
@@ -1078,10 +1082,12 @@ func TestCreateLunMap_Success_AlreadyExists(t *testing.T) {
 	activity := activities.VolumeCreateActivity{}
 	env.RegisterActivity(activity.CreateLunMap)
 
-	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
+	volume := &datamodel.Volume{
+		Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
-		}}
+		},
+	}
 	params := &common.CreateLunMapParams{
 		LunName:   "lun_test-volume",
 		SvmName:   "test-svm",
@@ -1497,11 +1503,13 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 	}
 	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
-	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
+	volume := &datamodel.Volume{
+		Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
 		Account: &datamodel.Account{Name: "account"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
-		}}
+		},
+	}
 	node := &models.Node{}
 
 	mockProvider.On("CreateVolume", mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
@@ -2473,6 +2481,7 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		mockProvider.AssertExpectations(tt)
 	})
 }
+
 func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *testing.T) {
 	// Set up file protocol support for testing
 	utils.SetFileProtocolSupportedForTesting(true)
@@ -5290,8 +5299,12 @@ func TestSetupCrossTenantProjectPermissions(t *testing.T) {
 func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 	t.Run("WhenGetProviderByNodeFails_ThenReturnError", func(t *testing.T) {
 		// Arrange
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := activities.VolumeCreateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(&activity)
+
 		sourceRegion := "us-east1"
 		targetRegion := "us-east4"
 		targetPool := &datamodel.Pool{
@@ -5333,18 +5346,21 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		}
 
 		// Act
-		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+		_, err := env.ExecuteActivity(activity.DeleteObjectStoreForCrossVPC, targetPool, backup, node, "test-name")
 
 		// Assert
 		assert.Error(t, err)
-		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to get provider")
 	})
 
 	t.Run("WhenCloudTargetGetReturnsError_ThenReturnNil", func(t *testing.T) {
 		// Arrange
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := activities.VolumeCreateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(&activity)
+
 		sourceRegion := "us-east1"
 		targetRegion := "us-east4"
 		targetPool := &datamodel.Pool{
@@ -5390,18 +5406,21 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		mockProvider.On("CloudTargetGet", mock.Anything).Return(nil, errors.New("object store not found"))
 
 		// Act
-		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+		_, err := env.ExecuteActivity(activity.DeleteObjectStoreForCrossVPC, targetPool, backup, node, "test-name")
 
 		// Assert
 		assert.NoError(t, err)
-		assert.Nil(t, result)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("WhenCloudTargetGetReturnsNil_ThenReturnNil", func(t *testing.T) {
 		// Arrange
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := activities.VolumeCreateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(&activity)
+
 		sourceRegion := "us-east1"
 		targetRegion := "us-east4"
 		targetPool := &datamodel.Pool{
@@ -5447,18 +5466,21 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		mockProvider.On("CloudTargetGet", mock.Anything).Return(nil, nil)
 
 		// Act
-		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+		_, err := env.ExecuteActivity(activity.DeleteObjectStoreForCrossVPC, targetPool, backup, node, "test-name")
 
 		// Assert
 		assert.NoError(t, err)
-		assert.Nil(t, result)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("WhenBucketDetailsNotFound_ThenReturnError", func(t *testing.T) {
 		// Arrange
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := activities.VolumeCreateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(&activity)
+
 		targetPool := &datamodel.Pool{
 			ClusterDetails: datamodel.ClusterDetails{RegionalTenantProject: "target-project"},
 		}
@@ -5478,18 +5500,21 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		node := &models.Node{}
 
 		// Act
-		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+		_, err := env.ExecuteActivity(activity.DeleteObjectStoreForCrossVPC, targetPool, backup, node, "test-name")
 
 		// Assert
 		assert.Error(t, err)
-		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "could not find the bucket details of the backup in the backup vault")
 	})
 
 	t.Run("WhenParseRegionAndZoneReturnsError_ThenReturnError", func(t *testing.T) {
 		// Arrange
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := activities.VolumeCreateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(&activity)
+
 		targetPool := &datamodel.Pool{
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "invalid-zone-format",
@@ -5519,18 +5544,21 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		}
 
 		// Act
-		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+		_, err := env.ExecuteActivity(activity.DeleteObjectStoreForCrossVPC, targetPool, backup, node, "test-name")
 
 		// Assert
 		assert.Error(t, err)
-		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to parse region and zone")
 	})
 
 	t.Run("WhenTargetPoolInSameVPCAndSameRegion_ThenReturnNilEarly", func(t *testing.T) {
 		// Arrange
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := activities.VolumeCreateActivity{}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		env.RegisterActivity(&activity)
+
 		sourceRegion := "us-east1"
 		targetRegion := "us-east1"
 		vpcID := "projects/test-project/global/networks/test-vpc"
@@ -5566,11 +5594,10 @@ func TestDeleteObjectStoreForCrossVPC(t *testing.T) {
 		}
 
 		// Act
-		result, err := activity.DeleteObjectStoreForCrossVPC(ctx, targetPool, backup, node, "test-name")
+		_, err := env.ExecuteActivity(activity.DeleteObjectStoreForCrossVPC, targetPool, backup, node, "test-name")
 
 		// Assert
 		assert.NoError(t, err)
-		assert.Nil(t, result)
 	})
 }
 

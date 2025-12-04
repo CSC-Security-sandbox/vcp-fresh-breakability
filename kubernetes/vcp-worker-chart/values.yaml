@@ -278,6 +278,15 @@ workerConfig:
   saRetryMaximumInterval: "60s"
   saRetryBackoffCoefficient: "2.0"
 
+  #Backup workflow timeout configuration
+  adcWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
+  backupRestoreWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
+  createBackupWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
+  deleteBackupWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
+  updateBackupWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
+  scheduleBackupWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
+  sfrWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
+
   # Volume Refresh Configuration
   volumeRefreshWorkflowStartToCloseTimeout: "10m"
   volumeSyncChunkSize: "200"

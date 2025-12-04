@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"go.temporal.io/sdk/activity"
 	"io"
 	"net/http"
 	"net/url"
@@ -108,6 +109,7 @@ func (a *ADCActivity) GetADCServiceURL(ctx context.Context, projectID, region, s
 
 // CleanupADCCloudRunService deletes the ADC Cloud Run service and returns the operation
 func (a *ADCActivity) CleanupADCCloudRunService(ctx context.Context, projectID, region, serviceName string) (*hyperscalermodels.CloudRunOperationResponse, error) {
+	activity.RecordHeartbeat(ctx, "started deleting ADC Cloud Run service")
 	cloudService, err := GetCloudService(ctx)
 	if err != nil {
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to get GCP service: %w", err))
@@ -117,7 +119,7 @@ func (a *ADCActivity) CleanupADCCloudRunService(ctx context.Context, projectID, 
 	if err != nil {
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to delete Cloud Run service: %w", err))
 	}
-
+	activity.RecordHeartbeat(ctx, "deleted ADC Cloud Run service")
 	return &hyperscalermodels.CloudRunOperationResponse{
 		OperationName: response.OperationName,
 		Status:        response.Status,
@@ -278,6 +280,7 @@ func (a *ADCActivity) InitialDeleteRequestWithCloudRun(ctx context.Context, adcP
 
 // CheckDeleteStatusWithCloudRun checks delete status using Cloud Run ADC service
 func (a *ADCActivity) CheckDeleteStatusWithCloudRun(ctx context.Context, params *common.ADCParams, serviceURL, redirectURL string) (*common.ADCResponse, error) {
+	activity.RecordHeartbeat(ctx, "started checking ADC delete status")
 	logger := util.GetLogger(ctx)
 	if redirectURL == "" {
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("missing redirect URL"))
@@ -334,7 +337,7 @@ func (a *ADCActivity) CheckDeleteStatusWithCloudRun(ctx context.Context, params 
 	}
 
 	newRedirectURL := resp.Header.Get("Location")
-
+	activity.RecordHeartbeat(ctx, "completed checking ADC delete status")
 	return &common.ADCResponse{
 		StatusCode:  resp.StatusCode,
 		RedirectURL: newRedirectURL,
@@ -343,6 +346,7 @@ func (a *ADCActivity) CheckDeleteStatusWithCloudRun(ctx context.Context, params 
 
 // CheckOperationStatus checks the status of a Cloud Run operation
 func (a *ADCActivity) CheckOperationStatus(ctx context.Context, operationName string) (bool, error) {
+	activity.RecordHeartbeat(ctx, "started checking status of a Cloud Run operation")
 	cloudService, err := GetCloudService(ctx)
 	if err != nil {
 		return false, fmt.Errorf("failed to get GCP service: %w", err)
@@ -352,7 +356,7 @@ func (a *ADCActivity) CheckOperationStatus(ctx context.Context, operationName st
 	if err != nil {
 		return false, fmt.Errorf("failed to check operation status: %w", err)
 	}
-
+	activity.RecordHeartbeat(ctx, "completed checking status of a Cloud Run operation")
 	return isReady, nil
 }
 

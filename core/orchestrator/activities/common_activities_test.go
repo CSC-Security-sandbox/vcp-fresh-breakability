@@ -336,6 +336,9 @@ func TestCreateJob_Success(t *testing.T) {
 // Unit test for GetOntapJob
 func TestCommonActivities_GetOntapJob(t *testing.T) {
 	t.Run("Get Ontap Job", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		defer mockProvider.AssertExpectations(t)
 
@@ -343,11 +346,11 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		origGetProviderByNode := hyperscaler2.GetProviderByNode
 		defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 
-		ctx := context.Background()
 		jobUUID := "test-job-uuid"
 		node := &models2.Node{}
 
 		activity := CommonActivities{}
+		env.RegisterActivity(&activity)
 
 		expectedJob := &vsa.OntapJob{}
 
@@ -357,11 +360,17 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		}
 		mockProvider.On("JobGet", mock.Anything).Return(expectedJob, nil)
 
-		job, err := activity.GetOntapJob(ctx, jobUUID, node)
+		encodedValue, err := env.ExecuteActivity(activity.GetOntapJob, jobUUID, node)
+		assert.NoError(t, err)
+		var job *vsa.OntapJob
+		err = encodedValue.Get(&job)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedJob, job)
 	})
 	t.Run("Get Ontap Job GetProviderByNode Error", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		defer mockProvider.AssertExpectations(t)
 
@@ -369,25 +378,26 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		origGetProviderByNode := hyperscaler2.GetProviderByNode
 		defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 
-		ctx := context.Background()
 		jobUUID := "test-job-uuid"
 		node := &models2.Node{}
 
 		activity := CommonActivities{}
-
-		var job *vsa.OntapJob
-		var err error
+		env.RegisterActivity(&activity)
 
 		// Error from GetProviderByNode
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
 			return nil, errors.New("mock error")
 		}
-		job, err = activity.GetOntapJob(ctx, jobUUID, node)
+
+		_, err := env.ExecuteActivity(activity.GetOntapJob, jobUUID, node)
 		assert.Error(t, err)
-		assert.Nil(t, job)
+		assert.Contains(t, err.Error(), "mock error")
 	})
 
 	t.Run("Get Ontap Job Error", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		defer mockProvider.AssertExpectations(t)
 
@@ -397,14 +407,16 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		node := &models2.Node{}
 
 		activity := CommonActivities{}
+		env.RegisterActivity(&activity)
 
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		mockProvider.On("JobGet", mock.Anything).Return(nil, errors.New("jobget error"))
-		job, err := activity.GetOntapJob(context.Background(), "test-job-uuid", node)
+
+		_, err := env.ExecuteActivity(activity.GetOntapJob, "test-job-uuid", node)
 		assert.Error(t, err)
-		assert.Nil(t, job)
+		assert.Contains(t, err.Error(), "jobget error")
 	})
 }
 

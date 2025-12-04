@@ -395,7 +395,8 @@ func TestUpdateVolumeInDB_Success(t *testing.T) {
 	env.RegisterActivity(activity.UpdateVolumeInDB)
 
 	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"}, Name: "test-volume"}
-	params := &common.UpdateVolumeParams{QuotaInBytes: 4096,
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 4096,
 		AutoTieringPolicy: &common.AutoTieringPolicy{
 			AutoTieringEnabled:   true,
 			TieringPolicy:        "auto",
@@ -1291,7 +1292,8 @@ func TestDeleteLunIGroupMap(t *testing.T) {
 				mockStorage.On("GetHostGroup", mock.Anything, mock.Anything, int64(1)).Return(&datamodel.HostGroup{Name: "igroup-1"}, nil).Times(2)
 
 				mockProvider.On("IgroupExists", "igroup-1", mock.Anything).Return(true, &ontap_rest.Igroup{Igroup: ontapModels.Igroup{
-					UUID: nillable.GetStringPtr("ontap-uuid-1")}}, nil).Times(2)
+					UUID: nillable.GetStringPtr("ontap-uuid-1"),
+				}}, nil).Times(2)
 
 				mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 					LunUUID:    "lun-uuid",
@@ -1337,7 +1339,8 @@ func TestDeleteLunIGroupMap(t *testing.T) {
 				mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid", int64(1)).Return(&datamodel.HostGroup{Name: "igroup"}, nil)
 
 				mockProvider.On("IgroupExists", "igroup", mock.Anything).Return(true, &ontap_rest.Igroup{Igroup: ontapModels.Igroup{
-					UUID: nillable.GetStringPtr("ontap-uuid")}}, nil)
+					UUID: nillable.GetStringPtr("ontap-uuid"),
+				}}, nil)
 				mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 					LunUUID:    "lun-uuid",
 					IGroupUUID: "ontap-uuid",
@@ -3546,8 +3549,11 @@ func TestUpdateVolumeInONTAP_WithSnapshotDirectoryAccess_Success(t *testing.T) {
 
 func TestUpdateVolumeJunctionpath_SANProtocols_Success(t *testing.T) {
 	// Test case: When volume has SAN protocols, function should return early without calling provider
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3562,12 +3568,15 @@ func TestUpdateVolumeJunctionpath_SANProtocols_Success(t *testing.T) {
 	node := &models.Node{}
 
 	// Should return nil immediately without calling any provider methods
-	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
 	assert.NoError(t, err)
 }
 
 func TestUpdateVolumeJunctionpath_NASProtocols_Success(t *testing.T) {
 	// Test case: When volume has NAS protocols, function should call provider to update junction path
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -3577,7 +3586,7 @@ func TestUpdateVolumeJunctionpath_NASProtocols_Success(t *testing.T) {
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3598,7 +3607,7 @@ func TestUpdateVolumeJunctionpath_NASProtocols_Success(t *testing.T) {
 	}
 	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
 
-	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -3613,8 +3622,11 @@ func TestUpdateVolumeJunctionpath_MixedProtocols_Success(t *testing.T) {
 		return mockProvider, nil
 	}
 
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3635,7 +3647,7 @@ func TestUpdateVolumeJunctionpath_MixedProtocols_Success(t *testing.T) {
 	}
 	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
 
-	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -3650,8 +3662,11 @@ func TestUpdateVolumeJunctionpath_EmptyProtocols_Success(t *testing.T) {
 		return mockProvider, nil
 	}
 
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3672,7 +3687,7 @@ func TestUpdateVolumeJunctionpath_EmptyProtocols_Success(t *testing.T) {
 	}
 	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
 
-	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -3687,8 +3702,11 @@ func TestUpdateVolumeJunctionpath_GetProviderByNodeError(t *testing.T) {
 		return nil, expectedError
 	}
 
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3702,7 +3720,7 @@ func TestUpdateVolumeJunctionpath_GetProviderByNodeError(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "provider error")
 }
@@ -3717,8 +3735,11 @@ func TestUpdateVolumeJunctionpath_UpdateVolumeError(t *testing.T) {
 		return mockProvider, nil
 	}
 
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3739,16 +3760,19 @@ func TestUpdateVolumeJunctionpath_UpdateVolumeError(t *testing.T) {
 	}
 	mockProvider.On("UpdateVolume", expectedParams).Return(expectedError)
 
-	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
 	assert.Error(t, err)
-	assert.Equal(t, expectedError, err)
+	assert.Contains(t, err.Error(), "update volume error")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateVolumeJunctionpath_NilVolumeAttributes(t *testing.T) {
 	// Test case: When volume has nil VolumeAttributes, function should handle gracefully
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name:             "test-volume",
@@ -3756,14 +3780,12 @@ func TestUpdateVolumeJunctionpath_NilVolumeAttributes(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	// This should panic or handle gracefully - depending on implementation
 	// The function will panic when trying to access volume.VolumeAttributes.Protocols
-	assert.Panics(t, func() {
-		err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
-		if err != nil {
-			return
-		}
-	})
+	// Temporal will catch the panic and return it as an error
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
+	assert.Error(t, err)
+	// The error should indicate a nil pointer dereference
+	assert.Contains(t, err.Error(), "nil pointer dereference")
 }
 
 func TestUpdateVolumeJunctionpath_NilFileProperties(t *testing.T) {
@@ -3776,8 +3798,11 @@ func TestUpdateVolumeJunctionpath_NilFileProperties(t *testing.T) {
 		return mockProvider, nil
 	}
 
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3789,13 +3814,12 @@ func TestUpdateVolumeJunctionpath_NilFileProperties(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	// This should panic when trying to access volume.VolumeAttributes.FileProperties.JunctionPath
-	assert.Panics(t, func() {
-		err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
-		if err != nil {
-			return
-		}
-	})
+	// The function will panic when trying to access volume.VolumeAttributes.FileProperties.JunctionPath
+	// Temporal will catch the panic and return it as an error
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
+	assert.Error(t, err)
+	// The error should indicate a nil pointer dereference
+	assert.Contains(t, err.Error(), "nil pointer")
 }
 
 func TestUpdateVolumeJunctionpath_AllNASProtocols_Success(t *testing.T) {
@@ -3808,8 +3832,11 @@ func TestUpdateVolumeJunctionpath_AllNASProtocols_Success(t *testing.T) {
 		return mockProvider, nil
 	}
 
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3830,7 +3857,7 @@ func TestUpdateVolumeJunctionpath_AllNASProtocols_Success(t *testing.T) {
 	}
 	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
 
-	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }
@@ -3845,8 +3872,11 @@ func TestUpdateVolumeJunctionpath_InvalidProtocols_Success(t *testing.T) {
 		return mockProvider, nil
 	}
 
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	volume := &datamodel.Volume{
 		Name: "test-volume",
@@ -3867,7 +3897,7 @@ func TestUpdateVolumeJunctionpath_InvalidProtocols_Success(t *testing.T) {
 	}
 	mockProvider.On("UpdateVolume", expectedParams).Return(nil)
 
-	err := activity.UpdateVolumeJunctionpath(ctx, volume, node)
+	_, err := env.ExecuteActivity(activity.UpdateVolumeJunctionpath, volume, node)
 	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 }

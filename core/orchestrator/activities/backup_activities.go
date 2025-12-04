@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 	"fmt"
+	"go.temporal.io/sdk/activity"
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
@@ -105,6 +106,7 @@ func (a BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Back
 }
 
 func (a BackupActivity) IsSnapmirrorDeleted(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (bool, error) {
+	activity.RecordHeartbeat(ctx, "is snapmirror-deleted check started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return false, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -118,6 +120,7 @@ func (a BackupActivity) IsSnapmirrorDeleted(ctx context.Context, node *models.No
 		}
 		return false, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "is snapmirror-deleted check completed")
 	return false, nil
 }
 
@@ -161,6 +164,7 @@ func (a BackupActivity) MarkBackupAvailable(ctx context.Context, backup *datamod
 
 // PrepareObjectStoreActivity prepares object store details
 func (b *BackupActivity) PrepareObjectStoreActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	activity.RecordHeartbeat(ctx, "PrepareObjectStoreActivity started")
 	objStoreName, err := getObjStoreName(backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Volume)
 	if err != nil {
 		return nil, err
@@ -173,7 +177,7 @@ func (b *BackupActivity) PrepareObjectStoreActivity(ctx context.Context, backupA
 	}
 	backupActivitiesContext.BucketDetails = bucketDetails
 	backupActivitiesContext.BucketName = bucketDetails.BucketName
-
+	activity.RecordHeartbeat(ctx, "PrepareObjectStoreActivity completed")
 	return backupActivitiesContext, nil
 }
 
@@ -364,19 +368,25 @@ func (b *BackupActivity) CheckTransferStatusActivity(ctx context.Context, backup
 }
 
 func (a BackupActivity) GetSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.SmObjectStoreEndpointSnapshot, error) {
+	activity.RecordHeartbeat(ctx, "GetSnapshotFromObjectStore started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return provider.SnapmirrorObjectStoreSnapshotGet(objectStoreUUID, EndpointUUID, snapshotUUID)
+	smObjectStoreEndpointSnapshot, err := provider.SnapmirrorObjectStoreSnapshotGet(objectStoreUUID, EndpointUUID, snapshotUUID)
+	activity.RecordHeartbeat(ctx, "GetSnapshotFromObjectStore completed")
+	return smObjectStoreEndpointSnapshot, err
 }
 
 func (a BackupActivity) GetObjectStoreEndpointInfo(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID string) (*vsa.SmObjectStoreEndpointt, error) {
+	activity.RecordHeartbeat(ctx, "GetObjectStoreEndpointInfo started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return provider.ObjectStoreEndpointInfoGet(objectStoreUUID, EndpointUUID)
+	smObjectStoreEndpointt, err := provider.ObjectStoreEndpointInfoGet(objectStoreUUID, EndpointUUID)
+	activity.RecordHeartbeat(ctx, "GetObjectStoreEndpointInfo completed")
+	return smObjectStoreEndpointt, err
 }
 
 // GetObjectStoreEndpointActivity gets object store endpoint info
@@ -499,6 +509,7 @@ func (b *BackupActivity) FinishBackupActivity(ctx context.Context, backupActivit
 }
 
 func (a BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models.Node, name, containerName string) (*commonparams.CloudTarget, error) {
+	activity.RecordHeartbeat(ctx, "GetOrCreateObjectStore started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -512,6 +523,7 @@ func (a BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models
 	}
 	objectStore, err = provider.CloudTargetCreate(name, containerName)
 	if err == nil {
+		activity.RecordHeartbeat(ctx, "GetOrCreateObjectStore completed")
 		// If no error, return the existing object store
 		return &commonparams.CloudTarget{Name: *objectStore.Name, UUID: *objectStore.UUID}, nil
 	}
@@ -520,6 +532,7 @@ func (a BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models
 }
 
 func (a BackupActivity) SnapmirrorGetOrCreate(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (*commonparams.SnapmirrorRelationship, error) {
+	activity.RecordHeartbeat(ctx, "SnapmirrorGetOrCreate started")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -558,12 +571,14 @@ func (a BackupActivity) SnapmirrorGetOrCreate(ctx context.Context, node *models.
 		if snapmirror.Destination != nil && snapmirror.Destination.UUID != nil {
 			resp.DestinationUUID = nillable.ToPointer(snapmirror.Destination.UUID.String())
 		}
+		activity.RecordHeartbeat(ctx, "SnapmirrorGetOrCreate completed")
 		return &resp, nil
 	}
 	return nil, err
 }
 
 func (a BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, name string) (*commonparams.CloudTarget, error) {
+	activity.RecordHeartbeat(ctx, "GetObjectStore started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -574,10 +589,12 @@ func (a BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, n
 		// If there is an error, it means the object store does not exist
 		return nil, errors.New("object store does not exist")
 	}
+	activity.RecordHeartbeat(ctx, "GetObjectStore completed")
 	return &commonparams.CloudTarget{Name: *objectStore.Name, UUID: *objectStore.UUID}, nil
 }
 
 func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, sourcePath, destinationPath string) (*commonparams.SnapmirrorRelationship, error) {
+	activity.RecordHeartbeat(ctx, "GetSnapmirror started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -591,6 +608,7 @@ func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, so
 	if snapmirror.Destination != nil && snapmirror.Destination.UUID != nil {
 		resp.DestinationUUID = nillable.ToPointer(snapmirror.Destination.UUID.String())
 	}
+	activity.RecordHeartbeat(ctx, "GetSnapmirror completed")
 	return &resp, nil
 }
 
@@ -607,6 +625,7 @@ func (a BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, v
 }
 
 func (a BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
+	activity.RecordHeartbeat(ctx, "SnapmirrorTransfer started")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -627,10 +646,13 @@ func (a BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Nod
 		logger.Error("SMC token is empty or nil")
 		return errors.New("SMC token is empty or nil")
 	}
-	return provider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName, token)
+	err = provider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName, token)
+	activity.RecordHeartbeat(ctx, "SnapmirrorTransfer completed")
+	return err
 }
 
 func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) (string, error) {
+	activity.RecordHeartbeat(ctx, "GetSnapmirrorTransferStatus started")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -658,6 +680,7 @@ func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *m
 			return SmStatusTransferring, nil
 		}
 	}
+	activity.RecordHeartbeat(ctx, "SnapmirrorTransferStatus completed")
 	return SmStatusFailed, errors.New("Snapmirror transfer failed with status: " + *rsp.State)
 }
 
@@ -723,6 +746,7 @@ func (a BackupActivity) GetBackupCountByVolumeUUID(ctx context.Context, volumeUU
 
 // DeleteSnapshotFromObjectStore Enhanced DeleteSnapshotFromObjectStore with idempotency
 func (a BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.OntapAsyncResponse, error) {
+	activity.RecordHeartbeat(ctx, "delete snapshot from object store started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -732,12 +756,13 @@ func (a BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node 
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
+	activity.RecordHeartbeat(ctx, "delete snapshot from object store completed")
 	return response, nil
 }
 
 // Enhanced DeleteSnapmirror with idempotency
 func (a BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node, snapmirrorUUID string) (*vsa.OntapAsyncResponse, error) {
+	activity.RecordHeartbeat(ctx, "delete snapmirror started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -746,12 +771,13 @@ func (a BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node,
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
+	activity.RecordHeartbeat(ctx, "delete snapmirror finished")
 	return response, nil
 }
 
 // DeleteCloudEndpoint Enhanced DeleteCloudEndpoint with idempotency
 func (a BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.Node, objectStoreUUID string, EndpointUUID string) (*vsa.OntapAsyncResponse, error) {
+	activity.RecordHeartbeat(ctx, "delete cloud endpoint started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -761,12 +787,13 @@ func (a BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.No
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
+	activity.RecordHeartbeat(ctx, "delete cloud endpoint finished")
 	return response, nil
 }
 
 // Enhanced DeleteSnapshotForBackup with idempotency
 func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string, useExistingSnapshot bool) error {
+	activity.RecordHeartbeat(ctx, "delete snapshot started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -784,7 +811,7 @@ func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *model
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
+	activity.RecordHeartbeat(ctx, "delete snapshot finished")
 	return nil
 }
 
@@ -1167,6 +1194,7 @@ func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.
 		return nil, err
 	}
 	logger.Info("Polled snapmirror transfer status", "snapshotName", input.SnapshotName, "status", status)
+	activity.RecordHeartbeat(ctx, "Polled snapmirror transfer status")
 
 	// Update the context with the new status
 	input.BackupActivitiesContext.TransferStatus = status
@@ -1194,7 +1222,9 @@ func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.
 		}
 		transferComplete = true
 		logger.Info("Transfer completed successfully", "snapshotName", input.SnapshotName)
+		activity.RecordHeartbeat(ctx, "Transfer completed successfully")
 	case SmStatusFailed:
+		activity.RecordHeartbeat(ctx, "Transfer failed")
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(fmt.Errorf("snapmirror transfer failed for snapshot %s with status: %s", input.SnapshotName, status))
 	}
 

@@ -19,7 +19,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -2187,9 +2186,12 @@ func TestBackupWorkflowSnapmirrorTransferWaitTimeCap(t *testing.T) {
 
 func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T) {
 	// Test case: When useExistingSnapshot is true, it should skip deletion
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 
 	// Mock hyperscaler provider
 	mockProvider := new(vsa.MockProvider)
@@ -2208,7 +2210,7 @@ func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T)
 	// No expectation set for DeleteSnapshot
 
 	// Execute
-	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, useExistingSnapshot)
 
 	// Assertions
 	assert.NoError(t, err)
@@ -2217,9 +2219,12 @@ func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T)
 
 func TestDeleteSnapshotForBackup_NotUseExistingSnapshot_DeletesSnapshot(t *testing.T) {
 	// Test case: When useExistingSnapshot is false, it should delete the snapshot
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 
 	// Mock hyperscaler provider
 	mockProvider := new(vsa.MockProvider)
@@ -2238,7 +2243,7 @@ func TestDeleteSnapshotForBackup_NotUseExistingSnapshot_DeletesSnapshot(t *testi
 	mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(nil)
 
 	// Execute
-	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, useExistingSnapshot)
 
 	// Assertions
 	assert.NoError(t, err)
@@ -2247,9 +2252,12 @@ func TestDeleteSnapshotForBackup_NotUseExistingSnapshot_DeletesSnapshot(t *testi
 
 func TestDeleteSnapshotForBackup_GetProviderByNodeFailure(t *testing.T) {
 	// Test case: When GetProviderByNode fails
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 
 	// Mock hyperscaler provider to return error
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2264,7 +2272,7 @@ func TestDeleteSnapshotForBackup_GetProviderByNodeFailure(t *testing.T) {
 	useExistingSnapshot := false
 
 	// Execute
-	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, useExistingSnapshot)
 
 	// Assertions
 	assert.Error(t, err)
@@ -2273,9 +2281,12 @@ func TestDeleteSnapshotForBackup_GetProviderByNodeFailure(t *testing.T) {
 
 func TestDeleteSnapshotForBackup_DeleteSnapshotFailure(t *testing.T) {
 	// Test case: When DeleteSnapshot fails
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 
 	// Mock hyperscaler provider
 	mockProvider := new(vsa.MockProvider)
@@ -2294,7 +2305,7 @@ func TestDeleteSnapshotForBackup_DeleteSnapshotFailure(t *testing.T) {
 	mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(errors.New("failed to delete snapshot"))
 
 	// Execute
-	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, useExistingSnapshot)
 
 	// Assertions
 	assert.Error(t, err)

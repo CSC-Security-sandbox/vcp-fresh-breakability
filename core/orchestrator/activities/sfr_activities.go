@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"go.temporal.io/sdk/activity"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -21,6 +22,7 @@ type SFRActivity struct {
 // SnapmirrorTransferWithFiles performs snapmirror transfer with a list of files (using inode numbers)
 // This activity is specific to Single File Restore (SFR) operations
 func (a SFRActivity) SnapmirrorTransferWithFiles(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string, files []*commonparams.SnapmirrorTransferFile) error {
+	activity.RecordHeartbeat(ctx, "SnapmirrorTransferWithFiles started")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -41,7 +43,9 @@ func (a SFRActivity) SnapmirrorTransferWithFiles(ctx context.Context, node *mode
 		logger.Error("SMC token is empty or nil")
 		return errors.New("SMC token is empty or nil")
 	}
-	return provider.SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName, token, files)
+	err = provider.SnapmirrorRelationshipTransferCreateWithFiles(snapmirrorUUID, snapshotName, token, files)
+	activity.RecordHeartbeat(ctx, "SnapmirrorTransferWithFiles finished")
+	return err
 }
 
 // FileInodeAndSize represents inode number and file size for a file

@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestPopulateSfrMetadataActivity(t *testing.T) {
@@ -285,9 +286,12 @@ func TestPopulateSfrMetadataActivity(t *testing.T) {
 
 func TestSnapmirrorTransferWithFiles(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockSE := database.NewMockStorage(t)
 		activity := activities.SFRActivity{SE: mockSE}
+		env.RegisterActivity(&activity)
 
 		node := &models.Node{
 			Name: "test-node",
@@ -330,15 +334,18 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 
 		mockProvider.On("SnapmirrorRelationshipTransferCreateWithFiles", snapmirrorUUID, snapshotName, &token, files).Return(nil)
 
-		err := activity.SnapmirrorTransferWithFiles(ctx, node, snapmirrorUUID, snapshotName, files)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransferWithFiles, node, snapmirrorUUID, snapshotName, files)
 		assert.NoError(t, err)
 		mockProvider.AssertExpectations(t)
 	})
 
 	t.Run("GetProviderByNodeError", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockSE := database.NewMockStorage(t)
 		activity := activities.SFRActivity{SE: mockSE}
+		env.RegisterActivity(&activity)
 
 		node := &models.Node{
 			Name: "test-node",
@@ -357,14 +364,18 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 			return nil, errors.New("failed to get provider")
 		}
 
-		err := activity.SnapmirrorTransferWithFiles(ctx, node, snapmirrorUUID, snapshotName, files)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransferWithFiles, node, snapmirrorUUID, snapshotName, files)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get provider")
 	})
 
 	t.Run("GetSmcLicenseFromCloudError", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockSE := database.NewMockStorage(t)
 		activity := activities.SFRActivity{SE: mockSE}
+		env.RegisterActivity(&activity)
 
 		node := &models.Node{
 			Name: "test-node",
@@ -393,15 +404,18 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 			return "", errors.New("failed to get SMC license")
 		}
 
-		err := activity.SnapmirrorTransferWithFiles(ctx, node, snapmirrorUUID, snapshotName, files)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransferWithFiles, node, snapmirrorUUID, snapshotName, files)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get SMC license from cloud")
 	})
 
 	t.Run("GenerateTokenForNodeError", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockSE := database.NewMockStorage(t)
 		activity := activities.SFRActivity{SE: mockSE}
+		env.RegisterActivity(&activity)
 
 		node := &models.Node{
 			Name: "test-node",
@@ -436,15 +450,18 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 			return nil, errors.New("failed to generate token")
 		}
 
-		err := activity.SnapmirrorTransferWithFiles(ctx, node, snapmirrorUUID, snapshotName, files)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransferWithFiles, node, snapmirrorUUID, snapshotName, files)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to generate SMC token for node")
 	})
 
 	t.Run("NilToken", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockSE := database.NewMockStorage(t)
 		activity := activities.SFRActivity{SE: mockSE}
+		env.RegisterActivity(&activity)
 
 		node := &models.Node{
 			Name: "test-node",
@@ -479,15 +496,18 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 			return nil, nil // Return nil token
 		}
 
-		err := activity.SnapmirrorTransferWithFiles(ctx, node, snapmirrorUUID, snapshotName, files)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransferWithFiles, node, snapmirrorUUID, snapshotName, files)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "SMC token is empty or nil")
 	})
 
 	t.Run("EmptyToken", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockSE := database.NewMockStorage(t)
 		activity := activities.SFRActivity{SE: mockSE}
+		env.RegisterActivity(&activity)
 
 		node := &models.Node{
 			Name: "test-node",
@@ -523,15 +543,18 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 			return &emptyToken, nil // Return empty token
 		}
 
-		err := activity.SnapmirrorTransferWithFiles(ctx, node, snapmirrorUUID, snapshotName, files)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransferWithFiles, node, snapmirrorUUID, snapshotName, files)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "SMC token is empty or nil")
 	})
 
 	t.Run("SnapmirrorRelationshipTransferCreateWithFilesError", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockSE := database.NewMockStorage(t)
 		activity := activities.SFRActivity{SE: mockSE}
+		env.RegisterActivity(&activity)
 
 		node := &models.Node{
 			Name: "test-node",
@@ -574,8 +597,9 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 
 		mockProvider.On("SnapmirrorRelationshipTransferCreateWithFiles", snapmirrorUUID, snapshotName, &token, files).Return(errors.New("transfer failed"))
 
-		err := activity.SnapmirrorTransferWithFiles(ctx, node, snapmirrorUUID, snapshotName, files)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransferWithFiles, node, snapmirrorUUID, snapshotName, files)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "transfer failed")
 		mockProvider.AssertExpectations(t)
 	})
 }

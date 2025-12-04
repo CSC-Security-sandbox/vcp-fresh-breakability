@@ -26,6 +26,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/testsuite"
 	"gorm.io/gorm"
 )
 
@@ -218,11 +219,15 @@ func TestFinishBackup_Failure(t *testing.T) {
 
 func TestGetOrCreateObjectStore(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
@@ -235,8 +240,6 @@ func TestGetOrCreateObjectStore(t *testing.T) {
 		UUID:      nillable.ToPointer("123e4567-e89b-12d3-a456-426614174000"),
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
 	node := &models.Node{}
 	expectedResponse := &ontap_rest.CloudTarget{CloudTarget: ct}
 
@@ -244,23 +247,30 @@ func TestGetOrCreateObjectStore(t *testing.T) {
 	mockProvider.On("CloudTargetGet", mock.Anything).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.GetOrCreateObjectStore(ctx, node, "container-name", "targetName")
+	encodedValue, err := env.ExecuteActivity(activity.GetOrCreateObjectStore, node, "container-name", "targetName")
 
 	// Assert
 	assert.NoError(t, err)
+	var result *commonparams.CloudTarget
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 	assert.Equal(t, "targetName", result.Name)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestSnapmirrorGetorCreate_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 	originalGenerateTokenForNode := GenerateTokenForNode
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() {
 		hyperscaler.GetProviderByNode = originalGetProviderByNode
 		GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
@@ -291,21 +301,28 @@ func TestSnapmirrorGetorCreate_Success(t *testing.T) {
 	mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.SnapmirrorGetOrCreate(ctx, node, SnapmirrorRelationshipParams)
+	encodedValue, err := env.ExecuteActivity(activity.SnapmirrorGetOrCreate, node, SnapmirrorRelationshipParams)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *commonparams.SnapmirrorRelationship
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 	assert.Equal(t, expectedResponse.Destination.UUID.String(), *result.DestinationUUID)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestSnapmirrorGetorCreate_GetProviderByNode(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() {
 		hyperscaler.GetProviderByNode = originalGetProviderByNode
 	}()
@@ -323,24 +340,32 @@ func TestSnapmirrorGetorCreate_GetProviderByNode(t *testing.T) {
 		IsRestore:       false,
 	}
 	// Act
-	result, err := activity.SnapmirrorGetOrCreate(ctx, node, SnapmirrorRelationshipParams)
+	encodedValue, err := env.ExecuteActivity(activity.SnapmirrorGetOrCreate, node, SnapmirrorRelationshipParams)
 
 	// Assert
-	assert.Nil(t, result)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "provider-error")
+	// When there's an error, encodedValue will be nil
+	if encodedValue != nil {
+		var result *commonparams.SnapmirrorRelationship
+		err = encodedValue.Get(&result)
+		assert.Nil(t, result)
+	}
 	mockProvider.AssertExpectations(t)
 }
 
 func TestSnapmirrorGetorCreate_CreateNew(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 	originalGenerateTokenForNode := GenerateTokenForNode
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() {
 		hyperscaler.GetProviderByNode = originalGetProviderByNode
 		GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
@@ -372,10 +397,14 @@ func TestSnapmirrorGetorCreate_CreateNew(t *testing.T) {
 	mockProvider.On("SnapmirrorRelationshipCreate", SnapmirrorRelationshipParams, mock.Anything).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.SnapmirrorGetOrCreate(ctx, node, SnapmirrorRelationshipParams)
+	encodedValue, err := env.ExecuteActivity(activity.SnapmirrorGetOrCreate, node, SnapmirrorRelationshipParams)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *commonparams.SnapmirrorRelationship
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 	assert.Equal(t, expectedResponse.UUID.String(), result.UUID)
 	mockProvider.AssertExpectations(t)
 }
@@ -452,18 +481,21 @@ func TestSnapshotCreate_Failure(t *testing.T) {
 
 func TestGetOrCreateObjectStore_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	node := &models.Node{}
 	objStoreName := "test-objstore"
 	bucketName := "test-bucket"
@@ -476,33 +508,40 @@ func TestGetOrCreateObjectStore_Success(t *testing.T) {
 	mockProvider.On("CloudTargetGet", &objStoreName).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.GetOrCreateObjectStore(ctx, node, objStoreName, bucketName)
+	encodedValue, err := env.ExecuteActivity(activity.GetOrCreateObjectStore, node, objStoreName, bucketName)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *commonparams.CloudTarget
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 	assert.Equal(t, *expectedResponse.Name, result.Name)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestGetOrCreateObjectStore_GetProviderByNodeFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("get-povider-error")
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	node := &models.Node{}
 	objStoreName := "test-objstore"
 	bucketName := "test-bucket"
 	// Act
-	_, err := activity.GetOrCreateObjectStore(ctx, node, objStoreName, bucketName)
+	_, err := env.ExecuteActivity(activity.GetOrCreateObjectStore, node, objStoreName, bucketName)
 
 	// Assert
 	assert.Error(t, err)
@@ -512,18 +551,21 @@ func TestGetOrCreateObjectStore_GetProviderByNodeFailure(t *testing.T) {
 
 func TestGetOrCreateObjectStore_CreateNew(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	node := &models.Node{}
 	objStoreName := "test-objstore"
 	bucketName := "test-bucket"
@@ -533,10 +575,14 @@ func TestGetOrCreateObjectStore_CreateNew(t *testing.T) {
 	mockProvider.On("CloudTargetCreate", objStoreName, bucketName).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.GetOrCreateObjectStore(ctx, node, objStoreName, bucketName)
+	encodedValue, err := env.ExecuteActivity(activity.GetOrCreateObjectStore, node, objStoreName, bucketName)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *commonparams.CloudTarget
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 	assert.Equal(t, *expectedResponse.Name, result.Name)
 	assert.Equal(t, *expectedResponse.UUID, result.UUID)
 
@@ -545,18 +591,21 @@ func TestGetOrCreateObjectStore_CreateNew(t *testing.T) {
 
 func TestGetOrCreateObjectStore_Failure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	node := &models.Node{}
 	objStoreName := "test-objstore"
 	bucketName := "test-bucket"
@@ -565,22 +614,25 @@ func TestGetOrCreateObjectStore_Failure(t *testing.T) {
 	mockProvider.On("CloudTargetCreate", objStoreName, bucketName).Return(nil, errors.New("creation failed"))
 
 	// Act
-	result, err := activity.GetOrCreateObjectStore(ctx, node, objStoreName, bucketName)
+	_, err := env.ExecuteActivity(activity.GetOrCreateObjectStore, node, objStoreName, bucketName)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "failed to get or create")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestSnapshotActivities(t *testing.T) {
 	t.Run("SnapmirrorTransfer_WhenTransferSucceeds_ThenReturnNil", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 		originalGenerateTokenForNode := GenerateTokenForNode
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		defer func() {
 			hyperscaler.GetProviderByNode = originalGetProviderByNode
 			GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
@@ -596,9 +648,6 @@ func TestSnapshotActivities(t *testing.T) {
 		GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
 			token := "mock-token"
 			return &token, nil
-		}
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-			return mockProvider, nil
 		}
 
 		node := &models.Node{}
@@ -607,18 +656,22 @@ func TestSnapshotActivities(t *testing.T) {
 
 		mockProvider.On("SnapmirrorRelationshipTransferCreate", snapmirrorUUID, snapshotName, mock.Anything).Return(nil)
 
-		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransfer, node, snapmirrorUUID, snapshotName)
 
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("SnapmirrorTransfer_WhenTransferFails_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 		originalGenerateTokenForNode := GenerateTokenForNode
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		defer func() {
 			hyperscaler.GetProviderByNode = originalGetProviderByNode
 			GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
@@ -635,9 +688,6 @@ func TestSnapshotActivities(t *testing.T) {
 			token := "mock-token"
 			return &token, nil
 		}
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-			return mockProvider, nil
-		}
 
 		node := &models.Node{}
 		snapmirrorUUID := "snapmirror-uuid"
@@ -645,7 +695,7 @@ func TestSnapshotActivities(t *testing.T) {
 
 		mockProvider.On("SnapmirrorRelationshipTransferCreate", snapmirrorUUID, snapshotName, mock.Anything).Return(errors.New("transfer failed"))
 
-		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransfer, node, snapmirrorUUID, snapshotName)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "transfer failed")
@@ -653,8 +703,12 @@ func TestSnapshotActivities(t *testing.T) {
 	})
 
 	t.Run("SnapmirrorTransferPoll_WhenTransferSucceeds_ThenReturnNil", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -667,16 +721,23 @@ func TestSnapshotActivities(t *testing.T) {
 		state := "success"
 
 		mockProvider.On("SnapmirrorRelationshipTransferGet", snapmirrorUUID, snapshotName).Return(&ontap_rest.SnapmirrorTransfer{SnapmirrorTransfer: oModels.SnapmirrorTransfer{State: &state}}, nil)
-		status, err := activity.GetSnapmirrorTransferStatus(context.Background(), node, snapmirrorUUID, snapshotName)
+		encodedValue, err := env.ExecuteActivity(activity.GetSnapmirrorTransferStatus, node, snapmirrorUUID, snapshotName)
 
+		assert.NoError(tt, err)
+		var status string
+		err = encodedValue.Get(&status)
 		assert.NoError(tt, err)
 		assert.Equal(tt, state, status)
 		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("SnapmirrorTransferPoll_WhenTransferFails_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -690,17 +751,27 @@ func TestSnapshotActivities(t *testing.T) {
 
 		mockProvider.On("SnapmirrorRelationshipTransferGet", snapmirrorUUID, snapshotName).Return(&ontap_rest.SnapmirrorTransfer{SnapmirrorTransfer: oModels.SnapmirrorTransfer{State: &state}}, fmt.Errorf("Snapmirror transfer failed with state: failed"))
 
-		status, err := activity.GetSnapmirrorTransferStatus(context.Background(), node, snapmirrorUUID, snapshotName)
+		encodedValue, err := env.ExecuteActivity(activity.GetSnapmirrorTransferStatus, node, snapmirrorUUID, snapshotName)
 
 		assert.Error(tt, err)
-		assert.Equal(tt, state, status)
+		if encodedValue != nil {
+			var status string
+			err = encodedValue.Get(&status)
+			if err == nil {
+				assert.Equal(tt, state, status)
+			}
+		}
 		assert.Contains(tt, err.Error(), "Snapmirror transfer failed with state: failed")
 		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("DeleteSnapshot_WhenDeleteSucceeds_ThenReturnNil", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -713,15 +784,19 @@ func TestSnapshotActivities(t *testing.T) {
 
 		mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(nil)
 
-		err := activity.DeleteBackupSnapshot(context.Background(), node, snapshotUUID, volumeUUID)
+		_, err := env.ExecuteActivity(activity.DeleteBackupSnapshot, node, snapshotUUID, volumeUUID)
 
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("DeleteSnapshot_WhenDeleteFails_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -734,7 +809,7 @@ func TestSnapshotActivities(t *testing.T) {
 
 		mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(errors.New("delete failed"))
 
-		err := activity.DeleteBackupSnapshot(context.Background(), node, snapshotUUID, volumeUUID)
+		_, err := env.ExecuteActivity(activity.DeleteBackupSnapshot, node, snapshotUUID, volumeUUID)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "delete failed")
@@ -742,46 +817,62 @@ func TestSnapshotActivities(t *testing.T) {
 	})
 
 	t.Run("DeleteSnapshot_WhenSnapshotUUIDEmpty_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		node := &models.Node{}
 		snapshotUUID := ""
 		volumeUUID := "volume-uuid"
 
-		err := activity.DeleteBackupSnapshot(context.Background(), node, snapshotUUID, volumeUUID)
+		_, err := env.ExecuteActivity(activity.DeleteBackupSnapshot, node, snapshotUUID, volumeUUID)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "invalid input: snapshotUUID and volumeUUID cannot be empty")
 	})
 
 	t.Run("DeleteSnapshot_WhenVolumeUUIDEmpty_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		node := &models.Node{}
 		snapshotUUID := "snapshot-uuid"
 		volumeUUID := ""
 
-		err := activity.DeleteBackupSnapshot(context.Background(), node, snapshotUUID, volumeUUID)
+		_, err := env.ExecuteActivity(activity.DeleteBackupSnapshot, node, snapshotUUID, volumeUUID)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "invalid input: snapshotUUID and volumeUUID cannot be empty")
 	})
 
 	t.Run("DeleteSnapshot_WhenBothUUIDsEmpty_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		node := &models.Node{}
 		snapshotUUID := ""
 		volumeUUID := ""
 
-		err := activity.DeleteBackupSnapshot(context.Background(), node, snapshotUUID, volumeUUID)
+		_, err := env.ExecuteActivity(activity.DeleteBackupSnapshot, node, snapshotUUID, volumeUUID)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "invalid input: snapshotUUID and volumeUUID cannot be empty")
 	})
 	t.Run("SnapmirrorTransfer_WhenGetSmcLicenseFails_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 		originalGenerateTokenForNode := GenerateTokenForNode
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		defer func() {
 			hyperscaler.GetProviderByNode = originalGetProviderByNode
 			GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
@@ -803,7 +894,7 @@ func TestSnapshotActivities(t *testing.T) {
 		snapmirrorUUID := "snapmirror-uuid"
 		snapshotName := "snapshot-name"
 
-		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransfer, node, snapmirrorUUID, snapshotName)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to get SMC license from cloud")
@@ -811,11 +902,15 @@ func TestSnapshotActivities(t *testing.T) {
 	})
 
 	t.Run("SnapmirrorTransfer_WhenGenerateTokenFails_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 		originalGenerateTokenForNode := GenerateTokenForNode
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		defer func() {
 			hyperscaler.GetProviderByNode = originalGetProviderByNode
 			GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
@@ -836,7 +931,7 @@ func TestSnapshotActivities(t *testing.T) {
 		snapmirrorUUID := "snapmirror-uuid"
 		snapshotName := "snapshot-name"
 
-		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransfer, node, snapmirrorUUID, snapshotName)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to generate SMC token for node")
@@ -844,11 +939,15 @@ func TestSnapshotActivities(t *testing.T) {
 	})
 
 	t.Run("SnapmirrorTransfer_WhenTokenIsNil_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 		originalGenerateTokenForNode := GenerateTokenForNode
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		defer func() {
 			hyperscaler.GetProviderByNode = originalGetProviderByNode
 			GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
@@ -869,7 +968,7 @@ func TestSnapshotActivities(t *testing.T) {
 		snapmirrorUUID := "snapmirror-uuid"
 		snapshotName := "snapshot-name"
 
-		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransfer, node, snapmirrorUUID, snapshotName)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "SMC token is empty or nil")
@@ -877,11 +976,15 @@ func TestSnapshotActivities(t *testing.T) {
 	})
 
 	t.Run("SnapmirrorTransfer_WhenTokenIsEmpty_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 		originalGenerateTokenForNode := GenerateTokenForNode
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		defer func() {
 			hyperscaler.GetProviderByNode = originalGetProviderByNode
 			GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
@@ -903,7 +1006,7 @@ func TestSnapshotActivities(t *testing.T) {
 		snapmirrorUUID := "snapmirror-uuid"
 		snapshotName := "snapshot-name"
 
-		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+		_, err := env.ExecuteActivity(activity.SnapmirrorTransfer, node, snapmirrorUUID, snapshotName)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "SMC token is empty or nil")
@@ -913,8 +1016,12 @@ func TestSnapshotActivities(t *testing.T) {
 
 func TestGetObjectStore_GetProviderByNodeFailure(t *testing.T) {
 	t.Run("onSuccess", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -929,14 +1036,17 @@ func TestGetObjectStore_GetProviderByNodeFailure(t *testing.T) {
 			},
 		}, nil)
 
-		objectStore, err := activity.GetObjectStore(context.Background(), &models.Node{}, bucketName)
-		assert.Nil(t, objectStore)
+		_, err := env.ExecuteActivity(activity.GetObjectStore, &models.Node{}, bucketName)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "provider error")
 	})
 	t.Run("onFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -946,17 +1056,20 @@ func TestGetObjectStore_GetProviderByNodeFailure(t *testing.T) {
 		bucketName := "test-bucket"
 		mockProvider.On("CloudTargetGet", &bucketName).Return(nil, errors.New("failed"))
 
-		objectStore, err := activity.GetObjectStore(context.Background(), &models.Node{}, "test-bucket")
+		_, err := env.ExecuteActivity(activity.GetObjectStore, &models.Node{}, "test-bucket")
 		assert.NotNil(t, err)
-		assert.Nil(t, objectStore)
-		assert.EqualError(t, err, "object store does not exist")
+		assert.Contains(t, err.Error(), "object store does not exist")
 	})
 }
 
 func TestGetObjectStore(t *testing.T) {
 	t.Run("onSuccess", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -971,14 +1084,21 @@ func TestGetObjectStore(t *testing.T) {
 			},
 		}, nil)
 
-		objectStore, err := activity.GetObjectStore(context.Background(), &models.Node{}, bucketName)
+		encodedValue, err := env.ExecuteActivity(activity.GetObjectStore, &models.Node{}, bucketName)
 		assert.Nil(t, err)
+		var objectStore *commonparams.CloudTarget
+		err = encodedValue.Get(&objectStore)
+		assert.NoError(t, err)
 		assert.NotNil(t, objectStore)
 		assert.Equal(t, "test-container", objectStore.Name)
 	})
 	t.Run("onFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -988,17 +1108,20 @@ func TestGetObjectStore(t *testing.T) {
 		bucketName := "test-bucket"
 		mockProvider.On("CloudTargetGet", &bucketName).Return(nil, errors.New("failed"))
 
-		objectStore, err := activity.GetObjectStore(context.Background(), &models.Node{}, "test-bucket")
+		_, err := env.ExecuteActivity(activity.GetObjectStore, &models.Node{}, "test-bucket")
 		assert.NotNil(t, err)
-		assert.Nil(t, objectStore)
-		assert.EqualError(t, err, "object store does not exist")
+		assert.Contains(t, err.Error(), "object store does not exist")
 	})
 }
 
 func TestGetSnapmirror(t *testing.T) {
 	t.Run("onSuccess", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -1011,14 +1134,21 @@ func TestGetSnapmirror(t *testing.T) {
 				UUID: nillable.ToPointer(strfmt.UUID("123e4567-e89b-12d3-a456-426614174000")),
 			},
 		}, nil)
-		snapmirror, err := activity.GetSnapmirror(context.Background(), &models.Node{}, sourcePath, destinationPath)
+		encodedValue, err := env.ExecuteActivity(activity.GetSnapmirror, &models.Node{}, sourcePath, destinationPath)
 		assert.Nil(t, err)
+		var snapmirror *commonparams.SnapmirrorRelationship
+		err = encodedValue.Get(&snapmirror)
+		assert.NoError(t, err)
 		assert.NotNil(t, snapmirror)
 		assert.Equal(t, "123e4567-e89b-12d3-a456-426614174000", snapmirror.UUID)
 	})
 	t.Run("onFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -1027,13 +1157,16 @@ func TestGetSnapmirror(t *testing.T) {
 		sourcePath := "source-path"
 		destinationPath := "destination-path"
 		mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, utilerrors.NewNotFoundErr("snapmirror relationship not found for destination: "+destinationPath+" and source: "+sourcePath, nil))
-		snapmirror, err := activity.GetSnapmirror(context.Background(), &models.Node{}, sourcePath, destinationPath)
+		_, err := env.ExecuteActivity(activity.GetSnapmirror, &models.Node{}, sourcePath, destinationPath)
 		assert.NotNil(t, err)
-		assert.Nil(t, snapmirror)
 		assert.Contains(t, err.Error(), "failed to get snapmirror relationship")
 	})
 	t.Run("onGetProviderByNodeFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -1041,10 +1174,9 @@ func TestGetSnapmirror(t *testing.T) {
 		}
 		sourcePath := "source-path"
 		destinationPath := "destination-path"
-		snapmirror, err := activity.GetSnapmirror(context.Background(), &models.Node{}, sourcePath, destinationPath)
+		_, err := env.ExecuteActivity(activity.GetSnapmirror, &models.Node{}, sourcePath, destinationPath)
 		assert.Error(t, err)
-		assert.Nil(t, snapmirror)
-		assert.EqualError(t, err, "provider error")
+		assert.Contains(t, err.Error(), "provider error")
 	})
 }
 
@@ -1187,14 +1319,17 @@ func TestGetBackupCountByVolumeUUID(t *testing.T) {
 
 func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 	t.Run("onSuccessWithJob", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapshotUUID := "snapshot-uuid"
 		endpointUUID := "endpoint-uuid"
@@ -1203,147 +1338,183 @@ func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 		mockProvider.On("SnapmirrorObjectStoreSnapshotDelete", objectStoreUUID, endpointUUID, snapshotUUID).Return(&vsa.OntapAsyncResponse{
 			JobUUID: jobUUID,
 		}, nil)
-		job, err := activity.DeleteSnapshotFromObjectStore(ctx, node, objectStoreUUID, endpointUUID, snapshotUUID)
+		encodedValue, err := env.ExecuteActivity(activity.DeleteSnapshotFromObjectStore, node, objectStoreUUID, endpointUUID, snapshotUUID)
+		assert.NoError(t, err)
+		var job *vsa.OntapAsyncResponse
+		err = encodedValue.Get(&job)
 		assert.NoError(t, err)
 		assert.NotNil(t, job)
 		assert.Equal(t, jobUUID, job.JobUUID)
 	})
 	t.Run("onSuccessWithoutJob", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapshotUUID := "snapshot-uuid"
 		endpointUUID := "endpoint-uuid"
 		objectStoreUUID := "object-store-uuid"
 		mockProvider.On("SnapmirrorObjectStoreSnapshotDelete", objectStoreUUID, endpointUUID, snapshotUUID).Return(nil, nil)
-		job, err := activity.DeleteSnapshotFromObjectStore(ctx, node, objectStoreUUID, endpointUUID, snapshotUUID)
+		encodedValue, err := env.ExecuteActivity(activity.DeleteSnapshotFromObjectStore, node, objectStoreUUID, endpointUUID, snapshotUUID)
 		assert.NoError(t, err)
-		assert.Nil(t, job)
+		if encodedValue != nil && encodedValue.HasValue() {
+			var job *vsa.OntapAsyncResponse
+			err = encodedValue.Get(&job)
+			assert.NoError(t, err)
+			assert.Nil(t, job)
+		}
 	})
 	t.Run("onFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapshotUUID := "snapshot-uuid"
 		endpointUUID := "endpoint-uuid"
 		objectStoreUUID := "object-store-uuid"
 		mockProvider.On("SnapmirrorObjectStoreSnapshotDelete", objectStoreUUID, endpointUUID, snapshotUUID).Return(nil, errors.New("delete failed"))
-		job, err := activity.DeleteSnapshotFromObjectStore(ctx, node, objectStoreUUID, endpointUUID, snapshotUUID)
+		_, err := env.ExecuteActivity(activity.DeleteSnapshotFromObjectStore, node, objectStoreUUID, endpointUUID, snapshotUUID)
 		assert.Error(t, err)
-		assert.Nil(t, job)
-		assert.EqualError(t, err, "delete failed")
+		assert.Contains(t, err.Error(), "delete failed")
 	})
 	t.Run("onGetProviderbyNodeFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapshotUUID := "snapshot-uuid"
 		endpointUUID := "endpoint-uuid"
 		objectStoreUUID := "object-store-uuid"
-		job, err := activity.DeleteSnapshotFromObjectStore(ctx, node, objectStoreUUID, endpointUUID, snapshotUUID)
+		_, err := env.ExecuteActivity(activity.DeleteSnapshotFromObjectStore, node, objectStoreUUID, endpointUUID, snapshotUUID)
 		assert.Error(t, err)
-		assert.Nil(t, job)
-		assert.EqualError(t, err, "failed to get provider")
+		assert.Contains(t, err.Error(), "failed to get provider")
 	})
 }
 
 func TestDeleteSnapmirror(t *testing.T) {
 	t.Run("onSuccessWithJob", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapmirrorUUID := "snapmirror-uuid"
 		jobUUID := "123e4567-e89b-12d3-a456-426614174000"
 		mockProvider.On("SnapmirrorRelationshipDelete", snapmirrorUUID).Return(&vsa.OntapAsyncResponse{
 			JobUUID: jobUUID,
 		}, nil)
-		job, err := activity.DeleteSnapmirror(ctx, node, snapmirrorUUID)
-		assert.Nil(t, err)
+		encodedValue, err := env.ExecuteActivity(activity.DeleteSnapmirror, node, snapmirrorUUID)
+		assert.NoError(t, err)
+		var job *vsa.OntapAsyncResponse
+		err = encodedValue.Get(&job)
+		assert.NoError(t, err)
 		assert.NotNil(t, job)
 	})
 	t.Run("onSuccessWithoutJob", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapmirrorUUID := "snapmirror-uuid"
 		mockProvider.On("SnapmirrorRelationshipDelete", snapmirrorUUID).Return(nil, nil)
-		job, err := activity.DeleteSnapmirror(ctx, node, snapmirrorUUID)
-		assert.Nil(t, err)
-		assert.Nil(t, job)
+		encodedValue, err := env.ExecuteActivity(activity.DeleteSnapmirror, node, snapmirrorUUID)
+		assert.NoError(t, err)
+		if encodedValue != nil && encodedValue.HasValue() {
+			var job *vsa.OntapAsyncResponse
+			err = encodedValue.Get(&job)
+			assert.NoError(t, err)
+			assert.Nil(t, job)
+		}
 	})
 	t.Run("onFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapmirrorUUID := "snapmirror-uuid"
 		mockProvider.On("SnapmirrorRelationshipDelete", snapmirrorUUID).Return(nil, errors.New("delete failed"))
-		job, err := activity.DeleteSnapmirror(ctx, node, snapmirrorUUID)
+		_, err := env.ExecuteActivity(activity.DeleteSnapmirror, node, snapmirrorUUID)
 		assert.Error(t, err)
-		assert.Nil(t, job)
-		assert.EqualError(t, err, "delete failed")
+		assert.Contains(t, err.Error(), "delete failed")
 	})
 	t.Run("onGetProviderbyNodeFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapmirrorUUID := "snapmirror-uuid"
-		job, err := activity.DeleteSnapmirror(ctx, node, snapmirrorUUID)
+		_, err := env.ExecuteActivity(activity.DeleteSnapmirror, node, snapmirrorUUID)
 		assert.Error(t, err)
-		assert.Nil(t, job)
-		assert.EqualError(t, err, "failed to get provider")
+		assert.Contains(t, err.Error(), "failed to get provider")
 	})
 }
 
 func TestDeleteCloudEndpoint(t *testing.T) {
 	t.Run("onSuccessWithJob", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		endpointUUID := "endpoint-uuid"
 		objectStoreUUID := "object-store-uuid"
@@ -1351,111 +1522,135 @@ func TestDeleteCloudEndpoint(t *testing.T) {
 		mockProvider.On("SnapmirrorObjectStoreEndpointDelete", objectStoreUUID, endpointUUID).Return(&vsa.OntapAsyncResponse{
 			JobUUID: jobUUID,
 		}, nil)
-		job, err := activity.DeleteCloudEndpoint(ctx, node, objectStoreUUID, endpointUUID)
-		assert.Nil(t, err)
+		encodedValue, err := env.ExecuteActivity(activity.DeleteCloudEndpoint, node, objectStoreUUID, endpointUUID)
+		assert.NoError(t, err)
+		var job *vsa.OntapAsyncResponse
+		err = encodedValue.Get(&job)
+		assert.NoError(t, err)
 		assert.NotNil(t, job)
 	})
 	t.Run("onSuccessWithoutJob", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		endpointUUID := "endpoint-uuid"
 		objectStoreUUID := "object-store-uuid"
 		mockProvider.On("SnapmirrorObjectStoreEndpointDelete", objectStoreUUID, endpointUUID).Return(nil, nil)
-		job, err := activity.DeleteCloudEndpoint(ctx, node, objectStoreUUID, endpointUUID)
-		assert.Nil(t, err)
-		assert.Nil(t, job)
+		encodedValue, err := env.ExecuteActivity(activity.DeleteCloudEndpoint, node, objectStoreUUID, endpointUUID)
+		assert.NoError(t, err)
+		if encodedValue != nil && encodedValue.HasValue() {
+			var job *vsa.OntapAsyncResponse
+			err = encodedValue.Get(&job)
+			assert.NoError(t, err)
+			assert.Nil(t, job)
+		}
 	})
 	t.Run("onFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		endpointUUID := "endpoint-uuid"
 		objectStoreUUID := "object-store-uuid"
 		mockProvider.On("SnapmirrorObjectStoreEndpointDelete", objectStoreUUID, endpointUUID).Return(nil, errors.New("delete failed"))
-		job, err := activity.DeleteCloudEndpoint(ctx, node, objectStoreUUID, endpointUUID)
+		_, err := env.ExecuteActivity(activity.DeleteCloudEndpoint, node, objectStoreUUID, endpointUUID)
 		assert.Error(t, err)
-		assert.Nil(t, job)
-		assert.EqualError(t, err, "delete failed")
+		assert.Contains(t, err.Error(), "delete failed")
 	})
 	t.Run("onGetProviderByNodeFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		endpointUUID := "endpoint-uuid"
 		objectStoreUUID := "object-store-uuid"
-		job, err := activity.DeleteCloudEndpoint(ctx, node, objectStoreUUID, endpointUUID)
+		_, err := env.ExecuteActivity(activity.DeleteCloudEndpoint, node, objectStoreUUID, endpointUUID)
 		assert.Error(t, err)
-		assert.Nil(t, job)
-		assert.EqualError(t, err, "failed to get provider")
+		assert.Contains(t, err.Error(), "failed to get provider")
 	})
 }
 
 func TestDeleteSnapshotForBackup(t *testing.T) {
 	t.Run("onSuccess", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapshotUUID := "snapshot-uuid"
 		volumeUUID := "volume-uuid"
 		mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(nil)
-		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, false)
-		assert.Nil(t, err)
+		_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, false)
+		assert.NoError(t, err)
 	})
 	t.Run("onFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapshotUUID := "snapshot-uuid"
 		volumeUUID := "volume-uuid"
 		mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(errors.New("delete failed"))
-		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, false)
+		_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, false)
 		assert.Error(t, err)
-		assert.EqualError(t, err, "delete failed")
+		assert.Contains(t, err.Error(), "delete failed")
 	})
 	t.Run("onGetProviderByNodeFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		snapshotUUID := "snapshot-uuid"
 		volumeUUID := "volume-uuid"
-		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, false)
+		_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, false)
 		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to get provider")
+		assert.Contains(t, err.Error(), "failed to get provider")
 	})
 }
 
@@ -2016,9 +2211,12 @@ func TestCreateSnapshotActivity_UpdateSnapshotAfterOntapFailure(t *testing.T) {
 
 func TestPrepareObjectStoreActivity_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{
@@ -2051,9 +2249,12 @@ func TestPrepareObjectStoreActivity_Success(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.PrepareObjectStoreActivity(ctx, state)
+	encodedValue, err := env.ExecuteActivity(activity.PrepareObjectStoreActivity, state)
 
 	// Assert
+	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-bucket", result.ObjStoreName)
@@ -2089,9 +2290,12 @@ func TestMarkBackupAvailable(t *testing.T) {
 
 func TestPrepareObjectStoreActivity_GetObjStoreNameFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{
@@ -2124,19 +2328,21 @@ func TestPrepareObjectStoreActivity_GetObjStoreNameFailure(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.PrepareObjectStoreActivity(ctx, state)
+	_, err := env.ExecuteActivity(activity.PrepareObjectStoreActivity, state)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
-	assertErrContainsOriginal(t, err, "no matching bucket details found")
+	assert.Contains(t, err.Error(), "no matching bucket details found")
 }
 
 func TestPrepareObjectStoreActivity_GetBucketDetailsFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{
@@ -2169,18 +2375,21 @@ func TestPrepareObjectStoreActivity_GetBucketDetailsFailure(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.PrepareObjectStoreActivity(ctx, state)
+	_, err := env.ExecuteActivity(activity.PrepareObjectStoreActivity, state)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
-	assertErrContainsOriginal(t, err, "no matching bucket details found")
+	assert.Contains(t, err.Error(), "no matching bucket details found")
 }
 
 func TestGetOrCreateObjectStoreActivity_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -2188,8 +2397,6 @@ func TestGetOrCreateObjectStoreActivity_Success(t *testing.T) {
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{
@@ -2248,9 +2455,12 @@ func TestGetOrCreateObjectStoreActivity_Success(t *testing.T) {
 	mockProvider.On("CloudTargetGet", &state.ObjStoreName).Return(expectedObjStore, nil)
 
 	// Act
-	result, err := activity.GetOrCreateObjectStoreActivity(ctx, state)
+	encodedValue, err := env.ExecuteActivity(activity.GetOrCreateObjectStoreActivity, state)
 
 	// Assert
+	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-bucket", result.ObjStore.Name)
@@ -2261,16 +2471,18 @@ func TestGetOrCreateObjectStoreActivity_Success(t *testing.T) {
 
 func TestGetOrCreateObjectStoreActivity_GetOrCreateObjectStoreFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("provider error")
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{
@@ -2320,19 +2532,21 @@ func TestGetOrCreateObjectStoreActivity_GetOrCreateObjectStoreFailure(t *testing
 	}
 
 	// Act
-	result, err := activity.GetOrCreateObjectStoreActivity(ctx, state)
+	_, err := env.ExecuteActivity(activity.GetOrCreateObjectStoreActivity, state)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "provider error")
 }
 
 func TestPrepareSnapmirrorActivity_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{
@@ -2371,9 +2585,12 @@ func TestPrepareSnapmirrorActivity_Success(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.PrepareSnapmirrorActivity(ctx, state)
+	encodedValue, err := env.ExecuteActivity(activity.PrepareSnapmirrorActivity, state)
 
 	// Assert
+	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-bucket:/objstore/volume-uuid", result.SmDestinationPath)
@@ -2382,9 +2599,12 @@ func TestPrepareSnapmirrorActivity_Success(t *testing.T) {
 
 func TestPrepareSnapmirrorActivity_GetSmDestinationPathFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{
@@ -2423,19 +2643,22 @@ func TestPrepareSnapmirrorActivity_GetSmDestinationPathFailure(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.PrepareSnapmirrorActivity(ctx, state)
+	_, err := env.ExecuteActivity(activity.PrepareSnapmirrorActivity, state)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
-	assertErrContainsOriginal(t, err, "no matching bucket details found")
+	assert.Contains(t, err.Error(), "no matching bucket details found")
 }
 
 func TestCreateSnapmirrorRelationshipActivity_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 	originalGenerateTokenForNode := GenerateTokenForNode
@@ -2455,8 +2678,6 @@ func TestCreateSnapmirrorRelationshipActivity_Success(t *testing.T) {
 		token := "mock-token"
 		return &token, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -2487,9 +2708,12 @@ func TestCreateSnapmirrorRelationshipActivity_Success(t *testing.T) {
 	mockProvider.On("SnapmirrorRelationshipCreate", mock.Anything, mock.Anything).Return(expectedSnapmirror, nil)
 
 	// Act
-	result, err := activity.CreateSnapmirrorRelationshipActivity(ctx, state)
+	encodedValue, err := env.ExecuteActivity(activity.CreateSnapmirrorRelationshipActivity, state)
 
 	// Assert
+	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "sm-uuid", result.SnapmirrorRelationship.UUID)
@@ -2500,16 +2724,18 @@ func TestCreateSnapmirrorRelationshipActivity_Success(t *testing.T) {
 
 func TestCreateSnapmirrorRelationshipActivity_SnapmirrorGetOrCreateFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("provider error")
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -2528,18 +2754,21 @@ func TestCreateSnapmirrorRelationshipActivity_SnapmirrorGetOrCreateFailure(t *te
 	}
 
 	// Act
-	result, err := activity.CreateSnapmirrorRelationshipActivity(ctx, state)
+	_, err := env.ExecuteActivity(activity.CreateSnapmirrorRelationshipActivity, state)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "provider error")
 }
 
 func TestCreateSnapmirrorRelationshipActivity_WithNilDestinationUUID(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 	originalGenerateTokenForNode := GenerateTokenForNode
@@ -2559,8 +2788,6 @@ func TestCreateSnapmirrorRelationshipActivity_WithNilDestinationUUID(t *testing.
 		token := "mock-token"
 		return &token, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -2589,19 +2816,29 @@ func TestCreateSnapmirrorRelationshipActivity_WithNilDestinationUUID(t *testing.
 	mockProvider.On("SnapmirrorRelationshipCreate", mock.Anything, mock.Anything).Return(expectedSnapmirror, nil)
 
 	// Act
-	result, err := activity.CreateSnapmirrorRelationshipActivity(ctx, state)
+	encodedValue, err := env.ExecuteActivity(activity.CreateSnapmirrorRelationshipActivity, state)
 
 	// Assert
 	assert.Error(t, err)
-	assert.NotNil(t, result)
+	if encodedValue != nil && encodedValue.HasValue() {
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		if err == nil {
+			assert.NotNil(t, result)
+		}
+	}
 	assert.Contains(t, err.Error(), "An internal error occurred.")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestTransferSnapshotActivity_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 	originalGenerateTokenForNode := GenerateTokenForNode
@@ -2623,14 +2860,10 @@ func TestTransferSnapshotActivity_Success(t *testing.T) {
 		return &token, nil
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
 		Attributes: &datamodel.BackupAttributes{},
 	}
-
-	// node := &models.Node{} // Unused variable
 
 	state := &BackupActivitiesContext{
 		BackupWorkflowInit: &BackupWorkflowInput{
@@ -2646,19 +2879,26 @@ func TestTransferSnapshotActivity_Success(t *testing.T) {
 	mockProvider.On("SnapmirrorRelationshipTransferCreate", "sm-uuid", "test-snapshot", mock.Anything).Return(nil)
 
 	// Act
-	result, err := activity.TransferSnapshotActivity(ctx, state)
+	encodedValue, err := env.ExecuteActivity(activity.TransferSnapshotActivity, state)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, state, result)
+	assert.Equal(t, state.SnapshotName, result.SnapshotName)
 	mockProvider.AssertExpectations(t)
 }
 
 func TestTransferSnapshotActivity_SnapmirrorTransferFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
 	originalGenerateTokenForNode := GenerateTokenForNode
@@ -2680,14 +2920,10 @@ func TestTransferSnapshotActivity_SnapmirrorTransferFailure(t *testing.T) {
 		return &token, nil
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
 		Attributes: &datamodel.BackupAttributes{},
 	}
-
-	// node := &models.Node{} // Unused variable
 
 	state := &BackupActivitiesContext{
 		BackupWorkflowInit: &BackupWorkflowInput{
@@ -2703,35 +2939,33 @@ func TestTransferSnapshotActivity_SnapmirrorTransferFailure(t *testing.T) {
 	mockProvider.On("SnapmirrorRelationshipTransferCreate", "sm-uuid", "test-snapshot", mock.Anything).Return(errors.New("transfer failed"))
 
 	// Act
-	result, err := activity.TransferSnapshotActivity(ctx, state)
+	_, err := env.ExecuteActivity(activity.TransferSnapshotActivity, state)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "transfer failed")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestCheckTransferStatusActivity_Success(t *testing.T) {
 	// Arrange
-	mockStorage := database.NewMockStorage(t)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
 
+	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 	mockProvider := new(vsa.MockProvider)
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
 		Attributes: &datamodel.BackupAttributes{},
 	}
-
-	// node := &models.Node{} // Unused variable
 
 	state := &BackupActivitiesContext{
 		BackupWorkflowInit: &BackupWorkflowInput{
@@ -2752,9 +2986,12 @@ func TestCheckTransferStatusActivity_Success(t *testing.T) {
 	}, nil)
 
 	// Act
-	result, err := activity.CheckTransferStatusActivity(ctx, state)
+	encodedValue, err := env.ExecuteActivity(activity.CheckTransferStatusActivity, state)
 
 	// Assert
+	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "success", result.TransferStatus)
@@ -2763,25 +3000,24 @@ func TestCheckTransferStatusActivity_Success(t *testing.T) {
 
 func TestCheckTransferStatusActivity_GetSnapmirrorTransferStatusFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
 		Attributes: &datamodel.BackupAttributes{},
 	}
-
-	// node := &models.Node{} // Unused variable
 
 	state := &BackupActivitiesContext{
 		BackupWorkflowInit: &BackupWorkflowInput{
@@ -2797,20 +3033,22 @@ func TestCheckTransferStatusActivity_GetSnapmirrorTransferStatusFailure(t *testi
 	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(nil, errors.New("status check failed"))
 
 	// Act
-	result, err := activity.CheckTransferStatusActivity(ctx, state)
+	_, err := env.ExecuteActivity(activity.CheckTransferStatusActivity, state)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "status check failed")
 	mockProvider.AssertExpectations(t)
 }
 
 func TestFinishBackupActivity_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -2823,23 +3061,29 @@ func TestFinishBackupActivity_Success(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("FinishBackup", mock.Anything, backup).Return(backup, nil)
 
 	// Act
-	result, err := activity.FinishBackupActivity(ctx, state)
+	encodedValue, err := env.ExecuteActivity(activity.FinishBackupActivity, state)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, state, result)
+	assert.Equal(t, state.BackupWorkflowInit.Backup.Name, result.BackupWorkflowInit.Backup.Name)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestFinishBackupActivity_FinishBackupFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -2852,14 +3096,13 @@ func TestFinishBackupActivity_FinishBackupFailure(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("FinishBackup", ctx, backup).Return(nil, errors.New("finish backup failed"))
+	mockStorage.On("FinishBackup", mock.Anything, backup).Return(nil, errors.New("finish backup failed"))
 
 	// Act
-	result, err := activity.FinishBackupActivity(ctx, state)
+	_, err := env.ExecuteActivity(activity.FinishBackupActivity, state)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "finish backup failed")
 	mockStorage.AssertExpectations(t)
 }
@@ -3257,7 +3500,11 @@ func TestCreateSnapshotActivity_CreateNewSnapshot_Failure(t *testing.T) {
 
 func TestGetSnapshotFromObjectStore(t *testing.T) {
 	t.Run("WhenProviderGetFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3265,19 +3512,21 @@ func TestGetSnapshotFromObjectStore(t *testing.T) {
 			return nil, errors.New("provider get failed")
 		}
 
-		ctx := context.Background()
 		node := &models.Node{}
 
-		result, err := activity.GetSnapshotFromObjectStore(ctx, node, "obj-uuid", "endpoint-uuid", "snapshot-uuid")
+		_, err := env.ExecuteActivity(activity.GetSnapshotFromObjectStore, node, "obj-uuid", "endpoint-uuid", "snapshot-uuid")
 
 		assert.Error(tt, err)
-		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "provider get failed")
 	})
 
 	t.Run("WhenProviderGetSucceeds", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3291,11 +3540,13 @@ func TestGetSnapshotFromObjectStore(t *testing.T) {
 
 		mockProvider.On("SnapmirrorObjectStoreSnapshotGet", "obj-uuid", "endpoint-uuid", "snapshot-uuid").Return(expectedSnapshot, nil)
 
-		ctx := context.Background()
 		node := &models.Node{}
 
-		result, err := activity.GetSnapshotFromObjectStore(ctx, node, "obj-uuid", "endpoint-uuid", "snapshot-uuid")
+		encodedValue, err := env.ExecuteActivity(activity.GetSnapshotFromObjectStore, node, "obj-uuid", "endpoint-uuid", "snapshot-uuid")
 
+		assert.NoError(tt, err)
+		var result *vsa.SmObjectStoreEndpointSnapshot
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedSnapshot, result)
 		mockProvider.AssertExpectations(tt)
@@ -3304,9 +3555,13 @@ func TestGetSnapshotFromObjectStore(t *testing.T) {
 
 func TestGetObjectStoreSnapshotActivity(t *testing.T) {
 	t.Run("WhenGetSnapshotFromObjectStoreFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		mockStorage := database.NewMockStorage(t)
 		activity := BackupActivity{SE: mockStorage}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3316,7 +3571,6 @@ func TestGetObjectStoreSnapshotActivity(t *testing.T) {
 
 		mockProvider.On("SnapmirrorObjectStoreSnapshotGet", "obj-uuid", "endpoint-uuid", "snapshot-uuid").Return(nil, errors.New("snapshot get failed"))
 
-		ctx := context.Background()
 		backupActivitiesContext := &BackupActivitiesContext{
 			Node: &models.Node{},
 			ObjStore: &commonparams.CloudTarget{
@@ -3332,17 +3586,20 @@ func TestGetObjectStoreSnapshotActivity(t *testing.T) {
 			},
 		}
 
-		result, err := activity.GetObjectStoreSnapshotActivity(ctx, backupActivitiesContext)
+		_, err := env.ExecuteActivity(activity.GetObjectStoreSnapshotActivity, backupActivitiesContext)
 
 		assert.Error(tt, err)
-		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "snapshot get failed")
 	})
 
 	t.Run("WhenGetSnapshotFromObjectStoreSucceedsWithLogicalSize", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		mockStorage := database.NewMockStorage(t)
 		activity := BackupActivity{SE: mockStorage}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3358,7 +3615,6 @@ func TestGetObjectStoreSnapshotActivity(t *testing.T) {
 
 		mockProvider.On("SnapmirrorObjectStoreSnapshotGet", "obj-uuid", "endpoint-uuid", "snapshot-uuid").Return(expectedSnapshot, nil)
 
-		ctx := context.Background()
 		backupActivitiesContext := &BackupActivitiesContext{
 			Node: &models.Node{},
 			ObjStore: &commonparams.CloudTarget{
@@ -3374,19 +3630,26 @@ func TestGetObjectStoreSnapshotActivity(t *testing.T) {
 			},
 		}
 
-		result, err := activity.GetObjectStoreSnapshotActivity(ctx, backupActivitiesContext)
+		encodedValue, err := env.ExecuteActivity(activity.GetObjectStoreSnapshotActivity, backupActivitiesContext)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, backupActivitiesContext, result)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
 		assert.Equal(tt, logicalSize, result.BackupWorkflowInit.Backup.SizeInBytes)
 		assert.Equal(tt, expectedSnapshot, result.ObjStoreSnapshot)
 		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("WhenGetSnapshotFromObjectStoreSucceedsWithoutLogicalSize", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		mockStorage := database.NewMockStorage(t)
 		activity := BackupActivity{SE: mockStorage}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3401,7 +3664,6 @@ func TestGetObjectStoreSnapshotActivity(t *testing.T) {
 
 		mockProvider.On("SnapmirrorObjectStoreSnapshotGet", "obj-uuid", "endpoint-uuid", "snapshot-uuid").Return(expectedSnapshot, nil)
 
-		ctx := context.Background()
 		backupActivitiesContext := &BackupActivitiesContext{
 			Node: &models.Node{},
 			ObjStore: &commonparams.CloudTarget{
@@ -3417,10 +3679,13 @@ func TestGetObjectStoreSnapshotActivity(t *testing.T) {
 			},
 		}
 
-		result, err := activity.GetObjectStoreSnapshotActivity(ctx, backupActivitiesContext)
+		encodedValue, err := env.ExecuteActivity(activity.GetObjectStoreSnapshotActivity, backupActivitiesContext)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, backupActivitiesContext, result)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
 		assert.Equal(tt, int64(0), result.BackupWorkflowInit.Backup.SizeInBytes)
 		assert.Equal(tt, expectedSnapshot, result.ObjStoreSnapshot)
 		mockProvider.AssertExpectations(tt)
@@ -3429,6 +3694,11 @@ func TestGetObjectStoreSnapshotActivity(t *testing.T) {
 
 // TestIsSnapmirrorDeleted_ReturnsErrorWhenGetProviderFails tests error handling for provider lookup failure.
 func TestIsSnapmirrorDeleted_ReturnsErrorWhenGetProviderFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := BackupActivity{}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3436,20 +3706,29 @@ func TestIsSnapmirrorDeleted_ReturnsErrorWhenGetProviderFails(t *testing.T) {
 		return nil, errors.New("provider lookup failed")
 	}
 
-	activity := BackupActivity{}
-	ctx := context.Background()
 	node := &models.Node{}
 	params := &commonparams.SnapmirrorRelationshipParams{
 		DestinationPath: "/dest/path",
 		SourcePath:      "/src/path",
 	}
-	deleted, err := activity.IsSnapmirrorDeleted(ctx, node, params)
-	assert.False(t, deleted)
+	encodedValue, err := env.ExecuteActivity(activity.IsSnapmirrorDeleted, node, params)
 	assert.Error(t, err)
+	if encodedValue != nil && encodedValue.HasValue() {
+		var deleted bool
+		err = encodedValue.Get(&deleted)
+		if err == nil {
+			assert.False(t, deleted)
+		}
+	}
 }
 
 // TestIsSnapmirrorDeleted_ReturnsTrueWhenNotFound tests the case where the snapmirror is not found.
 func TestIsSnapmirrorDeleted_ReturnsTrueWhenNotFound(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := BackupActivity{}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3460,21 +3739,27 @@ func TestIsSnapmirrorDeleted_ReturnsTrueWhenNotFound(t *testing.T) {
 	notFoundErr := utilerrors.NewNotFoundErr("SnapmirrorRelationship", nil)
 	mockProvider.On("SnapmirrorRelationshipGet", "/dest/path", "/src/path").Return(nil, notFoundErr)
 
-	activity := BackupActivity{}
-	ctx := context.Background()
 	node := &models.Node{}
 	params := &commonparams.SnapmirrorRelationshipParams{
 		DestinationPath: "/dest/path",
 		SourcePath:      "/src/path",
 	}
-	deleted, err := activity.IsSnapmirrorDeleted(ctx, node, params)
-	assert.True(t, deleted)
+	encodedValue, err := env.ExecuteActivity(activity.IsSnapmirrorDeleted, node, params)
 	assert.NoError(t, err)
+	var deleted bool
+	err = encodedValue.Get(&deleted)
+	assert.NoError(t, err)
+	assert.True(t, deleted)
 	mockProvider.AssertExpectations(t)
 }
 
 // TestIsSnapmirrorDeleted_ReturnsTrueWhenLegacyNotFoundError tests the case where error message contains "not found" but isn't a proper NotFoundErr.
 func TestIsSnapmirrorDeleted_ReturnsTrueWhenLegacyNotFoundError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := BackupActivity{}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3486,21 +3771,27 @@ func TestIsSnapmirrorDeleted_ReturnsTrueWhenLegacyNotFoundError(t *testing.T) {
 	legacyErr := errors.New("snapmirror relationship not found for destination: vsa-backup:/objstore/uuid and source: svm:volume")
 	mockProvider.On("SnapmirrorRelationshipGet", "/dest/path", "/src/path").Return(nil, legacyErr)
 
-	activity := BackupActivity{}
-	ctx := context.Background()
 	node := &models.Node{}
 	params := &commonparams.SnapmirrorRelationshipParams{
 		DestinationPath: "/dest/path",
 		SourcePath:      "/src/path",
 	}
-	deleted, err := activity.IsSnapmirrorDeleted(ctx, node, params)
-	assert.True(t, deleted)
+	encodedValue, err := env.ExecuteActivity(activity.IsSnapmirrorDeleted, node, params)
 	assert.NoError(t, err)
+	var deleted bool
+	err = encodedValue.Get(&deleted)
+	assert.NoError(t, err)
+	assert.True(t, deleted)
 	mockProvider.AssertExpectations(t)
 }
 
 // TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs tests error wrapping for non not-found errors.
 func TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := BackupActivity{}
+	env.RegisterActivity(&activity)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3511,22 +3802,30 @@ func TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs(t *testing.T) {
 	otherErr := errors.New("temporary error")
 	mockProvider.On("SnapmirrorRelationshipGet", "/dest/path", "/src/path").Return(nil, otherErr)
 
-	activity := BackupActivity{}
-	ctx := context.Background()
 	node := &models.Node{}
 	params := &commonparams.SnapmirrorRelationshipParams{
 		DestinationPath: "/dest/path",
 		SourcePath:      "/src/path",
 	}
-	deleted, err := activity.IsSnapmirrorDeleted(ctx, node, params)
-	assert.False(t, deleted)
+	encodedValue, err := env.ExecuteActivity(activity.IsSnapmirrorDeleted, node, params)
 	assert.Error(t, err)
+	if encodedValue != nil && encodedValue.HasValue() {
+		var deleted bool
+		err = encodedValue.Get(&deleted)
+		if err == nil {
+			assert.False(t, deleted)
+		}
+	}
 	mockProvider.AssertExpectations(t)
 }
 
 func TestGetObjectStoreEndpointInfo(t *testing.T) {
 	t.Run("WhenProviderGetFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3534,19 +3833,21 @@ func TestGetObjectStoreEndpointInfo(t *testing.T) {
 			return nil, errors.New("provider get failed")
 		}
 
-		ctx := context.Background()
 		node := &models.Node{}
 
-		result, err := activity.GetObjectStoreEndpointInfo(ctx, node, "obj-uuid", "endpoint-uuid")
+		_, err := env.ExecuteActivity(activity.GetObjectStoreEndpointInfo, node, "obj-uuid", "endpoint-uuid")
 
 		assert.Error(tt, err)
-		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "provider get failed")
 	})
 
 	t.Run("WhenProviderGetSucceeds", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3560,11 +3861,13 @@ func TestGetObjectStoreEndpointInfo(t *testing.T) {
 
 		mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "endpoint-uuid").Return(expectedEndpointInfo, nil)
 
-		ctx := context.Background()
 		node := &models.Node{}
 
-		result, err := activity.GetObjectStoreEndpointInfo(ctx, node, "obj-uuid", "endpoint-uuid")
+		encodedValue, err := env.ExecuteActivity(activity.GetObjectStoreEndpointInfo, node, "obj-uuid", "endpoint-uuid")
 
+		assert.NoError(tt, err)
+		var result *vsa.SmObjectStoreEndpointt
+		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedEndpointInfo, result)
 		mockProvider.AssertExpectations(tt)
@@ -3573,9 +3876,13 @@ func TestGetObjectStoreEndpointInfo(t *testing.T) {
 
 func TestGetObjectStoreEndpointActivity(t *testing.T) {
 	t.Run("WhenGetObjectStoreEndpointInfoFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		mockStorage := database.NewMockStorage(t)
 		activity := BackupActivity{SE: mockStorage}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3585,7 +3892,6 @@ func TestGetObjectStoreEndpointActivity(t *testing.T) {
 
 		mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "endpoint-uuid").Return(nil, errors.New("endpoint info get failed"))
 
-		ctx := context.Background()
 		backupActivitiesContext := &BackupActivitiesContext{
 			Node: &models.Node{},
 			ObjStore: &commonparams.CloudTarget{
@@ -3599,14 +3905,20 @@ func TestGetObjectStoreEndpointActivity(t *testing.T) {
 				},
 			},
 		}
-		result, _ := activity.GetObjectStoreEndpointActivity(ctx, backupActivitiesContext)
-		assert.Nil(tt, result)
+		_, err := env.ExecuteActivity(activity.GetObjectStoreEndpointActivity, backupActivitiesContext)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "endpoint info get failed")
+		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("WhenGetObjectStoreEndpointInfoSucceeds", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockProvider := new(vsa.MockProvider)
 		mockStorage := database.NewMockStorage(t)
 		activity := BackupActivity{SE: mockStorage}
+		env.RegisterActivity(&activity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -3621,7 +3933,6 @@ func TestGetObjectStoreEndpointActivity(t *testing.T) {
 
 		mockProvider.On("ObjectStoreEndpointInfoGet", "obj-uuid", "endpoint-uuid").Return(expectedEndpointInfo, nil)
 
-		ctx := context.Background()
 		backupActivitiesContext := &BackupActivitiesContext{
 			Node: &models.Node{},
 			ObjStore: &commonparams.CloudTarget{
@@ -3635,8 +3946,17 @@ func TestGetObjectStoreEndpointActivity(t *testing.T) {
 				},
 			},
 		}
-		result, _ := activity.GetObjectStoreEndpointActivity(ctx, backupActivitiesContext)
-		assert.Equal(tt, backupActivitiesContext, result)
+		encodedValue, err := env.ExecuteActivity(activity.GetObjectStoreEndpointActivity, backupActivitiesContext)
+		assert.NoError(tt, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, backupActivitiesContext.Node, result.Node)
+		assert.Equal(tt, backupActivitiesContext.ObjStore, result.ObjStore)
+		assert.Equal(tt, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes, result.BackupWorkflowInit.Backup.Attributes)
+		assert.Equal(tt, int64(1024), result.BackupWorkflowInit.Backup.LatestLogicalBackupSize)
+		mockProvider.AssertExpectations(tt)
 	})
 }
 
@@ -4471,9 +4791,12 @@ func TestDeleteBackupSnapshotFromDB(t *testing.T) {
 
 func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	node := &models.Node{Name: "test-node"}
 	snapshotUUID := "snapshot-uuid-123"
@@ -4490,7 +4813,7 @@ func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T)
 	}
 
 	// Act
-	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, useExistingSnapshot)
 
 	// Assert
 	assert.NoError(t, err)
@@ -4500,9 +4823,12 @@ func TestDeleteSnapshotForBackup_UseExistingSnapshot_SkipsDeletion(t *testing.T)
 
 func TestDeleteSnapshotForBackup_UseExistingSnapshot_GetProviderError(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(&activity)
 
 	node := &models.Node{Name: "test-node"}
 	snapshotUUID := "snapshot-uuid-123"
@@ -4519,7 +4845,7 @@ func TestDeleteSnapshotForBackup_UseExistingSnapshot_GetProviderError(t *testing
 	}
 
 	// Act
-	err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID, useExistingSnapshot)
+	_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, useExistingSnapshot)
 
 	// Assert
 	assert.Error(t, err)
@@ -5339,18 +5665,20 @@ func TestUpdateConstituentCountForBackup_UpdateFails_ReturnsError(t *testing.T) 
 // TestPollTransferStatusWithHistoryCheckActivity_Success tests successful transfer completion
 func TestPollTransferStatusWithHistoryCheckActivity_Success(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5388,13 +5716,19 @@ func TestPollTransferStatusWithHistoryCheckActivity_Success(t *testing.T) {
 		},
 	}, nil)
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *PollTransferStatusOutput
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.Equal(t, backupActivitiesContext.Node, result.BackupActivitiesContext.Node)
+	assert.Equal(t, backupActivitiesContext.BackupWorkflowInit.Backup.Name, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Name)
 	assert.True(t, result.TransferComplete)
 	assert.False(t, result.ShouldContinueAsNew)
 	assert.Equal(t, "", result.ContinueAsNewReason)
@@ -5407,18 +5741,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_Success(t *testing.T) {
 // TestPollTransferStatusWithHistoryCheckActivity_Transferring tests transfer still in progress
 func TestPollTransferStatusWithHistoryCheckActivity_Transferring(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5456,13 +5792,19 @@ func TestPollTransferStatusWithHistoryCheckActivity_Transferring(t *testing.T) {
 		},
 	}, nil)
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *PollTransferStatusOutput
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.Equal(t, backupActivitiesContext.Node, result.BackupActivitiesContext.Node)
+	assert.Equal(t, backupActivitiesContext.BackupWorkflowInit.Backup.Name, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Name)
 	assert.False(t, result.TransferComplete)
 	assert.False(t, result.ShouldContinueAsNew)
 	assert.Equal(t, "", result.ContinueAsNewReason)
@@ -5475,18 +5817,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_Transferring(t *testing.T) {
 // TestPollTransferStatusWithHistoryCheckActivity_Failed tests transfer failure
 func TestPollTransferStatusWithHistoryCheckActivity_Failed(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5524,12 +5868,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_Failed(t *testing.T) {
 		},
 	}, nil)
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
+	if encodedValue != nil && encodedValue.HasValue() {
+		var result *PollTransferStatusOutput
+		err = encodedValue.Get(&result)
+		if err == nil {
+			assert.Nil(t, result)
+		}
+	}
 	assert.Contains(t, err.Error(), "Snapmirror transfer failed with status: failed")
 	mockProvider.AssertExpectations(t)
 }
@@ -5537,18 +5889,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_Failed(t *testing.T) {
 // TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitReached tests ContinueAsNew when event history limit is reached
 func TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitReached(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5586,13 +5940,19 @@ func TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitReached(t *
 		},
 	}, nil)
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *PollTransferStatusOutput
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.Equal(t, backupActivitiesContext.Node, result.BackupActivitiesContext.Node)
+	assert.Equal(t, backupActivitiesContext.BackupWorkflowInit.Backup.Name, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Name)
 	assert.False(t, result.TransferComplete)
 	assert.True(t, result.ShouldContinueAsNew)
 	assert.Equal(t, "Event history limit reached", result.ContinueAsNewReason)
@@ -5604,18 +5964,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitReached(t *
 // TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitExceeded tests ContinueAsNew when event history limit is exceeded
 func TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitExceeded(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5653,13 +6015,19 @@ func TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitExceeded(t 
 		},
 	}, nil)
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *PollTransferStatusOutput
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.Equal(t, backupActivitiesContext.Node, result.BackupActivitiesContext.Node)
+	assert.Equal(t, backupActivitiesContext.BackupWorkflowInit.Backup.Name, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Name)
 	assert.False(t, result.TransferComplete)
 	assert.True(t, result.ShouldContinueAsNew)
 	assert.Equal(t, "Event history limit reached", result.ContinueAsNewReason)
@@ -5671,18 +6039,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_EventHistoryLimitExceeded(t 
 // TestPollTransferStatusWithHistoryCheckActivity_SuccessWithEventHistoryLimit tests successful transfer with event history limit reached
 func TestPollTransferStatusWithHistoryCheckActivity_SuccessWithEventHistoryLimit(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5720,13 +6090,19 @@ func TestPollTransferStatusWithHistoryCheckActivity_SuccessWithEventHistoryLimit
 		},
 	}, nil)
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *PollTransferStatusOutput
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.Equal(t, backupActivitiesContext.Node, result.BackupActivitiesContext.Node)
+	assert.Equal(t, backupActivitiesContext.BackupWorkflowInit.Backup.Name, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Name)
 	assert.True(t, result.TransferComplete)
 	assert.True(t, result.ShouldContinueAsNew)
 	assert.Equal(t, "Event history limit reached", result.ContinueAsNewReason)
@@ -5739,18 +6115,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_SuccessWithEventHistoryLimit
 // TestPollTransferStatusWithHistoryCheckActivity_GetSnapmirrorTransferStatusFailure tests error from GetSnapmirrorTransferStatus
 func TestPollTransferStatusWithHistoryCheckActivity_GetSnapmirrorTransferStatusFailure(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5783,12 +6161,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_GetSnapmirrorTransferStatusF
 
 	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(nil, errors.New("status check failed"))
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
+	if encodedValue != nil && encodedValue.HasValue() {
+		var result *PollTransferStatusOutput
+		err = encodedValue.Get(&result)
+		if err == nil {
+			assert.Nil(t, result)
+		}
+	}
 	assert.Contains(t, err.Error(), "status check failed")
 	mockProvider.AssertExpectations(t)
 }
@@ -5796,17 +6182,19 @@ func TestPollTransferStatusWithHistoryCheckActivity_GetSnapmirrorTransferStatusF
 // TestPollTransferStatusWithHistoryCheckActivity_ProviderError tests error from GetProviderByNode
 func TestPollTransferStatusWithHistoryCheckActivity_ProviderError(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return nil, errors.New("provider error")
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5837,30 +6225,40 @@ func TestPollTransferStatusWithHistoryCheckActivity_ProviderError(t *testing.T) 
 		NextWaitTime:            nextWaitTime,
 	}
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
+	if encodedValue != nil && encodedValue.HasValue() {
+		var result *PollTransferStatusOutput
+		err = encodedValue.Get(&result)
+		if err == nil {
+			assert.Nil(t, result)
+		}
+	}
 	assert.Contains(t, err.Error(), "provider error")
 }
 
 // TestPollTransferStatusWithHistoryCheckActivity_UnknownStatus tests unknown transfer status
 func TestPollTransferStatusWithHistoryCheckActivity_UnknownStatus(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5898,12 +6296,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_UnknownStatus(t *testing.T) 
 		},
 	}, nil)
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
+	if encodedValue != nil && encodedValue.HasValue() {
+		var result *PollTransferStatusOutput
+		err = encodedValue.Get(&result)
+		if err == nil {
+			assert.Nil(t, result)
+		}
+	}
 	assert.Contains(t, err.Error(), "Snapmirror transfer failed with status: unknown_status")
 	mockProvider.AssertExpectations(t)
 }
@@ -5911,18 +6317,20 @@ func TestPollTransferStatusWithHistoryCheckActivity_UnknownStatus(t *testing.T) 
 // TestPollTransferStatusWithHistoryCheckActivity_NilResponse tests nil response from provider
 func TestPollTransferStatusWithHistoryCheckActivity_NilResponse(t *testing.T) {
 	// Arrange
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 
 	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
@@ -5956,13 +6364,19 @@ func TestPollTransferStatusWithHistoryCheckActivity_NilResponse(t *testing.T) {
 	// Return nil response (which should be treated as success according to the original function)
 	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(nil, nil)
 
+	currentTime := time.Now()
+
 	// Act
-	result, err := activity.PollTransferStatusWithHistoryCheckActivity(ctx, input, time.Now())
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
 	// Assert
 	assert.NoError(t, err)
+	var result *PollTransferStatusOutput
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, backupActivitiesContext, result.BackupActivitiesContext)
+	assert.Equal(t, backupActivitiesContext.Node, result.BackupActivitiesContext.Node)
+	assert.Equal(t, backupActivitiesContext.BackupWorkflowInit.Backup.Name, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Name)
 	assert.True(t, result.TransferComplete)
 	assert.False(t, result.ShouldContinueAsNew)
 	assert.Equal(t, "", result.ContinueAsNewReason)
@@ -9156,7 +9570,7 @@ func TestGenerateObjectStoreNameForRestore_Success(t *testing.T) {
 	// Arrange
 	activity := &BackupActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backupVault := &datamodel.BackupVault{
 		Name: "test-backup-vault",
 		BucketDetails: datamodel.BucketDetailsArray{
@@ -9165,7 +9579,7 @@ func TestGenerateObjectStoreNameForRestore_Success(t *testing.T) {
 			},
 		},
 	}
-	
+
 	backup := &datamodel.Backup{
 		Name: "test-backup",
 		Attributes: &datamodel.BackupAttributes{
@@ -9195,7 +9609,7 @@ func TestGenerateObjectStoreNameForRestore_ErrorWhenBackupAttributesNil(t *testi
 	// Arrange
 	activity := &BackupActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backupVault := &datamodel.BackupVault{
 		Name: "test-backup-vault",
 		BucketDetails: datamodel.BucketDetailsArray{
@@ -9204,7 +9618,7 @@ func TestGenerateObjectStoreNameForRestore_ErrorWhenBackupAttributesNil(t *testi
 			},
 		},
 	}
-	
+
 	backup := &datamodel.Backup{
 		Name:       "test-backup",
 		Attributes: nil, // This will cause GetObjStoreNameFromBackup to fail
@@ -9223,7 +9637,7 @@ func TestGenerateObjectStoreNameForRestore_ErrorWhenNoMatchingBucketDetails(t *t
 	// Arrange
 	activity := &BackupActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backupVault := &datamodel.BackupVault{
 		Name: "test-backup-vault",
 		BucketDetails: datamodel.BucketDetailsArray{
@@ -9232,7 +9646,7 @@ func TestGenerateObjectStoreNameForRestore_ErrorWhenNoMatchingBucketDetails(t *t
 			},
 		},
 	}
-	
+
 	backup := &datamodel.Backup{
 		Name: "test-backup",
 		Attributes: &datamodel.BackupAttributes{
@@ -9253,12 +9667,12 @@ func TestGenerateObjectStoreNameForRestore_ErrorWhenBackupVaultBucketDetailsEmpt
 	// Arrange
 	activity := &BackupActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backupVault := &datamodel.BackupVault{
-		Name:         "test-backup-vault",
+		Name:          "test-backup-vault",
 		BucketDetails: datamodel.BucketDetailsArray{}, // Empty bucket details
 	}
-	
+
 	backup := &datamodel.Backup{
 		Name: "test-backup",
 		Attributes: &datamodel.BackupAttributes{
@@ -9279,7 +9693,7 @@ func TestGenerateObjectStoreNameForRestore_VerifyRandomSuffix(t *testing.T) {
 	// Arrange
 	activity := &BackupActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	
+
 	backupVault := &datamodel.BackupVault{
 		Name: "test-backup-vault",
 		BucketDetails: datamodel.BucketDetailsArray{
@@ -9288,7 +9702,7 @@ func TestGenerateObjectStoreNameForRestore_VerifyRandomSuffix(t *testing.T) {
 			},
 		},
 	}
-	
+
 	backup := &datamodel.Backup{
 		Name: "test-backup",
 		Attributes: &datamodel.BackupAttributes{

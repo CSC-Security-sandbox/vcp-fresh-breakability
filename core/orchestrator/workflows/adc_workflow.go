@@ -25,7 +25,8 @@ var (
 	adcStorageURL  = env.GetString("ADC_STORAGE_URL", "storage.googleapis.com")
 	adcCertSecret  = env.GetString("ADC_CERT_SECRET_NAME", "adc-cert")
 
-	adcMaxCloudRunAttempts = 20
+	adcMaxCloudRunAttempts         = 20
+	adcWorkflowHeartbeatTimeoutSec = env.GetUint64("ADC_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
 )
 
 // Progressive sleep phase constants
@@ -122,6 +123,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(adcWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

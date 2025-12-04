@@ -28,9 +28,10 @@ const (
 )
 
 var (
-	hydrationEnabled          = env.GetBool("GCP_HYDRATE_ENABLED", true)
-	scheduledWeeklyBackupDay  = env.GetInt("SCHEDULED_WEEKLY_BACKUP_DAY", 1)  // Default to Monday (0=Sunday, 1=Monday, ..., 6=Saturday)
-	scheduledMonthlyBackupDay = env.GetInt("SCHEDULED_MONTHLY_BACKUP_DAY", 1) // Default to 1st day of the month
+	hydrationEnabled                          = env.GetBool("GCP_HYDRATE_ENABLED", true)
+	scheduledWeeklyBackupDay                  = env.GetInt("SCHEDULED_WEEKLY_BACKUP_DAY", 1)  // Default to Monday (0=Sunday, 1=Monday, ..., 6=Saturday)
+	scheduledMonthlyBackupDay                 = env.GetInt("SCHEDULED_MONTHLY_BACKUP_DAY", 1) // Default to 1st day of the month
+	scheduleBackupWorkflowHeartbeatTimeoutSec = env.GetUint64("SCHEDULE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
 )
 
 type baseScheduledBackupWorkflow struct {
@@ -112,6 +113,7 @@ func (wf *createScheduledBackupInitWorkflow) Run(ctx workflow.Context, args ...i
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(scheduleBackupWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -654,6 +656,7 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(scheduleBackupWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -698,8 +701,8 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:           dbNodes,
-		DeploymentName:  volume.Pool.DeploymentName,
+		Nodes:            dbNodes,
+		DeploymentName:   volume.Pool.DeploymentName,
 		OntapCredentials: volume.Pool.PoolCredentials,
 	})
 

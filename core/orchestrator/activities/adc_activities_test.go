@@ -22,6 +22,7 @@ import (
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestDeployADCCloudRunService(t *testing.T) {
@@ -346,7 +347,9 @@ func TestGetADCServiceURL(t *testing.T) {
 
 func TestCleanupADCCloudRunService(t *testing.T) {
 	t.Run("OnSuccess", func(t *testing.T) {
-		ctx := context.Background()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		projectID := "test-project"
 		region := "us-central1"
 		serviceName := "adc-svc-test"
@@ -357,43 +360,58 @@ func TestCleanupADCCloudRunService(t *testing.T) {
 		}
 
 		mockGCPService := new(hyperscaler.MockGoogleServices)
-		mockGCPService.On("DeleteCloudRunService", ctx, projectID, region, serviceName).Return(expectedResponse, nil)
+		mockGCPService.On("DeleteCloudRunService", mock.Anything, projectID, region, serviceName).Return(expectedResponse, nil)
 
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return mockGCPService, nil
 		}
 
 		activity := activities.ADCActivity{}
-		response, err := activity.CleanupADCCloudRunService(ctx, projectID, region, serviceName)
-		assert.Nil(t, err)
+		env.RegisterActivity(&activity)
+
+		encodedValue, err := env.ExecuteActivity(activity.CleanupADCCloudRunService, projectID, region, serviceName)
+		assert.NoError(t, err)
+		var response *hyperscalermodels.CloudRunOperationResponse
+		err = encodedValue.Get(&response)
+		assert.NoError(t, err)
 		assert.Equal(t, expectedResponse, response)
+		mockGCPService.AssertExpectations(t)
 	})
 
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
-		ctx := context.Background()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
-		response, err := activity.CleanupADCCloudRunService(ctx, "project", "region", "service")
-		assert.NotNil(t, err)
-		assert.Nil(t, response)
+		env.RegisterActivity(&activity)
+
+		_, err := env.ExecuteActivity(activity.CleanupADCCloudRunService, "project", "region", "service")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get cloud service")
 	})
 
 	t.Run("OnDeleteServiceFailure", func(t *testing.T) {
-		ctx := context.Background()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockGCPService := new(hyperscaler.MockGoogleServices)
-		mockGCPService.On("DeleteCloudRunService", ctx, "project", "region", "service").Return(nil, fmt.Errorf("failed to delete service"))
+		mockGCPService.On("DeleteCloudRunService", mock.Anything, "project", "region", "service").Return(nil, fmt.Errorf("failed to delete service"))
 
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return mockGCPService, nil
 		}
 
 		activity := activities.ADCActivity{}
-		response, err := activity.CleanupADCCloudRunService(ctx, "project", "region", "service")
-		assert.NotNil(t, err)
-		assert.Nil(t, response)
+		env.RegisterActivity(&activity)
+
+		_, err := env.ExecuteActivity(activity.CleanupADCCloudRunService, "project", "region", "service")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete service")
+		mockGCPService.AssertExpectations(t)
 	})
 }
 
@@ -639,64 +657,89 @@ func TestRemoveRolesFromServiceAccount(t *testing.T) {
 
 func TestCheckOperationStatus(t *testing.T) {
 	t.Run("OnSuccess_OperationComplete", func(t *testing.T) {
-		ctx := context.Background()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		operationName := "operations/test-operation"
 
 		mockGCPService := new(hyperscaler.MockGoogleServices)
-		mockGCPService.On("CheckOperationStatus", ctx, operationName).Return(true, nil)
+		mockGCPService.On("CheckOperationStatus", mock.Anything, operationName).Return(true, nil)
 
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return mockGCPService, nil
 		}
 
 		activity := activities.ADCActivity{}
-		isReady, err := activity.CheckOperationStatus(ctx, operationName)
-		assert.Nil(t, err)
+		env.RegisterActivity(&activity)
+
+		encodedValue, err := env.ExecuteActivity(activity.CheckOperationStatus, operationName)
+		assert.NoError(t, err)
+		var isReady bool
+		err = encodedValue.Get(&isReady)
+		assert.NoError(t, err)
 		assert.True(t, isReady)
+		mockGCPService.AssertExpectations(t)
 	})
 
 	t.Run("OnSuccess_OperationInProgress", func(t *testing.T) {
-		ctx := context.Background()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		operationName := "operations/test-operation"
 
 		mockGCPService := new(hyperscaler.MockGoogleServices)
-		mockGCPService.On("CheckOperationStatus", ctx, operationName).Return(false, nil)
+		mockGCPService.On("CheckOperationStatus", mock.Anything, operationName).Return(false, nil)
 
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return mockGCPService, nil
 		}
 
 		activity := activities.ADCActivity{}
-		isReady, err := activity.CheckOperationStatus(ctx, operationName)
-		assert.Nil(t, err)
+		env.RegisterActivity(&activity)
+
+		encodedValue, err := env.ExecuteActivity(activity.CheckOperationStatus, operationName)
+		assert.NoError(t, err)
+		var isReady bool
+		err = encodedValue.Get(&isReady)
+		assert.NoError(t, err)
 		assert.False(t, isReady)
+		mockGCPService.AssertExpectations(t)
 	})
 
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
-		ctx := context.Background()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
-		isReady, err := activity.CheckOperationStatus(ctx, "operation")
-		assert.NotNil(t, err)
-		assert.False(t, isReady)
+		env.RegisterActivity(&activity)
+
+		_, err := env.ExecuteActivity(activity.CheckOperationStatus, "operation")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get cloud service")
 	})
 
 	t.Run("OnCheckStatusFailure", func(t *testing.T) {
-		ctx := context.Background()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		mockGCPService := new(hyperscaler.MockGoogleServices)
-		mockGCPService.On("CheckOperationStatus", ctx, "operation").Return(false, fmt.Errorf("failed to check status"))
+		mockGCPService.On("CheckOperationStatus", mock.Anything, "operation").Return(false, fmt.Errorf("failed to check status"))
 
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return mockGCPService, nil
 		}
 
 		activity := activities.ADCActivity{}
-		isReady, err := activity.CheckOperationStatus(ctx, "operation")
-		assert.NotNil(t, err)
-		assert.False(t, isReady)
+		env.RegisterActivity(&activity)
+
+		_, err := env.ExecuteActivity(activity.CheckOperationStatus, "operation")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to check status")
+		mockGCPService.AssertExpectations(t)
 	})
 }
 
@@ -932,13 +975,15 @@ func TestInitialDeleteRequestWithCloudRun(t *testing.T) {
 
 func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 	t.Run("OnSuccess_WithNewRedirect", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Location", "/api/status/456")
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		}))
 		defer server.Close()
 
-		ctx := setupTestContext()
 		params := createTestADCParams()
 		serviceURL := server.URL
 		redirectURL := "/api/status/123"
@@ -950,20 +995,27 @@ func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
 
 		activity := activities.ADCActivity{}
-		response, err := activity.CheckDeleteStatusWithCloudRun(ctx, params, serviceURL, redirectURL)
-		assert.Nil(t, err)
+		env.RegisterActivity(&activity)
+
+		encodedValue, err := env.ExecuteActivity(activity.CheckDeleteStatusWithCloudRun, params, serviceURL, redirectURL)
+		assert.NoError(t, err)
+		var response *commonparams.ADCResponse
+		err = encodedValue.Get(&response)
+		assert.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.Equal(t, http.StatusTemporaryRedirect, response.StatusCode)
 		assert.Equal(t, "/api/status/456", response.RedirectURL)
 	})
 
 	t.Run("OnSuccess_Completion", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
 		defer server.Close()
 
-		ctx := setupTestContext()
 		params := createTestADCParams()
 		serviceURL := server.URL
 		redirectURL := "/api/status/123"
@@ -975,27 +1027,37 @@ func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
 
 		activity := activities.ADCActivity{}
-		response, err := activity.CheckDeleteStatusWithCloudRun(ctx, params, serviceURL, redirectURL)
-		assert.Nil(t, err)
+		env.RegisterActivity(&activity)
+
+		encodedValue, err := env.ExecuteActivity(activity.CheckDeleteStatusWithCloudRun, params, serviceURL, redirectURL)
+		assert.NoError(t, err)
+		var response *commonparams.ADCResponse
+		err = encodedValue.Get(&response)
+		assert.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 	})
 
 	t.Run("OnEmptyRedirectURL", func(t *testing.T) {
-		ctx := setupTestContext()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		params := createTestADCParams()
 		serviceURL := "http://test.com"
 		redirectURL := ""
 
 		activity := activities.ADCActivity{}
-		response, err := activity.CheckDeleteStatusWithCloudRun(ctx, params, serviceURL, redirectURL)
-		assert.NotNil(t, err)
-		assert.Nil(t, response)
-		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "missing redirect URL")
+		env.RegisterActivity(&activity)
+
+		_, err := env.ExecuteActivity(activity.CheckDeleteStatusWithCloudRun, params, serviceURL, redirectURL)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing redirect URL")
 	})
 
 	t.Run("OnInvalidADCParams", func(t *testing.T) {
-		ctx := setupTestContext()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		params := &commonparams.ADCParams{
 			AccessKey: "invalid-base64",
 			SecretKey: "invalid-base64",
@@ -1004,13 +1066,16 @@ func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 		redirectURL := "/api/status/123"
 
 		activity := activities.ADCActivity{}
-		response, err := activity.CheckDeleteStatusWithCloudRun(ctx, params, serviceURL, redirectURL)
-		assert.NotNil(t, err)
-		assert.Nil(t, response)
+		env.RegisterActivity(&activity)
+
+		_, err := env.ExecuteActivity(activity.CheckDeleteStatusWithCloudRun, params, serviceURL, redirectURL)
+		assert.Error(t, err)
 	})
 
 	t.Run("OnIdentityTokenFailure", func(t *testing.T) {
-		ctx := setupTestContext()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
 		params := createTestADCParams()
 		serviceURL := "http://test.com"
 		redirectURL := "/api/status/123"
@@ -1022,9 +1087,11 @@ func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 		defer func() { activities.GetStandardAuthToken = originalGetStandardAuthToken }()
 
 		activity := activities.ADCActivity{}
-		response, err := activity.CheckDeleteStatusWithCloudRun(ctx, params, serviceURL, redirectURL)
-		assert.NotNil(t, err)
-		assert.Nil(t, response)
+		env.RegisterActivity(&activity)
+
+		_, err := env.ExecuteActivity(activity.CheckDeleteStatusWithCloudRun, params, serviceURL, redirectURL)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get token")
 	})
 }
 

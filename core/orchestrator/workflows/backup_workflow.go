@@ -37,10 +37,13 @@ type backupUpdateWorkflow struct {
 }
 
 var (
-	_    WorkflowInterface = &backupUpdateWorkflow{}
-	_    WorkflowInterface = &BackupCreateWorkflow{}
-	_    WorkflowInterface = &BackupDeleteWorkflow{}
-	Wait                   = time.Duration(env.GetUint("ONTAP_REST_ASYNC_POLL_WAIT_SECONDS", 3)) * time.Second
+	_                                       WorkflowInterface = &backupUpdateWorkflow{}
+	_                                       WorkflowInterface = &BackupCreateWorkflow{}
+	_                                       WorkflowInterface = &BackupDeleteWorkflow{}
+	Wait                                                      = time.Duration(env.GetUint("ONTAP_REST_ASYNC_POLL_WAIT_SECONDS", 3)) * time.Second
+	createBackupWorkflowHeartbeatTimeoutSec                   = env.GetUint64("CREATE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
+	deleteBackupWorkflowHeartbeatTimeoutSec                   = env.GetUint64("DELETE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
+	updateBackupWorkflowHeartbeatTimeoutSec                   = env.GetUint64("UPDATE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
 )
 
 const (
@@ -174,6 +177,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(createBackupWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -465,6 +469,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(deleteBackupWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -822,6 +827,7 @@ func (wf *backupUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(updateBackupWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
