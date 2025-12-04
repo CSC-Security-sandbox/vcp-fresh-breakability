@@ -1,4 +1,4 @@
-package main
+package reverseproxy
 
 import (
 	"context"
@@ -24,6 +24,19 @@ import (
 var (
 	extractOntapPath              = utils.ExtractOntapPath
 	testOntapEndpointReachability = _testOntapEndpointReachability
+
+	// Environment variable values
+	ontapMaxIdleConns                 = env.GetInt("ONTAP_MAX_IDLE_CONNS", 200)
+	ontapMaxIdleConnsPerHost          = env.GetInt("ONTAP_MAX_IDLE_CONNS_PER_HOST", 50)
+	ontapIdleConnTimeoutSeconds       = env.GetInt("ONTAP_IDLE_CONN_TIMEOUT_SECONDS", 120)
+	ontapTLSHandshakeTimeoutSeconds   = env.GetInt("ONTAP_TLS_HANDSHAKE_TIMEOUT_SECONDS", 15)
+	ontapCleanupThresholdSeconds      = env.GetInt("ONTAP_CLEANUP_THRESHOLD_SECONDS", 300)
+	ontapClientTimeoutSeconds         = env.GetInt("ONTAP_CLIENT_TIMEOUT_SECONDS", 60)
+	ontapCleanupIntervalSeconds       = env.GetInt("ONTAP_CLEANUP_INTERVAL_SECONDS", 60)
+	ontapMaxTotalConnections          = env.GetInt("ONTAP_MAX_TOTAL_CONNECTIONS", 1000)
+	ontapMaxConnsPerHost              = env.GetInt("ONTAP_MAX_CONNS_PER_HOST", 100)
+	ontapResponseHeaderTimeoutSeconds = env.GetInt("ONTAP_RESPONSE_HEADER_TIMEOUT_SECONDS", 30)
+	ontapExpectContinueTimeoutSeconds = env.GetInt("ONTAP_EXPECT_CONTINUE_TIMEOUT_SECONDS", 1)
 )
 
 // ConnectionPool manages HTTP clients for different ONTAP clusters and auth types
@@ -61,11 +74,11 @@ func NewConnectionPool() *ConnectionPool {
 		clientTimestamps: make(map[string]time.Time),
 
 		// Configuration from environment variables with defaults
-		maxIdleConns:        env.GetInt("ONTAP_MAX_IDLE_CONNS", 200),
-		maxIdleConnsPerHost: env.GetInt("ONTAP_MAX_IDLE_CONNS_PER_HOST", 50),
-		idleConnTimeout:     time.Duration(env.GetInt("ONTAP_IDLE_CONN_TIMEOUT_SECONDS", 120)) * time.Second,
-		tlsHandshakeTimeout: time.Duration(env.GetInt("ONTAP_TLS_HANDSHAKE_TIMEOUT_SECONDS", 15)) * time.Second,
-		cleanupThreshold:    time.Duration(env.GetInt("ONTAP_CLEANUP_THRESHOLD_SECONDS", 300)) * time.Second,
+		maxIdleConns:        ontapMaxIdleConns,
+		maxIdleConnsPerHost: ontapMaxIdleConnsPerHost,
+		idleConnTimeout:     time.Duration(ontapIdleConnTimeoutSeconds) * time.Second,
+		tlsHandshakeTimeout: time.Duration(ontapTLSHandshakeTimeoutSeconds) * time.Second,
+		cleanupThreshold:    time.Duration(ontapCleanupThresholdSeconds) * time.Second,
 
 		stopCleanup: make(chan bool),
 	}
@@ -155,7 +168,7 @@ func (p *ConnectionPool) createClient(ctx context.Context, authData *models.Auth
 		// Endpoint is reachable, create client
 		client := &http.Client{
 			Transport: transport,
-			Timeout:   time.Duration(env.GetInt("ONTAP_CLIENT_TIMEOUT_SECONDS", 60)) * time.Second,
+			Timeout:   time.Duration(ontapClientTimeoutSeconds) * time.Second,
 		}
 
 		return client, testAddress, nil
@@ -202,7 +215,7 @@ func (p *ConnectionPool) Close() {
 
 // startCleanupRoutine starts the background cleanup routine
 func (p *ConnectionPool) startCleanupRoutine() {
-	p.cleanupTicker = time.NewTicker(time.Duration(env.GetInt("ONTAP_CLEANUP_INTERVAL_SECONDS", 60)) * time.Second)
+	p.cleanupTicker = time.NewTicker(time.Duration(ontapCleanupIntervalSeconds) * time.Second)
 
 	go func() {
 		for {
@@ -222,7 +235,7 @@ func (p *ConnectionPool) cleanup() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	maxConnections := env.GetInt("ONTAP_MAX_TOTAL_CONNECTIONS", 1000)
+	maxConnections := ontapMaxTotalConnections
 	now := time.Now()
 	threshold := now.Add(-p.cleanupThreshold)
 
@@ -282,7 +295,7 @@ func (p *ConnectionPool) createBaseTransport(tlsConfig *tls.Config) *http.Transp
 		// Connection Pooling Settings
 		MaxIdleConns:        p.maxIdleConns,
 		MaxIdleConnsPerHost: p.maxIdleConnsPerHost,
-		MaxConnsPerHost:     env.GetInt("ONTAP_MAX_CONNS_PER_HOST", 100),
+		MaxConnsPerHost:     ontapMaxConnsPerHost,
 		IdleConnTimeout:     p.idleConnTimeout,
 
 		// Performance Settings
@@ -292,8 +305,8 @@ func (p *ConnectionPool) createBaseTransport(tlsConfig *tls.Config) *http.Transp
 
 		// Timeout Settings
 		TLSHandshakeTimeout:   p.tlsHandshakeTimeout,
-		ResponseHeaderTimeout: time.Duration(env.GetInt("ONTAP_RESPONSE_HEADER_TIMEOUT_SECONDS", 30)) * time.Second,
-		ExpectContinueTimeout: time.Duration(env.GetInt("ONTAP_EXPECT_CONTINUE_TIMEOUT_SECONDS", 1)) * time.Second,
+		ResponseHeaderTimeout: time.Duration(ontapResponseHeaderTimeoutSeconds) * time.Second,
+		ExpectContinueTimeout: time.Duration(ontapExpectContinueTimeoutSeconds) * time.Second,
 
 		// Proxy and Environment
 		Proxy: http.ProxyFromEnvironment,

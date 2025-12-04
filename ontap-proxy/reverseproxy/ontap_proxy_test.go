@@ -1,4 +1,4 @@
-package main
+package reverseproxy
 
 import (
 	"context"
@@ -842,22 +842,21 @@ func TestConnectionPool_Cleanup_OverLimit(t *testing.T) {
 
 func TestConnectionPool_Cleanup_OverLimit_RemovesOldest(t *testing.T) {
 	t.Run("WhenOverMaxConnections_ShouldRemoveOldestConnection", func(t *testing.T) {
-		// Save original env value and restore after test
-		originalValue := os.Getenv("ONTAP_MAX_TOTAL_CONNECTIONS")
+		// Save original package-level variable value and restore after test
+		originalMaxConnections := ontapMaxTotalConnections
 		defer func() {
-			if originalValue == "" {
-				_ = os.Unsetenv("ONTAP_MAX_TOTAL_CONNECTIONS")
-			} else {
-				_ = os.Setenv("ONTAP_MAX_TOTAL_CONNECTIONS", originalValue)
-			}
+			ontapMaxTotalConnections = originalMaxConnections
 		}()
 
 		// Set a low max connections limit to trigger over-limit cleanup
-		_ = os.Setenv("ONTAP_MAX_TOTAL_CONNECTIONS", "3")
+		ontapMaxTotalConnections = 3
+		// Verify the variable is set correctly
+		assert.Equal(t, 3, ontapMaxTotalConnections, "ontapMaxTotalConnections should be set to 3")
 
 		pool := NewConnectionPool()
 		defer pool.Close()
 		ctx := context.Background()
+
 		// Create 5 clients (more than the max of 3)
 		clientKeys := make([]string, 5)
 		clients := make([]*http.Client, 5)
@@ -890,7 +889,7 @@ func TestConnectionPool_Cleanup_OverLimit_RemovesOldest(t *testing.T) {
 		stats := pool.GetStats()
 		assert.Equal(t, 5, stats["total_connections"])
 
-		// Manually set timestamps with different ages to test oldest removal
+		// Manually set timestamps with different ages - make key[0] the oldest
 		pool.mutex.Lock()
 		for i, key := range clientKeys {
 			// Set timestamps: key[0] is oldest (5 minutes ago), key[4] is newest (1 minute ago)
@@ -909,15 +908,31 @@ func TestConnectionPool_Cleanup_OverLimit_RemovesOldest(t *testing.T) {
 		assert.Equal(t, 4, stats["total_connections"], "First cleanup should remove one connection")
 
 		// Update timestamps again to ensure we can identify the next oldest
-		// Get remaining keys and set their timestamps
+		// Preserve the relative ordering from clientKeys to avoid non-deterministic map iteration
 		pool.mutex.Lock()
-		remainingKeys := make([]string, 0)
-		for key := range pool.clients {
-			remainingKeys = append(remainingKeys, key)
+		// Find which keys from clientKeys still exist and set their timestamps based on original order
+		remainingFromOriginal := make([]string, 0)
+		for _, originalKey := range clientKeys {
+			if _, exists := pool.clients[originalKey]; exists {
+				remainingFromOriginal = append(remainingFromOriginal, originalKey)
+			}
 		}
-		// Set timestamps for remaining connections with different ages
-		for i, key := range remainingKeys {
-			pool.clientTimestamps[key] = now.Add(-time.Duration(len(remainingKeys)-i) * time.Minute)
+		// Set timestamps for remaining connections based on their original position
+		// This ensures clientKeys[4] (newest) keeps its relative position
+		for _, key := range remainingFromOriginal {
+			// Find original index in clientKeys
+			originalIndex := -1
+			for idx, origKey := range clientKeys {
+				if origKey == key {
+					originalIndex = idx
+					break
+				}
+			}
+			if originalIndex >= 0 {
+				// Preserve relative age: higher index = newer
+				// Set timestamp based on original position to maintain ordering
+				pool.clientTimestamps[key] = now.Add(-time.Duration(5-originalIndex) * time.Minute)
+			}
 		}
 		pool.mutex.Unlock()
 
@@ -941,21 +956,20 @@ func TestConnectionPool_Cleanup_OverLimit_RemovesOldest(t *testing.T) {
 	})
 
 	t.Run("WhenOverLimitAndMultipleOldest_ShouldRemoveOneOldest", func(t *testing.T) {
-		// Save original env value and restore after test
-		originalValue := os.Getenv("ONTAP_MAX_TOTAL_CONNECTIONS")
+		// Save original package-level variable value and restore after test
+		originalMaxConnections := ontapMaxTotalConnections
 		defer func() {
-			if originalValue == "" {
-				_ = os.Unsetenv("ONTAP_MAX_TOTAL_CONNECTIONS")
-			} else {
-				_ = os.Setenv("ONTAP_MAX_TOTAL_CONNECTIONS", originalValue)
-			}
+			ontapMaxTotalConnections = originalMaxConnections
 		}()
 
 		// Set a low max connections limit
-		_ = os.Setenv("ONTAP_MAX_TOTAL_CONNECTIONS", "2")
+		ontapMaxTotalConnections = 2
+		// Verify the variable is set correctly
+		assert.Equal(t, 2, ontapMaxTotalConnections, "ontapMaxTotalConnections should be set to 2")
 
 		pool := NewConnectionPool()
 		defer pool.Close()
+		ctx := context.Background()
 
 		// Create 3 clients
 		clientKeys := make([]string, 3)
@@ -971,7 +985,6 @@ func TestConnectionPool_Cleanup_OverLimit_RemovesOldest(t *testing.T) {
 					{DNS: fmt.Sprintf("ontap%d.example.com", i)},
 				},
 			}
-			ctx := context.Background()
 			_, _, err := pool.GetClient(ctx, authData)
 			assert.NoError(t, err)
 
@@ -1012,21 +1025,20 @@ func TestConnectionPool_Cleanup_OverLimit_RemovesOldest(t *testing.T) {
 	})
 
 	t.Run("WhenOverLimitButNoTimestamps_ShouldNotPanic", func(t *testing.T) {
-		// Save original env value and restore after test
-		originalValue := os.Getenv("ONTAP_MAX_TOTAL_CONNECTIONS")
+		// Save original package-level variable value and restore after test
+		originalMaxConnections := ontapMaxTotalConnections
 		defer func() {
-			if originalValue == "" {
-				_ = os.Unsetenv("ONTAP_MAX_TOTAL_CONNECTIONS")
-			} else {
-				_ = os.Setenv("ONTAP_MAX_TOTAL_CONNECTIONS", originalValue)
-			}
+			ontapMaxTotalConnections = originalMaxConnections
 		}()
 
-		_ = os.Setenv("ONTAP_MAX_TOTAL_CONNECTIONS", "1")
+		ontapMaxTotalConnections = 1
+		// Verify the variable is set correctly
+		assert.Equal(t, 1, ontapMaxTotalConnections, "ontapMaxTotalConnections should be set to 1")
 
 		pool := NewConnectionPool()
 		defer pool.Close()
 		ctx := context.Background()
+
 		// Create 2 clients
 		for i := 0; i < 2; i++ {
 			authData := &models.AuthData{

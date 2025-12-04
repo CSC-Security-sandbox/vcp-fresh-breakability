@@ -13,8 +13,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/endpoints"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/reverseproxy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -26,6 +26,9 @@ func main() {
 
 	logger := log.NewLogger()
 	logger.Info("Starting ONTAP Proxy Service")
+
+	// load config
+	cfg := LoadConfig()
 
 	// Setup metrics, tracing, and context propagation
 	shutdown, err := log.SetupOpenTelemetry(ctx)
@@ -48,12 +51,11 @@ func main() {
 	}
 
 	httpServer := setupHTTPServer(openAPIServer)
-	port := getPort()
-	httpServer.Addr = ":" + port
+	httpServer.Addr = ":" + cfg.AppPort
 
 	// Start HTTP server in a goroutine for graceful shutdown
 	go func() {
-		logger.Info("Starting HTTP server on " + port)
+		logger.Info("Starting HTTP server on " + cfg.AppPort)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("Failed to start HTTP server", "error", err.Error())
 		}
@@ -82,10 +84,11 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 	mux.Use(log.RecoverMiddleware)
 	mux.Use(auth.AuthMiddleware(false)) // false = enable project number validation
 
-	ontapProxy := BuildOntapRESTProxy()
+	ontapProxy := reverseproxy.BuildOntapRESTProxy()
 
 	// Mount ONTAP API route first (more specific route)
 	mux.Route("/v1beta/projects/{projectId}/locations/{locationId}/pools/{poolId}/ontap", func(r chi.Router) {
+		r.Use(middleware.URLValidationMiddleware())
 		r.Use(middleware.CredentialMiddleware())
 		r.Use(middleware.RuleEngineMiddleware())
 		r.Use(middleware.CertificateMiddleware())
@@ -102,9 +105,4 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		IdleTimeout:       120 * time.Second,
 		ReadHeaderTimeout: 2 * time.Second,
 	}
-}
-
-func getPort() string {
-	port := env.GetString("PORT", "8080")
-	return port
 }
