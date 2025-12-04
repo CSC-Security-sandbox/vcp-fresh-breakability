@@ -57,6 +57,7 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 			CoolAccessTieringPolicy: params.TieringPolicy.CoolAccessTieringPolicy,
 			MinCoolingDays:          params.TieringPolicy.CoolnessPeriod,
 			CloudRetrievalPolicy:    params.TieringPolicy.CoolAccessRetrievalPolicy,
+			CloudWriteModeEnabled:   params.TieringPolicy.CloudWriteModeEnabled,
 		}
 	}
 
@@ -323,6 +324,7 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 			CoolAccessTieringPolicy: params.TieringPolicy.CoolAccessTieringPolicy,
 			MinCoolingDays:          params.TieringPolicy.CoolnessPeriod,
 			CloudRetrievalPolicy:    params.TieringPolicy.CoolAccessRetrievalPolicy,
+			CloudWriteModeEnabled:   params.TieringPolicy.CloudWriteModeEnabled,
 		}
 	}
 
@@ -345,6 +347,12 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 	if params.SnapshotDirectoryAccess != nil {
 		volumeModifyParams.SnapshotDirectoryAccessEnabled = params.SnapshotDirectoryAccess
 	}
+
+	err = handleVolumeCloudWriteModeDisableIfProvided(client, volumeModifyParams)
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+
 	success, job, err := client.Storage().VolumeModify(volumeModifyParams)
 	if err != nil {
 		// Check for maximum volume size error
@@ -365,6 +373,27 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 		return nil
 	}
 	return client.Poll(job.JobUUID)
+}
+
+func handleVolumeCloudWriteModeDisableIfProvided(client ontapRest.RESTClient, params *ontapRest.VolumeModifyParams) error {
+	// For files volume, when changing ontap auto-tiering policy from all to auto/none/snapshot_only
+	// policy along with disabling cloud write mode, ontap throws error. It is required to
+	// disable the cloud write mode first and then change the policy.
+	if params.TieringPolicy != nil &&
+		params.TieringPolicy.CloudWriteModeEnabled != nil &&
+		!*params.TieringPolicy.CloudWriteModeEnabled &&
+		params.TieringPolicy.CoolAccessTieringPolicy != models.VolumeInlineTieringPolicyAll {
+		success, job, err := client.Storage().VolumeModifyCloudWriteMode(params)
+		if err != nil {
+			return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+		}
+		if success {
+			return nil
+		}
+		return client.Poll(job.JobUUID)
+	}
+
+	return nil
 }
 
 func (rc *OntapRestProvider) RevertVolume(params RevertVolumeParams) error {

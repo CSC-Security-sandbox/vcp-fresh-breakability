@@ -123,10 +123,10 @@ func (re *retryEngine) UpdatePoolFields(ctx context.Context, poolUUID string, up
 	return err
 }
 
-func (re *retryEngine) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64) error {
+func (re *retryEngine) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64, tieringStatus *datamodel.TieringStatus) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		err = re.dataStore.UpdatePoolTieringConfig(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)
+		err = re.dataStore.UpdatePoolTieringConfig(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold, tieringStatus)
 		if err != nil {
 			re.logError("UpdatePoolTieringConfig", err)
 			if !dbutils.IsTransientErr(err) {

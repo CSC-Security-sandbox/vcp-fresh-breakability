@@ -419,6 +419,9 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
 			param.AutoTieringPolicy.AutoTieringEnabled = false
 			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
+			if !isBlockVolume {
+				param.AutoTieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(false)
+			}
 		}
 
 		// Process HotTierBypassModeEnabled if provided. Supported only for file volume.
@@ -426,6 +429,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			param.AutoTieringPolicy.HotTierBypassModeEnabled = req.Volume.TieringPolicy.Value.HotTierBypassModeEnabled.Value
 			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
 				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAll
+				param.AutoTieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(true)
 			}
 		}
 	}
@@ -849,6 +853,9 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				param.AutoTieringPolicy.AutoTieringEnabled = false
 				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
 			}
+			if !isBlockVolume {
+				param.AutoTieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(false)
+			}
 		} else {
 			// If tiering action is not present in request, check existing in db & fill.
 			if dbVolume == nil || dbVolume.AutoTieringPolicy == nil || dbVolume.AutoTieringPolicy.TieringPolicy == "" {
@@ -859,6 +866,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			if param.AutoTieringPolicy.TieringPolicy == utils.FetchTieringPolicyAsPerVolumeType(!isBlockVolume) {
 				param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
 			}
+			param.AutoTieringPolicy.CloudWriteModeEnabled = dbVolume.AutoTieringPolicy.CloudWriteModeEnabled
 		}
 
 		// Process HotTierBypassModeEnabled if provided. Supported only for file volume.
@@ -866,11 +874,13 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			param.AutoTieringPolicy.HotTierBypassModeEnabled = req.TieringPolicy.Value.HotTierBypassModeEnabled.Value
 			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
 				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAll
+				param.AutoTieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(true)
 				// Only disable HotTierBypassModeEnabled, if it was previously enabled and no tiering policy has come as part of the request body.
 			} else if dbVolume != nil && dbVolume.AutoTieringPolicy != nil && dbVolume.AutoTieringPolicy.HotTierBypassModeEnabled && !req.TieringPolicy.Value.TierAction.IsSet() {
 				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
 				param.AutoTieringPolicy.AutoTieringEnabled = dbVolume.AutoTieringPolicy.AutoTieringEnabled
 				param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
+				param.AutoTieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(false)
 			}
 		}
 	}

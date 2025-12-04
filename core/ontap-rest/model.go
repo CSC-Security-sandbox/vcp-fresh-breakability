@@ -1259,6 +1259,19 @@ type VolumeMovementDestinationAggregate struct {
 	DestinationAggregateName *string
 }
 
+func volumeModifyCloudWriteParamToONTAP(params *VolumeModifyParams) *storage.VolumeModifyParams {
+	otParams := storage.NewVolumeModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	info := &models.Volume{}
+	info.CloudWriteEnabled = params.TieringPolicy.CloudWriteModeEnabled
+	otParams.SetInfo(info)
+	return otParams
+}
+
 func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModifyParams {
 	otParams := storage.NewVolumeModifyParams()
 	if params == nil {
@@ -1354,6 +1367,10 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 
 		if params.TieringPolicy.CloudRetrievalPolicy != "" {
 			info.CloudRetrievalPolicy = &params.TieringPolicy.CloudRetrievalPolicy
+		}
+
+		if params.TieringPolicy.CloudWriteModeEnabled != nil {
+			info.CloudWriteEnabled = params.TieringPolicy.CloudWriteModeEnabled
 		}
 	}
 
@@ -2388,6 +2405,7 @@ type TieringPolicy struct {
 	CoolAccessTieringPolicy string
 	MinCoolingDays          int64
 	CloudRetrievalPolicy    string
+	CloudWriteModeEnabled   *bool // Only supported for file volumes
 }
 
 const (
@@ -2506,6 +2524,10 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		if params.TieringPolicy.CoolAccessTieringPolicy == models.VolumeInlineTieringPolicyAuto || params.TieringPolicy.CoolAccessTieringPolicy == models.VolumeInlineTieringPolicySnapshotOnly {
 			otParams.Info.Tiering.MinCoolingDays = &params.TieringPolicy.MinCoolingDays
 			otParams.Info.CloudRetrievalPolicy = &params.TieringPolicy.CloudRetrievalPolicy
+		}
+
+		if params.TieringPolicy.CloudWriteModeEnabled != nil {
+			otParams.Info.CloudWriteEnabled = params.TieringPolicy.CloudWriteModeEnabled
 		}
 	}
 

@@ -133,6 +133,13 @@ func (p *PrecomputedRandomValues) getRandomFloat() float64 {
 	return f
 }
 
+// getRandomPoolTieringStatus returns a random tiering status for the pool
+func (p *PrecomputedRandomValues) getRandomPoolTieringStatus() datamodel.TieringStatus {
+	myStrings := []datamodel.TieringStatus{datamodel.TieringStatusPaused, datamodel.TieringStatusPaused, datamodel.TieringStatusPartiallyPaused, datamodel.TieringStatusPartiallyResumed}
+	randomIndex := rand.Intn(len(myStrings))
+	return myStrings[randomIndex]
+}
+
 // getRandomInt returns a precomputed random int, cycling through the pool
 func (p *PrecomputedRandomValues) getRandomInt(max int) int {
 	if len(p.RandomInts) == 0 {
@@ -1117,7 +1124,7 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 					HotTierSizeInBytes:       hotTierSizeInBytes,
 					EnableHotTierAutoResize:  precomputed.getRandomFloat() < 0.5, // 50% chance
 					BucketName:               fmt.Sprintf("bucket-%s", precomputed.getRandomString10()),
-					TieringPaused:            precomputed.getRandomFloat() < 0.1,       // 10% chance of being paused
+					TieringStatus:            precomputed.getRandomPoolTieringStatus(),
 					HotTierConsumption:       int64(precomputed.getRandomInt(80) + 10), // 10-90%
 					ColdTierConsumption:      int64(precomputed.getRandomInt(80) + 10), // 10-90%
 					TieringFullnessThreshold: int64(precomputed.getRandomInt(20) + 80), // 80-100%

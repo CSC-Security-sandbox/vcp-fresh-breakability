@@ -508,7 +508,7 @@ func (d *DataStoreRepository) UpdatePoolFields(ctx context.Context, poolUUID str
 }
 
 // UpdatePoolTieringConfig updates the auto tiering config
-func (d *DataStoreRepository) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64) error {
+func (d *DataStoreRepository) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64, tieringStatus *datamodel.TieringStatus) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -540,6 +540,9 @@ func (d *DataStoreRepository) UpdatePoolTieringConfig(ctx context.Context, poolU
 	}
 	if tieringThreshold != nil && *tieringThreshold != pool.AutoTieringConfig.TieringFullnessThreshold {
 		pool.AutoTieringConfig.TieringFullnessThreshold = *tieringThreshold
+	}
+	if tieringStatus != nil && *tieringStatus != pool.AutoTieringConfig.TieringStatus {
+		pool.AutoTieringConfig.TieringStatus = *tieringStatus
 	}
 
 	// Save the entire pool back (GORM will update auto_tiering_config as a whole)

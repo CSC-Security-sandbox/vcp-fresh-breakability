@@ -140,6 +140,7 @@ type AutoTieringPolicy struct {
 	TieringPolicy            string
 	RetrievalPolicy          string
 	HotTierBypassModeEnabled bool
+	CloudWriteModeEnabled    *bool // Only supported for file volumes
 }
 
 type BlockPropertiesRequest struct {

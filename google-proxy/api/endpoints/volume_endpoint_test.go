@@ -395,8 +395,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				BackupPolicyId:         "backup-policy-id",
 			},
 			AutoTieringPolicy: &common.AutoTieringPolicy{
-				AutoTieringEnabled: false,
-				TieringPolicy:      "none",
+				AutoTieringEnabled:    false,
+				TieringPolicy:         "none",
+				CloudWriteModeEnabled: nil, // nil when tiering is paused
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region, zone)
@@ -682,7 +683,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
 				Protocols: []gcpgenserver.ProtocolsV1beta{
-					gcpgenserver.ProtocolsV1betaISCSI,
+					gcpgenserver.ProtocolsV1betaNFSV4,
 				},
 				TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
 					gcpgenserver.TieringPolicyV1beta{
@@ -700,8 +701,14 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-region"
 
-		_, err := prepareCreateVolumeParams(req, params, region, zone)
-		assert.Error(tt, err)
+		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		assert.NotNil(tt, result.AutoTieringPolicy.CloudWriteModeEnabled)
+		assert.True(tt, *result.AutoTieringPolicy.CloudWriteModeEnabled)
+		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 
 	t.Run("WhenTieringPolicyEnabledWithHotTierBypassModeDisabled", func(tt *testing.T) {
@@ -739,6 +746,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.NotNil(tt, result.AutoTieringPolicy)
 		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
 		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		// CloudWriteModeEnabled can be nil when HotTierBypassModeEnabled is false
+		if result.AutoTieringPolicy.CloudWriteModeEnabled != nil {
+			assert.False(tt, *result.AutoTieringPolicy.CloudWriteModeEnabled)
+		}
 		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 
@@ -777,6 +788,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.NotNil(tt, result.AutoTieringPolicy)
 		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
 		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled) // Should default to false
+		// CloudWriteModeEnabled can be nil when HotTierBypassModeEnabled is false
+		if result.AutoTieringPolicy.CloudWriteModeEnabled != nil {
+			assert.False(tt, *result.AutoTieringPolicy.CloudWriteModeEnabled)
+		}
 		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 
@@ -859,6 +874,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
 		// Key assertion: When HotTierBypassModeEnabled is true, TieringPolicy should be "all"
 		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
+		assert.True(tt, *result.AutoTieringPolicy.CloudWriteModeEnabled)
 		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 
@@ -1312,6 +1328,8 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
 		// Key assertion: When HotTierBypassModeEnabled is true, TieringPolicy should be "all"
 		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
+		assert.NotNil(tt, result.AutoTieringPolicy.CloudWriteModeEnabled)
+		assert.True(tt, *result.AutoTieringPolicy.CloudWriteModeEnabled)
 		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 
@@ -1353,6 +1371,10 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
 		// When HotTierBypassModeEnabled transitions from true to false, TieringPolicy should be "auto"
 		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		// CloudWriteModeEnabled can be nil when HotTierBypassModeEnabled is false
+		if result.AutoTieringPolicy.CloudWriteModeEnabled != nil {
+			assert.False(tt, *result.AutoTieringPolicy.CloudWriteModeEnabled)
+		}
 		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 
@@ -1638,6 +1660,10 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 		assert.Equal(tt, "default", result.AutoTieringPolicy.RetrievalPolicy)
 		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
 		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		// CloudWriteModeEnabled can be nil when HotTierBypassModeEnabled is false
+		if result.AutoTieringPolicy.CloudWriteModeEnabled != nil {
+			assert.False(tt, *result.AutoTieringPolicy.CloudWriteModeEnabled)
+		}
 		assert.Equal(tt, int32(35), result.AutoTieringPolicy.CoolingThresholdDays)
 	})
 

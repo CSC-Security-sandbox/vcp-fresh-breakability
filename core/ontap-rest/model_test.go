@@ -3893,6 +3893,45 @@ func TestCifsServiceDeleteParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestVolumeModifyCloudWriteParamToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		result := volumeModifyCloudWriteParamToONTAP(nil)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenCloudWriteModeEnabledIsTrue_ThenCloudWriteEnabledIsSet", func(tt *testing.T) {
+		trueVal := true
+		params := &VolumeModifyParams{
+			UUID: "test-uuid",
+			TieringPolicy: &TieringPolicy{
+				CloudWriteModeEnabled: &trueVal,
+			},
+		}
+		result := volumeModifyCloudWriteParamToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-uuid", result.UUID)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.CloudWriteEnabled)
+		assert.True(tt, *result.Info.CloudWriteEnabled)
+	})
+
+	t.Run("WhenCloudWriteModeEnabledIsFalse_ThenCloudWriteEnabledIsSet", func(tt *testing.T) {
+		falseVal := false
+		params := &VolumeModifyParams{
+			UUID: "test-uuid",
+			TieringPolicy: &TieringPolicy{
+				CloudWriteModeEnabled: &falseVal,
+			},
+		}
+		result := volumeModifyCloudWriteParamToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-uuid", result.UUID)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.CloudWriteEnabled)
+		assert.False(tt, *result.Info.CloudWriteEnabled)
+	})
+}
+
 func TestVolumeGetParamsToONTAPQuotaRules(t *testing.T) {
 	t.Run("WhenParamsNil", func(tt *testing.T) {
 		ctx := context.Background()

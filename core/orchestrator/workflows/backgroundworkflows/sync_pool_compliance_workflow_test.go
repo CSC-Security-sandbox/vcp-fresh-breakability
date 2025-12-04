@@ -53,7 +53,7 @@ func TestSyncPoolZIZSDetailsWorkflow_Success(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(poolIdentifiers, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(poolIdentifiers, nil)
 
 	// Mock child workflow executions
 	env.OnWorkflow(workflows.SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.AnythingOfType("*database.PoolIdentifier")).Return(nil).Times(2)
@@ -83,7 +83,7 @@ func TestSyncPoolZIZSDetailsWorkflow_EmptyPoolList(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return([]*database.PoolIdentifier{}, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return([]*database.PoolIdentifier{}, nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(SyncPoolZIZSDetailsWorkflow)
@@ -107,7 +107,7 @@ func TestSyncPoolZIZSDetailsWorkflow_NilPoolList(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(nil, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(SyncPoolZIZSDetailsWorkflow)
@@ -131,7 +131,7 @@ func TestSyncPoolZIZSDetailsWorkflow_ListPoolsFailure(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(nil, errors.New("database error"))
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
 
 	// Execute workflow
 	env.ExecuteWorkflow(SyncPoolZIZSDetailsWorkflow)
@@ -172,7 +172,7 @@ func TestSyncPoolZIZSDetailsWorkflow_ChildWorkflowFailure(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(poolIdentifiers, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(poolIdentifiers, nil)
 
 	// Mock child workflow executions - first succeeds, second fails
 	env.OnWorkflow(workflows.SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.AnythingOfType("*database.PoolIdentifier")).Return(nil).Once()
@@ -225,7 +225,7 @@ func TestSyncPoolZIZSDetailsWorkflow_MultiplePools(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(poolIdentifiers, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(poolIdentifiers, nil)
 
 	// Mock child workflow executions
 	env.OnWorkflow(workflows.SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.AnythingOfType("*database.PoolIdentifier")).Return(nil).Times(3)
@@ -266,9 +266,9 @@ func TestSyncPoolZIZSDetailsWorkflow_RetryPolicy(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method with retry scenario
-	env.OnActivity("ListPoolsUUID", mock.Anything).Run(func(args mock.Arguments) {
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		callCount++
-	}).Return(func(context.Context) ([]*database.PoolIdentifier, error) {
+	}).Return(func(context.Context, []string) ([]*database.PoolIdentifier, error) {
 		if callCount == 1 {
 			return nil, errors.New("temporary error")
 		}
@@ -313,7 +313,7 @@ func TestSyncPoolZIZSDetailsWorkflow_ContextWithLoggerFields(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(poolIdentifiers, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(poolIdentifiers, nil)
 
 	// Mock child workflow execution
 	env.OnWorkflow(workflows.SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.AnythingOfType("*database.PoolIdentifier")).Return(nil).Once()
@@ -353,7 +353,7 @@ func TestSyncPoolZIZSDetailsWorkflow_ActivityOptions(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(poolIdentifiers, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(poolIdentifiers, nil)
 
 	// Mock child workflow execution
 	env.OnWorkflow(workflows.SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.AnythingOfType("*database.PoolIdentifier")).Return(nil).Once()
@@ -393,7 +393,7 @@ func TestSyncPoolZIZSDetailsWorkflow_WorkflowInfo(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(poolIdentifiers, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(poolIdentifiers, nil)
 
 	// Mock child workflow execution
 	env.OnWorkflow(workflows.SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.AnythingOfType("*database.PoolIdentifier")).Return(nil).Once()
@@ -446,7 +446,7 @@ func TestSyncPoolZIZSDetailsWorkflow_DifferentPoolConfigurations(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(poolIdentifiers, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(poolIdentifiers, nil)
 
 	// Mock child workflow executions
 	env.OnWorkflow(workflows.SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.AnythingOfType("*database.PoolIdentifier")).Return(nil).Times(3)
@@ -487,7 +487,7 @@ func TestSyncPoolZIZSDetailsWorkflow_Timeout(t *testing.T) {
 	env.RegisterActivity(mockCommonActivities)
 
 	// Mock the ListPoolsUUID method
-	env.OnActivity("ListPoolsUUID", mock.Anything).Return(poolIdentifiers, nil)
+	env.OnActivity("ListPoolsUUID", mock.Anything, mock.Anything).Return(poolIdentifiers, nil)
 
 	// Mock child workflow execution with timeout
 	env.OnWorkflow(workflows.SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.AnythingOfType("*database.PoolIdentifier")).Return(nil).Once()

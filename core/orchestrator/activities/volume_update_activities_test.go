@@ -3907,12 +3907,14 @@ func TestUpdateAutoTieringParams_WithAutoPolicy_TieringNotPaused(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
+	falseVal := false
 	params := &common.UpdateVolumeParams{
 		AutoTieringPolicy: &common.AutoTieringPolicy{
-			AutoTieringEnabled:   true,
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAuto,
-			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 10,
+			AutoTieringEnabled:    true,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  10,
+			CloudWriteModeEnabled: &falseVal,
 		},
 	}
 
@@ -3934,18 +3936,22 @@ func TestUpdateAutoTieringParams_WithAutoPolicy_TieringNotPaused(t *testing.T) {
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyAuto, result.CoolAccessTieringPolicy)
 	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(10), result.CoolnessPeriod)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.False(t, *result.CloudWriteModeEnabled)
 }
 
 func TestUpdateAutoTieringParams_WithAllPolicy_TieringNotPaused(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
+	trueVal := true
 	params := &common.UpdateVolumeParams{
 		AutoTieringPolicy: &common.AutoTieringPolicy{
-			AutoTieringEnabled:   true,
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAll,
-			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 15,
+			AutoTieringEnabled:    true,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyAll,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  15,
+			CloudWriteModeEnabled: &trueVal,
 		},
 	}
 
@@ -3963,7 +3969,7 @@ func TestUpdateAutoTieringParams_WithAllPolicy_TieringNotPaused(t *testing.T) {
 	pool := &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: false,
+				TieringStatus: datamodel.TieringStatusResumed,
 			},
 		},
 	}
@@ -3977,19 +3983,23 @@ func TestUpdateAutoTieringParams_WithAllPolicy_TieringNotPaused(t *testing.T) {
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyAll, result.CoolAccessTieringPolicy)
 	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(15), result.CoolnessPeriod)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.True(t, *result.CloudWriteModeEnabled)
 	mockStorage.AssertExpectations(t)
 }
 
-func TestUpdateAutoTieringParams_WithAllPolicy_TieringPaused(t *testing.T) {
+func TestUpdateAutoTieringParams_WithAllPolicy_TieringStatusPaused(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
+	trueVal := true
 	params := &common.UpdateVolumeParams{
 		AutoTieringPolicy: &common.AutoTieringPolicy{
-			AutoTieringEnabled:   true,
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAll,
-			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 20,
+			AutoTieringEnabled:    true,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyAll,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  20,
+			CloudWriteModeEnabled: &trueVal,
 		},
 	}
 
@@ -4007,7 +4017,7 @@ func TestUpdateAutoTieringParams_WithAllPolicy_TieringPaused(t *testing.T) {
 	pool := &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: true,
+				TieringStatus: datamodel.TieringStatusPaused,
 			},
 		},
 	}
@@ -4018,8 +4028,10 @@ func TestUpdateAutoTieringParams_WithAllPolicy_TieringPaused(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	// When tiering is paused, it should set to 'none'
+	// When tiering is paused, it should set to 'none' and CloudWriteModeEnabled to false
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyNone, result.CoolAccessTieringPolicy)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.False(t, *result.CloudWriteModeEnabled)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -4060,12 +4072,14 @@ func TestUpdateAutoTieringParams_AutoTieringDisabled(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
+	falseVal := false
 	params := &common.UpdateVolumeParams{
 		AutoTieringPolicy: &common.AutoTieringPolicy{
-			AutoTieringEnabled:   false,
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyNone,
-			RetrievalPolicy:      "",
-			CoolingThresholdDays: 0,
+			AutoTieringEnabled:    false,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyNone,
+			RetrievalPolicy:       "",
+			CoolingThresholdDays:  0,
+			CloudWriteModeEnabled: &falseVal,
 		},
 	}
 
@@ -4085,18 +4099,22 @@ func TestUpdateAutoTieringParams_AutoTieringDisabled(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyNone, result.CoolAccessTieringPolicy)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.False(t, *result.CloudWriteModeEnabled)
 }
 
 func TestUpdateAutoTieringParams_WithSnapshotOnlyPolicy(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
+	falseVal := false
 	params := &common.UpdateVolumeParams{
 		AutoTieringPolicy: &common.AutoTieringPolicy{
-			AutoTieringEnabled:   true,
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicySnapshotOnly,
-			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 5,
+			AutoTieringEnabled:    true,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicySnapshotOnly,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  5,
+			CloudWriteModeEnabled: &falseVal,
 		},
 	}
 
@@ -4118,6 +4136,8 @@ func TestUpdateAutoTieringParams_WithSnapshotOnlyPolicy(t *testing.T) {
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicySnapshotOnly, result.CoolAccessTieringPolicy)
 	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(5), result.CoolnessPeriod)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.False(t, *result.CloudWriteModeEnabled)
 }
 
 func TestUpdateAutoTieringParams_WithAutoTieringPolicySetForFileVolume(t *testing.T) {

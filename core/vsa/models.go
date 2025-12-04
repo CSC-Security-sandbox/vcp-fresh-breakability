@@ -437,6 +437,7 @@ type TieringPolicy struct {
 	CoolnessPeriod            int64
 	CoolAccessRetrievalPolicy string
 	CoolAccessTieringPolicy   string
+	CloudWriteModeEnabled     *bool // Only supported for file volumes
 }
 
 type UpdateVolumeParams struct {

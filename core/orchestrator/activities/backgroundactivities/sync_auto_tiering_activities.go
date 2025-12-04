@@ -2,6 +2,7 @@ package backgroundactivities
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -97,8 +98,8 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 				return
 			}
 
-			// Skip pools that are not configured for auto-tiering or are not in a ready state
-			if !pool.AllowAutoTiering || pool.State != models.LifeCycleStateREADY {
+			// Skip pools that are not configured for auto-tiering
+			if !pool.AllowAutoTiering {
 				return
 			}
 
@@ -118,14 +119,14 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 			// 2. Auto-tiering is currently paused.
 			if pool.AutoTieringConfig.HotTierSizeInBytes+int64(poolConsumption[PoolConsumptionColdTier]) >= pool.SizeInBytes {
 				// Condition to check if the pool is not already paused
-				if !pool.AutoTieringConfig.TieringPaused {
+				if pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPaused {
 					mu.Lock()
 					poolsToPause = append(poolsToPause, poolIdentifier)
 					mu.Unlock()
 				}
 			} else {
 				// Condition to check if the pool is already paused and needs to be resumed
-				if pool.AutoTieringConfig.TieringPaused {
+				if pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusResumed {
 					mu.Lock()
 					poolsToResume = append(poolsToResume, poolIdentifier)
 					mu.Unlock()
@@ -138,7 +139,8 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 				// 3. No volumes in the pool have bypass mode enabled.
 				// 4. Hot tier usage exceeds the defined threshold percentage.
 				// 5. New hot tier provisioned size + cold tier consumption < logical pool size.
-				if pool.AutoTieringConfig.EnableHotTierAutoResize && pool.AutoTieringConfig.HotTierSizeInBytes != 0 {
+				// 6. Pool is in READY state.
+				if pool.AutoTieringConfig.EnableHotTierAutoResize && pool.AutoTieringConfig.HotTierSizeInBytes != 0 && pool.State == models.LifeCycleStateREADY {
 					exists, err := checkPoolVolumesWithBypassModeEnabled(ctx, se, pool)
 					activity.RecordHeartbeat(ctx, fmt.Sprintf("Checked pool volumes for bypass mode: %s", pool.UUID))
 					if err != nil {
@@ -212,8 +214,8 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 				return
 			}
 
-			// Skip pools that are not configured for auto-tiering or are not in a ready state
-			if !pool.AllowAutoTiering || pool.State != models.LifeCycleStateREADY {
+			// Skip pools that are not configured for auto-tiering
+			if !pool.AllowAutoTiering {
 				return
 			}
 
@@ -224,16 +226,16 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 				return
 			}
 
-			// Check and collect pools which have a tiering fullness threshold set as 50 and not paused
-			// These pools need to have their tiering fullness threshold set to 0
-			if pool.AutoTieringConfig != nil && pool.AutoTieringConfig.TieringFullnessThreshold == 50 && !pool.AutoTieringConfig.TieringPaused {
+			// Check and collect pools which have a tiering fullness threshold set as 50 and not
+			// paused/partially-paused. These pools need to have their tiering fullness threshold set to 0
+			if pool.AutoTieringConfig != nil && pool.AutoTieringConfig.TieringFullnessThreshold == 50 && pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPaused && pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPartiallyPaused {
 				err = getAndUpdateAggregate(provider, 0)
 				activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated aggregate threshold for pool: %s", pool.UUID))
 				if err != nil {
 					// Logging error and skipping. Will retry in next sync.
 					logger.Warnf("Failed to set aggregate threshold to 0 in ontap for pool %s, Error: %v", pool.Name, err)
 				} else {
-					err = se.UpdatePoolTieringConfig(ctx, poolIdentifier.UUID, nil, nil, nillable.GetInt64Ptr(0))
+					err = se.UpdatePoolTieringConfig(ctx, poolIdentifier.UUID, nil, nil, nillable.GetInt64Ptr(0), nil)
 					activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated pool tiering config in database for pool: %s", pool.UUID))
 					if err != nil {
 						// Logging error and skipping. Will retry in next sync.
@@ -343,7 +345,7 @@ func calculateAndUpdateHotColdTierConsumption(ctx context.Context, ontapVolumes 
 	}
 
 	if volCount != int(expectedVolCount) {
-		return 0, 0, fmt.Errorf("mismatch in vol count fetched from db and ontap, expectedDBCount: %d, ontapCount: %d", expectedVolCount, volCount)
+		logger.Warnf("mismatch in vol count fetched from db and ontap, expectedDBCount: %d, ontapCount: %d", expectedVolCount, volCount)
 	}
 
 	// Bulk update all volume tiering fields in a single database transaction
@@ -364,6 +366,7 @@ func (a *AutoTierSyncActivity) ToggleHotTierBypassModeForPoolVolumes(ctx context
 	activity.RecordHeartbeat(ctx, "Initializing hot tier bypass mode toggle for pool volumes")
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	var errList []error
 
 	provider, err := GetOntapRestProviderForPool(ctx, se, pool)
 	activity.RecordHeartbeat(ctx, "Retrieved ONTAP provider for pool")
@@ -385,21 +388,35 @@ func (a *AutoTierSyncActivity) ToggleHotTierBypassModeForPoolVolumes(ctx context
 				UUID: vol.VolumeAttributes.ExternalUUID,
 				TieringPolicy: &vsa.TieringPolicy{
 					CoolAccessTieringPolicy: ontapModels.VolumeInlineTieringPolicyNone,
+					CloudWriteModeEnabled:   nillable.GetBoolPtr(false),
 				},
 			}
 
-			if !pool.AutoTieringConfig.TieringPaused {
+			if pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPaused && pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPartiallyPaused {
 				updateParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyAll
+				updateParams.TieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(true)
 			}
 
 			if err = provider.UpdateVolume(updateParams); err != nil {
-				logger.Errorf("Failed to change tiering policy to: %s for volume: %s, error: %v", updateParams.TieringPolicy.CoolAccessTieringPolicy, vol.UUID, err)
-				return vsaerrors.WrapAsTemporalApplicationError(err)
+				// Logging error, adding it to the list and moving on to the next volume.
+				// Using the error list, the retry will happen at the end.
+				logger.Errorf("Failed to change tiering policy to: %s for volume: %s, error: %v", updateParams.TieringPolicy.CoolAccessTieringPolicy, vol.Name, err)
+				errList = append(errList, fmt.Errorf("failed to change tiering policy to: %s for volume: %s, error: %s", updateParams.TieringPolicy.CoolAccessTieringPolicy, vol.Name, err.Error()))
+			} else {
+				activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated tiering policy for volume: %s", vol.UUID))
+				logger.Infof("Tiering policy changed to: %s for volume: %s", updateParams.TieringPolicy.CoolAccessTieringPolicy, vol.UUID)
 			}
-			activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated tiering policy for volume: %s", vol.UUID))
-
-			logger.Infof("Tiering policy changed to: %s for volume: %s", updateParams.TieringPolicy.CoolAccessTieringPolicy, vol.UUID)
 		}
+	}
+
+	if len(errList) > 0 {
+		var finalError error
+		for _, er := range errList {
+			finalError = errors.Join(finalError, er)
+		}
+		return vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, finalError),
+		)
 	}
 	activity.RecordHeartbeat(ctx, "Completed hot tier bypass mode toggle for pool volumes")
 	return nil
@@ -414,7 +431,7 @@ func (a *AutoTierSyncActivity) UpdatePoolTieringConsumptionInDB(ctx context.Cont
 		hotTierConsumption := int64(consumptionMap[PoolConsumptionHotTier])
 		coldTierConsumption := int64(consumptionMap[PoolConsumptionColdTier])
 
-		err := se.UpdatePoolTieringConfig(ctx, poolUUID, nillable.GetInt64Ptr(hotTierConsumption), nillable.GetInt64Ptr(coldTierConsumption), nil)
+		err := se.UpdatePoolTieringConfig(ctx, poolUUID, nillable.GetInt64Ptr(hotTierConsumption), nillable.GetInt64Ptr(coldTierConsumption), nil, nil)
 		activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated pool tiering consumption in DB for pool: %s", poolUUID))
 		if err != nil {
 			return fmt.Errorf("failed to update pool tiering consumption in DB for poolUUID: %s, error: %v", poolUUID, err)
@@ -423,5 +440,15 @@ func (a *AutoTierSyncActivity) UpdatePoolTieringConsumptionInDB(ctx context.Cont
 		logger.Infof("Updated pool tiering consumption in DB, poolUUID: %s, hotTierConsumption: %d, coldTierConsumption: %d", poolUUID, hotTierConsumption, coldTierConsumption)
 	}
 	activity.RecordHeartbeat(ctx, "Completed updating pool tiering consumption in database")
+	return nil
+}
+
+func (a *AutoTierSyncActivity) UpdatePoolTieringThresholdAndStatus(ctx context.Context, poolUUID string, tieringThreshold int64, tieringStatus datamodel.TieringStatus) error {
+	se := a.SE
+
+	err := se.UpdatePoolTieringConfig(ctx, poolUUID, nil, nil, nillable.GetInt64Ptr(tieringThreshold), &tieringStatus)
+	if err != nil {
+		return fmt.Errorf("failed to update pool tiering consumption in DB for poolUUID: %s, error: %v", poolUUID, err)
+	}
 	return nil
 }

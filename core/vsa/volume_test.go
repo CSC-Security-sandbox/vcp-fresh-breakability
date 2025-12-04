@@ -1510,6 +1510,151 @@ func TestUpdateVolume_WithExportPolicyAndJunctionPath(t *testing.T) {
 	})
 }
 
+func TestUpdateVolume_WithCloudWriteModeDisable(t *testing.T) {
+	t.Run("WhenDisablingCloudWriteMode_ShouldCallVolumeModifyCloudWriteMode", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		exportPolicy := "test-export-policy"
+		falseVal := false
+		params := UpdateVolumeParams{
+			UUID:         "testUUID",
+			ExportPolicy: &exportPolicy,
+			TieringPolicy: &TieringPolicy{
+				CoolAccessTieringPolicy: "auto",
+				CloudWriteModeEnabled:   &falseVal,
+			},
+		}
+
+		// Expect VolumeModifyCloudWriteMode to be called before VolumeModify
+		mockStorage.On("VolumeModifyCloudWriteMode", mock.MatchedBy(func(volumeModifyParams *ontaprest.VolumeModifyParams) bool {
+			return volumeModifyParams.UUID == "testUUID"
+		})).Return(true, nil, nil).Once()
+
+		// Expect VolumeModify to be called after
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(volumeModifyParams *ontaprest.VolumeModifyParams) bool {
+			return volumeModifyParams.UUID == "testUUID"
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCloudWriteModeEnabledIsTrue_ShouldNotCallVolumeModifyCloudWriteMode", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		exportPolicy := "test-export-policy"
+		trueVal := true
+		params := UpdateVolumeParams{
+			UUID:         "testUUID",
+			ExportPolicy: &exportPolicy,
+			TieringPolicy: &TieringPolicy{
+				CoolAccessTieringPolicy: "all",
+				CloudWriteModeEnabled:   &trueVal,
+			},
+		}
+
+		// Should NOT call VolumeModifyCloudWriteMode, only VolumeModify
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(volumeModifyParams *ontaprest.VolumeModifyParams) bool {
+			return volumeModifyParams.UUID == "testUUID"
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBlockVolume_ShouldNotCallVolumeModifyCloudWriteMode", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		// No ExportPolicy means block volume
+		// For block volumes, CloudWriteModeEnabled should be nil (not supported)
+		params := UpdateVolumeParams{
+			UUID: "testUUID",
+			TieringPolicy: &TieringPolicy{
+				CoolAccessTieringPolicy: "auto",
+				CloudWriteModeEnabled:   nil,
+			},
+		}
+
+		// Should NOT call VolumeModifyCloudWriteMode for block volumes
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(volumeModifyParams *ontaprest.VolumeModifyParams) bool {
+			return volumeModifyParams.UUID == "testUUID"
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeModifyCloudWriteModeFails_ShouldReturnError", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		exportPolicy := "test-export-policy"
+		falseVal := false
+		params := UpdateVolumeParams{
+			UUID:         "testUUID",
+			ExportPolicy: &exportPolicy,
+			TieringPolicy: &TieringPolicy{
+				CoolAccessTieringPolicy: "auto",
+				CloudWriteModeEnabled:   &falseVal,
+			},
+		}
+
+		// Expect VolumeModifyCloudWriteMode to fail
+		mockStorage.On("VolumeModifyCloudWriteMode", mock.Anything).Return(false, nil, errors.New("disable cloud write error")).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.Error(tt, err)
+		// The error is wrapped twice by vsaerrors.NewVCPError, so we just check that an error occurred
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
 func TestRevertVolume(t *testing.T) {
 	t.Run("TestRevertVolume_Success", func(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)

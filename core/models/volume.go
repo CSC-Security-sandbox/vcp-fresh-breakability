@@ -50,6 +50,7 @@ type AutoTieringPolicy struct {
 	CoolingThresholdDays     int32
 	TieringPolicy            string
 	HotTierBypassModeEnabled bool
+	CloudWriteModeEnabled    *bool
 }
 
 type BlockProperties struct {

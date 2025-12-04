@@ -153,7 +153,7 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			HotTierSizeInBytes:       int64(params.HotTierSizeInBytes),
 			EnableHotTierAutoResize:  params.EnableHotTierAutoResize,
-			TieringPaused:            false,
+			TieringStatus:            datamodel.TieringStatusResumed,
 			TieringFullnessThreshold: TieringFullnessThresholdOntapDefault,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{

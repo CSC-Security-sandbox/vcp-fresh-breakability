@@ -1089,14 +1089,24 @@ type NodeGroupAssignmentParams struct {
 	IsRegionalHA     bool
 }
 
+// TieringStatus represents the state of tiering for an auto-tiering config
+type TieringStatus string
+
+const (
+	TieringStatusPaused           TieringStatus = "PAUSED"
+	TieringStatusResumed          TieringStatus = "RESUMED"
+	TieringStatusPartiallyPaused  TieringStatus = "PARTIALLY_PAUSED"
+	TieringStatusPartiallyResumed TieringStatus = "PARTIALLY_RESUMED"
+)
+
 type AutoTieringConfig struct {
-	HotTierSizeInBytes       int64  `json:"hot_tier_size_in_bytes"`
-	EnableHotTierAutoResize  bool   `json:"enable_hot_tier_auto_resize"`
-	BucketName               string `json:"bucket_name"`
-	TieringPaused            bool   `json:"tiering_paused"`
-	HotTierConsumption       int64  `json:"hot_tier_consumption"`
-	ColdTierConsumption      int64  `json:"cold_tier_consumption"`
-	TieringFullnessThreshold int64  `json:"tiering_fullness_threshold"`
+	HotTierSizeInBytes       int64         `json:"hot_tier_size_in_bytes"`
+	EnableHotTierAutoResize  bool          `json:"enable_hot_tier_auto_resize"`
+	BucketName               string        `json:"bucket_name"`
+	TieringStatus            TieringStatus `json:"tiering_status"`
+	HotTierConsumption       int64         `json:"hot_tier_consumption"`
+	ColdTierConsumption      int64         `json:"cold_tier_consumption"`
+	TieringFullnessThreshold int64         `json:"tiering_fullness_threshold"`
 }
 
 // Scan implements the sql.Scanner interface for AutoTieringConfig
@@ -1122,6 +1132,7 @@ type AutoTieringPolicy struct {
 	CoolingThresholdDays     int32  `json:"cooling_threshold_days"`
 	RetrievalPolicy          string `json:"retrieval_policy"`
 	HotTierBypassModeEnabled bool   `json:"hot_tier_bypass_mode_enabled"`
+	CloudWriteModeEnabled    *bool  `json:"cloud_write_mode_enabled,omitempty"`
 }
 
 // Scan implements the sql.Scanner interface for AutoTieringPolicy

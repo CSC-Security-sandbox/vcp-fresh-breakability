@@ -1825,8 +1825,7 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 		}
 
 		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.AnythingOfType("*utils.Filter")).Return(expectedPools, nil)
-
-		encodedValue, err := env.ExecuteActivity(activity.ListPoolsUUID)
+		encodedValue, err := env.ExecuteActivity(activity.ListPoolsUUID, []string{models2.LifeCycleStateREADY})
 		assert.NoError(tt, err)
 		var result []*database.PoolIdentifier
 		err = encodedValue.Get(&result)
@@ -1854,7 +1853,7 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 
 		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.AnythingOfType("*utils.Filter")).Return([]*database.PoolIdentifier{}, nil)
 
-		encodedValue, err := env.ExecuteActivity(activity.ListPoolsUUID)
+		encodedValue, err := env.ExecuteActivity(activity.ListPoolsUUID, []string{models2.LifeCycleStateREADY})
 		assert.NoError(tt, err)
 		var result []*database.PoolIdentifier
 		err = encodedValue.Get(&result)
@@ -1874,7 +1873,7 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 
 		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.AnythingOfType("*utils.Filter")).Return(nil, errors.New("database connection failed"))
 
-		_, err := env.ExecuteActivity(activity.ListPoolsUUID)
+		_, err := env.ExecuteActivity(activity.ListPoolsUUID, []string{models2.LifeCycleStateREADY})
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "An internal error occurred.")
 		mockStorage.AssertExpectations(tt)
@@ -1901,14 +1900,14 @@ func TestCommonActivity_ListPoolsUUID(t *testing.T) {
 		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.MatchedBy(func(filter *dbUtils.Filter) bool {
 			// Verify that the filter contains the expected condition for state = "ready"
 			for _, condition := range filter.Conditions {
-				if condition.Field == "state" && condition.Op == "=" && condition.Value == models2.LifeCycleStateREADY {
+				if condition.Field == "state" && condition.Op == "IN" {
 					return true
 				}
 			}
 			return false
 		})).Return(expectedPools, nil)
 
-		encodedValue, err := env.ExecuteActivity(activity.ListPoolsUUID)
+		encodedValue, err := env.ExecuteActivity(activity.ListPoolsUUID, []string{models2.LifeCycleStateREADY})
 		assert.NoError(tt, err)
 		var result []*database.PoolIdentifier
 		err = encodedValue.Get(&result)

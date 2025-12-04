@@ -218,6 +218,8 @@ func CreateAutoTieringParams(ctx context.Context, se database.Storage, params *v
 	// volume creation in ontap. Since this supersedes the tiering fullness threshold and
 	// doesn't stop tiering. We let the volume be created with default tiering policy 'none'
 	// This will get later corrected when the pool will resume auto-tiering.
+	shouldSetTieringPolicy := true
+
 	if volume.AutoTieringPolicy.TieringPolicy == ontapModels.VolumeInlineTieringPolicyAll {
 		// Fetch pool from db to check if auto-tiering is currently paused
 		pool, err := se.GetPool(ctx, volume.Pool.UUID, volume.AccountID)
@@ -225,15 +227,17 @@ func CreateAutoTieringParams(ctx context.Context, se database.Storage, params *v
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 
-		if !pool.AutoTieringConfig.TieringPaused {
-			params.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&volume.AutoTieringPolicy.TieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
-			params.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&volume.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
-			params.TieringPolicy.CoolnessPeriod = int64(volume.AutoTieringPolicy.CoolingThresholdDays)
-		}
-	} else {
+		shouldSetTieringPolicy = pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPaused && pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPartiallyPaused
+	}
+
+	if shouldSetTieringPolicy {
 		params.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&volume.AutoTieringPolicy.TieringPolicy, utils.FetchTieringPolicyAsPerVolumeType(!utils.IsSanProtocols(volume.VolumeAttributes.Protocols)))
 		params.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&volume.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
 		params.TieringPolicy.CoolnessPeriod = int64(volume.AutoTieringPolicy.CoolingThresholdDays)
+		params.TieringPolicy.CloudWriteModeEnabled = volume.AutoTieringPolicy.CloudWriteModeEnabled
+	} else {
+		params.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyNone
+		params.TieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(false)
 	}
 
 	return params.TieringPolicy, nil

@@ -39,6 +39,7 @@ var (
 	syncVSAAutoTieringWorkflowHeartbeatTimeoutSec              = env.GetUint64("SYNC_VSA_AUTO_TIERING_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
 	autoTieringPauseResumeWorkflowHeartbeatTimeoutSec          = env.GetUint64("AUTO_TIERING_PAUSE_RESUME_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
 	autoTieringHotTierAutoResizeWorkflowHeartbeatTimeoutSec    = env.GetUint64("AUTO_TIERING_HOT_TIER_AUTO_RESIZE_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
+	AutoTieringPauseResumeActivityMaxAttempts                  = env.GetInt("AUTO_TIERING_PAUSE_RESUME_ACTIVITY_MAX_ATTEMPTS", 3)
 )
 
 // SyncVSAAutoTieringWorkflow is a workflow that synchronizes auto-tiering for all pools.
@@ -69,8 +70,9 @@ func SyncVSAAutoTieringWorkflow(ctx workflow.Context) error {
 	autoTierActivity := &backgroundactivities.AutoTierSyncActivity{}
 	commonActivities := &activities.CommonActivities{}
 
+	filterStates := []string{models.LifeCycleStateREADY, models.LifeCycleStateUpdating, models.LifeCycleStateDegraded}
 	var pools []*database.PoolIdentifier
-	err = workflow.ExecuteActivity(ctx, commonActivities.ListPoolsUUID).Get(ctx, &pools)
+	err = workflow.ExecuteActivity(ctx, commonActivities.ListPoolsUUID, filterStates).Get(ctx, &pools)
 	if err != nil {
 		logger.Errorf("ListPools activity failed with error: %v", err)
 		return err
@@ -229,14 +231,13 @@ func AutoTieringPauseResumeWorkflow(ctx workflow.Context, poolIdentifier databas
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
-			MaximumAttempts:        int32(AutoTieringSyncActivityMaxAttempts),
+			MaximumAttempts:        int32(AutoTieringPauseResumeActivityMaxAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	autoTierActivity := &backgroundactivities.AutoTierSyncActivity{}
 	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
-	poolActivity := &activities.PoolActivity{}
 
 	if operation == backgroundactivities.PoolsToPauseKey {
 		logger.Infof("Starting child workflow to pause auto-tiering in pool %s with ID %s", poolIdentifier.Name, poolIdentifier.UUID)
@@ -248,27 +249,6 @@ func AutoTieringPauseResumeWorkflow(ctx workflow.Context, poolIdentifier databas
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.FetchPoolByUUID, poolIdentifier.UUID, poolIdentifier.AccountID).Get(ctx, &pool)
 	if err != nil {
 		logger.Errorf("FetchPoolByUUID activity execution failed for pool %s. Error: %v", poolIdentifier.Name, err)
-		return err
-	}
-
-	defer func() {
-		// Ensure that the pool state is set back to 'READY' after the operation is complete.
-		// This is done in a deferred function to ensure that it runs regardless of whether
-		// the main operation succeeded or failed.
-		updates := map[string]interface{}{
-			"state":         models.LifeCycleStateREADY,
-			"state_details": models.LifeCycleStateAvailableDetails,
-		}
-		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolFields, pool.UUID, updates).Get(ctx, nil)
-		if err != nil {
-			logger.Errorf("Failed to update pool %s to READY state. Error: %v", poolIdentifier.Name, err)
-		}
-	}()
-
-	// Update the pool state to 'UPDATING' to ensure that the pool is in a consistent state.
-	// This will help to avoid any race conditions on the pool resource.
-	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatingPool, pool).Get(ctx, nil)
-	if err != nil {
 		return err
 	}
 
@@ -286,27 +266,38 @@ func AutoTieringPauseResumeWorkflow(ctx workflow.Context, poolIdentifier databas
 
 	tieringFullnessThreshold := aggregateTieringFullnessThresholdDefault
 	if operation == backgroundactivities.PoolsToPauseKey {
-		pool.AutoTieringConfig.TieringPaused = true
+		pool.AutoTieringConfig.TieringStatus = datamodel.TieringStatusPaused
 		// If auto tiering is paused, we set the auto-tiering threshold to 100%
 		tieringFullnessThreshold = aggregateTieringFullnessThresholdFull
 	} else {
-		pool.AutoTieringConfig.TieringPaused = false
+		pool.AutoTieringConfig.TieringStatus = datamodel.TieringStatusResumed
 	}
-	pool.AutoTieringConfig.TieringFullnessThreshold = int64(tieringFullnessThreshold)
 
 	err = workflow.ExecuteActivity(ctx, autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, pool).Get(ctx, nil)
 	if err != nil {
+		// Logging the error and marking tiering status with partial enum, so that
+		// it can be retried in the next sync.
 		logger.Errorf("Failed to execute ToggleHotTierBypassModeForPoolVolumes for pool %s: %v", pool.Name, err)
-		return err
+		if operation == backgroundactivities.PoolsToPauseKey {
+			pool.AutoTieringConfig.TieringStatus = datamodel.TieringStatusPartiallyPaused
+		} else {
+			pool.AutoTieringConfig.TieringStatus = datamodel.TieringStatusPartiallyResumed
+		}
 	}
 
 	err = workflow.ExecuteActivity(ctx, autoTierActivity.UpdateAggregateInOntap, node, tieringFullnessThreshold).Get(ctx, nil)
 	if err != nil {
-		logger.Errorf("Failed to execute PauseResumeActivity for pool %s: %v", pool.Name, err)
-		return err
+		logger.Errorf("Failed to execute UpdateAggregateInOntap for pool %s: %v", pool.Name, err)
+		if operation == backgroundactivities.PoolsToPauseKey {
+			pool.AutoTieringConfig.TieringStatus = datamodel.TieringStatusPartiallyPaused
+		} else {
+			pool.AutoTieringConfig.TieringStatus = datamodel.TieringStatusPartiallyResumed
+		}
+	} else {
+		pool.AutoTieringConfig.TieringFullnessThreshold = int64(tieringFullnessThreshold)
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, pool).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, autoTierActivity.UpdatePoolTieringThresholdAndStatus, pool.UUID, pool.AutoTieringConfig.TieringFullnessThreshold, pool.AutoTieringConfig.TieringStatus).Get(ctx, nil)
 	if err != nil {
 		return err
 	}

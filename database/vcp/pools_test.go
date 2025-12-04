@@ -2649,7 +2649,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 				HotTierSizeInBytes:      500000000000,
 				EnableHotTierAutoResize: true,
 				BucketName:              "test-bucket",
-				TieringPaused:           false,
+				TieringStatus:           datamodel.TieringStatusResumed,
 				HotTierConsumption:      0,
 				ColdTierConsumption:     0,
 			},
@@ -2663,7 +2663,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		hotTierConsumption := int64(250000000000)  // 250GB
 		coldTierConsumption := int64(150000000000) // 150GB
 
-		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hotTierConsumption, &coldTierConsumption, nil)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hotTierConsumption, &coldTierConsumption, nil, nil)
 		assert.NoError(tt, err)
 
 		// Verify the update
@@ -2678,7 +2678,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		assert.Equal(tt, pool.AutoTieringConfig.HotTierSizeInBytes, updatedPool.AutoTieringConfig.HotTierSizeInBytes)
 		assert.Equal(tt, pool.AutoTieringConfig.EnableHotTierAutoResize, updatedPool.AutoTieringConfig.EnableHotTierAutoResize)
 		assert.Equal(tt, pool.AutoTieringConfig.BucketName, updatedPool.AutoTieringConfig.BucketName)
-		assert.Equal(tt, pool.AutoTieringConfig.TieringPaused, updatedPool.AutoTieringConfig.TieringPaused)
+		assert.Equal(tt, pool.AutoTieringConfig.TieringStatus, updatedPool.AutoTieringConfig.TieringStatus)
 	})
 
 	t.Run("UpdatesConsumptionToZero", func(tt *testing.T) {
@@ -2713,7 +2713,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 				HotTierSizeInBytes:      500000000000,
 				EnableHotTierAutoResize: true,
 				BucketName:              "test-bucket",
-				TieringPaused:           false,
+				TieringStatus:           datamodel.TieringStatusResumed,
 				HotTierConsumption:      100000000000,
 				ColdTierConsumption:     50000000000,
 			},
@@ -2725,7 +2725,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 
 		// Update consumption values to zero
 		zero := int64(0)
-		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &zero, &zero, nil)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &zero, &zero, nil, nil)
 		assert.NoError(tt, err)
 
 		// Verify the update
@@ -2752,7 +2752,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		// Try to update consumption for non-existent pool
 		hot := int64(100000000000)
 		cold := int64(50000000000)
-		err = store.UpdatePoolTieringConfig(context.Background(), "non-existent-uuid", &hot, &cold, nil)
+		err = store.UpdatePoolTieringConfig(context.Background(), "non-existent-uuid", &hot, &cold, nil, nil)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Resource not found")
 	})
@@ -2795,7 +2795,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		// Try to update consumption
 		hot := int64(100000000000)
 		cold := int64(50000000000)
-		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot, &cold, nil)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot, &cold, nil, nil)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Resource not found")
 	})
@@ -2832,7 +2832,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 				HotTierSizeInBytes:      500000000000,
 				EnableHotTierAutoResize: true,
 				BucketName:              "test-bucket",
-				TieringPaused:           false,
+				TieringStatus:           datamodel.TieringStatusResumed,
 				HotTierConsumption:      0,
 				ColdTierConsumption:     0,
 			},
@@ -2845,7 +2845,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		// First update
 		hot1 := int64(100000000000)
 		cold1 := int64(50000000000)
-		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot1, &cold1, nil)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot1, &cold1, nil, nil)
 		assert.NoError(tt, err)
 
 		// Verify first update
@@ -2858,7 +2858,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		// Second update with different values
 		hot2 := int64(200000000000)
 		cold2 := int64(100000000000)
-		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot2, &cold2, nil)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot2, &cold2, nil, nil)
 		assert.NoError(tt, err)
 
 		// Verify second update
@@ -2871,7 +2871,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		assert.Equal(tt, int64(500000000000), updatedPool.AutoTieringConfig.HotTierSizeInBytes)
 		assert.Equal(tt, true, updatedPool.AutoTieringConfig.EnableHotTierAutoResize)
 		assert.Equal(tt, "test-bucket", updatedPool.AutoTieringConfig.BucketName)
-		assert.Equal(tt, false, updatedPool.AutoTieringConfig.TieringPaused)
+		assert.Equal(tt, datamodel.TieringStatusResumed, updatedPool.AutoTieringConfig.TieringStatus)
 	})
 
 	t.Run("UpdatesUpdatedAtTimestamp", func(tt *testing.T) {
@@ -2926,7 +2926,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		// Update consumption
 		hot := int64(100000000000)
 		cold := int64(50000000000)
-		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot, &cold, nil)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hot, &cold, nil, nil)
 		assert.NoError(tt, err)
 
 		// Verify updated_at has changed
@@ -2979,7 +2979,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		hotTierConsumption := int64(5000000000000)   // 5TB
 		coldTierConsumption := int64(10000000000000) // 10TB
 
-		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hotTierConsumption, &coldTierConsumption, nil)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &hotTierConsumption, &coldTierConsumption, nil, nil)
 		assert.NoError(tt, err)
 
 		// Verify the update
@@ -3022,7 +3022,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 				HotTierSizeInBytes:      500000000000,
 				EnableHotTierAutoResize: true,
 				BucketName:              "my-test-bucket",
-				TieringPaused:           true,
+				TieringStatus:           datamodel.TieringStatusPaused,
 				HotTierConsumption:      100000000,
 				ColdTierConsumption:     200000000,
 			},
@@ -3035,7 +3035,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		// Update only consumption fields
 		newHotTier := int64(300000000000)
 		newColdTier := int64(150000000000)
-		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &newHotTier, &newColdTier, nil)
+		err = store.UpdatePoolTieringConfig(context.Background(), pool.UUID, &newHotTier, &newColdTier, nil, nil)
 		assert.NoError(tt, err)
 
 		// Verify only consumption fields changed
@@ -3052,7 +3052,7 @@ func TestUpdatePoolTieringConfig(t *testing.T) {
 		assert.Equal(tt, int64(500000000000), updatedPool.AutoTieringConfig.HotTierSizeInBytes)
 		assert.Equal(tt, true, updatedPool.AutoTieringConfig.EnableHotTierAutoResize)
 		assert.Equal(tt, "my-test-bucket", updatedPool.AutoTieringConfig.BucketName)
-		assert.Equal(tt, true, updatedPool.AutoTieringConfig.TieringPaused)
+		assert.Equal(tt, datamodel.TieringStatusPaused, updatedPool.AutoTieringConfig.TieringStatus)
 	})
 }
 

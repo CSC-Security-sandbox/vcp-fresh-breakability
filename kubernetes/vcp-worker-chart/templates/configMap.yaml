@@ -173,6 +173,7 @@ data:
   AUTO_TIER_HOT_TIER_AUTO_RESIZE_THRESHOLD_PERCENT: {{$.Values.workerConfig.autoTierHotTierAutoResizeThresholdPercent | quote }}
   AUTO_TIER_HOT_TIER_AUTO_RESIZE_INCREASE_PERCENT: {{$.Values.workerConfig.autoTierHotTierAutoResizeIncreasePercent | quote }}
   AUTO_TIERING_SYNC_ACTIVITY_MAX_ATTEMPTS: {{$.Values.workerConfig.autoTieringSyncActivityMaxAttempts | quote }}
+  AUTO_TIERING_PAUSE_RESUME_ACTIVITY_MAX_ATTEMPTS: {{$.Values.workerConfig.autoTieringPauseResumeActivityMaxAttempts | quote }}
   NLF_LICENSE_SECRET_PATH: {{$.Values.workerConfig.nlfLicenseSecretPath | quote }}
   HARD_DELETE_RESOURCES: {{$.Values.workerConfig.hardDeleteResources | quote }}
   SCHEDULED_HARD_DELETE: {{$.Values.workerConfig.scheduleHardDelete | quote }}

@@ -34,6 +34,7 @@ type StorageClient interface {
 	VolumeGet(params *VolumeGetParams) (*Volume, error)
 	VolumeCollectionGet(params *VolumeCollectionGetParams, ucbf UserCallbackFunc[[]*Volume]) error
 	VolumeModify(params *VolumeModifyParams) (bool, *JobAccepted, error)
+	VolumeModifyCloudWriteMode(params *VolumeModifyParams) (bool, *JobAccepted, error)
 	FlexCacheVolumeModify(params *FlexcacheModifyParams) (bool, *JobAccepted, error)
 	VolumeCreate(params *VolumeCreateParams) (*Volume, *JobAccepted, error)
 	FlexCacheVolumeCreate(params *FlexCacheVolumeCreateParams) (*Flexcache, *JobAccepted, error)
@@ -99,6 +100,22 @@ func (sc *storageClient) VolumeModify(params *VolumeModifyParams) (bool, *JobAcc
 		JobUUID: acceptedResponse.Payload.Job.UUID.String(),
 	}
 	return false, job, nil
+}
+
+func (sc *storageClient) VolumeModifyCloudWriteMode(params *VolumeModifyParams) (bool, *JobAccepted, error) {
+	okResponse, acceptedResponse, err := sc.api.VolumeModify(volumeModifyCloudWriteParamToONTAP(params), nil)
+	if err != nil {
+		return false, nil, err
+	}
+	if okResponse != nil {
+		return true, nil, nil
+	}
+
+	job := &JobAccepted{
+		JobUUID: acceptedResponse.Payload.Job.UUID.String(),
+	}
+
+	return true, job, nil
 }
 
 var paginateAggregateCollectionGet = _paginate[[]*Aggregate]

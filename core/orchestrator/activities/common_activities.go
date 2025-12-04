@@ -432,12 +432,12 @@ func (j CommonActivities) GetAuthJWTToken(ctx context.Context, accountName strin
 	return jwtToken, nil
 }
 
-func (j CommonActivities) ListPoolsUUID(ctx context.Context) ([]*database.PoolIdentifier, error) {
+func (j CommonActivities) ListPoolsUUID(ctx context.Context, states []string) ([]*database.PoolIdentifier, error) {
 	activity.RecordHeartbeat(ctx, "Initializing pool UUID listing")
 	logger := util.GetLogger(ctx)
 	se := j.SE
 
-	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
+	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("state", "IN", states))
 	pools, err := se.ListPoolUUIDs(ctx, filter)
 	activity.RecordHeartbeat(ctx, "Listed pool UUIDs from database")
 	if err != nil {

@@ -205,7 +205,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes: 500000000000, // 500GB
-					TieringPaused:      false,
+					TieringStatus:      datamodel.TieringStatusResumed,
 				},
 			},
 		}
@@ -218,7 +218,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes: 500000000000, // 500GB
-					TieringPaused:      true,
+					TieringStatus:      datamodel.TieringStatusPaused,
 				},
 			},
 		}
@@ -231,7 +231,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000, // 500GB
-					TieringPaused:           false,
+					TieringStatus:           datamodel.TieringStatusResumed,
 					EnableHotTierAutoResize: true,
 				},
 			},
@@ -398,6 +398,11 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "not-ready-pool-uuid"},
 				AllowAutoTiering: true,
 				State:            models.LifeCycleStateCreating, // Not ready
+				SizeInBytes:      1000000000000,                 // 1TB
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes: 500000000000, // 500GB
+					TieringStatus:      datamodel.TieringStatusResumed,
+				},
 			},
 		}
 
@@ -408,7 +413,9 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 		var result map[string][]*database.PoolIdentifier
 		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
-		assert.Len(tt, result[PoolsToPauseKey], 0)
+		// Pool should still be segregated to pause even if not ready, since logic doesn't check state for pause/resume
+		assert.Len(tt, result[PoolsToPauseKey], 1)
+		assert.Equal(tt, "not-ready-pool-uuid", result[PoolsToPauseKey][0].UUID)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
 		assert.Len(tt, result[PoolsToAutoResizeKey], 0)
 		mockStorage.AssertExpectations(tt)
@@ -486,7 +493,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000, // 500GB
-					TieringPaused:           false,
+					TieringStatus:           datamodel.TieringStatusResumed,
 					EnableHotTierAutoResize: true,
 				},
 			},
@@ -538,7 +545,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000, // 500GB
-					TieringPaused:           false,
+					TieringStatus:           datamodel.TieringStatusResumed,
 					EnableHotTierAutoResize: true,
 				},
 			},
@@ -591,7 +598,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 				SizeInBytes:      1000000000000, // 1TB
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					HotTierSizeInBytes:      500000000000, // 500GB
-					TieringPaused:           false,
+					TieringStatus:           datamodel.TieringStatusResumed,
 					EnableHotTierAutoResize: true,
 				},
 			},
@@ -845,6 +852,13 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 
 		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
 
+		// Mock GetOntapRestProviderForPool to return error for non-ready pool
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return nil, errors.New("pool not ready")
+		}
+
 		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
 		assert.NoError(tt, err)
 		var result map[string]map[string]float64
@@ -1061,6 +1075,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil) // Returns 2 volumes but ONTAP has 1
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
 		// Mock GetOntapRestProviderForPool
@@ -1075,7 +1090,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		var result map[string]map[string]float64
 		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
-		assert.NotContains(tt, result, "test-pool-uuid")
+		// With the updated logic, calculateAndUpdateHotColdTierConsumption no longer returns
+		// an error for volume count mismatch, so the pool will be included in the result
+		assert.Contains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -1105,7 +1122,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				State:            models.LifeCycleStateREADY,
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
-					TieringPaused:            false,
+					TieringStatus:            datamodel.TieringStatusResumed,
 				},
 			},
 		}
@@ -1154,7 +1171,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 
 		// Mock UpdatePoolTieringConfig - should be called with threshold 0
 		thresholdZero := int64(0)
-		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero, (*datamodel.TieringStatus)(nil)).Return(nil)
 
 		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
 		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
@@ -1196,7 +1213,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				State:            models.LifeCycleStateREADY,
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
-					TieringPaused:            true, // Paused - should not update
+					TieringStatus:            datamodel.TieringStatusPaused, // Paused - should not update
 				},
 			},
 		}
@@ -1278,7 +1295,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				State:            models.LifeCycleStateREADY,
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 75, // Not 50 - should not update
-					TieringPaused:            false,
+					TieringStatus:            datamodel.TieringStatusResumed,
 				},
 			},
 		}
@@ -1434,7 +1451,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				State:            models.LifeCycleStateREADY,
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
-					TieringPaused:            false,
+					TieringStatus:            datamodel.TieringStatusResumed,
 				},
 			},
 		}
@@ -1522,7 +1539,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 				State:            models.LifeCycleStateREADY,
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
-					TieringPaused:            false,
+					TieringStatus:            datamodel.TieringStatusResumed,
 				},
 			},
 		}
@@ -1568,7 +1585,7 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 
 		// Mock UpdatePoolTieringConfig - should fail
 		thresholdZero := int64(0)
-		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero).Return(errors.New("database error"))
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero, (*datamodel.TieringStatus)(nil)).Return(errors.New("database error"))
 
 		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
 		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
@@ -1768,11 +1785,14 @@ func TestCalculateAndUpdateHotColdTierConsumption(t *testing.T) {
 		}
 		expectedVolCount := int64(2) // Mismatch: expecting 2 but got 1
 
+		mockStorage.On("BatchUpdateVolumeTieringFields", ctx, mock.Anything).Return(nil)
+
 		hotTier, coldTier, err := calculateAndUpdateHotColdTierConsumption(ctx, volumes, expectedVolCount, mockStorage, dbVolumeMap)
-		assert.Error(tt, err)
-		assert.Equal(tt, int64(0), hotTier)
-		assert.Equal(tt, int64(0), coldTier)
-		assert.Contains(tt, err.Error(), "mismatch in vol count")
+		// The function no longer returns an error for volume count mismatch
+		assert.NoError(tt, err)
+		// The function still computes based on what it got
+		assert.NotEqual(tt, int64(0), hotTier)
+		assert.NotEqual(tt, int64(0), coldTier)
 	})
 
 	t.Run("calculateAndUpdateHotColdTierConsumption_EmptyVolumes", func(tt *testing.T) {
@@ -1801,7 +1821,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: true, // Paused - should set to "none"
+				TieringStatus: datamodel.TieringStatusPaused, // Paused - should set to "none"
 			},
 		}
 
@@ -1857,7 +1877,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: false, // Not paused - should set to "all"
+				TieringStatus: datamodel.TieringStatusResumed, // Not paused - should set to "all"
 			},
 		}
 
@@ -1906,7 +1926,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: false,
+				TieringStatus: datamodel.TieringStatusResumed,
 			},
 		}
 
@@ -1948,7 +1968,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: false,
+				TieringStatus: datamodel.TieringStatusResumed,
 			},
 		}
 
@@ -1975,7 +1995,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: false,
+				TieringStatus: datamodel.TieringStatusResumed,
 			},
 		}
 
@@ -2006,7 +2026,7 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: false,
+				TieringStatus: datamodel.TieringStatusResumed,
 			},
 		}
 
@@ -2066,8 +2086,8 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 		cold1 := int64(600000000000)
 		hot2 := int64(300000000000)
 		cold2 := int64(400000000000)
-		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "pool-1-uuid", &hot1, &cold1, (*int64)(nil)).Return(nil)
-		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "pool-2-uuid", &hot2, &cold2, (*int64)(nil)).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "pool-1-uuid", &hot1, &cold1, (*int64)(nil), (*datamodel.TieringStatus)(nil)).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "pool-2-uuid", &hot2, &cold2, (*int64)(nil), (*datamodel.TieringStatus)(nil)).Return(nil)
 
 		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		assert.NoError(tt, err)
@@ -2108,7 +2128,7 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 
 		hot := int64(500000000000)
 		cold := int64(600000000000)
-		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "pool-1-uuid", &hot, &cold, (*int64)(nil)).Return(errors.New("database error"))
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "pool-1-uuid", &hot, &cold, (*int64)(nil), (*datamodel.TieringStatus)(nil)).Return(errors.New("database error"))
 
 		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		assert.Error(tt, err)
@@ -2135,7 +2155,7 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 
 		hot := int64(100000000000)
 		cold := int64(200000000000)
-		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "single-pool-uuid", &hot, &cold, (*int64)(nil)).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "single-pool-uuid", &hot, &cold, (*int64)(nil), (*datamodel.TieringStatus)(nil)).Return(nil)
 
 		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		assert.NoError(tt, err)
@@ -2159,7 +2179,7 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 		}
 
 		zero := int64(0)
-		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "zero-pool-uuid", &zero, &zero, (*int64)(nil)).Return(nil)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "zero-pool-uuid", &zero, &zero, (*int64)(nil), (*datamodel.TieringStatus)(nil)).Return(nil)
 
 		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		assert.NoError(tt, err)
@@ -2185,7 +2205,7 @@ func TestAutoTierSyncActivity_UpdatePoolTieringConsumptionInDB(t *testing.T) {
 		// Mock to return error for this specific pool
 		hot := int64(500000000000)
 		cold := int64(600000000000)
-		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "failing-pool-uuid", &hot, &cold, (*int64)(nil)).Return(errors.New("database error"))
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "failing-pool-uuid", &hot, &cold, (*int64)(nil), (*datamodel.TieringStatus)(nil)).Return(errors.New("database error"))
 
 		_, err := env.ExecuteActivity(activity.UpdatePoolTieringConsumptionInDB, poolsConsumptionsMap)
 		// Should fail when encountering the error
@@ -2507,12 +2527,15 @@ func Test_calculateAndUpdateHotColdTierConsumption(t *testing.T) {
 		}
 		expectedVolCount := int64(2) // Expecting 2 but only got 1
 
+		mockStorage.On("BatchUpdateVolumeTieringFields", ctx, mock.Anything).Return(nil)
+
 		hotTier, coldTier, err := calculateAndUpdateHotColdTierConsumption(ctx, ontapVolumes, expectedVolCount, mockStorage, dbVolumeMap)
 
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "mismatch in vol count")
-		assert.Equal(tt, int64(0), hotTier)
-		assert.Equal(tt, int64(0), coldTier)
+		// The function no longer returns an error for volume count mismatch
+		assert.NoError(tt, err)
+		// The function still computes based on what it got
+		assert.NotEqual(tt, int64(0), hotTier)
+		assert.NotEqual(tt, int64(0), coldTier)
 	})
 
 	t.Run("HandlesMultipleVolumesWithDenominatorZero", func(tt *testing.T) {

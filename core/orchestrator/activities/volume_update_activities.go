@@ -105,7 +105,7 @@ func updateAutoTieringParams(ctx context.Context, params *common.UpdateVolumePar
 	pool := &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: false,
+				TieringStatus: datamodel.TieringStatusResumed,
 			},
 		},
 	}
@@ -120,11 +120,13 @@ func updateAutoTieringParams(ctx context.Context, params *common.UpdateVolumePar
 
 	updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
 	updateVolumeParams.TieringPolicy.CoolnessPeriod = int64(params.AutoTieringPolicy.CoolingThresholdDays)
-	if params.AutoTieringPolicy.AutoTieringEnabled && !pool.AutoTieringConfig.TieringPaused {
+	if params.AutoTieringPolicy.AutoTieringEnabled && pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPaused && pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPartiallyPaused {
 		updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&params.AutoTieringPolicy.TieringPolicy, utils.FetchTieringPolicyAsPerVolumeType(!utils.IsSanProtocols(volume.VolumeAttributes.Protocols)))
 		updateVolumeParams.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&params.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
+		updateVolumeParams.TieringPolicy.CloudWriteModeEnabled = params.AutoTieringPolicy.CloudWriteModeEnabled
 	} else {
 		updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyNone
+		updateVolumeParams.TieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(false)
 	}
 
 	return updateVolumeParams.TieringPolicy, nil
@@ -523,6 +525,7 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 			HotTierBypassModeEnabled: params.AutoTieringPolicy.HotTierBypassModeEnabled,
 			CoolingThresholdDays:     params.AutoTieringPolicy.CoolingThresholdDays,
 			RetrievalPolicy:          params.AutoTieringPolicy.RetrievalPolicy,
+			CloudWriteModeEnabled:    params.AutoTieringPolicy.CloudWriteModeEnabled,
 		}
 		updates["auto_tiering_policy"] = autoTieringPolicy
 	}

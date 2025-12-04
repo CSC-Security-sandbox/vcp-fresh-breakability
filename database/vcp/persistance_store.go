@@ -404,8 +404,8 @@ func (s *PersistenceStore) UpdatePoolFields(ctx context.Context, poolUUID string
 	return s.dataStore.UpdatePoolFields(ctx, poolUUID, updates)
 }
 
-func (s *PersistenceStore) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64) error {
-	return s.dataStore.UpdatePoolTieringConfig(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)
+func (s *PersistenceStore) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption, coldTierConsumption, tieringThreshold *int64, tieringStatus *datamodel.TieringStatus) error {
+	return s.dataStore.UpdatePoolTieringConfig(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold, tieringStatus)
 }
 
 func (s *PersistenceStore) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {

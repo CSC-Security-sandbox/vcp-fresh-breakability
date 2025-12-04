@@ -953,6 +953,65 @@ func TestVolumeModify(t *testing.T) {
 	})
 }
 
+func TestVolumeModifyCloudWriteMode(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		falseVal := false
+		params := &VolumeModifyParams{
+			UUID: "test-uuid",
+			TieringPolicy: &TieringPolicy{
+				CloudWriteModeEnabled: &falseVal,
+			},
+		}
+		success, job, err := client.VolumeModifyCloudWriteMode(params)
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.False(tt, success)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenSyncResponseReturned_ThenReturnSuccess", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.VolumeModifyOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		falseVal := false
+		params := &VolumeModifyParams{
+			UUID: "test-uuid",
+			TieringPolicy: &TieringPolicy{
+				CloudWriteModeEnabled: &falseVal,
+			},
+		}
+		success, job, err := client.VolumeModifyCloudWriteMode(params)
+		assert.NoError(tt, err)
+		assert.True(tt, success)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenAsyncResponseReturned_ThenReturnJob", func(tt *testing.T) {
+		jobUUID := "job-uuid"
+		transport := &mockTransport{response: &storage.VolumeModifyAccepted{
+			Payload: &models.VolumeJobLinkResponse{
+				Job: &models.JobLink{UUID: nillable.ToPointer(strfmt.UUID(jobUUID))},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		falseVal := false
+		params := &VolumeModifyParams{
+			UUID: "test-uuid",
+			TieringPolicy: &TieringPolicy{
+				CloudWriteModeEnabled: &falseVal,
+			},
+		}
+		success, job, err := client.VolumeModifyCloudWriteMode(params)
+		assert.NoError(tt, err)
+		assert.True(tt, success)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, jobUUID, job.JobUUID)
+	})
+}
+
 func TestSnapshotCreate(t *testing.T) {
 	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}

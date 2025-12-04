@@ -4901,7 +4901,7 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 				HotTierSizeInBytes:      500000000000,
 				EnableHotTierAutoResize: true,
 				BucketName:              "test-bucket",
-				TieringPaused:           false,
+				TieringStatus:           datamodel.TieringStatusResumed,
 				HotTierConsumption:      0,
 				ColdTierConsumption:     0,
 			},
@@ -4914,7 +4914,7 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 		hotTierConsumption := int64(250000000000)
 		coldTierConsumption := int64(150000000000)
 
-		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hotTierConsumption, &coldTierConsumption, nil)
+		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hotTierConsumption, &coldTierConsumption, nil, nil)
 		assert.NoError(tt, err, "Failed to update pool tiering consumption")
 
 		// Verify the update
@@ -4928,7 +4928,7 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 		assert.Equal(tt, int64(500000000000), updatedPool.AutoTieringConfig.HotTierSizeInBytes, "HotTierSizeInBytes should not change")
 		assert.Equal(tt, true, updatedPool.AutoTieringConfig.EnableHotTierAutoResize, "EnableHotTierAutoResize should not change")
 		assert.Equal(tt, "test-bucket", updatedPool.AutoTieringConfig.BucketName, "BucketName should not change")
-		assert.Equal(tt, false, updatedPool.AutoTieringConfig.TieringPaused, "TieringPaused should not change")
+		assert.Equal(tt, datamodel.TieringStatusResumed, updatedPool.AutoTieringConfig.TieringStatus, "TieringStatus should not change")
 	})
 
 	t.Run("ReturnsErrorWhenPoolNotFound", func(tt *testing.T) {
@@ -4941,7 +4941,7 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 		// Try to update consumption for non-existent pool
 		hot := int64(100000000000)
 		cold := int64(50000000000)
-		err = store.UpdatePoolTieringConfig(ctx, "non-existent-uuid", &hot, &cold, nil)
+		err = store.UpdatePoolTieringConfig(ctx, "non-existent-uuid", &hot, &cold, nil, nil)
 		assert.Error(tt, err, "Expected error when pool does not exist")
 		assert.Contains(tt, err.Error(), "Resource not found", "Error should indicate pool not found")
 	})
@@ -4977,7 +4977,7 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 		// Try to update consumption
 		hot := int64(100000000000)
 		cold := int64(50000000000)
-		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hot, &cold, nil)
+		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hot, &cold, nil, nil)
 		assert.Error(tt, err, "Expected error when auto_tiering_config is null")
 		assert.Contains(tt, err.Error(), "Resource not found", "Error should indicate auto_tiering_config is null")
 	})
@@ -5008,7 +5008,7 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 				HotTierSizeInBytes:      500000000000,
 				EnableHotTierAutoResize: true,
 				BucketName:              "test-bucket",
-				TieringPaused:           false,
+				TieringStatus:           datamodel.TieringStatusResumed,
 				HotTierConsumption:      0,
 				ColdTierConsumption:     0,
 			},
@@ -5020,7 +5020,7 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 		// First update
 		hot1 := int64(100000000000)
 		cold1 := int64(50000000000)
-		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hot1, &cold1, nil)
+		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hot1, &cold1, nil, nil)
 		assert.NoError(tt, err, "Failed to update pool tiering consumption (first time)")
 
 		// Verify first update
@@ -5032,7 +5032,7 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 		// Second update with different values
 		hot2 := int64(200000000000)
 		cold2 := int64(100000000000)
-		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hot2, &cold2, nil)
+		err = store.UpdatePoolTieringConfig(ctx, createdPool.UUID, &hot2, &cold2, nil, nil)
 		assert.NoError(tt, err, "Failed to update pool tiering consumption (second time)")
 
 		// Verify second update
@@ -5045,7 +5045,7 @@ func TestPersistenceStore_UpdatePoolTieringConfig(t *testing.T) {
 		assert.Equal(tt, int64(500000000000), updatedPool.AutoTieringConfig.HotTierSizeInBytes, "HotTierSizeInBytes should not change")
 		assert.Equal(tt, true, updatedPool.AutoTieringConfig.EnableHotTierAutoResize, "EnableHotTierAutoResize should not change")
 		assert.Equal(tt, "test-bucket", updatedPool.AutoTieringConfig.BucketName, "BucketName should not change")
-		assert.Equal(tt, false, updatedPool.AutoTieringConfig.TieringPaused, "TieringPaused should not change")
+		assert.Equal(tt, datamodel.TieringStatusResumed, updatedPool.AutoTieringConfig.TieringStatus, "TieringStatus should not change")
 	})
 }
 

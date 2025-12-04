@@ -267,10 +267,13 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		node := &models.Node{}
 		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
 
-		// Mock the CreateVolume method and verify ExportPolicy and JunctionPath are set
+		// Mock the CreateVolume method and verify ExportPolicy, JunctionPath are set
 		mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
-			return params.ExportPolicy != nil && *params.ExportPolicy == "test-export-policy" &&
-				params.JunctionPath != nil && *params.JunctionPath == "/test/junction/path"
+			exportPolicyOK := params.ExportPolicy != nil && *params.ExportPolicy == "test-export-policy"
+			junctionPathOK := params.JunctionPath != nil && *params.JunctionPath == "/test/junction/path"
+			// CloudWriteModeEnabled should be set to false (or nil) for volumes without explicit auto-tiering
+			tieringOK := params.TieringPolicy != nil
+			return exportPolicyOK && junctionPathOK && tieringOK
 		})).Return(expectedResponse, nil)
 
 		// Act
@@ -5661,22 +5664,27 @@ func TestCreateAutoTieringParams_WithAllPolicy_TieringNotPaused(t *testing.T) {
 		TieringPolicy: &vsa.TieringPolicy{},
 	}
 
+	trueVal := true
 	volume := &datamodel.Volume{
 		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAll,
-			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 15,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyAll,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  15,
+			CloudWriteModeEnabled: &trueVal,
 		},
 		Pool: &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 		},
 		AccountID: 123,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFS}, // File protocol
+		},
 	}
 
 	pool := &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: false,
+				TieringStatus: datamodel.TieringStatusResumed,
 			},
 		},
 	}
@@ -5690,10 +5698,12 @@ func TestCreateAutoTieringParams_WithAllPolicy_TieringNotPaused(t *testing.T) {
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyAll, result.CoolAccessTieringPolicy)
 	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(15), result.CoolnessPeriod)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.True(t, *result.CloudWriteModeEnabled)
 	mockStorage.AssertExpectations(t)
 }
 
-func TestCreateAutoTieringParams_WithAllPolicy_TieringPaused(t *testing.T) {
+func TestCreateAutoTieringParams_WithAllPolicy_TieringStatusPaused(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
@@ -5701,11 +5711,13 @@ func TestCreateAutoTieringParams_WithAllPolicy_TieringPaused(t *testing.T) {
 		TieringPolicy: &vsa.TieringPolicy{},
 	}
 
+	trueVal := true
 	volume := &datamodel.Volume{
 		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAll,
-			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 20,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyAll,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  20,
+			CloudWriteModeEnabled: &trueVal,
 		},
 		Pool: &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
@@ -5716,7 +5728,7 @@ func TestCreateAutoTieringParams_WithAllPolicy_TieringPaused(t *testing.T) {
 	pool := &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
-				TieringPaused: true,
+				TieringStatus: datamodel.TieringStatusPaused,
 			},
 		},
 	}
@@ -5727,10 +5739,12 @@ func TestCreateAutoTieringParams_WithAllPolicy_TieringPaused(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	// When tiering is paused, tiering policy should not be set
-	assert.Empty(t, result.CoolAccessTieringPolicy)
+	// When tiering is paused, tiering policy should be set to 'none'
+	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyNone, result.CoolAccessTieringPolicy)
 	assert.Empty(t, result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(0), result.CoolnessPeriod)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.False(t, *result.CloudWriteModeEnabled)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -5771,11 +5785,13 @@ func TestCreateAutoTieringParams_WithAutoPolicy(t *testing.T) {
 		TieringPolicy: &vsa.TieringPolicy{},
 	}
 
+	falseVal := false
 	volume := &datamodel.Volume{
 		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAuto,
-			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 10,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  10,
+			CloudWriteModeEnabled: &falseVal,
 		},
 		Pool: &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
@@ -5793,6 +5809,8 @@ func TestCreateAutoTieringParams_WithAutoPolicy(t *testing.T) {
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyAuto, result.CoolAccessTieringPolicy)
 	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(10), result.CoolnessPeriod)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.False(t, *result.CloudWriteModeEnabled)
 }
 
 func TestCreateAutoTieringParams_WithSnapshotOnlyPolicy(t *testing.T) {
@@ -5803,11 +5821,13 @@ func TestCreateAutoTieringParams_WithSnapshotOnlyPolicy(t *testing.T) {
 		TieringPolicy: &vsa.TieringPolicy{},
 	}
 
+	falseVal := false
 	volume := &datamodel.Volume{
 		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicySnapshotOnly,
-			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 5,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicySnapshotOnly,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  5,
+			CloudWriteModeEnabled: &falseVal,
 		},
 		Pool: &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
@@ -5825,6 +5845,8 @@ func TestCreateAutoTieringParams_WithSnapshotOnlyPolicy(t *testing.T) {
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicySnapshotOnly, result.CoolAccessTieringPolicy)
 	assert.Equal(t, ontapModels.VolumeCloudRetrievalPolicyDefault, result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(5), result.CoolnessPeriod)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.False(t, *result.CloudWriteModeEnabled)
 }
 
 func TestCreateAutoTieringParams_WithNonePolicy(t *testing.T) {
@@ -5835,11 +5857,13 @@ func TestCreateAutoTieringParams_WithNonePolicy(t *testing.T) {
 		TieringPolicy: &vsa.TieringPolicy{},
 	}
 
+	falseVal := false
 	volume := &datamodel.Volume{
 		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyNone,
-			RetrievalPolicy:      "",
-			CoolingThresholdDays: 0,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyNone,
+			RetrievalPolicy:       "",
+			CoolingThresholdDays:  0,
+			CloudWriteModeEnabled: &falseVal,
 		},
 		Pool: &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
@@ -5857,6 +5881,8 @@ func TestCreateAutoTieringParams_WithNonePolicy(t *testing.T) {
 	assert.Equal(t, ontapModels.VolumeInlineTieringPolicyNone, result.CoolAccessTieringPolicy)
 	assert.Equal(t, "", result.CoolAccessRetrievalPolicy)
 	assert.Equal(t, int64(0), result.CoolnessPeriod)
+	assert.NotNil(t, result.CloudWriteModeEnabled)
+	assert.False(t, *result.CloudWriteModeEnabled)
 }
 
 func TestCreateAutoTieringParams_WithAutoTieringPolicySetForFileVolume(t *testing.T) {

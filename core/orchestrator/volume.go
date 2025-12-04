@@ -351,6 +351,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			CoolingThresholdDays:     params.AutoTieringPolicy.CoolingThresholdDays,
 			RetrievalPolicy:          params.AutoTieringPolicy.RetrievalPolicy,
 			HotTierBypassModeEnabled: params.AutoTieringPolicy.HotTierBypassModeEnabled,
+			CloudWriteModeEnabled:    params.AutoTieringPolicy.CloudWriteModeEnabled,
 		}
 	}
 

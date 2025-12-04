@@ -15212,17 +15212,17 @@ func (_c *MockStorage_UpdatePoolSubnetNames_Call) RunAndReturn(run func(context.
 	return _c
 }
 
-// UpdatePoolTieringConfig provides a mock function with given fields: ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold
-func (_m *MockStorage) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption *int64, coldTierConsumption *int64, tieringThreshold *int64) error {
-	ret := _m.Called(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)
+// UpdatePoolTieringConfig provides a mock function with given fields: ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold, tieringStatus
+func (_m *MockStorage) UpdatePoolTieringConfig(ctx context.Context, poolUUID string, hotTierConsumption *int64, coldTierConsumption *int64, tieringThreshold *int64, tieringStatus *datamodel.TieringStatus) error {
+	ret := _m.Called(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold, tieringStatus)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdatePoolTieringConfig")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, *int64, *int64, *int64) error); ok {
-		r0 = rf(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)
+	if rf, ok := ret.Get(0).(func(context.Context, string, *int64, *int64, *int64, *datamodel.TieringStatus) error); ok {
+		r0 = rf(ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold, tieringStatus)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -15241,13 +15241,14 @@ type MockStorage_UpdatePoolTieringConfig_Call struct {
 //   - hotTierConsumption *int64
 //   - coldTierConsumption *int64
 //   - tieringThreshold *int64
-func (_e *MockStorage_Expecter) UpdatePoolTieringConfig(ctx interface{}, poolUUID interface{}, hotTierConsumption interface{}, coldTierConsumption interface{}, tieringThreshold interface{}) *MockStorage_UpdatePoolTieringConfig_Call {
-	return &MockStorage_UpdatePoolTieringConfig_Call{Call: _e.mock.On("UpdatePoolTieringConfig", ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold)}
+//   - tieringStatus *datamodel.TieringStatus
+func (_e *MockStorage_Expecter) UpdatePoolTieringConfig(ctx interface{}, poolUUID interface{}, hotTierConsumption interface{}, coldTierConsumption interface{}, tieringThreshold interface{}, tieringStatus interface{}) *MockStorage_UpdatePoolTieringConfig_Call {
+	return &MockStorage_UpdatePoolTieringConfig_Call{Call: _e.mock.On("UpdatePoolTieringConfig", ctx, poolUUID, hotTierConsumption, coldTierConsumption, tieringThreshold, tieringStatus)}
 }
 
-func (_c *MockStorage_UpdatePoolTieringConfig_Call) Run(run func(ctx context.Context, poolUUID string, hotTierConsumption *int64, coldTierConsumption *int64, tieringThreshold *int64)) *MockStorage_UpdatePoolTieringConfig_Call {
+func (_c *MockStorage_UpdatePoolTieringConfig_Call) Run(run func(ctx context.Context, poolUUID string, hotTierConsumption *int64, coldTierConsumption *int64, tieringThreshold *int64, tieringStatus *datamodel.TieringStatus)) *MockStorage_UpdatePoolTieringConfig_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(*int64), args[3].(*int64), args[4].(*int64))
+		run(args[0].(context.Context), args[1].(string), args[2].(*int64), args[3].(*int64), args[4].(*int64), args[5].(*datamodel.TieringStatus))
 	})
 	return _c
 }
@@ -15257,7 +15258,7 @@ func (_c *MockStorage_UpdatePoolTieringConfig_Call) Return(_a0 error) *MockStora
 	return _c
 }
 
-func (_c *MockStorage_UpdatePoolTieringConfig_Call) RunAndReturn(run func(context.Context, string, *int64, *int64, *int64) error) *MockStorage_UpdatePoolTieringConfig_Call {
+func (_c *MockStorage_UpdatePoolTieringConfig_Call) RunAndReturn(run func(context.Context, string, *int64, *int64, *int64, *datamodel.TieringStatus) error) *MockStorage_UpdatePoolTieringConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }
