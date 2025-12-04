@@ -369,10 +369,9 @@ func (wf *autoTieringHotTierAutoResizeWorkflow) Run(ctx workflow.Context, args .
 		return nil, err
 	}
 
-	// The job state is set to PROCESSING here because the workflow itself is creating the job
 	job := &datamodel.Job{
 		Type:         string(models.JobTypeUpdatePool),
-		State:        string(models.JobsStatePROCESSING),
+		State:        string(models.JobsStateNEW),
 		IsAdminJob:   true,
 		ResourceName: pool.UUID,
 		AccountID:    sql.NullInt64{Int64: pool.AccountID, Valid: true},
