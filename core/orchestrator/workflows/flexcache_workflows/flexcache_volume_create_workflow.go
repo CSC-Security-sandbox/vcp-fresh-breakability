@@ -371,10 +371,10 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
-	}
 
-	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.HydrateFlexCacheState, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.HydrateFlexCacheState, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	if flexcacheResult.SVMPeerAction == flexcache.ActionCreate || flexcacheResult.SVMPeerAction == flexcache.ActionWait {

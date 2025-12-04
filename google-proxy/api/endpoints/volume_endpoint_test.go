@@ -55,6 +55,121 @@ func TestPrepareCreateVolumeParams_SnapshotIdWithLargeVolumeConstituentCount_Ret
 	assert.Contains(t, err.Error(), "LargeVolumeConstituentCount cannot be set when SnapshotId is provided")
 }
 
+func TestPrepareCreateVolumeParams_CacheParametersWithoutExpiryTime(t *testing.T) {
+	// Setup file protocol support for NFS
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testcachevolume",
+			CreationToken: gcpgenserver.NewOptString("cache-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(2048),
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaNFSV3,
+			},
+			CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(
+				gcpgenserver.FlexCacheV1beta{
+					PeerClusterName: "origin-cluster",
+					PeerVolumeName:  "origin_volume",
+					PeerSvmName:     "origin-svm",
+					PeerIpAddresses: []string{"10.0.0.1", "10.0.0.2"},
+				},
+			),
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+
+	assert.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "testcachevolume", result.Name)
+	assert.Equal(t, "/projects/test-project/locations/test-location/volumes/testcachevolume", result.VendorID)
+	assert.Equal(t, uint64(2048), result.QuotaInBytes)
+	assert.Equal(t, []string{"NFSV3"}, result.Protocols)
+
+	// Verify CacheParameters are properly set
+	require.NotNil(t, result.CacheParameters)
+	assert.Equal(t, cvpmodels.FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING, result.CacheParameters.CacheState)
+	assert.Equal(t, models.InitiatingClusterPeeringCode, result.CacheParameters.CacheStateDetailsCode)
+	assert.Equal(t, models.InitiatingClusterPeering, result.CacheParameters.CacheStateDetails)
+	assert.Equal(t, "origin_volume", result.CacheParameters.PeerVolumeName)
+	assert.Equal(t, "origin-cluster", result.CacheParameters.PeerClusterName)
+	assert.Equal(t, "origin-svm", result.CacheParameters.PeerSvmName)
+	assert.Equal(t, []string{"10.0.0.1", "10.0.0.2"}, result.CacheParameters.PeerIPAddresses)
+	assert.Nil(t, result.CacheParameters.PeerExpiryTime) // Should be nil when not set
+}
+
+func TestPrepareCreateVolumeParams_CacheParametersWithExpiryTime(t *testing.T) {
+	// Setup file protocol support for NFS
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	expiryTime := time.Now().Add(24 * time.Hour)
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testcachevolume",
+			CreationToken: gcpgenserver.NewOptString("cache-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(2048),
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaNFSV3,
+			},
+			CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(
+				gcpgenserver.FlexCacheV1beta{
+					PeerClusterName:          "origin-cluster",
+					PeerVolumeName:           "origin_volume",
+					PeerSvmName:              "origin-svm",
+					PeerIpAddresses:          []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"},
+					PeeringCommandExpiryTime: gcpgenserver.NewOptNilDateTime(expiryTime),
+				},
+			),
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+
+	assert.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "testcachevolume", result.Name)
+	assert.Equal(t, uint64(2048), result.QuotaInBytes)
+
+	// Verify CacheParameters are properly set
+	require.NotNil(t, result.CacheParameters)
+	assert.Equal(t, cvpmodels.FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING, result.CacheParameters.CacheState)
+	assert.Equal(t, models.InitiatingClusterPeeringCode, result.CacheParameters.CacheStateDetailsCode)
+	assert.Equal(t, models.InitiatingClusterPeering, result.CacheParameters.CacheStateDetails)
+	assert.Equal(t, "origin_volume", result.CacheParameters.PeerVolumeName)
+	assert.Equal(t, "origin-cluster", result.CacheParameters.PeerClusterName)
+	assert.Equal(t, "origin-svm", result.CacheParameters.PeerSvmName)
+	assert.Equal(t, []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"}, result.CacheParameters.PeerIPAddresses)
+
+	// Verify PeerExpiryTime is set correctly
+	require.NotNil(t, result.CacheParameters.PeerExpiryTime)
+	assert.Equal(t, expiryTime, *result.CacheParameters.PeerExpiryTime)
+}
+
 func TestPrepareCreateVolumeParams(t *testing.T) {
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
