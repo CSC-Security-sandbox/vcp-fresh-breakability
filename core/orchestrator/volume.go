@@ -1147,11 +1147,6 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	}
 
 	if params.LargeCapacity {
-		if utils.IsSMBProtocols(params.Protocols) {
-			// TODO: Remove SMB check when large capacity volumes support SMB protocol
-			return customerrors.NewUserInputValidationErr("SMB protocol is not supported for large capacity volumes")
-		}
-
 		if utils.IsSanProtocols(params.Protocols) {
 			return customerrors.NewUserInputValidationErr("SAN protocols are not supported for large capacity volumes")
 		}
@@ -2087,6 +2082,19 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 
 	if params.LargeCapacity != nil && (pool.LargeCapacity != *params.LargeCapacity) {
 		return customerrors.NewUserInputValidationErr("Given large capacity value is not supported. Large capacity cannot be changed for existing volume")
+	}
+
+	if params.LargeVolumeConstituentCount != nil {
+		// Check if the volume has existing LargeVolumeConstituentCount
+		if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
+			// Only return error if the provided value is different from the existing value
+			if *params.LargeVolumeConstituentCount != *volume.LargeVolumeAttributes.LargeVolumeConstituentCount {
+				return customerrors.NewUserInputValidationErr("Updating large volume constituent count is not supported")
+			}
+		} else {
+			// If volume doesn't have a constituent count, we don't allow setting it during update
+			return customerrors.NewUserInputValidationErr("Updating large volume constituent count is not supported")
+		}
 	}
 
 	if volume.State == models.LifeCycleStateUpdating {

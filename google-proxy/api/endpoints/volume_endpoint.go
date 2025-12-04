@@ -744,6 +744,10 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		param.LargeCapacity = nillable.GetBoolPtr(req.LargeCapacity.Or(false))
 	}
 
+	if req.LargeVolumeConstituentCount.IsSet() {
+		param.LargeVolumeConstituentCount = nillable.GetInt32Ptr(req.LargeVolumeConstituentCount.Value)
+	}
+
 	if req.Description.IsSet() {
 		param.Description, _ = req.Description.Get()
 	}

@@ -1787,6 +1787,33 @@ func TestPrepareUpdateVolumeParamsLargeCapacity(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Nil(tt, result.LargeCapacity)
 	})
+
+	t.Run("LargeVolumeConstituentCountCopiedWhenSet", func(tt *testing.T) {
+		cvCount := int32(8)
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:                      gcpgenserver.NewOptNilString("test-pool"),
+			LargeVolumeConstituentCount: gcpgenserver.NewOptNilInt32(cvCount),
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		if assert.NotNil(tt, result.LargeVolumeConstituentCount) {
+			assert.Equal(tt, cvCount, *result.LargeVolumeConstituentCount)
+		}
+	})
+
+	t.Run("LargeVolumeConstituentCountNilWhenNotProvided", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId: gcpgenserver.NewOptNilString("test-pool"),
+			// LargeVolumeConstituentCount not set
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, result.LargeVolumeConstituentCount)
+	})
 }
 
 func TestV1betaGetMultipleVolumes(t *testing.T) {

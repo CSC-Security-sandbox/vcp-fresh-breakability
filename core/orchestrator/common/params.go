@@ -160,32 +160,33 @@ type BlockDevice struct {
 
 // UpdateVolumeParams describes parameters supplied to UpdateVolume
 type UpdateVolumeParams struct {
-	AccountName             string
-	Region                  string
-	Name                    string
-	Description             string
-	Network                 string
-	PoolID                  string
-	VolumeId                string
-	VendorID                string
-	QuotaInBytes            int64
-	Protocols               []string
-	Labels                  *datamodel.JSONB
-	SnapReserve             *int64
-	BlockProperties         *BlockPropertiesRequest
-	BlockDevices            []*BlockDevice
-	SnapshotPolicy          *models.SnapshotPolicy
-	DataProtection          *models.UpdateDataProtection
-	InitiateSplit           bool
-	AutoTieringPolicy       *AutoTieringPolicy
-	FileProperties          *models.FileProperties
-	BackupSchedule          string
-	CorrelationID           string
-	SnapshotDirectoryAccess *bool
-	CacheParameters         *models.CacheParameters
-	IncrementalSpaceInBytes uint64
-	SMBShareSettings        []string
-	LargeCapacity           *bool
+	AccountName                 string
+	Region                      string
+	Name                        string
+	Description                 string
+	Network                     string
+	PoolID                      string
+	VolumeId                    string
+	VendorID                    string
+	QuotaInBytes                int64
+	Protocols                   []string
+	Labels                      *datamodel.JSONB
+	SnapReserve                 *int64
+	BlockProperties             *BlockPropertiesRequest
+	BlockDevices                []*BlockDevice
+	SnapshotPolicy              *models.SnapshotPolicy
+	DataProtection              *models.UpdateDataProtection
+	InitiateSplit               bool
+	AutoTieringPolicy           *AutoTieringPolicy
+	FileProperties              *models.FileProperties
+	BackupSchedule              string
+	CorrelationID               string
+	SnapshotDirectoryAccess     *bool
+	CacheParameters             *models.CacheParameters
+	IncrementalSpaceInBytes     uint64
+	SMBShareSettings            []string
+	LargeCapacity               *bool
+	LargeVolumeConstituentCount *int32
 }
 
 type CreateLunMapParams struct {

@@ -25265,6 +25265,8 @@ type VolumeUpdateV1beta struct {
 	// Flag indicating if the volume will be a large capacity volume (flexgroup) or a regular volume
 	// (flexvol).
 	LargeCapacity OptNilBool `json:"largeCapacity"`
+	// The count of number of constituent volumes for the large volume.
+	LargeVolumeConstituentCount OptNilInt32 `json:"largeVolumeConstituentCount"`
 }
 
 // GetQuotaInBytes returns the value of QuotaInBytes.
@@ -25367,6 +25369,11 @@ func (s *VolumeUpdateV1beta) GetLargeCapacity() OptNilBool {
 	return s.LargeCapacity
 }
 
+// GetLargeVolumeConstituentCount returns the value of LargeVolumeConstituentCount.
+func (s *VolumeUpdateV1beta) GetLargeVolumeConstituentCount() OptNilInt32 {
+	return s.LargeVolumeConstituentCount
+}
+
 // SetQuotaInBytes sets the value of QuotaInBytes.
 func (s *VolumeUpdateV1beta) SetQuotaInBytes(val OptNilFloat64) {
 	s.QuotaInBytes = val
@@ -25465,6 +25472,11 @@ func (s *VolumeUpdateV1beta) SetIncrementalSpaceInBytes(val OptNilFloat64) {
 // SetLargeCapacity sets the value of LargeCapacity.
 func (s *VolumeUpdateV1beta) SetLargeCapacity(val OptNilBool) {
 	s.LargeCapacity = val
+}
+
+// SetLargeVolumeConstituentCount sets the value of LargeVolumeConstituentCount.
+func (s *VolumeUpdateV1beta) SetLargeVolumeConstituentCount(val OptNilInt32) {
+	s.LargeVolumeConstituentCount = val
 }
 
 // JSON dictionary of resource labels to allow linking of billing labels to a volume.

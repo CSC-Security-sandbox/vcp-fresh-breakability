@@ -9011,6 +9011,14 @@ components:
             (flexgroup) or a regular volume (flexvol)
           nullable: true
           x-omitempty: false
+        largeVolumeConstituentCount:
+          title: largeVolumeConstituentCount
+          minimum: 2
+          type: integer
+          description: The count of number of constituent volumes for the large volume.
+          format: int32
+          nullable: true
+          example: 24
     SnapshotPolicy_v1beta:
       title: SnapshotPolicy
       type: object

@@ -408,64 +408,6 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		assert.ErrorContains(tt, err, "pool large capacity setting does not match volume large capacity setting")
 	})
 
-	t.Run("LargeCapacitySMBProtocolRestriction", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
-		mockLogger := log.NewLogger()
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:          "test_pool",
-			AccountID:     account.ID,
-			State:         models.LifeCycleStateREADY,
-			Network:       "test-network",
-			SizeInBytes:   int64(100 * 1024 * 1024 * 1024 * 1024), // 100TB
-			LargeCapacity: true,                                   // Pool is large capacity
-		}
-
-		err = store.DB().Create(pool).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool: %v", err)
-		}
-
-		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Name:          "test-volume",
-			PoolID:        pool.UUID,
-			QuotaInBytes:  12 * 1099511627776,          // 12 TiB
-			Protocols:     []string{utils.ProtocolSMB}, // SMB protocol - not allowed for large capacity!
-			Network:       "test-network",
-			LargeCapacity: true,
-		}
-
-		poolView := &datamodel.PoolView{
-			Pool:         *pool,
-			QuotaInBytes: 0,
-		}
-
-		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.ErrorContains(tt, err, "SMB protocol is not supported for large capacity volumes")
-	})
-
 	t.Run("LargeCapacitySANProtocolRestriction", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -13229,6 +13171,50 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume size cannot be reduced")
+	})
+
+	t.Run("FailsIfLargeVolumeConstituentCountProvided", func(tt *testing.T) {
+		existingCvCount := int32(4)
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(2 * 1024 * 1024 * 1024),
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity:               true,
+				LargeVolumeConstituentCount: &existingCvCount,
+			},
+		}
+		cvCount := int32(8)
+		params := &common.UpdateVolumeParams{LargeVolumeConstituentCount: &cvCount}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Updating large volume constituent count is not supported")
+	})
+
+	t.Run("PassesIfLargeVolumeConstituentCountIsSameAsExisting", func(tt *testing.T) {
+		cvCount := int32(8)
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(2 * 1024 * 1024 * 1024),
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity:               true,
+				LargeVolumeConstituentCount: &cvCount,
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFSV3"},
+			},
+		}
+		params := &common.UpdateVolumeParams{LargeVolumeConstituentCount: &cvCount}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("FailsIfLargeVolumeConstituentCountProvidedWhenVolumeHasNone", func(tt *testing.T) {
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: int64(2 * 1024 * 1024 * 1024)}
+		cvCount := int32(8)
+		params := &common.UpdateVolumeParams{LargeVolumeConstituentCount: &cvCount}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Updating large volume constituent count is not supported")
 	})
 
 	t.Run("FailsIfSnapReserveUpdatedForDPVol", func(tt *testing.T) {

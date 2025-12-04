@@ -61428,9 +61428,15 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 			s.LargeCapacity.Encode(e)
 		}
 	}
+	{
+		if s.LargeVolumeConstituentCount.Set {
+			e.FieldStart("largeVolumeConstituentCount")
+			s.LargeVolumeConstituentCount.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumeUpdateV1beta = [20]string{
+var jsonFieldsNameOfVolumeUpdateV1beta = [21]string{
 	0:  "quotaInBytes",
 	1:  "snapReserve",
 	2:  "snapshotDirectory",
@@ -61451,6 +61457,7 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [20]string{
 	17: "cacheParameters",
 	18: "incrementalSpaceInBytes",
 	19: "largeCapacity",
+	20: "largeVolumeConstituentCount",
 }
 
 // Decode decodes VolumeUpdateV1beta from json.
@@ -61672,6 +61679,16 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"largeCapacity\"")
+			}
+		case "largeVolumeConstituentCount":
+			if err := func() error {
+				s.LargeVolumeConstituentCount.Reset()
+				if err := s.LargeVolumeConstituentCount.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"largeVolumeConstituentCount\"")
 			}
 		default:
 			return d.Skip()
