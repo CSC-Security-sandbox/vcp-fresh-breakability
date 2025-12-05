@@ -26,6 +26,9 @@ func (j *KmsConfigActivity) DescribeSDEKmsConfigurationActivity(ctx context.Cont
 func _getSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfigV1beta, error) {
 	logger := util.GetLogger(ctx)
 	jwtToken := utils.GetAuthTokenFromContext(ctx)
+	if jwtToken == "" {
+		jwtToken = utils.GetJWTTokenFromContext(ctx)
+	}
 	cvpClient := createClient(logger, jwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 

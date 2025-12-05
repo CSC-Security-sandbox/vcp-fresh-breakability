@@ -2,6 +2,7 @@ package kms_activities
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -195,5 +196,84 @@ func TestListKmsConfigActivity(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotEmpty(t, result)
 		assert.Equal(t, 1, len(result))
+	})
+}
+
+func TestGetSDEKmsConfiguration_JWTTokenExtraction(t *testing.T) {
+	// Generated using AI
+	t.Run("JWTTokenFromAuthTokenContext", func(tt *testing.T) {
+		// Test when GetAuthTokenFromContext returns a token
+		testJWTToken := "Bearer test-jwt-token-from-auth-context"
+		ctx := context.WithValue(context.Background(), middleware.AuthorizationToken, testJWTToken)
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		mockSE := database.NewMockStorage(t)
+		mockClient := kms_configurations.NewMockClientService(t)
+		uuid := "test-uuid"
+		mockResponse := &kms_configurations.V1betaDescribeKmsConfigurationOK{
+			Payload: &models.KmsConfigV1beta{
+				UUID: uuid,
+			},
+		}
+		params := &common.GetKmsConfigParams{
+			UUID:       uuid,
+			LocationID: "location",
+		}
+		mockClient.EXPECT().
+			V1betaDescribeKmsConfiguration(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		var capturedJWT string
+		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
+			capturedJWT = JWT
+			return *cvpClient
+		}
+
+		activity := &KmsConfigActivity{SE: mockSE}
+		_, err := activity.DescribeSDEKmsConfigurationActivity(ctx, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, testJWTToken, capturedJWT, "Should use token from GetAuthTokenFromContext")
+	})
+
+	t.Run("JWTTokenFallbackToHeaderContext", func(tt *testing.T) {
+		// Test when GetAuthTokenFromContext returns empty and falls back to GetJWTTokenFromContext
+		testJWTToken := "Bearer test-jwt-token-from-header"
+		headers := http.Header{}
+		headers.Set("Authorization", testJWTToken)
+		ctx := context.WithValue(context.Background(), middleware.HeaderContextKey, headers)
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		mockSE := database.NewMockStorage(t)
+		mockClient := kms_configurations.NewMockClientService(t)
+		uuid := "test-uuid"
+		mockResponse := &kms_configurations.V1betaDescribeKmsConfigurationOK{
+			Payload: &models.KmsConfigV1beta{
+				UUID: uuid,
+			},
+		}
+		params := &common.GetKmsConfigParams{
+			UUID:       uuid,
+			LocationID: "location",
+		}
+		mockClient.EXPECT().
+			V1betaDescribeKmsConfiguration(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		var capturedJWT string
+		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
+			capturedJWT = JWT
+			return *cvpClient
+		}
+
+		activity := &KmsConfigActivity{SE: mockSE}
+		_, err := activity.DescribeSDEKmsConfigurationActivity(ctx, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, testJWTToken, capturedJWT, "Should fallback to token from GetJWTTokenFromContext")
 	})
 }
