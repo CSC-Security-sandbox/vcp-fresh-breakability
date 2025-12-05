@@ -38,6 +38,7 @@ refreshAdminJobSpecs: true
 flexCacheEnabled: false
 hybridReplicationEnabled: false
 autoTieringEnabled: false
+blockUpdatePoolToATPool: true # Block updating existing pools to Auto-Tiering pools
 regionalSupportEnabled: true
 filesProtocolSupport: false
 fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support

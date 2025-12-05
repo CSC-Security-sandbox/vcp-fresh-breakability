@@ -34,6 +34,7 @@ var (
 	minCustomThroughput        = utils.MinCustomThroughput
 	getAndSyncKmsConfigForPool = _getAndSyncKmsConfigForPool
 	enableLdap                 = env.GetBool("ENABLE_LDAP", false)
+	blockUpdatePooltoATPool    = env.GetBool("BLOCK_UPDATE_POOL_TO_AT_POOL", true)
 )
 
 const (
@@ -1098,7 +1099,8 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 
 	// HotTierSizeInBytes is required when enabling auto-tiering
 	if req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value {
-		if !existingPool.AllowAutoTiering {
+		// Validate enabling Auto-Tiering env variable if blockUpdatePooltoATPool is true
+		if !existingPool.AllowAutoTiering && blockUpdatePooltoATPool {
 			return &gcpgenserver.V1betaUpdatePoolBadRequest{
 				Code:    http.StatusBadRequest,
 				Message: "Enabling Auto-Tiering on a non-AT pool is not supported currently",

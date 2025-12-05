@@ -51,6 +51,7 @@ data:
   HYBRID_REPLICATION_ENABLED: "{{ index .Values "hybridReplicationEnabled" }}"
   REFRESH_ADMIN_JOB_SPECS: "{{ index .Values "refreshAdminJobSpecs" }}"
   AUTO_TIERING_ENABLED: "{{ index .Values "autoTieringEnabled" }}"
+  BLOCK_UPDATE_POOL_TO_AT_POOL: "{{ index .Values "blockUpdatePoolToATPool" }}"
   REGIONAL_SUPPORT_ENABLED: "{{ index .Values "regionalSupportEnabled" }}"
   FILES_PROTOCOL_SUPPORT: "{{ index .Values "filesProtocolSupport" }}"
   FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: "{{ index .Values "fileProtocolAllowlistedAccounts" }}"

@@ -6011,14 +6011,22 @@ func TestConvertToPoolV1Beta_WithActiveDirectoryFields(t *testing.T) {
 }
 
 // TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool tests the validation
-// that prevents enabling auto-tiering on pools that were not created with auto-tiering enabled.
+// that prevents enabling auto-tiering on pools that were not created with auto-tiering enabled
+// based on the blockUpdatePooltoATPool flag.
 func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
-	// Save original autoTieringEnabled and restore at end of test
+	// Save original flags and restore at end of test
 	originalAutoTieringEnabled := autoTieringEnabled
-	defer func() { autoTieringEnabled = originalAutoTieringEnabled }()
+	originalBlockUpdatePooltoATPool := blockUpdatePooltoATPool
+	defer func() {
+		autoTieringEnabled = originalAutoTieringEnabled
+		blockUpdatePooltoATPool = originalBlockUpdatePooltoATPool
+	}()
 	autoTieringEnabled = true
 
-	t.Run("RejectsEnablingAutoTieringOnNonATPool", func(tt *testing.T) {
+	t.Run("RejectsEnablingAutoTieringOnNonATPoolWhenFlagIsTrue", func(tt *testing.T) {
+		// Set flag to block updates
+		blockUpdatePooltoATPool = true
+
 		// Pool created without auto-tiering
 		existingPool := &models.Pool{
 			BaseModel: models.BaseModel{
@@ -6046,7 +6054,44 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 		assert.Equal(tt, "Enabling Auto-Tiering on a non-AT pool is not supported currently", badReq.Message)
 	})
 
+	t.Run("AllowsEnablingAutoTieringOnNonATPoolWhenFlagIsFalse", func(tt *testing.T) {
+		// Set flag to allow updates
+		blockUpdatePooltoATPool = false
+
+		// Pool created without auto-tiering
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			AllowAutoTiering: false, // Pool does not have auto-tiering enabled
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+			State: models.LifeCycleStateREADY,
+		}
+
+		// Request to enable auto-tiering
+		req := &gcpgenserver.PoolUpdateV1beta{
+			AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+			HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(1073741824), // 1GB
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+
+		// Should not return the block update error (may return other validation errors)
+		if result != nil {
+			badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			if ok {
+				assert.NotEqual(tt, "Enabling Auto-Tiering on a non-AT pool is not supported currently", badReq.Message,
+					"Should not reject enabling auto-tiering when flag is false")
+			}
+		}
+	})
+
 	t.Run("AllowsUpdatingAutoTieringParamsOnATPool", func(tt *testing.T) {
+		// Set flag to block updates (but this shouldn't affect pools that already have AT enabled)
+		blockUpdatePooltoATPool = true
+
 		// Pool created with auto-tiering enabled
 		existingPool := &models.Pool{
 			BaseModel: models.BaseModel{
@@ -6072,24 +6117,27 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 		result := validateUpdatePoolParams(req, existingPool)
 
 		// Should not return error for this specific validation
-		// (other validations might return errors, but not the one we're testing)
+		// Since existingPool.AllowAutoTiering is true, the condition !existingPool.AllowAutoTiering is false
+		// so the blockUpdatePooltoATPool check won't trigger
 		if result != nil {
-			_, isAutoTieringError := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
-			if isAutoTieringError {
-				badReq := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+			if ok {
 				assert.NotEqual(tt, "Enabling Auto-Tiering on a non-AT pool is not supported currently", badReq.Message,
-					"Should not reject enabling auto-tiering on pool that already has it enabled")
+					"Should not reject updating auto-tiering params on pool that already has it enabled")
 			}
 		}
 	})
 
 	t.Run("RejectsEnablingAutoTieringWithoutHotTierSize", func(tt *testing.T) {
-		// Pool created with auto-tiering enabled
+		// Set flag to allow updates (so we can test the HotTierSize validation)
+		blockUpdatePooltoATPool = false
+
+		// Pool created without auto-tiering
 		existingPool := &models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "pool-uuid",
 			},
-			AllowAutoTiering: true, // Pool has auto-tiering enabled
+			AllowAutoTiering: false, // Pool does not have auto-tiering enabled
 			PoolAttributes: &models.PoolAttributes{
 				PrimaryZone: "us-east4-a",
 			},
@@ -6104,7 +6152,7 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 
 		result := validateUpdatePoolParams(req, existingPool)
 
-		// Should return BadRequest error
+		// Should return BadRequest error for missing HotTierSizeInBytes
 		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
 		assert.True(tt, ok, "Expected V1betaUpdatePoolBadRequest response")
 		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
@@ -6112,6 +6160,9 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 	})
 
 	t.Run("AllowsNonAutoTieringUpdatesOnNonATPool", func(tt *testing.T) {
+		// Set flag to block updates (but this shouldn't affect non-auto-tiering updates)
+		blockUpdatePooltoATPool = true
+
 		// Pool created without auto-tiering
 		existingPool := &models.Pool{
 			BaseModel: models.BaseModel{
@@ -6136,6 +6187,7 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 		result := validateUpdatePoolParams(req, existingPool)
 
 		// Should not return the auto-tiering specific error
+		// Since req.AllowAutoTiering is not set, the validation won't trigger
 		if result != nil {
 			badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
 			if ok {
