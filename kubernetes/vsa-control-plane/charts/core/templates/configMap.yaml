@@ -12,6 +12,7 @@ metadata:
     app: core-service
 data:
   # TODO: Remove these fields after application code fix
+  TASK_QUEUE_VERSION: "{{ .Chart.Version | lower | replace "." "-" }}"
   {{- include "core.generateConfigMapData" . | nindent 2 }}
   config.yaml: |
     {{- include "core.generateConfigMapData" . | nindent 4 }}

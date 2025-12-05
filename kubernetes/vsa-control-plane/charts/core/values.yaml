@@ -77,6 +77,7 @@ global:
     vsaNodeHomePort: "443"
     vsaNodePassword: ""
     vsaNodeUsername: ""
+    vsaImageName: "x-9-17-1p2-gcnv"
     writeTimeout: "60s"
     finishProjectCvpMaxRetries: "10"
     finishProjectCvpRetryInterval: "30s"
