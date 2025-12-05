@@ -614,6 +614,38 @@ func TestFlexCacheVolumeUpdateActivity_UpdatePrepopulateState(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 
+	t.Run("Success_InitializesCacheConfigWhenNil", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		allowAnyLogs(logger)
+		mockStorage := database.NewMockStorage(tt)
+		activity := FlexCacheVolumeUpdateActivity{SE: mockStorage}
+		ctx := context.Background()
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Name:      "test-volume",
+			CacheParameters: &datamodel.CacheParameters{
+				CacheConfig: nil,
+			},
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mockStorage.EXPECT().GetVolume(ctx, volumeUUID).Return(volume, nil)
+		mockStorage.EXPECT().UpdateVolumeFields(ctx, volumeUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			cacheParams, ok := updates["cache_parameters"].(*datamodel.CacheParameters)
+			if !ok {
+				return false
+			}
+			return cacheParams.CacheConfig != nil &&
+				cacheParams.CacheConfig.CachePrePopulateState == state
+		})).Return(nil)
+
+		err := activity.UpdatePrepopulateState(ctx, volumeUUID, state)
+
+		assert.NoError(tt, err)
+	})
+
 	t.Run("GetVolumeFails", func(tt *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		logger := log.NewMockLogger(tt)

@@ -134,8 +134,10 @@ func (a FlexCacheVolumeUpdateActivity) UpdatePrepopulateState(
 	if volume.CacheParameters == nil {
 		return fmt.Errorf("cannot update prepopulate state: volume %s is not a FlexCache volume (CacheParameters is nil)", volumeUUID)
 	}
+
 	if volume.CacheParameters.CacheConfig == nil {
-		return fmt.Errorf("cannot update prepopulate state: volume %s has invalid FlexCache configuration (CacheConfig is nil)", volumeUUID)
+		logger.Debugf("CacheConfig is nil for volume %s, initializing", volumeUUID)
+		volume.CacheParameters.CacheConfig = &datamodel.CacheConfig{}
 	}
 
 	volume.CacheParameters.CacheConfig.CachePrePopulateState = state
