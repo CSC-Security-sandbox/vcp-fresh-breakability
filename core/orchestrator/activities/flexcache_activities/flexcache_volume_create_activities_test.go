@@ -744,7 +744,7 @@ func TestFlexCacheVolumeCreateActivity_WaitForSVMPeeringActivity(t *testing.T) {
 		res, err := activity.WaitForSVMPeeringActivity(ctx, result)
 		assert.Nil(tt, res)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "svm peer is not ready yet")
+		assert.Contains(tt, err.Error(), "Error during SVM peering")
 	})
 }
 

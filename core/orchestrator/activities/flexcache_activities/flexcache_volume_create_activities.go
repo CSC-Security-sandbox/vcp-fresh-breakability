@@ -290,7 +290,7 @@ func (a *FlexCacheVolumeCreateActivity) WaitForSVMPeeringActivity(ctx context.Co
 		return result, nil
 	}
 
-	return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("svm peer is not ready yet"))
+	return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSVMPeerError, fmt.Errorf("svm peer is not ready yet")))
 }
 
 // UpdateFlexCacheVolumeLifecycleStateActivity updates the volume lifecycle state and any cache-related fields based
