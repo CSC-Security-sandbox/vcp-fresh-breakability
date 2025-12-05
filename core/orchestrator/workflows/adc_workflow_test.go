@@ -1142,6 +1142,7 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)

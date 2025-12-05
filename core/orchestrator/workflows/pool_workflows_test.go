@@ -1401,7 +1401,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			// Set the pool ID to simulate successful save
-			if pool, ok := args[0].(*datamodel.Pool); ok {
+			if pool, ok := args[1].(*datamodel.Pool); ok {
 				pool.ID = 1
 			}
 		}).Return(nil)
@@ -4851,7 +4851,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			// Set the pool ID to simulate successful save
-			if pool, ok := args[0].(*datamodel.Pool); ok {
+			if pool, ok := args[1].(*datamodel.Pool); ok {
 				pool.ID = 1
 			}
 		}).Return(nil)
@@ -5009,7 +5009,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			// Set the pool ID to simulate successful save
-			if pool, ok := args[0].(*datamodel.Pool); ok {
+			if pool, ok := args[1].(*datamodel.Pool); ok {
 				pool.ID = 1
 			}
 		}).Return(nil)
@@ -5166,7 +5166,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			// Set the pool ID to simulate successful save
-			if pool, ok := args[0].(*datamodel.Pool); ok {
+			if pool, ok := args[1].(*datamodel.Pool); ok {
 				pool.ID = 1
 			}
 		}).Return(nil)
@@ -5475,7 +5475,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Set the pool ID to simulate successful save
-		if pool, ok := args[0].(*datamodel.Pool); ok {
+		if pool, ok := args[1].(*datamodel.Pool); ok {
 			pool.ID = 1
 		}
 	}).Return(nil)
@@ -5647,7 +5647,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Set the pool ID to simulate successful save
-		if pool, ok := args[0].(*datamodel.Pool); ok {
+		if pool, ok := args[1].(*datamodel.Pool); ok {
 			pool.ID = 1
 		}
 	}).Return(nil)
@@ -9252,7 +9252,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	// Mock SavePoolWithClusterDetails to return a pool with an ID
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Set the pool ID to simulate successful save
-		if pool, ok := args[0].(*datamodel.Pool); ok {
+		if pool, ok := args[1].(*datamodel.Pool); ok {
 			pool.ID = 1
 		}
 	}).Return(nil)
@@ -9402,7 +9402,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 	// Mock SavePoolWithClusterDetails to return a pool with an ID
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Set the pool ID to simulate successful save
-		if pool, ok := args[0].(*datamodel.Pool); ok {
+		if pool, ok := args[1].(*datamodel.Pool); ok {
 			pool.ID = 1
 		}
 	}).Return(nil)
@@ -9524,7 +9524,7 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 	// Mock SavePoolWithClusterDetails to return a pool with an ID
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Set the pool ID to simulate successful save
-		if pool, ok := args[0].(*datamodel.Pool); ok {
+		if pool, ok := args[1].(*datamodel.Pool); ok {
 			pool.ID = 1
 		}
 	}).Return(nil)
@@ -12023,4 +12023,295 @@ func TestExecutePoolBatchUpdates_SingleBatchFails(t *testing.T) {
 	assert.Contains(t, env.GetWorkflowError().Error(), "single batch failed")
 
 	mockVSAClientWorkflowManager.AssertExpectations(t)
+}
+
+// TestCreatePoolWorkflow_BuildInfo_StandardProtocol tests BuildInfo is set correctly for standard (non-files) protocol pools
+func TestCreatePoolWorkflow_BuildInfo_StandardProtocol(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	// Disable file protocol support for this test (standard protocol)
+	utils.SetFileProtocolSupportedForTesting(false)
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+	}()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	// Standard protocol account (not files-enabled)
+	accountName := "standard-account"
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool-standard",
+		AccountName:             accountName,
+		SizeInBytes:             1024 * 1024 * 1024 * 1024,
+		Region:                  "us-central1",
+		PrimaryZone:             "us-central1-a",
+		SecondaryZone:           "us-central1-b",
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+	}
+
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: accountName},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{},
+		DeploymentName: "test-deployment-standard",
+	}
+
+	// Setup standard mocks
+	var capturedPool *datamodel.Pool
+	callCount := 0
+	setupPoolBuildInfoTestMocks(env, mockVSAClientWorkflowManager, mockStorage, params)
+
+	// Mock SavePoolWithClusterDetails with capture logic (must be in test function to access local variables)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		callCount++
+		// Capture the pool on the second call (after BuildInfo is set)
+		// Note: args[0] is context, args[1] is the pool, args[2] is clusterDetails
+		if callCount == 2 {
+			if p, ok := args[1].(*datamodel.Pool); ok {
+				capturedPool = p
+			}
+		}
+		if p, ok := args[1].(*datamodel.Pool); ok {
+			p.ID = 1
+		}
+	}).Return(nil)
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	// Validate BuildInfo uses standard images
+	assert.NotNil(t, capturedPool, "Pool should be captured on second SavePoolWithClusterDetails call")
+	assert.NotNil(t, capturedPool.BuildInfo, "BuildInfo should be set")
+	assert.Equal(t, vsaImageName, capturedPool.BuildInfo.VSABuildImage, "Should use standard VSA image")
+	assert.Equal(t, mediatorImage, capturedPool.BuildInfo.MediatorBuildImage, "Should use standard mediator image")
+	assert.Equal(t, envs.CurrentOntapVersionDetails, capturedPool.BuildInfo.OntapVersion, "Should use current ONTAP version")
+	assert.False(t, capturedPool.BuildInfo.BuildTimestamp.IsZero(), "BuildTimestamp should be set")
+}
+
+// TestCreatePoolWorkflow_BuildInfo_FilesProtocol tests BuildInfo is set correctly for files protocol pools
+func TestCreatePoolWorkflow_BuildInfo_FilesProtocol(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	// Files protocol account - enable file protocol support for this specific account
+	accountName := "files-enabled-account"
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting(accountName)
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Mock child workflow activities
+	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
+	env.OnActivity("UpdatePoolCompliance", mock.Anything, mock.AnythingOfType("activities.UpdatePoolComplianceActivityInput")).Return(&activities.UpdatePoolComplianceActivityOutput{Success: true}, nil).Maybe()
+
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool-files",
+		AccountName:             accountName,
+		SizeInBytes:             1024 * 1024 * 1024 * 1024,
+		Region:                  "us-central1",
+		PrimaryZone:             "us-central1-a",
+		SecondaryZone:           "us-central1-b",
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+	}
+
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: accountName},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{},
+		DeploymentName: "test-deployment-files",
+	}
+
+	// Setup standard mocks
+	var capturedPool *datamodel.Pool
+	callCount := 0
+	setupPoolBuildInfoTestMocks(env, mockVSAClientWorkflowManager, mockStorage, params)
+
+	// Mock SavePoolWithClusterDetails with capture logic (must be in test function to access local variables)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		callCount++
+		// Capture the pool on the second call (after BuildInfo is set)
+		if callCount == 2 {
+			if p, ok := args[1].(*datamodel.Pool); ok {
+				capturedPool = p
+			}
+		}
+		if p, ok := args[1].(*datamodel.Pool); ok {
+			p.ID = 1
+		}
+	}).Return(nil)
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	// Validate BuildInfo uses files images
+	assert.NotNil(t, capturedPool, "Pool should be captured on second SavePoolWithClusterDetails call")
+	assert.NotNil(t, capturedPool.BuildInfo, "BuildInfo should be set")
+	assert.Equal(t, vsaFilesImageName, capturedPool.BuildInfo.VSABuildImage, "Should use files VSA image")
+	assert.Equal(t, filesMediatorImage, capturedPool.BuildInfo.MediatorBuildImage, "Should use files mediator image")
+	assert.Equal(t, envs.CurrentOntapVersionDetails, capturedPool.BuildInfo.OntapVersion, "Should use current ONTAP version")
+	assert.False(t, capturedPool.BuildInfo.BuildTimestamp.IsZero(), "BuildTimestamp should be set")
+}
+
+// setupPoolBuildInfoTestMocks sets up common mocks for pool BuildInfo workflow tests
+func setupPoolBuildInfoTestMocks(env *testsuite.TestWorkflowEnvironment, mockVSAClient *vlm.MockVlmWorkflowClient, mockStorage *database.MockStorage, params *common.CreatePoolParams) {
+	tenantProjectNumber := "test-project"
+	svmName := "gcnv"
+
+	// Mock GetJob for workflow status tracking
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		State: string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	mockStorage.EXPECT().UpdateJob(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return(tenantProjectNumber, nil)
+	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-sn-host",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+	}, nil)
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnWorkflow(ConfigurePSCEndpointWorkflow, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.Anything).Return(nil)
+
+	// Note: SavePoolWithClusterDetails mock is NOT here - it's in the test function to capture pool
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   params.PrimaryZone,
+		SecondaryZone: params.SecondaryZone,
+		MediatorZone:  "us-central1-c",
+	}, nil)
+
+	mockVSAClient.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	mockVSAClient.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
+
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{EndpointAddress: "127.0.0.1"},
+	}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+
+	// PSC Endpoint activities
+	mockAddressURI := "test-address-uri"
+	mockForwardingRuleIP := "127.0.0.1"
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock RegisterNodeToHarvestFarmWorkflow
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
+
+	mockVSAClient.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{
+		VLMConfig: vlm.VLMConfig{},
+	}, nil)
+	mockVSAClient.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
+
+	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Svm{}, nil)
+	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Rollback activities
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	mockStorage.EXPECT().CreatePendingResourceDeletion(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.PendingResourceDeletions{}, nil).Maybe()
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
 }

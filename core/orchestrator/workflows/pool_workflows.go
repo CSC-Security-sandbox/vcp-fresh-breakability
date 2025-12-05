@@ -392,10 +392,16 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
+	// Determine which images to use based on file protocol support
+	buildImage, buildMediatorImage := vsaImageName, mediatorImage
+	if utils.IsFileProtocolSupported(params.AccountName) {
+		buildImage, buildMediatorImage = vsaFilesImageName, filesMediatorImage
+	}
+
 	// Create pool build info with current image details
 	poolBuildInfo := &datamodel.PoolBuildInfo{
-		VSABuildImage:      vsaImageName,
-		MediatorBuildImage: mediatorImage,
+		VSABuildImage:      buildImage,
+		MediatorBuildImage: buildMediatorImage,
 		OntapVersion:       env.CurrentOntapVersionDetails,
 		BuildTimestamp:     time.Now(),
 	}
