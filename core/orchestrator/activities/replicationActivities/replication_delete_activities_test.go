@@ -2,6 +2,7 @@ package replicationActivities
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -3760,5 +3762,456 @@ func TestSetHybridReplicationVariablesDelete(t *testing.T) {
 		assert.NotNil(tt, updatedResult)
 		assert.Equal(tt, result, updatedResult)
 		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsSetButClusterPeerIdIsNotValid", func(tt *testing.T) {
+		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+							HybridReplicationType: &migrationType,
+						},
+						ClusterPeerId: sql.NullInt64{Valid: false},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.CleanupClusterPeering)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVolumeReplicationCountByClusterPeerIDFails", func(tt *testing.T) {
+		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		clusterPeerID := int64(123)
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+							HybridReplicationType: &migrationType,
+						},
+						ClusterPeerId: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		expectedError := errors.New("database error")
+		mockStorage.On("GetVolumeReplicationCountByClusterPeerID", ctx, clusterPeerID).Return(int64(0), expectedError)
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetFlexCacheVolumeCountByClusterPeerIDFails", func(tt *testing.T) {
+		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		clusterPeerID := int64(123)
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+							HybridReplicationType: &migrationType,
+						},
+						ClusterPeerId: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		expectedError := errors.New("database error")
+		mockStorage.On("GetVolumeReplicationCountByClusterPeerID", ctx, clusterPeerID).Return(int64(1), nil)
+		mockStorage.On("GetFlexCacheVolumeCountByClusterPeerID", ctx, clusterPeerID).Return(int64(0), expectedError)
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeReplicationCountIsNotOne", func(tt *testing.T) {
+		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		clusterPeerID := int64(123)
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+							HybridReplicationType: &migrationType,
+						},
+						ClusterPeerId: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplicationCountByClusterPeerID", ctx, clusterPeerID).Return(int64(2), nil)
+		mockStorage.On("GetFlexCacheVolumeCountByClusterPeerID", ctx, clusterPeerID).Return(int64(0), nil)
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.CleanupClusterPeering)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenFlexCacheCountIsNotZero", func(tt *testing.T) {
+		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		clusterPeerID := int64(123)
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+							HybridReplicationType: &migrationType,
+						},
+						ClusterPeerId: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplicationCountByClusterPeerID", ctx, clusterPeerID).Return(int64(1), nil)
+		mockStorage.On("GetFlexCacheVolumeCountByClusterPeerID", ctx, clusterPeerID).Return(int64(1), nil)
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.CleanupClusterPeering)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLastReplicationAndNoFlexCacheSetsCleanupFlag", func(tt *testing.T) {
+		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		clusterPeerID := int64(123)
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+							HybridReplicationType: &migrationType,
+						},
+						ClusterPeerId: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplicationCountByClusterPeerID", ctx, clusterPeerID).Return(int64(1), nil)
+		mockStorage.On("GetFlexCacheVolumeCountByClusterPeerID", ctx, clusterPeerID).Return(int64(0), nil)
+
+		updatedResult, err := activity.SetHybridReplicationVariablesDelete(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.True(tt, updatedResult.CleanupClusterPeering)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteRoleInOntap(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activity := DeleteVolumeReplicationActivity{SE: database.NewMockStorage(t)}
+	node := &models.Node{}
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		roleName := "external-peer"
+		ownerUUID := "owner-uuid-123"
+		roles := []*vsa.Role{
+			{
+				Name:    roleName,
+				OwnerID: ownerUUID,
+			},
+		}
+
+		mockProvider.On("GetRoleCollection", mock.MatchedBy(func(params vsa.GetRoleCollectionParams) bool {
+			return params.Name != nil && *params.Name == roleName
+		})).Return(roles, nil)
+
+		mockProvider.On("DeleteRole", mock.MatchedBy(func(params vsa.DeleteRoleParams) bool {
+			return params.Name == roleName && params.OwnerUUID != nil && *params.OwnerUUID == ownerUUID
+		})).Return(nil)
+
+		err := activity.DeleteRoleInOntap(ctx, node)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		expectedError := errors.New("failed to get provider")
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, expectedError
+		}
+
+		err := activity.DeleteRoleInOntap(ctx, node)
+
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenGetRoleCollectionFails", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		roleName := "external-peer"
+		expectedError := errors.New("failed to get role collection")
+
+		mockProvider.On("GetRoleCollection", mock.MatchedBy(func(params vsa.GetRoleCollectionParams) bool {
+			return params.Name != nil && *params.Name == roleName
+		})).Return(nil, expectedError)
+
+		err := activity.DeleteRoleInOntap(ctx, node)
+
+		assert.Error(tt, err)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, expectedError.Error(), customErr.OriginalErr.Error())
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRoleDoesNotExist", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		roleName := "external-peer"
+		roles := []*vsa.Role{}
+
+		mockProvider.On("GetRoleCollection", mock.MatchedBy(func(params vsa.GetRoleCollectionParams) bool {
+			return params.Name != nil && *params.Name == roleName
+		})).Return(roles, nil)
+
+		err := activity.DeleteRoleInOntap(ctx, node)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDeleteRoleFails", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		roleName := "external-peer"
+		ownerUUID := "owner-uuid-123"
+		roles := []*vsa.Role{
+			{
+				Name:    roleName,
+				OwnerID: ownerUUID,
+			},
+		}
+		expectedError := errors.New("failed to delete role")
+
+		mockProvider.On("GetRoleCollection", mock.MatchedBy(func(params vsa.GetRoleCollectionParams) bool {
+			return params.Name != nil && *params.Name == roleName
+		})).Return(roles, nil)
+
+		mockProvider.On("DeleteRole", mock.MatchedBy(func(params vsa.DeleteRoleParams) bool {
+			return params.Name == roleName && params.OwnerUUID != nil && *params.OwnerUUID == ownerUUID
+		})).Return(expectedError)
+
+		err := activity.DeleteRoleInOntap(ctx, node)
+
+		assert.Error(tt, err)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, expectedError.Error(), customErr.OriginalErr.Error())
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteClusterPeeringInOntap(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activity := DeleteVolumeReplicationActivity{SE: database.NewMockStorage(t)}
+	node := &models.Node{}
+	clusterPeerUUID := "cluster-peer-uuid-123"
+
+	result := &replication.DeleteReplicationResult{
+		Event: &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{
+					ClusterPeer: &datamodel.ClusterPeerings{
+						OntapPeerUUID: clusterPeerUUID,
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("DeleteClusterPeer", clusterPeerUUID).Return(nil)
+
+		err := activity.DeleteClusterPeeringInOntap(ctx, result, node)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		expectedError := errors.New("failed to get provider")
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, expectedError
+		}
+
+		err := activity.DeleteClusterPeeringInOntap(ctx, result, node)
+
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenDeleteClusterPeerFails", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		expectedError := errors.New("failed to delete cluster peer")
+		mockProvider.On("DeleteClusterPeer", clusterPeerUUID).Return(expectedError)
+
+		err := activity.DeleteClusterPeeringInOntap(ctx, result, node)
+
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteClusterPeeringDB(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	clusterPeerUUID := "cluster-peer-uuid-123"
+
+	result := &replication.DeleteReplicationResult{
+		Event: &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{
+					ClusterPeer: &datamodel.ClusterPeerings{
+						BaseModel: datamodel.BaseModel{UUID: clusterPeerUUID},
+						State:     models.CvpClusterPeeringStatusPEERED,
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		mockStorage.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(cpr *datamodel.ClusterPeerings) bool {
+			return cpr.State == models.CvpClusterPeeringStatusDELETED &&
+				cpr.DeletedAt != nil &&
+				cpr.DeletedAt.Valid == true &&
+				cpr.UpdatedAt.Equal(cpr.DeletedAt.Time)
+		})).Return(nil)
+
+		err := activity.DeleteClusterPeeringDB(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.CvpClusterPeeringStatusDELETED, result.Event.ReplicationModel.ClusterPeer.State)
+		assert.NotNil(tt, result.Event.ReplicationModel.ClusterPeer.DeletedAt)
+		assert.True(tt, result.Event.ReplicationModel.ClusterPeer.DeletedAt.Valid)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateClusterPeeringRowFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		expectedError := errors.New("database update error")
+		mockStorage.On("UpdateClusterPeeringRow", ctx, mock.Anything).Return(expectedError)
+
+		err := activity.DeleteClusterPeeringDB(ctx, result)
+
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 }

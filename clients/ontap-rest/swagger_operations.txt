@@ -152,6 +152,7 @@ quota_rule_delete
 quota_rule_modify
 role_collection_get
 role_create
+role_delete
 role_get
 role_privilege_create
 role_privilege_modify

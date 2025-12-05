@@ -19,6 +19,7 @@ type SecurityClient interface { // generate:mock
 	EnableAutoVolOfflineCronForGCPKMS() error
 	RoleCreate(params *RoleCreateParams) (string, error)
 	RoleGet(params *RoleGetParams) (*Role, error)
+	RoleDelete(params *RoleDeleteParams) error
 	RolePrivilegeModify(params *RolePrivilegeModifyParams) error
 	RolePrivilegeCreate(params *RolePrivilegeCreateParams) (string, error)
 	RoleCollectionGet(params *RoleCollectionGetParams) (*RoleCollectionGetResponse, error)
@@ -178,6 +179,15 @@ func (sc *securityClient) RoleGet(params *RoleGetParams) (*Role, error) {
 
 	resp := &Role{Role: *response.Payload}
 	return resp, nil
+}
+
+// RoleDelete invokes pkg/ontap-rest/client/security/Client.RoleDelete
+func (sc *securityClient) RoleDelete(params *RoleDeleteParams) error {
+	_, err := (*sc.api).RoleDelete(roleDeleteParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // RolePrivilegeModify invokes pkg/ontap-rest/client/security/Client.RolePrivilegeModify

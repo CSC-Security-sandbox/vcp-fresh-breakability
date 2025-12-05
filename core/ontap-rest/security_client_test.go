@@ -722,3 +722,21 @@ func TestServerRootCACertificateCollectionGet(t *testing.T) {
 		assert.Equal(tt, cert2, &response[1].SecurityCertificate)
 	})
 }
+
+func TestRoleDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.RoleDelete(&RoleDeleteParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RoleDeleteOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.RoleDelete(&RoleDeleteParams{})
+		assert.NoError(tt, err)
+	})
+}

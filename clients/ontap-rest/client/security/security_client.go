@@ -134,6 +134,8 @@ type ClientService interface {
 
 	RoleCreate(params *RoleCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleCreateCreated, error)
 
+	RoleDelete(params *RoleDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleDeleteOK, error)
+
 	RoleGet(params *RoleGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleGetOK, error)
 
 	RolePrivilegeCreate(params *RolePrivilegeCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeCreateCreated, error)
@@ -1013,6 +1015,54 @@ func (a *Client) RoleCreate(params *RoleCreateParams, authInfo runtime.ClientAut
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*RoleCreateDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	RoleDelete Deletes the specified role.
+
+### Required parameters
+* `name` - Name of the role to be deleted.
+* `owner.uuid` - UUID of the SVM housing the role.
+### Related ONTAP commands
+* `security login rest-role delete`
+* `security login role delete`
+### Learn more
+* [`DOC /security/roles/{owner.uuid}/{name}`](#docs-security-security_roles_{owner.uuid}_{name})
+* [`DOC /security/roles`](#docs-security-security_roles)
+*/
+func (a *Client) RoleDelete(params *RoleDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleDeleteOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewRoleDeleteParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "role_delete",
+		Method:             "DELETE",
+		PathPattern:        "/security/roles/{owner.uuid}/{name}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &RoleDeleteReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*RoleDeleteOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*RoleDeleteDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

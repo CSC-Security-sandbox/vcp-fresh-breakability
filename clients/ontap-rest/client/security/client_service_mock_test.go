@@ -571,6 +571,22 @@ func TestMockClientServiceRoleCreate(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceRoleDelete(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *RoleDeleteParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *RoleDeleteOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.RoleDelete(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertRoleDelete(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceRoleGet(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *RoleGetParams

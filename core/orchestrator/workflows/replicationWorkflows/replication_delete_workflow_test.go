@@ -197,6 +197,10 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.RegisterActivity(deleteReplicationActivity.DeleteVolumeOnDestination)
 		env.RegisterActivity(deleteReplicationActivity.DeHydrateDestinationVolume)
 		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnDestinationToErrorState)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(deleteReplicationActivity.DeleteClusterPeeringInOntap)
+		env.RegisterActivity(deleteReplicationActivity.DeleteClusterPeeringDB)
+		env.RegisterActivity(deleteReplicationActivity.DeleteRoleInOntap)
 
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -216,6 +220,17 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 						SourceLocation: "customer",
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
+					Volume: &datamodel.Volume{
+						Pool: &datamodel.Pool{
+							BaseModel: datamodel.BaseModel{
+								ID: 1,
+							},
+							DeploymentName: "test-deployment",
+							PoolCredentials: &datamodel.PoolCredentials{
+								SecretID: "test-secret-id",
+							},
+						},
+					},
 				},
 				SourceProjectNumber:      "123456789",
 				DestinationProjectNumber: "987654321",
@@ -237,6 +252,13 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 				MirrorState:      googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED),
 			},
 			IsHybridReplicationVolume: true,
+			CleanupClusterPeering:     true,
+		}
+
+		dbNodes := []*datamodel.Node{
+			{
+				Name: "test-node",
+			},
 		}
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -256,6 +278,10 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.OnActivity("DeleteVolumeOnDestination", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeHydrateDestinationVolume", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil)
+		env.OnActivity("DeleteClusterPeeringInOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteClusterPeeringDB", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteRoleInOntap", mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
 
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")

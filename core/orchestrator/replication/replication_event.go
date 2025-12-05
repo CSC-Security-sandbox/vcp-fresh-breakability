@@ -176,6 +176,7 @@ type DeleteReplicationResult struct {
 	JobId                     string
 	CorrelationID             *string
 	IsHybridReplicationVolume bool
+	CleanupClusterPeering     bool
 }
 
 type UpdateReplicationResult struct {

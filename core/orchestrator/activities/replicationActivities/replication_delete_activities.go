@@ -3,19 +3,24 @@ package replicationActivities
 import (
 	"context"
 	"strings"
+	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"gorm.io/gorm"
 )
 
 var (
-	deHydrateVolumeReplication = DeHydrateVolumeReplication
-	deHydrateVolume            = DeHydrateVolume
+	deHydrateVolumeReplication   = DeHydrateVolumeReplication
+	deHydrateVolume              = DeHydrateVolume
+	hyperscalerGetProviderByNode = hyperscaler.GetProviderByNode
 )
 
 type DeleteVolumeReplicationActivity struct {
@@ -27,9 +32,91 @@ func (a *DeleteVolumeReplicationActivity) SetHybridReplicationVariablesDelete(ct
 	if result.Event != nil && result.Event.ReplicationModel != nil && result.Event.ReplicationModel.HybridReplicationAttributes != nil {
 		logger.Infof("Replication is a hybrid replication")
 		result.IsHybridReplicationVolume = true
-		// TODO: check replication count for hybrid replication, if last then set peering cleanup flag also
+		if result.Event.ReplicationModel.ClusterPeerId.Valid {
+			se := a.SE
+			volumeReplicationCount, err := se.GetVolumeReplicationCountByClusterPeerID(ctx, result.Event.ReplicationModel.ClusterPeerId.Int64)
+			if err != nil {
+				return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+			}
+			flexCacheCount, err := se.GetFlexCacheVolumeCountByClusterPeerID(ctx, result.Event.ReplicationModel.ClusterPeerId.Int64)
+			if err != nil {
+				return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+			}
+			if volumeReplicationCount == 1 && flexCacheCount == 0 {
+				logger.Infof("This is the last replication for cluster peer ID %d, setting cleanup cluster peering flag", result.Event.ReplicationModel.ClusterPeerId.Int64)
+				result.CleanupClusterPeering = true
+			}
+		}
 	}
 	return result, nil
+}
+
+func (a *DeleteVolumeReplicationActivity) DeleteClusterPeeringInOntap(ctx context.Context, result *replication.DeleteReplicationResult, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscalerGetProviderByNode(ctx, node)
+	if err != nil {
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+	clusterPeerUUID := result.Event.ReplicationModel.ClusterPeer.OntapPeerUUID
+
+	err = provider.DeleteClusterPeer(clusterPeerUUID)
+	if err != nil {
+		return errors.NewVCPError(errors.ErrDeletingClusterPeer, err)
+	}
+	logger.Debugf("Cluster peering with UUID %s deleted successfully", clusterPeerUUID)
+	return nil
+}
+
+func (a *DeleteVolumeReplicationActivity) DeleteRoleInOntap(ctx context.Context, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscalerGetProviderByNode(ctx, node)
+	if err != nil {
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	roleName := onPremPeerRole
+	getRoleParams := vsa.GetRoleCollectionParams{
+		Name: &roleName,
+	}
+	roles, err := provider.GetRoleCollection(getRoleParams)
+	if err != nil {
+		logger.Errorf("Failed to get role %s: %v", roleName, err)
+		return errors.NewVCPError(errors.ErrInternalServerError, err)
+	}
+	if len(roles) == 0 {
+		logger.Infof("Role %s does not exist, skipping deletion", roleName)
+		return nil
+	}
+	role := roles[0]
+	deleteRoleParams := vsa.DeleteRoleParams{
+		Name:      roleName,
+		OwnerUUID: &role.OwnerID,
+	}
+
+	err = provider.DeleteRole(deleteRoleParams)
+	if err != nil {
+		logger.Errorf("Failed to delete role %s: %v", roleName, err)
+		return errors.NewVCPError(errors.ErrInternalServerError, err)
+	}
+	logger.Debugf("Role %s deleted successfully", roleName)
+	return nil
+}
+
+func (a *DeleteVolumeReplicationActivity) DeleteClusterPeeringDB(ctx context.Context, result *replication.DeleteReplicationResult) error {
+	logger := util.GetLogger(ctx)
+	clusterPeeringRow := result.Event.ReplicationModel.ClusterPeer
+	se := a.SE
+	clusterPeeringRow.State = models.CvpClusterPeeringStatusDELETED
+	timeNow := time.Now()
+	clusterPeeringRow.DeletedAt = &gorm.DeletedAt{Time: timeNow, Valid: true}
+	clusterPeeringRow.UpdatedAt = clusterPeeringRow.DeletedAt.Time
+	if err := se.UpdateClusterPeeringRow(ctx, clusterPeeringRow); err != nil {
+		logger.Errorf("Failed to update cluster peering row in DB: %v", err)
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Cluster peering row with UUID %s updated to state %s", clusterPeeringRow.UUID, clusterPeeringRow.State)
+	return nil
 }
 
 func (a *DeleteVolumeReplicationActivity) GetSrcBasePathDelete(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {

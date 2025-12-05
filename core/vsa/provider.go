@@ -142,6 +142,7 @@ type Provider interface {
 	CreateRESTClient() (ontapRest.RESTClient, error)
 	CreateRole(params CreateRoleParams) (string, error)
 	GetRole(params GetRoleParams) (*Role, error)
+	DeleteRole(params DeleteRoleParams) error
 	GetRoleCollection(params GetRoleCollectionParams) ([]*Role, error)
 	ModifyRolePrivilege(params ModifyRolePrivilegeParams) error
 	CreateRolePrivilege(params CreateRolePrivilegeParams) (string, error)

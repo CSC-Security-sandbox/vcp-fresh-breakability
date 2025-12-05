@@ -377,6 +377,19 @@ func (mock *MockClientService) AssertRoleCreate(params *RoleCreateParams, authIn
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
+// RoleDelete mocks a call to ClientService.RoleDelete
+func (mock *MockClientService) RoleDelete(params *RoleDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleDeleteOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "RoleDelete", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**RoleDeleteOK), *ret[1].(*error)
+}
+
+// AssertRoleDelete verifies that RoleDelete has been invoked
+func (mock *MockClientService) AssertRoleDelete(params *RoleDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *RoleDeleteOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "RoleDelete", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
 // RoleGet mocks a call to ClientService.RoleGet
 func (mock *MockClientService) RoleGet(params *RoleGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RoleGetOK, error) {
 	mock.calls <- &mockClientServiceCall{name: "RoleGet", params: []interface{}{&params, &authInfo, &opts}}

@@ -2,14 +2,17 @@ package replicationWorkflows
 
 import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -212,7 +215,34 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		}
 	}
 
-	// TODO: Add cleanup for cluser and svm peering if needed
+	if replicationResult.CleanupClusterPeering {
+		var dbNodes []*datamodel.Node
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &replicationResult.Event.ReplicationModel.Volume.Pool.ID).Get(ctx, &dbNodes)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+			Nodes:            dbNodes,
+			DeploymentName:   replicationResult.Event.ReplicationModel.Volume.Pool.DeploymentName,
+			OntapCredentials: replicationResult.Event.ReplicationModel.Volume.Pool.PoolCredentials,
+		})
+
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteClusterPeeringInOntap, &replicationResult, node).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteClusterPeeringDB, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteRoleInOntap, node).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
 
 	return nil, workflows.ConvertToVSAError(err)
 }

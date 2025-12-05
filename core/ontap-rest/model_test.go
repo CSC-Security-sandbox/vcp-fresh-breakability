@@ -4198,3 +4198,56 @@ func TestVolumeGetParamsToONTAPQuotaRules(t *testing.T) {
 		assert.Equal(tt, "test-uuid", otParams2.UUID)
 	})
 }
+
+func TestRoleDeleteParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := roleDeleteParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithAllFields", func(tt *testing.T) {
+		ownerUUID := "owner-uuid-123"
+		params := &RoleDeleteParams{
+			Name:      "test-role",
+			OwnerUUID: &ownerUUID,
+		}
+		otParams := roleDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, ownerUUID, otParams.OwnerUUID)
+	})
+
+	t.Run("WhenParamsSetWithOnlyName", func(tt *testing.T) {
+		params := &RoleDeleteParams{
+			Name:      "test-role",
+			OwnerUUID: nil,
+		}
+		otParams := roleDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Empty(tt, otParams.OwnerUUID)
+	})
+
+	t.Run("WhenParamsSetWithOnlyOwnerUUID", func(tt *testing.T) {
+		ownerUUID := "owner-uuid-456"
+		params := &RoleDeleteParams{
+			Name:      "",
+			OwnerUUID: &ownerUUID,
+		}
+		otParams := roleDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", otParams.Name)
+		assert.Equal(tt, ownerUUID, otParams.OwnerUUID)
+	})
+
+	t.Run("WhenParamsSetWithEmptyNameAndNilOwnerUUID", func(tt *testing.T) {
+		params := &RoleDeleteParams{
+			Name:      "",
+			OwnerUUID: nil,
+		}
+		otParams := roleDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", otParams.Name)
+		assert.Empty(tt, otParams.OwnerUUID)
+	})
+}

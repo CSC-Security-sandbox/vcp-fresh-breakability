@@ -2222,6 +2222,12 @@ type RolePrivilegeCreateParams struct {
 	Query   string
 }
 
+// RoleDeleteParams is the input param struct for securityClient.RoleDelete
+type RoleDeleteParams struct {
+	Name      string
+	OwnerUUID *string
+}
+
 // QosPolicy is the model for QosPolicy
 type QosPolicy struct {
 	models.QosPolicy
@@ -3925,6 +3931,17 @@ func roleCollectionGetParamsToONTAP(params *RoleCollectionGetParams) *security.R
 
 	otParams.WithName(params.Name)
 	otParams.WithFields(params.Fields)
+	return otParams
+}
+
+func roleDeleteParamsToONTAP(params *RoleDeleteParams) *security.RoleDeleteParams {
+	otParams := security.NewRoleDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.WithName(params.Name)
+	otParams.WithOwnerUUID(nillable.FromPointer(params.OwnerUUID))
 	return otParams
 }
 

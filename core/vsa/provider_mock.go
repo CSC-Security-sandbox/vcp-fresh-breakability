@@ -2107,6 +2107,52 @@ func (_c *MockProvider_DeleteQuotaRule_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// DeleteRole provides a mock function with given fields: params
+func (_m *MockProvider) DeleteRole(params DeleteRoleParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteRole")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(DeleteRoleParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_DeleteRole_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteRole'
+type MockProvider_DeleteRole_Call struct {
+	*mock.Call
+}
+
+// DeleteRole is a helper method to define mock.On call
+//   - params DeleteRoleParams
+func (_e *MockProvider_Expecter) DeleteRole(params interface{}) *MockProvider_DeleteRole_Call {
+	return &MockProvider_DeleteRole_Call{Call: _e.mock.On("DeleteRole", params)}
+}
+
+func (_c *MockProvider_DeleteRole_Call) Run(run func(params DeleteRoleParams)) *MockProvider_DeleteRole_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(DeleteRoleParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteRole_Call) Return(_a0 error) *MockProvider_DeleteRole_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_DeleteRole_Call) RunAndReturn(run func(DeleteRoleParams) error) *MockProvider_DeleteRole_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteSVMPeer provides a mock function with given fields: svmPeerUUID, force
 func (_m *MockProvider) DeleteSVMPeer(svmPeerUUID string, force bool) error {
 	ret := _m.Called(svmPeerUUID, force)

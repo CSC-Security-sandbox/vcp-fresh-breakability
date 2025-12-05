@@ -54,6 +54,12 @@ type GetRoleCollectionParams struct {
 	Name *string
 }
 
+// DeleteRoleParams represents parameters for deleting a role
+type DeleteRoleParams struct {
+	Name      string
+	OwnerUUID *string
+}
+
 // CreateRole creates a new role in ONTAP
 func (rc *OntapRestProvider) CreateRole(params CreateRoleParams) (string, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
@@ -233,4 +239,26 @@ func (rc *OntapRestProvider) GetRoleCollection(params GetRoleCollectionParams) (
 	}
 
 	return roles, nil
+}
+
+// DeleteRole deletes a role from ONTAP
+func (rc *OntapRestProvider) DeleteRole(params DeleteRoleParams) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+
+	// Create delete role parameters
+	deleteParams := &ontapRest.RoleDeleteParams{
+		Name:      params.Name,
+		OwnerUUID: params.OwnerUUID,
+	}
+
+	// Delete the role
+	err = client.Security().RoleDelete(deleteParams)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
