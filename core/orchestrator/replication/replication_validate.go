@@ -1118,6 +1118,10 @@ func _verifyDstReplication(ctx context.Context, event *DeleteReplicationEvent) (
 
 func _verifyDstReplicationSync(ctx context.Context, event *ResumeReplicationEvent) (*coreModels.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
+	if IsSrcForHybridReplication(event.ReplicationModel) {
+		logger.Error("Sync not allowed when replication is in externally managed state")
+		return nil, utilErrors.NewUserInputValidationErr("Sync not allowed when replication is in externally managed state")
+	}
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
 		logger.Error("getReplication error", "error", err)

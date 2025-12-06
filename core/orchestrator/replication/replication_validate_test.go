@@ -4496,6 +4496,32 @@ func TestVerifyDstReplicationSync(t *testing.T) {
 			},
 		},
 	}
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue", func(tt *testing.T) {
+		ctx := context.Background()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &ResumeReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "dstUUID",
+					},
+				},
+			},
+		}
+
+		expectedError := errors.NewUserInputValidationErr("Sync not allowed when replication is in externally managed state")
+		_, err := _verifyDstReplicationSync(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+
 	t.Run("WhenGetReplicationError", func(tt *testing.T) {
 		ctx := context.Background()
 		defer func() {
