@@ -552,6 +552,12 @@ type CreateVolumeReplicationParams struct {
 	ReverseResync     bool
 }
 
+// ReleaseVolumeReplicationParams describes parameters supplied to Provider.ReleaseVolumeReplication
+type ReleaseVolumeReplicationParams struct {
+	VolumeReplication *VolumeReplication
+	ReverseResync     bool
+}
+
 // DeleteVolumeReplicationParams describes parameters supplied to Provider.DeleteVolumeReplication
 type DeleteVolumeReplicationParams struct {
 	VolumeReplication *VolumeReplication

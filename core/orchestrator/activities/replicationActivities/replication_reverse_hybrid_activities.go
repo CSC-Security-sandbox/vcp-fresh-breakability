@@ -20,6 +20,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+var (
+	hydrateReplicationStateAndTypeForHybrid = HydrateReplicationStateAndType
+)
+
 type ReverseHybridReplicationActivity struct {
 	SE database.Storage
 }
@@ -55,6 +59,19 @@ func buildSnapmirrorQuery(existingPrivilege *vsa.RolePrivilege, newPath string) 
 	return fmt.Sprintf("-source-path %s", strings.Join(allPaths, "|"))
 }
 
+// SetHybridReplicationVariablesReverse sets hybrid replication variables for reverse operations
+func (a *ReverseHybridReplicationActivity) SetHybridReplicationVariablesReverse(ctx context.Context, result *replication.ReverseHybridReplicationResult) (*replication.ReverseHybridReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	if result.DbVolReplication != nil && result.DbVolReplication.HybridReplicationAttributes != nil {
+		logger.Infof("Replication is a hybrid replication")
+		result.IsHybridReplicationVolume = true
+		if replication.IsSrcForHybridReplication(result.DbVolReplication) {
+			result.IsSrcForHybridReplication = true
+		}
+	}
+	return result, nil
+}
+
 // CheckClusterPeerHealthForHybridReverse checks cluster peer health from ONTAP
 // Uses ClusterPeer relationship from VolumeReplication to get the cluster peering row and check health
 func (a *ReverseHybridReplicationActivity) CheckClusterPeerHealthForHybridReverse(ctx context.Context, result *replication.ReverseHybridReplicationResult) (*replication.ReverseHybridReplicationResult, error) {
@@ -64,7 +81,6 @@ func (a *ReverseHybridReplicationActivity) CheckClusterPeerHealthForHybridRevers
 	if result.DbVolReplication == nil {
 		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, fmt.Errorf("replication is nil"))
 	}
-
 	dbReplication := result.DbVolReplication
 
 	// Check if ClusterPeer is set
@@ -84,7 +100,7 @@ func (a *ReverseHybridReplicationActivity) CheckClusterPeerHealthForHybridRevers
 	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
 	if err != nil {
 		logger.Errorf("Failed to get provider from node: %v", err)
-		return nil, errors.WrapAsTemporalApplicationError(err)
+		return nil, errors.WrapAsTemporalApplicationError(errors.NewVCPError(errors.ErrClusterPeerNotFound, fmt.Errorf("cluster peer not found in provider: %v", err)))
 	}
 
 	// Get cluster peer from ONTAP using OntapPeerUUID
@@ -110,6 +126,9 @@ func (a *ReverseHybridReplicationActivity) CheckClusterPeerHealthForHybridRevers
 
 // UpdateRbacRoleForHybridReverse updates RBAC role for remote SnapMirror access
 func (a *ReverseHybridReplicationActivity) UpdateRbacRoleForHybridReverse(ctx context.Context, result *replication.ReverseHybridReplicationResult) (*replication.ReverseHybridReplicationResult, error) {
+	if result.IsSrcForHybridReplication {
+		return result, nil
+	}
 	logger := util.GetLogger(ctx)
 	logger.Debugf("UpdateRbacRoleForHybridReverse")
 
@@ -139,7 +158,7 @@ func (a *ReverseHybridReplicationActivity) UpdateRbacRoleForHybridReverse(ctx co
 
 	if len(roles) == 0 {
 		logger.Errorf("Role %s not found", roleName)
-		return nil, errors.NewVCPError(errors.ErrVSAClusterCreateError, fmt.Errorf("role %s not found", roleName))
+		return nil, errors.WrapAsTemporalApplicationError(fmt.Errorf("role %s not found", roleName))
 	}
 
 	// Use the first matching role (name filter ensures it matches the requested name)
@@ -203,6 +222,9 @@ func (a *ReverseHybridReplicationActivity) UpdateRbacRoleForHybridReverse(ctx co
 
 // GenerateReverseCommandsForHybridReverse generates snapmirror reverse commands
 func (a *ReverseHybridReplicationActivity) GenerateReverseCommandsForHybridReverse(ctx context.Context, result *replication.ReverseHybridReplicationResult) (*replication.ReverseHybridReplicationResult, error) {
+	if result.IsSrcForHybridReplication {
+		return result, nil
+	}
 	logger := util.GetLogger(ctx)
 	logger.Debugf("GenerateReverseCommandsForHybridReverse")
 
@@ -251,23 +273,24 @@ func (a *ReverseHybridReplicationActivity) UpdateReplicationWithReverseCommandsF
 	logger := util.GetLogger(ctx)
 	logger.Debugf("UpdateReplicationWithReverseCommandsForHybridReverse")
 
-	if result.DbVolReplication == nil {
-		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, fmt.Errorf("replication is nil"))
+	if result.IsSrcForHybridReplication {
+		result.DbVolReplication.HybridReplicationAttributes.StatusDetails = "Reverse in progress"
+		result.DbVolReplication.HybridReplicationAttributes.HybridReplicationUserCommands = nil
+	} else {
+		// Ensure HybridReplicationAttributes exists
+		if result.DbVolReplication.HybridReplicationAttributes == nil {
+			result.DbVolReplication.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{}
+		}
+
+		// Update HybridReplicationUserCommands
+		result.DbVolReplication.HybridReplicationAttributes.HybridReplicationUserCommands = result.HybridReplicationUserCommands
+
+		// Set status to PendingReverseResume
+		result.DbVolReplication.HybridReplicationAttributes.Status = models.HybridReplicationStatusPendingRemoteResync
+
+		// Set status details
+		result.DbVolReplication.HybridReplicationAttributes.StatusDetails = "Please execute the SnapMirror commands on the on-premises system to establish a new SnapMirror relationship."
 	}
-
-	// Ensure HybridReplicationAttributes exists
-	if result.DbVolReplication.HybridReplicationAttributes == nil {
-		result.DbVolReplication.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{}
-	}
-
-	// Update HybridReplicationUserCommands
-	result.DbVolReplication.HybridReplicationAttributes.HybridReplicationUserCommands = result.HybridReplicationUserCommands
-
-	// Set status to PendingReverseResume
-	result.DbVolReplication.HybridReplicationAttributes.Status = models.HybridReplicationStatusPendingRemoteResync
-
-	// Set status details
-	result.DbVolReplication.HybridReplicationAttributes.StatusDetails = "Please execute the SnapMirror commands on the on-premises system to establish a new SnapMirror relationship."
 
 	// Update the replication in database
 	err := a.SE.UpdateVolumeReplication(ctx, result.DbVolReplication)
@@ -528,6 +551,43 @@ func (a *ReverseHybridReplicationActivity) DescribeRemoteJobOnDstForHybridRevers
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (a *ReverseHybridReplicationActivity) HydrateReplicationSateAndTypeForReverseHybridReplication(ctx context.Context, result *replication.ReverseHybridReplicationResult) (*replication.ReverseHybridReplicationResult, error) {
+	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateExternalManaged, models.HybridReplicationParametersReplicationTypeREVERSE)
+	if err != nil {
+		return nil, errors.WrapAsTemporalApplicationError(err)
+	}
+	return result, nil
+}
+
+func HydrateReplicationStateAndTypeForHybridReplication(ctx context.Context, dbVolRep *datamodel.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType) error {
+	if hydrationEnabled {
+		logger := util.GetLogger(ctx)
+		logger.Debugf("Hydrating volume replication for hybrid replication after reverse")
+		// Convert the database volume replication to models.VolumeReplication for hydration
+		volumeRepModel := models.VolumeReplication{
+			Name: dbVolRep.Name,
+			ReplicationAttributes: &models.ReplicationDetails{
+				DestinationRegion:     dbVolRep.ReplicationAttributes.DestinationLocation,
+				DestinationVolumeName: dbVolRep.ReplicationAttributes.DestinationVolumeName,
+			},
+		}
+
+		projectNumber, err := utils.ParseProjectNumberFromURI(dbVolRep.Uri)
+		if err != nil {
+			logger.Errorf("Failed to parse project number from Uri: %v, remoteUri: %s", err, dbVolRep.Uri)
+			return errors.WrapAsTemporalApplicationError(fmt.Errorf("failed to parse project number: %w", err))
+		}
+		// Call HydrateVolumeReplication with the specified parameters
+		err = hydrateReplicationStateAndTypeForHybrid(ctx, volumeRepModel, hydrateState, hydrateType, projectNumber)
+		if err != nil {
+			logger.Errorf("Failed to hydrate volume replication: %v", err)
+			return errors.WrapAsTemporalApplicationError(err)
+		}
+		logger.Infof("Successfully hydrated volume replication after reverse")
 	}
 	return nil
 }

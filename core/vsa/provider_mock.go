@@ -5743,7 +5743,7 @@ func (_c *MockProvider_QuotaEnableDisable_Call) RunAndReturn(run func(context.Co
 }
 
 // ReleaseVolumeReplication provides a mock function with given fields: params
-func (_m *MockProvider) ReleaseVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error) {
+func (_m *MockProvider) ReleaseVolumeReplication(params *ReleaseVolumeReplicationParams) (*VolumeReplication, error) {
 	ret := _m.Called(params)
 
 	if len(ret) == 0 {
@@ -5752,10 +5752,10 @@ func (_m *MockProvider) ReleaseVolumeReplication(params *CreateVolumeReplication
 
 	var r0 *VolumeReplication
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*CreateVolumeReplicationParams) (*VolumeReplication, error)); ok {
+	if rf, ok := ret.Get(0).(func(*ReleaseVolumeReplicationParams) (*VolumeReplication, error)); ok {
 		return rf(params)
 	}
-	if rf, ok := ret.Get(0).(func(*CreateVolumeReplicationParams) *VolumeReplication); ok {
+	if rf, ok := ret.Get(0).(func(*ReleaseVolumeReplicationParams) *VolumeReplication); ok {
 		r0 = rf(params)
 	} else {
 		if ret.Get(0) != nil {
@@ -5763,7 +5763,7 @@ func (_m *MockProvider) ReleaseVolumeReplication(params *CreateVolumeReplication
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*CreateVolumeReplicationParams) error); ok {
+	if rf, ok := ret.Get(1).(func(*ReleaseVolumeReplicationParams) error); ok {
 		r1 = rf(params)
 	} else {
 		r1 = ret.Error(1)
@@ -5778,14 +5778,14 @@ type MockProvider_ReleaseVolumeReplication_Call struct {
 }
 
 // ReleaseVolumeReplication is a helper method to define mock.On call
-//   - params *CreateVolumeReplicationParams
+//   - params *ReleaseVolumeReplicationParams
 func (_e *MockProvider_Expecter) ReleaseVolumeReplication(params interface{}) *MockProvider_ReleaseVolumeReplication_Call {
 	return &MockProvider_ReleaseVolumeReplication_Call{Call: _e.mock.On("ReleaseVolumeReplication", params)}
 }
 
-func (_c *MockProvider_ReleaseVolumeReplication_Call) Run(run func(params *CreateVolumeReplicationParams)) *MockProvider_ReleaseVolumeReplication_Call {
+func (_c *MockProvider_ReleaseVolumeReplication_Call) Run(run func(params *ReleaseVolumeReplicationParams)) *MockProvider_ReleaseVolumeReplication_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*CreateVolumeReplicationParams))
+		run(args[0].(*ReleaseVolumeReplicationParams))
 	})
 	return _c
 }
@@ -5795,7 +5795,7 @@ func (_c *MockProvider_ReleaseVolumeReplication_Call) Return(_a0 *VolumeReplicat
 	return _c
 }
 
-func (_c *MockProvider_ReleaseVolumeReplication_Call) RunAndReturn(run func(*CreateVolumeReplicationParams) (*VolumeReplication, error)) *MockProvider_ReleaseVolumeReplication_Call {
+func (_c *MockProvider_ReleaseVolumeReplication_Call) RunAndReturn(run func(*ReleaseVolumeReplicationParams) (*VolumeReplication, error)) *MockProvider_ReleaseVolumeReplication_Call {
 	_c.Call.Return(run)
 	return _c
 }

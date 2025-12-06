@@ -126,14 +126,21 @@ func (wf *reverseHybridReplicationPollWorkflow) Run(ctx workflow.Context, args .
 
 	logger.Infof("Successfully found snapmirror destination for replication %s", result.DbVolReplication.UUID)
 
-	// 2. Update replication state based on snapmirror status
+	// 2. Hydrate replication state and type for reverse hybrid replication
+	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationSateAndTypeForReverseHybridReplication, result).Get(ctx, result)
+	if err != nil {
+		logger.Errorf("Failed to hydrate replication state and type: %v", err)
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	// 3. Update replication state based on snapmirror status
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationStateForHybridReverse, result).Get(ctx, result)
 	if err != nil {
 		logger.Errorf("Failed to update replication state: %v", err)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// 3. Update replication attributes on destination (new source after reverse)
+	// 4. Update replication attributes on destination (new source after reverse)
 	// Get destination base path
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetDstBasePathForHybridReverse, result).Get(ctx, result)
 	if err != nil {
@@ -161,14 +168,14 @@ func (wf *reverseHybridReplicationPollWorkflow) Run(ctx workflow.Context, args .
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// 4. Cleanup old replication on destination (new source after reverse)
+	// 5. Cleanup old replication on destination (new source after reverse)
 	err = workflow.ExecuteActivity(ctx, replicationActivity.CleanupOldReplicationForHybridReverse, result).Get(ctx, result)
 	if err != nil {
 		logger.Errorf("Failed to cleanup old replication: %v", err)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// 5. Describe remote job for cleanup operation
+	// 6. Describe remote job for cleanup operation
 	err = workflow.ExecuteActivity(ctx, replicationActivity.DescribeRemoteJobOnDstForHybridReverse, result).Get(ctx, nil)
 	if err != nil {
 		logger.Errorf("Failed to describe remote job: %v", err)

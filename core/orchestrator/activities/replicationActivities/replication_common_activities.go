@@ -159,7 +159,7 @@ func HydrateReplicationState(ctx context.Context, createReplicationResponse mode
 	return nil
 }
 
-func HydrateReplicationStateAndType(ctx context.Context, createReplicationResponse models.VolumeReplication, replicationState models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationHydrateType, project string) error {
+func HydrateReplicationStateAndType(ctx context.Context, replicationResponse models.VolumeReplication, replicationState models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationParametersReplicationType, project string) error {
 	logger := util.GetLogger(ctx)
 	callbackToken, err := auth.GenerateCallbackToken(ctx)
 	if err != nil {
@@ -167,7 +167,7 @@ func HydrateReplicationStateAndType(ctx context.Context, createReplicationRespon
 		return err
 	}
 	// Hydrate Replication State & Type to CFFE
-	err = hydrateReplicationStateAndType(ctx, logger, createReplicationResponse.ReplicationAttributes.DestinationRegion, project, createReplicationResponse.ReplicationAttributes.DestinationVolumeUUID, createReplicationResponse.UUID, replicationState, hybridReplicationType, callbackToken)
+	err = hydrateReplicationStateAndType(ctx, logger, replicationResponse.ReplicationAttributes.DestinationRegion, project, replicationResponse.ReplicationAttributes.DestinationVolumeName, replicationResponse.Name, replicationState, hybridReplicationType, callbackToken)
 	if err != nil {
 		logger.Errorf("Error when hydrating replication: %v", err)
 		return err

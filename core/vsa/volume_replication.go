@@ -648,7 +648,7 @@ func (rc *OntapRestProvider) ListSnapmirrorDestinations(params *ontaprest.Snapmi
 }
 
 // ReleaseVolumeReplication releases the Volume Replication
-func (rc *OntapRestProvider) ReleaseVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error) {
+func (rc *OntapRestProvider) ReleaseVolumeReplication(params *ReleaseVolumeReplicationParams) (*VolumeReplication, error) {
 	volRep := params.VolumeReplication
 
 	listDestinationParams := &ontaprest.SnapmirrorRelationshipListDestinationsParams{
@@ -668,10 +668,6 @@ func (rc *OntapRestProvider) ReleaseVolumeReplication(params *CreateVolumeReplic
 	if len(listDestinations) == 1 {
 		releaseParams := ontaprest.SnapmirrorRelationshipReleaseParams{
 			UUID: listDestinations[0].UUID.String(),
-		}
-
-		if volRep.Volume != nil && *volRep.Volume.State == VolumeStateOffline {
-			releaseParams.SourceInfoOnly = nillable.GetBoolPtr(true)
 		}
 
 		retryErrors := []string{"Another SnapMirror operation is in progress"}

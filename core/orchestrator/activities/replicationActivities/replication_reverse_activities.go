@@ -7,10 +7,14 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	utilError "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -369,6 +373,86 @@ func (a *ReverseVolumeReplicationActivity) CleanupOldReplication(ctx context.Con
 	}
 }
 
+// SetVolumeReplicationStatusToOnpremReplication updates hybrid replication attributes to ONPREM status
+func (a *ReverseVolumeReplicationActivity) SetVolumeReplicationStatusToOnpremReplication(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("setVolumeReplicationStatusToOnpremReplication")
+
+	// Get the latest replication from database
+	dbReplication, err := a.SE.GetVolumeReplication(ctx, result.Event.ReplicationModel.UUID)
+	if err != nil {
+		logger.Errorf("Failed to get replication from database: %v", err)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+	}
+
+	// Set hybrid replication type to ONPREM
+	hybridReplicationType := string(models.HybridReplicationParametersReplicationTypeONPREM)
+	dbReplication.HybridReplicationAttributes.HybridReplicationType = &hybridReplicationType
+
+	// Set status to Peered
+	dbReplication.HybridReplicationAttributes.Status = models.HybridReplicationStatusPeered
+
+	// Set status details to empty string
+	dbReplication.HybridReplicationAttributes.StatusDetails = ""
+
+	// Clear user commands (set to nil)
+	dbReplication.HybridReplicationAttributes.HybridReplicationUserCommands = nil
+
+	// Update the replication in database
+	err = a.SE.UpdateVolumeReplication(ctx, dbReplication)
+	if err != nil {
+		logger.Errorf("Failed to update replication in database: %v", err)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataUpdateError, err)
+	}
+
+	logger.Infof("Successfully updated replication to ONPREM status: UUID=%s", dbReplication.UUID)
+	return result, nil
+}
+
+// ReleaseReplicationOnOldSrc releases the replication on the source side
+func (a *ReverseVolumeReplicationActivity) ReleaseReplicationOnOldSrc(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("ReleaseReplicationOnOldSrc")
+
+	// Get provider from node
+	provider, err := hyperscaler.GetProviderByNode(ctx, result.NodeProvider)
+	if err != nil {
+		logger.Errorf("Failed to get provider from node: %v", err)
+		return nil, errors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Construct VSA VolumeReplication from datamodel
+	replicationAttrs := result.DbVolReplication.ReplicationAttributes
+	vsaVolumeReplication := &vsa.VolumeReplication{
+		EndpointType:          replicationAttrs.EndpointType,
+		SourceHostName:        replicationAttrs.SourceHostName,
+		SourceSVMName:         replicationAttrs.SourceSvmName,
+		SourceVolumeName:      replicationAttrs.SourceVolumeName,
+		DestinationHostName:   replicationAttrs.DestinationHostName,
+		DestinationSVMName:    replicationAttrs.DestinationSvmName,
+		DestinationVolumeName: replicationAttrs.DestinationVolumeName,
+		ReplicationSchedule:   replicationAttrs.ReplicationSchedule,
+		Volume: &vsa.Volume{
+			ExternalUUID: result.DbVolReplication.Volume.VolumeAttributes.ExternalUUID,
+		},
+	}
+
+	// Create release params
+	releaseParams := &vsa.ReleaseVolumeReplicationParams{
+		VolumeReplication: vsaVolumeReplication,
+		ReverseResync:     false,
+	}
+
+	// Call provider to release replication
+	_, err = provider.ReleaseVolumeReplication(releaseParams)
+	if err != nil {
+		logger.Errorf("Failed to release volume replication: %v", err)
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, err)
+	}
+
+	return result, nil
+}
+
 func (a *ReverseVolumeReplicationActivity) MountReplicationAfterReverse(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
 	// Run mountVolumeReplication on the new destination (original source)
 	logger := util.GetLogger(ctx)
@@ -411,4 +495,47 @@ func (a *ReverseVolumeReplicationActivity) MountReplicationAfterReverse(ctx cont
 	default:
 		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, errors.New("unexpected response type from Google Proxy"))
 	}
+}
+
+func ConvertToReversedAttributesForHybridRep(originalAttrs *datamodel.ReplicationDetails) *gcpserver.VolumeReplicationInternalV1beta {
+	// Create the request body with REVERSED source/destination attributes
+	// After reverse, what was destination becomes source and vice versa
+	updateRequest := &gcpserver.VolumeReplicationInternalV1beta{
+		// REVERSED: Original destination becomes new source
+		SourceHostName:   originalAttrs.DestinationHostName,
+		SourceServerName: originalAttrs.DestinationSvmName,
+		SourceVolumeName: originalAttrs.DestinationVolumeName,
+		SourceVolumeUuid: gcpserver.OptString{
+			Value: originalAttrs.DestinationVolumeUUID,
+			Set:   originalAttrs.DestinationVolumeUUID != "",
+		},
+		SourcePoolUuid: gcpserver.OptString{
+			Value: originalAttrs.DestinationPoolUUID,
+			Set:   originalAttrs.DestinationPoolUUID != "",
+		},
+
+		// REVERSED: Original source becomes new destination
+		DestinationHostName:   originalAttrs.SourceHostName,
+		DestinationServerName: originalAttrs.SourceSvmName,
+		DestinationVolumeName: originalAttrs.SourceVolumeName,
+		DestinationVolumeUuid: gcpserver.OptString{
+			Value: originalAttrs.SourceVolumeUUID,
+			Set:   originalAttrs.SourceVolumeUUID != "",
+		},
+		DestinationPoolUuid: gcpserver.OptString{
+			Value: originalAttrs.SourcePoolUUID,
+			Set:   originalAttrs.SourcePoolUUID != "",
+		},
+		EndpointType: gcpserver.VolumeReplicationInternalV1betaEndpointType(googleproxyclient.VolumeReplicationInternalV1betaEndpointTypeDst),
+	}
+
+	return updateRequest
+}
+
+func (a *ReverseVolumeReplicationActivity) HydrateReplicationSateAndTypeForReverseFallbackHybridReplication(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
+	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM)
+	if err != nil {
+		return nil, errors.WrapAsTemporalApplicationError(err)
+	}
+	return result, nil
 }

@@ -1046,7 +1046,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 		ExternalUUID:      dstVolumeUUID,
 		IsOnPremMigration: true,
 	}
-	volumeReplicationCreateParams := CreateVolumeReplicationParams{
+	volumeReplicationCreateParams := ReleaseVolumeReplicationParams{
 		VolumeReplication: &VolumeReplication{
 			Volume:                volume1,
 			ReplicationPolicy:     "MirrorAllSnapshots",
@@ -1212,51 +1212,6 @@ func TestReleaseVolumeReplication(t *testing.T) {
 		mockSnapmirrorClient.On("SnapmirrorRelationshipRelease", releaseParams).Return(false, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
 		volumeReplication, err := provider.ReleaseVolumeReplication(&volumeReplicationCreateParams)
-		assert.NoError(tt, err)
-		assert.NotEmpty(tt, volumeReplication)
-	})
-	t.Run("WhenVolumeOfflineAndSuccessful", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		provider := &OntapRestProvider{}
-
-		doCleanupSvmPeering = func(provider *OntapRestProvider, params *DeleteVolumeReplicationParams) error {
-			return nil
-		}
-
-		defer func() {
-			doCleanupSvmPeering = cleanupSvmPeering
-		}()
-		offline := "offline"
-		offlineVol := &Volume{
-			ExternalUUID: dstVolumeUUID,
-			Volume:       models.Volume{State: &offline},
-		}
-		createParams := CreateVolumeReplicationParams{
-			VolumeReplication: &VolumeReplication{
-				Volume:                offlineVol,
-				ReplicationPolicy:     "MirrorAllSnapshots",
-				SourceSVMName:         *srcVolume.Svm.Name,
-				SourceVolumeName:      *srcVolume.Name,
-				DestinationSVMName:    *dstVolume.Svm.Name,
-				DestinationVolumeName: *dstVolume.Name,
-			},
-		}
-		createParams.VolumeReplication.Volume = offlineVol
-		offlineReleaseParams := &ontaprest.SnapmirrorRelationshipReleaseParams{
-			UUID:           destinations[0].UUID.String(),
-			SourceInfoOnly: nillable.GetBoolPtr(true),
-		}
-
-		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", listDestinationParams).Return(destinations, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipRelease", offlineReleaseParams).Return(false, jobAccepted, nil).Times(1)
-		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
-		volumeReplication, err := provider.ReleaseVolumeReplication(&createParams)
 		assert.NoError(tt, err)
 		assert.NotEmpty(tt, volumeReplication)
 	})

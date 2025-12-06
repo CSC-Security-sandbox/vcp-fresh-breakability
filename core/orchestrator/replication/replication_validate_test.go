@@ -4644,6 +4644,215 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 		},
 	}
 
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsNotExternalManaged", func(tt *testing.T) {
+		ctx := context.Background()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		status := coreModels.HybridReplicationStatusPeered
+		hybridEvent := &ReverseReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "00000000-0000-0000-0000-000000000000",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+						Status:                status,
+					},
+				},
+			},
+		}
+		expectedError := errors.NewUserInputValidationErr("Hybrid Replication needs to be in externally managed state before reversing")
+		resp, err := _verifyDstReplicationReverse(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsExternalManaged", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		status := coreModels.HybridReplicationStatusExternalManaged
+		hybridEvent := &ReverseReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "00000000-0000-0000-0000-000000000000",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+						Status:                status,
+					},
+				},
+			},
+		}
+		srcReplication := &coreModels.VolumeReplication{
+			ReplicationAttributes: &coreModels.ReplicationDetails{
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-volume",
+				DestinationSvmName:    "dst-svm",
+				DestinationVolumeName: "dst-volume",
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			assert.Equal(tt, "srcPath", basePath)
+			assert.Equal(tt, "sourceProjectNumber", projectNumber)
+			assert.Equal(tt, "srcLocation", locationID)
+			assert.Equal(tt, "srcUUID", volumeReplicationID)
+			assert.Equal(tt, "srcToken", jwt)
+			return srcReplication, nil
+		}
+		resp, err := _verifyDstReplicationReverse(ctx, hybridEvent)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, srcReplication, resp)
+	})
+
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNotNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &ReverseReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "destUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+				},
+			},
+		}
+		srcReplication := &coreModels.VolumeReplication{
+			ReplicationAttributes: &coreModels.ReplicationDetails{
+				SourceSvmName:         "src-svm",
+				SourceVolumeName:      "src-volume",
+				DestinationSvmName:    "dst-svm",
+				DestinationVolumeName: "dst-volume",
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			assert.Equal(tt, "srcPath", basePath)
+			assert.Equal(tt, "sourceProjectNumber", projectNumber)
+			assert.Equal(tt, "srcLocation", locationID)
+			assert.Equal(tt, "srcUUID", volumeReplicationID)
+			assert.Equal(tt, "srcToken", jwt)
+			return srcReplication, nil
+		}
+		resp, err := _verifyDstReplicationReverse(ctx, hybridEvent)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, srcReplication, resp)
+	})
+
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndGetReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &ReverseReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "destUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+				},
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("get replication error")
+		}
+		resp, err := _verifyDstReplicationReverse(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
+	})
+
+	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndGetReplicationReturnsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		hybridEvent := &ReverseReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				SrcBasePath:              "srcPath",
+				SourceProjectNumber:      "sourceProjectNumber",
+				SrcToken:                 "srcToken",
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:             "srcLocation",
+						SourceReplicationUUID:      "srcUUID",
+						DestinationLocation:        remoteRegionCustomer,
+						DestinationReplicationUUID: "destUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+				},
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, nil
+		}
+		resp, err := _verifyDstReplicationReverse(ctx, hybridEvent)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.Equal(tt, vsaErrors.ErrGoogleProxyInternalGetMultipleReplications, customErr.TrackingID)
+	})
+
 	t.Run("WhenGetReplicationError", func(tt *testing.T) {
 		ctx := context.Background()
 		defer func() {

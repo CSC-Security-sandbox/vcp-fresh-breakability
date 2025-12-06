@@ -10,6 +10,7 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -79,7 +80,7 @@ func (wf *reverseHybridReplicationWorkflow) Setup(ctx workflow.Context, input in
 
 func (wf *reverseHybridReplicationWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	event := args[0].(*replication.ReverseReplicationEvent)
-	_ = args[1].(*commonparams.ReverseAndResumeReplicationParams) // params not used in this workflow
+	params := args[1].(*commonparams.ReverseAndResumeReplicationParams)
 	replicationActivity := &replicationActivities.ReverseHybridReplicationActivity{}
 
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
@@ -105,6 +106,12 @@ func (wf *reverseHybridReplicationWorkflow) Run(ctx workflow.Context, args ...in
 		DbVolReplication: event.ReplicationModel,
 		DstProjectNumber: &event.DestinationProjectNumber,
 		SrcProjectNumber: &event.SourceProjectNumber,
+	}
+
+	// Set hybrid replication variables (validate and set flags)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.SetHybridReplicationVariablesReverse, &reverseResult).Get(ctx, &reverseResult)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	// Get node provider first (needed for cluster activities)
@@ -137,35 +144,67 @@ func (wf *reverseHybridReplicationWorkflow) Run(ctx workflow.Context, args ...in
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// 3. Create job for child workflow
+	// 3. Create job for child workflow and start appropriate workflow based on IsSrcForHybridReplication
 	var pollJob datamodel.Job
-	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReverse, &reverseResult, string(models.JobTypeReverseHybridReplicationInternal)).Get(ctx, &pollJob)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	if reverseResult.IsSrcForHybridReplication {
+		// For source hybrid replication, use fallback workflow
+		err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReverse, &reverseResult, string(models.JobTypeReverseHybridReplicationFallbackInternal)).Get(ctx, &pollJob)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		// Start ReverseHybridFallbackReplicationWorkflow and wait for completion
+		childCtx1 := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			WorkflowID:            pollJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+			ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_TERMINATE,
+		})
+
+		childWorkflowFuture := workflow.ExecuteChildWorkflow(
+			childCtx1,
+			ReverseHybridFallbackReplicationWorkflow,
+			params,
+			reverseResult,
+		)
+
+		// Wait for the fallback workflow to complete
+		var fallbackResult *vsa.VolumeReplication
+		err = childWorkflowFuture.Get(ctx, &fallbackResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	} else {
+		// For destination hybrid replication, use poll workflow
+		err = workflow.ExecuteActivity(ctx, replicationActivity.CreateJobForHybridReverse, &reverseResult, string(models.JobTypeReverseHybridReplicationInternal)).Get(ctx, &pollJob)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		// Start Background Polling Workflow (asynchronous, no wait)
+		childCtx1 := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			WorkflowID:            pollJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+			ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_ABANDON,
+		})
+
+		childWorkflowFuture := workflow.ExecuteChildWorkflow(
+			childCtx1,
+			ReverseHybridReplicationPollWorkflow,
+			&reverseResult,
+		)
+
+		// Don't wait for completion - just verify it started
+		var childWE workflow.Execution
+		err = childWorkflowFuture.GetChildWorkflowExecution().Get(ctx, &childWE)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
-	// 4. Start Background Polling Workflow (asynchronous, no wait)
-	childCtx1 := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             workflowengine.CustomerTaskQueue,
-		WorkflowID:            pollJob.WorkflowID,
-		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_ABANDON,
-	})
-
-	childWorkflowFuture := workflow.ExecuteChildWorkflow(
-		childCtx1,
-		ReverseHybridReplicationPollWorkflow,
-		&reverseResult,
-	)
-
-	// Don't wait for completion - just verify it started
-	var childWE workflow.Execution
-	err = childWorkflowFuture.GetChildWorkflowExecution().Get(ctx, &childWE)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	// 5. Return - workflow completes
+	// 4. Return - workflow completes
 	return nil, nil
 }

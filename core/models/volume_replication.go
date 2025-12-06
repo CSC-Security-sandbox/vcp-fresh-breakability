@@ -11,8 +11,8 @@ type VolumeReplicationHydrateState string
 type HybridReplicationParametersReplicationType string
 
 type VolumeReplicationUpdateMaskRequest struct {
-	State                 VolumeReplicationHydrateState `json:"state"`
-	HybridReplicationType HybridReplicationHydrateType  `json:"hybridReplicationType,omitempty"`
+	State                 VolumeReplicationHydrateState              `json:"state"`
+	HybridReplicationType HybridReplicationParametersReplicationType `json:"hybridReplicationType,omitempty"`
 }
 
 const (

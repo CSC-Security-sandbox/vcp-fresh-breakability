@@ -267,7 +267,7 @@ func _hydrateReplicationState(ctx context.Context, logger log.Logger, region str
 	return err
 }
 
-func _hydrateReplicationStateAndType(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationHydrateType, token string) error {
+func _hydrateReplicationStateAndType(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationParametersReplicationType, token string) error {
 	request := &models.VolumeReplicationUpdateMaskRequest{
 		State:                 state,
 		HybridReplicationType: hybridReplicationType,

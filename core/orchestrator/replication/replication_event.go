@@ -221,6 +221,7 @@ type ReverseReplicationResult struct {
 	DbVolReplication *datamodel.VolumeReplication
 	// ReplicationDetails stores the fetched replication details from destination
 	ReplicationDetails *vsa.VolumeReplication
+	NodeProvider       *models.Node
 }
 
 type ReverseHybridReplicationResult struct {
@@ -238,6 +239,10 @@ type ReverseHybridReplicationResult struct {
 	NodeProvider                  *models.Node
 	FirstProblemStateTime         *time.Time
 	JobId                         *string
+	IsHybridReplicationVolume     bool
+	IsSrcForHybridReplication     bool
+	HydrateState                  models.VolumeReplicationHydrateState
+	HydrateType                   models.HybridReplicationHydrateType
 }
 
 type UpdateVolumeReplicationAttributesEvent struct {

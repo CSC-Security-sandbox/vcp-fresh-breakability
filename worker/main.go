@@ -289,6 +289,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(replicationWorkflows.InternalEstablishWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReverseHybridReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReverseHybridReplicationPollWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.ReverseHybridFallbackReplicationWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})

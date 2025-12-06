@@ -532,7 +532,7 @@ func TestHydrateReplicationStateAndTypeFunc(t *testing.T) {
 	volumeResourceID := "mocked-volume-id"
 	replicationId := "mocked-replication-id"
 	state := models.VolumeReplicationHydrateState("READY")
-	hybridReplicationType := models.HybridReplicationHydrateType("cres")
+	hybridReplicationType := models.HybridReplicationParametersReplicationType("cres")
 	token := "mocked-token"
 	originalHydrateToCffe := hydrateToCffe
 	defer func() { hydrateToCffe = originalHydrateToCffe }()

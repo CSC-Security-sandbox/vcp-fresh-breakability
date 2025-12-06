@@ -838,6 +838,20 @@ func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent)
 
 func _verifyDstReplicationReverse(ctx context.Context, event *ReverseReplicationEvent) (*coreModels.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
+	replication := event.ReplicationModel
+	if IsSrcForHybridReplication(event.ReplicationModel) {
+		if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusExternalManaged {
+			logger.Error("Hybrid Replication needs to be in externally managed state before reversing")
+			return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in externally managed state before reversing")
+		}
+
+		srcReplication, err := getReplication(ctx, event.SrcBasePath, event.SourceProjectNumber, replication.ReplicationAttributes.SourceLocation, replication.ReplicationAttributes.SourceReplicationUUID, event.SrcToken)
+		if err != nil || srcReplication == nil {
+			logger.Error("getReplication error", "error", err)
+			return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+		}
+		return srcReplication, nil
+	}
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
 		logger.Error("getReplication error", "error", err)
@@ -1035,6 +1049,41 @@ func convertReplicationResponseToModels(response *googleproxyclient.V1betaGetMul
 	replication.CreatedAt = response.Replications[0].CreatedAt.Value
 	replication.State = mapLifecycleStateToState(response.Replications[0].LifeCycleState.Value)
 	replication.StateDetails = response.Replications[0].LifeCycleStateDetails.Value
+
+	// Populate HybridReplicationAttributes if ReplicationType indicates hybrid replication
+	if response.Replications[0].ReplicationType.Set {
+		replicationType := string(response.Replications[0].ReplicationType.Value)
+		// Check if this is a hybrid replication type (CONTINUOUS_REPLICATION, ONPREM_REPLICATION, or REVERSE_ONPREM_REPLICATION)
+		var hybridReplicationType coreModels.HybridReplicationParametersReplicationType
+		isHybrid := false
+
+		switch replicationType {
+		case "CONTINUOUS_REPLICATION":
+			hybridReplicationType = coreModels.HybridReplicationParametersReplicationTypeCONTINUOUS
+			isHybrid = true
+		case "ONPREM_REPLICATION":
+			hybridReplicationType = coreModels.HybridReplicationParametersReplicationTypeONPREM
+			isHybrid = true
+		case "REVERSE_ONPREM_REPLICATION":
+			hybridReplicationType = coreModels.HybridReplicationParametersReplicationTypeREVERSE
+			isHybrid = true
+		case "MIGRATION":
+			hybridReplicationType = coreModels.HybridReplicationParametersReplicationTypeMIGRATION
+			isHybrid = true
+		}
+
+		if isHybrid {
+			hybridParams := &coreModels.HybridReplicationParameters{
+				ResourceID:                    response.Replications[0].Name.Value,
+				ReplicationType:               hybridReplicationType,
+				ReplicationSchedule:           string(response.Replications[0].ReplicationSchedule.Value),
+				HybridReplicationUserCommands: []string{}, // Empty by default, populated from database if needed
+				PeerVolumeName:                response.Replications[0].SourceVolumeName,
+				Description:                   response.Replications[0].Description.Value,
+			}
+			replication.HybridReplicationAttributes = hybridParams
+		}
+	}
 
 	return &replication
 }

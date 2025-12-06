@@ -74,7 +74,7 @@ type Provider interface {
 	AuthorizeVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
 	DeleteVolumeReplication(params *DeleteVolumeReplicationParams) (*VolumeReplication, error)
 	UpdateVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
-	ReleaseVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error)
+	ReleaseVolumeReplication(params *ReleaseVolumeReplicationParams) (*VolumeReplication, error)
 	ResyncVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
 	ReverseVolumeReplication(volRep *VolumeReplication) (*SnapmirrorDestination, error)
 	BreakVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)

@@ -551,7 +551,7 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 		Volume: &models.Volume{BaseModel: models.BaseModel{UUID: "123"}},
 	}
 	var replicationState models.VolumeReplicationHydrateState
-	var hybridReplicationType models.HybridReplicationHydrateType
+	var hybridReplicationType models.HybridReplicationParametersReplicationType
 	replicationState = "creating"
 	hybridReplicationType = "cres"
 	t.Run("WhenTokenError", func(tt *testing.T) {
@@ -574,7 +574,7 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationStateAndType := hydrateReplicationStateAndType
-		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationHydrateType, token string) error {
+		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationParametersReplicationType, token string) error {
 			return &errs.CustomError{
 				OriginalErr: errors.New("some error"),
 			}
@@ -594,7 +594,7 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationStateAndType := hydrateReplicationStateAndType
-		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationHydrateType, token string) error {
+		hydrateReplicationStateAndType = func(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationParametersReplicationType, token string) error {
 			return nil
 		}
 		defer func() {

@@ -2,6 +2,7 @@ package replicationActivities
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,9 +10,13 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1634,6 +1639,325 @@ func TestCleanupOldReplication(t *testing.T) {
 	})
 }
 
+func TestReleaseReplicationOnOldSrc(t *testing.T) {
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+
+		nodeProvider := &models.Node{
+			Name: "node1",
+		}
+		result := &replication.ReverseReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						ExternalUUID: "volume-external-uuid",
+					},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType:          "src",
+					SourceHostName:        "src-host",
+					SourceSvmName:         "src-svm",
+					SourceVolumeName:      "src-vol",
+					DestinationHostName:   "dst-host",
+					DestinationSvmName:    "dst-svm",
+					DestinationVolumeName: "dst-vol",
+					ReplicationSchedule:   "hourly",
+				},
+			},
+			NodeProvider: nodeProvider,
+		}
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		expectedReleaseParams := &vsa.ReleaseVolumeReplicationParams{
+			VolumeReplication: &vsa.VolumeReplication{
+				EndpointType:          "src",
+				SourceHostName:        "src-host",
+				SourceSVMName:         "src-svm",
+				SourceVolumeName:      "src-vol",
+				DestinationHostName:   "dst-host",
+				DestinationSVMName:    "dst-svm",
+				DestinationVolumeName: "dst-vol",
+				ReplicationSchedule:   "hourly",
+				Volume: &vsa.Volume{
+					ExternalUUID: "volume-external-uuid",
+				},
+			},
+			ReverseResync: false,
+		}
+
+		mockProvider.On("ReleaseVolumeReplication", expectedReleaseParams).Return(&vsa.VolumeReplication{}, nil)
+
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		updatedResult, err := activity.ReleaseReplicationOnOldSrc(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenProviderError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+
+		nodeProvider := &models.Node{
+			Name: "node1",
+		}
+		result := &replication.ReverseReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						ExternalUUID: "volume-external-uuid",
+					},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType:          "src",
+					SourceHostName:        "src-host",
+					SourceSvmName:         "src-svm",
+					SourceVolumeName:      "src-vol",
+					DestinationHostName:   "dst-host",
+					DestinationSvmName:    "dst-svm",
+					DestinationVolumeName: "dst-vol",
+					ReplicationSchedule:   "hourly",
+				},
+			},
+			NodeProvider: nodeProvider,
+		}
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ReleaseVolumeReplication", mock.AnythingOfType("*vsa.ReleaseVolumeReplicationParams")).Return(nil, errors.New("provider error"))
+
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		updatedResult, err := activity.ReleaseReplicationOnOldSrc(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Error releasing volume replication")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNodeProviderIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+
+		result := &replication.ReverseReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						ExternalUUID: "volume-external-uuid",
+					},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			},
+			NodeProvider: nil,
+		}
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("node provider is nil")
+		}
+
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		updatedResult, err := activity.ReleaseReplicationOnOldSrc(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+	})
+
+	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+
+		nodeProvider := &models.Node{
+			Name: "node1",
+		}
+		result := &replication.ReverseReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						ExternalUUID: "volume-external-uuid",
+					},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			},
+			NodeProvider: nodeProvider,
+		}
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		updatedResult, err := activity.ReleaseReplicationOnOldSrc(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "failed to get provider")
+	})
+}
+
+func TestSetVolumeReplicationStatusToOnpremReplication(t *testing.T) {
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+
+		replicationUUID := "test-replication-uuid"
+		hybridReplicationType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		replicationModel := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: replicationUUID,
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType:         &hybridReplicationType,
+				Status:                        models.HybridReplicationStatusExternalManaged,
+				StatusDetails:                 "test-status-details",
+				HybridReplicationUserCommands: []string{"command1", "command2"},
+			},
+		}
+
+		result := &replication.ReverseReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: replicationModel,
+				},
+			},
+		}
+
+		expectedReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: replicationUUID,
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType:         &hybridReplicationType,
+				Status:                        models.HybridReplicationStatusExternalManaged,
+				StatusDetails:                 "test-status-details",
+				HybridReplicationUserCommands: []string{"command1", "command2"},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, replicationUUID).Return(expectedReplication, nil)
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
+			return r.UUID == replicationUUID &&
+				r.HybridReplicationAttributes != nil &&
+				*r.HybridReplicationAttributes.HybridReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM) &&
+				r.HybridReplicationAttributes.Status == models.HybridReplicationStatusPeered &&
+				r.HybridReplicationAttributes.StatusDetails == "" &&
+				r.HybridReplicationAttributes.HybridReplicationUserCommands == nil
+		})).Return(nil)
+
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		updatedResult, err := activity.SetVolumeReplicationStatusToOnpremReplication(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+
+		replicationUUID := "test-replication-uuid"
+		replicationModel := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: replicationUUID,
+			},
+		}
+
+		result := &replication.ReverseReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: replicationModel,
+				},
+			},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, replicationUUID).Return(nil, errors.New("database error"))
+
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		updatedResult, err := activity.SetVolumeReplicationStatusToOnpremReplication(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Contains(tt, customErr.OriginalErr.Error(), "database error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+
+		replicationUUID := "test-replication-uuid"
+		hybridReplicationType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		replicationModel := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: replicationUUID,
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType: &hybridReplicationType,
+				Status:                models.HybridReplicationStatusExternalManaged,
+			},
+		}
+
+		result := &replication.ReverseReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: replicationModel,
+				},
+			},
+		}
+
+		expectedReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: replicationUUID,
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType: &hybridReplicationType,
+				Status:                models.HybridReplicationStatusExternalManaged,
+			},
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, replicationUUID).Return(expectedReplication, nil)
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.Anything).Return(errors.New("update error"))
+
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		updatedResult, err := activity.SetVolumeReplicationStatusToOnpremReplication(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Contains(tt, customErr.OriginalErr.Error(), "update error")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
 func TestMountReplicationAfterReverse(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()
@@ -2659,5 +2983,238 @@ func TestResizeNewDstVolumeIfNeeded(t *testing.T) {
 		assert.NotNil(tt, updatedResult)
 		assert.Contains(tt, err.Error(), "Failed to update volume internal")
 		mockClient.AssertExpectations(tt)
+	})
+}
+
+func TestConvertToReversedAttributesForHybridRep(t *testing.T) {
+	t.Run("WhenSuccess_WithAllFields", func(tt *testing.T) {
+		originalAttrs := &datamodel.ReplicationDetails{
+			SourceHostName:        "source-host",
+			SourceSvmName:         "source-svm",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUUID:      "source-volume-uuid",
+			SourcePoolUUID:        "source-pool-uuid",
+			DestinationHostName:   "dest-host",
+			DestinationSvmName:    "dest-svm",
+			DestinationVolumeName: "dest-volume",
+			DestinationVolumeUUID: "dest-volume-uuid",
+			DestinationPoolUUID:   "dest-pool-uuid",
+		}
+
+		var result *gcpserver.VolumeReplicationInternalV1beta
+		result = ConvertToReversedAttributesForHybridRep(originalAttrs)
+
+		assert.NotNil(tt, result)
+		// Original destination becomes new source
+		assert.Equal(tt, "dest-host", result.SourceHostName)
+		assert.Equal(tt, "dest-svm", result.SourceServerName)
+		assert.Equal(tt, "dest-volume", result.SourceVolumeName)
+		assert.True(tt, result.SourceVolumeUuid.Set)
+		assert.Equal(tt, "dest-volume-uuid", result.SourceVolumeUuid.Value)
+		assert.True(tt, result.SourcePoolUuid.Set)
+		assert.Equal(tt, "dest-pool-uuid", result.SourcePoolUuid.Value)
+
+		// Original source becomes new destination
+		assert.Equal(tt, "source-host", result.DestinationHostName)
+		assert.Equal(tt, "source-svm", result.DestinationServerName)
+		assert.Equal(tt, "source-volume", result.DestinationVolumeName)
+		assert.True(tt, result.DestinationVolumeUuid.Set)
+		assert.Equal(tt, "source-volume-uuid", result.DestinationVolumeUuid.Value)
+		assert.True(tt, result.DestinationPoolUuid.Set)
+		assert.Equal(tt, "source-pool-uuid", result.DestinationPoolUuid.Value)
+		assert.Equal(tt, result.EndpointType, gcpserver.VolumeReplicationInternalV1betaEndpointType(googleproxyclient.VolumeReplicationInternalV1betaEndpointTypeDst))
+	})
+
+	t.Run("WhenSuccess_WithEmptyUUIDs", func(tt *testing.T) {
+		originalAttrs := &datamodel.ReplicationDetails{
+			SourceHostName:        "source-host",
+			SourceSvmName:         "source-svm",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUUID:      "",
+			SourcePoolUUID:        "",
+			DestinationHostName:   "dest-host",
+			DestinationSvmName:    "dest-svm",
+			DestinationVolumeName: "dest-volume",
+			DestinationVolumeUUID: "",
+			DestinationPoolUUID:   "",
+		}
+
+		var result *gcpserver.VolumeReplicationInternalV1beta
+		result = ConvertToReversedAttributesForHybridRep(originalAttrs)
+
+		assert.NotNil(tt, result)
+		// Original destination becomes new source
+		assert.Equal(tt, "dest-host", result.SourceHostName)
+		assert.Equal(tt, "dest-svm", result.SourceServerName)
+		assert.Equal(tt, "dest-volume", result.SourceVolumeName)
+		assert.False(tt, result.SourceVolumeUuid.Set)
+		assert.Equal(tt, "", result.SourceVolumeUuid.Value)
+		assert.False(tt, result.SourcePoolUuid.Set)
+		assert.Equal(tt, "", result.SourcePoolUuid.Value)
+
+		// Original source becomes new destination
+		assert.Equal(tt, "source-host", result.DestinationHostName)
+		assert.Equal(tt, "source-svm", result.DestinationServerName)
+		assert.Equal(tt, "source-volume", result.DestinationVolumeName)
+		assert.False(tt, result.DestinationVolumeUuid.Set)
+		assert.Equal(tt, "", result.DestinationVolumeUuid.Value)
+		assert.False(tt, result.DestinationPoolUuid.Set)
+		assert.Equal(tt, "", result.DestinationPoolUuid.Value)
+	})
+
+	t.Run("WhenSuccess_WithPartialFields", func(tt *testing.T) {
+		originalAttrs := &datamodel.ReplicationDetails{
+			SourceHostName:        "source-host",
+			SourceSvmName:         "source-svm",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUUID:      "source-volume-uuid",
+			SourcePoolUUID:        "",
+			DestinationHostName:   "dest-host",
+			DestinationSvmName:    "dest-svm",
+			DestinationVolumeName: "dest-volume",
+			DestinationVolumeUUID: "",
+			DestinationPoolUUID:   "dest-pool-uuid",
+		}
+
+		var result *gcpserver.VolumeReplicationInternalV1beta
+		result = ConvertToReversedAttributesForHybridRep(originalAttrs)
+
+		assert.NotNil(tt, result)
+		// Original destination becomes new source
+		assert.Equal(tt, "dest-host", result.SourceHostName)
+		assert.Equal(tt, "dest-svm", result.SourceServerName)
+		assert.Equal(tt, "dest-volume", result.SourceVolumeName)
+		assert.False(tt, result.SourceVolumeUuid.Set)
+		assert.Equal(tt, "", result.SourceVolumeUuid.Value)
+		assert.True(tt, result.SourcePoolUuid.Set)
+		assert.Equal(tt, "dest-pool-uuid", result.SourcePoolUuid.Value)
+
+		// Original source becomes new destination
+		assert.Equal(tt, "source-host", result.DestinationHostName)
+		assert.Equal(tt, "source-svm", result.DestinationServerName)
+		assert.Equal(tt, "source-volume", result.DestinationVolumeName)
+		assert.True(tt, result.DestinationVolumeUuid.Set)
+		assert.Equal(tt, "source-volume-uuid", result.DestinationVolumeUuid.Value)
+		assert.False(tt, result.DestinationPoolUuid.Set)
+		assert.Equal(tt, "", result.DestinationPoolUuid.Value)
+	})
+}
+
+func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForReverseFallbackHybridReplication(t *testing.T) {
+	ctx := context.Background()
+	activity := ReverseVolumeReplicationActivity{}
+
+	t.Run("WhenSuccess_WithHydrationEnabled", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Mock hydrateReplicationStateAndTypeForHybrid to return success
+		// Note: This variable is defined in replication_reverse_hybrid_activities.go
+		// We need to access it through the package
+		originalHydrateReplicationStateAndTypeForHybrid := hydrateReplicationStateAndTypeForHybrid
+		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, projectNumber string) error {
+			assert.Equal(tt, models.VolumeReplicationHydrateStateReady, hydrateState)
+			assert.Equal(tt, models.HybridReplicationParametersReplicationTypeONPREM, hydrateType)
+			return nil
+		}
+		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
+
+		result := &replication.ReverseReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Name: "test-replication",
+				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:   "us-east1",
+					DestinationVolumeName: "dest-volume",
+				},
+			},
+		}
+
+		updatedResult, err := activity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+	})
+
+	t.Run("WhenSuccess_WithHydrationDisabled", func(tt *testing.T) {
+		// Mock hydrationEnabled to be false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		result := &replication.ReverseReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Name: "test-replication",
+				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:   "us-east1",
+					DestinationVolumeName: "dest-volume",
+				},
+			},
+		}
+
+		updatedResult, err := activity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+	})
+
+	t.Run("WhenParseProjectNumberFails", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		result := &replication.ReverseReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Name: "test-replication",
+				Uri:  "invalid-uri",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:   "us-east1",
+					DestinationVolumeName: "dest-volume",
+				},
+			},
+		}
+
+		updatedResult, err := activity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "failed to parse project number")
+	})
+
+	t.Run("WhenHydrateReplicationStateAndTypeForHybridFails", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Mock hydrateReplicationStateAndTypeForHybrid to return error
+		originalHydrateReplicationStateAndTypeForHybrid := hydrateReplicationStateAndTypeForHybrid
+		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, projectNumber string) error {
+			return fmt.Errorf("hydration error")
+		}
+		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
+
+		result := &replication.ReverseReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Name: "test-replication",
+				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:   "us-east1",
+					DestinationVolumeName: "dest-volume",
+				},
+			},
+		}
+
+		updatedResult, err := activity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "hydration error")
 	})
 }

@@ -36,6 +36,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.ListSnapmirrorDestinationsForHybridReverse)
+		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseHybridReplication)
 		env.RegisterActivity(replicationActivity.UpdateReplicationStateForHybridReverse)
 		env.RegisterActivity(replicationActivity.GetDstBasePathForHybridReverse)
 		env.RegisterActivity(replicationActivity.GetSignedDstTokenForHybridReverse)
@@ -116,6 +117,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListSnapmirrorDestinationsForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
+		env.OnActivity("HydrateReplicationSateAndTypeForReverseHybridReplication", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("UpdateReplicationStateForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("GetDstBasePathForHybridReverse", mock.Anything, mock.Anything).Return(resultWithBasePath, nil)
 		env.OnActivity("GetSignedDstTokenForHybridReverse", mock.Anything, mock.Anything).Return(resultWithToken, nil)
@@ -193,6 +195,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.ListSnapmirrorDestinationsForHybridReverse)
+		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseHybridReplication)
 		env.RegisterActivity(replicationActivity.UpdateReplicationStateForHybridReverse)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -219,6 +222,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
 		env.OnActivity("ListSnapmirrorDestinationsForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
+		env.OnActivity("HydrateReplicationSateAndTypeForReverseHybridReplication", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("UpdateReplicationStateForHybridReverse", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
 		env.ExecuteWorkflow(ReverseHybridReplicationPollWorkflow, result)
@@ -243,6 +247,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.ListSnapmirrorDestinationsForHybridReverse)
+		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseHybridReplication)
 		env.RegisterActivity(replicationActivity.UpdateReplicationStateForHybridReverse)
 		env.RegisterActivity(replicationActivity.GetDstBasePathForHybridReverse)
 		env.RegisterActivity(replicationActivity.GetSignedDstTokenForHybridReverse)
@@ -303,6 +308,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListSnapmirrorDestinationsForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
+		env.OnActivity("HydrateReplicationSateAndTypeForReverseHybridReplication", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("UpdateReplicationStateForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("GetDstBasePathForHybridReverse", mock.Anything, mock.Anything).Return(resultWithBasePath, nil)
 		env.OnActivity("GetSignedDstTokenForHybridReverse", mock.Anything, mock.Anything).Return(resultWithToken, nil)
@@ -330,6 +336,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.ListSnapmirrorDestinationsForHybridReverse)
+		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseHybridReplication)
 		env.RegisterActivity(replicationActivity.UpdateReplicationStateForHybridReverse)
 		env.RegisterActivity(replicationActivity.GetDstBasePathForHybridReverse)
 		env.RegisterActivity(replicationActivity.GetSignedDstTokenForHybridReverse)
@@ -400,6 +407,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListSnapmirrorDestinationsForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
+		env.OnActivity("HydrateReplicationSateAndTypeForReverseHybridReplication", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("UpdateReplicationStateForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("GetDstBasePathForHybridReverse", mock.Anything, mock.Anything).Return(resultWithBasePath, nil)
 		env.OnActivity("GetSignedDstTokenForHybridReverse", mock.Anything, mock.Anything).Return(resultWithToken, nil)
@@ -428,6 +436,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.ListSnapmirrorDestinationsForHybridReverse)
+		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseHybridReplication)
 		env.RegisterActivity(replicationActivity.UpdateReplicationStateForHybridReverse)
 		env.RegisterActivity(replicationActivity.GetDstBasePathForHybridReverse)
 		env.RegisterActivity(replicationActivity.GetSignedDstTokenForHybridReverse)
@@ -508,6 +517,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListSnapmirrorDestinationsForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
+		env.OnActivity("HydrateReplicationSateAndTypeForReverseHybridReplication", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("UpdateReplicationStateForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("GetDstBasePathForHybridReverse", mock.Anything, mock.Anything).Return(resultWithBasePath, nil)
 		env.OnActivity("GetSignedDstTokenForHybridReverse", mock.Anything, mock.Anything).Return(resultWithToken, nil)

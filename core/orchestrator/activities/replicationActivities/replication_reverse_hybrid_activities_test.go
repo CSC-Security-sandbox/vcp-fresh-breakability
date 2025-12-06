@@ -21,6 +21,131 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+func TestReverseHybridReplicationActivity_SetHybridReplicationVariablesReverse(t *testing.T) {
+	ctx := context.Background()
+	activity := ReverseHybridReplicationActivity{}
+
+	t.Run("WhenDbVolReplicationIsNil", func(tt *testing.T) {
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: nil,
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesReverse(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.False(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.IsSrcForHybridReplication)
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsNil", func(tt *testing.T) {
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: nil,
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: "us-central1",
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesReverse(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.False(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.IsSrcForHybridReplication)
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsSetButNotReverse", func(tt *testing.T) {
+		migrationType := string(models.HybridReplicationParametersReplicationTypeMIGRATION)
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+					HybridReplicationType: &migrationType,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: "us-central1",
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesReverse(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.IsSrcForHybridReplication)
+	})
+
+	t.Run("WhenIsSrcForHybridReplicationIsTrue", func(tt *testing.T) {
+		reverseType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+					HybridReplicationType: &reverseType,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: "customer",
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesReverse(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.True(tt, updatedResult.IsSrcForHybridReplication)
+	})
+
+	t.Run("WhenHybridReplicationTypeIsReverseButDestinationLocationIsNotEmpty", func(tt *testing.T) {
+		reverseType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+					HybridReplicationType: &reverseType,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: "us-central1",
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesReverse(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.IsSrcForHybridReplication)
+	})
+
+	t.Run("WhenHybridReplicationTypeIsNil", func(tt *testing.T) {
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+					HybridReplicationType: nil,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation: "",
+				},
+			},
+		}
+
+		updatedResult, err := activity.SetHybridReplicationVariablesReverse(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		assert.True(tt, updatedResult.IsHybridReplicationVolume)
+		assert.False(tt, updatedResult.IsSrcForHybridReplication)
+	})
+}
+
 func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse(t *testing.T) {
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -75,7 +200,7 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 	})
-
+	
 	t.Run("WhenClusterPeerIsNil", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -744,21 +869,6 @@ func TestReverseHybridReplicationActivity_UpdateReplicationWithReverseCommandsFo
 		assert.NoError(tt, err)
 		assert.NotNil(tt, updatedResult)
 		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("WhenReplicationIsNil", func(tt *testing.T) {
-		ctx := context.Background()
-		mockStorage := database.NewMockStorage(tt)
-		activity := ReverseHybridReplicationActivity{SE: mockStorage}
-
-		result := &replication.ReverseHybridReplicationResult{
-			DbVolReplication: nil,
-		}
-
-		updatedResult, err := activity.UpdateReplicationWithReverseCommandsForHybridReverse(ctx, result)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, updatedResult)
 	})
 
 	t.Run("WhenUpdateFails", func(tt *testing.T) {
@@ -1840,5 +1950,255 @@ func TestReverseHybridReplicationActivity_DescribeRemoteJobOnDstForHybridReverse
 
 		assert.Error(tt, err)
 		mockInvoker.AssertExpectations(tt)
+	})
+}
+
+func TestReverseHybridReplicationActivity_HydrateReplicationSateAndTypeForReverseHybridReplication(t *testing.T) {
+	ctx := context.Background()
+	activity := ReverseHybridReplicationActivity{}
+
+	t.Run("WhenSuccess_WithHydrationEnabled", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Mock hydrateReplicationStateAndTypeForHybrid to return success
+		originalHydrateReplicationStateAndTypeForHybrid := hydrateReplicationStateAndTypeForHybrid
+		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, projectNumber string) error {
+			return nil
+		}
+		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
+
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Name: "test-replication",
+				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:   "us-east1",
+					DestinationVolumeName: "dest-volume",
+				},
+			},
+		}
+
+		updatedResult, err := activity.HydrateReplicationSateAndTypeForReverseHybridReplication(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+	})
+
+	t.Run("WhenSuccess_WithHydrationDisabled", func(tt *testing.T) {
+		// Mock hydrationEnabled to be false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Name: "test-replication",
+				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:   "us-east1",
+					DestinationVolumeName: "dest-volume",
+				},
+			},
+		}
+
+		updatedResult, err := activity.HydrateReplicationSateAndTypeForReverseHybridReplication(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+	})
+
+	t.Run("WhenParseProjectNumberFails", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Name: "test-replication",
+				Uri:  "invalid-uri",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:   "us-east1",
+					DestinationVolumeName: "dest-volume",
+				},
+			},
+		}
+
+		updatedResult, err := activity.HydrateReplicationSateAndTypeForReverseHybridReplication(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "failed to parse project number")
+	})
+
+	t.Run("WhenHydrateReplicationStateAndTypeForHybridFails", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Mock hydrateReplicationStateAndTypeForHybrid to return error
+		originalHydrateReplicationStateAndTypeForHybrid := hydrateReplicationStateAndTypeForHybrid
+		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, projectNumber string) error {
+			return fmt.Errorf("hydration error")
+		}
+		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
+
+		result := &replication.ReverseHybridReplicationResult{
+			DbVolReplication: &datamodel.VolumeReplication{
+				Name: "test-replication",
+				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:   "us-east1",
+					DestinationVolumeName: "dest-volume",
+				},
+			},
+		}
+
+		updatedResult, err := activity.HydrateReplicationSateAndTypeForReverseHybridReplication(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "hydration error")
+	})
+}
+
+func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenSuccess_WithHydrationEnabled", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Mock hydrateReplicationStateAndTypeForHybrid to return success
+		originalHydrateReplicationStateAndTypeForHybrid := hydrateReplicationStateAndTypeForHybrid
+		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, projectNumber string) error {
+			assert.Equal(tt, "test-replication", volumeRepModel.Name)
+			assert.Equal(tt, "us-east1", volumeRepModel.ReplicationAttributes.DestinationRegion)
+			assert.Equal(tt, "dest-volume", volumeRepModel.ReplicationAttributes.DestinationVolumeName)
+			assert.Equal(tt, models.VolumeReplicationHydrateStateReady, hydrateState)
+			assert.Equal(tt, models.HybridReplicationParametersReplicationTypeONPREM, hydrateType)
+			assert.Equal(tt, "123456789", projectNumber)
+			return nil
+		}
+		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
+
+		dbVolRep := &datamodel.VolumeReplication{
+			Name: "test-replication",
+			Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:   "us-east1",
+				DestinationVolumeName: "dest-volume",
+			},
+		}
+
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM)
+
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenSuccess_WithHydrationDisabled", func(tt *testing.T) {
+		// Mock hydrationEnabled to be false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		dbVolRep := &datamodel.VolumeReplication{
+			Name: "test-replication",
+			Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:   "us-east1",
+				DestinationVolumeName: "dest-volume",
+			},
+		}
+
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM)
+
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenParseProjectNumberFails", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		dbVolRep := &datamodel.VolumeReplication{
+			Name: "test-replication",
+			Uri:  "invalid-uri",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:   "us-east1",
+				DestinationVolumeName: "dest-volume",
+			},
+		}
+
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to parse project number")
+	})
+
+	t.Run("WhenHydrateReplicationStateAndTypeForHybridFails", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Mock hydrateReplicationStateAndTypeForHybrid to return error
+		originalHydrateReplicationStateAndTypeForHybrid := hydrateReplicationStateAndTypeForHybrid
+		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, projectNumber string) error {
+			return fmt.Errorf("hydration error")
+		}
+		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
+
+		dbVolRep := &datamodel.VolumeReplication{
+			Name: "test-replication",
+			Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:   "us-east1",
+				DestinationVolumeName: "dest-volume",
+			},
+		}
+
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "hydration error")
+	})
+
+	t.Run("WhenSuccess_WithExternalManagedState", func(tt *testing.T) {
+		// Mock hydrationEnabled to be true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Mock hydrateReplicationStateAndTypeForHybrid to return success
+		originalHydrateReplicationStateAndTypeForHybrid := hydrateReplicationStateAndTypeForHybrid
+		hydrateReplicationStateAndTypeForHybrid = func(ctx context.Context, volumeRepModel models.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, projectNumber string) error {
+			assert.Equal(tt, models.VolumeReplicationHydrateStateExternalManaged, hydrateState)
+			assert.Equal(tt, models.HybridReplicationParametersReplicationTypeREVERSE, hydrateType)
+			return nil
+		}
+		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
+
+		dbVolRep := &datamodel.VolumeReplication{
+			Name: "test-replication",
+			Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:   "us-east1",
+				DestinationVolumeName: "dest-volume",
+			},
+		}
+
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateExternalManaged, models.HybridReplicationParametersReplicationTypeREVERSE)
+
+		assert.NoError(tt, err)
 	})
 }
