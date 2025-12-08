@@ -47,6 +47,21 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	var sfrMetrics []entity.HydratedMetric
 	var hydratedMetrics []datamodel2.HydratedMetrics
 
+	// This list fetches backupVaults to filter volumes with cross-region backupVaults.
+	// TODO: CRB billing is temporary disabled for preview. Will enable cross-region backup billing metrics as per VSCP-3455.
+	backupVaultMap := make(map[string]*datamodel.BackupVault)
+	if config.EnableBackupBillingMetrics && !config.EnableCrossRegionBackupBillingMetrics {
+		backupVaults, err := vcpDB.GetMultipleBackupVaults(ctx, nil)
+		if err != nil {
+			logger.Error("Failed to fetch backup vaults", "error", err.Error())
+		} else {
+			for _, bv := range backupVaults {
+				backupVaultMap[bv.UUID] = bv
+			}
+			logger.Info(fmt.Sprintf("Fetched %d backup vaults for cross-region filtering", len(backupVaults)))
+		}
+	}
+
 	var sfrMetricsMap map[string]datamodel.SfrMetricsAggregate
 	if config.SFRMetricsEnabled {
 		startTime := timestamp.Add(-5 * time.Minute)
@@ -128,6 +143,22 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		if config.EnableBackupBillingMetrics {
 			metric := setupHydratedMetric(timestamp, volumeMetadata, metadata.BackupEnabledVolumeAllocatedSize, float64(allocatedSize))
 			metrics = append(metrics, metric)
+
+			// Skip BMF billing metrics for volume with cross-region backupVaults
+			// TODO: CRB billing is temporary disabled for preview. Will enable cross-region backup billing metrics as per VSCP-3455.
+			if !config.EnableCrossRegionBackupBillingMetrics {
+				if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
+					bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]
+					if !exists {
+						logger.Error("Backup vault not found in map", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
+						continue
+					}
+					if bv.SourceRegionName != nil && bv.BackupRegionName != nil && *bv.SourceRegionName != *bv.BackupRegionName {
+						logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for volume with cross-region backup vault", "volumeUUID", volume.UUID)
+						continue
+					}
+				}
+			}
 
 			// Use actual account name from the preloaded account
 			accountName := ""

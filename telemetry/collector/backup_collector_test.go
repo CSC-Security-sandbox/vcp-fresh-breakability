@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -465,4 +466,337 @@ func TestGetBackupMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	// Verify timestamp is recent (within last minute)
 	timeDiff := time.Since(hmBackup.MetricTimestamp)
 	assert.True(t, timeDiff < time.Minute, "Timestamp should be recent")
+}
+
+func TestGetBackupMetrics_Skipping_Cross_Region_Backups_Billing_Metrics(t *testing.T) {
+	tests := []struct {
+		name                                  string
+		enableCrossRegionBackupBillingMetrics bool
+		backups                               []*datamodel.Backup
+		expectedHydratedMetricsCount          int
+		expectedDataModelMetricsCount         int
+		description                           string
+	}{
+		{
+			name:                                  "Flag disabled - skip cross-region backup billing metrics",
+			enableCrossRegionBackupBillingMetrics: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+					Name:                    "CrossRegionBackup1",
+					VolumeUUID:              "volume-uuid-1",
+					LatestLogicalBackupSize: 1024,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account1",
+						VolumeName:        "Volume1",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-1"},
+						Name:             "BackupVault1",
+						BackupVaultType:  activities.CrossRegionBackupType, // Mark as cross-region
+						SourceRegionName: stringPtr("us-east-1"),
+						BackupRegionName: stringPtr("us-west-1"),
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+							Name:      "Account1",
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1, // HydratedMetrics is always created
+			expectedDataModelMetricsCount: 0, // HydratedMetricsDataModel should be skipped
+			description:                   "Cross-region backup should create HydratedMetrics but skip HydratedMetricsDataModel",
+		},
+		{
+			name:                                  "Flag enabled - include cross-region backup billing metrics",
+			enableCrossRegionBackupBillingMetrics: true,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-2"},
+					Name:                    "CrossRegionBackup2",
+					VolumeUUID:              "volume-uuid-2",
+					LatestLogicalBackupSize: 2048,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account2",
+						VolumeName:        "Volume2",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-2"},
+						Name:             "BackupVault2",
+						BackupVaultType:  activities.CrossRegionBackupType, // Mark as cross-region
+						SourceRegionName: stringPtr("us-east-1"),
+						BackupRegionName: stringPtr("eu-west-1"),
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
+							Name:      "Account2",
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // HydratedMetricsDataModel should be included
+			description:                   "Cross-region backup should create both HydratedMetrics and HydratedMetricsDataModel",
+		},
+		{
+			name:                                  "Flag disabled - same region backup billing metrics still included",
+			enableCrossRegionBackupBillingMetrics: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-3"},
+					Name:                    "SameRegionBackup",
+					VolumeUUID:              "volume-uuid-3",
+					LatestLogicalBackupSize: 3072,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account3",
+						VolumeName:        "Volume3",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-3"},
+						Name:             "BackupVault3",
+						BackupVaultType:  "IN_REGION", // Not cross-region
+						SourceRegionName: stringPtr("us-east-1"),
+						BackupRegionName: stringPtr("us-east-1"),
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-3"},
+							Name:      "Account3",
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // Should be included even with flag disabled
+			description:                   "Same region backup should always create both metrics",
+		},
+		{
+			name:                                  "Flag disabled - nil BackupVault should include billing metrics",
+			enableCrossRegionBackupBillingMetrics: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-4"},
+					Name:                    "NilVaultBackup",
+					VolumeUUID:              "volume-uuid-4",
+					LatestLogicalBackupSize: 4096,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account4",
+						VolumeName:        "Volume4",
+					},
+					BackupVault: nil, // Nil vault - cannot determine type, so billing is included
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // Should be included (cannot determine cross-region)
+			description:                   "Nil BackupVault should create both metrics",
+		},
+		{
+			name:                                  "Flag disabled - non-cross-region backup with type should include billing metrics",
+			enableCrossRegionBackupBillingMetrics: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-5"},
+					Name:                    "StandardBackup",
+					VolumeUUID:              "volume-uuid-5",
+					LatestLogicalBackupSize: 5120,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account5",
+						VolumeName:        "Volume5",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-5"},
+						Name:             "BackupVault5",
+						BackupVaultType:  "IN_REGION", // Not cross-region
+						SourceRegionName: nil,
+						BackupRegionName: stringPtr("us-west-1"),
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-5"},
+							Name:      "Account5",
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // Should be included (not cross-region type)
+			description:                   "Standard backup vault type should create both metrics",
+		},
+		{
+			name:                                  "Flag disabled - mixed cross-region and standard backups",
+			enableCrossRegionBackupBillingMetrics: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-6"},
+					Name:                    "StandardBackup1",
+					VolumeUUID:              "volume-uuid-6",
+					LatestLogicalBackupSize: 6144,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account6",
+						VolumeName:        "Volume6",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-6"},
+						Name:             "BackupVault6",
+						BackupVaultType:  "IN_REGION", // Not cross-region
+						SourceRegionName: stringPtr("us-east-1"),
+						BackupRegionName: stringPtr("us-east-1"),
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-6"},
+							Name:      "Account6",
+						},
+					},
+				},
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-7"},
+					Name:                    "CrossRegionBackup2",
+					VolumeUUID:              "volume-uuid-7",
+					LatestLogicalBackupSize: 7168,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account7",
+						VolumeName:        "Volume7",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-7"},
+						Name:             "BackupVault7",
+						BackupVaultType:  activities.CrossRegionBackupType, // Cross-region
+						SourceRegionName: stringPtr("us-east-1"),
+						BackupRegionName: stringPtr("ap-south-1"),
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-7"},
+							Name:      "Account7",
+						},
+					},
+				},
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-8"},
+					Name:                    "StandardBackup2",
+					VolumeUUID:              "volume-uuid-8",
+					LatestLogicalBackupSize: 8192,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account8",
+						VolumeName:        "Volume8",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-8"},
+						Name:             "BackupVault8",
+						BackupVaultType:  "IN_REGION", // Not cross-region
+						SourceRegionName: stringPtr("us-west-2"),
+						BackupRegionName: stringPtr("us-west-2"),
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-8"},
+							Name:      "Account8",
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  3, // All create HydratedMetrics
+			expectedDataModelMetricsCount: 2, // Only standard backups create HydratedMetricsDataModel
+			description:                   "Mixed backups should filter cross-region from HydratedMetricsDataModel",
+		},
+		{
+			name:                                  "Flag enabled - mixed cross-region and standard backups all included",
+			enableCrossRegionBackupBillingMetrics: true,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-9"},
+					Name:                    "StandardBackup3",
+					VolumeUUID:              "volume-uuid-9",
+					LatestLogicalBackupSize: 9216,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account9",
+						VolumeName:        "Volume9",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-9"},
+						Name:             "BackupVault9",
+						BackupVaultType:  "IN_REGION", // Not cross-region
+						SourceRegionName: stringPtr("eu-west-1"),
+						BackupRegionName: stringPtr("eu-west-1"),
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-9"},
+							Name:      "Account9",
+						},
+					},
+				},
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-10"},
+					Name:                    "CrossRegionBackup3",
+					VolumeUUID:              "volume-uuid-10",
+					LatestLogicalBackupSize: 10240,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "Account10",
+						VolumeName:        "Volume10",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-10"},
+						Name:             "BackupVault10",
+						BackupVaultType:  activities.CrossRegionBackupType, // Cross-region
+						SourceRegionName: stringPtr("eu-west-1"),
+						BackupRegionName: stringPtr("us-east-1"),
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-10"},
+							Name:      "Account10",
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  2,
+			expectedDataModelMetricsCount: 2, // All backups create HydratedMetricsDataModel when flag is enabled
+			description:                   "All backups should create both metrics when flag is enabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockBackupStorage)
+			ctx := context.Background()
+			config := &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: tt.enableCrossRegionBackupBillingMetrics,
+			}
+
+			// Mock the first call to return backups, subsequent calls return empty
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+				return pagination.Offset == 0
+			})).Return(tt.backups, nil)
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+				return pagination.Offset > 0
+			})).Return([]*datamodel.Backup{}, nil)
+
+			result, err := GetBackupMetrics(ctx, m, config, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			// Verify counts
+			assert.Len(t, result.HydratedMetrics, tt.expectedHydratedMetricsCount,
+				"HydratedMetrics count mismatch: %s", tt.description)
+			assert.Len(t, result.HydratedMetricsDataModel, tt.expectedDataModelMetricsCount,
+				"HydratedMetricsDataModel count mismatch: %s", tt.description)
+
+			// Additional validations for HydratedMetrics (should always be created)
+			for i, metric := range result.HydratedMetrics {
+				assert.Equal(t, metadata.BackupLogicalSize, metric.MeasuredType,
+					"HydratedMetrics[%d] should have BackupLogicalSize type", i)
+				assert.Equal(t, tt.backups[i].VolumeUUID, derefString(metric.Metadata.ResourceUUID),
+					"HydratedMetrics[%d] should have correct VolumeUUID", i)
+				assert.Equal(t, float64(tt.backups[i].LatestLogicalBackupSize), metric.Quantity,
+					"HydratedMetrics[%d] should have correct quantity", i)
+			}
+
+			// Additional validations for HydratedMetricsDataModel
+			if tt.expectedDataModelMetricsCount > 0 {
+				for i, dataMetric := range result.HydratedMetricsDataModel {
+					assert.Equal(t, metadata.BackupLogicalSize, dataMetric.MeasuredType,
+						"HydratedMetricsDataModel[%d] should have BackupLogicalSize type", i)
+					assert.Equal(t, metadata.Backup, dataMetric.ResourceType,
+						"HydratedMetricsDataModel[%d] should have Backup resource type", i)
+					assert.NotEmpty(t, dataMetric.ConsumerID,
+						"HydratedMetricsDataModel[%d] should have ConsumerID", i)
+					assert.NotEmpty(t, dataMetric.ResourceName,
+						"HydratedMetricsDataModel[%d] should have ResourceName", i)
+				}
+			}
+		})
+	}
+}
+
+// Helper function to create string pointers
+func stringPtr(s string) *string {
+	return &s
 }

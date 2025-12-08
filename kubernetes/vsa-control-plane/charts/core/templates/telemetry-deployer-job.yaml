@@ -132,6 +132,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableBackupBillingMetrics | default "false" | quote }}
             - name: ENABLE_REPLICATION_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableReplicationBillingMetrics | default "false" | quote }}
+            - name: ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS
+              value: {{ .Values.telemetryDeployer.enableCrossRegionBackupBillingMetrics | default "false" | quote }}
             - name: ENABLE_BATCH_USAGE_UPDATES
               value: {{ .Values.telemetryDeployer.enableBatchUsageUpdates | default "false" | quote }}
             - name: RESULT_UPDATE_BATCH_SIZE

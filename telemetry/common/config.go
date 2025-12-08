@@ -15,28 +15,29 @@ const (
 
 type TelemetryConfig struct {
 	// Server configuration
-	OperationBatchSize              int64
-	PusherServiceName               string
-	PusherServiceProject            string
-	RootUrl                         string
-	RegionName                      string
-	EnableVolumeMetrics             bool
-	EnableBackupMetrics             bool
-	EnableBackupBillingMetrics      bool
-	EnableReplicationBillingMetrics bool
+	OperationBatchSize                    int64
+	PusherServiceName                     string
+	PusherServiceProject                  string
+	RootUrl                               string
+	RegionName                            string
+	EnableVolumeMetrics                   bool
+	EnableBackupMetrics                   bool
+	EnableBackupBillingMetrics            bool
+	EnableCrossRegionBackupBillingMetrics bool
+	EnableReplicationBillingMetrics       bool
 	SFRMetricsEnabled               bool
-	PushBatchSize                   int64
-	Environment                     string
-	MaxGoogleBillingPushRetry       int64
-	PageSize                        int32
-	NumWorkersPerformance           int
-	NumWorkersUsage                 int
-	NumWorkersCollection            int
-	NumWorkersBizOps                int
-	GoogleBillingLabelsMaxEntries   int
-	PoolVolumeLabelPageSize         int
-	EnableBatchUsageUpdates         bool // Feature flag for batch usage updates
-	ResultUpdateBatchSize           int
+	PushBatchSize                         int64
+	Environment                           string
+	MaxGoogleBillingPushRetry             int64
+	PageSize                              int32
+	NumWorkersPerformance                 int
+	NumWorkersUsage                       int
+	NumWorkersCollection                  int
+	NumWorkersBizOps                      int
+	GoogleBillingLabelsMaxEntries         int
+	PoolVolumeLabelPageSize               int
+	EnableBatchUsageUpdates               bool // Feature flag for batch usage updates
+	ResultUpdateBatchSize                 int
 	TargetMinute                    int
 }
 
@@ -63,6 +64,7 @@ func LoadConfig() *TelemetryConfig {
 	enableBackupBillingMetrics := env.GetBool("ENABLE_BACKUP_BILLING_METRICS", false)
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
 	sfrMetricsEnabled := env.GetBool("ENABLE_SFR_METRICS", false)
+	enableCrossRegionBackupBillingMetrics := env.GetBool("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", false)
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
 	environment := env.GetString("ENVIRONMENT", Dev)
 	maxGoogleBillingPushRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
@@ -78,28 +80,29 @@ func LoadConfig() *TelemetryConfig {
 	targetMinute := env.GetInt("TARGET_MINUTE", 15)
 
 	return &TelemetryConfig{
-		RootUrl:                         rootUrl,
-		PusherServiceName:               pusherServiceName,
-		PusherServiceProject:            pusherServiceProject,
-		OperationBatchSize:              operationBatchSize,
-		RegionName:                      regionName,
-		EnableVolumeMetrics:             enableVolumeMetrics,
-		PushBatchSize:                   pushBatchSize,
-		Environment:                     environment,
-		MaxGoogleBillingPushRetry:       maxGoogleBillingPushRetry,
-		PageSize:                        int32(pageSize),
-		EnableBackupMetrics:             enableBackupMetrics,
-		EnableBackupBillingMetrics:      enableBackupBillingMetrics,
-		EnableReplicationBillingMetrics: enableReplicationBillingMetrics,
+		RootUrl:                               rootUrl,
+		PusherServiceName:                     pusherServiceName,
+		PusherServiceProject:                  pusherServiceProject,
+		OperationBatchSize:                    operationBatchSize,
+		RegionName:                            regionName,
+		EnableVolumeMetrics:                   enableVolumeMetrics,
+		PushBatchSize:                         pushBatchSize,
+		Environment:                           environment,
+		MaxGoogleBillingPushRetry:             maxGoogleBillingPushRetry,
+		PageSize:                              int32(pageSize),
+		EnableBackupMetrics:                   enableBackupMetrics,
+		EnableBackupBillingMetrics:            enableBackupBillingMetrics,
+		EnableCrossRegionBackupBillingMetrics: enableCrossRegionBackupBillingMetrics,
+		EnableReplicationBillingMetrics:       enableReplicationBillingMetrics,
 		SFRMetricsEnabled:               sfrMetricsEnabled,
-		NumWorkersPerformance:           numWorkersPerformance,
-		NumWorkersUsage:                 numWorkersUsage,
-		NumWorkersCollection:            numWorkersCollection,
-		NumWorkersBizOps:                numWorkersBizOps,
-		GoogleBillingLabelsMaxEntries:   googleBillingLabelsMaxEntries,
-		PoolVolumeLabelPageSize:         poolVolumeLabelPageSize,
-		EnableBatchUsageUpdates:         enableBatchUsageUpdates,
-		ResultUpdateBatchSize:           resultUpdateBatchSize,
+		NumWorkersPerformance:                 numWorkersPerformance,
+		NumWorkersUsage:                       numWorkersUsage,
+		NumWorkersCollection:                  numWorkersCollection,
+		NumWorkersBizOps:                      numWorkersBizOps,
+		GoogleBillingLabelsMaxEntries:         googleBillingLabelsMaxEntries,
+		PoolVolumeLabelPageSize:               poolVolumeLabelPageSize,
+		EnableBatchUsageUpdates:               enableBatchUsageUpdates,
+		ResultUpdateBatchSize:                 resultUpdateBatchSize,
 		TargetMinute:                    targetMinute,
 	}
 }

@@ -28,12 +28,28 @@ func (m *mockVolumeStorage) ListVolumesWithAccounts(ctx context.Context) ([]*dat
 	return args.Get(0).([]*datamodel.Volume), args.Error(1)
 }
 
+func (m *mockVolumeStorage) GetBackupVault(ctx context.Context, backupVaultID string) (*datamodel.BackupVault, error) {
+	args := m.Called(ctx, backupVaultID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*datamodel.BackupVault), args.Error(1)
+}
+
 func (m *mockVolumeStorage) GetSfrMetricsByTimeRange(ctx context.Context, startTime, endTime time.Time) (map[string]datamodel.SfrMetricsAggregate, error) {
 	args := m.Called(ctx, startTime, endTime)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(map[string]datamodel.SfrMetricsAggregate), args.Error(1)
+}
+
+func (m *mockVolumeStorage) GetMultipleBackupVaults(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupVault, error) {
+	args := m.Called(ctx, conditions)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*datamodel.BackupVault), args.Error(1)
 }
 
 func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
@@ -69,6 +85,8 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 	}
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
@@ -149,6 +167,8 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 	}
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
@@ -262,6 +282,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
@@ -325,6 +347,8 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 	}
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
@@ -395,6 +419,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
@@ -460,6 +486,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 	}
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
@@ -527,6 +555,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
@@ -592,6 +622,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 	}
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
@@ -686,6 +718,8 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
@@ -761,6 +795,8 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
@@ -824,6 +860,8 @@ func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
@@ -878,6 +916,8 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
@@ -931,6 +971,8 @@ func Test_GetVolumeMetrics_WithResourceTypeMapping(t *testing.T) {
 	}
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{volume}, nil)
+
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
 	config.EnableBackupBillingMetrics = true
 
@@ -1014,6 +1056,8 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	config.EnableBackupBillingMetrics = true
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
@@ -1065,6 +1109,9 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled(t *testing.T) {
 	}
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+
+	// Mock GetMultipleBackupVaults for backup billing metrics
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
 	// Mock GetSfrMetricsByTimeRange to return SFR metrics
 	sfrMetricsMap := map[string]datamodel.SfrMetricsAggregate{
@@ -1140,6 +1187,9 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled_Error(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	// Mock GetMultipleBackupVaults for backup billing metrics
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	// Mock GetSfrMetricsByTimeRange to return error
 	m.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
@@ -1188,6 +1238,9 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled_NoMetricsForVolume(t *testing.T) {
 
 	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
 
+	// Mock GetMultipleBackupVaults for backup billing metrics
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
 	// Mock GetSfrMetricsByTimeRange to return empty map (no metrics for this volume)
 	sfrMetricsMap := map[string]datamodel.SfrMetricsAggregate{}
 	m.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(sfrMetricsMap, nil)
@@ -1200,4 +1253,374 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled_NoMetricsForVolume(t *testing.T) {
 
 	// SFR metrics should be empty when volume not in map
 	assert.Empty(t, result.SFRHydratedMetrics)
+}
+
+func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
+	tests := []struct {
+		name                                  string
+		enableCrossRegionBackupBillingMetrics bool
+		volumes                               []*datamodel.Volume
+		backupVault                           *datamodel.BackupVault
+		backupVaultError                      error
+		expectedHydratedMetricsCount          int
+		expectedDataModelMetricsCount         int
+		expectedThroughputMetricsCount        int
+		description                           string
+	}{
+		{
+			name:                                  "Flag disabled - skip cross-region volume BMF billing metrics",
+			enableCrossRegionBackupBillingMetrics: false,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+					Name:        "CrossRegionVolume1",
+					SizeInBytes: 2048,
+					Throughput:  100,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+						Name:      "Account1",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+						DeploymentName: "test-deployment-1",
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(1024),
+						BackupVaultID:    "backup-vault-1",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-1"},
+				Name:             "BackupVault1",
+				SourceRegionName: stringPtr("us-east-1"),
+				BackupRegionName: stringPtr("us-west-1"), // Different region
+			},
+			expectedHydratedMetricsCount:   1, // HydratedMetrics is always created
+			expectedDataModelMetricsCount:  0, // HydratedMetricsDataModel should be skipped
+			expectedThroughputMetricsCount: 1, // Throughput metric is independent
+			description:                    "Cross-region volume should create HydratedMetrics but skip HydratedMetricsDataModel",
+		},
+		{
+			name:                                  "Flag enabled - include cross-region volume BMF billing metrics",
+			enableCrossRegionBackupBillingMetrics: true,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
+					Name:        "CrossRegionVolume2",
+					SizeInBytes: 3072,
+					Throughput:  150,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
+						Name:      "Account2",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+						DeploymentName: "test-deployment-2",
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(2048),
+						BackupVaultID:    "backup-vault-2",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-2"},
+				Name:             "BackupVault2",
+				SourceRegionName: stringPtr("us-east-1"),
+				BackupRegionName: stringPtr("eu-west-1"), // Different region
+			},
+			expectedHydratedMetricsCount:   1,
+			expectedDataModelMetricsCount:  1, // HydratedMetricsDataModel should be included
+			expectedThroughputMetricsCount: 1,
+			description:                    "Cross-region volume should create both metrics when flag is enabled",
+		},
+		{
+			name:                                  "Flag disabled - same region volume BMF billing metrics still included",
+			enableCrossRegionBackupBillingMetrics: false,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-3"},
+					Name:        "SameRegionVolume",
+					SizeInBytes: 4096,
+					Throughput:  200,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-3"},
+						Name:      "Account3",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-3"},
+						DeploymentName: "test-deployment-3",
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(3072),
+						BackupVaultID:    "backup-vault-3",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-3"},
+				Name:             "BackupVault3",
+				SourceRegionName: stringPtr("us-east-1"),
+				BackupRegionName: stringPtr("us-east-1"), // Same region
+			},
+			expectedHydratedMetricsCount:   1,
+			expectedDataModelMetricsCount:  1, // Should be included even with flag disabled
+			expectedThroughputMetricsCount: 1,
+			description:                    "Same region volume should always create both metrics",
+		},
+		{
+			name:                                  "Flag disabled - nil BackupVaultID should include billing metrics",
+			enableCrossRegionBackupBillingMetrics: false,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-4"},
+					Name:        "NoVaultVolume",
+					SizeInBytes: 5120,
+					Throughput:  250,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-4"},
+						Name:      "Account4",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-4"},
+						DeploymentName: "test-deployment-4",
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(4096),
+						BackupVaultID:    "", // No backup vault
+					},
+				},
+			},
+			expectedHydratedMetricsCount:   1,
+			expectedDataModelMetricsCount:  1, // Should be included (no vault to check)
+			expectedThroughputMetricsCount: 1,
+			description:                    "Volume without BackupVaultID should create both metrics",
+		},
+		{
+			name:                                  "Flag disabled - nil DataProtection should include billing metrics",
+			enableCrossRegionBackupBillingMetrics: false,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-5"},
+					Name:        "NoDataProtectionVolume",
+					SizeInBytes: 6144,
+					Throughput:  300,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-5"},
+						Name:      "Account5",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-5"},
+						DeploymentName: "test-deployment-5",
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(5120),
+						// No BackupVaultID
+					},
+				},
+			},
+			expectedHydratedMetricsCount:   1,
+			expectedDataModelMetricsCount:  1, // Should be included (no vault ID to check)
+			expectedThroughputMetricsCount: 1,
+			description:                    "Volume without BackupVaultID should create both metrics",
+		},
+		{
+			name:                                  "Flag disabled - GetBackupVault error should skip BMF billing metrics",
+			enableCrossRegionBackupBillingMetrics: false,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-6"},
+					Name:        "ErrorVaultVolume",
+					SizeInBytes: 7168,
+					Throughput:  350,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-6"},
+						Name:      "Account6",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-6"},
+						DeploymentName: "test-deployment-6",
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(6144),
+						BackupVaultID:    "backup-vault-error",
+					},
+				},
+			},
+			backupVaultError:               assert.AnError,
+			expectedHydratedMetricsCount:   1, // HydratedMetrics created before error
+			expectedDataModelMetricsCount:  0, // Should be skipped due to error
+			expectedThroughputMetricsCount: 1,
+			description:                    "GetBackupVault error should skip HydratedMetricsDataModel",
+		},
+		{
+			name:                                  "Flag disabled - nil region names should include billing metrics",
+			enableCrossRegionBackupBillingMetrics: false,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-7"},
+					Name:        "NilRegionVolume",
+					SizeInBytes: 8192,
+					Throughput:  400,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-7"},
+						Name:      "Account7",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-7"},
+						DeploymentName: "test-deployment-7",
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(7168),
+						BackupVaultID:    "backup-vault-7",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-7"},
+				Name:             "BackupVault7",
+				SourceRegionName: nil, // Nil region
+				BackupRegionName: stringPtr("us-west-1"),
+			},
+			expectedHydratedMetricsCount:   1,
+			expectedDataModelMetricsCount:  1, // Should be included (cannot determine cross-region)
+			expectedThroughputMetricsCount: 1,
+			description:                    "Nil SourceRegionName should create both metrics",
+		},
+		{
+			name:                                  "Flag disabled - mixed cross-region and same-region volumes",
+			enableCrossRegionBackupBillingMetrics: false,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-8"},
+					Name:        "SameRegionVolume1",
+					SizeInBytes: 9216,
+					Throughput:  450,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-8"},
+						Name:      "Account8",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-8"},
+						DeploymentName: "test-deployment-8",
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(8192),
+						BackupVaultID:    "backup-vault-8",
+					},
+				},
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-9"},
+					Name:        "CrossRegionVolume2",
+					SizeInBytes: 10240,
+					Throughput:  500,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-9"},
+						Name:      "Account9",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-9"},
+						DeploymentName: "test-deployment-9",
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(9216),
+						BackupVaultID:    "backup-vault-9",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-9"},
+				Name:             "BackupVault9",
+				SourceRegionName: stringPtr("us-east-1"),
+				BackupRegionName: stringPtr("ap-south-1"), // Different region for second volume
+			},
+			expectedHydratedMetricsCount:   2, // Both create HydratedMetrics
+			expectedDataModelMetricsCount:  1, // Only same-region creates HydratedMetricsDataModel
+			expectedThroughputMetricsCount: 2,
+			description:                    "Mixed volumes should filter cross-region from HydratedMetricsDataModel",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockVolumeStorage)
+			ctx := context.Background()
+			config := &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableBackupBillingMetrics:            true,
+				EnableCrossRegionBackupBillingMetrics: tt.enableCrossRegionBackupBillingMetrics,
+			}
+			poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+			m.On("ListVolumesWithAccounts", mock.Anything).Return(tt.volumes, nil)
+
+			// Mock GetMultipleBackupVaults call - fetches all backup vaults at once
+			if tt.backupVaultError != nil {
+				m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(nil, tt.backupVaultError)
+			} else if tt.backupVault != nil {
+				// For mixed volumes test, return both vaults
+				if tt.name == "Flag disabled - mixed cross-region and same-region volumes" {
+					sameRegionVault := &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "backup-vault-8"},
+						Name:             "BackupVault8",
+						SourceRegionName: stringPtr("us-east-1"),
+						BackupRegionName: stringPtr("us-east-1"), // Same region
+					}
+					backupVaults := []*datamodel.BackupVault{sameRegionVault, tt.backupVault}
+					m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+				} else {
+					backupVaults := []*datamodel.BackupVault{tt.backupVault}
+					m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+				}
+			} else {
+				// No backup vault needed - return empty slice
+				m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+			}
+
+			result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			// Verify counts
+			assert.Len(t, result.HydratedMetrics, tt.expectedHydratedMetricsCount,
+				"HydratedMetrics count mismatch: %s", tt.description)
+			assert.Len(t, result.HydratedMetricsDataModel, tt.expectedDataModelMetricsCount,
+				"HydratedMetricsDataModel count mismatch: %s", tt.description)
+			assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, tt.expectedThroughputMetricsCount,
+				"VolumeAllocatedThroughputHydratedMetrics count mismatch: %s", tt.description)
+
+			// Additional validations for HydratedMetrics (BackupEnabledVolumeAllocatedSize)
+			for i, metric := range result.HydratedMetrics {
+				assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, metric.MeasuredType,
+					"HydratedMetrics[%d] should have BackupEnabledVolumeAllocatedSize type", i)
+				assert.NotEmpty(t, derefString(metric.Metadata.ResourceUUID),
+					"HydratedMetrics[%d] should have ResourceUUID", i)
+				assert.NotEmpty(t, derefString(metric.Metadata.ResourceName),
+					"HydratedMetrics[%d] should have ResourceName", i)
+			}
+
+			// Additional validations for HydratedMetricsDataModel
+			if tt.expectedDataModelMetricsCount > 0 {
+				for i, dataMetric := range result.HydratedMetricsDataModel {
+					assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, dataMetric.MeasuredType,
+						"HydratedMetricsDataModel[%d] should have BackupEnabledVolumeAllocatedSize type", i)
+					assert.NotEmpty(t, dataMetric.ConsumerID,
+						"HydratedMetricsDataModel[%d] should have ConsumerID", i)
+					assert.NotEmpty(t, dataMetric.ResourceName,
+						"HydratedMetricsDataModel[%d] should have ResourceName", i)
+				}
+			}
+
+			// Verify throughput metrics are always generated
+			for i, throughputMetric := range result.VolumeAllocatedThroughputHydratedMetrics {
+				assert.Equal(t, metadata.VolumeAllocatedThroughput, throughputMetric.MeasuredType,
+					"ThroughputMetrics[%d] should have VolumeAllocatedThroughput type", i)
+			}
+		})
+	}
+}
+
+// Helper function for int64 pointers
+func intPtr(i int64) *int64 {
+	return &i
 }

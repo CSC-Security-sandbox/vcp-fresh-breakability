@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -90,6 +91,15 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		// Create a metric for the backup logical size
 		metric := setupHydratedMetric(timestamp, backupMetadata, metadata.BackupLogicalSize, float64(backup.LatestLogicalBackupSize))
 		metrics = append(metrics, metric)
+
+		// skip billing for cross region backups if the feature flag is disabled
+		if !config.EnableCrossRegionBackupBillingMetrics {
+			if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
+				logger.Debug("Skipping BackupLogicalSize billing metric for cross-region backup", "backupUUID", backup.UUID)
+				continue
+			}
+		}
+
 		// Get account identifier from backup attributes
 		accountName := ""
 		if backup.Attributes != nil {
