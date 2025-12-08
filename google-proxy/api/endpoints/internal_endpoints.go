@@ -413,6 +413,9 @@ func prepareUpdateVolumeReplicationInternalParams(req *gcpgenserver.VolumeReplic
 	if req.Labels.IsSet() {
 		param.Labels = convertLabelsMapToJSONB(req.Labels.Value)
 	}
+	if req.ClusterLocation.IsSet() {
+		param.ClusterLocation = &req.ClusterLocation.Value
+	}
 	return param
 }
 

@@ -78,6 +78,26 @@ func TestGetSrcBasePathUpdate(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 	})
+	t.Run("WhenSourceLocationIsRemoteRegionCustomer", func(tt *testing.T) {
+		result := &replication.UpdateReplicationResult{
+			Event: &replication.UpdateReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation: RemoteRegionCustomer,
+						},
+					},
+				},
+			},
+		}
+		activity := VolumeReplicationUpdateActivity{}
+
+		updatedResult, err := activity.GetSrcBasePathUpdate(context.Background(), result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Nil(tt, updatedResult.SrcBasePath)
+	})
 }
 
 func TestGetDstBasePathUpdate(t *testing.T) {
@@ -143,6 +163,26 @@ func TestGetDstBasePathUpdate(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
+	})
+	t.Run("WhenDestinationLocationIsRemoteRegionCustomer", func(tt *testing.T) {
+		result := &replication.UpdateReplicationResult{
+			Event: &replication.UpdateReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation: RemoteRegionCustomer,
+						},
+					},
+				},
+			},
+		}
+		activity := VolumeReplicationUpdateActivity{}
+
+		updatedResult, err := activity.GetDstBasePathUpdate(context.Background(), result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Nil(tt, updatedResult.DstBasePath)
 	})
 }
 
@@ -681,6 +721,64 @@ func TestUpdateReplicationOnDestination(t *testing.T) {
 			Description:         googleproxyclient.NewOptNilString(nillable.GetString(inputResult.Event.Description, "")),
 			ReplicationSchedule: googleproxyclient.NewOptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule(convertReplicationScheduleToInternalUpdateReplicationSchedule(*inputResult.Event.ReplicationSchedule)),
 			Labels:              googleproxyclient.NewOptVolumeReplicationUpdateInternalV1betaLabels(inputResult.Event.Labels),
+		}
+		if inputResult.Event.ClusterLocation != nil {
+			req.ClusterLocation = googleproxyclient.NewOptString(*inputResult.Event.ClusterLocation)
+		}
+		mockClient.EXPECT().V1betaInternalUpdateVolumeReplication(ctx, req, *updateReplicationParams).Return(res, nil)
+		activity := VolumeReplicationUpdateActivity{SE: mockStorage}
+		result, err := activity.UpdateReplicationOnDestination(context.Background(), inputResult)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, *result.JobId, "job-uuid")
+	})
+	t.Run("WhenClusterLocationProvided", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		clusterLocation := "us-west1"
+		inputResult := &replication.UpdateReplicationResult{
+			DstBasePath:      nillable.GetStringPtr("dstPath"),
+			DstProjectNumber: nillable.GetStringPtr("projDst"),
+			DstJwtToken:      nillable.GetStringPtr("dstToken"),
+			Event: &replication.UpdateReplicationEvent{
+				Description:         nillable.GetStringPtr("description"),
+				ReplicationSchedule: nillable.GetStringPtr("HOURLY"),
+				ClusterLocation:     &clusterLocation,
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("correlationId"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		updateReplicationParams := &googleproxyclient.V1betaInternalUpdateVolumeReplicationParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.Event.XCorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		res := &googleproxyclient.VolumeReplicationInternalV1beta{
+			Jobs: []googleproxyclient.JobV1beta{
+				{
+					JobId: googleproxyclient.OptString{Value: "job-uuid", Set: true},
+				},
+			},
+		}
+		req := &googleproxyclient.VolumeReplicationUpdateInternalV1beta{
+			Description:         googleproxyclient.NewOptNilString(nillable.GetString(inputResult.Event.Description, "")),
+			ReplicationSchedule: googleproxyclient.NewOptNilVolumeReplicationUpdateInternalV1betaReplicationSchedule(convertReplicationScheduleToInternalUpdateReplicationSchedule(*inputResult.Event.ReplicationSchedule)),
+			ClusterLocation:     googleproxyclient.NewOptString(*inputResult.Event.ClusterLocation),
 		}
 		mockClient.EXPECT().V1betaInternalUpdateVolumeReplication(ctx, req, *updateReplicationParams).Return(res, nil)
 		activity := VolumeReplicationUpdateActivity{SE: mockStorage}

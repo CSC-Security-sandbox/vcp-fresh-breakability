@@ -1462,6 +1462,7 @@ func _updateReplication(ctx context.Context, se database.Storage, temporal clien
 		ReplicationSchedule: params.ReplicationSchedule,
 		Description:         params.Description,
 		Labels:              params.Labels,
+		ClusterLocation:     params.ClusterLocation,
 	}
 
 	if params.Zone != "" {

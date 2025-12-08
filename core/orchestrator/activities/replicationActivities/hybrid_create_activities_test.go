@@ -2682,8 +2682,8 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 		activity := HybridReplicationActivity{SE: mockStorage}
 
 		volumeReplication := &datamodel.VolumeReplication{
-			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-uuid"},
-			Name:                        "test-replication",
+			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
+			Name:      "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				// Empty attributes
 			},
@@ -5275,7 +5275,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 			DestinationRegion:        "us-central1",
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ResourceID:          "test-replication-id",
-				ReplicationType:     models.HybridReplicationParametersReplicationTypeCONTINUOUS,
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "hourly",
 				PeerSvmName:         "peer-svm",
 				PeerClusterName:     "peer-cluster",
@@ -5317,7 +5317,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 				replication.AccountID == 123 &&
 				replication.VolumeID == 456 &&
 				replAttrs.EndpointType == database.VolumeReplicationEndpointTypeDestination &&
-				replAttrs.ReplicationType == string(models.HybridReplicationParametersReplicationTypeCONTINUOUS) &&
+				replAttrs.ReplicationType == ReplicationTypeExternalDisasterRecovery &&
 				replAttrs.ReplicationSchedule == "hourly" &&
 				replAttrs.SourceSvmName == "peer-svm" &&
 				replAttrs.SourceHostName == "peer-cluster" &&
@@ -5330,7 +5330,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 				replAttrs.DestinationSvmName == "test-svm" &&
 				hybridAttrs.Status == models.HybridReplicationStatusPendingClusterPeer &&
 				hybridAttrs.HybridReplicationType != nil &&
-				*hybridAttrs.HybridReplicationType == string(models.HybridReplicationParametersReplicationTypeCONTINUOUS) &&
+				*hybridAttrs.HybridReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM) &&
 				hybridAttrs.Description == "test description" &&
 				hybridAttrs.PeerVolumeName == "peer-volume" &&
 				hybridAttrs.PeerSvmName == "peer-svm" &&

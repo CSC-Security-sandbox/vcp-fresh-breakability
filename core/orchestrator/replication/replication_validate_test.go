@@ -4598,6 +4598,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 
 		event1 := *event
 		event1.Description = nillable.ToPointer("New description")
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{}
 		_, err := _validateReplicationUpdate(ctx, &event1)
 		assert.Error(tt, err)
 	})
@@ -4650,6 +4651,228 @@ func TestValidateReplicationUpdate(t *testing.T) {
 			return dstReplication, nil
 		}
 		resp, err := _validateReplicationUpdate(ctx, event)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+	t.Run("WhenHybridReplicationTypeIsReverseOnPremReplication", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		reverseOnPremType := string(models.HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION)
+		event1 := *event
+		event1.Description = nillable.ToPointer("New description")
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			HybridReplicationType: &reverseOnPremType,
+		}
+		_, err := _validateReplicationUpdate(ctx, &event1)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err), "Expected a UserInputValidationErr")
+		assert.Equal(tt, "These fields cannot be updated when Hybrid Replication is Externally Managed", err.Error())
+	})
+	t.Run("WhenHybridReplicationStatusIsPendingReverseResume", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		event1 := *event
+		event1.Description = nillable.ToPointer("New description")
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			Status: coreModels.HybridReplicationStatusPendingRemoteResync,
+		}
+		_, err := _validateReplicationUpdate(ctx, &event1)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err), "Expected a UserInputValidationErr")
+		assert.Equal(tt, "Hybrid Replication can not be updated in the transition state - PENDING_REMOTE_RESYNC", err.Error())
+	})
+	t.Run("WhenHybridReplicationStatusIsPendingSVMPeer", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		event1 := *event
+		event1.Description = nillable.ToPointer("New description")
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			Status: coreModels.HybridReplicationStatusPendingSVMPeer,
+		}
+		_, err := _validateReplicationUpdate(ctx, &event1)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err), "Expected a UserInputValidationErr")
+		assert.Equal(tt, "Hybrid Replication can not be updated in the transition state - PENDING_SVM_PEER", err.Error())
+	})
+	t.Run("WhenHybridReplicationStatusIsPendingClusterPeer", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		event1 := *event
+		event1.Description = nillable.ToPointer("New description")
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+		}
+		_, err := _validateReplicationUpdate(ctx, &event1)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err), "Expected a UserInputValidationErr")
+		assert.Equal(tt, "Hybrid Replication can not be updated in the transition state - PENDING_CLUSTER_PEER", err.Error())
+	})
+	t.Run("WhenHybridReplicationTypeIsMIGRATIONAndScheduleIsNotHourly", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		event1 := *event
+		event1.ReplicationSchedule = nillable.ToPointer(models.ReplicationV1betaReplicationScheduleDAILY)
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			HybridReplicationType: &migrationType,
+		}
+		_, err := _validateReplicationUpdate(ctx, &event1)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err), "Expected a UserInputValidationErr")
+		assert.Equal(tt, "Invalid replication schedule provided.", err.Error())
+	})
+	t.Run("WhenHybridReplicationTypeIsMIGRATIONAndScheduleIsEvery10Minutes", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		event1 := *event
+		event1.ReplicationSchedule = nillable.ToPointer(models.ReplicationV1betaReplicationScheduleEVERY10MINUTES)
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			HybridReplicationType: &migrationType,
+		}
+		_, err := _validateReplicationUpdate(ctx, &event1)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err), "Expected a UserInputValidationErr")
+		assert.Equal(tt, "Invalid replication schedule provided.", err.Error())
+	})
+	t.Run("WhenHybridReplicationTypeIsMIGRATIONAndScheduleIsHourly", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		mirrorState := "STOPPED"
+		relationshipStatus := "IDLE"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		event1 := *event
+		event1.ReplicationSchedule = nillable.ToPointer(models.ReplicationV1betaReplicationScheduleHOURLY)
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			HybridReplicationType: &migrationType,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		resp, err := _validateReplicationUpdate(ctx, &event1)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+	t.Run("WhenHybridReplicationTypeIsMIGRATIONAndScheduleIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		mirrorState := "STOPPED"
+		relationshipStatus := "IDLE"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		event1 := *event
+		event1.ReplicationSchedule = nil
+		event1.Description = nillable.ToPointer("New description")
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			HybridReplicationType: &migrationType,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		resp, err := _validateReplicationUpdate(ctx, &event1)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+	t.Run("WhenHybridReplicationTypeIsNotMIGRATION", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		continuousType := string(coreModels.HybridReplicationParametersReplicationTypeCONTINUOUS)
+		mirrorState := "STOPPED"
+		relationshipStatus := "IDLE"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		event1 := *event
+		event1.ReplicationSchedule = nillable.ToPointer(models.ReplicationV1betaReplicationScheduleDAILY)
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			HybridReplicationType: &continuousType,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		resp, err := _validateReplicationUpdate(ctx, &event1)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+	t.Run("WhenClusterLocationIsProvidedForNonHybridReplication", func(tt *testing.T) {
+		ctx := context.Background()
+		event1 := *event
+		event1.ClusterLocation = nillable.ToPointer("us-west1")
+		event1.ReplicationModel.HybridReplicationAttributes = nil
+		_, err := _validateReplicationUpdate(ctx, &event1)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err), "Expected a UserInputValidationErr")
+		assert.Equal(tt, "Cluster location is not supported for non-hybrid replication", err.Error())
+	})
+	t.Run("WhenClusterLocationIsProvidedForHybridReplication", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		mirrorState := "STOPPED"
+		relationshipStatus := "IDLE"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		event1 := *event
+		event1.ClusterLocation = nillable.ToPointer("us-west1")
+		event1.ReplicationModel.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{
+			HybridReplicationType: &migrationType,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		resp, err := _validateReplicationUpdate(ctx, &event1)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+	t.Run("WhenClusterLocationIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "STOPPED"
+		relationshipStatus := "IDLE"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		event1 := *event
+		event1.ClusterLocation = nil
+		event1.Description = nillable.ToPointer("New description")
+		event1.ReplicationModel.HybridReplicationAttributes = nil
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		resp, err := _validateReplicationUpdate(ctx, &event1)
 		assert.NoError(tt, err)
 		assert.Equal(tt, dstReplication, resp)
 	})

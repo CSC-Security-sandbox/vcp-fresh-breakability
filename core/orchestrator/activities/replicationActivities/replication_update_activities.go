@@ -17,6 +17,9 @@ type VolumeReplicationUpdateActivity struct {
 }
 
 func (a *VolumeReplicationUpdateActivity) GetSrcBasePathUpdate(ctx context.Context, result *replication.UpdateReplicationResult) (*replication.UpdateReplicationResult, error) {
+	if result.Event.ReplicationModel.ReplicationAttributes.SourceLocation == RemoteRegionCustomer {
+		return result, nil
+	}
 	srcBasePath, err := GetBasePath(ctx, result.Event.ReplicationModel.ReplicationAttributes.SourceLocation)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
@@ -26,6 +29,9 @@ func (a *VolumeReplicationUpdateActivity) GetSrcBasePathUpdate(ctx context.Conte
 }
 
 func (a *VolumeReplicationUpdateActivity) GetDstBasePathUpdate(ctx context.Context, result *replication.UpdateReplicationResult) (*replication.UpdateReplicationResult, error) {
+	if result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation == RemoteRegionCustomer {
+		return result, nil
+	}
 	dstBasePath, err := GetBasePath(ctx, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
@@ -76,6 +82,9 @@ func (a *VolumeReplicationUpdateActivity) UpdateReplicationOnDestination(ctx con
 	}
 	if result.Event.Labels != nil {
 		body.Labels = googleproxyclient.NewOptVolumeReplicationUpdateInternalV1betaLabels(result.Event.Labels)
+	}
+	if result.Event.ClusterLocation != nil {
+		body.ClusterLocation = googleproxyclient.NewOptString(*result.Event.ClusterLocation)
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalUpdateVolumeReplication(ctx, body, *updateReplicationParams)
 	if err != nil {

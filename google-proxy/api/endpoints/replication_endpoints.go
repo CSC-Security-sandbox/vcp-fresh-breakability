@@ -521,6 +521,9 @@ func (h Handler) V1betaUpdateReplication(ctx context.Context, req *gcpgenserver.
 	if req.Labels.IsSet() {
 		updateReplicationParams.Labels = req.Labels.Value
 	}
+	if req.ClusterLocation.IsSet() {
+		updateReplicationParams.ClusterLocation = nillable.ToPointer(req.ClusterLocation.Value)
+	}
 
 	volumeRep, jobUUID, err := h.Orchestrator.UpdateReplication(ctx, updateReplicationParams)
 	if err != nil {

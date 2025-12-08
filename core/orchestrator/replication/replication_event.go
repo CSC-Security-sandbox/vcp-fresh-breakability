@@ -134,6 +134,7 @@ type UpdateReplicationEvent struct {
 	ReplicationSchedule *string
 	Description         *string
 	Labels              map[string]string
+	ClusterLocation     *string
 }
 
 type ResumeReplicationResult struct {

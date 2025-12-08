@@ -25009,6 +25009,8 @@ type VolumeReplicationUpdateInternalV1beta struct {
 	// use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter
 	// or international character.
 	Labels OptVolumeReplicationUpdateInternalV1betaLabels `json:"labels"`
+	// Name of source cluster associated with the hybrid replication, display purposes only.
+	ClusterLocation OptString `json:"clusterLocation"`
 }
 
 // GetDescription returns the value of Description.
@@ -25026,6 +25028,11 @@ func (s *VolumeReplicationUpdateInternalV1beta) GetLabels() OptVolumeReplication
 	return s.Labels
 }
 
+// GetClusterLocation returns the value of ClusterLocation.
+func (s *VolumeReplicationUpdateInternalV1beta) GetClusterLocation() OptString {
+	return s.ClusterLocation
+}
+
 // SetDescription sets the value of Description.
 func (s *VolumeReplicationUpdateInternalV1beta) SetDescription(val OptNilString) {
 	s.Description = val
@@ -25039,6 +25046,11 @@ func (s *VolumeReplicationUpdateInternalV1beta) SetReplicationSchedule(val OptNi
 // SetLabels sets the value of Labels.
 func (s *VolumeReplicationUpdateInternalV1beta) SetLabels(val OptVolumeReplicationUpdateInternalV1betaLabels) {
 	s.Labels = val
+}
+
+// SetClusterLocation sets the value of ClusterLocation.
+func (s *VolumeReplicationUpdateInternalV1beta) SetClusterLocation(val OptString) {
+	s.ClusterLocation = val
 }
 
 // JSON dictionary of resource labels to allow linking of billing labels to a replication. Can

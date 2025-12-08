@@ -1105,6 +1105,32 @@ func TestV1betaUpdateVolumeReplicationInternal(t *testing.T) {
 		assert.IsType(tt, &gcpgenserver.V1betaInternalUpdateVolumeReplicationInternalServerError{}, resp)
 		assert.Equal(tt, "some error", resp.(*gcpgenserver.V1betaInternalUpdateVolumeReplicationInternalServerError).Message)
 	})
+
+	t.Run("WhenUpdateSuccessWithClusterLocation", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		req := &gcpgenserver.VolumeReplicationUpdateInternalV1beta{
+			Description:     gcpgenserver.NewOptNilString("desc"),
+			ClusterLocation: gcpgenserver.NewOptString("us-west1"),
+		}
+		params := gcpgenserver.V1betaInternalUpdateVolumeReplicationParams{
+			VolumeReplicationId: "rep-uuid",
+			ProjectNumber:       "proj-1",
+			XCorrelationID:      gcpgenserver.OptString{Value: "corr-id", Set: true},
+			LocationId:          "loc-1",
+		}
+		volumeReplication := &models.VolumeReplication{
+			BaseModel:             models.BaseModel{UUID: "rep-uuid"},
+			ReplicationAttributes: &models.ReplicationDetails{EndpointType: "dst"},
+		}
+		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}
+		mockOrchestrator.EXPECT().UpdateVolumeReplicationInternal(mock.Anything, mock.Anything).Return(volumeReplication, job, nil)
+
+		resp, err := handler.V1betaInternalUpdateVolumeReplication(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+	})
 }
 
 func TestV1betaInternalDescribeVolume(t *testing.T) {

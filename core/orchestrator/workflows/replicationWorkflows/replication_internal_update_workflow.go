@@ -114,5 +114,11 @@ func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, arg
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	// Update cluster peering cluster location if provided
+	err = workflow.ExecuteActivity(ctx, replicationUpdateActivity.UpdateClusterPeeringClusterLocation, params, replication).Get(ctx, nil)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	return nil, workflows.ConvertToVSAError(err)
 }

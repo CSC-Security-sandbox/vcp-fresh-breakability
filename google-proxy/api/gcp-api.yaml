@@ -7306,6 +7306,14 @@ components:
             All characters must use UTF-8 encoding, and international characters are allowed.
             Must start with a lowercase letter or international character.
           example: { "some-key": "some-value", "some-key2": "some-value2" }
+        clusterLocation:
+          title: clusterLocation
+          type: string
+          description: Name of source cluster associated with the hybrid replication, display purposes only
+          x-nullable: true
+          x-omitempty: true
+          maxLength: 2048
+          example: us-east1
     VolumeReplicationUpdateStateInternal_v1beta:
       title: VolumeReplicationUpdateStateInternal
       type: object

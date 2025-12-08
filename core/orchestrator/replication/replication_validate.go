@@ -872,7 +872,7 @@ func _verifyDstReplicationReverse(ctx context.Context, event *ReverseReplication
 func _validateReplicationUpdate(ctx context.Context, event *UpdateReplicationEvent) (*coreModels.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 
-	if event.ReplicationSchedule == nil && event.Description == nil && event.Labels == nil {
+	if event.ReplicationSchedule == nil && event.Description == nil && event.Labels == nil && event.ClusterLocation == nil {
 		logger.Error("empty replication update payload")
 		return nil, errors.NewVCPError(errors.ErrorEmptyUpdateReplicationPayload, errors.New("empty replication update payload"))
 	}
@@ -880,6 +880,30 @@ func _validateReplicationUpdate(ctx context.Context, event *UpdateReplicationEve
 	if event.ReplicationSchedule != nil && *event.ReplicationSchedule == models.ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED {
 		logger.Error("replicationSchedule is UNSPECIFIED for update replication")
 		return nil, errors.NewVCPError(errors.ErrorReplicationScheduleUnspecified, errors.New("Invalid replication schedule provided."))
+	}
+
+	// Check if clusterLocation is provided for non-hybrid replication
+	if event.ClusterLocation != nil && event.ReplicationModel.HybridReplicationAttributes == nil {
+		logger.Error("Cluster location is not supported for non-hybrid replication")
+		return nil, utilErrors.NewUserInputValidationErr("Cluster location is not supported for non-hybrid replication")
+	}
+
+	if event.ReplicationModel.HybridReplicationAttributes != nil {
+		if nillable.GetString(event.ReplicationModel.HybridReplicationAttributes.HybridReplicationType, "") == string(models.HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION) {
+			logger.Error("Update is not allowed when Hybrid Replication is externally managed")
+			return nil, utilErrors.NewUserInputValidationErr("These fields cannot be updated when Hybrid Replication is Externally Managed")
+		}
+		if event.ReplicationModel.HybridReplicationAttributes.Status == coreModels.HybridReplicationStatusPendingRemoteResync || event.ReplicationModel.HybridReplicationAttributes.Status == coreModels.HybridReplicationStatusPendingSVMPeer || event.ReplicationModel.HybridReplicationAttributes.Status == coreModels.HybridReplicationStatusPendingClusterPeer {
+			logger.Error("Hybrid Replication can not be updated in transition state")
+			return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Hybrid Replication can not be updated in the transition state - %s", event.ReplicationModel.HybridReplicationAttributes.Status))
+		}
+		// Check if replication schedule is hourly for hybrid rep type migration
+		if nillable.GetString(event.ReplicationModel.HybridReplicationAttributes.HybridReplicationType, "") == string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION) {
+			if event.ReplicationSchedule != nil && *event.ReplicationSchedule != models.ReplicationV1betaReplicationScheduleHOURLY {
+				logger.Error("Invalid replication schedule for hybrid rep type migration - must be hourly")
+				return nil, utilErrors.NewUserInputValidationErr("Invalid replication schedule provided.")
+			}
+		}
 	}
 
 	if event.Labels != nil {

@@ -60716,12 +60716,19 @@ func (s *VolumeReplicationUpdateInternalV1beta) encodeFields(e *jx.Encoder) {
 			s.Labels.Encode(e)
 		}
 	}
+	{
+		if s.ClusterLocation.Set {
+			e.FieldStart("clusterLocation")
+			s.ClusterLocation.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfVolumeReplicationUpdateInternalV1beta = [3]string{
+var jsonFieldsNameOfVolumeReplicationUpdateInternalV1beta = [4]string{
 	0: "description",
 	1: "replicationSchedule",
 	2: "labels",
+	3: "clusterLocation",
 }
 
 // Decode decodes VolumeReplicationUpdateInternalV1beta from json.
@@ -60761,6 +60768,16 @@ func (s *VolumeReplicationUpdateInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"labels\"")
+			}
+		case "clusterLocation":
+			if err := func() error {
+				s.ClusterLocation.Reset()
+				if err := s.ClusterLocation.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"clusterLocation\"")
 			}
 		default:
 			return d.Skip()

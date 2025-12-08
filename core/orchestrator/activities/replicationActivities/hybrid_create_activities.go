@@ -42,6 +42,8 @@ const (
 	accessReadOnly                           = "readonly"
 	defaultPath                              = "DEFAULT"
 	RemoteRegionCustomer                     = "customer"
+	ReplicationTypeExternalMigration         = "ExternalMigration"
+	ReplicationTypeExternalDisasterRecovery  = "ExternalDisasterRecovery"
 )
 
 var defaultNoneRolePrivilege = []*vsa.RolePrivilege{
@@ -261,12 +263,16 @@ func (a *HybridReplicationActivity) CreateLocalHybridReplicationRow(ctx context.
 		logger.Debugf("No existing volume replication found for URI: %s", ccfeReplicationUri)
 	}
 
+	replicationType := ReplicationTypeExternalMigration
+	if result.HybridReplicationParameters.ReplicationType == models.HybridReplicationParametersReplicationTypeONPREM {
+		replicationType = ReplicationTypeExternalDisasterRecovery
+	}
 	mirrorState := models.OntapUninitialized
 	emptyUUID := uuid.UUID{}.String()
 	// Create replication attributes
 	replicationAttributes := &datamodel.ReplicationDetails{
 		EndpointType:               VolumeReplicationEndpointTypeDestination,
-		ReplicationType:            string(result.HybridReplicationParameters.ReplicationType),
+		ReplicationType:            replicationType,
 		ReplicationSchedule:        result.HybridReplicationParameters.ReplicationSchedule,
 		SourcePoolUUID:             emptyUUID,
 		SourceVolumeUUID:           emptyUUID,

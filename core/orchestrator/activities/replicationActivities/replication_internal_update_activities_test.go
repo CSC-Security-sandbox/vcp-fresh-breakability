@@ -2,14 +2,17 @@ package replicationActivities
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -94,4 +97,79 @@ func TestUpdateVolumeReplicationInternal_WhenSuccess_ReturnsUpdatedReplication(t
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResponse, res)
 	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateClusterPeeringClusterLocation(t *testing.T) {
+	t.Run("WhenClusterLocationIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := InternalVolumeReplicationUpdateActivity{SE: mockStorage}
+		params := &common.UpdateVolumeReplicationInternalParams{
+			ClusterLocation: nil,
+		}
+		replication := &datamodel.VolumeReplication{
+			ClusterPeerId: sql.NullInt64{Int64: 1, Valid: true},
+		}
+		err := activity.UpdateClusterPeeringClusterLocation(ctx, params, replication)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenClusterPeerIdIsNotValid", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := InternalVolumeReplicationUpdateActivity{SE: mockStorage}
+		clusterLocation := "us-west1"
+		params := &common.UpdateVolumeReplicationInternalParams{
+			ClusterLocation: &clusterLocation,
+		}
+		replication := &datamodel.VolumeReplication{
+			ClusterPeerId: sql.NullInt64{Valid: false},
+		}
+		err := activity.UpdateClusterPeeringClusterLocation(ctx, params, replication)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenClusterPeerIsLoaded", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := InternalVolumeReplicationUpdateActivity{SE: mockStorage}
+		clusterLocation := "us-west1"
+		params := &common.UpdateVolumeReplicationInternalParams{
+			ClusterLocation: &clusterLocation,
+		}
+		clusterPeer := &datamodel.ClusterPeerings{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			ClusterPeeringAttributes: &datamodel.ClusterPeeringAttributes{
+				PassPhrase: nillable.GetStringPtr("passphrase"),
+			},
+		}
+		replication := &datamodel.VolumeReplication{
+			ClusterPeerId: sql.NullInt64{Int64: 1, Valid: true},
+			ClusterPeer:   clusterPeer,
+		}
+		mockStorage.On("UpdateClusterPeeringRow", ctx, mock.MatchedBy(func(cp *datamodel.ClusterPeerings) bool {
+			return cp.ID == 1 && cp.ClusterPeeringAttributes != nil && cp.ClusterPeeringAttributes.ClusterLocation != nil && *cp.ClusterPeeringAttributes.ClusterLocation == clusterLocation
+		})).Return(nil)
+		err := activity.UpdateClusterPeeringClusterLocation(ctx, params, replication)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenUpdateClusterPeeringRowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := InternalVolumeReplicationUpdateActivity{SE: mockStorage}
+		clusterLocation := "us-west1"
+		params := &common.UpdateVolumeReplicationInternalParams{
+			ClusterLocation: &clusterLocation,
+		}
+		replication := &datamodel.VolumeReplication{
+			ClusterPeerId: sql.NullInt64{Int64: 1, Valid: true},
+			ClusterPeer:   &datamodel.ClusterPeerings{},
+		}
+		expectedError := errors.New("database error")
+		mockStorage.On("UpdateClusterPeeringRow", ctx, mock.Anything).Return(expectedError)
+		err := activity.UpdateClusterPeeringClusterLocation(ctx, params, replication)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
 }

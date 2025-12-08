@@ -13758,6 +13758,11 @@ func (s *VolumeReplicationUpdateInternalV1beta) SetFake() {
 			s.Labels.SetFake()
 		}
 	}
+	{
+		{
+			s.ClusterLocation.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

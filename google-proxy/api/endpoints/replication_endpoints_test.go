@@ -1947,6 +1947,45 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Code)
 		assert.Equal(tt, "Update replication payload is empty", result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Message)
 	})
+	t.Run("WhenUpdateReplicationSucceedsWithClusterLocation", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationUpdateV1beta{
+			Description:     gcpgenserver.NewOptString("new description"),
+			ClusterLocation: gcpgenserver.NewOptString("us-west1"),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+			return &gcpgenserver.ReplicationV1beta{}
+		}
+
+		repResponse := &models2.VolumeReplication{
+			State: models2.LifeCycleStateUpdating,
+		}
+
+		mockOrchestrator.On("UpdateReplication", mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
+
+		result, err := handler.V1betaUpdateReplication(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
 }
 
 func TestV1betaReverseAndResumeReplication(t *testing.T) {

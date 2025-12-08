@@ -1,6 +1,7 @@
 package replicationWorkflows
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
@@ -40,6 +41,7 @@ func TestUpdateInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(internalVolumeUpdateReplicationActivity.UpdateVolumeReplicationOntap)
 		env.RegisterActivity(internalVolumeReplicationActivity.UpdateVolumeReplicationDetails)
+		env.RegisterActivity(internalVolumeUpdateReplicationActivity.UpdateClusterPeeringClusterLocation)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		account := &datamodel.Account{
@@ -110,6 +112,105 @@ func TestUpdateInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("UpdateVolumeReplicationOntap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(replicationUpdateResponseONTAP, nil)
 		env.OnActivity("UpdateVolumeReplicationDetails", mock.Anything, replicationDb, replicationUpdateResponseONTAP, params).Return(nil)
+		env.OnActivity("UpdateClusterPeeringClusterLocation", mock.Anything, params, replicationDb).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.ExecuteWorkflow(UpdateInternalVolumeReplicationWorkflow, params, replicationDb)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		assert.Nil(tt, err)
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+	t.Run("TestUpdateInternalVolumeReplicationWorkflowWithClusterLocation", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		internalVolumeReplicationActivity := replicationActivities.InternalVolumeReplicationActivity{SE: mockStorage}
+		internalVolumeUpdateReplicationActivity := replicationActivities.InternalVolumeReplicationUpdateActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(internalVolumeUpdateReplicationActivity.UpdateVolumeReplicationOntap)
+		env.RegisterActivity(internalVolumeReplicationActivity.UpdateVolumeReplicationDetails)
+		env.RegisterActivity(internalVolumeUpdateReplicationActivity.UpdateClusterPeeringClusterLocation)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "test-account",
+		}
+		volume := &datamodel.Volume{
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				}},
+			Svm:              &datamodel.Svm{Name: "svm_test"},
+			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		}
+		clusterLocation := "us-west1"
+		params := &commonparams.UpdateVolumeReplicationInternalParams{
+			VolumeReplicationUuid: "test-replication-uuid",
+			ClusterLocation:        &clusterLocation,
+		}
+
+		volumeReplication := &models.VolumeReplication{
+			Account: &models.Account{
+				BaseModel: models.BaseModel{
+					ID: 1,
+				},
+				Name: "test-account",
+			},
+			Name: "test-replication",
+			ReplicationAttributes: &models.ReplicationDetails{
+				DestinationVolumeUUID: "test-volume-uuid",
+			},
+			Volume: &models.Volume{
+				BaseModel: models.BaseModel{
+					ID: 1,
+				},
+			},
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			Name: volumeReplication.Name,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeUUID: volumeReplication.ReplicationAttributes.DestinationVolumeUUID,
+			},
+			AccountID:     account.ID,
+			Account:       account,
+			VolumeID:      volumeReplication.VolumeID,
+			Volume:        volume,
+			ClusterPeerId: sql.NullInt64{Int64: 1, Valid: true},
+		}
+		replicationUpdateResponseONTAP := &vsa.VolumeReplication{
+			RelationshipID:        "test-relationship-id-123",
+			ReplicationSchedule:   "hourly",
+			MirrorState:           "snapmirrored",
+			RelationshipStatus:    "idle",
+			TotalTransferBytes:    1024000,
+			TotalTransferTimeSecs: 3600,
+			LastTransferSize:      512000,
+			LastTransferError:     "",
+			LastTransferDuration:  1800,
+			LastTransferEndTime:   &time.Time{},
+			LagTime:               300,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("UpdateVolumeReplicationOntap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(replicationUpdateResponseONTAP, nil)
+		env.OnActivity("UpdateVolumeReplicationDetails", mock.Anything, replicationDb, replicationUpdateResponseONTAP, params).Return(nil)
+		env.OnActivity("UpdateClusterPeeringClusterLocation", mock.Anything, params, replicationDb).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(UpdateInternalVolumeReplicationWorkflow, params, replicationDb)
 
