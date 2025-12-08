@@ -6143,6 +6143,104 @@ func (s *ChildAssetV2) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *CloneDetailsV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CloneDetailsV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.ParentVolumeId.Set {
+			e.FieldStart("parentVolumeId")
+			s.ParentVolumeId.Encode(e)
+		}
+	}
+	{
+		if s.ParentSnapshotId.Set {
+			e.FieldStart("parentSnapshotId")
+			s.ParentSnapshotId.Encode(e)
+		}
+	}
+	{
+		if s.SharedBytes.Set {
+			e.FieldStart("sharedBytes")
+			s.SharedBytes.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfCloneDetailsV1beta = [3]string{
+	0: "parentVolumeId",
+	1: "parentSnapshotId",
+	2: "sharedBytes",
+}
+
+// Decode decodes CloneDetailsV1beta from json.
+func (s *CloneDetailsV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CloneDetailsV1beta to nil")
+	}
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "parentVolumeId":
+			if err := func() error {
+				s.ParentVolumeId.Reset()
+				if err := s.ParentVolumeId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"parentVolumeId\"")
+			}
+		case "parentSnapshotId":
+			if err := func() error {
+				s.ParentSnapshotId.Reset()
+				if err := s.ParentSnapshotId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"parentSnapshotId\"")
+			}
+		case "sharedBytes":
+			if err := func() error {
+				s.SharedBytes.Reset()
+				if err := s.SharedBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sharedBytes\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CloneDetailsV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CloneDetailsV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CloneDetailsV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *ClusterPeerV1) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -13934,6 +14032,39 @@ func (s OptBool) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptBool) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CloneDetailsV1beta as json.
+func (o OptCloneDetailsV1beta) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CloneDetailsV1beta from json.
+func (o *OptCloneDetailsV1beta) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptCloneDetailsV1beta to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptCloneDetailsV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptCloneDetailsV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -58054,22 +58185,15 @@ func (s *VolumeCreateV1beta) encodeFields(e *jx.Encoder) {
 			s.HybridReplicationParameters.Encode(e)
 		}
 	}
-	{
-		if s.IsClone.Set {
-			e.FieldStart("isClone")
-			s.IsClone.Encode(e)
-		}
-	}
 }
 
-var jsonFieldsNameOfVolumeCreateV1beta = [7]string{
+var jsonFieldsNameOfVolumeCreateV1beta = [6]string{
 	0: "volume",
 	1: "snapshotId",
 	2: "backupId",
 	3: "backupPath",
 	4: "volumeType",
 	5: "hybridReplicationParameters",
-	6: "isClone",
 }
 
 // Decode decodes VolumeCreateV1beta from json.
@@ -58140,16 +58264,6 @@ func (s *VolumeCreateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"hybridReplicationParameters\"")
-			}
-		case "isClone":
-			if err := func() error {
-				s.IsClone.Reset()
-				if err := s.IsClone.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"isClone\"")
 			}
 		default:
 			return d.Skip()
@@ -61434,12 +61548,6 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.IncrementalSpaceInBytes.Set {
-			e.FieldStart("incrementalSpaceInBytes")
-			s.IncrementalSpaceInBytes.Encode(e)
-		}
-	}
-	{
 		if s.LargeCapacity.Set {
 			e.FieldStart("largeCapacity")
 			s.LargeCapacity.Encode(e)
@@ -61453,7 +61561,7 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeUpdateV1beta = [21]string{
+var jsonFieldsNameOfVolumeUpdateV1beta = [20]string{
 	0:  "quotaInBytes",
 	1:  "snapReserve",
 	2:  "snapshotDirectory",
@@ -61472,9 +61580,8 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [21]string{
 	15: "poolId",
 	16: "description",
 	17: "cacheParameters",
-	18: "incrementalSpaceInBytes",
-	19: "largeCapacity",
-	20: "largeVolumeConstituentCount",
+	18: "largeCapacity",
+	19: "largeVolumeConstituentCount",
 }
 
 // Decode decodes VolumeUpdateV1beta from json.
@@ -61676,16 +61783,6 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cacheParameters\"")
-			}
-		case "incrementalSpaceInBytes":
-			if err := func() error {
-				s.IncrementalSpaceInBytes.Reset()
-				if err := s.IncrementalSpaceInBytes.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"incrementalSpaceInBytes\"")
 			}
 		case "largeCapacity":
 			if err := func() error {
@@ -62103,26 +62200,14 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.IsClone.Set {
-			e.FieldStart("isClone")
-			s.IsClone.Encode(e)
-		}
-	}
-	{
-		if s.CloneSharedBytes.Set {
-			e.FieldStart("cloneSharedBytes")
-			s.CloneSharedBytes.Encode(e)
-		}
-	}
-	{
-		if s.IncrementalSpaceInBytes.Set {
-			e.FieldStart("incrementalSpaceInBytes")
-			s.IncrementalSpaceInBytes.Encode(e)
+		if s.CloneDetails.Set {
+			e.FieldStart("cloneDetails")
+			s.CloneDetails.Encode(e)
 		}
 	}
 }
 
-var jsonFieldsNameOfVolumeV1beta = [53]string{
+var jsonFieldsNameOfVolumeV1beta = [51]string{
 	0:  "resourceId",
 	1:  "volumeId",
 	2:  "created",
@@ -62173,9 +62258,7 @@ var jsonFieldsNameOfVolumeV1beta = [53]string{
 	47: "largeVolumeConstituentCount",
 	48: "cacheParameters",
 	49: "hotTierSizeGib",
-	50: "isClone",
-	51: "cloneSharedBytes",
-	52: "incrementalSpaceInBytes",
+	50: "cloneDetails",
 }
 
 // Decode decodes VolumeV1beta from json.
@@ -62710,35 +62793,15 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"hotTierSizeGib\"")
 			}
-		case "isClone":
+		case "cloneDetails":
 			if err := func() error {
-				s.IsClone.Reset()
-				if err := s.IsClone.Decode(d); err != nil {
+				s.CloneDetails.Reset()
+				if err := s.CloneDetails.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"isClone\"")
-			}
-		case "cloneSharedBytes":
-			if err := func() error {
-				s.CloneSharedBytes.Reset()
-				if err := s.CloneSharedBytes.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"cloneSharedBytes\"")
-			}
-		case "incrementalSpaceInBytes":
-			if err := func() error {
-				s.IncrementalSpaceInBytes.Reset()
-				if err := s.IncrementalSpaceInBytes.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"incrementalSpaceInBytes\"")
+				return errors.Wrap(err, "decode field \"cloneDetails\"")
 			}
 		default:
 			return d.Skip()

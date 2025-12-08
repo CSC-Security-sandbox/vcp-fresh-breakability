@@ -633,9 +633,6 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 	if params.SnapshotDirectoryAccess != nil && response.SnapshotDirectoryAccessEnabled != *params.SnapshotDirectoryAccess {
 		return true
 	}
-	if params.IncrementalSpaceInBytes != 0 {
-		return true
-	}
 
 	if params.AutoTieringPolicy != nil {
 		if params.AutoTieringPolicy.AutoTieringEnabled != existingVolume.AutoTieringEnabled ||

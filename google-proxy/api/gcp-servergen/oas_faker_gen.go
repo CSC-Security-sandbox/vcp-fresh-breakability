@@ -1344,6 +1344,25 @@ func (s *ChildAssetV2) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *CloneDetailsV1beta) SetFake() {
+	{
+		{
+			s.ParentVolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.ParentSnapshotId.SetFake()
+		}
+	}
+	{
+		{
+			s.SharedBytes.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *ClusterPeerV1) SetFake() {
 	{
 		{
@@ -3028,6 +3047,15 @@ func (s *OptBool) SetFake() {
 	var elem bool
 	{
 		elem = true
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptCloneDetailsV1beta) SetFake() {
+	var elem CloneDetailsV1beta
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -13194,11 +13222,6 @@ func (s *VolumeCreateV1beta) SetFake() {
 			s.HybridReplicationParameters.SetFake()
 		}
 	}
-	{
-		{
-			s.IsClone.SetFake()
-		}
-	}
 }
 
 // SetFake set fake values.
@@ -13940,11 +13963,6 @@ func (s *VolumeUpdateV1beta) SetFake() {
 	}
 	{
 		{
-			s.IncrementalSpaceInBytes.SetFake()
-		}
-	}
-	{
-		{
 			s.LargeCapacity.SetFake()
 		}
 	}
@@ -14241,17 +14259,7 @@ func (s *VolumeV1beta) SetFake() {
 	}
 	{
 		{
-			s.IsClone.SetFake()
-		}
-	}
-	{
-		{
-			s.CloneSharedBytes.SetFake()
-		}
-	}
-	{
-		{
-			s.IncrementalSpaceInBytes.SetFake()
+			s.CloneDetails.SetFake()
 		}
 	}
 }

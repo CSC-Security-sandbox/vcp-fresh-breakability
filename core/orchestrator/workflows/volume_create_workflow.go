@@ -789,13 +789,6 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
-	if isRestoreSnapshot && thinCloneGASupport && !createVolumeParams.IsClone {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-	}
-
 	if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" {
 		if !env.IsLocalEnv() {
 			var token string

@@ -3363,6 +3363,46 @@ func (s *ChildAssetV2) SetAssetNames(val []string) {
 	s.AssetNames = val
 }
 
+// Ref: #/components/schemas/CloneDetails_v1beta
+type CloneDetailsV1beta struct {
+	// Uuid v4 of the parent volume of the clone.
+	ParentVolumeId OptString `json:"parentVolumeId"`
+	// Uuid v4 of the parent snapshot of the clone.
+	ParentSnapshotId OptString `json:"parentSnapshotId"`
+	// The amount of data (in bytes) shared from parent volume to this thin clone volume.
+	SharedBytes OptNilFloat64 `json:"sharedBytes"`
+}
+
+// GetParentVolumeId returns the value of ParentVolumeId.
+func (s *CloneDetailsV1beta) GetParentVolumeId() OptString {
+	return s.ParentVolumeId
+}
+
+// GetParentSnapshotId returns the value of ParentSnapshotId.
+func (s *CloneDetailsV1beta) GetParentSnapshotId() OptString {
+	return s.ParentSnapshotId
+}
+
+// GetSharedBytes returns the value of SharedBytes.
+func (s *CloneDetailsV1beta) GetSharedBytes() OptNilFloat64 {
+	return s.SharedBytes
+}
+
+// SetParentVolumeId sets the value of ParentVolumeId.
+func (s *CloneDetailsV1beta) SetParentVolumeId(val OptString) {
+	s.ParentVolumeId = val
+}
+
+// SetParentSnapshotId sets the value of ParentSnapshotId.
+func (s *CloneDetailsV1beta) SetParentSnapshotId(val OptString) {
+	s.ParentSnapshotId = val
+}
+
+// SetSharedBytes sets the value of SharedBytes.
+func (s *CloneDetailsV1beta) SetSharedBytes(val OptNilFloat64) {
+	s.SharedBytes = val
+}
+
 // Ref: #/components/schemas/ClusterPeer_v1
 type ClusterPeerV1 struct {
 	// Uuid v4 used to identify a resource.
@@ -8644,6 +8684,52 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCloneDetailsV1beta returns new OptCloneDetailsV1beta with value set to v.
+func NewOptCloneDetailsV1beta(v CloneDetailsV1beta) OptCloneDetailsV1beta {
+	return OptCloneDetailsV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCloneDetailsV1beta is optional CloneDetailsV1beta.
+type OptCloneDetailsV1beta struct {
+	Value CloneDetailsV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptCloneDetailsV1beta was set.
+func (o OptCloneDetailsV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCloneDetailsV1beta) Reset() {
+	var v CloneDetailsV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCloneDetailsV1beta) SetTo(v CloneDetailsV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCloneDetailsV1beta) Get() (v CloneDetailsV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCloneDetailsV1beta) Or(d CloneDetailsV1beta) CloneDetailsV1beta {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -22893,8 +22979,6 @@ type VolumeCreateV1beta struct {
 	// The type of the volume.
 	VolumeType                  OptVolumeCreateV1betaVolumeType      `json:"volumeType"`
 	HybridReplicationParameters OptHybridReplicationParametersV1beta `json:"hybridReplicationParameters"`
-	// Flag indicating if the volume to be created is a thin clone.
-	IsClone OptNilBool `json:"isClone"`
 }
 
 // GetVolume returns the value of Volume.
@@ -22927,11 +23011,6 @@ func (s *VolumeCreateV1beta) GetHybridReplicationParameters() OptHybridReplicati
 	return s.HybridReplicationParameters
 }
 
-// GetIsClone returns the value of IsClone.
-func (s *VolumeCreateV1beta) GetIsClone() OptNilBool {
-	return s.IsClone
-}
-
 // SetVolume sets the value of Volume.
 func (s *VolumeCreateV1beta) SetVolume(val VolumeV1beta) {
 	s.Volume = val
@@ -22960,11 +23039,6 @@ func (s *VolumeCreateV1beta) SetVolumeType(val OptVolumeCreateV1betaVolumeType) 
 // SetHybridReplicationParameters sets the value of HybridReplicationParameters.
 func (s *VolumeCreateV1beta) SetHybridReplicationParameters(val OptHybridReplicationParametersV1beta) {
 	s.HybridReplicationParameters = val
-}
-
-// SetIsClone sets the value of IsClone.
-func (s *VolumeCreateV1beta) SetIsClone(val OptNilBool) {
-	s.IsClone = val
 }
 
 // The type of the volume.
@@ -25272,8 +25346,6 @@ type VolumeUpdateV1beta struct {
 	// Description of the volume.
 	Description     OptNilString       `json:"description"`
 	CacheParameters OptFlexCacheV1beta `json:"cacheParameters"`
-	// Incremental space in bytes for a files clone volume.
-	IncrementalSpaceInBytes OptNilFloat64 `json:"incrementalSpaceInBytes"`
 	// Flag indicating if the volume will be a large capacity volume (flexgroup) or a regular volume
 	// (flexvol).
 	LargeCapacity OptNilBool `json:"largeCapacity"`
@@ -25369,11 +25441,6 @@ func (s *VolumeUpdateV1beta) GetDescription() OptNilString {
 // GetCacheParameters returns the value of CacheParameters.
 func (s *VolumeUpdateV1beta) GetCacheParameters() OptFlexCacheV1beta {
 	return s.CacheParameters
-}
-
-// GetIncrementalSpaceInBytes returns the value of IncrementalSpaceInBytes.
-func (s *VolumeUpdateV1beta) GetIncrementalSpaceInBytes() OptNilFloat64 {
-	return s.IncrementalSpaceInBytes
 }
 
 // GetLargeCapacity returns the value of LargeCapacity.
@@ -25474,11 +25541,6 @@ func (s *VolumeUpdateV1beta) SetDescription(val OptNilString) {
 // SetCacheParameters sets the value of CacheParameters.
 func (s *VolumeUpdateV1beta) SetCacheParameters(val OptFlexCacheV1beta) {
 	s.CacheParameters = val
-}
-
-// SetIncrementalSpaceInBytes sets the value of IncrementalSpaceInBytes.
-func (s *VolumeUpdateV1beta) SetIncrementalSpaceInBytes(val OptNilFloat64) {
-	s.IncrementalSpaceInBytes = val
 }
 
 // SetLargeCapacity sets the value of LargeCapacity.
@@ -25613,14 +25675,8 @@ type VolumeV1beta struct {
 	LargeVolumeConstituentCount OptNilInt32        `json:"largeVolumeConstituentCount"`
 	CacheParameters             OptFlexCacheV1beta `json:"cacheParameters"`
 	// Volume footprint in hot storage.
-	HotTierSizeGib OptNilFloat64 `json:"hotTierSizeGib"`
-	// Flag indicating if the volume is a thin clone of another volume.
-	IsClone OptBool `json:"isClone"`
-	// The amount of data (in bytes) shared from parent volume to this thin clone volume.
-	CloneSharedBytes OptNilFloat64 `json:"cloneSharedBytes"`
-	// The amount of data (in bytes) written to the thin clone volume that is not shared with the parent
-	// volume.
-	IncrementalSpaceInBytes OptNilFloat64 `json:"incrementalSpaceInBytes"`
+	HotTierSizeGib OptNilFloat64         `json:"hotTierSizeGib"`
+	CloneDetails   OptCloneDetailsV1beta `json:"cloneDetails"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -25873,19 +25929,9 @@ func (s *VolumeV1beta) GetHotTierSizeGib() OptNilFloat64 {
 	return s.HotTierSizeGib
 }
 
-// GetIsClone returns the value of IsClone.
-func (s *VolumeV1beta) GetIsClone() OptBool {
-	return s.IsClone
-}
-
-// GetCloneSharedBytes returns the value of CloneSharedBytes.
-func (s *VolumeV1beta) GetCloneSharedBytes() OptNilFloat64 {
-	return s.CloneSharedBytes
-}
-
-// GetIncrementalSpaceInBytes returns the value of IncrementalSpaceInBytes.
-func (s *VolumeV1beta) GetIncrementalSpaceInBytes() OptNilFloat64 {
-	return s.IncrementalSpaceInBytes
+// GetCloneDetails returns the value of CloneDetails.
+func (s *VolumeV1beta) GetCloneDetails() OptCloneDetailsV1beta {
+	return s.CloneDetails
 }
 
 // SetResourceId sets the value of ResourceId.
@@ -26138,19 +26184,9 @@ func (s *VolumeV1beta) SetHotTierSizeGib(val OptNilFloat64) {
 	s.HotTierSizeGib = val
 }
 
-// SetIsClone sets the value of IsClone.
-func (s *VolumeV1beta) SetIsClone(val OptBool) {
-	s.IsClone = val
-}
-
-// SetCloneSharedBytes sets the value of CloneSharedBytes.
-func (s *VolumeV1beta) SetCloneSharedBytes(val OptNilFloat64) {
-	s.CloneSharedBytes = val
-}
-
-// SetIncrementalSpaceInBytes sets the value of IncrementalSpaceInBytes.
-func (s *VolumeV1beta) SetIncrementalSpaceInBytes(val OptNilFloat64) {
-	s.IncrementalSpaceInBytes = val
+// SetCloneDetails sets the value of CloneDetails.
+func (s *VolumeV1beta) SetCloneDetails(val OptCloneDetailsV1beta) {
+	s.CloneDetails = val
 }
 
 func (*VolumeV1beta) v1betaDescribeVolumeRes() {}

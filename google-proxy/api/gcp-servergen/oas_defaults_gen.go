@@ -123,6 +123,14 @@ func (s *BackupV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *CloneDetailsV1beta) setDefaults() {
+	{
+		val := float64(0)
+		s.SharedBytes.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *DailyScheduleV1beta) setDefaults() {
 	{
 		val := float64(0)
@@ -463,14 +471,6 @@ func (s *VolumeV1beta) setDefaults() {
 	{
 		val := float64(0)
 		s.HotTierSizeGib.SetTo(val)
-	}
-	{
-		val := bool(false)
-		s.IsClone.SetTo(val)
-	}
-	{
-		val := float64(0)
-		s.CloneSharedBytes.SetTo(val)
 	}
 }
 

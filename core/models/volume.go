@@ -37,11 +37,10 @@ type Volume struct {
 	SvmName                     string
 	KmsConfig                   *KmsConfig
 	CacheParameters             *CacheParameters
-	IsClone                     bool
 	CloneSharedBytes            uint64
-	IncrementalSpaceInBytes     uint64
 	HotTierSizeGib              uint64
 	ColdTierSizeGib             uint64
+	CloneParentInfo             *CloneParentInfo
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume
@@ -122,4 +121,9 @@ type UpdateDataProtection struct {
 	BackupPolicyId         *string
 	BackupChainBytes       *int64
 	KmsGrant               *string
+}
+
+type CloneParentInfo struct {
+	ParentVolumeId   *string
+	ParentSnapshotId *string
 }

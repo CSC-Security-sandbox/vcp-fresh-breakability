@@ -1363,8 +1363,12 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 			activity.RecordHeartbeat(ctx, "Deleting clone snapshot")
 			_, err := a.SE.DeleteSnapshot(ctx, cloneSnapshot.UUID)
 			if err != nil {
-				logger.Warnf("Snapshot %s not found, assuming it is already deleted", cloneSnapshot.Name)
-				return nil
+				if errors.IsNotFoundErr(err) {
+					logger.Warnf("Snapshot %s not found, assuming it is already deleted", cloneSnapshot.Name)
+					return nil
+				}
+				logger.Errorf("Failed to delete snapshot after split operation %s: %v", cloneSnapshot.Name, err)
+				return vsaerrors.WrapAsTemporalApplicationError(err)
 			}
 
 			logger.Debugf("Snapshot %s (UUID: %s) marked as deleted successfully in the db", cloneSnapshot.Name, cloneSnapshot.UUID)

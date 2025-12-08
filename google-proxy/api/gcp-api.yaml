@@ -564,9 +564,10 @@ paths:
                 tieringPolicy:
                   tierAction: ENABLE
                   coolingThresholdDays: 40
-                isClone: true
-                cloneSharedBytes: 100000000000
-                incrementalSpaceInBytes: 10000000000
+                cloneDetails:
+                  parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                  parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                  sharedBytes: 100000000000
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -678,6 +679,10 @@ paths:
                   volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5
                   volumeState: READY
                   volumeStateDetails: Available for use
+                  cloneDetails:
+                    parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                    parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    sharedBytes: 100000000000
         "204":
           description: No content
           content: {}
@@ -940,6 +945,10 @@ paths:
                       coolingThresholdDays: 40
                     multipleEndpoints: false
                     largeCapacity: false
+                    cloneDetails:
+                      parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                      parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                      sharedBytes: 100000000000
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -1025,6 +1034,10 @@ paths:
                   volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5
                   volumeState: CREATING
                   volumeStateDetails: Creation in progress
+                  cloneDetails:
+                    parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                    parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                    sharedBytes: 100000000000
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -1135,6 +1148,10 @@ paths:
                       coolingThresholdDays: 40
                     multipleEndpoints: false
                     largeCapacity: false
+                    cloneDetails:
+                      parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                      parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                      sharedBytes: 100000000000
                   - volumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8afE
                     resourceId: iscsi-volume-sample
                     created: 2017-01-29T09:10:30.384Z
@@ -1250,6 +1267,10 @@ paths:
                       coolingThresholdDays: 40
                     multipleEndpoints: false
                     largeCapacity: false
+                    cloneDetails:
+                      parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                      parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
+                      sharedBytes: 100000000000
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -8559,32 +8580,8 @@ components:
           example: 4000000000000
           nullable: true
           x-omitempty: true
-        isClone:
-          title: isClone
-          type: boolean
-          description: Flag indicating if the volume is a thin clone of another volume
-          readOnly: true
-          default: false
-        cloneSharedBytes:
-          title: cloneSharedBytes
-          minimum: 0
-          type: number
-          description: The amount of data (in bytes) shared from parent volume to this
-            thin clone volume.
-          format: double
-          nullable: true
-          readOnly: true
-          example: 101010.0
-          default: 0.0
-        incrementalSpaceInBytes:
-          title: incrementalSpaceInBytes
-          minimum: 0
-          type: number
-          description: The amount of data (in bytes) written to the thin clone volume
-                that is not shared with the parent volume.
-          format: double
-          nullable: true
-          example: 101010.0
+        cloneDetails:
+          $ref: '#/components/schemas/CloneDetails_v1beta'
     InternalVolume_v1beta:
       title: Volume v1beta model definition
       type: object
@@ -8895,12 +8892,6 @@ components:
             - SECONDARY
         hybridReplicationParameters:
           $ref: '#/components/schemas/HybridReplicationParameters_v1beta'
-        isClone:
-          title: isClone
-          type: boolean
-          description: Flag indicating if the volume to be created is a thin clone
-          nullable: true
-          example: false
     VolumeUpdate_v1beta:
       title: Volume
       type: object
@@ -9004,14 +8995,6 @@ components:
           example: My Volume description
         cacheParameters:
           $ref: '#/components/schemas/FlexCache_v1beta'
-        incrementalSpaceInBytes:
-          title: incrementalSpaceInBytes
-          type: number
-          format: double
-          description: Incremental space in bytes for a files clone volume
-          example: 4000000000000
-          nullable: true
-          x-omitempty: true
         largeCapacity:
           title: largeCapacity
           type: boolean
@@ -12708,6 +12691,39 @@ components:
       description: Quota rule response object for VCP internal API with job tracking
       allOf:
         - $ref: '#/components/schemas/QuotaRules_v1beta'
+    CloneDetails_v1beta:
+      title: Clone Parent Info
+      type: object
+      properties:
+        parentVolumeId:
+          title: parentVolumeId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: Uuid v4 of the parent volume of the clone
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+        parentSnapshotId:
+          title: parentSnapshotId
+          type: string
+          readOnly: true
+          description: Uuid v4 of the parent snapshot of the clone
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        sharedBytes:
+          title: sharedBytes
+          minimum: 0
+          type: number
+          description: The amount of data (in bytes) shared from parent volume to this
+            thin clone volume.
+          format: double
+          nullable: true
+          readOnly: true
+          example: 101010.0
+          default: 0.0
   responses:
     StandardError-400:
       description: Bad request

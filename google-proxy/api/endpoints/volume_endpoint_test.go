@@ -1117,235 +1117,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
 	})
 
-	t.Run("SnapshotIdWithIsCloneThin_ValidInput", func(tt *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		req := &gcpgenserver.VolumeCreateV1beta{
-			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "testvolume",
-				CreationToken: gcpgenserver.NewOptString("test-token"),
-				PoolId:        gcpgenserver.NewNilString("test-pool"),
-				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
-				Protocols: []gcpgenserver.ProtocolsV1beta{
-					gcpgenserver.ProtocolsV1betaISCSI,
-				},
-				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
-					gcpgenserver.BlockPropertiesV1beta{
-						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
-					},
-				),
-			},
-			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
-			IsClone:    gcpgenserver.NewOptNilBool(true),
-			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
-		}
-		params := gcpgenserver.V1betaCreateVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "test-location",
-		}
-		region := "test-region"
-		zone := "test-zone"
-
-		expected := &common.CreateVolumeParams{
-			AccountName:      "test-project",
-			Region:           "test-region",
-			Zone:             "test-zone",
-			Name:             "testvolume",
-			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
-			CreationToken:    "test-token",
-			PoolID:           "test-pool",
-			QuotaInBytes:     1024,
-			IsDataProtection: true,
-			BlockProperties: &common.BlockPropertiesRequest{
-				OSType: "LINUX",
-			},
-			Protocols: []string{
-				"ISCSI",
-			},
-			SnapshotID: "test-snapshot-id",
-			IsClone:    true,
-		}
-
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
-		assert.NoError(tt, err)
-		assert.Equal(tt, expected, result)
-	})
-
-	t.Run("SnapshotIdWithIsCloneThick_ValidInput", func(tt *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		req := &gcpgenserver.VolumeCreateV1beta{
-			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "testvolume",
-				CreationToken: gcpgenserver.NewOptString("test-token"),
-				PoolId:        gcpgenserver.NewNilString("test-pool"),
-				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
-				Protocols: []gcpgenserver.ProtocolsV1beta{
-					gcpgenserver.ProtocolsV1betaISCSI,
-				},
-				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
-					gcpgenserver.BlockPropertiesV1beta{
-						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
-					},
-				),
-			},
-			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
-			IsClone:    gcpgenserver.NewOptNilBool(false),
-			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
-		}
-		params := gcpgenserver.V1betaCreateVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "test-location",
-		}
-		region := "test-region"
-		zone := "test-zone"
-
-		expected := &common.CreateVolumeParams{
-			AccountName:      "test-project",
-			Region:           "test-region",
-			Zone:             "test-zone",
-			Name:             "testvolume",
-			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
-			CreationToken:    "test-token",
-			PoolID:           "test-pool",
-			QuotaInBytes:     1024,
-			IsDataProtection: true,
-			BlockProperties: &common.BlockPropertiesRequest{
-				OSType: "LINUX",
-			},
-			Protocols: []string{
-				"ISCSI",
-			},
-			SnapshotID: "test-snapshot-id",
-			IsClone:    false,
-		}
-
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
-		assert.NoError(tt, err)
-		assert.Equal(tt, expected, result)
-	})
-
-	t.Run("SnapshotIdWithoutIsClone_ValidInput", func(tt *testing.T) {
-		req := &gcpgenserver.VolumeCreateV1beta{
-			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "testvolume",
-				CreationToken: gcpgenserver.NewOptString("test-token"),
-				PoolId:        gcpgenserver.NewNilString("test-pool"),
-				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
-				Protocols: []gcpgenserver.ProtocolsV1beta{
-					gcpgenserver.ProtocolsV1betaISCSI,
-				},
-				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
-					gcpgenserver.BlockPropertiesV1beta{
-						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
-					},
-				),
-			},
-			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
-			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
-		}
-		params := gcpgenserver.V1betaCreateVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "test-location",
-		}
-		region := "test-region"
-		zone := "test-zone"
-
-		expected := &common.CreateVolumeParams{
-			AccountName:      "test-project",
-			Region:           "test-region",
-			Zone:             "test-zone",
-			Name:             "testvolume",
-			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
-			CreationToken:    "test-token",
-			PoolID:           "test-pool",
-			QuotaInBytes:     1024,
-			IsDataProtection: true,
-			BlockProperties: &common.BlockPropertiesRequest{
-				OSType: "LINUX",
-			},
-			Protocols: []string{
-				"ISCSI",
-			},
-			SnapshotID: "test-snapshot-id",
-			IsClone:    false,
-		}
-
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
-		assert.NoError(tt, err)
-		assert.Equal(tt, expected, result)
-	})
-
-	t.Run("FilesClone_WithIncrementalSpaceInBytes_Success", func(tt *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		req := &gcpgenserver.VolumeCreateV1beta{
-			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:              "testvolume",
-				CreationToken:           gcpgenserver.NewOptString("test-token"),
-				PoolId:                  gcpgenserver.NewNilString("test-pool"),
-				Protocols:               []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3}, // Files protocol
-				IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024),           // 100GB
-			},
-			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
-		}
-		params := gcpgenserver.V1betaCreateVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "test-location",
-		}
-		region := "test-region"
-		zone := "test-zone"
-
-		expected := &common.CreateVolumeParams{
-			AccountName:             "test-project",
-			Region:                  "test-region",
-			Zone:                    "test-zone",
-			Name:                    "testvolume",
-			VendorID:                "/projects/test-project/locations/test-location/volumes/testvolume",
-			CreationToken:           "test-token",
-			PoolID:                  "test-pool",
-			Protocols:               []string{"NFSV3"},
-			SnapshotID:              "test-snapshot-id",
-			IncrementalSpaceInBytes: 100 * 1024 * 1024 * 1024, // 100GB
-		}
-
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
-		assert.NoError(tt, err)
-		assert.Equal(tt, expected.IncrementalSpaceInBytes, result.IncrementalSpaceInBytes)
-		assert.Equal(tt, expected.SnapshotID, result.SnapshotID)
-	})
-
-	t.Run("FilesClone_WithoutIncrementalSpaceInBytes_Error", func(tt *testing.T) {
-		req := &gcpgenserver.VolumeCreateV1beta{
-			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "testvolume",
-				CreationToken: gcpgenserver.NewOptString("test-token"),
-				PoolId:        gcpgenserver.NewNilString("test-pool"),
-				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3}, // Files protocol
-				// QuotaInBytes is NOT set
-				// IncrementalSpaceInBytes is NOT set
-			},
-			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
-		}
-		params := gcpgenserver.V1betaCreateVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "test-location",
-		}
-		region := "test-region"
-		zone := "test-zone"
-
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "QuotaInBytes or IncrementalSpaceInBytes is required for Files clone")
-	})
-
 	t.Run("FilesClone_WithSMBProtocol_Success", func(tt *testing.T) {
 		origThinCloneGASupport := thinCloneGASupport
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
@@ -1353,11 +1124,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:              "testvolume",
-				CreationToken:           gcpgenserver.NewOptString("test-token"),
-				PoolId:                  gcpgenserver.NewNilString("test-pool"),
-				Protocols:               []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaSMB}, // SMB is also a Files protocol
-				IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024),          // 50GB
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaSMB}, // SMB is also a Files protocol
 			},
 			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
 		}
@@ -1370,7 +1140,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 
 		result, err := _prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
-		assert.Equal(tt, uint64(50*1024*1024*1024), result.IncrementalSpaceInBytes)
 		assert.Equal(tt, "test-snapshot-id", result.SnapshotID)
 	})
 
@@ -1381,11 +1150,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:              "testvolume",
-				CreationToken:           gcpgenserver.NewOptString("test-token"),
-				PoolId:                  gcpgenserver.NewNilString("test-pool"),
-				Protocols:               []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4}, // NFSv4 is also a Files protocol
-				IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(75 * 1024 * 1024 * 1024),            // 75GB
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4}, // NFSv4 is also a Files protocol
 			},
 			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
 		}
@@ -1398,7 +1166,6 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 
 		result, err := _prepareCreateVolumeParams(req, params, region, zone)
 		assert.NoError(tt, err)
-		assert.Equal(tt, uint64(75*1024*1024*1024), result.IncrementalSpaceInBytes)
 		assert.Equal(tt, "test-snapshot-id", result.SnapshotID)
 	})
 }
@@ -4373,70 +4140,6 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		assert.Equal(t, "backup-vault-id", *param.DataProtection.BackupVaultID)
 		assert.Equal(t, "backup-policy-id", *param.DataProtection.BackupPolicyId)
 	})
-
-	t.Run("WhenIncrementalSpaceInBytesSet_ThenFieldIsMapped", func(t *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		req := &gcpgenserver.VolumeUpdateV1beta{
-			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024), // 50GB
-		}
-		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
-		assert.NoError(t, err)
-		assert.Equal(t, uint64(50*1024*1024*1024), out.IncrementalSpaceInBytes)
-	})
-
-	t.Run("WhenIncrementalSpaceInBytesNotSet_ThenFieldIsZero", func(t *testing.T) {
-		req := &gcpgenserver.VolumeUpdateV1beta{
-			// IncrementalSpaceInBytes is not set
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
-		}
-		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
-		assert.NoError(t, err)
-		assert.Equal(t, uint64(0), out.IncrementalSpaceInBytes)
-		assert.Equal(t, int64(107374182400), out.QuotaInBytes)
-	})
-
-	t.Run("WhenIncrementalSpaceInBytesSetWithLargeValue_ThenFieldIsMapped", func(t *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		req := &gcpgenserver.VolumeUpdateV1beta{
-			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024 * 1024), // 100 TiB
-		}
-		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
-		assert.NoError(t, err)
-		assert.Equal(t, uint64(100*1024*1024*1024*1024), out.IncrementalSpaceInBytes)
-	})
-
-	t.Run("WhenBothQuotaInBytesAndIncrementalSpaceInBytesSet_ThenBothAreMapped", func(t *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		req := &gcpgenserver.VolumeUpdateV1beta{
-			QuotaInBytes:            gcpgenserver.NewOptNilFloat64(107374182400),            // 100GB
-			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(50 * 1024 * 1024 * 1024), // 50GB
-		}
-		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
-		assert.NoError(t, err)
-		assert.Equal(t, int64(107374182400), out.QuotaInBytes)
-		assert.Equal(t, uint64(50*1024*1024*1024), out.IncrementalSpaceInBytes)
-	})
-
-	t.Run("WhenIncrementalSpaceInBytesSetToZero_ThenFieldIsMapped", func(t *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-		req := &gcpgenserver.VolumeUpdateV1beta{
-			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(0), // 0 bytes
-		}
-		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
-		assert.NoError(t, err)
-		assert.Equal(t, uint64(0), out.IncrementalSpaceInBytes)
-	})
 }
 
 func TestV1betaGetVolumeCount(t *testing.T) {
@@ -6315,6 +6018,34 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		// Test that backup configuration is not set when empty
 		assert.False(t, out.BackupConfig.IsSet())
 	})
+
+	t.Run("WithCloneParentInfo_ShouldConvertCorrectly", func(t *testing.T) {
+		parentVolumeId := "123e4567-e89b-12d3-a456-426614174000"
+		parentSnapshotId := "223e4567-e89b-12d3-a456-426614174001"
+
+		vol := &models.Volume{
+			CreationToken:  "clone-token",
+			PoolID:         "clone-pool",
+			QuotaInBytes:   1234,
+			ProtocolTypes:  []string{"ISCSI"},
+			LifeCycleState: "READY",
+			IPAddresses:    []string{"10.72.177.17"},
+			CloneParentInfo: &models.CloneParentInfo{
+				ParentVolumeId:   &parentVolumeId,
+				ParentSnapshotId: &parentSnapshotId,
+			},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify CloneParentInfo is properly converted
+		assert.True(t, out.CloneDetails.IsSet(), "CloneParentInfo should be set")
+		cloneParentInfo := out.CloneDetails.Value
+		assert.True(t, cloneParentInfo.ParentVolumeId.IsSet(), "ParentVolumeId should be set")
+		assert.Equal(t, parentVolumeId, cloneParentInfo.ParentVolumeId.Value)
+		assert.True(t, cloneParentInfo.ParentSnapshotId.IsSet(), "ParentSnapshotId should be set")
+		assert.Equal(t, parentSnapshotId, cloneParentInfo.ParentSnapshotId.Value)
+	})
 }
 
 func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
@@ -6494,93 +6225,6 @@ func TestPrepareCreateVolumeParams_BackupDisabled(t *testing.T) {
 	assert.Nil(t, out)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
-}
-
-// TestPrepareCreateVolumeParams_IsCloneNotSupported tests the scenario where IsClone is set but thinCloneGASupport is false
-func TestPrepareCreateVolumeParams_IsCloneNotSupported(t *testing.T) {
-	origThinCloneGASupport := thinCloneGASupport
-	defer func() { thinCloneGASupport = origThinCloneGASupport }()
-	thinCloneGASupport = false
-
-	params := gcpgenserver.V1betaCreateVolumeParams{
-		ProjectNumber: "test-project",
-		LocationId:    "test-location",
-	}
-	req := &gcpgenserver.VolumeCreateV1beta{
-		Volume: gcpgenserver.VolumeV1beta{
-			ResourceId:    "testvolume",
-			CreationToken: gcpgenserver.NewOptString("test-token"),
-			PoolId:        gcpgenserver.NewNilString("test-pool"),
-			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
-			Protocols: []gcpgenserver.ProtocolsV1beta{
-				gcpgenserver.ProtocolsV1betaISCSI,
-			},
-		},
-		SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
-		IsClone:    gcpgenserver.NewOptNilBool(true),
-	}
-
-	out, err := _prepareCreateVolumeParams(req, params, "region", "zone")
-	assert.Nil(t, out)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "IsClone cannot be set as Thin Clone support isn't available yet.")
-}
-
-// TestPrepareCreateVolumeParams_IncrementalSpaceInBytesNotSupported tests the scenario where IncrementalSpaceInBytes is set but thinCloneGASupport is false
-func TestPrepareCreateVolumeParams_IncrementalSpaceInBytesNotSupported(t *testing.T) {
-	origThinCloneGASupport := thinCloneGASupport
-	defer func() { thinCloneGASupport = origThinCloneGASupport }()
-	thinCloneGASupport = false
-
-	// Setup file protocol support for NFS tests
-	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
-	defer func() {
-		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
-	}()
-
-	params := gcpgenserver.V1betaCreateVolumeParams{
-		ProjectNumber: "test-project",
-		LocationId:    "test-location",
-	}
-	req := &gcpgenserver.VolumeCreateV1beta{
-		Volume: gcpgenserver.VolumeV1beta{
-			ResourceId:              "testvolume",
-			CreationToken:           gcpgenserver.NewOptString("test-token"),
-			PoolId:                  gcpgenserver.NewNilString("test-pool"),
-			Protocols:               []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3}, // Files protocol
-			IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024),           // 100GB
-		},
-		SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
-	}
-
-	out, err := _prepareCreateVolumeParams(req, params, "region", "zone")
-	assert.Nil(t, out)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "IncrementalSpaceInBytes cannot be set as Thin Clone support isn't available yet.")
-}
-
-// TestPrepareUpdateVolumeParams_IncrementalSpaceInBytesNotSupported tests the scenario where IncrementalSpaceInBytes is set in update but thinCloneGASupport is false
-func TestPrepareUpdateVolumeParams_IncrementalSpaceInBytesNotSupported(t *testing.T) {
-	origThinCloneGASupport := thinCloneGASupport
-	defer func() { thinCloneGASupport = origThinCloneGASupport }()
-	thinCloneGASupport = false
-
-	params := gcpgenserver.V1betaUpdateVolumeParams{
-		ProjectNumber: "test-project",
-		LocationId:    "test-location",
-		VolumeId:      "vol-1",
-	}
-	req := &gcpgenserver.VolumeUpdateV1beta{
-		PoolId:                  gcpgenserver.NewOptNilString("test-pool"),
-		IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(100 * 1024 * 1024 * 1024), // 100GB
-	}
-
-	out, err := _prepareUpdateVolumeParams(req, params, "region", nil)
-	assert.Nil(t, out)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "IncrementalSpaceInBytes cannot be updated as Thin Clone support isn't available yet.")
 }
 
 // TestV1betaUpdateVolume_BackupNotSupported tests the scenario where backup is disabled

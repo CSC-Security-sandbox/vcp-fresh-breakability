@@ -274,22 +274,13 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		return nil, errors.NewUserInputValidationErr("The Resource ID can only contain lowercase letters, numbers, and underscores. It must start with a letter and cannot end with an underscore.")
 	}
 
-	isFilesClone := false
+	isRestoreFromSnapshot := false
 	if req.SnapshotId.IsSet() {
-		for _, protocol := range req.Volume.GetProtocols() {
-			protocolStr, _ := protocol.MarshalText()
-			if utils.IsFilesProtocol(string(protocolStr)) {
-				isFilesClone = true
-				break
-			}
-		}
+		isRestoreFromSnapshot = true
 	}
 
 	if !req.Volume.QuotaInBytes.IsSet() {
-		if isFilesClone && !req.Volume.IncrementalSpaceInBytes.IsSet() {
-			return nil, errors.NewUserInputValidationErr("QuotaInBytes or IncrementalSpaceInBytes is required for Files clone")
-		}
-		if !isFilesClone {
+		if !isRestoreFromSnapshot {
 			return nil, errors.NewUserInputValidationErr("QuotaInBytes is required")
 		}
 	}
@@ -545,19 +536,6 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 
 	if req.SnapshotId.IsSet() {
 		param.SnapshotID = req.SnapshotId.Value
-		if req.IsClone.IsSet() {
-			if !thinCloneGASupport {
-				return nil, errors.NewUserInputValidationErr("IsClone cannot be set as Thin Clone support isn't available yet.")
-			}
-			param.IsClone, _ = req.IsClone.Get()
-		}
-		if req.Volume.IncrementalSpaceInBytes.IsSet() {
-			if !thinCloneGASupport {
-				return nil, errors.NewUserInputValidationErr("IncrementalSpaceInBytes cannot be set as Thin Clone support isn't available yet.")
-			} else if isFilesClone {
-				param.IncrementalSpaceInBytes = uint64(req.Volume.IncrementalSpaceInBytes.Value)
-			}
-		}
 		if req.Volume.LargeVolumeConstituentCount.IsSet() {
 			return nil, errors.NewUserInputValidationErr("LargeVolumeConstituentCount cannot be set when SnapshotId is provided")
 		}
@@ -766,13 +744,6 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 	if req.QuotaInBytes.IsSet() {
 		quota, _ := req.QuotaInBytes.Get()
 		param.QuotaInBytes = int64(quota)
-	}
-
-	if req.IncrementalSpaceInBytes.IsSet() {
-		if !thinCloneGASupport {
-			return nil, errors.NewUserInputValidationErr("IncrementalSpaceInBytes cannot be updated as Thin Clone support isn't available yet.")
-		}
-		param.IncrementalSpaceInBytes = uint64(req.IncrementalSpaceInBytes.Value)
 	}
 
 	for _, protocol := range req.GetProtocols() {
@@ -1249,29 +1220,26 @@ func encodeVolumeV1(volumeV1beta *gcpgenserver.VolumeV1beta) (jx.Raw, error) {
 
 func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	res := &gcpgenserver.VolumeV1beta{
-		VolumeId:                gcpgenserver.NewOptString(volume.UUID),
-		ResourceId:              volume.DisplayName,
-		Created:                 gcpgenserver.NewOptDateTime(volume.CreatedAt),
-		VolumeStateDetails:      gcpgenserver.NewOptString(volume.LifeCycleStateDetails),
-		VolumeState:             gcpgenserver.NewOptVolumeV1betaVolumeState(gcpgenserver.VolumeV1betaVolumeState(strings.ToUpper(volume.LifeCycleState))),
-		Network:                 gcpgenserver.NewOptString(volume.VendorSubnetID),
-		Description:             gcpgenserver.NewOptNilString(volume.Description),
-		PoolId:                  gcpgenserver.NewNilString(volume.PoolID),
-		CreationToken:           gcpgenserver.NewOptString(volume.CreationToken),
-		QuotaInBytes:            gcpgenserver.NewOptFloat64(float64(volume.QuotaInBytes)),
-		PoolResourceId:          gcpgenserver.NewOptNilString(volume.PoolName),
-		StorageClass:            gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE),
-		ServiceLevel:            gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelFLEX),
-		IsDataProtection:        gcpgenserver.NewOptBool(volume.IsDataProtection),
-		EncryptionType:          gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(volume.EncryptionType)),
-		SnapshotDirectory:       gcpgenserver.NewOptBool(volume.SnapshotDirectory),
-		SnapReserve:             gcpgenserver.NewOptFloat64(float64(volume.SnapReserve)),
-		Zone:                    gcpgenserver.NewOptString(volume.Zone),
-		UsedBytes:               gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
-		LargeCapacity:           gcpgenserver.NewOptNilBool(volume.LargeCapacity),
-		IsClone:                 gcpgenserver.NewOptBool(volume.IsClone),
-		CloneSharedBytes:        gcpgenserver.NewOptNilFloat64(float64(volume.CloneSharedBytes)),
-		IncrementalSpaceInBytes: gcpgenserver.NewOptNilFloat64(float64(volume.IncrementalSpaceInBytes)),
+		VolumeId:           gcpgenserver.NewOptString(volume.UUID),
+		ResourceId:         volume.DisplayName,
+		Created:            gcpgenserver.NewOptDateTime(volume.CreatedAt),
+		VolumeStateDetails: gcpgenserver.NewOptString(volume.LifeCycleStateDetails),
+		VolumeState:        gcpgenserver.NewOptVolumeV1betaVolumeState(gcpgenserver.VolumeV1betaVolumeState(strings.ToUpper(volume.LifeCycleState))),
+		Network:            gcpgenserver.NewOptString(volume.VendorSubnetID),
+		Description:        gcpgenserver.NewOptNilString(volume.Description),
+		PoolId:             gcpgenserver.NewNilString(volume.PoolID),
+		CreationToken:      gcpgenserver.NewOptString(volume.CreationToken),
+		QuotaInBytes:       gcpgenserver.NewOptFloat64(float64(volume.QuotaInBytes)),
+		PoolResourceId:     gcpgenserver.NewOptNilString(volume.PoolName),
+		StorageClass:       gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE),
+		ServiceLevel:       gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelFLEX),
+		IsDataProtection:   gcpgenserver.NewOptBool(volume.IsDataProtection),
+		EncryptionType:     gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(volume.EncryptionType)),
+		SnapshotDirectory:  gcpgenserver.NewOptBool(volume.SnapshotDirectory),
+		SnapReserve:        gcpgenserver.NewOptFloat64(float64(volume.SnapReserve)),
+		Zone:               gcpgenserver.NewOptString(volume.Zone),
+		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
+		LargeCapacity:      gcpgenserver.NewOptNilBool(volume.LargeCapacity),
 	}
 	if volume.LargeVolumeConstituentCount != nil {
 		res.LargeVolumeConstituentCount = gcpgenserver.NewOptNilInt32(*volume.LargeVolumeConstituentCount)
@@ -1479,6 +1447,10 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		} else {
 			res.VolumeState = gcpgenserver.NewOptVolumeV1betaVolumeState(gcpgenserver.VolumeV1betaVolumeStatePREPARING)
 		}
+	}
+
+	if volume.CloneParentInfo != nil {
+		res.CloneDetails = gcpgenserver.NewOptCloneDetailsV1beta(convertToCloneParentInfoV1(volume.CloneParentInfo, volume.CloneSharedBytes))
 	}
 
 	return res
@@ -2388,6 +2360,15 @@ func convertToFlexCacheV1(cp *models.CacheParameters) gcpgenserver.FlexCacheV1be
 	}
 
 	return cacheParameters
+}
+
+func convertToCloneParentInfoV1(cp *models.CloneParentInfo, cloneSharedBytes uint64) gcpgenserver.CloneDetailsV1beta {
+	cloneParentInfo := gcpgenserver.CloneDetailsV1beta{
+		ParentVolumeId:   gcpgenserver.NewOptString(nillable.GetString(cp.ParentVolumeId, "")),
+		ParentSnapshotId: gcpgenserver.NewOptString(nillable.GetString(cp.ParentSnapshotId, "")),
+		SharedBytes:      gcpgenserver.NewOptNilFloat64(float64(cloneSharedBytes)),
+	}
+	return cloneParentInfo
 }
 
 func convertDaysOfWeekFromIntArray(days []int) string {

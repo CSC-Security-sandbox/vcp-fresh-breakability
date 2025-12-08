@@ -121,8 +121,6 @@ type CreateVolumeParams struct {
 	CacheParameters             *models.CacheParameters
 	LargeVolumeConstituentCount int32
 	SnapshotDirectory           bool
-	IsClone                     bool
-	IncrementalSpaceInBytes     uint64
 	HybridReplicationParameters *models.HybridReplicationParameters
 }
 
@@ -184,7 +182,6 @@ type UpdateVolumeParams struct {
 	CorrelationID               string
 	SnapshotDirectoryAccess     *bool
 	CacheParameters             *models.CacheParameters
-	IncrementalSpaceInBytes     uint64
 	SMBShareSettings            []string
 	LargeCapacity               *bool
 	LargeVolumeConstituentCount *int32

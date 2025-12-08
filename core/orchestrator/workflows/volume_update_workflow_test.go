@@ -2880,59 +2880,6 @@ func TestIsUpdateRequired(t *testing.T) {
 			existingVolume: &datamodel.Volume{},
 			want:           false,
 		},
-		{
-			name: "IncrementalSpaceInBytes set to non-zero - update required",
-			response: &vsa.VolumeResponse{
-				Size: 150,
-			},
-			params: &common.UpdateVolumeParams{
-				QuotaInBytes:            150,
-				IncrementalSpaceInBytes: 1024 * 1024 * 1024, // 1GB
-				AutoTieringPolicy: &common.AutoTieringPolicy{
-					AutoTieringEnabled: false,
-				},
-			},
-			existingVolume: &datamodel.Volume{
-				AutoTieringEnabled: false,
-			},
-			want: true,
-		},
-		{
-			name: "IncrementalSpaceInBytes set to zero - no update required",
-			response: &vsa.VolumeResponse{
-				Size: 150,
-			},
-			params: &common.UpdateVolumeParams{
-				QuotaInBytes:            150,
-				IncrementalSpaceInBytes: 0,
-				AutoTieringPolicy: &common.AutoTieringPolicy{
-					AutoTieringEnabled: false,
-				},
-			},
-			existingVolume: &datamodel.Volume{
-				AutoTieringEnabled: false,
-			},
-			want: false,
-		},
-		{
-			name: "IncrementalSpaceInBytes with other changes - update required",
-			response: &vsa.VolumeResponse{
-				Size:        150,
-				SnapReserve: 10,
-			},
-			params: &common.UpdateVolumeParams{
-				QuotaInBytes:            200,
-				IncrementalSpaceInBytes: 512 * 1024 * 1024, // 512MB
-				SnapReserve:             &[]int64{15}[0],
-				AutoTieringPolicy: &common.AutoTieringPolicy{
-					AutoTieringEnabled: false,
-				},
-			},
-			existingVolume: &datamodel.Volume{
-				AutoTieringEnabled: false,
-			},
-			want: true,
-		},
 	}
 
 	for _, tt := range tests {

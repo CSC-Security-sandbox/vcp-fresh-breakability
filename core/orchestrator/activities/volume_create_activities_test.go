@@ -2483,6 +2483,142 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		assert.Contains(tt, err.Error(), "failed to initiate split")
 		mockProvider.AssertExpectations(tt)
 	})
+
+	t.Run("DeleteCloneSnapshot_NotFoundErr", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Set up volume with CloneParentInfo
+		volumeWithCloneInfo := &datamodel.Volume{
+			BaseModel:  datamodel.BaseModel{ID: 100},
+			Name:        "test-volume",
+			SizeInBytes: 107374182400,
+			Svm:         &datamodel.Svm{Name: "test-svm"},
+			AccountID:   1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-uuid-1",
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentSnapshotUUID: "parent-snapshot-uuid",
+					ParentVolumeUUID:   "parent-volume-uuid",
+				},
+			},
+		}
+
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid", ID: 200},
+			AccountID: 2,
+		}
+
+		parentSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "parent-snapshot-uuid"},
+			Name:      "parent-snapshot-name",
+		}
+
+		cloneSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "clone-snapshot-uuid"},
+			Name:      "parent-snapshot-name",
+		}
+
+		// Mock UpdateVolume to succeed
+		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+			return params.InitiateSplit == true
+		})).Return(nil).Once()
+
+		// Mock SE methods
+		mockStorage.On("GetVolume", mock.Anything, "parent-volume-uuid").Return(parentVolume, nil).Once()
+		mockStorage.On("GetSnapshotByUUID", mock.Anything, "parent-snapshot-uuid", int64(2), int64(200)).Return(parentSnapshot, nil).Once()
+		mockStorage.On("GetSnapshotByNameAndVolumeId", mock.Anything, "parent-snapshot-name", int64(1), int64(100)).Return(cloneSnapshot, nil).Once()
+
+		// Mock DeleteSnapshot to return NotFoundErr (covers lines 1366-1368)
+		snapshotID := "clone-snapshot-uuid"
+		notFoundErr := utilErrors.NewNotFoundErr("Snapshot", &snapshotID)
+		mockStorage.On("DeleteSnapshot", mock.Anything, "clone-snapshot-uuid").Return(nil, notFoundErr).Once()
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.InitiateSplitForVolume)
+
+		_, err := env.ExecuteActivity(activity.InitiateSplitForVolume, volumeWithCloneInfo, node, snapshot)
+		assert.NoError(tt, err, "Should return nil when snapshot is not found (already deleted)")
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteCloneSnapshot_OtherError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Set up volume with CloneParentInfo
+		volumeWithCloneInfo := &datamodel.Volume{
+			BaseModel:  datamodel.BaseModel{ID: 100},
+			Name:        "test-volume",
+			SizeInBytes: 107374182400,
+			Svm:         &datamodel.Svm{Name: "test-svm"},
+			AccountID:   1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-uuid-1",
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentSnapshotUUID: "parent-snapshot-uuid",
+					ParentVolumeUUID:   "parent-volume-uuid",
+				},
+			},
+		}
+
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid", ID: 200},
+			AccountID: 2,
+		}
+
+		parentSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "parent-snapshot-uuid"},
+			Name:      "parent-snapshot-name",
+		}
+
+		cloneSnapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "clone-snapshot-uuid"},
+			Name:      "parent-snapshot-name",
+		}
+
+		// Mock UpdateVolume to succeed
+		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+			return params.InitiateSplit == true
+		})).Return(nil).Once()
+
+		// Mock SE methods
+		mockStorage.On("GetVolume", mock.Anything, "parent-volume-uuid").Return(parentVolume, nil).Once()
+		mockStorage.On("GetSnapshotByUUID", mock.Anything, "parent-snapshot-uuid", int64(2), int64(200)).Return(parentSnapshot, nil).Once()
+		mockStorage.On("GetSnapshotByNameAndVolumeId", mock.Anything, "parent-snapshot-name", int64(1), int64(100)).Return(cloneSnapshot, nil).Once()
+
+		// Mock DeleteSnapshot to return a non-NotFoundErr error (covers lines 1370-1371)
+		deleteErr := errors.New("database connection failed")
+		mockStorage.On("DeleteSnapshot", mock.Anything, "clone-snapshot-uuid").Return(nil, deleteErr).Once()
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.InitiateSplitForVolume)
+
+		_, err := env.ExecuteActivity(activity.InitiateSplitForVolume, volumeWithCloneInfo, node, snapshot)
+		assert.Error(tt, err, "Should return error when DeleteSnapshot fails with non-NotFoundErr")
+		assert.Contains(tt, err.Error(), "database connection failed")
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *testing.T) {
