@@ -16,9 +16,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 )
 
@@ -549,14 +548,14 @@ func TestBuildOntapRESTProxy(t *testing.T) {
 	})
 
 	t.Run("WhenModifyResponseCalledWithRuleContext_ShouldProcessResponse", func(t *testing.T) {
-		mockProcessor := actions.NewMockRequestProcessor(t)
-		mockProcessor.EXPECT().ProcessResponse(mock.AnythingOfType("*http.Response")).Return(nil)
+		// Use dsl.Allow which implements dsl.IAction
+		action := dsl.Allow{Name: "Test Action"}
 
 		proxy := BuildOntapRESTProxy()
 		req, err := http.NewRequest("GET", "/test", nil)
 		assert.NoError(t, err, "Failed to create request")
 
-		ctx := context.WithValue(req.Context(), models.RuleContextKey, mockProcessor)
+		ctx := context.WithValue(req.Context(), models.RuleContextKey, action)
 		req = req.WithContext(ctx)
 
 		resp := &http.Response{

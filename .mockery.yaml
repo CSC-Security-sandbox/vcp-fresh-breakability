@@ -127,12 +127,6 @@ packages:
       dir: "{{.InterfaceDir}}"
     interfaces:
       Processor:
-  github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions:
-    config:
-      inpackage: True
-      dir: "{{.InterfaceDir}}"
-    interfaces:
-      RequestProcessor:
   github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops/sink:
     config:
       inpackage: True

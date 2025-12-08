@@ -1,248 +1,133 @@
 package middleware
 
 import (
-	"encoding/json"
-	"io"
+	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions/processor"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/rules"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 func TestRuleEngineMiddleware(t *testing.T) {
-	t.Run("WhenValidOntapAPIRequest_ShouldAllow", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-			w.WriteHeader(http.StatusOK)
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenInvalidPath_ShouldPassToNext", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-			w.WriteHeader(http.StatusOK)
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("GET", "/invalid/path", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenPathWithoutOntapAPI_ShouldPassToNext", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-			w.WriteHeader(http.StatusOK)
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/api/storage/qtrees", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenNonConfiguredEndpoint_ShouldPassToNext", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-			w.WriteHeader(http.StatusOK)
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/non-existent", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenPOSTRequestToQtreeEndpoint_ShouldAllow", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-			w.WriteHeader(http.StatusOK)
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("POST", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenDifferentHTTPMethods_ShouldHandleAll", func(t *testing.T) {
-		methods := []string{"GET", "POST", "PATCH", "DELETE"}
-
-		for _, method := range methods {
-			t.Run(method, func(t *testing.T) {
-				nextCalled := false
-				nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					nextCalled = true
-					w.WriteHeader(http.StatusOK)
-				})
-
-				middleware := RuleEngineMiddleware()
-				handler := middleware(nextHandler)
-
-				req, err := http.NewRequest(method, "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
-				assert.NoError(t, err, "Failed to create request for method %s", method)
-
-				rr := httptest.NewRecorder()
-
-				handler.ServeHTTP(rr, req)
-
-				assert.True(t, nextCalled, "Next handler should be called for %s", method)
-				assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK for %s", method)
-			})
+	t.Run("WhenNoRuleMatch_ShouldPassThrough", func(t *testing.T) {
+		// Setup
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/unknown/path"
 		}
+		defer func() { extractOntapPathUtil = originalExtract }()
+
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
+		middleware := RuleEngineMiddleware()
+		handler := middleware(nextHandler)
+
+		req := httptest.NewRequest(http.MethodGet, "/ontap/api/unknown/path", nil)
+		w := httptest.NewRecorder()
+
+		// Execute
+		handler.ServeHTTP(w, req)
+
+		// Verify
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
-	t.Run("WhenUnsupportedHTTPMethods_ShouldPassToNext", func(t *testing.T) {
-		unsupportedMethods := []string{"PUT", "HEAD", "OPTIONS", "TRACE"}
-
-		for _, method := range unsupportedMethods {
-			t.Run(method, func(t *testing.T) {
-				nextCalled := false
-				nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					nextCalled = true
-					w.WriteHeader(http.StatusOK)
-				})
-
-				middleware := RuleEngineMiddleware()
-				handler := middleware(nextHandler)
-
-				req, err := http.NewRequest(method, "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
-				assert.NoError(t, err, "Failed to create request for method %s", method)
-
-				rr := httptest.NewRecorder()
-
-				handler.ServeHTTP(rr, req)
-
-				assert.True(t, nextCalled, "Next handler should be called for %s", method)
-				assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK for %s", method)
-			})
+	t.Run("WhenRuleMatchesAndAllows_ShouldPassThrough", func(t *testing.T) {
+		// Setup
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/storage/aggregates"
 		}
-	})
+		defer func() { extractOntapPathUtil = originalExtract }()
 
-	t.Run("WhenVolumesEndpoint_ShouldHandleWithFieldRemoval", func(t *testing.T) {
-		nextCalled := false
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
 			w.WriteHeader(http.StatusOK)
 		})
 
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", nil)
-		assert.NoError(t, err, "Failed to create request")
+		req := httptest.NewRequest(http.MethodGet, "/ontap/api/storage/aggregates", nil)
+		w := httptest.NewRecorder()
 
-		rr := httptest.NewRecorder()
+		// Execute
+		handler.ServeHTTP(w, req)
 
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
+		// Verify
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
-	t.Run("WhenAggregatesEndpoint_ShouldHandle", func(t *testing.T) {
-		nextCalled := false
+	t.Run("WhenRuleMatchesAndDenies_ShouldReturnBadRequestWithReason", func(t *testing.T) {
+		// Setup
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/private/something"
+		}
+		defer func() { extractOntapPathUtil = originalExtract }()
+
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
 			w.WriteHeader(http.StatusOK)
 		})
 
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/aggregates", nil)
-		assert.NoError(t, err, "Failed to create request")
+		req := httptest.NewRequest(http.MethodGet, "/ontap/api/private/something", nil)
+		w := httptest.NewRecorder()
 
-		rr := httptest.NewRecorder()
+		// Execute
+		handler.ServeHTTP(w, req)
 
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
+		// Verify - returns 400 Bad Request with reason
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "Private API access denied")
 	})
 
-	t.Run("WhenSpecificVolumeEndpoint_ShouldHandle", func(t *testing.T) {
-		nextCalled := false
+	t.Run("WhenDenyActionConfigured_ShouldReturnBadRequestWithReason", func(t *testing.T) {
+		// Setup
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/storage/aggregates"
+		}
+		defer func() { extractOntapPathUtil = originalExtract }()
+
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
 			w.WriteHeader(http.StatusOK)
 		})
 
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes/{uuid}", nil)
-		assert.NoError(t, err, "Failed to create request")
+		// POST is denied for aggregates
+		req := httptest.NewRequest(http.MethodPost, "/ontap/api/storage/aggregates", nil)
+		w := httptest.NewRecorder()
 
-		rr := httptest.NewRecorder()
+		// Execute
+		handler.ServeHTTP(w, req)
 
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
+		// Verify - POST is configured with Deny action, returns 400 with reason
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "Aggregate creation not allowed")
 	})
 
-	t.Run("WhenActionIsStoredInContext_ShouldBeAccessible", func(t *testing.T) {
+	t.Run("WhenActionInContext_ShouldBeRetrievable", func(t *testing.T) {
+		// Setup
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/storage/aggregates"
+		}
+		defer func() { extractOntapPathUtil = originalExtract }()
+
 		actionFound := false
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if ctx := r.Context().Value(models.RuleContextKey); ctx != nil {
-				if _, ok := ctx.(actions.RequestProcessor); ok {
+				if _, ok := ctx.(dsl.IAction); ok {
 					actionFound = true
 				}
 			}
@@ -252,850 +137,96 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		middleware := RuleEngineMiddleware()
 		handler := middleware(nextHandler)
 
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, actionFound, "Action should be stored in context")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenActionShouldNotAllow_ShouldDenyRequest", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("POST", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", strings.NewReader(`{"name": "test"}`))
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.False(t, nextCalled, "Next handler should not be called")
-		assert.Equal(t, http.StatusBadRequest, rr.Code, "Should return 400 Bad Request")
-	})
-
-	t.Run("WhenActionProcessRequestReturnsError_ShouldHandleGracefully", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("PATCH", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes/028baa66-41bd-11e9-81d5-00a0986138f7", strings.NewReader(`{"name": "test"}`))
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.False(t, nextCalled, "Next handler should not be called")
-		assert.Equal(t, http.StatusBadRequest, rr.Code, "Should return 400 Bad Request")
-	})
-
-	t.Run("WhenActionProcessRequestSucceeds_ShouldCallNextHandler", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-			w.WriteHeader(http.StatusOK)
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenActionProcessRequestSucceeds_ShouldCallNextHandler", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-			w.WriteHeader(http.StatusOK)
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("DELETE", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes/028baa66-41bd-11e9-81d5-00a0986138f7", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenNoRuleFound_ShouldPassToNext", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-			w.WriteHeader(http.StatusOK)
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/nonexistent", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenMethodNotAllowed_ShouldReturnMethodNotAllowed", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("PUT", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.False(t, nextCalled, "Next handler should not be called")
-		assert.Equal(t, http.StatusMethodNotAllowed, rr.Code, "Should return 405 Method Not Allowed")
-		assert.Contains(t, rr.Body.String(), "Method not allowed", "Should contain error message")
-	})
-
-	t.Run("WhenActionProcessRequestSucceeds_ShouldReturn200OK", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-			w.WriteHeader(http.StatusOK)
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.True(t, nextCalled, "Next handler should be called")
-		assert.Equal(t, http.StatusOK, rr.Code, "Should return 200 OK")
-	})
-
-	t.Run("WhenPrivateAPIPath_ShouldBlockRequest", func(t *testing.T) {
-		nextCalled := false
-		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			nextCalled = true
-		})
-
-		middleware := RuleEngineMiddleware()
-		handler := middleware(nextHandler)
-
-		req, err := http.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/private/cli/snapmirror/break", nil)
-		assert.NoError(t, err, "Failed to create request")
-
-		rr := httptest.NewRecorder()
-
-		handler.ServeHTTP(rr, req)
-
-		assert.False(t, nextCalled, "Next handler should not be called")
-		assert.Equal(t, http.StatusForbidden, rr.Code, "Should return 403 Forbidden")
-		assert.Contains(t, rr.Body.String(), "Request denied", "Should contain denial message")
-	})
-}
-
-func TestExtractOntapPath(t *testing.T) {
-	t.Run("WhenValidOntapAPIPath_ShouldExtractCorrectly", func(t *testing.T) {
-		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees"
-		expected := "/api/storage/qtrees"
-
-		result := extractOntapPath(fullPath)
-		assert.Equal(t, expected, result, "Should extract ONTAP API path correctly")
-	})
-
-	t.Run("WhenPathWithQueryParameters_ShouldExtractWithQuery", func(t *testing.T) {
-		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes?fields=name,size"
-		expected := "/api/storage/volumes?fields=name,size"
-
-		result := extractOntapPath(fullPath)
-		assert.Equal(t, expected, result, "Should extract ONTAP API path with query parameters")
-	})
-
-	t.Run("WhenPathWithoutOntapAPI_ShouldReturnEmpty", func(t *testing.T) {
-		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/api/storage/qtrees"
-
-		result := extractOntapPath(fullPath)
-		assert.Equal(t, "", result, "Should return empty string for path without ontap")
-	})
-
-	t.Run("WhenRootPath_ShouldReturnEmpty", func(t *testing.T) {
-		fullPath := "/"
-
-		result := extractOntapPath(fullPath)
-		assert.Equal(t, "", result, "Should return empty string for root path")
-	})
-
-	t.Run("WhenEmptyPath_ShouldReturnEmpty", func(t *testing.T) {
-		fullPath := ""
-
-		result := extractOntapPath(fullPath)
-		assert.Equal(t, "", result, "Should return empty string for empty path")
-	})
-
-	t.Run("WhenOntapAPIAtRootLevel_ShouldHandleCorrectly", func(t *testing.T) {
-		fullPath := "/ontap/api/storage/qtrees"
-		expected := "/api/storage/qtrees"
-
-		result := extractOntapPath(fullPath)
-		assert.Equal(t, expected, result, "Should handle ONTAP API at root level")
-	})
-
-	t.Run("WhenComplexPathStructure_ShouldHandleCorrectly", func(t *testing.T) {
-		fullPath := "/v1beta/projects/my-project/locations/us-west1/pools/my-pool/ontap/api/storage/volumes/12345/snapshots"
-		expected := "/api/storage/volumes/12345/snapshots"
-
-		result := extractOntapPath(fullPath)
-		assert.Equal(t, expected, result, "Should handle complex path structure")
-	})
-
-	t.Run("WhenSingleOntapAPIOccurrence_ShouldExtractCorrectly", func(t *testing.T) {
-		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/qtrees"
-		expected := "/api/storage/qtrees"
-
-		result := extractOntapPath(fullPath)
-		assert.Equal(t, expected, result, "Should extract ONTAP API path from single ontap occurrence")
-	})
-
-	t.Run("WhenPathEndingWithOntapAPI_ShouldHandleCorrectly", func(t *testing.T) {
-		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap"
-		expected := "/"
-
-		result := extractOntapPath(fullPath)
-		assert.Equal(t, expected, result, "Should handle path ending with ontap")
-	})
-}
-
-func TestRuleMap_VolumeActions(t *testing.T) {
-	proxyRules := rules.GetProxyRules()
-
-	t.Run("VolumeListing_GET_ShouldAllowAndRemoveSensitiveFields", func(t *testing.T) {
-		rule := proxyRules["/api/storage/volumes"]
-		volumeAction := rule.GET.(*processor.VolumeAction)
-
-		// Test ShouldAllow for GET request
-		req, _ := http.NewRequest("GET", "/api/storage/volumes", nil)
-		allowed, err := volumeAction.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
-
-		// Test ProcessRequest for GET request (should do nothing)
+		req := httptest.NewRequest(http.MethodGet, "/ontap/api/storage/aggregates", nil)
 		w := httptest.NewRecorder()
-		err = volumeAction.ProcessRequest(req, w)
-		assert.NoError(t, err)
 
-		// Test ProcessResponse - should remove sensitive fields
-		originalBody := `{
-			"records": [
-				{
-					"name": "vol1",
-					"size": 1073741824,
-					"efficiency": "sensitive-data-1",
-					"space": {
-						"logical_space": {
-							"size": 1073741824
-						},
-						"physical_used": "sensitive-physical-data-1"
-					}
-				},
-				{
-					"name": "vol2",
-					"size": 2147483648,
-					"efficiency": "sensitive-data-2",
-					"space": {
-						"logical_space": {
-							"size": 2147483648
-						},
-						"physical_used": "sensitive-physical-data-2"
-					}
-				}
-			]
-		}`
-		resp := &http.Response{
-			StatusCode: 200,
-			Body:       io.NopCloser(strings.NewReader(originalBody)),
-			Header:     make(http.Header),
-		}
+		// Execute
+		handler.ServeHTTP(w, req)
 
-		err = volumeAction.ProcessResponse(resp)
-		assert.NoError(t, err)
-
-		// Verify sensitive fields are removed
-		body, _ := io.ReadAll(resp.Body)
-		var result map[string]interface{}
-		err = json.Unmarshal(body, &result)
-		assert.NoError(t, err)
-
-		records, ok := result["records"].([]interface{})
-		assert.True(t, ok)
-		assert.Len(t, records, 2)
-
-		// Check first record
-		record1, ok := records[0].(map[string]interface{})
-		assert.True(t, ok)
-		assert.Equal(t, "vol1", record1["name"])
-		assert.Equal(t, float64(1073741824), record1["size"])
-		assert.NotContains(t, record1, "efficiency")
-
-		space1, ok := record1["space"].(map[string]interface{})
-		assert.True(t, ok)
-		assert.NotContains(t, space1, "physical_used")
-		logicalSpace1, ok := space1["logical_space"].(map[string]interface{})
-		assert.True(t, ok)
-		assert.Equal(t, float64(1073741824), logicalSpace1["size"])
-
-		// Check second record
-		record2, ok := records[1].(map[string]interface{})
-		assert.True(t, ok)
-		assert.Equal(t, "vol2", record2["name"])
-		assert.Equal(t, float64(2147483648), record2["size"])
-		assert.NotContains(t, record2, "efficiency")
-
-		space2, ok := record2["space"].(map[string]interface{})
-		assert.True(t, ok)
-		assert.NotContains(t, space2, "physical_used")
-	})
-
-	t.Run("VolumeCreation_POST_ShouldValidateAndInjectFields", func(t *testing.T) {
-		rule := proxyRules["/api/storage/volumes"]
-		volumeAction := rule.POST.(*processor.VolumeAction)
-
-		t.Run("ValidPOSTRequest_ShouldPass", func(t *testing.T) {
-			reqBody := `{
-				"name": "test-volume",
-				"size": 1073741824,
-				"guarantee": {
-					"type": "none"
-				},
-				"space": {
-					"logical_space": {
-						"enforcement": true,
-						"reporting": true
-					}
-				}
-			}`
-			req, _ := http.NewRequest("POST", "/api/storage/volumes", strings.NewReader(reqBody))
-
-			// Test ShouldAllow
-			allowed, err := volumeAction.ShouldAllow(req)
-			assert.NoError(t, err)
-			assert.True(t, allowed)
-
-			// Test ProcessRequest - should inject enforcement field
-			w := httptest.NewRecorder()
-			err = volumeAction.ProcessRequest(req, w)
-			assert.NoError(t, err)
-
-			// Verify injection
-			body, _ := io.ReadAll(req.Body)
-			var result map[string]interface{}
-			err = json.Unmarshal(body, &result)
-			assert.NoError(t, err)
-
-			assert.Equal(t, "test-volume", result["name"])
-			assert.Equal(t, float64(1073741824), result["size"])
-
-			space, ok := result["space"].(map[string]interface{})
-			assert.True(t, ok)
-			logicalSpace, ok := space["logical_space"].(map[string]interface{})
-			assert.True(t, ok)
-			assert.Equal(t, true, logicalSpace["enforcement"]) // Should be injected
-			assert.Equal(t, true, logicalSpace["reporting"])   // Should remain as provided
-		})
-
-		t.Run("MissingRequiredFields_ShouldFail", func(t *testing.T) {
-			reqBody := `{
-				"name": "test-volume"
-			}`
-			req, _ := http.NewRequest("POST", "/api/storage/volumes", strings.NewReader(reqBody))
-
-			allowed, err := volumeAction.ShouldAllow(req)
-			assert.Error(t, err)
-			assert.False(t, allowed)
-			assert.Contains(t, err.Error(), "required field 'size' is missing")
-		})
-
-		t.Run("InvalidGuaranteeType_ShouldFail", func(t *testing.T) {
-			reqBody := `{
-				"name": "test-volume",
-				"size": 1073741824,
-				"guarantee": {
-					"type": "invalid-type"
-				}
-			}`
-			req, _ := http.NewRequest("POST", "/api/storage/volumes", strings.NewReader(reqBody))
-
-			allowed, err := volumeAction.ShouldAllow(req)
-			assert.Error(t, err)
-			assert.False(t, allowed)
-			assert.Contains(t, err.Error(), "field 'guarantee.type' has invalid value")
-		})
-
-		t.Run("InvalidEnforcementValue_ShouldFail", func(t *testing.T) {
-			reqBody := `{
-				"name": "test-volume",
-				"size": 1073741824,
-				"guarantee": {
-					"type": "none"
-				},
-				"space": {
-					"logical_space": {
-						"enforcement": false
-					}
-				}
-			}`
-			req, _ := http.NewRequest("POST", "/api/storage/volumes", strings.NewReader(reqBody))
-
-			allowed, err := volumeAction.ShouldAllow(req)
-			assert.Error(t, err)
-			assert.False(t, allowed)
-			assert.Contains(t, err.Error(), "field 'space.logical_space.enforcement' has invalid value")
-		})
-
-		t.Run("InvalidReportingValue_ShouldFail", func(t *testing.T) {
-			reqBody := `{
-				"name": "test-volume",
-				"size": 1073741824,
-				"guarantee": {
-					"type": "none"
-				},
-				"space": {
-					"logical_space": {
-						"enforcement": true,
-						"reporting": false
-					}
-				}
-			}`
-			req, _ := http.NewRequest("POST", "/api/storage/volumes", strings.NewReader(reqBody))
-
-			allowed, err := volumeAction.ShouldAllow(req)
-			assert.Error(t, err)
-			assert.False(t, allowed)
-			assert.Contains(t, err.Error(), "field 'space.logical_space.reporting' has invalid value")
-		})
-	})
-
-	t.Run("SpecificVolumeDetails_GET_ShouldAllowAndRemoveSensitiveFields", func(t *testing.T) {
-		rule := proxyRules["/api/storage/volumes/{uuid}"]
-		volumeAction := rule.GET.(*processor.VolumeAction)
-
-		// Test ShouldAllow for GET request
-		req, _ := http.NewRequest("GET", "/api/storage/volumes/uuid-123", nil)
-		allowed, err := volumeAction.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
-
-		// Test ProcessResponse - should remove sensitive fields
-		originalBody := `{
-			"name": "test-volume",
-			"size": 1073741824,
-			"efficiency": "sensitive-data",
-			"space": {
-				"logical_space": {
-					"size": 1073741824
-				},
-				"physical_used": "sensitive-physical-data"
-			}
-		}`
-		resp := &http.Response{
-			StatusCode: 200,
-			Body:       io.NopCloser(strings.NewReader(originalBody)),
-			Header:     make(http.Header),
-		}
-
-		err = volumeAction.ProcessResponse(resp)
-		assert.NoError(t, err)
-
-		// Verify sensitive fields are removed
-		body, _ := io.ReadAll(resp.Body)
-		var result map[string]interface{}
-		err = json.Unmarshal(body, &result)
-		assert.NoError(t, err)
-
-		assert.Equal(t, "test-volume", result["name"])
-		assert.Equal(t, float64(1073741824), result["size"])
-		assert.NotContains(t, result, "efficiency")
-
-		space, ok := result["space"].(map[string]interface{})
-		assert.True(t, ok)
-		assert.NotContains(t, space, "physical_used")
-		logicalSpace, ok := space["logical_space"].(map[string]interface{})
-		assert.True(t, ok)
-		assert.Equal(t, float64(1073741824), logicalSpace["size"])
-	})
-
-	t.Run("VolumeModification_PATCH_ShouldValidateRequiredFields", func(t *testing.T) {
-		rule := proxyRules["/api/storage/volumes/{uuid}"]
-		volumeAction := rule.PATCH.(*processor.VolumeAction)
-
-		t.Run("ValidPATCHRequest_ShouldPass", func(t *testing.T) {
-			reqBody := `{
-				"name": "updated-volume",
-				"size": 2147483648,
-				"guarantee": {
-					"type": "volume"
-				},
-				"space": {
-					"logical_space": {
-						"enforcement": true
-					}
-				}
-			}`
-			req, _ := http.NewRequest("PATCH", "/api/storage/volumes/uuid-123", strings.NewReader(reqBody))
-
-			// Test ShouldAllow
-			allowed, err := volumeAction.ShouldAllow(req)
-			assert.NoError(t, err)
-			assert.True(t, allowed)
-
-			// Test ProcessRequest (no injection rules for PATCH)
-			w := httptest.NewRecorder()
-			err = volumeAction.ProcessRequest(req, w)
-			assert.NoError(t, err)
-
-			// Verify no changes to request body
-			body, _ := io.ReadAll(req.Body)
-			var result map[string]interface{}
-			err = json.Unmarshal(body, &result)
-			assert.NoError(t, err)
-
-			assert.Equal(t, "updated-volume", result["name"])
-			assert.Equal(t, float64(2147483648), result["size"])
-		})
-
-		t.Run("MissingRequiredFields_ShouldFail", func(t *testing.T) {
-			reqBody := `{
-				"name": "updated-volume"
-			}`
-			req, _ := http.NewRequest("PATCH", "/api/storage/volumes/uuid-123", strings.NewReader(reqBody))
-
-			allowed, err := volumeAction.ShouldAllow(req)
-			assert.Error(t, err)
-			assert.False(t, allowed)
-			assert.Contains(t, err.Error(), "required field 'size' is missing")
-		})
-
-		t.Run("InvalidGuaranteeType_ShouldFail", func(t *testing.T) {
-			reqBody := `{
-				"name": "updated-volume",
-				"size": 2147483648,
-				"guarantee": {
-					"type": "invalid-type"
-				}
-			}`
-			req, _ := http.NewRequest("PATCH", "/api/storage/volumes/uuid-123", strings.NewReader(reqBody))
-
-			allowed, err := volumeAction.ShouldAllow(req)
-			assert.Error(t, err)
-			assert.False(t, allowed)
-			assert.Contains(t, err.Error(), "field 'guarantee.type' has invalid value")
-		})
-
-		t.Run("InvalidEnforcementValue_ShouldFail", func(t *testing.T) {
-			reqBody := `{
-				"name": "updated-volume",
-				"size": 2147483648,
-				"guarantee": {
-					"type": "none"
-				},
-				"space": {
-					"logical_space": {
-						"enforcement": false
-					}
-				}
-			}`
-			req, _ := http.NewRequest("PATCH", "/api/storage/volumes/uuid-123", strings.NewReader(reqBody))
-
-			allowed, err := volumeAction.ShouldAllow(req)
-			assert.Error(t, err)
-			assert.False(t, allowed)
-			assert.Contains(t, err.Error(), "field 'space.logical_space.enforcement' has invalid value")
-		})
-	})
-
-	t.Run("VolumeDeletion_DELETE_ShouldAllowAndRemoveSensitiveFields", func(t *testing.T) {
-		rule := proxyRules["/api/storage/volumes/{uuid}"]
-		volumeAction := rule.DELETE.(*processor.VolumeAction)
-
-		// Test ShouldAllow for DELETE request (no body validation)
-		req, _ := http.NewRequest("DELETE", "/api/storage/volumes/uuid-123", nil)
-		allowed, err := volumeAction.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
-
-		// Test ProcessRequest for DELETE request (should do nothing)
-		w := httptest.NewRecorder()
-		err = volumeAction.ProcessRequest(req, w)
-		assert.NoError(t, err)
-
-		// Test ProcessResponse - should remove sensitive fields
-		originalBody := `{
-			"name": "deleted-volume",
-			"efficiency": "sensitive-data",
-			"space": {
-				"physical_used": "sensitive-physical-data"
-			}
-		}`
-		resp := &http.Response{
-			StatusCode: 200,
-			Body:       io.NopCloser(strings.NewReader(originalBody)),
-			Header:     make(http.Header),
-		}
-
-		err = volumeAction.ProcessResponse(resp)
-		assert.NoError(t, err)
-
-		// Verify sensitive fields are removed
-		body, _ := io.ReadAll(resp.Body)
-		var result map[string]interface{}
-		err = json.Unmarshal(body, &result)
-		assert.NoError(t, err)
-
-		assert.Equal(t, "deleted-volume", result["name"])
-		assert.NotContains(t, result, "efficiency")
-
-		space, ok := result["space"].(map[string]interface{})
-		assert.True(t, ok)
-		assert.NotContains(t, space, "physical_used")
+		// Verify
+		assert.True(t, actionFound, "Action should be found in context")
 	})
 }
 
-func TestRuleMap_VolumeActions_Integration(t *testing.T) {
-	proxyRules := rules.GetProxyRules()
+func TestFindMatchingRule(t *testing.T) {
+	t.Run("WhenExactMatch_ShouldReturnRule", func(t *testing.T) {
+		// Setup
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/storage/aggregates"
+		}
+		defer func() { extractOntapPathUtil = originalExtract }()
 
-	t.Run("CompleteVolumeLifecycle_ShouldWorkEndToEnd", func(t *testing.T) {
-		// 1. Create a volume (POST)
-		createRule := proxyRules["/api/storage/volumes"]
-		createAction := createRule.POST.(*processor.VolumeAction)
+		logger := util.GetLogger(context.Background())
 
-		createBody := `{
-			"name": "lifecycle-test-volume",
-			"size": 1073741824,
-			"guarantee": {
-				"type": "none"
-			},
-			"space": {
-				"logical_space": {
-					"enforcement": true,
-					"reporting": true
-				}
-			}
-		}`
-		createReq, _ := http.NewRequest("POST", "/api/storage/volumes", strings.NewReader(createBody))
+		// Execute
+		rule, path, found := findMatchingRule("/ontap/api/storage/aggregates", logger)
 
-		// Validate creation request
-		allowed, err := createAction.ShouldAllow(createReq)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
-
-		// Process creation request (inject enforcement)
-		w := httptest.NewRecorder()
-		err = createAction.ProcessRequest(createReq, w)
-		assert.NoError(t, err)
-
-		// 2. List volumes (GET)
-		listAction := createRule.GET.(*processor.VolumeAction)
-		listReq, _ := http.NewRequest("GET", "/api/storage/volumes", nil)
-
-		allowed, err = listAction.ShouldAllow(listReq)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
-
-		// 3. Get specific volume (GET with UUID)
-		specificRule := proxyRules["/api/storage/volumes/{uuid}"]
-		getAction := specificRule.GET.(*processor.VolumeAction)
-		getReq, _ := http.NewRequest("GET", "/api/storage/volumes/uuid-123", nil)
-
-		allowed, err = getAction.ShouldAllow(getReq)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
-
-		// 4. Modify volume (PATCH)
-		patchAction := specificRule.PATCH.(*processor.VolumeAction)
-		patchBody := `{
-			"name": "lifecycle-test-volume-updated",
-			"size": 2147483648,
-			"guarantee": {
-				"type": "volume"
-			},
-			"space": {
-				"logical_space": {
-					"enforcement": true
-				}
-			}
-		}`
-		patchReq, _ := http.NewRequest("PATCH", "/api/storage/volumes/uuid-123", strings.NewReader(patchBody))
-
-		allowed, err = patchAction.ShouldAllow(patchReq)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
-
-		// 5. Delete volume (DELETE)
-		deleteAction := specificRule.DELETE.(*processor.VolumeAction)
-		deleteReq, _ := http.NewRequest("DELETE", "/api/storage/volumes/uuid-123", nil)
-
-		allowed, err = deleteAction.ShouldAllow(deleteReq)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
+		// Verify
+		assert.True(t, found)
+		assert.Equal(t, "/api/storage/aggregates", path)
+		assert.NotNil(t, rule.GET)
 	})
 
-	t.Run("AllVolumeActions_ShouldHaveCorrectResponseRules", func(t *testing.T) {
-		// Verify all volume actions have the correct response rules
-		expectedRemovalRules := []actions.RemovalRule{
-			{FieldPath: "efficiency"},
-			{FieldPath: "space.physical_used"},
+	t.Run("WhenWildcardMatch_ShouldReturnRule", func(t *testing.T) {
+		// Setup
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/private/nested/path"
 		}
+		defer func() { extractOntapPathUtil = originalExtract }()
 
-		expectedSpecificVolumeRemovalRules := []actions.RemovalRule{
-			{FieldPath: "efficiency"},
-			{FieldPath: "space.physical_used"},
-			{FieldPath: "space.logical_space.enforcement"},
-			{FieldPath: "space.logical_space.reporting"},
+		logger := util.GetLogger(context.Background())
+
+		// Execute
+		rule, path, found := findMatchingRule("/ontap/api/private/nested/path", logger)
+
+		// Verify
+		assert.True(t, found)
+		assert.Equal(t, "/api/private/*", path)
+		assert.NotNil(t, rule.GET)
+	})
+
+	t.Run("WhenNoMatch_ShouldReturnNotFound", func(t *testing.T) {
+		// Setup
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/unknown/path"
 		}
+		defer func() { extractOntapPathUtil = originalExtract }()
 
-		// Check volume listing
-		listRule := proxyRules["/api/storage/volumes"]
-		listAction := listRule.GET.(*processor.VolumeAction)
-		assert.Equal(t, expectedRemovalRules, listAction.ResponseRule.RemovalRules)
+		logger := util.GetLogger(context.Background())
 
-		// Check volume creation
-		createAction := listRule.POST.(*processor.VolumeAction)
-		assert.Equal(t, expectedRemovalRules, createAction.ResponseRule.RemovalRules)
+		// Execute
+		_, _, found := findMatchingRule("/ontap/api/unknown/path", logger)
 
-		// Check specific volume details
-		specificRule := proxyRules["/api/storage/volumes/{uuid}"]
-		getAction := specificRule.GET.(*processor.VolumeAction)
-		assert.Equal(t, expectedSpecificVolumeRemovalRules, getAction.ResponseRule.RemovalRules)
-
-		// Check volume modification
-		patchAction := specificRule.PATCH.(*processor.VolumeAction)
-		assert.Equal(t, expectedRemovalRules, patchAction.ResponseRule.RemovalRules)
-
-		// Check volume deletion
-		deleteAction := specificRule.DELETE.(*processor.VolumeAction)
-		assert.Equal(t, expectedRemovalRules, deleteAction.ResponseRule.RemovalRules)
+		// Verify
+		assert.False(t, found)
 	})
 }
 
-func TestRuleMap_AggregateActions(t *testing.T) {
-	proxyRules := rules.GetProxyRules()
+func TestNormalizeUUIDs(t *testing.T) {
+	t.Run("WhenPathContainsUUID_ShouldReplaceWithPlaceholder", func(t *testing.T) {
+		path := "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000"
 
-	t.Run("GET /api/storage/aggregates - Allowed", func(t *testing.T) {
-		rule := proxyRules["/api/storage/aggregates"]
-		action := rule.GET.(*processor.Allow)
+		result := normalizeUUIDs(path)
 
-		req, _ := http.NewRequest("GET", "/api/storage/aggregates", nil)
-		allowed, err := action.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
+		assert.Equal(t, "/api/storage/volumes/{uuid}", result)
 	})
 
-	t.Run("POST /api/storage/aggregates - Denied", func(t *testing.T) {
-		rule := proxyRules["/api/storage/aggregates"]
-		action := rule.POST.(*processor.Deny)
+	t.Run("WhenPathContainsMultipleUUIDs_ShouldReplaceAll", func(t *testing.T) {
+		path := "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000/snapshots/660e8400-e29b-41d4-a716-446655440001"
 
-		req, _ := http.NewRequest("POST", "/api/storage/aggregates", strings.NewReader(`{}`))
-		allowed, err := action.ShouldAllow(req)
-		assert.NoError(t, err) // Deny returns true, nil for ShouldAllow, actual denial happens in rule_engine
-		assert.False(t, allowed)
+		result := normalizeUUIDs(path)
+
+		assert.Equal(t, "/api/storage/volumes/{uuid}/snapshots/{uuid}", result)
 	})
 
-	t.Run("PATCH /api/storage/aggregates - Denied", func(t *testing.T) {
-		rule := proxyRules["/api/storage/aggregates"]
-		action := rule.PATCH.(*processor.Deny)
+	t.Run("WhenPathHasNoUUID_ShouldReturnUnchanged", func(t *testing.T) {
+		path := "/api/storage/volumes"
 
-		req, _ := http.NewRequest("PATCH", "/api/storage/aggregates", strings.NewReader(`{}`))
-		allowed, err := action.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.False(t, allowed)
-	})
+		result := normalizeUUIDs(path)
 
-	t.Run("DELETE /api/storage/aggregates - Denied", func(t *testing.T) {
-		rule := proxyRules["/api/storage/aggregates"]
-		action := rule.DELETE.(*processor.Deny)
-
-		req, _ := http.NewRequest("DELETE", "/api/storage/aggregates", nil)
-		allowed, err := action.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.False(t, allowed)
-	})
-}
-
-func TestRuleMap_PrivateCLIActions(t *testing.T) {
-	proxyRules := rules.GetProxyRules()
-
-	t.Run("GET /api/private/* - Denied", func(t *testing.T) {
-		rule := proxyRules["/api/private/*"]
-		action := rule.GET.(*processor.Deny)
-
-		req, _ := http.NewRequest("GET", "/api/private/cli/snapmirror/break", nil)
-		allowed, err := action.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.False(t, allowed)
-	})
-
-	t.Run("POST /api/private/* - Denied", func(t *testing.T) {
-		rule := proxyRules["/api/private/*"]
-		action := rule.POST.(*processor.Deny)
-
-		req, _ := http.NewRequest("POST", "/api/private/cli/vserver/start", strings.NewReader(`{}`))
-		allowed, err := action.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.False(t, allowed)
-	})
-
-	t.Run("PATCH /api/private/* - Denied", func(t *testing.T) {
-		rule := proxyRules["/api/private/*"]
-		action := rule.PATCH.(*processor.Deny)
-
-		req, _ := http.NewRequest("PATCH", "/api/private/cli/snapmirror/break", strings.NewReader(`{}`))
-		allowed, err := action.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.False(t, allowed)
-	})
-
-	t.Run("DELETE /api/private/* - Denied", func(t *testing.T) {
-		rule := proxyRules["/api/private/*"]
-		action := rule.DELETE.(*processor.Deny)
-
-		req, _ := http.NewRequest("DELETE", "/api/private/cli/vserver/stop", nil)
-		allowed, err := action.ShouldAllow(req)
-		assert.NoError(t, err)
-		assert.False(t, allowed)
+		assert.Equal(t, "/api/storage/volumes", result)
 	})
 }

@@ -67,6 +67,11 @@ var (
 
 	suspiciousSQLKeywords = regexp.MustCompile(`(?i)^(select|union|insert|update|delete|drop|create|alter|exec|execute|from|into|table|database|where|having|or|and)$`)
 
+	// blockedQueryParams contains query parameter names that are not allowed
+	blockedQueryParams = map[string]string{
+		"privilege_level": "privilege_level query parameter is not allowed",
+	}
+
 	xssPatterns = []*regexp.Regexp{
 		regexp.MustCompile(`(?is)(<script[^>]*>.*</script>)`),
 		regexp.MustCompile(`(?i)(javascript\s*:)`),
@@ -286,6 +291,15 @@ func validateOntapPath(value string) error {
 
 func validateQueryParams(r *http.Request) error {
 	for key, values := range r.URL.Query() {
+		// Check for blocked query parameters
+		if reason, blocked := blockedQueryParams[key]; blocked {
+			return &URLValidationError{
+				Type:    "BLOCKED_PARAM",
+				Context: "query parameter",
+				Pattern: reason,
+			}
+		}
+
 		if suspiciousSQLKeywords.MatchString(key) {
 			return &URLValidationError{
 				Type:    "SQL_INJECTION",
@@ -367,6 +381,9 @@ type URLValidationError struct {
 }
 
 func (e *URLValidationError) Error() string {
+	if e.Type == "BLOCKED_PARAM" {
+		return e.Pattern
+	}
 	return "security validation failed: " + e.Type + " detected in " + e.Context
 }
 

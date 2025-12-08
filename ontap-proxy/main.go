@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/endpoints"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/reverseproxy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
@@ -89,6 +90,7 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 	// Mount ONTAP API route first (more specific route)
 	mux.Route("/v1beta/projects/{projectId}/locations/{locationId}/pools/{poolId}/ontap", func(r chi.Router) {
 		r.Use(middleware.URLValidationMiddleware())
+		r.Use(bodyLimitMiddleware(dsl.MaxRequestBodySize)) // Limit request body size to 5MB
 		r.Use(middleware.CredentialMiddleware())
 		r.Use(middleware.RuleEngineMiddleware())
 		r.Use(middleware.CertificateMiddleware())
@@ -104,5 +106,15 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		ReadHeaderTimeout: 2 * time.Second,
+	}
+}
+
+// bodyLimitMiddleware limits request body size using http.MaxBytesReader
+func bodyLimitMiddleware(maxBytes int) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
+			next.ServeHTTP(w, r)
+		})
 	}
 }

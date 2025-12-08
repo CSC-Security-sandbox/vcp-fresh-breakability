@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	ontapProxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -489,7 +489,7 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 			req.URL.Path = ontapPath
 		},
 		Transport:      NewPooledAuthTransport(),
-		ModifyResponse: actions.ProcessResponseModification,
+		ModifyResponse: middleware.ProcessResponseModification,
 		ErrorHandler:   handleProxyError,
 	}
 

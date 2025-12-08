@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/actions"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/rules"
+	rules "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/rules_v2"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -21,6 +21,9 @@ var (
 // uuidPattern is a compiled regex pattern for matching UUIDs in URL paths
 var uuidPattern = regexp.MustCompile(`/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}`)
 
+// RuleEngineMiddleware creates a middleware that applies DSL-based rules to requests.
+// It matches the request path to rules, validates access, and attaches the action to context
+// for response processing.
 func RuleEngineMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,28 +45,33 @@ func RuleEngineMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			allowed, err := action.ShouldAllow(r)
-			if err != nil {
-				logger.ErrorContext(r.Context(), "Validation error", "error", err, "path", matchedPath)
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
+			// Parse request body once for POST/PATCH/PUT methods
+			// This caches the parsed body in context for all validation conditions
+			r = dsl.ParseRequestBody(r)
+
+			// Resolve action once - evaluates conditions and returns the leaf action
+			// This avoids re-evaluating conditions in ProcessRequest/ProcessResponse
+			resolvedAction, allowed, reason := dsl.ResolveAction(action, r)
 			if !allowed {
-				logger.InfoContext(r.Context(), "Request denied by action", "path", matchedPath, "method", r.Method)
-				http.Error(w, "Request denied", http.StatusForbidden)
+				logger.InfoContext(r.Context(), "Request denied by action", "path", matchedPath, "method", r.Method, "reason", reason)
+				http.Error(w, reason, http.StatusBadRequest)
 				return
 			}
 
-			if err := action.ProcessRequest(r, w); err != nil {
-				logger.ErrorContext(r.Context(), "Error processing request", "error", err, "path", matchedPath)
+			// Process request modifications using the resolved action
+			actionName, err := resolvedAction.ProcessRequest(r, w)
+			if err != nil {
+				logger.ErrorContext(r.Context(), "Error processing request", "error", err, "action", actionName, "path", matchedPath)
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), models.RuleContextKey, action)
+			// Attach resolved action to context for response processing
+			// This stores the leaf action (e.g., Allow), not the When wrapper
+			ctx := context.WithValue(r.Context(), models.RuleContextKey, resolvedAction)
 			r = r.WithContext(ctx)
 
-			logger.DebugContext(r.Context(), "Request processed successfully, forwarding to next middleware", "path", matchedPath)
+			logger.DebugContext(r.Context(), "Request processed successfully, forwarding to next middleware", "action", actionName, "path", matchedPath)
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -71,19 +79,21 @@ func RuleEngineMiddleware() func(http.Handler) http.Handler {
 
 // findMatchingRule extracts the ONTAP path and finds the matching rule
 // Returns: (rule, matchedPath, found)
-func findMatchingRule(requestPath string, logger log.Logger) (actions.Rule, string, bool) {
+func findMatchingRule(requestPath string, logger log.Logger) (dsl.Rule, string, bool) {
 	path := extractOntapPath(requestPath)
 	if path == "" {
 		logger.Error("Could not extract ONTAP path", "path", requestPath)
-		return actions.Rule{}, "", false
+		return dsl.Rule{}, "", false
 	}
 
 	proxyRules := rules.GetProxyRules()
 
+	// Try exact match first
 	if rule, ok := proxyRules[path]; ok {
 		return rule, path, true
 	}
 
+	// Try wildcard match
 	for rulePath, rule := range proxyRules {
 		if strings.HasSuffix(rulePath, "/*") {
 			prefix := strings.TrimSuffix(rulePath, "/*")
@@ -94,7 +104,7 @@ func findMatchingRule(requestPath string, logger log.Logger) (actions.Rule, stri
 	}
 
 	logger.Debug("No rule found for path", "path", path)
-	return actions.Rule{}, "", false
+	return dsl.Rule{}, "", false
 }
 
 func extractOntapPath(fullPath string) string {
@@ -110,6 +120,5 @@ func extractOntapPath(fullPath string) string {
 // normalizeUUIDs replaces UUID-like patterns in the path with {uuid} placeholders
 func normalizeUUIDs(path string) string {
 	path = uuidPattern.ReplaceAllString(path, "/{uuid}")
-
 	return path
 }

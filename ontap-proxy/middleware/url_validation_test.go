@@ -1217,6 +1217,108 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 		assert.Contains(t, rr.Body.String(), "COMMAND_INJECTION")
 	})
+
+	t.Run("WhenBlockedQueryParamPrivilegeLevel_ShouldReject", func(t *testing.T) {
+		// Save original package-level variable value and restore after test
+		originalLocalRegion := localRegion
+		defer func() {
+			localRegion = originalLocalRegion
+		}()
+
+		// Directly modify the package-level variable
+		localRegion = "us-east1"
+
+		nextCalled := false
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			nextCalled = true
+		})
+
+		middleware := URLValidationMiddleware()
+		handler := middleware(nextHandler)
+
+		baseURL := "/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/storage/volumes"
+		params := url.Values{}
+		params.Set("fields", "*")
+		params.Set("privilege_level", "admin")
+		fullURL := baseURL + "?" + params.Encode()
+
+		req := httptest.NewRequest("GET", fullURL, nil)
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		assert.False(t, nextCalled)
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Contains(t, rr.Body.String(), "privilege_level query parameter is not allowed")
+	})
+
+	t.Run("WhenBlockedQueryParamPrivilegeLevelWithDifferentValue_ShouldReject", func(t *testing.T) {
+		// Save original package-level variable value and restore after test
+		originalLocalRegion := localRegion
+		defer func() {
+			localRegion = originalLocalRegion
+		}()
+
+		// Directly modify the package-level variable
+		localRegion = "us-east1"
+
+		nextCalled := false
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			nextCalled = true
+		})
+
+		middleware := URLValidationMiddleware()
+		handler := middleware(nextHandler)
+
+		// Test with different value - should still be blocked because the param name is blocked
+		baseURL := "/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/storage/volumes"
+		params := url.Values{}
+		params.Set("privilege_level", "diagnostic")
+		fullURL := baseURL + "?" + params.Encode()
+
+		req := httptest.NewRequest("GET", fullURL, nil)
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		assert.False(t, nextCalled)
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Contains(t, rr.Body.String(), "privilege_level query parameter is not allowed")
+	})
+
+	t.Run("WhenValidQueryParamsWithoutBlockedParams_ShouldPass", func(t *testing.T) {
+		// Save original package-level variable value and restore after test
+		originalLocalRegion := localRegion
+		defer func() {
+			localRegion = originalLocalRegion
+		}()
+
+		// Directly modify the package-level variable
+		localRegion = "us-east1"
+
+		nextCalled := false
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			nextCalled = true
+		})
+
+		middleware := URLValidationMiddleware()
+		handler := middleware(nextHandler)
+
+		// Valid request without blocked params
+		baseURL := "/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/storage/volumes"
+		params := url.Values{}
+		params.Set("fields", "*")
+		params.Set("max_records", "100")
+		fullURL := baseURL + "?" + params.Encode()
+
+		req := httptest.NewRequest("GET", fullURL, nil)
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		assert.True(t, nextCalled)
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
 }
 
 func TestValidateOntapPath(t *testing.T) {
