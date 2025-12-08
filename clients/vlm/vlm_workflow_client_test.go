@@ -1468,7 +1468,8 @@ func TestCreateVSAExpertModeUser_Success(t *testing.T) {
 
 	vlmManager := &VSAClientWorkflowManager{}
 	env.ExecuteWorkflow(func(ctx workflow.Context) error {
-		return vlmManager.CreateVSAExpertModeUser(ctx, req)
+		_, err := vlmManager.CreateVSAExpertModeUser(ctx, req)
+		return err
 	})
 
 	assert.True(t, env.IsWorkflowCompleted())
@@ -1508,7 +1509,8 @@ func TestCreateVSAExpertModeUser_ChildWorkflowError(t *testing.T) {
 
 	vlmManager := &VSAClientWorkflowManager{}
 	env.ExecuteWorkflow(func(ctx workflow.Context) error {
-		return vlmManager.CreateVSAExpertModeUser(ctx, req)
+		_, err := vlmManager.CreateVSAExpertModeUser(ctx, req)
+		return err
 	})
 
 	assert.True(t, env.IsWorkflowCompleted())

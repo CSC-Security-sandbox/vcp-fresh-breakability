@@ -212,6 +212,8 @@ workerConfig:
   scheduleHardDelete: "false"
   replicationJobsRetryMaxAttempts: 10
   updateRemoteVolumeJobsRetryMaxAttempts: 10
+  expertModeRbacBucketName: "gcnv-autopush-images-bucket"
+  expertModeRbacFilePath: "GCNV/%s/RBAC/gcnvadmin_create_cli" # keep %s as it is, as it will be replaced by ontap version later
 
   workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
   cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes

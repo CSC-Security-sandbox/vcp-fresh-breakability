@@ -13,3 +13,9 @@ type BucketDetails struct {
 	Created       string `json:"created"`
 	Updated       string `json:"updated"`
 }
+
+type BucketFileDetails struct {
+	BucketName  string `json:"bucketName"`
+	FileUrl     string `json:"fileUrl"`
+	FileHashMD5 string `json:"fileHashMD5"`
+}

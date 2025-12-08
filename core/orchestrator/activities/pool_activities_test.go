@@ -36,7 +36,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
-	hyperscaler3 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -2417,7 +2416,7 @@ func Test_InsertFirewall(t *testing.T) {
 		defer func() {
 			activities.InsertFirewall = InsertFirewall
 		}()
-		existingFirewall := &hyperscaler3.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: []string{"10.0.0.0/8", "192.168.0.0/16"}, // Same source ranges as expected
 		}
 		mgs.On("GetLogger").Return(logger)
@@ -2460,7 +2459,7 @@ func Test_InsertFirewall(t *testing.T) {
 		errString := "failed to insert firewall"
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetFirewall", projectName, firewallName).Return(nil, nil)
-		mgs.On("InsertFirewall", &hyperscaler3.Firewall{
+		mgs.On("InsertFirewall", &hyperscaler_models.Firewall{
 			ProjectName:      projectName,
 			Name:             firewallName,
 			VPCNetworkName:   vpcName,
@@ -2506,7 +2505,7 @@ func Test_CreateVPC(t *testing.T) {
 			activities.CreateVPC = CreateVPC
 		}()
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetVPCNetwork", projectName, vpcName).Return(&hyperscaler3.VPCNetwork{}, nil)
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(&hyperscaler_models.VPCNetwork{}, nil)
 
 		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.NoError(tt, err)
@@ -2545,7 +2544,7 @@ func Test_CreateVPC(t *testing.T) {
 		errString := "not found"
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, errors.New(errString))
-		mgs.On("CreateVPC", &hyperscaler3.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return("", nil)
+		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return("", nil)
 
 		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.Nil(tt, err)
@@ -2561,7 +2560,7 @@ func Test_CreateVPC(t *testing.T) {
 		errString := "failed to create VPC"
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil)
-		mgs.On("CreateVPC", &hyperscaler3.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return("", errors.New(errString))
+		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return("", errors.New(errString))
 
 		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 
@@ -2600,7 +2599,7 @@ func Test_CreateVPC(t *testing.T) {
 		}()
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil).Once()
-		mgs.On("CreateVPC", &hyperscaler3.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return("", nil)
+		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return("", nil)
 
 		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.NoError(tt, err)
@@ -2625,7 +2624,7 @@ func Test_InsertSubnet(t *testing.T) {
 			activities.InsertSubnet = InsertSubnet
 		}()
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(&hyperscaler3.Subnet{}, nil)
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(&hyperscaler_models.Subnet{}, nil)
 
 		_, err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
 		assert.NoError(tt, err)
@@ -2697,7 +2696,7 @@ func Test_getSubnetwork(t *testing.T) {
 		activity := &activities.PoolActivity{SE: mockStorage}
 		ctx := context.Background()
 
-		expectedSubnet := &hyperscaler3.Subnet{
+		expectedSubnet := &hyperscaler_models.Subnet{
 			Name:           "subnet-1",
 			IpCidrRange:    "10.0.0.0/24",
 			Network:        "projects/sn-host/global/networks/test-network",
@@ -3006,8 +3005,8 @@ func TestPoolActivity_CreateServiceAccountWithStorageRole(t *testing.T) {
 	}()
 
 	t.Run("success", func(t *testing.T) {
-		expectedSA := &hyperscaler3.ServiceAccount{Name: "projects/test-project/serviceAccounts/test-sa"}
-		activities.CreateServiceAccountAndAttachRole = func(ctx context.Context, projectID, saAccountID, saDisplayName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler3.ServiceAccount, error) {
+		expectedSA := &hyperscaler_models.ServiceAccount{Name: "projects/test-project/serviceAccounts/test-sa"}
+		activities.CreateServiceAccountAndAttachRole = func(ctx context.Context, projectID, saAccountID, saDisplayName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler_models.ServiceAccount, error) {
 			return expectedSA, nil
 		}
 
@@ -3015,7 +3014,7 @@ func TestPoolActivity_CreateServiceAccountWithStorageRole(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 
-		var sa *hyperscaler3.ServiceAccount
+		var sa *hyperscaler_models.ServiceAccount
 		val, err := env.ExecuteActivity(activity.CreateServiceAccountWithStorageRole, projectID, saAccountID, saDisplayName)
 		assert.NoError(t, err)
 		err = val.Get(&sa)
@@ -3024,14 +3023,14 @@ func TestPoolActivity_CreateServiceAccountWithStorageRole(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		activities.CreateServiceAccountAndAttachRole = func(ctx context.Context, projectID, saAccountID, saDisplayName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler3.ServiceAccount, error) {
+		activities.CreateServiceAccountAndAttachRole = func(ctx context.Context, projectID, saAccountID, saDisplayName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler_models.ServiceAccount, error) {
 			return nil, errors.New("Mock error: failed to create service account")
 		}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
 
-		var sa *hyperscaler3.ServiceAccount
+		var sa *hyperscaler_models.ServiceAccount
 		val, err := env.ExecuteActivity(activity.CreateServiceAccountWithStorageRole, projectID, saAccountID, saDisplayName)
 		assert.Error(t, err)
 		if err == nil {
@@ -3048,14 +3047,14 @@ func Test_createServiceAccountAndAttachRole(t *testing.T) {
 	saAccountID := "test-sa"
 	saDisplayName := "Test Service Account"
 	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectID)
-	expectedSA := &hyperscaler3.ServiceAccount{Email: saEmail}
+	expectedSA := &hyperscaler_models.ServiceAccount{Email: saEmail}
 	roles := []string{"roles/storage.objectUser"}
 
 	t.Run("success", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
-		createReq := &hyperscaler3.CreateServiceAccountRequest{
+		createReq := &hyperscaler_models.CreateServiceAccountRequest{
 			AccountId: saAccountID,
-			ServiceAccount: &hyperscaler3.ServiceAccount{
+			ServiceAccount: &hyperscaler_models.ServiceAccount{
 				DisplayName: saDisplayName,
 			},
 		}
@@ -3070,9 +3069,9 @@ func Test_createServiceAccountAndAttachRole(t *testing.T) {
 
 	t.Run("create service account fails", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
-		createReq := &hyperscaler3.CreateServiceAccountRequest{
+		createReq := &hyperscaler_models.CreateServiceAccountRequest{
 			AccountId: saAccountID,
-			ServiceAccount: &hyperscaler3.ServiceAccount{
+			ServiceAccount: &hyperscaler_models.ServiceAccount{
 				DisplayName: saDisplayName,
 			},
 		}
@@ -3087,9 +3086,9 @@ func Test_createServiceAccountAndAttachRole(t *testing.T) {
 
 	t.Run("attach roles fails", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
-		createReq := &hyperscaler3.CreateServiceAccountRequest{
+		createReq := &hyperscaler_models.CreateServiceAccountRequest{
 			AccountId: saAccountID,
-			ServiceAccount: &hyperscaler3.ServiceAccount{
+			ServiceAccount: &hyperscaler_models.ServiceAccount{
 				DisplayName: saDisplayName,
 			},
 		}
@@ -3106,9 +3105,9 @@ func Test_createServiceAccountAndAttachRole(t *testing.T) {
 	// Test for 409 concurrent policy modification retry behavior
 	t.Run("attach roles succeeds after 409 retry", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
-		createReq := &hyperscaler3.CreateServiceAccountRequest{
+		createReq := &hyperscaler_models.CreateServiceAccountRequest{
 			AccountId: saAccountID,
-			ServiceAccount: &hyperscaler3.ServiceAccount{
+			ServiceAccount: &hyperscaler_models.ServiceAccount{
 				DisplayName: saDisplayName,
 			},
 		}
@@ -3129,9 +3128,9 @@ func Test_createServiceAccountAndAttachRole(t *testing.T) {
 
 	t.Run("attach roles fails with 409 concurrent policy changes - error propagated for retry", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
-		createReq := &hyperscaler3.CreateServiceAccountRequest{
+		createReq := &hyperscaler_models.CreateServiceAccountRequest{
 			AccountId: saAccountID,
-			ServiceAccount: &hyperscaler3.ServiceAccount{
+			ServiceAccount: &hyperscaler_models.ServiceAccount{
 				DisplayName: saDisplayName,
 			},
 		}
@@ -3483,8 +3482,8 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
 		activities.PrepareVlmConfig = prepareVLMConfig
 		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
-		return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "password"}}, nil
+	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
 	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
@@ -3517,8 +3516,8 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig_LargeVolume(t *testing.T) {
 		activities.PrepareVlmConfig = prepareVLMConfig
 		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
-		return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "password"}}, nil
+	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
 	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
@@ -3555,8 +3554,8 @@ func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
 		activities.PrepareVlmConfig = prepareVLMConfig
 		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, userName string) (*hyperscaler3.CustomSecret, error) {
-		return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "password"}}, nil
+	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, userName string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
 	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
@@ -3593,8 +3592,8 @@ func Test_IdentifyVMs_FailsToPrepareConfig_LargeVolume(t *testing.T) {
 	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
 		return errors.New("failed to prepare VLM config for large volume")
 	}
-	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, userName string) (*hyperscaler3.CustomSecret, error) {
-		return &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "password"}}, nil
+	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, userName string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
 		DesiredIOPS:             8000,
@@ -3907,8 +3906,8 @@ func Test_getCertificateAndPrivateKeyByID(t *testing.T) {
 	caPoolName := "pool"
 	certificateID := "cert-id"
 
-	cert := &hyperscaler3.CustomCertificate{}
-	secret := &hyperscaler3.CustomSecret{SecretVersion: &hyperscaler3.CustomSecretVersion{}}
+	cert := &hyperscaler_models.CustomCertificate{}
+	secret := &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{}}
 
 	t.Run("success", func(t *testing.T) {
 		mockService := new(hyperscaler2.MockGoogleServices)
@@ -3943,7 +3942,7 @@ func Test_getCertificateAndPrivateKeyByID(t *testing.T) {
 
 	t.Run("secret version nil", func(t *testing.T) {
 		mockService := new(hyperscaler2.MockGoogleServices)
-		secretNoVersion := &hyperscaler3.CustomSecret{}
+		secretNoVersion := &hyperscaler_models.CustomSecret{}
 		mockService.On("GetCertificate", caDeployedProjectID, region, caPoolName, certificateID).Return(cert, nil)
 		mockService.On("GetSecretWithLatestVersion", secretManagerProjectID, certificateID).Return(secretNoVersion, nil)
 		resp, err := hyperscaler2.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
@@ -3957,7 +3956,7 @@ func Test_GetAndCreateCloudDNSRecord(t *testing.T) {
 	ipAddress := "1.2.3.4"
 	t.Run("CreateResourceRecordSet success", func(t *testing.T) {
 		mockService := hyperscaler2.NewMockGoogleServices(t)
-		expectedRecord := &hyperscaler3.CustomCloudDNSRecord{RecordName: recordName, Data: ipAddress}
+		expectedRecord := &hyperscaler_models.CustomCloudDNSRecord{RecordName: recordName, Data: ipAddress}
 
 		mockService.On("GetLogger").Return(log.NewLogger())
 		mockService.On("GetResourceRecordSet", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -4105,8 +4104,8 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 		hyperscaler2.GetOrCreateCloudDNSRecord = originalCreateCloudDNSRecord
 		hyperscaler2.GetGCPService = originalGCPService
 	}()
-	hyperscaler2.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler3.CustomCloudDNSRecord, error) {
-		return &hyperscaler3.CustomCloudDNSRecord{RecordName: recordName}, nil
+	hyperscaler2.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
+		return &hyperscaler_models.CustomCloudDNSRecord{RecordName: recordName}, nil
 	}
 
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -4173,7 +4172,7 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 
 	// CreateCloudDNSRecord returns error
 	t.Run("GetOrCreateCloudDNSRecord error", func(t *testing.T) {
-		hyperscaler2.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler3.CustomCloudDNSRecord, error) {
+		hyperscaler2.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("dns error"))
 		}
 		vlmConfig := &vlm.VLMConfig{
@@ -4383,21 +4382,21 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
-			return &hyperscaler3.CustomCertificateResponse{
-				Certificate: &hyperscaler3.CustomCertificate{
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+			return &hyperscaler_models.CustomCertificateResponse{
+				Certificate: &hyperscaler_models.CustomCertificate{
 					SubjectCommonName:   "CN",
 					PemCertificate:      "cert",
 					PemCertificateChain: []string{"chain"},
 				},
-				Secret: &hyperscaler3.CustomSecret{
-					SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "key"},
+				Secret: &hyperscaler_models.CustomSecret{
+					SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "key"},
 				},
 			}, nil
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
-			return &hyperscaler3.CustomSecret{
-				SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "pwd"},
+		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+			return &hyperscaler_models.CustomSecret{
+				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool)
@@ -4420,19 +4419,19 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
-			return &hyperscaler3.CustomCertificateResponse{
-				Certificate: &hyperscaler3.CustomCertificate{
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+			return &hyperscaler_models.CustomCertificateResponse{
+				Certificate: &hyperscaler_models.CustomCertificate{
 					SubjectCommonName:   "CN",
 					PemCertificate:      "cert",
 					PemCertificateChain: []string{"chain"},
 				},
-				Secret: &hyperscaler3.CustomSecret{
-					SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "key"},
+				Secret: &hyperscaler_models.CustomSecret{
+					SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "key"},
 				},
 			}, nil
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
+		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool)
@@ -4451,7 +4450,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool)
@@ -4470,9 +4469,9 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
-			return &hyperscaler3.CustomSecret{
-				SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "pwd"},
+		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+			return &hyperscaler_models.CustomSecret{
+				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool)
@@ -4491,7 +4490,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
+		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool)
@@ -4774,15 +4773,15 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	// Mock certificate generation
-	hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
-		return &hyperscaler3.CustomCertificateResponse{
-			Certificate: &hyperscaler3.CustomCertificate{
+	hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+		return &hyperscaler_models.CustomCertificateResponse{
+			Certificate: &hyperscaler_models.CustomCertificate{
 				SubjectCommonName:   "test-cn",
 				PemCertificate:      "test-cert",
 				PemCertificateChain: []string{"test-chain"},
 			},
-			Secret: &hyperscaler3.CustomSecret{
-				SecretVersion: &hyperscaler3.CustomSecretVersion{
+			Secret: &hyperscaler_models.CustomSecret{
+				SecretVersion: &hyperscaler_models.CustomSecretVersion{
 					Value: "test-private-key",
 				},
 			},
@@ -4790,9 +4789,9 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	// Mock password generation
-	hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
-		return &hyperscaler3.CustomSecret{
-			SecretVersion: &hyperscaler3.CustomSecretVersion{
+	hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{
+			SecretVersion: &hyperscaler_models.CustomSecretVersion{
 				Value: "test-password",
 			},
 		}, nil
@@ -4979,17 +4978,17 @@ func TestPoolActivity_CreateServiceAccountWithStorageRole_Success(t *testing.T) 
 		return mockGCPService, nil
 	}
 
-	expectedServiceAccount := &hyperscaler3.ServiceAccount{
+	expectedServiceAccount := &hyperscaler_models.ServiceAccount{
 		Email: "test-sa@test-project.iam.gserviceaccount.com",
 		Name:  "Test Service Account",
 	}
 
-	activities.CreateServiceAccountAndAttachRole = func(ctx context.Context, projectID string, saAccountID string, saDisplayName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler3.ServiceAccount, error) {
+	activities.CreateServiceAccountAndAttachRole = func(ctx context.Context, projectID string, saAccountID string, saDisplayName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler_models.ServiceAccount, error) {
 		return expectedServiceAccount, nil
 	}
 
 	// Act
-	var result *hyperscaler3.ServiceAccount
+	var result *hyperscaler_models.ServiceAccount
 	val, err := env.ExecuteActivity(activity.CreateServiceAccountWithStorageRole, projectID, saAccountID, saDisplayName)
 	assert.NoError(t, err)
 	err = val.Get(&result)
@@ -5654,10 +5653,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	sourceRanges6 := []string{"192.168.1.0/24", "10.0.0.0/24"}
 	t.Run("whenNoChangeInSourceRange", func(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
-		existingFirewall := &hyperscaler3.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &hyperscaler3.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
 		mgs.On("GetLogger").Return(log.NewLogger())
@@ -5667,10 +5666,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenFirewallEdited", func(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
-		existingFirewall := &hyperscaler3.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &hyperscaler3.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges2,
 		}
 		mgs.On("GetLogger").Return(log.NewLogger())
@@ -5681,10 +5680,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenNewFirewallRemovedSuccess", func(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
-		existingFirewall := &hyperscaler3.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &hyperscaler3.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges4,
 		}
 		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
@@ -5695,10 +5694,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenNewFirewallAddedSuccess", func(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
-		existingFirewall := &hyperscaler3.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &hyperscaler3.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges3,
 		}
 		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
@@ -5709,10 +5708,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenNewFirewallIsDifferentSuccess", func(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
-		existingFirewall := &hyperscaler3.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &hyperscaler3.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges4,
 		}
 		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
@@ -5723,10 +5722,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenNewFirewallIsDifferentFails", func(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
-		existingFirewall := &hyperscaler3.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &hyperscaler3.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges5,
 		}
 		mgs.On("UpdateFirewall", firewallRequest).Return("", errors.New("update error"))
@@ -5737,10 +5736,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenFirewallOrderChanged", func(t *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(t)
-		existingFirewall := &hyperscaler3.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &hyperscaler3.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges6,
 		}
 		mgs.On("GetLogger").Return(log.NewLogger())
@@ -5853,7 +5852,7 @@ func TestPoolActivity_GetAvailableSubnet(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	params := commonparams.CreatePoolParams{}
 	tenantProjectNumber := "123456789"
-	expectedSubnet := &hyperscaler3.Subnet{}
+	expectedSubnet := &hyperscaler_models.Subnet{}
 
 	origGetGCPService := hyperscaler2.GetGCPService
 	origCheckReusableSubnet := activities.CheckReusableSubnet
@@ -5867,7 +5866,7 @@ func TestPoolActivity_GetAvailableSubnet(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return mockSvc, nil
 		}
-		activities.CheckReusableSubnet = func(se database.Storage, service hyperscaler2.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*hyperscaler3.Subnet, error) {
+		activities.CheckReusableSubnet = func(se database.Storage, service hyperscaler2.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*hyperscaler_models.Subnet, error) {
 			return expectedSubnet, nil
 		}
 		result, err := activity.GetAvailableSubnet(ctx, params, tenantProjectNumber)
@@ -5890,7 +5889,7 @@ func TestPoolActivity_GetAvailableSubnet(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return mockGCPService, nil
 		}
-		activities.CheckReusableSubnet = func(se database.Storage, service hyperscaler2.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*hyperscaler3.Subnet, error) {
+		activities.CheckReusableSubnet = func(se database.Storage, service hyperscaler2.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*hyperscaler_models.Subnet, error) {
 			return nil, errors.New("subnet error")
 		}
 		result, err := activity.GetAvailableSubnet(ctx, params, tenantProjectNumber)
@@ -5906,7 +5905,7 @@ func TestPoolActivity_GetTenancyInfo(t *testing.T) {
 	ctx := context.Background()
 
 	tenantProjectNumber := "123456789"
-	subnet := &hyperscaler3.Subnet{
+	subnet := &hyperscaler_models.Subnet{
 		Name:           "subnet-1",
 		IpCidrRange:    "10.0.0.0/24",
 		Network:        "projects/sn-host/global/networks/test-network",
@@ -6511,7 +6510,7 @@ func TestPoolActivity_GetServiceNetOpStatus(t *testing.T) {
 	activity := &activities.PoolActivity{}
 
 	t.Run("Success", func(t *testing.T) {
-		expectedOp := &hyperscaler3.ComputeOperation{
+		expectedOp := &hyperscaler_models.ComputeOperation{
 			Name: "op-123",
 		}
 		original := hyperscaler2.GetGCPService
@@ -6519,7 +6518,7 @@ func TestPoolActivity_GetServiceNetOpStatus(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 		originalGetServiceNetOpStatus := activities.GetServiceNetOpStatus
-		activities.GetServiceNetOpStatus = func(gcpService hyperscaler2.GoogleServices, operation string) (*hyperscaler3.ComputeOperation, error) {
+		activities.GetServiceNetOpStatus = func(gcpService hyperscaler2.GoogleServices, operation string) (*hyperscaler_models.ComputeOperation, error) {
 			return expectedOp, nil
 		}
 		defer func() {
@@ -6537,7 +6536,7 @@ func TestPoolActivity_GetServiceNetOpStatus(t *testing.T) {
 		assert.NotNil(t, result)
 
 		// Get the actual result from the activity execution
-		var opResult *hyperscaler3.ComputeOperation
+		var opResult *hyperscaler_models.ComputeOperation
 		err = result.Get(&opResult)
 		assert.NoError(t, err)
 		assert.NotNil(t, opResult)
@@ -6564,7 +6563,7 @@ func TestPoolActivity_GetServiceNetOpStatus(t *testing.T) {
 
 func Test_getServiceNetOpStatus(t *testing.T) {
 	mockService := new(hyperscaler2.MockGoogleServices)
-	expectedOp := &hyperscaler3.ComputeOperation{Status: "DONE"}
+	expectedOp := &hyperscaler_models.ComputeOperation{Status: "DONE"}
 	mockService.On("GetServiceNetOpStatus", "op-123").Return(expectedOp, nil)
 
 	op, err := activities.GetServiceNetOpStatus(mockService, "op-123")
@@ -8377,7 +8376,7 @@ func Test_getComputeOpStatus(t *testing.T) {
 
 	t.Run("Global_Operation_Success", func(t *testing.T) {
 		mockGCPService := hyperscaler2.NewMockGoogleServices(t)
-		expectedOp := &hyperscaler3.ComputeOperation{
+		expectedOp := &hyperscaler_models.ComputeOperation{
 			Name:   operation,
 			Status: "DONE",
 		}
@@ -8393,7 +8392,7 @@ func Test_getComputeOpStatus(t *testing.T) {
 
 	t.Run("Regional_Operation_Success", func(t *testing.T) {
 		mockGCPService := hyperscaler2.NewMockGoogleServices(t)
-		expectedOp := &hyperscaler3.ComputeOperation{
+		expectedOp := &hyperscaler_models.ComputeOperation{
 			Name:   operation,
 			Status: "RUNNING",
 		}
@@ -8447,7 +8446,7 @@ func TestPoolActivity_GetComputeOpStatus(t *testing.T) {
 	operation := "test-operation"
 
 	t.Run("Success_GlobalOperation_WithHeartbeat", func(t *testing.T) {
-		expectedOp := &hyperscaler3.ComputeOperation{
+		expectedOp := &hyperscaler_models.ComputeOperation{
 			Name:   operation,
 			Status: "DONE",
 		}
@@ -8456,7 +8455,7 @@ func TestPoolActivity_GetComputeOpStatus(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 		originalGetComputeOpStatus := activities.GetComputeOpStatus
-		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler3.ComputeOperation, error) {
+		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler_models.ComputeOperation, error) {
 			return expectedOp, nil
 		}
 		defer func() {
@@ -8474,7 +8473,7 @@ func TestPoolActivity_GetComputeOpStatus(t *testing.T) {
 		assert.NotNil(t, result)
 
 		// Get the actual result from the activity execution
-		var opResult *hyperscaler3.ComputeOperation
+		var opResult *hyperscaler_models.ComputeOperation
 		err = result.Get(&opResult)
 		assert.NoError(t, err)
 		assert.NotNil(t, opResult)
@@ -8483,7 +8482,7 @@ func TestPoolActivity_GetComputeOpStatus(t *testing.T) {
 	})
 
 	t.Run("Success_RegionalOperation_WithHeartbeat", func(t *testing.T) {
-		expectedOp := &hyperscaler3.ComputeOperation{
+		expectedOp := &hyperscaler_models.ComputeOperation{
 			Name:   operation,
 			Status: "RUNNING",
 		}
@@ -8492,7 +8491,7 @@ func TestPoolActivity_GetComputeOpStatus(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 		originalGetComputeOpStatus := activities.GetComputeOpStatus
-		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler3.ComputeOperation, error) {
+		activities.GetComputeOpStatus = func(gcpService hyperscaler2.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler_models.ComputeOperation, error) {
 			return expectedOp, nil
 		}
 		defer func() {
@@ -8510,7 +8509,7 @@ func TestPoolActivity_GetComputeOpStatus(t *testing.T) {
 		assert.NotNil(t, result)
 
 		// Get the actual result from the activity execution
-		var opResult *hyperscaler3.ComputeOperation
+		var opResult *hyperscaler_models.ComputeOperation
 		err = result.Get(&opResult)
 		assert.NoError(t, err)
 		assert.NotNil(t, opResult)
@@ -11051,15 +11050,15 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
-			return &hyperscaler3.CustomCertificateResponse{
-				Certificate: &hyperscaler3.CustomCertificate{
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
+			return &hyperscaler_models.CustomCertificateResponse{
+				Certificate: &hyperscaler_models.CustomCertificate{
 					SubjectCommonName:   "CN",
 					PemCertificate:      "cert",
 					PemCertificateChain: []string{"chain"},
 				},
-				Secret: &hyperscaler3.CustomSecret{
-					SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "key"},
+				Secret: &hyperscaler_models.CustomSecret{
+					SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "key"},
 				},
 			}, nil
 		}
@@ -11096,7 +11095,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler3.CustomCertificateResponse, error) {
+		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
 		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
@@ -11118,9 +11117,9 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 			},
 			PoolCredentials: &datamodel.PoolCredentials{},
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
-			return &hyperscaler3.CustomSecret{
-				SecretVersion: &hyperscaler3.CustomSecretVersion{Value: "pwd"},
+		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+			return &hyperscaler_models.CustomSecret{
+				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
 		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
@@ -11141,7 +11140,7 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler3.CustomSecret, error) {
+		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
 		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
@@ -11689,6 +11688,220 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 	})
 }
 
+func TestPoolActivity_GetRbacHash(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	bucketName := "test-bucket"
+	ontapversion := "9.18.1"
+
+	originalGetGCPService := hyperscaler2.GetGCPService
+	originalGetBucketFile := activities.GetBucketFile
+	defer func() {
+		hyperscaler2.GetGCPService = originalGetGCPService
+		activities.GetBucketFile = originalGetBucketFile
+	}()
+
+	t.Run("GetGCPService fails", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("GCP service initialization failed")
+		}
+
+		result, err := activity.GetRbacHash(ctx, ontapversion)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assertTemporalApplicationError(t, err, "GCP service initialization failed", vsaerrors.CustomErrorType, false)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetFileFromBucket fails", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		mockGCPService := &google.GcpServices{}
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		activities.GetBucketFile = func(service hyperscaler2.GoogleServices, ctx context.Context, bucketName, fileName string) (*hyperscaler_models.BucketFileDetails, error) {
+			return nil, errors.New("bucket file not found")
+		}
+
+		result, err := activity.GetRbacHash(ctx, ontapversion)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, err.Error(), "bucket file not found")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		mockGCPService := &google.GcpServices{}
+
+		expectedBucketFileDetails := &hyperscaler_models.BucketFileDetails{
+			BucketName:  bucketName,
+			FileUrl:     ontapversion,
+			FileHashMD5: "abc123def456",
+		}
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		activities.GetBucketFile = func(service hyperscaler2.GoogleServices, ctx context.Context, bucketName, fileName string) (*hyperscaler_models.BucketFileDetails, error) {
+			return expectedBucketFileDetails, nil
+		}
+
+		result, err := activity.GetRbacHash(ctx, ontapversion)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedBucketFileDetails, result)
+		assert.Equal(t, bucketName, result.BucketName)
+		assert.Equal(t, ontapversion, result.FileUrl)
+		assert.Equal(t, "abc123def456", result.FileHashMD5)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func Test_getBucketFile(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	bucketName := "test-bucket"
+	fileName := "test-file.yaml"
+
+	t.Run("Service GetFileFromBucket fails", func(t *testing.T) {
+		mockService := new(hyperscaler2.MockGoogleServices)
+		mockService.On("GetFileFromBucket", ctx, bucketName, fileName).Return(nil, errors.New("service error"))
+
+		result, err := activities.GetBucketFile(mockService, ctx, bucketName, fileName)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, err.Error(), "service error")
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		mockService := new(hyperscaler2.MockGoogleServices)
+		expectedBucketFileDetails := &hyperscaler_models.BucketFileDetails{
+			BucketName:  bucketName,
+			FileUrl:     fileName,
+			FileHashMD5: "test-hash-123",
+		}
+
+		mockService.On("GetFileFromBucket", ctx, bucketName, fileName).Return(expectedBucketFileDetails, nil)
+
+		result, err := activities.GetBucketFile(mockService, ctx, bucketName, fileName)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedBucketFileDetails, result)
+		assert.Equal(t, bucketName, result.BucketName)
+		assert.Equal(t, fileName, result.FileUrl)
+		assert.Equal(t, "test-hash-123", result.FileHashMD5)
+		mockService.AssertExpectations(t)
+	})
+}
+
+func TestPoolActivity_UpdateRbacCheckSumInPool(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	bucketFileDetails := &hyperscaler_models.BucketFileDetails{
+		BucketName:  "test-bucket",
+		FileUrl:     "rbac.yaml",
+		FileHashMD5: "abc123def456",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			RbacFileHash: "",
+			RbacFileUrl:  "",
+		},
+	}
+
+	t.Run("UpdatePoolFields fails", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		expectedUpdates := map[string]interface{}{
+			"build_info": &datamodel.PoolBuildInfo{
+				RbacFileHash: "abc123def456",
+				RbacFileUrl:  "gs://test-bucket/rbac.yaml",
+			},
+		}
+
+		mockStorage.On("UpdatePoolFields", ctx, pool.UUID, expectedUpdates).Return(errors.New("database update failed"))
+
+		err := activity.UpdateRbacCheckSumInPool(ctx, pool, bucketFileDetails)
+
+		assert.Error(t, err)
+		assert.Equal(t, err.Error(), "database update failed")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		expectedUpdates := map[string]interface{}{
+			"build_info": &datamodel.PoolBuildInfo{
+				RbacFileHash: "abc123def456",
+				RbacFileUrl:  "gs://test-bucket/rbac.yaml",
+			},
+		}
+
+		mockStorage.On("UpdatePoolFields", ctx, pool.UUID, expectedUpdates).Return(nil)
+
+		err := activity.UpdateRbacCheckSumInPool(ctx, pool, bucketFileDetails)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "abc123def456", pool.BuildInfo.RbacFileHash)
+		assert.Equal(t, "gs://test-bucket/rbac.yaml", pool.BuildInfo.RbacFileUrl)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success with existing build info", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		poolWithBuildInfo := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid-2",
+			},
+			BuildInfo: &datamodel.PoolBuildInfo{
+				RbacFileHash:  "old-hash",
+				RbacFileUrl:   "gs://old-bucket/old-file.yaml",
+				VSABuildImage: "test-image",
+			},
+		}
+
+		expectedUpdates := map[string]interface{}{
+			"build_info": &datamodel.PoolBuildInfo{
+				RbacFileHash:  "abc123def456",
+				RbacFileUrl:   "gs://test-bucket/rbac.yaml",
+				VSABuildImage: "test-image",
+			},
+		}
+
+		mockStorage.On("UpdatePoolFields", ctx, poolWithBuildInfo.UUID, expectedUpdates).Return(nil)
+
+		err := activity.UpdateRbacCheckSumInPool(ctx, poolWithBuildInfo, bucketFileDetails)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "abc123def456", poolWithBuildInfo.BuildInfo.RbacFileHash)
+		assert.Equal(t, "gs://test-bucket/rbac.yaml", poolWithBuildInfo.BuildInfo.RbacFileUrl)
+		assert.Equal(t, "test-image", poolWithBuildInfo.BuildInfo.VSABuildImage) // Verify other fields are preserved
+		mockStorage.AssertExpectations(t)
+	})
+}
+
 // TestCalculateBatchPlan_Success_6HAPairs_4ParallelNodes tests successful batch plan calculation for 6 HA pairs with 4 parallel nodes
 func TestCalculateBatchPlan_Success_6HAPairs_4ParallelNodes(t *testing.T) {
 	// Arrange
@@ -12099,4 +12312,289 @@ func TestParseVlmConfig(t *testing.T) {
 			mockStorage.AssertExpectations(t)
 		})
 	}
+}
+
+func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NumHAPair: 1,
+		},
+	}
+	ontapCredentials := vlm.OntapCredentials{
+		AdminPassword: "admin-password",
+	}
+	expertModeCredentials := vlm.OntapCredentials{
+		AdminPassword: "expert-password",
+	}
+	bucketFileDetails := &hyperscaler_models.BucketFileDetails{
+		BucketName:  "test-bucket",
+		FileUrl:     "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
+		FileHashMD5: "abc123def456",
+	}
+
+	t.Run("Success with certificate authentication", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USER_CERTIFICATE,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						Username: "gcnvadmin",
+					},
+				},
+			},
+		}
+
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+
+		assert.NoError(t, err)
+		assert.Equal(t, vlmConfig, createVSAExpertModeRequest.VLMConfig)
+		assert.Equal(t, ontapCredentials, createVSAExpertModeRequest.OntapCredentials)
+		assert.Equal(t, expertModeCredentials, createVSAExpertModeRequest.ExpertModeUserCredentials)
+		assert.Equal(t, "certificate", createVSAExpertModeRequest.AuthenticationType)
+		assert.Equal(t, "gcnvadmin", createVSAExpertModeRequest.Username)
+		assert.Equal(t, "gs://test-bucket/GCNV/9.17.1/RBAC/gcnvadmin_create_cli", createVSAExpertModeRequest.RbacFileURL)
+		assert.Equal(t, "abc123def456", createVSAExpertModeRequest.RbacFileChecksum)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success with password authentication", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						Username: "gcnvadmin",
+					},
+				},
+			},
+		}
+
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+
+		assert.NoError(t, err)
+		assert.Equal(t, vlmConfig, createVSAExpertModeRequest.VLMConfig)
+		assert.Equal(t, ontapCredentials, createVSAExpertModeRequest.OntapCredentials)
+		assert.Equal(t, expertModeCredentials, createVSAExpertModeRequest.ExpertModeUserCredentials)
+		assert.Equal(t, "password", createVSAExpertModeRequest.AuthenticationType)
+		assert.Equal(t, "gcnvadmin", createVSAExpertModeRequest.Username)
+		assert.Equal(t, "gs://test-bucket/GCNV/9.17.1/RBAC/gcnvadmin_create_cli", createVSAExpertModeRequest.RbacFileURL)
+		assert.Equal(t, "abc123def456", createVSAExpertModeRequest.RbacFileChecksum)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when expert mode credentials is nil", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+			},
+			ExpertModeCredentials: nil,
+		}
+
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+
+		assert.Error(t, err)
+		assert.Nil(t, createVSAExpertModeRequest)
+		assertTemporalApplicationError(t, err, "expert mode credentials are not provided", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when expert mode credential array is nil", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: nil,
+			},
+		}
+
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+
+		assert.Error(t, err)
+		assert.Nil(t, createVSAExpertModeRequest)
+		assertTemporalApplicationError(t, err, "expert mode credentials are not provided", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when expert mode credential array is empty", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{},
+			},
+		}
+
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+
+		assert.Error(t, err)
+		assert.Nil(t, createVSAExpertModeRequest)
+		assertTemporalApplicationError(t, err, "expert mode credentials are not provided", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when bucketFileDetails is nil", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						Username: "gcnvadmin",
+					},
+				},
+			},
+		}
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, nil)
+
+		assert.Error(t, err)
+		assert.Nil(t, createVSAExpertModeRequest)
+		assertTemporalApplicationError(t, err, "exp mode rbac file details are missing", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when bucketFileDetails FileHashMD5 is empty", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						Username: "gcnvadmin",
+					},
+				},
+			},
+		}
+
+		invalidBucketFileDetails := &hyperscaler_models.BucketFileDetails{
+			BucketName:  "test-bucket",
+			FileUrl:     "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
+			FileHashMD5: "", // Empty hash
+		}
+
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, invalidBucketFileDetails)
+
+		assert.Error(t, err)
+		assert.Nil(t, createVSAExpertModeRequest)
+		assertTemporalApplicationError(t, err, "exp mode rbac file details are missing", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when bucketFileDetails FileUrl is empty", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						Username: "gcnvadmin",
+					},
+				},
+			},
+		}
+
+		invalidBucketFileDetails := &hyperscaler_models.BucketFileDetails{
+			BucketName:  "test-bucket",
+			FileUrl:     "", // Empty file URL
+			FileHashMD5: "abc123def456",
+		}
+
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, invalidBucketFileDetails)
+
+		assert.Error(t, err)
+		assert.Nil(t, createVSAExpertModeRequest)
+		assertTemporalApplicationError(t, err, "exp mode rbac file details are missing", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when bucketFileDetails BucketName is empty", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						Username: "gcnvadmin",
+					},
+				},
+			},
+		}
+
+		invalidBucketFileDetails := &hyperscaler_models.BucketFileDetails{
+			BucketName:  "", // Empty bucket name
+			FileUrl:     "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
+			FileHashMD5: "abc123def456",
+		}
+
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, invalidBucketFileDetails)
+
+		assert.Error(t, err)
+		assert.Nil(t, createVSAExpertModeRequest)
+		assertTemporalApplicationError(t, err, "exp mode rbac file details are missing", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success with USERNAME_PWD_SEC_MGR auth type", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD_SEC_MGR,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						Username: "gcnvadmin",
+					},
+				},
+			},
+		}
+
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "password", createVSAExpertModeRequest.AuthenticationType) // Should default to password for non-certificate auth
+		assert.Equal(t, "gcnvadmin", createVSAExpertModeRequest.Username)
+		mockStorage.AssertExpectations(t)
+	})
 }

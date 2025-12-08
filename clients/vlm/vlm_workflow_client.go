@@ -78,7 +78,7 @@ type VlmWorkflowClient interface {
 	UpgradeVSAMediatorWorkflow(ctx workflow.Context, req *UpdateMediatorRequest) (*UpdateMediatorResponse, error)
 	UpdateLicenseWorkflow(ctx workflow.Context, req *UpdateLicenseRequest) error
 	GetClusterZiZsDetails(ctx workflow.Context, req *GetResourceInfoReq) (*GetResourceInfoResp, error)
-	CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) error
+	CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error)
 }
 
 type VSAClientWorkflowManager struct {
@@ -100,11 +100,12 @@ func getVLMWorkerQueue(logger log.Logger, account string) string {
 	}
 	return fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ontapVersion)
 }
-func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) error {
+func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error) {
+	ontapExpertModeUserResponse := OntapExpertModeUserResponse{}
 	logger := util.GetLogger(ctx)
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return err
+		return ontapExpertModeUserResponse, err
 	}
 	accountId := createVSAExpertModeUserRequest.VLMConfig.Deployment.Labels["account_id"]
 
@@ -130,23 +131,23 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow
 	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
 	if err != nil {
 		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return ontapExpertModeUserResponse, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Add correlation and deployment IDs to context
 	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
 	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, createVSAExpertModeUserRequest.VLMConfig.Deployment.DeploymentID)
 
-	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, CreateVSAExpertModeUserWorkflowName, createVSAExpertModeUserRequest).Get(childWorkflowContxt, nil)
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, CreateVSAExpertModeUserWorkflowName, createVSAExpertModeUserRequest).Get(childWorkflowContxt, &ontapExpertModeUserResponse)
 
 	if err != nil {
 		logger.Error("Failed to create expertModeUser", "error", err)
 		vlmErrorHandler := NewVLMErrorHandlerWithLogger(logger)
 		handledErr := vlmErrorHandler.HandleVLMError(err)
-		return vsaerrors.WrapAsTemporalApplicationError(handledErr)
+		return ontapExpertModeUserResponse, vsaerrors.WrapAsTemporalApplicationError(handledErr)
 	}
 
-	return nil
+	return ontapExpertModeUserResponse, nil
 }
 
 func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {

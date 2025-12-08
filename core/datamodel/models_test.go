@@ -750,6 +750,8 @@ func TestPoolBuildInfo_Value(t *testing.T) {
 		MediatorBuildImage: "mediator-image:latest",
 		OntapVersion:       "9.17.1",
 		BuildTimestamp:     time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+		RbacFileHash:       "hash123",
+		RbacFileUrl:        "gs://example.com/rbac",
 	}
 
 	value, err := pbi.Value()
@@ -771,7 +773,7 @@ func TestPoolBuildInfo_Value(t *testing.T) {
 	// Should produce valid JSON
 	bytes, ok := value.([]byte)
 	assert.True(t, ok)
-	assert.Equal(t, `{"vsaBuildImage":"","mediatorBuildImage":"","ontapVersion":"","buildTimestamp":"0001-01-01T00:00:00Z"}`, string(bytes))
+	assert.Equal(t, `{"vsaBuildImage":"","mediatorBuildImage":"","ontapVersion":"","buildTimestamp":"0001-01-01T00:00:00Z","rbacFileHash":"","rbacFileUrl":""}`, string(bytes))
 }
 
 func TestClusterPeeringAttributes_Scan(t *testing.T) {

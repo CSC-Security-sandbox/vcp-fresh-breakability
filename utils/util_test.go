@@ -3600,3 +3600,24 @@ func TestFetchTieringPolicyAsPerVolumeType(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateRbacFilePath(t *testing.T) {
+	template := "/etc/rbac/%s.yaml"
+	configurable := "gcp"
+	expected := "/etc/rbac/gcp.yaml"
+
+	result := GenerateRbacFilePath(template, configurable)
+	assert.Equal(t, expected, result)
+
+	// Test with multiple %s (should only replace first)
+	templateMulti := "/etc/rbac/%s/%s.yaml"
+	expectedMulti := "/etc/rbac/gcp/%s.yaml"
+	resultMulti := GenerateRbacFilePath(templateMulti, configurable)
+	assert.Equal(t, expectedMulti, resultMulti)
+
+	// Test with no %s
+	templateNoPlaceholder := "/etc/rbac/static.yaml"
+	expectedNoPlaceholder := "/etc/rbac/static.yaml"
+	resultNoPlaceholder := GenerateRbacFilePath(templateNoPlaceholder, configurable)
+	assert.Equal(t, expectedNoPlaceholder, resultNoPlaceholder)
+}

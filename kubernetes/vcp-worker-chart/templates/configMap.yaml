@@ -179,6 +179,8 @@ data:
   SCHEDULED_HARD_DELETE: {{$.Values.workerConfig.scheduleHardDelete | quote }}
   REPLICATION_JOBS_RETRY_MAX_ATTEMPTS: {{ $.Values.workerConfig.replicationJobsRetryMaxAttempts | quote }}
   UPDATE_REMOTE_VOLUME_JOBS_RETRY_MAX_ATTEMPTS: {{ $.Values.workerConfig.updateRemoteVolumeJobsRetryMaxAttempts | quote }}
+  EXPERT_MODE_RBAC_BUCKET_NAME: {{$.Values.workerConfig.expertModeRbacBucketName | quote }}
+  EXPERT_MODE_RBAC_FILE_PATH: {{$.Values.workerConfig.expertModeRbacFilePath | quote }}
 
   MGMT_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.mgmtFirewallSourceRanges | quote }}
   RSM_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.rsmFirewallSourceRanges | quote }}

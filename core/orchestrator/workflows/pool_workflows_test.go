@@ -362,7 +362,32 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 		Region:        "test-region",
 		MediatorZone:  "test-mediator-zone",
 	}, nil)
-	env.OnActivity("CreateExpertModeCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock GetRbacHash to succeed
+	bucketFileDetails := &hyperscalermodels.BucketFileDetails{
+		BucketName:  "test-bucket",
+		FileUrl:     "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
+		FileHashMD5: "test-hash",
+	}
+	env.OnActivity("GetRbacHash", mock.Anything, mock.Anything).Return(bucketFileDetails, nil)
+
+	// Mock CreateExpertModeCredentials to succeed
+	expertCredConfig := &vlm.OntapCredentials{
+		AdminPassword: "expert-password",
+	}
+	env.OnActivity("CreateExpertModeCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expertCredConfig, nil)
+
+	ontapExpertModeUserReq := &vlm.OntapExpertModeUserConfig{}
+	env.OnActivity("PrepareCreateVSAExpertModeReq", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ontapExpertModeUserReq, nil)
+
+	// Mock CreateVSAExpertModeUser to succeed
+	ontapExpertModeUserResponse := vlm.OntapExpertModeUserResponse{
+		RbacFileChecksum: "updated-rbac-checksum",
+	}
+	mockVSAClientWorkflowManager.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).Return(ontapExpertModeUserResponse, nil)
+
+	// Mock UpdateRbacCheckSumInPool to fail
+	env.OnActivity("UpdateRbacCheckSumInPool", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
 	mockVSAClientWorkflowManager.On("CreateVSAExpertModeUser", mock.Anything, mock.Anything).Return(nil)
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -11115,30 +11140,6 @@ func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceLogicalAND(t *testing
 		})
 	}
 }
-func TestPrepareCreateVSAExpertModeReq(t *testing.T) {
-	vlmConfig := vlm.VLMConfig{Deployment: vlm.DeploymentConfig{}}
-	ontapCreds := vlm.OntapCredentials{}
-	expertCreds := vlm.OntapCredentials{}
-	pool := &datamodel.Pool{
-		PoolCredentials: &datamodel.PoolCredentials{AuthType: envs.USER_CERTIFICATE},
-	}
-
-	req := &vlm.OntapExpertModeUserConfig{}
-	prepareCreateVSAExpertModeReq(req, vlmConfig, ontapCreds, expertCreds, pool)
-
-	assert.Equal(t, vlmConfig, req.VLMConfig)
-	assert.Equal(t, ontapCreds, req.OntapCredentials)
-	assert.Equal(t, expertCreds, req.ExpertModeUserCredentials)
-	assert.Equal(t, "certificate", req.AuthenticationType)
-	assert.Equal(t, envs.ExpertModeUser, req.Username)
-
-	// Test non-certificate auth type
-	pool.PoolCredentials.AuthType = envs.USERNAME_PWD
-	req = &vlm.OntapExpertModeUserConfig{}
-	prepareCreateVSAExpertModeReq(req, vlmConfig, ontapCreds, expertCreds, pool)
-	assert.Equal(t, "", req.AuthenticationType)
-}
-
 func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testing.T) {
 	// Test case 1: When file protocol is supported for an account, the function should configure
 	// file-specific images (vsaFilesImageName and filesMediatorImage) and enable ILB support

@@ -129,6 +129,8 @@ type PoolBuildInfo struct {
 	MediatorBuildImage string    `json:"mediatorBuildImage"`
 	OntapVersion       string    `json:"ontapVersion"`
 	BuildTimestamp     time.Time `json:"buildTimestamp,omitempty"`
+	RbacFileHash       string    `json:"rbacFileHash"`
+	RbacFileUrl        string    `json:"rbacFileUrl"`
 }
 
 // Scan implements the Scanner interface for PoolBuildInfo

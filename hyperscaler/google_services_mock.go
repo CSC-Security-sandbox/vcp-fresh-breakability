@@ -1517,6 +1517,66 @@ func (_c *MockGoogleServices_GetBucket_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// GetBucketFile provides a mock function with given fields: ctx, bucketName, fileName
+func (_m *MockGoogleServices) GetFileFromBucket(ctx context.Context, bucketName string, fileName string) (*models.BucketFileDetails, error) {
+	ret := _m.Called(ctx, bucketName, fileName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetFileFromBucket")
+	}
+
+	var r0 *models.BucketFileDetails
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*models.BucketFileDetails, error)); ok {
+		return rf(ctx, bucketName, fileName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *models.BucketFileDetails); ok {
+		r0 = rf(ctx, bucketName, fileName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BucketFileDetails)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, bucketName, fileName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetBucketFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFileFromBucket'
+type MockGoogleServices_GetBucketFile_Call struct {
+	*mock.Call
+}
+
+// GetBucketFile is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bucketName string
+//   - fileName string
+func (_e *MockGoogleServices_Expecter) GetBucketFile(ctx interface{}, bucketName interface{}, fileName interface{}) *MockGoogleServices_GetBucketFile_Call {
+	return &MockGoogleServices_GetBucketFile_Call{Call: _e.mock.On("GetFileFromBucket", ctx, bucketName, fileName)}
+}
+
+func (_c *MockGoogleServices_GetBucketFile_Call) Run(run func(ctx context.Context, bucketName string, fileName string)) *MockGoogleServices_GetBucketFile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetBucketFile_Call) Return(_a0 *models.BucketFileDetails, _a1 error) *MockGoogleServices_GetBucketFile_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetBucketFile_Call) RunAndReturn(run func(context.Context, string, string) (*models.BucketFileDetails, error)) *MockGoogleServices_GetBucketFile_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCertificate provides a mock function with given fields: projectID, region, poolName, certificateID
 func (_m *MockGoogleServices) GetCertificate(projectID string, region string, poolName string, certificateID string) (*models.CustomCertificate, error) {
 	ret := _m.Called(projectID, region, poolName, certificateID)

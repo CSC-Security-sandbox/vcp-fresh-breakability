@@ -2,8 +2,11 @@ package google
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -690,6 +693,47 @@ func (gcpService *GcpServices) GetBucket(ctx context.Context, bucketName string)
 
 	logger.Infof("Bucket %s - PZI: %t, PZS: %t", bucketName, satisfiesPzi, satisfiesPzs)
 	return bucketDetails, nil
+}
+
+func (gcpService *GcpServices) GetFileFromBucket(ctx context.Context, bucketName, fileName string) (*hyperscalermodels.BucketFileDetails, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Getting bucket file details for: %s/%s", bucketName, fileName)
+
+	object := gcpService.AdminGCPService.storageService.Bucket(bucketName).Object(fileName)
+	reader, err := object.NewReader(ctx)
+	if err != nil {
+		logger.Errorf("failed to create object reader: %s/%s: %v", bucketName, fileName, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+	defer func(reader *storage.Reader) {
+		err = reader.Close()
+		if err != nil {
+			gcpService.GetLogger().Warnf("failed to close object reader: %v", err)
+		}
+	}(reader)
+
+	// Create hashers
+	md5Hasher := md5.New()
+
+	// Create a multi-writer to write to both hashers simultaneously
+	multiWriter := io.MultiWriter(md5Hasher)
+
+	// Copy the object data to the hashers
+	if _, err = io.Copy(multiWriter, reader); err != nil {
+		logger.Errorf("failed to copy object reader: %s/%s: %v", bucketName, fileName, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+
+	// Compute the MD5 hashes
+	fileMD5Hash := base64.StdEncoding.EncodeToString(md5Hasher.Sum(nil))
+	bucketFileDetails := &hyperscalermodels.BucketFileDetails{
+		BucketName:  bucketName,
+		FileUrl:     fileName,
+		FileHashMD5: fileMD5Hash,
+	}
+
+	logger.Infof("Bucket file Hash fetched successfully for %s/%s", bucketName, fileName)
+	return bucketFileDetails, nil
 }
 
 func (gcpService *GcpServices) EmptyBucket(ctx context.Context, bucketName string) error {

@@ -189,6 +189,11 @@ type OntapExpertModeUserConfig struct {
 	Username                  string           `json:"username,omitempty"`            // expert mode username
 	AuthenticationType        string           `json:"authentication_type,omitempty"` // "password" or "certificate", default is password
 	RbacFileURL               string           `json:"rbac_file_url,omitempty"`       // URL for the RBAC file
+	RbacFileChecksum          string           `json:"rbac_file_checksum,omitempty"`  // Checksum of the RBAC file
+}
+
+type OntapExpertModeUserResponse struct {
+	RbacFileChecksum string `json:"rbac_checksum,omitempty"` // Checksum of the applied RBAC file
 }
 
 type GCPILBVmResources struct {

@@ -127,21 +127,31 @@ func (_c *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call) RunAndReturn(ru
 }
 
 // CreateVSAExpertModeUser provides a mock function with given fields: ctx, createVSAExpertModeUserRequest
-func (_m *MockVlmWorkflowClient) CreateVSAExpertModeUser(ctx internal.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) error {
+func (_m *MockVlmWorkflowClient) CreateVSAExpertModeUser(ctx internal.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error) {
 	ret := _m.Called(ctx, createVSAExpertModeUserRequest)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateVSAExpertModeUser")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(internal.Context, *OntapExpertModeUserConfig) error); ok {
+	var r0 OntapExpertModeUserResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error)); ok {
+		return rf(ctx, createVSAExpertModeUserRequest)
+	}
+	if rf, ok := ret.Get(0).(func(internal.Context, *OntapExpertModeUserConfig) OntapExpertModeUserResponse); ok {
 		r0 = rf(ctx, createVSAExpertModeUserRequest)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(OntapExpertModeUserResponse)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(internal.Context, *OntapExpertModeUserConfig) error); ok {
+		r1 = rf(ctx, createVSAExpertModeUserRequest)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockVlmWorkflowClient_CreateVSAExpertModeUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVSAExpertModeUser'
@@ -163,12 +173,12 @@ func (_c *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call) Run(run func(ctx i
 	return _c
 }
 
-func (_c *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call) Return(_a0 error) *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call {
-	_c.Call.Return(_a0)
+func (_c *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call) Return(_a0 OntapExpertModeUserResponse, _a1 error) *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call) RunAndReturn(run func(internal.Context, *OntapExpertModeUserConfig) error) *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call {
+func (_c *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call) RunAndReturn(run func(internal.Context, *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error)) *MockVlmWorkflowClient_CreateVSAExpertModeUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -41,6 +41,8 @@ const (
 	VMsPerHAPair                    = 2
 	EnableServerAuthInCSR           = true  // server auth will be enabled in the CSR(Certificate Signing Request), by default client is enabled
 	EnableServerAuthInCSRForExpMode = false // only client auth will be enabled in the CSR(Certificate Signing Request)
+	certificate                     = "certificate"
+	password                        = "password"
 )
 
 var (
@@ -85,15 +87,18 @@ var (
 	ResolveZonesForCluster                   = _resolveZonesForCluster
 	GetInternalVSANetworkForFirewalls        = _getInternalVSANetworkForFirewalls
 	ListAddressesByDeployment                = _listAddressesByDeployment
+	GetBucketFile                            = _getBucketFile
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
-	enforceMinSPConfig      = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
-	vsaImageProject         = env.GetString("VSA_IMAGE_PROJECT", "")
-	mediatorImageProject    = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
-	VsaInstanceTypeOverride = env.GetBool("VSA_INSTANCE_TYPE_OVERRIDE_LSSD", false)
-	IsIntegrationTest       = env.GetBool("INTEGRATION_TEST", false)
-	maxNestedCloneLimit     = env.GetInt("MAX_NESTED_CLONE_LIMIT", 499)
+	enforceMinSPConfig       = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
+	vsaImageProject          = env.GetString("VSA_IMAGE_PROJECT", "")
+	mediatorImageProject     = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
+	VsaInstanceTypeOverride  = env.GetBool("VSA_INSTANCE_TYPE_OVERRIDE_LSSD", false)
+	IsIntegrationTest        = env.GetBool("INTEGRATION_TEST", false)
+	maxNestedCloneLimit      = env.GetInt("MAX_NESTED_CLONE_LIMIT", 499)
+	expertModeRbacBucketName = env.GetString("EXPERT_MODE_RBAC_BUCKET_NAME", "gcnv-autopush-images-bucket")
+	expertModeRbacFilePath   = env.GetString("EXPERT_MODE_RBAC_FILE_PATH", "GCNV/%s/RBAC/gcnvadmin_create_cli")
 )
 
 // ValidateVSAZonesForMachineType validates that primary and secondary zones support the VSA instance type
@@ -894,6 +899,68 @@ func (j *PoolActivity) GetExpertModeCredentials(ctx context.Context, pool *datam
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return credentials, nil
+}
+
+func (j *PoolActivity) PrepareCreateVSAExpertModeReq(vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials, expertModeCredentials vlm.OntapCredentials, pool *datamodel.Pool, bucketFileDetails *hyperscaler_models.BucketFileDetails) (*vlm.OntapExpertModeUserConfig, error) {
+	createVSAExpertModeRequest := &vlm.OntapExpertModeUserConfig{}
+	createVSAExpertModeRequest.VLMConfig = vlmConfig
+	createVSAExpertModeRequest.OntapCredentials = ontapCredentials
+	createVSAExpertModeRequest.ExpertModeUserCredentials = expertModeCredentials
+	if pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {
+		createVSAExpertModeRequest.AuthenticationType = certificate
+	} else {
+		createVSAExpertModeRequest.AuthenticationType = password
+	}
+	if pool.ExpertModeCredentials == nil || pool.ExpertModeCredentials.ExpertModeCredential == nil || len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("expert mode credentials are not provided")))
+	}
+	createVSAExpertModeRequest.Username = pool.ExpertModeCredentials.ExpertModeCredential[0].Username
+
+	if bucketFileDetails == nil || bucketFileDetails.FileHashMD5 == "" || bucketFileDetails.FileUrl == "" || bucketFileDetails.BucketName == "" {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("exp mode rbac file details are missing")))
+	}
+	createVSAExpertModeRequest.RbacFileURL = fmt.Sprintf("gs://%s/%s", bucketFileDetails.BucketName, bucketFileDetails.FileUrl)
+	createVSAExpertModeRequest.RbacFileChecksum = bucketFileDetails.FileHashMD5
+	return createVSAExpertModeRequest, nil
+}
+
+func (j *PoolActivity) GetRbacHash(ctx context.Context, ontapVersion string) (*hyperscaler_models.BucketFileDetails, error) {
+	rbacFileurl := utils.GenerateRbacFilePath(expertModeRbacFilePath, ontapVersion)
+	gcpService, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
+	}
+	bucketFileDetails, err := GetBucketFile(gcpService, ctx, expertModeRbacBucketName, rbacFileurl)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return bucketFileDetails, nil
+}
+
+func _getBucketFile(service hyperscaler2.GoogleServices, ctx context.Context, bucketName string, fileUrl string) (*hyperscaler_models.BucketFileDetails, error) {
+	bucketFileDetails, err := service.GetFileFromBucket(ctx, bucketName, fileUrl)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return bucketFileDetails, nil
+}
+
+func (j *PoolActivity) UpdateRbacCheckSumInPool(ctx context.Context, pool *datamodel.Pool, bucketFileDetails *hyperscaler_models.BucketFileDetails) error {
+	se := j.SE
+	vsaBuildInfo := pool.BuildInfo
+	if vsaBuildInfo == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(errors.New("vsaBuildInfo is nil"))
+	}
+	vsaBuildInfo.RbacFileHash = bucketFileDetails.FileHashMD5
+	vsaBuildInfo.RbacFileUrl = fmt.Sprintf("gs://%s/%s", bucketFileDetails.BucketName, bucketFileDetails.FileUrl)
+	updates := map[string]interface{}{
+		"build_info": vsaBuildInfo,
+	}
+	err := se.UpdatePoolFields(ctx, pool.UUID, updates)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
 }
 
 func setupNetworkFirewallsForIntercluster(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {

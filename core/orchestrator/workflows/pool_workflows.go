@@ -471,6 +471,13 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	expertCredConfig := &vlm.OntapCredentials{}
 	if params.Mode == ONTAPMode {
+		rbacFileDetails := &hyperscalermodels.BucketFileDetails{}
+
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetRbacHash, dbPool.BuildInfo.OntapVersion).Get(ctx, &rbacFileDetails)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
 		if len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 || pool.ExpertModeCredentials.ExpertModeCredential[0].Username == "" {
 			return nil, ConvertToVSAError(vsaerrors.New("expert mode username not found in request"))
 		}
@@ -483,8 +490,18 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 
 		createVSAExpertModeReq := &vlm.OntapExpertModeUserConfig{}
-		prepareCreateVSAExpertModeReq(createVSAExpertModeReq, createVSAClusterDeploymentResponse.VLMConfig, *credConfig, *expertCredConfig, dbPool)
-		err = vsaClientWorkflowManager.CreateVSAExpertModeUser(ctx, createVSAExpertModeReq)
+		err = workflow.ExecuteActivity(ctx, poolActivity.PrepareCreateVSAExpertModeReq, createVSAClusterDeploymentResponse.VLMConfig, *credConfig, *expertCredConfig, dbPool, rbacFileDetails).Get(ctx, &createVSAExpertModeReq)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		ontapExpertModeUserResponse, err := vsaClientWorkflowManager.CreateVSAExpertModeUser(ctx, createVSAExpertModeReq)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		rbacFileDetails.FileHashMD5 = ontapExpertModeUserResponse.RbacFileChecksum
+		err = workflow.ExecuteActivity(ctx, poolActivity.UpdateRbacCheckSumInPool, dbPool, rbacFileDetails).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1568,16 +1585,6 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 			SecretUri: []string{secretUri},
 		}
 	}
-}
-
-func prepareCreateVSAExpertModeReq(createVSAExpertModeRequest *vlm.OntapExpertModeUserConfig, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials, expertModeCredentials vlm.OntapCredentials, pool *datamodel.Pool) {
-	createVSAExpertModeRequest.VLMConfig = vlmConfig
-	createVSAExpertModeRequest.OntapCredentials = ontapCredentials
-	createVSAExpertModeRequest.ExpertModeUserCredentials = expertModeCredentials
-	if pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {
-		createVSAExpertModeRequest.AuthenticationType = "certificate"
-	}
-	createVSAExpertModeRequest.Username = env.ExpertModeUser
 }
 
 func prepareCreateSVMRequest(createSVMRequest *vlm.CreateSVMRequest, svmName string, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials) {

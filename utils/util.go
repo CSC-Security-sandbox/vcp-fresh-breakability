@@ -1268,6 +1268,12 @@ func FetchTieringPolicyAsPerVolumeType(fileVolume bool) string {
 	return ontapmodels.VolumeInlineTieringPolicySnapshotOnly
 }
 
+// GenerateRbacFilePath generates the RBAC file path by replacing the placeholder with the value from the environment variable.
+func GenerateRbacFilePath(template, configurablePart string) string {
+	// Replace the placeholder with the actual configurable part
+	return strings.Replace(template, "%s", configurablePart, 1)
+}
+
 func IsRuleKerberosSupported(nFSv4, kerberos5ReadWrite, kerberos5ReadOnly, kerberos5pReadWrite,
 	kerberos5pReadOnly, kerberos5iReadOnly, kerberos5iReadWrite bool) bool {
 	return enableKerberos && nFSv4 && (kerberos5ReadWrite || kerberos5ReadOnly || kerberos5pReadWrite || kerberos5pReadOnly || kerberos5iReadOnly || kerberos5iReadWrite)

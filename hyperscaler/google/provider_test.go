@@ -1535,6 +1535,197 @@ func TestGcpServices_GetBucket(t *testing.T) {
 	})
 }
 
+func TestGcpServices_GetBucketFile2(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		// Create a test server
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/b/") && strings.Contains(r.URL.Path, "/o") {
+				// Mock bucket attributes response
+				attrs := &storage.BucketAttrs{
+					Name: "test-bucket",
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(attrs)
+			} else if strings.Contains(r.URL.Path, "/b/test-bucket") {
+				// Mock Storage v1 API response
+				bucketV1 := &storagev1.Bucket{
+					Name:         "test-bucket",
+					SatisfiesPZI: true,
+					SatisfiesPZS: false,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(bucketV1)
+			}
+		}))
+		defer server.Close()
+
+		// Create storage client with test server
+		storageClient, err := storage.NewClient(context.Background(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+
+		// Create storage v1 service with test server
+		storageV1Client, err := storagev1.NewService(context.Background(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage v1 client: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService:   storageClient,
+				storageV1Service: storageV1Client,
+			},
+		}
+
+		result, err := gcpService.GetFileFromBucket(context.Background(), "test-bucket", "additional-param.txt")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("bucket not found", func(t *testing.T) {
+		// Create a test server that returns 404
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "Not Found"}}`))
+		}))
+		defer server.Close()
+
+		// Create storage client with test server
+		storageClient, err := storage.NewClient(context.Background(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+		}
+
+		result, err := gcpService.GetFileFromBucket(context.Background(), "nonexistent-bucket", "additional-param.txt")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// The error message is wrapped in VCPError, so we check for the underlying error
+		// The actual error message format may vary, so we just check that an error occurred
+		assert.NotNil(t, err)
+	})
+
+	t.Run("storage service error", func(t *testing.T) {
+		// Create a test server that returns 500 immediately
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": {"code": 500, "message": "Internal Server Error"}}`))
+		}))
+		defer server.Close()
+
+		// Create storage client with very short timeout to avoid hanging
+		httpClient := &http.Client{Timeout: 100 * time.Millisecond}
+		storageClient, err := storage.NewClient(context.Background(), option.WithHTTPClient(httpClient), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+		}
+
+		// Use a context with timeout to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		result, err := gcpService.GetFileFromBucket(ctx, "test-bucket", "test-file.yaml")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("read error during copy", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		// Create a test server that closes connection immediately
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Close the connection immediately to simulate read error
+			hj, ok := w.(http.Hijacker)
+			if ok {
+				conn, _, _ := hj.Hijack()
+				_ = conn.Close()
+			}
+		}))
+		defer server.Close()
+
+		// Create storage client with test server
+		storageClient, err := storage.NewClient(ctx, option.WithHTTPClient(&http.Client{Timeout: 2 * time.Second}), option.WithEndpoint(server.URL), option.WithoutAuthentication())
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+		defer func(storageClient *storage.Client) {
+			err = storageClient.Close()
+			if err != nil {
+				t.Errorf("Failed to close storage client: %v", err)
+			}
+		}(storageClient)
+
+		gcpService := &GcpServices{
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+		}
+
+		// Use a context with timeout to prevent hanging
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+
+		result, err := gcpService.GetFileFromBucket(ctxWithTimeout, "test-bucket", "fileName")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// Verify it's a VCPError with ErrGCPResourceFetchError
+		var vcpErr *vsaerrors.CustomError
+		assert.True(t, vsaerrors.As(err, &vcpErr))
+		assert.Equal(t, vsaerrors.ErrGCPResourceFetchError, vcpErr.TrackingID)
+	})
+
+	t.Run("object not found", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		// Create a test server that returns 404
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "Not Found"}}`))
+		}))
+		defer server.Close()
+
+		// Create storage client with test server
+		storageClient, err := storage.NewClient(ctx, option.WithHTTPClient(&http.Client{Timeout: 5 * time.Second}), option.WithEndpoint(server.URL), option.WithoutAuthentication())
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+		defer func(storageClient *storage.Client) {
+			err = storageClient.Close()
+			if err != nil {
+				t.Errorf("Failed to close storage client: %v", err)
+			}
+		}(storageClient)
+
+		gcpService := &GcpServices{
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+		}
+
+		result, err := gcpService.GetFileFromBucket(ctx, "test-bucket", "nonexistent-file.yaml")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// Verify it's a VCPError with ErrGCPResourceFetchError
+		var vcpErr *vsaerrors.CustomError
+		assert.True(t, vsaerrors.As(err, &vcpErr))
+		assert.Equal(t, vsaerrors.ErrGCPResourceFetchError, vcpErr.TrackingID)
+	})
+}
+
 func TestInitializeIamService(t *testing.T) {
 	t.Run("whenOk", func(t *testing.T) {
 		defer func() {

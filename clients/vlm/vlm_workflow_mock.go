@@ -120,8 +120,8 @@ func (vlmManager *VSAClientWorkflowManagerMock) UpdateLicenseWorkflow(ctx workfl
 	return nil
 }
 
-func (vlmManager *VSAClientWorkflowManagerMock) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) error {
+func (vlmManager *VSAClientWorkflowManagerMock) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error) {
 	logger := util.GetLogger(ctx)
 	logger.Info("Mock GetVSAClusterDeployment")
-	return nil
+	return OntapExpertModeUserResponse{}, nil
 }
