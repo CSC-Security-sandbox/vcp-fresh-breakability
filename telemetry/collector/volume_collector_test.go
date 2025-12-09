@@ -88,7 +88,8 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -96,18 +97,9 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 
 	// VolumeAllocatedThroughput should be in separate field
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
-	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
-	assert.Len(t, result.HydratedMetrics, 1)
+	// BackupEnabledVolumeAllocatedSize should only be in HydratedMetricsDataModel when EnableBackupBillingMetrics is true
+	assert.Len(t, result.HydratedMetrics, 0)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
-
-	// Check BackupEnabledVolumeAllocatedSize metric (in regular field)
-	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
-	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
-	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, metadata.Volume, result.HydratedMetrics[0].Metadata.ResourceType)
-	assert.Equal(t, "Volume1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
-	assert.Equal(t, "us-east-1", derefString(result.HydratedMetrics[0].Metadata.RegionName))
-	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
 
 	// Check hydrated metrics data model
 	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
@@ -170,7 +162,8 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -178,23 +171,9 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 
 	// VolumeAllocatedThroughput should be in separate field (2 volumes)
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 0)
-	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true (2 volumes)
-	assert.Len(t, result.HydratedMetrics, 2)
+	// BackupEnabledVolumeAllocatedSize should only be in HydratedMetricsDataModel when EnableBackupBillingMetrics is true (2 volumes)
+	assert.Len(t, result.HydratedMetrics, 0)
 	assert.Len(t, result.HydratedMetricsDataModel, 2)
-
-	// Check first volume BackupEnabledVolumeAllocatedSize metric (in regular field)
-	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
-	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
-	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
-	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
-
-	// Check second volume BackupEnabledVolumeAllocatedSize metric (in regular field)
-	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetrics[1].MeasuredType)
-	assert.Equal(t, float64(4096), result.HydratedMetrics[1].Quantity)
-	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[1].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[1].Metadata.ResourceName))
-	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[1].Metadata.AccountName))
 
 	// Check hydrated metrics - Volume1
 	assert.Equal(t, "Account1", result.HydratedMetricsDataModel[0].ConsumerID)
@@ -284,7 +263,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -294,14 +274,11 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 0)
 
 	// Only one volume should be processed for BackupEnabledVolumeAllocatedSize (the one with positive backup chain bytes)
-	assert.Len(t, result.HydratedMetrics, 1)
+	assert.Len(t, result.HydratedMetrics, 0)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
 	// Check that only the second volume is processed for backup billing
-	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
-	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[0].Metadata.AccountName))
-	assert.Equal(t, float64(4096), result.HydratedMetrics[0].Quantity)
+	// Metrics are only in HydratedMetricsDataModel, not in HydratedMetrics
 }
 
 func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
@@ -350,7 +327,8 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -359,21 +337,15 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 	// Both volumes should generate VolumeAllocatedThroughput metrics
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 2)
 
-	// Both volumes should be processed for backup billing (nil DataProtection is not filtered out)
-	assert.Len(t, result.HydratedMetrics, 2)
-	assert.Len(t, result.HydratedMetricsDataModel, 2)
+	// Only volume with DataProtection and BackupChainBytes > 0 should be processed for backup billing
+	// Volume1 has nil DataProtection, so only Volume2 should be included
+	assert.Len(t, result.HydratedMetrics, 0)
+	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
-	// Check first volume (with nil DataProtection)
-	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
-	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
-	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
-
-	// Check second volume (with valid DataProtection)
-	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[1].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[1].Metadata.ResourceName))
-	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[1].Metadata.AccountName))
-	assert.Equal(t, float64(4096), result.HydratedMetrics[1].Quantity)
+	// Verify that Volume2 (with valid DataProtection) is the one included
+	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[0].ConsumerID)
+	assert.Equal(t, "Volume2", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[0].Quantity)
 }
 
 func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
@@ -421,7 +393,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -431,14 +404,13 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
 
 	// Only one volume should be processed (the one with valid account)
-	assert.Len(t, result.HydratedMetrics, 1)
+	assert.Len(t, result.HydratedMetrics, 0)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
 	// Check that only the second volume is processed
-	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
-	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[0].Metadata.AccountName))
-	assert.Equal(t, float64(4096), result.HydratedMetrics[0].Quantity)
+	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[0].ConsumerID)
+	assert.Equal(t, "Volume2", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[0].Quantity)
 }
 
 func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
@@ -489,7 +461,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -499,14 +472,13 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
 
 	// Only one volume should be processed (the one with valid UUID)
-	assert.Len(t, result.HydratedMetrics, 1)
+	assert.Len(t, result.HydratedMetrics, 0)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
 	// Check that only the second volume is processed
-	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
-	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[0].Metadata.AccountName))
-	assert.Equal(t, float64(4096), result.HydratedMetrics[0].Quantity)
+	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[0].ConsumerID)
+	assert.Equal(t, "Volume2", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[0].Quantity)
 }
 
 func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
@@ -557,7 +529,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -567,14 +540,13 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
 
 	// Only one volume should be processed (the one with valid name)
-	assert.Len(t, result.HydratedMetrics, 1)
+	assert.Len(t, result.HydratedMetrics, 0)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
 	// Check that only the second volume is processed
-	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
-	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[0].Metadata.AccountName))
-	assert.Equal(t, float64(4096), result.HydratedMetrics[0].Quantity)
+	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[0].ConsumerID)
+	assert.Equal(t, "Volume2", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[0].Quantity)
 }
 
 func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
@@ -625,7 +597,8 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -635,14 +608,13 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
 
 	// Only one volume should be processed (the one with valid account name)
-	assert.Len(t, result.HydratedMetrics, 1)
+	assert.Len(t, result.HydratedMetrics, 0)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
 	// Check that only the second volume is processed
-	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
-	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[0].Metadata.AccountName))
-	assert.Equal(t, float64(4096), result.HydratedMetrics[0].Quantity)
+	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[0].ConsumerID)
+	assert.Equal(t, "Volume2", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[0].Quantity)
 }
 
 // Test for the assembleVolumeMetadata function
@@ -720,7 +692,8 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -732,15 +705,7 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	// Verify that BackupEnabledVolumeAllocatedSize metric is converted to HydratedMetrics
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
-	// Find the BackupEnabledVolumeAllocatedSize metric in the metrics slice
-	var BackupEnabledVolumeAllocatedSizeMetric *entity.HydratedMetric
-	for i := range result.HydratedMetrics {
-		if result.HydratedMetrics[i].MeasuredType == metadata.BackupEnabledVolumeAllocatedSize {
-			BackupEnabledVolumeAllocatedSizeMetric = &result.HydratedMetrics[i]
-			break
-		}
-	}
-	assert.NotNil(t, BackupEnabledVolumeAllocatedSizeMetric)
+	// Metrics are only in HydratedMetricsDataModel, not in HydratedMetrics
 
 	// Verify the HydratedMetrics data model is correctly populated
 	hmBackupVolumeAllocated := result.HydratedMetricsDataModel[0]
@@ -797,7 +762,8 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -805,8 +771,8 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 
 	// VolumeAllocatedThroughput should be in separate field
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
-	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
-	assert.Len(t, result.HydratedMetrics, 1)
+	// BackupEnabledVolumeAllocatedSize should only be in HydratedMetricsDataModel when EnableBackupBillingMetrics is true
+	assert.Len(t, result.HydratedMetrics, 0)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
 	// Check VolumeAllocatedThroughput metric (in separate field)
@@ -817,10 +783,7 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 	assert.Equal(t, "ThroughputAccount", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.AccountName))
 	assert.Equal(t, metadata.Volume, result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceType)
 
-	// Check BackupEnabledVolumeAllocatedSize metric (in regular field)
-	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetrics[0].MeasuredType)
-	assert.Equal(t, float64(2048), result.HydratedMetrics[0].Quantity)
-	assert.Equal(t, "volume-uuid-throughput", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
+	// BackupEnabledVolumeAllocatedSize metric is only in HydratedMetricsDataModel, not in HydratedMetrics
 }
 
 func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
@@ -862,7 +825,8 @@ func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -870,8 +834,8 @@ func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
 
 	// VolumeAllocatedThroughput should be in separate field
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
-	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
-	assert.Len(t, result.HydratedMetrics, 1)
+	// BackupEnabledVolumeAllocatedSize should only be in HydratedMetricsDataModel when EnableBackupBillingMetrics is true
+	assert.Len(t, result.HydratedMetrics, 0)
 
 	// Check VolumeAllocatedThroughput metric with zero volume throughput (should use pool throughput)
 	assert.Equal(t, metadata.VolumeAllocatedThroughput, result.VolumeAllocatedThroughputHydratedMetrics[0].MeasuredType)
@@ -918,7 +882,8 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
-	config.EnableBackupBillingMetrics = true // Enable backup billing metrics for test
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -926,8 +891,8 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 
 	// VolumeAllocatedThroughput should be in separate field
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
-	// BackupEnabledVolumeAllocatedSize should be in HydratedMetrics when EnableBackupBillingMetrics is true
-	assert.Len(t, result.HydratedMetrics, 1)
+	// BackupEnabledVolumeAllocatedSize should only be in HydratedMetricsDataModel when EnableBackupBillingMetrics is true
+	assert.Len(t, result.HydratedMetrics, 0)
 
 	// Check VolumeAllocatedThroughput metric - should use volume throughput when volume.Throughput != 0
 	assert.Equal(t, metadata.VolumeAllocatedThroughput, result.VolumeAllocatedThroughputHydratedMetrics[0].MeasuredType)
@@ -975,6 +940,7 @@ func Test_GetVolumeMetrics_WithResourceTypeMapping(t *testing.T) {
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
 	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -1059,6 +1025,7 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
 	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -1068,11 +1035,11 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 3)
 
 	// Only volumes with positive backup chain bytes should be in backup billing metrics
-	assert.Len(t, result.HydratedMetrics, 1)
+	assert.Len(t, result.HydratedMetrics, 0)
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 
 	// Check that only positive backup chain byte volume is included for backup billing
-	assert.Equal(t, "VolumeOne", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
+	assert.Equal(t, "VolumeOne", result.HydratedMetricsDataModel[0].ResourceName)
 }
 
 func Test_GetVolumeMetrics_SFRMetricsEnabled(t *testing.T) {
@@ -1123,6 +1090,7 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled(t *testing.T) {
 	m.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(sfrMetricsMap, nil)
 
 	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -1194,6 +1162,7 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled_Error(t *testing.T) {
 	m.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
 	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err) // Error is logged but doesn't fail the function
@@ -1246,6 +1215,7 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled_NoMetricsForVolume(t *testing.T) {
 	m.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(sfrMetricsMap, nil)
 
 	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true // Enable files backup billing to include in HydratedMetricsDataModel
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -1296,10 +1266,10 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 				SourceRegionName: stringPtr("us-east-1"),
 				BackupRegionName: stringPtr("us-west-1"), // Different region
 			},
-			expectedHydratedMetricsCount:   1, // HydratedMetrics is always created
+			expectedHydratedMetricsCount:   0, // HydratedMetrics is not created for backup billing metrics
 			expectedDataModelMetricsCount:  0, // HydratedMetricsDataModel should be skipped
 			expectedThroughputMetricsCount: 1, // Throughput metric is independent
-			description:                    "Cross-region volume should create HydratedMetrics but skip HydratedMetricsDataModel",
+			description:                    "Cross-region volume should skip HydratedMetricsDataModel",
 		},
 		{
 			name:                                  "Flag enabled - include cross-region volume BMF billing metrics",
@@ -1330,10 +1300,10 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 				SourceRegionName: stringPtr("us-east-1"),
 				BackupRegionName: stringPtr("eu-west-1"), // Different region
 			},
-			expectedHydratedMetricsCount:   1,
+			expectedHydratedMetricsCount:   0, // HydratedMetrics is not created for backup billing metrics
 			expectedDataModelMetricsCount:  1, // HydratedMetricsDataModel should be included
 			expectedThroughputMetricsCount: 1,
-			description:                    "Cross-region volume should create both metrics when flag is enabled",
+			description:                    "Cross-region volume should create HydratedMetricsDataModel when flag is enabled",
 		},
 		{
 			name:                                  "Flag disabled - same region volume BMF billing metrics still included",
@@ -1364,10 +1334,10 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 				SourceRegionName: stringPtr("us-east-1"),
 				BackupRegionName: stringPtr("us-east-1"), // Same region
 			},
-			expectedHydratedMetricsCount:   1,
+			expectedHydratedMetricsCount:   0, // HydratedMetrics is not created for backup billing metrics
 			expectedDataModelMetricsCount:  1, // Should be included even with flag disabled
 			expectedThroughputMetricsCount: 1,
-			description:                    "Same region volume should always create both metrics",
+			description:                    "Same region volume should always create HydratedMetricsDataModel",
 		},
 		{
 			name:                                  "Flag disabled - nil BackupVaultID should include billing metrics",
@@ -1392,10 +1362,10 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 					},
 				},
 			},
-			expectedHydratedMetricsCount:   1,
+			expectedHydratedMetricsCount:   0, // HydratedMetrics is not created for backup billing metrics
 			expectedDataModelMetricsCount:  1, // Should be included (no vault to check)
 			expectedThroughputMetricsCount: 1,
-			description:                    "Volume without BackupVaultID should create both metrics",
+			description:                    "Volume without BackupVaultID should create HydratedMetricsDataModel",
 		},
 		{
 			name:                                  "Flag disabled - nil DataProtection should include billing metrics",
@@ -1420,10 +1390,10 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 					},
 				},
 			},
-			expectedHydratedMetricsCount:   1,
+			expectedHydratedMetricsCount:   0, // HydratedMetrics is not created for backup billing metrics
 			expectedDataModelMetricsCount:  1, // Should be included (no vault ID to check)
 			expectedThroughputMetricsCount: 1,
-			description:                    "Volume without BackupVaultID should create both metrics",
+			description:                    "Volume without BackupVaultID should create HydratedMetricsDataModel",
 		},
 		{
 			name:                                  "Flag disabled - GetBackupVault error should skip BMF billing metrics",
@@ -1449,7 +1419,7 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 				},
 			},
 			backupVaultError:               assert.AnError,
-			expectedHydratedMetricsCount:   1, // HydratedMetrics created before error
+			expectedHydratedMetricsCount:   0, // HydratedMetrics is not created for backup billing metrics
 			expectedDataModelMetricsCount:  0, // Should be skipped due to error
 			expectedThroughputMetricsCount: 1,
 			description:                    "GetBackupVault error should skip HydratedMetricsDataModel",
@@ -1483,10 +1453,10 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 				SourceRegionName: nil, // Nil region
 				BackupRegionName: stringPtr("us-west-1"),
 			},
-			expectedHydratedMetricsCount:   1,
+			expectedHydratedMetricsCount:   0, // HydratedMetrics is not created for backup billing metrics
 			expectedDataModelMetricsCount:  1, // Should be included (cannot determine cross-region)
 			expectedThroughputMetricsCount: 1,
-			description:                    "Nil SourceRegionName should create both metrics",
+			description:                    "Nil SourceRegionName should create HydratedMetricsDataModel",
 		},
 		{
 			name:                                  "Flag disabled - mixed cross-region and same-region volumes",
@@ -1535,7 +1505,7 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 				SourceRegionName: stringPtr("us-east-1"),
 				BackupRegionName: stringPtr("ap-south-1"), // Different region for second volume
 			},
-			expectedHydratedMetricsCount:   2, // Both create HydratedMetrics
+			expectedHydratedMetricsCount:   0, // HydratedMetrics is not created for backup billing metrics
 			expectedDataModelMetricsCount:  1, // Only same-region creates HydratedMetricsDataModel
 			expectedThroughputMetricsCount: 2,
 			description:                    "Mixed volumes should filter cross-region from HydratedMetricsDataModel",
@@ -1549,6 +1519,7 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 			config := &common.TelemetryConfig{
 				RegionName:                            "us-east-1",
 				EnableBackupBillingMetrics:            true,
+				EnableFilesBackupBilling:              true, // Enable files backup billing to include in metrics
 				EnableCrossRegionBackupBillingMetrics: tt.enableCrossRegionBackupBillingMetrics,
 			}
 			poolMetadataMap := make(map[int64]metadata.ResourceMetadata)

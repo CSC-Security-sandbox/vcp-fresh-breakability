@@ -33,7 +33,10 @@ func (m *mockBackupStorage) GetBackupMetrics(ctx context.Context, conditions [][
 func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
-	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	config := &common.TelemetryConfig{
+		RegionName:             "us-east-1",
+		EnableFilesBackupBilling: true, // Enable files backup billing to include in HydratedMetricsDataModel
+	}
 
 	backups := []*datamodel.Backup{
 		{
@@ -94,7 +97,10 @@ func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
 func Test_GetBackupMetrics_MultipleBackups(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
-	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	config := &common.TelemetryConfig{
+		RegionName:             "us-east-1",
+		EnableFilesBackupBilling: true, // Enable files backup billing to include in HydratedMetricsDataModel
+	}
 
 	backups := []*datamodel.Backup{
 		{
@@ -237,7 +243,10 @@ func Test_GetBackupMetrics_NilAttributes(t *testing.T) {
 func Test_GetBackupMetrics_MixedValidAndNilAttributes(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
-	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	config := &common.TelemetryConfig{
+		RegionName:             "us-east-1",
+		EnableFilesBackupBilling: true, // Enable files backup billing to include in HydratedMetricsDataModel
+	}
 
 	backups := []*datamodel.Backup{
 		{
@@ -406,7 +415,10 @@ func derefInt64(i *int64) int64 {
 func TestGetBackupMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
-	config := &common.TelemetryConfig{RegionName: "ap-south-1"}
+	config := &common.TelemetryConfig{
+		RegionName:             "ap-south-1",
+		EnableFilesBackupBilling: true, // Enable files backup billing to include in HydratedMetricsDataModel
+	}
 
 	backups := []*datamodel.Backup{
 		{
@@ -466,6 +478,235 @@ func TestGetBackupMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	// Verify timestamp is recent (within last minute)
 	timeDiff := time.Since(hmBackup.MetricTimestamp)
 	assert.True(t, timeDiff < time.Minute, "Timestamp should be recent")
+}
+
+// Test that verifies backup with SAN protocol is included in HydratedMetricsDataModel even when EnableFilesBackupBilling is false
+func Test_GetBackupMetrics_WithSANProtocol(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:             "us-east-1",
+		EnableFilesBackupBilling: false, // Disabled
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-san"},
+			Name:                    "SANBackup",
+			VolumeUUID:              "volume-uuid-san",
+			LatestLogicalBackupSize: 2048,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "AccountSAN",
+				VolumeName:        "VolumeSAN",
+				Protocols:         []string{"ISCSI"}, // SAN protocol
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-san"},
+				Name:      "BackupVaultSAN",
+			},
+		},
+	}
+
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.HydratedMetrics, 1)
+	// Should be included because it's SAN protocol
+	assert.Len(t, result.HydratedMetricsDataModel, 1)
+	assert.Equal(t, "AccountSAN", result.HydratedMetricsDataModel[0].ConsumerID)
+}
+
+// Test that verifies backup with NAS protocol is NOT included in HydratedMetricsDataModel when EnableFilesBackupBilling is false
+func Test_GetBackupMetrics_WithNASProtocol_NotIncluded(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:             "us-east-1",
+		EnableFilesBackupBilling: false, // Disabled
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-nas"},
+			Name:                    "NASBackup",
+			VolumeUUID:              "volume-uuid-nas",
+			LatestLogicalBackupSize: 2048,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "AccountNAS",
+				VolumeName:        "VolumeNAS",
+				Protocols:         []string{"NFS"}, // NAS protocol
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-nas"},
+				Name:      "BackupVaultNAS",
+			},
+		},
+	}
+
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.HydratedMetrics, 1) // Still creates the metric
+	// Should NOT be included because it's NAS protocol and EnableFilesBackupBilling is false
+	assert.Len(t, result.HydratedMetricsDataModel, 0)
+}
+
+// Test that verifies backup with NAS protocol IS included when EnableFilesBackupBilling is true
+func Test_GetBackupMetrics_WithNASProtocol_IncludedWhenEnabled(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:             "us-east-1",
+		EnableFilesBackupBilling: true, // Enabled
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-nas"},
+			Name:                    "NASBackup",
+			VolumeUUID:              "volume-uuid-nas",
+			LatestLogicalBackupSize: 2048,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "AccountNAS",
+				VolumeName:        "VolumeNAS",
+				Protocols:         []string{"NFS"}, // NAS protocol
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-nas"},
+				Name:      "BackupVaultNAS",
+			},
+		},
+	}
+
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.HydratedMetrics, 1)
+	// Should be included because EnableFilesBackupBilling is true
+	assert.Len(t, result.HydratedMetricsDataModel, 1)
+	assert.Equal(t, "AccountNAS", result.HydratedMetricsDataModel[0].ConsumerID)
+}
+
+// Test that verifies backup with no protocols is NOT included when EnableFilesBackupBilling is false
+func Test_GetBackupMetrics_NoProtocols_NotIncluded(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:             "us-east-1",
+		EnableFilesBackupBilling: false, // Disabled
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-no-protocol"},
+			Name:                    "NoProtocolBackup",
+			VolumeUUID:              "volume-uuid-no-protocol",
+			LatestLogicalBackupSize: 2048,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "AccountNoProtocol",
+				VolumeName:        "VolumeNoProtocol",
+				Protocols:         []string{}, // No protocols
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-no-protocol"},
+				Name:      "BackupVaultNoProtocol",
+			},
+		},
+	}
+
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.HydratedMetrics, 1) // Still creates the metric
+	// Should NOT be included because no protocols and EnableFilesBackupBilling is false
+	assert.Len(t, result.HydratedMetricsDataModel, 0)
+}
+
+// Test that verifies mixed SAN and NAS protocols with EnableFilesBackupBilling disabled
+func Test_GetBackupMetrics_MixedProtocols(t *testing.T) {
+	m := new(mockBackupStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:             "us-east-1",
+		EnableFilesBackupBilling: false, // Disabled
+	}
+
+	backups := []*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-san"},
+			Name:                    "SANBackup",
+			VolumeUUID:              "volume-uuid-san",
+			LatestLogicalBackupSize: 1024,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "AccountSAN",
+				VolumeName:        "VolumeSAN",
+				Protocols:         []string{"ISCSI"}, // SAN protocol
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-san"},
+				Name:      "BackupVaultSAN",
+			},
+		},
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-nas"},
+			Name:                    "NASBackup",
+			VolumeUUID:              "volume-uuid-nas",
+			LatestLogicalBackupSize: 2048,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "AccountNAS",
+				VolumeName:        "VolumeNAS",
+				Protocols:         []string{"NFS"}, // NAS protocol
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-nas"},
+				Name:      "BackupVaultNAS",
+			},
+		},
+	}
+
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return(backups, nil)
+	m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil)
+
+	result, err := GetBackupMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.HydratedMetrics, 2) // Both create metrics
+	// Only SAN protocol should be included
+	assert.Len(t, result.HydratedMetricsDataModel, 1)
+	assert.Equal(t, "AccountSAN", result.HydratedMetricsDataModel[0].ConsumerID)
+	assert.Equal(t, "VolumeSAN", result.HydratedMetricsDataModel[0].ResourceName)
 }
 
 func TestGetBackupMetrics_Skipping_Cross_Region_Backups_Billing_Metrics(t *testing.T) {
@@ -748,6 +989,7 @@ func TestGetBackupMetrics_Skipping_Cross_Region_Backups_Billing_Metrics(t *testi
 			ctx := context.Background()
 			config := &common.TelemetryConfig{
 				RegionName:                            "us-east-1",
+				EnableFilesBackupBilling:              true, // Enable files backup billing to include in HydratedMetricsDataModel
 				EnableCrossRegionBackupBillingMetrics: tt.enableCrossRegionBackupBillingMetrics,
 			}
 

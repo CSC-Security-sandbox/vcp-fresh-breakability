@@ -23,9 +23,10 @@ type TelemetryConfig struct {
 	EnableVolumeMetrics                   bool
 	EnableBackupMetrics                   bool
 	EnableBackupBillingMetrics            bool
+	EnableFilesBackupBilling              bool
 	EnableCrossRegionBackupBillingMetrics bool
 	EnableReplicationBillingMetrics       bool
-	SFRMetricsEnabled               bool
+	SFRMetricsEnabled                     bool
 	PushBatchSize                         int64
 	Environment                           string
 	MaxGoogleBillingPushRetry             int64
@@ -38,7 +39,7 @@ type TelemetryConfig struct {
 	PoolVolumeLabelPageSize               int
 	EnableBatchUsageUpdates               bool // Feature flag for batch usage updates
 	ResultUpdateBatchSize                 int
-	TargetMinute                    int
+	TargetMinute                          int
 }
 
 type MetricItem struct {
@@ -62,6 +63,7 @@ func LoadConfig() *TelemetryConfig {
 	enableVolumeMetrics := env.GetBool("ENABLE_VOLUME_METRICS", false)
 	enableBackupMetrics := env.GetBool("ENABLE_BACKUP_METRICS", false)
 	enableBackupBillingMetrics := env.GetBool("ENABLE_BACKUP_BILLING_METRICS", false)
+	enableFilesBackupBilling := env.GetBool("ENABLE_FILES_BACKUP_BILLING", false)
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
 	sfrMetricsEnabled := env.GetBool("ENABLE_SFR_METRICS", false)
 	enableCrossRegionBackupBillingMetrics := env.GetBool("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", false)
@@ -92,9 +94,10 @@ func LoadConfig() *TelemetryConfig {
 		PageSize:                              int32(pageSize),
 		EnableBackupMetrics:                   enableBackupMetrics,
 		EnableBackupBillingMetrics:            enableBackupBillingMetrics,
+		EnableFilesBackupBilling:              enableFilesBackupBilling,
 		EnableCrossRegionBackupBillingMetrics: enableCrossRegionBackupBillingMetrics,
 		EnableReplicationBillingMetrics:       enableReplicationBillingMetrics,
-		SFRMetricsEnabled:               sfrMetricsEnabled,
+		SFRMetricsEnabled:                     sfrMetricsEnabled,
 		NumWorkersPerformance:                 numWorkersPerformance,
 		NumWorkersUsage:                       numWorkersUsage,
 		NumWorkersCollection:                  numWorkersCollection,
@@ -103,7 +106,7 @@ func LoadConfig() *TelemetryConfig {
 		PoolVolumeLabelPageSize:               poolVolumeLabelPageSize,
 		EnableBatchUsageUpdates:               enableBatchUsageUpdates,
 		ResultUpdateBatchSize:                 resultUpdateBatchSize,
-		TargetMinute:                    targetMinute,
+		TargetMinute:                          targetMinute,
 	}
 }
 

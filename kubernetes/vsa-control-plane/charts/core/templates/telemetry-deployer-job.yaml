@@ -130,6 +130,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableSfrMetrics | default "false" | quote }}
             - name: ENABLE_BACKUP_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableBackupBillingMetrics | default "false" | quote }}
+            - name: ENABLE_FILES_BACKUP_BILLING
+              value: {{ .Values.telemetryDeployer.enableFilesBackupBilling | default "false" | quote }}
             - name: ENABLE_REPLICATION_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS

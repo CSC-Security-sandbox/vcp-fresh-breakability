@@ -13,6 +13,7 @@ import (
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -105,8 +106,12 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		if backup.Attributes != nil {
 			accountName = backup.Attributes.AccountIdentifier
 		}
-		if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(backup.LatestLogicalBackupSize)); hydratedMetric != nil {
-			hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+		// Execute only if SAN protocol or files backup billing enabled
+		isSANProtocol := utils.IsSanProtocols(backup.Attributes.Protocols)
+		if config.EnableFilesBackupBilling || isSANProtocol {
+			if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(backup.LatestLogicalBackupSize)); hydratedMetric != nil {
+				hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+			}
 		}
 	}
 

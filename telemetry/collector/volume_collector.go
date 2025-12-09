@@ -11,6 +11,7 @@ import (
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -132,43 +133,42 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			}
 		}
 
-		// Filter volumes that have backup logical size > 0
-		if volume.DataProtection != nil && volume.DataProtection.BackupChainBytes != nil && *volume.DataProtection.BackupChainBytes <= 0 {
-			continue
-		}
 		// Create a metric for the volume allocated size
 		// Use the allocated size (size_in_bytes) as the quantity for volume allocated size
 		allocatedSize := volume.SizeInBytes
-
 		if config.EnableBackupBillingMetrics {
-			metric := setupHydratedMetric(timestamp, volumeMetadata, metadata.BackupEnabledVolumeAllocatedSize, float64(allocatedSize))
-			metrics = append(metrics, metric)
-
-			// Skip BMF billing metrics for volume with cross-region backupVaults
-			// TODO: CRB billing is temporary disabled for preview. Will enable cross-region backup billing metrics as per VSCP-3455.
-			if !config.EnableCrossRegionBackupBillingMetrics {
-				if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
-					bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]
-					if !exists {
-						logger.Error("Backup vault not found in map", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
-						continue
+			// Include if files backup billing is enabled or if volume is SAN protocol
+			isSANProtocol := volume.VolumeAttributes != nil && utils.IsSanProtocols(volume.VolumeAttributes.Protocols)
+			if config.EnableFilesBackupBilling || isSANProtocol {
+				if volume.DataProtection != nil && volume.DataProtection.BackupChainBytes != nil && *volume.DataProtection.BackupChainBytes > 0 {
+					metric := setupHydratedMetric(timestamp, volumeMetadata, metadata.BackupEnabledVolumeAllocatedSize, float64(allocatedSize))
+					// Use actual account name from the preloaded account
+					accountName := ""
+					if volume.Account != nil {
+						accountName = volume.Account.Name
 					}
-					if bv.SourceRegionName != nil && bv.BackupRegionName != nil && *bv.SourceRegionName != *bv.BackupRegionName {
-						logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for volume with cross-region backup vault", "volumeUUID", volume.UUID)
-						continue
+					metric.Metadata.ResourceType = resourceType
+
+					// Skip BMF billing metrics for volume with cross-region backupVaults
+					// TODO: CRB billing is temporary disabled for preview. Will enable cross-region backup billing metrics as per VSCP-3455.
+					if !config.EnableCrossRegionBackupBillingMetrics {
+						if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
+							bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]
+							if !exists {
+								logger.Error("Backup vault not found in map", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
+								continue
+							}
+							if bv.SourceRegionName != nil && bv.BackupRegionName != nil && *bv.SourceRegionName != *bv.BackupRegionName {
+								logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for volume with cross-region backup vault", "volumeUUID", volume.UUID)
+								continue
+							}
+						}
+					}
+
+					if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)); hydratedMetric != nil {
+						hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
 					}
 				}
-			}
-
-			// Use actual account name from the preloaded account
-			accountName := ""
-			if volume.Account != nil {
-				accountName = volume.Account.Name
-			}
-			metric.Metadata.ResourceType = resourceType
-
-			if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)); hydratedMetric != nil {
-				hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
 			}
 		}
 
