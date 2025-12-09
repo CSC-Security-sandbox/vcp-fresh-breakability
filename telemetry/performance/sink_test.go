@@ -847,7 +847,7 @@ func TestFilterAndConvertToGoogleMetrics_EdgeCases(t *testing.T) {
 func TestNewSink(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RootUrl: "https://test-endpoint.googleapis.com",
+		PerformanceRootUrl: "https://test-endpoint.googleapis.com",
 	}
 
 	sink := NewSink(ctx, config)

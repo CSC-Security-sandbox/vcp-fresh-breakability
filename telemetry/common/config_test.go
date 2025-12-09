@@ -7,8 +7,11 @@ import (
 func TestLoadsConfigWithDefaultValues(t *testing.T) {
 	config := LoadConfig()
 
-	if config.RootUrl != "https://servicecontrol.googleapis.com" {
-		t.Fatalf("Expected RootUrl to be 'https://servicecontrol.googleapis.com', got %s", config.RootUrl)
+	if config.PerformanceRootUrl != "https://servicecontrol.googleapis.com" {
+		t.Fatalf("Expected PerformanceRootUrl to mirror default root, got %s", config.PerformanceRootUrl)
+	}
+	if config.UsageRootUrl != "https://servicecontrol.googleapis.com" {
+		t.Fatalf("Expected UsageRootUrl to mirror default root, got %s", config.UsageRootUrl)
 	}
 	if config.OperationBatchSize != 200 {
 		t.Fatalf("Expected OperationBatchSize to be 200, got %d", config.OperationBatchSize)
@@ -22,11 +25,12 @@ func TestLoadsConfigWithDefaultValues(t *testing.T) {
 }
 
 func TestLoadsConfigWithCustomEnvironmentValues(t *testing.T) {
+	t.Setenv("ROOT_URL", "https://custom-root.example.com")
+	t.Setenv("PERFORMANCE_ROOT_URL", "https://perf-root.example.com")
+	t.Setenv("USAGE_ROOT_URL", "https://usage-root.example.com")
+
 	config := LoadConfig()
 
-	if config.RootUrl != "https://servicecontrol.googleapis.com" {
-		t.Fatalf("Expected RootUrl to be 'https://servicecontrol.googleapis.com', got %s", config.RootUrl)
-	}
 	if config.OperationBatchSize != 200 {
 		t.Fatalf("Expected OperationBatchSize to be 200, got %d", config.OperationBatchSize)
 	}
@@ -36,13 +40,23 @@ func TestLoadsConfigWithCustomEnvironmentValues(t *testing.T) {
 	if config.PusherServiceProject != "netapp-au-se1-autopush-sde-tst" {
 		t.Fatalf("Expected PusherServiceProject to be 'netapp-au-se1-autopush-sde-tst', got %s", config.PusherServiceProject)
 	}
+	
+	if config.PerformanceRootUrl != "https://perf-root.example.com" {
+		t.Fatalf("Expected PerformanceRootUrl to be 'https://perf-root.example.com', got %s", config.PerformanceRootUrl)
+	}
+	if config.UsageRootUrl != "https://usage-root.example.com" {
+		t.Fatalf("Expected UsageRootUrl to be 'https://usage-root.example.com', got %s", config.UsageRootUrl)
+	}
 }
 
 func TestHandlesMissingEnvironmentVariablesGracefully(t *testing.T) {
 	config := LoadConfig()
 
-	if config.RootUrl != "https://servicecontrol.googleapis.com" {
-		t.Fatalf("Expected RootUrl to default to 'https://servicecontrol.googleapis.com', got %s", config.RootUrl)
+	if config.PerformanceRootUrl != "https://servicecontrol.googleapis.com" {
+		t.Fatalf("Expected PerformanceRootUrl to default to 'https://servicecontrol.googleapis.com', got %s", config.PerformanceRootUrl)
+	}
+	if config.UsageRootUrl != "https://servicecontrol.googleapis.com" {
+		t.Fatalf("Expected UsageRootUrl to default to 'https://servicecontrol.googleapis.com', got %s", config.UsageRootUrl)
 	}
 	if config.OperationBatchSize != 200 {
 		t.Fatalf("Expected OperationBatchSize to default to 200, got %d", config.OperationBatchSize)

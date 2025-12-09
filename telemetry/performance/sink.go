@@ -39,7 +39,7 @@ func (s *GoogleSink) processMetricsResults(results []common.MetricsResult) {
 
 func NewSink(ctx context.Context, config *common.TelemetryConfig) *GoogleSink {
 	return &GoogleSink{
-		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.RootUrl, config),
+		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.PerformanceRootUrl, config),
 		logger:       util.GetLogger(ctx),
 	}
 }

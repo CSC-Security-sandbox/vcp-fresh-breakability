@@ -464,6 +464,9 @@ func getDefaultEnvVars() map[string]string {
 		"NUM_WORKERS_USAGE":                          getEnvOrDefault("NUM_WORKERS_USAGE", "1"),
 		"NUM_WORKERS_BIZOPS":                         getEnvOrDefault("NUM_WORKERS_BIZOPS", "10"),
 		"NUM_WORKERS_COLLECTION":                     getEnvOrDefault("NUM_WORKERS_COLLECTION", "25"),
+		"TARGET_MINUTE":                      getEnvOrDefault("TARGET_MINUTE", "15"),
+		"PERFORMANCE_ROOT_URL":               getEnvOrDefault("PERFORMANCE_ROOT_URL", "https://servicecontrol.googleapis.com"),
+		"USAGE_ROOT_URL":                     getEnvOrDefault("USAGE_ROOT_URL", "https://servicecontrol.googleapis.com"),
 	}
 }
 

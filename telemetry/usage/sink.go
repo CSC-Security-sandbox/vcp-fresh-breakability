@@ -44,7 +44,7 @@ const bulkUpdateFieldCount = 5
 
 func NewSink(ctx context.Context, config *common.TelemetryConfig, metricsdb database2.Storage) *GoogleUsageSink {
 	sink := &GoogleUsageSink{
-		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.RootUrl, config),
+		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.UsageRootUrl, config),
 		logger:       util.GetLogger(ctx),
 		metricsdb:    metricsdb,
 		config:       config,

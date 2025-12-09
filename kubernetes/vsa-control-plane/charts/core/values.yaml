@@ -247,7 +247,8 @@ telemetryDeployer:
   sqlProxyCPU: "1"       # CPU allocation for SQL proxy container (e.g., "1", "500m", "2")
   sqlProxyMemory: "512Mi" # Memory allocation for SQL proxy container (e.g., "512Mi", "256Mi", "1Gi")
   runMigrationOnStart: false
-  rootUrl: "https://servicecontrol.googleapis.com"
+  performanceRootUrl: "https://servicecontrol.googleapis.com"
+  usageRootUrl: "https://servicecontrol.googleapis.com"
   operationBatchSize: 200
   pusherServiceName: "autopush-netapp.sandbox.googleapis.com"
   pusherServiceProject: "netapp-au-se1-autopush-sde-tst"

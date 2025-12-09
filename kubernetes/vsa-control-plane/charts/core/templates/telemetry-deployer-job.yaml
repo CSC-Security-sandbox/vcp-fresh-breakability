@@ -112,8 +112,10 @@ spec:
             # Runtime configuration
             - name: RUN_MIGRATION_ON_START
               value: {{ .Values.telemetryDeployer.runMigrationOnStart | default "true" | quote }}
-            - name: ROOT_URL
-              value: {{ .Values.telemetryDeployer.rootUrl | default "https://servicecontrol.googleapis.com" | quote }}
+            - name: PERFORMANCE_ROOT_URL
+              value: {{ .Values.telemetryDeployer.performanceRootUrl | default "https://servicecontrol.googleapis.com" | quote }}
+            - name: USAGE_ROOT_URL
+              value: {{ .Values.telemetryDeployer.usageRootUrl | default "https://servicecontrol.googleapis.com" | quote }}
             - name: OPERATION_BATCH_SIZE
               value: {{ .Values.telemetryDeployer.operationBatchSize | default "200" | quote }}
             - name: PUSHER_SERVICE_NAME

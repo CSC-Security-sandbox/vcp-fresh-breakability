@@ -18,7 +18,8 @@ type TelemetryConfig struct {
 	OperationBatchSize                    int64
 	PusherServiceName                     string
 	PusherServiceProject                  string
-	RootUrl                               string
+	PerformanceRootUrl                    string
+	UsageRootUrl                          string
 	RegionName                            string
 	EnableVolumeMetrics                   bool
 	EnableBackupMetrics                   bool
@@ -55,7 +56,8 @@ type MetricsConfig struct {
 var metricListYAML []byte
 
 func LoadConfig() *TelemetryConfig {
-	rootUrl := env.GetString("ROOT_URL", "https://servicecontrol.googleapis.com")
+	performanceRootURL := env.GetString("PERFORMANCE_ROOT_URL", "https://servicecontrol.googleapis.com")
+	usageRootURL := env.GetString("USAGE_ROOT_URL", "https://servicecontrol.googleapis.com")
 	operationBatchSize := env.GetInt64("OPERATION_BATCH_SIZE", 200)
 	pusherServiceName := env.GetString("PUSHER_SERVICE_NAME", "autopush-netapp.sandbox.googleapis.com")
 	pusherServiceProject := env.GetString("PUSHER_SERVICE_PROJECT", "netapp-au-se1-autopush-sde-tst")
@@ -82,7 +84,8 @@ func LoadConfig() *TelemetryConfig {
 	targetMinute := env.GetInt("TARGET_MINUTE", 15)
 
 	return &TelemetryConfig{
-		RootUrl:                               rootUrl,
+		PerformanceRootUrl:                    performanceRootURL,
+		UsageRootUrl:                          usageRootURL,
 		PusherServiceName:                     pusherServiceName,
 		PusherServiceProject:                  pusherServiceProject,
 		OperationBatchSize:                    operationBatchSize,
