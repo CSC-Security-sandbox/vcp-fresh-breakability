@@ -39,7 +39,7 @@ func GetProxyRules() map[string]Rule {
 					IfPresentThenValue("guarantee.type", "none"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					IfPresentThenEquals("space.logical_space.reporting", true),
-					ValidateVolumeCreationWithCore, // Returns specific error from core API
+					validateVolumeCreation, // Returns specific error from core API
 				),
 				// No IsFalse needed - uses condition's reason directly
 				IsTrue: Allow{
@@ -83,6 +83,7 @@ func GetProxyRules() map[string]Rule {
 				Condition: And(
 					IfPresentThenValue("guarantee.type", "none", "volume"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
+					validateVolumeModification,
 				),
 				// No IsFalse needed - uses condition's reason directly
 				IsTrue: Allow{
@@ -95,12 +96,16 @@ func GetProxyRules() map[string]Rule {
 					},
 				},
 			},
-			DELETE: Allow{
-				Name: "Allow volume deletion",
-				ModifyResponse: RemoveFields{
-					Fields: []string{
-						"$.efficiency",
-						"$.space.physical_used",
+			DELETE: When{
+				Name:      "Volume deletion validation",
+				Condition: validateVolumeDeletion,
+				IsTrue: Allow{
+					Name: "Allow volume deletion",
+					ModifyResponse: RemoveFields{
+						Fields: []string{
+							"$.efficiency",
+							"$.space.physical_used",
+						},
 					},
 				},
 			},

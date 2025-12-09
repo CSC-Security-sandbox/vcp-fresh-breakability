@@ -1,68 +1,161 @@
 package rules_v2
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
+	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	core "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/coreapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-// ValidateVolumeCreationWithCore validates volume creation request with core API.
-// Returns (true, "") if validation passes, or (false, "reason") if it fails.
-//
-// TODO: Implement actual API call to core service
-//
-// Expected implementation:
-//   - Extract relevant fields from request body (size, name, svm, etc.)
-//   - Make API call to core service endpoint
-//   - Return (true, "") if core approves the volume creation
-//   - Return (false, "reason from core") if core denies
-func ValidateVolumeCreationWithCore(r *http.Request) (bool, string) {
-	// Placeholder implementation - always returns true
-	// TODO: Implement actual core API validation
-	//
-	// Example implementation:
-	//
-	// 1. Parse request body to extract volume details
-	// body, _ := io.ReadAll(r.Body)
-	// r.Body = io.NopCloser(bytes.NewReader(body)) // restore body
-	//
-	// 2. Extract auth/context info from request headers
-	// authToken := r.Header.Get("Authorization")
-	//
-	// 3. Call core API: POST /api/v1/volumes/validate
-	// resp, err := coreClient.ValidateVolume(ctx, volumeDetails)
-	// if err != nil {
-	//     return false, fmt.Sprintf("Core API error: %v", err)
-	// }
-	//
-	// 4. Check response for approval/denial
-	// if !resp.Allowed {
-	//     return false, resp.Reason // e.g., "Quota exceeded: only 10GB remaining"
-	// }
-	//
-	// 5. Return result
-	// return true, ""
+var (
+	submitExpertModeVolumeOperation = core.SubmitExpertModeVolumeOperation
+	validateVolumeCreation          = _validateVolumeCreation
+	validateVolumeModification      = _validateVolumeModification
+	validateVolumeDeletion          = _validateVolumeDeletion
+)
+
+type VolumeRequestFields struct {
+	VolumeName  string
+	SizeInBytes float64
+	SvmUuid     coreapi.OptString
+	SvmName     coreapi.OptString
+}
+
+func parseVolumeRequestFields(requestBody map[string]interface{}) VolumeRequestFields {
+	fields := VolumeRequestFields{}
+	if requestBody != nil {
+		fields.VolumeName, _ = requestBody["name"].(string)
+		fields.SizeInBytes = parseSize(requestBody["size"])
+		if svm, ok := requestBody["svm"].(map[string]interface{}); ok {
+			if uuid, ok := svm["uuid"].(string); ok && uuid != "" {
+				fields.SvmUuid = coreapi.NewOptString(uuid)
+			}
+			if name, ok := svm["name"].(string); ok && name != "" {
+				fields.SvmName = coreapi.NewOptString(name)
+			}
+		}
+	}
+	return fields
+}
+
+func _validateVolumeCreation(r *http.Request) (bool, string) {
+	logger := util.GetLogger(r.Context())
+	requestBody, parseErr := dsl.GetParsedBody(r)
+	if parseErr != "" {
+		return false, parseErr
+	}
+
+	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	fields := parseVolumeRequestFields(requestBody)
+
+	// Reject invalid size (parsed to 0)
+	if fields.SizeInBytes == 0 {
+		orig := requestBody["size"]
+		return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", orig)
+	}
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
+		VolumeName:    fields.VolumeName,
+		SizeInBytes:   fields.SizeInBytes,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		SvmUuid:       fields.SvmUuid,
+		SvmName:       fields.SvmName,
+	}
+
+	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
+		return false, err.Error()
+	}
 
 	return true, ""
 }
 
-// ValidateVolumeModificationWithCore validates volume modification request with core API.
-// Returns (true, "") if validation passes, or (false, "reason") if it fails.
-//
-// TODO: Implement actual API call to core service
-func ValidateVolumeModificationWithCore(r *http.Request) (bool, string) {
-	// Placeholder implementation - always returns true
-	// TODO: Implement actual core API validation
+func _validateVolumeModification(r *http.Request) (bool, string) {
+	logger := util.GetLogger(r.Context())
+	requestBody, parseErr := dsl.GetParsedBody(r)
+	if parseErr != "" {
+		return false, parseErr
+	}
+
+	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	fields := parseVolumeRequestFields(requestBody)
+	volumeUuid := extractVolumeUUIDFromRequest(r)
+
+	// Reject invalid size (parsed to 0)
+	if fields.SizeInBytes == 0 {
+		orig := requestBody["size"]
+		return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", orig)
+	}
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionUpdate,
+		VolumeName:    fields.VolumeName,
+		SizeInBytes:   fields.SizeInBytes,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		SvmUuid:       fields.SvmUuid,
+		SvmName:       fields.SvmName,
+		VolumeUuid:    volumeUuid,
+	}
+
+	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
+		return false, err.Error()
+	}
+
 	return true, ""
 }
 
-// ValidateVolumeDeletionWithCore validates volume deletion request with core API.
-// Returns (true, "") if validation passes, or (false, "reason") if it fails.
-//
-// TODO: Implement actual API call to core service
-func ValidateVolumeDeletionWithCore(r *http.Request) (bool, string) {
-	// Placeholder implementation - always returns true
-	// TODO: Implement actual core API validation
+func _validateVolumeDeletion(r *http.Request) (bool, string) {
+	logger := util.GetLogger(r.Context())
+	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	volumeUuid := extractVolumeUUIDFromRequest(r)
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionDelete,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		VolumeUuid:    volumeUuid,
+	}
+
+	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
+		return false, err.Error()
+	}
+
 	return true, ""
 }
 
@@ -75,4 +168,70 @@ func WrapValidator(validator func(r *http.Request) bool, failureReason string) d
 		}
 		return false, failureReason
 	}
+}
+
+func extractVolumeUUIDFromRequest(r *http.Request) coreapi.OptString {
+	pathParts := strings.Split(strings.TrimSuffix(r.URL.Path, "/"), "/")
+	if len(pathParts) > 0 {
+		lastSegment := pathParts[len(pathParts)-1]
+		if lastSegment != "" && lastSegment != "volumes" {
+			return coreapi.NewOptString(lastSegment)
+		}
+	}
+	return coreapi.OptString{}
+}
+
+// parseSize parses a size that may be a float64 (bytes) or a string like "10GB" into bytes.
+// Supports units: KB, MB, GB, TB, PB (base-1024). If invalid, returns 0.
+func parseSize(raw interface{}) float64 {
+	if raw == nil {
+		return 0
+	}
+	// numeric bytes (from JSON decoding)
+	if f, ok := raw.(float64); ok {
+		return f
+	}
+	// string with optional unit
+	if s, ok := raw.(string); ok {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return 0
+		}
+		// split number and unit
+		var numPart string
+		var unitPart string
+		for i, r := range s {
+			if r < '0' || r > '9' {
+				numPart = s[:i]
+				unitPart = strings.TrimSpace(strings.ToUpper(s[i:]))
+				break
+			}
+		}
+		if numPart == "" { // all digits or string starts with unit
+			numPart = s
+		}
+		val, err := strconv.ParseFloat(numPart, 64)
+		if err != nil {
+			return 0
+		}
+		var mult float64
+		switch unitPart {
+		case "":
+			mult = 1
+		case "KB":
+			mult = 1024
+		case "MB":
+			mult = 1024 * 1024
+		case "GB":
+			mult = 1024 * 1024 * 1024
+		case "TB":
+			mult = 1024 * 1024 * 1024 * 1024
+		case "PB":
+			mult = 1024 * 1024 * 1024 * 1024 * 1024
+		default:
+			return 0
+		}
+		return val * mult
+	}
+	return 0
 }

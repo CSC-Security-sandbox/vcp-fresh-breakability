@@ -8,7 +8,7 @@ packages:
       dir: "{{.InterfaceDir}}"
     interfaces:
       Handler:
-  github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api/clientgen:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api:
     config:
       inpackage: True
       dir: "{{.InterfaceDir}}"

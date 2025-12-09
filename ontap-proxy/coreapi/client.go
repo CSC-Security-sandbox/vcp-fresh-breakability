@@ -8,6 +8,8 @@ import (
 	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -86,4 +88,60 @@ func getStringValue(opt coreapi.OptString) string {
 		return opt.Value
 	}
 	return ""
+}
+
+// SubmitExpertModeVolumeOperation submits a volume operation (Create/Update/Delete) to the Core API.
+func SubmitExpertModeVolumeOperation(ctx context.Context, request *coreapi.ExpertModeVolumeV1, jwtToken string, logger log.Logger) error {
+	logger.InfoContext(ctx, "Submitting expert mode volume operation",
+		"projectNumber", request.ProjectNumber,
+		"poolUUID", request.PoolUUID,
+		"volumeName", request.VolumeName,
+		"action", request.Action,
+		"style", request.Style)
+
+	client := createCoreAPIClient(coreAPIHost, jwtToken, logger)
+	correlationID, _ := ctx.Value(middleware.CorrelationContextKey).(string)
+	params := coreapi.V1CreateExpertModeVolumeParams{
+		XCorrelationID: coreapi.NewOptString(correlationID),
+	}
+
+	response, err := client.Invoker.V1CreateExpertModeVolume(ctx, request, params)
+	if err != nil {
+		logger.ErrorContext(ctx, "Failed to submit expert mode volume operation",
+			"error", err,
+			"volumeName", request.VolumeName,
+			"poolUUID", request.PoolUUID,
+			"action", request.Action)
+		return err
+	}
+
+	// Handle different response types
+	switch resp := response.(type) {
+	case *coreapi.V1CreateExpertModeVolumeOK:
+		logger.InfoContext(ctx, "Successfully submitted expert mode volume operation",
+			"volumeName", request.VolumeName,
+			"poolUUID", request.PoolUUID,
+			"action", request.Action)
+		return nil
+
+	case *coreapi.V1CreateExpertModeVolumeBadRequest:
+		logger.ErrorContext(ctx, "Bad request when submitting expert mode volume operation",
+			"message", resp.Message,
+			"volumeName", request.VolumeName,
+			"action", request.Action)
+		return customerrors.NewBadRequestErr(fmt.Sprintf("bad request: %s", resp.Message))
+
+	case *coreapi.V1CreateExpertModeVolumeConflict:
+		logger.ErrorContext(ctx, "Conflict when submitting expert mode volume operation",
+			"message", resp.Message,
+			"volumeName", request.VolumeName,
+			"action", request.Action)
+		return customerrors.NewConflictErr(fmt.Sprintf("conflict: %s", resp.Message))
+
+	default:
+		logger.ErrorContext(ctx, "Unexpected response from Core API",
+			"responseType", fmt.Sprintf("%T", resp),
+			"volumeName", request.VolumeName)
+		return err
+	}
 }

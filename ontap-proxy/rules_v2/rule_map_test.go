@@ -81,6 +81,13 @@ func TestPrivateAPIRule(t *testing.T) {
 }
 
 func TestStorageVolumesRule(t *testing.T) {
+	// Save and restore original validator to avoid cross-test pollution
+	origValidateVolumeCreation := validateVolumeCreation
+	defer func() { validateVolumeCreation = origValidateVolumeCreation }()
+
+	// Force creation validator to pass for these tests
+	validateVolumeCreation = func(r *http.Request) (bool, string) { return true, "" }
+
 	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes"]
@@ -181,6 +188,17 @@ func TestStorageVolumesRule(t *testing.T) {
 }
 
 func TestStorageVolumesUUIDRule(t *testing.T) {
+	// Save and restore originals
+	origValidateVolumeModification := validateVolumeModification
+	origValidateVolumeDeletion := validateVolumeDeletion
+	defer func() {
+		validateVolumeModification = origValidateVolumeModification
+		validateVolumeDeletion = origValidateVolumeDeletion
+	}()
+
+	// Ensure modification validator passes for these tests unless overridden per subtest
+	validateVolumeModification = func(r *http.Request) (bool, string) { return true, "" }
+
 	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes/{uuid}"]
@@ -265,6 +283,8 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 	})
 
 	t.Run("WhenDELETE_ShouldAllow", func(t *testing.T) {
+		// Mock deletion validator BEFORE building rules
+		validateVolumeDeletion = func(r *http.Request) (bool, string) { return true, "" }
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes/{uuid}"]
 		req := httptest.NewRequest(http.MethodDelete, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", nil)
