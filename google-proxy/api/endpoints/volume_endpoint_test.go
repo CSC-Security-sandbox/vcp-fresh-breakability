@@ -4723,8 +4723,55 @@ func TestV1betaCreateVolume(t *testing.T) {
 		assert.NoError(t, err)
 		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
 		assert.True(t, ok)
-		assert.Equal(t, float64(http.StatusNotImplemented), badReq.Code)
+		assert.Equal(t, float64(http.StatusBadRequest), badReq.Code)
 		assert.Equal(t, "Hybrid migration is not enabled", badReq.Message)
+	})
+
+	t.Run("WhenOnpremReplicationNotEnabled", func(tt *testing.T) {
+		// Mock hybridReplicationEnabled to be true (to pass first check)
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		// Mock bidiReplicationEnabled to be false (to trigger error at line 126-131)
+		originalBidiReplicationEnabled := bidiReplicationEnabled
+		bidiReplicationEnabled = false
+		defer func() { bidiReplicationEnabled = originalBidiReplicationEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			},
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType: gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					ReplicationSchedule:   gcpgenserver.NewOptHybridReplicationParametersV1betaReplicationSchedule("daily"),
+					PeerClusterName:       "peer-cluster",
+					PeerVolumeName:        "peer-volume",
+					PeerSvmName:           "peer-svm",
+					PeerIpAddresses:       []string{"192.168.1.1"},
+					ResourceId:            "resource-123",
+				},
+				Set: true,
+			},
+		}
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Equal(tt, "Onprem replication is not enabled", badReq.Message)
 	})
 
 	t.Run("UserInputValidationErrorWhenVolumeQuotaIsByteIsNotSet", func(tt *testing.T) {
@@ -4989,6 +5036,10 @@ func TestV1betaCreateVolume(t *testing.T) {
 		// Mock the hybridReplicationEnabled variable to be true
 		originalHybridReplicationEnabled := hybridReplicationEnabled
 		hybridReplicationEnabled = true
+		// Mock the bidiReplicationEnabled variable to be false
+		originalBidiReplicationEnabled := bidiReplicationEnabled
+		bidiReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalBidiReplicationEnabled }()
 		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -5038,7 +5089,11 @@ func TestV1betaCreateVolume(t *testing.T) {
 		// Mock the hybridReplicationEnabled variable to be true
 		originalHybridReplicationEnabled := hybridReplicationEnabled
 		hybridReplicationEnabled = true
+		// Mock the bidiReplicationEnabled variable to be false
+		originalBidiReplicationEnabled := bidiReplicationEnabled
+		bidiReplicationEnabled = true
 		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+		defer func() { bidiReplicationEnabled = originalBidiReplicationEnabled }()
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -5231,6 +5286,10 @@ func TestV1betaCreateVolume(t *testing.T) {
 		// Mock the hybridReplicationEnabled variable to be true
 		originalHybridReplicationEnabled := hybridReplicationEnabled
 		hybridReplicationEnabled = true
+		// Mock the bidiReplicationEnabled variable to be false
+		originalBidiReplicationEnabled := bidiReplicationEnabled
+		bidiReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalBidiReplicationEnabled }()
 		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)

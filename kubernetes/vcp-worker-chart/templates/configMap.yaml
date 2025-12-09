@@ -79,6 +79,7 @@ data:
   GCP_HYDRATE_BATCH_SIZE: {{$.Values.workerConfig.gcpHydrateBatchSize | quote }}
   FLEXCACHE_ENABLED: {{$.Values.workerConfig.flexCacheEnabled | quote }}
   HYBRID_REPLICATION_ENABLED: {{$.Values.workerConfig.hybridReplicationEnabled | quote }}
+  BIDI_REPLICATION_ENABLED: {{$.Values.workerConfig.bidiReplicationEnabled | quote }}
   SNAPSHOT_SYNC_MAX_CONCURRENCY: {{$.Values.workerConfig.snapshotSyncMaxConcurrency | quote }}
   ONTAP_SNAPSHOT_FETCH_MAX_CONCURRENCY: {{$.Values.workerConfig.ontapSnapshotFetchConcurrencyLimit | quote }}
   SNAPSHOT_SYNC_PARENT_WORKFLOW_BATCH_SIZE: {{$.Values.workerConfig.snapshotSyncParentWorkflowBatchSize | quote }}

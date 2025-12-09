@@ -1811,8 +1811,8 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 			scheduleOptions := []string{"daily", "weekly", "monthly", "manual"}
 			schedule := scheduleOptions[rand.Intn(len(scheduleOptions))]
 
-			// Generate replication type (random type: CROSS_REGION_REPLICATION, ExternalDisasterRecovery, etc.)
-			replicationTypeOptions := []string{"CROSS_REGION_REPLICATION", "ExternalDisasterRecovery", "SAME_REGION_REPLICATION"}
+			// Generate replication type (random type: CROSS_REGION_REPLICATION, ONPREM_REPLICATION, etc.)
+			replicationTypeOptions := []string{"CROSS_REGION_REPLICATION", "ONPREM_REPLICATION", "SAME_REGION_REPLICATION"}
 			replicationType := replicationTypeOptions[rand.Intn(len(replicationTypeOptions))]
 
 			// Create replication

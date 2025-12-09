@@ -49,6 +49,7 @@ data:
   CZCRR_ENABLED: "{{ index .Values "czcrrEnabled" }}"
   FLEXCACHE_ENABLED: "{{ index .Values "flexCacheEnabled" }}"
   HYBRID_REPLICATION_ENABLED: "{{ index .Values "hybridReplicationEnabled" }}"
+  BIDI_REPLICATION_ENABLED: "{{ index .Values "bidiReplicationEnabled" }}"
   REFRESH_ADMIN_JOB_SPECS: "{{ index .Values "refreshAdminJobSpecs" }}"
   AUTO_TIERING_ENABLED: "{{ index .Values "autoTieringEnabled" }}"
   BLOCK_UPDATE_POOL_TO_AT_POOL: "{{ index .Values "blockUpdatePoolToATPool" }}"

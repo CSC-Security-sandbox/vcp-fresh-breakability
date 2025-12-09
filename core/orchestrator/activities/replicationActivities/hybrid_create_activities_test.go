@@ -2682,8 +2682,8 @@ func TestHybridReplicationActivity_SetSVMPeeringToPeered(t *testing.T) {
 		activity := HybridReplicationActivity{SE: mockStorage}
 
 		volumeReplication := &datamodel.VolumeReplication{
-			BaseModel: datamodel.BaseModel{UUID: "test-replication-uuid"},
-			Name:      "test-replication",
+			BaseModel:                   datamodel.BaseModel{UUID: "test-replication-uuid"},
+			Name:                        "test-replication",
 			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
 				// Empty attributes
 			},
@@ -5317,7 +5317,7 @@ func TestHybridReplicationActivity_CreateLocalVolumeReplicationRow(t *testing.T)
 				replication.AccountID == 123 &&
 				replication.VolumeID == 456 &&
 				replAttrs.EndpointType == database.VolumeReplicationEndpointTypeDestination &&
-				replAttrs.ReplicationType == ReplicationTypeExternalDisasterRecovery &&
+				replAttrs.ReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM) &&
 				replAttrs.ReplicationSchedule == "hourly" &&
 				replAttrs.SourceSvmName == "peer-svm" &&
 				replAttrs.SourceHostName == "peer-cluster" &&

@@ -73,6 +73,7 @@ workerConfig:
   gcpHydrateEnabled: "true"
   flexCacheEnabled: "false"
   hybridReplicationEnabled: "false"
+  bidiReplicationEnabled: "false"
   gcpHydrateBatchSize: "10"
   thinCloneGASupport: false
   snapshotSyncMaxConcurrency: 20

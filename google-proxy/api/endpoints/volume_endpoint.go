@@ -45,6 +45,7 @@ var (
 	MaxSourceFileList             = env.GetInt("MAX_SOURCE_FILE_LIST", 8)
 	thinCloneGASupport            = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
 	hybridReplicationEnabled      = env.GetBool("HYBRID_REPLICATION_ENABLED", false)
+	bidiReplicationEnabled        = env.GetBool("BIDI_REPLICATION_ENABLED", false)
 )
 
 const (
@@ -117,8 +118,15 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if req.HybridReplicationParameters.IsSet() && !hybridReplicationEnabled {
 		return &gcpgenserver.V1betaCreateVolumeBadRequest{
-			Code:    http.StatusNotImplemented,
+			Code:    http.StatusBadRequest,
 			Message: "Hybrid migration is not enabled",
+		}, nil
+	}
+
+	if req.HybridReplicationParameters.IsSet() && req.HybridReplicationParameters.Value.HybridReplicationType == gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION && !bidiReplicationEnabled {
+		return &gcpgenserver.V1betaCreateVolumeBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: "Onprem replication is not enabled",
 		}, nil
 	}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/snapmirror"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -1056,7 +1057,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 			DestinationVolumeName: *dstVolume.Name,
 			ClusterPeerID:         nillable.ToPointer(uint64(1)),
 			EndpointType:          "src",
-			ReplicationType:       "ExternalDisasterRecovery",
+			ReplicationType:       "ONPREM_REPLICATION",
 		},
 	}
 	listDestinationParams := &ontaprest.SnapmirrorRelationshipListDestinationsParams{
@@ -2327,7 +2328,7 @@ func TestCleanupSvmPeering(t *testing.T) {
 		mockSnapmirrorClient.On("SnapmirrorRelationshipList", &ontaprest.SnapmirrorRelationshipListParams{}).Return(snapmirrorList2, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", &ontaprest.SnapmirrorRelationshipListDestinationsParams{}).Return(nil, nil).Times(1)
 
-		params1.VolumeReplication.ReplicationType = VolumeReplicationTypeExternalDisasterRecovery
+		params1.VolumeReplication.ReplicationType = string(coremodels.HybridReplicationParametersReplicationTypeONPREM)
 		err := cleanupSvmPeering(provider, params1)
 		if err != nil {
 			tt.Error("Error unexpectedly returned")

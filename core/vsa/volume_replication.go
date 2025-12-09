@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sosodev/duration"
+	clientmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
@@ -32,8 +33,7 @@ var (
 )
 
 const (
-	waitForReplicationStateMaxRetries             = 10
-	VolumeReplicationTypeExternalDisasterRecovery = "ExternalDisasterRecovery"
+	waitForReplicationStateMaxRetries = 10
 )
 
 // Volume states
@@ -692,7 +692,7 @@ func (rc *OntapRestProvider) ReleaseVolumeReplication(params *ReleaseVolumeRepli
 		}
 	}
 
-	if params.VolumeReplication.ReplicationType == VolumeReplicationTypeExternalDisasterRecovery && params.VolumeReplication.EndpointType == VolumeReplicationEndpointTypeSource {
+	if params.VolumeReplication.ReplicationType == clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION && params.VolumeReplication.EndpointType == VolumeReplicationEndpointTypeSource {
 		svmCleanupParams := &DeleteVolumeReplicationParams{
 			VolumeReplication: params.VolumeReplication,
 		}
@@ -865,7 +865,7 @@ func cleanupSvmPeering(provider *OntapRestProvider, params *DeleteVolumeReplicat
 	force := false
 	var svmPeer *SvmPeer
 	for time.Now().Before(t1) {
-		if params.VolumeReplication.ReplicationType == VolumeReplicationTypeExternalDisasterRecovery && params.VolumeReplication.EndpointType == "src" {
+		if params.VolumeReplication.ReplicationType == clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION && params.VolumeReplication.EndpointType == "src" {
 			svmPeer, err = getSvmPeer(provider, params.VolumeReplication.SourceSVMName, params.VolumeReplication.DestinationSVMName)
 			if err != nil {
 				return err
@@ -924,7 +924,7 @@ func _deleteSvmPeer(provider *OntapRestProvider, svmPeerUUID string, force bool)
 
 func shouldDeleteSvmPeer(snapmirrors []*ontaprest.SnapmirrorRelationship, destinations []*ontaprest.SnapmirrorRelationship, vr *VolumeReplication) bool {
 	// This is added to check whether to deleteSvmPeer during release operation when replicationType is HybridReplication & EndpointType is Src
-	if vr.ReplicationType == VolumeReplicationTypeExternalDisasterRecovery && vr.EndpointType == "src" {
+	if vr.ReplicationType == clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION && vr.EndpointType == "src" {
 		for _, sm := range snapmirrors {
 			if *sm.Source.Svm.Name == vr.DestinationSVMName && *sm.Destination.Svm.Name == vr.SourceSVMName {
 				return false
