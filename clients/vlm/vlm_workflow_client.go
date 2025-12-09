@@ -68,7 +68,7 @@ type WorkflowRetryPolicy struct {
 }
 
 type VlmWorkflowClient interface {
-	CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error)
+	CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest, taskQueue string) (*CreateVSAClusterDeploymentResponse, error)
 	CreateVSASVM(ctx workflow.Context, createSVMRequest *CreateSVMRequest) (*CreateSVMResponse, error)
 	DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error
 	UpdateVSAClusterDeployment(ctx workflow.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error)
@@ -91,7 +91,8 @@ func _newVSAClientWorkflowManager() VlmWorkflowClient {
 	return &VSAClientWorkflowManager{}
 }
 
-func getVLMWorkerQueue(logger log.Logger, account string) string {
+// GetVLMWorkerQueue returns the VLM worker queue name based on the account and ONTAP version
+func GetVLMWorkerQueue(logger log.Logger, account string) string {
 	ontapVersion := OntapVersion
 	if utils.IsFileProtocolSupported(account) {
 		// not made it has configurable as this will be removed after AGA
@@ -116,7 +117,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            createVSAExpertModeUserRequest.VLMConfig.Deployment.DeploymentID + expertMode, // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
-		TaskQueue:             getVLMWorkerQueue(logger, accountId),                                          // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+		TaskQueue:             GetVLMWorkerQueue(logger, accountId),                                          // As VLM workflows are executed in a VSALifecycleManagerQueue queue
 		WaitForCancellation:   true,                                                                          // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,                    // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
 		RetryPolicy: &temporal.RetryPolicy{
@@ -150,8 +151,13 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow
 	return ontapExpertModeUserResponse, nil
 }
 
-func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
+func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest, taskQueue string) (*CreateVSAClusterDeploymentResponse, error) {
 	logger := util.GetLogger(ctx)
+
+	if taskQueue == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("taskQueue cannot be empty")))
+	}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -170,7 +176,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 	}
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID, // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
-		TaskQueue:             getVLMWorkerQueue(logger, accountID),                                // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+		TaskQueue:             taskQueue,                                                           // As VLM workflows are executed in a VSALifecycleManagerQueue queue
 		WaitForCancellation:   true,                                                                // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,          // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
 		RetryPolicy: &temporal.RetryPolicy{
@@ -230,7 +236,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 					// but since we couldn't reproduce the issue reliably, using a new child workflow ID for retry to be safe
 					retryChildWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 						WorkflowID:            createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID + "-1", // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
-						TaskQueue:             getVLMWorkerQueue(logger, accountID),                                       // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+						TaskQueue:             taskQueue,                                                                  // As VLM workflows are executed in a VSALifecycleManagerQueue queue
 						WaitForCancellation:   true,                                                                       // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
 						WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,                 // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
 						RetryPolicy: &temporal.RetryPolicy{
@@ -285,7 +291,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 	}
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             getVLMWorkerQueue(logger, accountID),
+		TaskQueue:             GetVLMWorkerQueue(logger, accountID),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -553,7 +559,7 @@ func (vlmManager *VSAClientWorkflowManager) GetClusterZiZsDetails(ctx workflow.C
 	}
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             getVLMWorkerQueue(logger, accountId),
+		TaskQueue:             GetVLMWorkerQueue(logger, accountId),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -685,7 +691,7 @@ func (vlmManager *VSAClientWorkflowManager) ValidateClusterHealth(ctx workflow.C
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            childWorkflowID,
-		TaskQueue:             getVLMWorkerQueue(logger, accountID),
+		TaskQueue:             GetVLMWorkerQueue(logger, accountID),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -737,7 +743,7 @@ func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context,
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            childWorkflowID,
-		TaskQueue:             getVLMWorkerQueue(logger, accountID),
+		TaskQueue:             GetVLMWorkerQueue(logger, accountID),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 		RetryPolicy: &temporal.RetryPolicy{

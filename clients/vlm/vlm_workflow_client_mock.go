@@ -67,9 +67,9 @@ func (_c *MockVlmWorkflowClient_ClusterPowerOp_Call) RunAndReturn(run func(inter
 	return _c
 }
 
-// CreateVSAClusterDeployment provides a mock function with given fields: ctx, createVSAClusterDeploymentRequest
-func (_m *MockVlmWorkflowClient) CreateVSAClusterDeployment(ctx internal.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
-	ret := _m.Called(ctx, createVSAClusterDeploymentRequest)
+// CreateVSAClusterDeployment provides a mock function with given fields: ctx, createVSAClusterDeploymentRequest, taskQueue
+func (_m *MockVlmWorkflowClient) CreateVSAClusterDeployment(ctx internal.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest, taskQueue string) (*CreateVSAClusterDeploymentResponse, error) {
+	ret := _m.Called(ctx, createVSAClusterDeploymentRequest, taskQueue)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateVSAClusterDeployment")
@@ -77,19 +77,19 @@ func (_m *MockVlmWorkflowClient) CreateVSAClusterDeployment(ctx internal.Context
 
 	var r0 *CreateVSAClusterDeploymentResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(internal.Context, *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error)); ok {
-		return rf(ctx, createVSAClusterDeploymentRequest)
+	if rf, ok := ret.Get(0).(func(internal.Context, *CreateVSAClusterDeploymentRequest, string) (*CreateVSAClusterDeploymentResponse, error)); ok {
+		return rf(ctx, createVSAClusterDeploymentRequest, taskQueue)
 	}
-	if rf, ok := ret.Get(0).(func(internal.Context, *CreateVSAClusterDeploymentRequest) *CreateVSAClusterDeploymentResponse); ok {
-		r0 = rf(ctx, createVSAClusterDeploymentRequest)
+	if rf, ok := ret.Get(0).(func(internal.Context, *CreateVSAClusterDeploymentRequest, string) *CreateVSAClusterDeploymentResponse); ok {
+		r0 = rf(ctx, createVSAClusterDeploymentRequest, taskQueue)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*CreateVSAClusterDeploymentResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(internal.Context, *CreateVSAClusterDeploymentRequest) error); ok {
-		r1 = rf(ctx, createVSAClusterDeploymentRequest)
+	if rf, ok := ret.Get(1).(func(internal.Context, *CreateVSAClusterDeploymentRequest, string) error); ok {
+		r1 = rf(ctx, createVSAClusterDeploymentRequest, taskQueue)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -105,13 +105,14 @@ type MockVlmWorkflowClient_CreateVSAClusterDeployment_Call struct {
 // CreateVSAClusterDeployment is a helper method to define mock.On call
 //   - ctx internal.Context
 //   - createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest
-func (_e *MockVlmWorkflowClient_Expecter) CreateVSAClusterDeployment(ctx interface{}, createVSAClusterDeploymentRequest interface{}) *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call {
-	return &MockVlmWorkflowClient_CreateVSAClusterDeployment_Call{Call: _e.mock.On("CreateVSAClusterDeployment", ctx, createVSAClusterDeploymentRequest)}
+//   - taskQueue string
+func (_e *MockVlmWorkflowClient_Expecter) CreateVSAClusterDeployment(ctx interface{}, createVSAClusterDeploymentRequest interface{}, taskQueue interface{}) *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call {
+	return &MockVlmWorkflowClient_CreateVSAClusterDeployment_Call{Call: _e.mock.On("CreateVSAClusterDeployment", ctx, createVSAClusterDeploymentRequest, taskQueue)}
 }
 
-func (_c *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call) Run(run func(ctx internal.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest)) *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call {
+func (_c *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call) Run(run func(ctx internal.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest, taskQueue string)) *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(internal.Context), args[1].(*CreateVSAClusterDeploymentRequest))
+		run(args[0].(internal.Context), args[1].(*CreateVSAClusterDeploymentRequest), args[2].(string))
 	})
 	return _c
 }
@@ -121,7 +122,7 @@ func (_c *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call) Return(_a0 *Cre
 	return _c
 }
 
-func (_c *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call) RunAndReturn(run func(internal.Context, *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error)) *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call {
+func (_c *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call) RunAndReturn(run func(internal.Context, *CreateVSAClusterDeploymentRequest, string) (*CreateVSAClusterDeploymentResponse, error)) *MockVlmWorkflowClient_CreateVSAClusterDeployment_Call {
 	_c.Call.Return(run)
 	return _c
 }

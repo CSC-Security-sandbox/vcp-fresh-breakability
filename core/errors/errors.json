@@ -281,6 +281,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "4012": {
+    "description": "Workflow task queue is empty or invalid",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
   "5001": {
     "description": "Error fetching ONTAP version",
     "message": "An internal error occurred.",

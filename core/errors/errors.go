@@ -94,6 +94,7 @@ const (
 	ErrAllHostGroupsNotFoundError      = 4009
 	ErrMissingRequiredInputError       = 4010
 	ErrUnexpectedNodeCountForPool      = 4011
+	ErrWorkflowTaskQueueEmpty          = 4012
 
 	ErrONTAPVersionFetchError          = 5001
 	ErrCreatingSVM                     = 5002

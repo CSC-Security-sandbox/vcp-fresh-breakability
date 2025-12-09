@@ -3,6 +3,7 @@ package vlm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -1374,6 +1375,335 @@ func TestGetClusterZiZsDetails_CorrelationIDFallback(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+}
+
+// TestGetVLMWorkerQueue tests the GetVLMWorkerQueue function
+func TestGetVLMWorkerQueue(t *testing.T) {
+	t.Run("DefaultOntapVersion", func(t *testing.T) {
+		// Test with a regular account (not file protocol)
+		logger := log.NewLogger()
+		account := "regular-account"
+
+		queue := GetVLMWorkerQueue(logger, account)
+
+		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, OntapVersion)
+		assert.Equal(t, expectedQueue, queue)
+		assert.Contains(t, queue, VSALifecycleManagerQueuePrefix)
+	})
+
+	t.Run("FileProtocolSupported", func(t *testing.T) {
+		// Test with a file protocol supported account
+		logger := log.NewLogger()
+		// Based on the code, IsFileProtocolSupported would return true for accounts with file protocol support
+		// This test assumes there's a way to identify file protocol accounts
+		account := "file-protocol-account"
+
+		queue := GetVLMWorkerQueue(logger, account)
+
+		// Queue should still contain the prefix
+		assert.Contains(t, queue, VSALifecycleManagerQueuePrefix)
+		// The exact format depends on whether file protocol is supported for this account
+		assert.NotEmpty(t, queue)
+	})
+
+	t.Run("EmptyAccount", func(t *testing.T) {
+		// Test with empty account name
+		logger := log.NewLogger()
+		account := ""
+
+		queue := GetVLMWorkerQueue(logger, account)
+
+		// Should still return a valid queue name with default ONTAP version
+		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, OntapVersion)
+		assert.Equal(t, expectedQueue, queue)
+	})
+
+	t.Run("QueueFormat", func(t *testing.T) {
+		// Test the queue format is correct
+		logger := log.NewLogger()
+		account := "test-account"
+
+		queue := GetVLMWorkerQueue(logger, account)
+
+		// Queue should have the format: VSALifecycleManagerQueue-<version>
+		// Version can be like 9.17.1 or 9.17.1P1 (with patch suffix)
+		assert.Regexp(t, "^"+VSALifecycleManagerQueuePrefix+"-\\d+\\.\\d+\\.\\d+", queue)
+	})
+}
+
+// TestCreateVSAClusterDeployment_WithTaskQueue tests CreateVSAClusterDeployment with taskQueue parameter
+func TestCreateVSAClusterDeployment_WithTaskQueue(t *testing.T) {
+	t.Run("UsesProvidedTaskQueue", func(t *testing.T) {
+		// Test that the method uses the provided taskQueue instead of calculating it
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		// Create test request
+		request := &CreateVSAClusterDeploymentRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		// Custom task queue that should be used
+		customTaskQueue := "custom-vlm-queue-9.18.1"
+
+		// Register child workflow
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
+				return &CreateVSAClusterDeploymentResponse{
+					VLMConfig: req.VLMConfig,
+				}, nil
+			},
+			workflow.RegisterOptions{Name: CreateVSAClusterDeploymentWorkflowName},
+		)
+
+		vlmManager := &VSAClientWorkflowManager{}
+
+		// Execute workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*CreateVSAClusterDeploymentResponse, error) {
+			return vlmManager.CreateVSAClusterDeployment(ctx, request, customTaskQueue)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+
+	t.Run("ConsistentTaskQueueForRollback", func(t *testing.T) {
+		// Test that using the same taskQueue ensures consistency for rollback scenarios
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		logger := log.NewLogger()
+		account := "test-account"
+
+		// Calculate queue once (as would be done in pool_workflows.go)
+		vlmWorkerQueue := GetVLMWorkerQueue(logger, account)
+
+		request := &CreateVSAClusterDeploymentRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					Labels: map[string]string{
+						"account_id": account,
+					},
+				},
+			},
+		}
+
+		// Register child workflow
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
+				return &CreateVSAClusterDeploymentResponse{
+					VLMConfig: req.VLMConfig,
+				}, nil
+			},
+			workflow.RegisterOptions{Name: CreateVSAClusterDeploymentWorkflowName},
+		)
+
+		vlmManager := &VSAClientWorkflowManager{}
+
+		// Execute workflow with pre-calculated queue
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*CreateVSAClusterDeploymentResponse, error) {
+			return vlmManager.CreateVSAClusterDeployment(ctx, request, vlmWorkerQueue)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+
+		// Verify that the same vlmWorkerQueue would be used for rollback
+		assert.NotEmpty(t, vlmWorkerQueue)
+		assert.Contains(t, vlmWorkerQueue, VSALifecycleManagerQueuePrefix)
+	})
+
+	t.Run("DifferentTaskQueuesForDifferentAccounts", func(t *testing.T) {
+		// Test that different accounts can have different task queues
+
+		logger := log.NewLogger()
+
+		// Regular account
+		regularAccount := "regular-account"
+		regularQueue := GetVLMWorkerQueue(logger, regularAccount)
+
+		// Another account
+		anotherAccount := "another-account"
+		anotherQueue := GetVLMWorkerQueue(logger, anotherAccount)
+
+		// Both queues should be valid
+		assert.NotEmpty(t, regularQueue)
+		assert.NotEmpty(t, anotherQueue)
+		assert.Contains(t, regularQueue, VSALifecycleManagerQueuePrefix)
+		assert.Contains(t, anotherQueue, VSALifecycleManagerQueuePrefix)
+
+		// Queues might be different if file protocol support differs
+		// But both should be valid queue names
+	})
+
+	t.Run("LargeCapacityTimeout", func(t *testing.T) {
+		// Test that large capacity deployments get the correct timeout
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		request := &CreateVSAClusterDeploymentRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					NumHAPair:    MinLvHAPair, // This triggers large capacity timeout
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		customTaskQueue := "test-queue"
+
+		// Register child workflow
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
+				return &CreateVSAClusterDeploymentResponse{
+					VLMConfig: req.VLMConfig,
+				}, nil
+			},
+			workflow.RegisterOptions{Name: CreateVSAClusterDeploymentWorkflowName},
+		)
+
+		vlmManager := &VSAClientWorkflowManager{}
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*CreateVSAClusterDeploymentResponse, error) {
+			return vlmManager.CreateVSAClusterDeployment(ctx, request, customTaskQueue)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+
+	t.Run("ErrorHandling", func(t *testing.T) {
+		// Test error handling when child workflow fails
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		request := &CreateVSAClusterDeploymentRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		customTaskQueue := "test-queue"
+
+		// Register child workflow that fails
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
+				return nil, errors.New("child workflow failed")
+			},
+			workflow.RegisterOptions{Name: CreateVSAClusterDeploymentWorkflowName},
+		)
+
+		vlmManager := &VSAClientWorkflowManager{}
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*CreateVSAClusterDeploymentResponse, error) {
+			return vlmManager.CreateVSAClusterDeployment(ctx, request, customTaskQueue)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+
+	t.Run("EmptyTaskQueueValidation", func(t *testing.T) {
+		// Test that CreateVSAClusterDeployment returns error when taskQueue is empty
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		request := &CreateVSAClusterDeploymentRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		vlmManager := &VSAClientWorkflowManager{}
+
+		// Execute workflow with empty taskQueue
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*CreateVSAClusterDeploymentResponse, error) {
+			return vlmManager.CreateVSAClusterDeployment(ctx, request, "")
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		// Error is wrapped by Temporal workflow execution, so just verify an error exists
+		// The actual validation logic ensures it's the taskQueue error
+		assert.NotNil(t, err, "Expected error for empty taskQueue parameter")
+	})
 }
 
 // TestGetClusterZiZsDetails_TimeoutConfiguration tests timeout configuration

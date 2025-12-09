@@ -302,10 +302,19 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		bucketName = pool.AutoTieringConfig.BucketName
 	}
 
+	// Calculate VLM worker queue once to use for both creation and rollback
+	logger := util.GetLogger(ctx)
+	vlmWorkerQueue := vlm.GetVLMWorkerQueue(logger, params.AccountName)
+
+	if vlmWorkerQueue == "" {
+		return nil, ConvertToVSAError(
+			vsaerrors.NewVCPError(vsaerrors.ErrWorkflowTaskQueueEmpty, fmt.Errorf("VLM worker queue cannot be empty")))
+	}
+
 	if !disableVsaCleanupOnVLMFailure {
 		deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
 		prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, vlm.VLMCloudProvider, tenancyDetails.RegionalTenantProject)
-		rollbackManager.AddWorkflow(vlm.VSALifecycleManagerQueue, vlm.DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest)
+		rollbackManager.AddWorkflow(vlmWorkerQueue, vlm.DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest)
 	}
 
 	locationInfo := &common.LocationInfo{
@@ -342,7 +351,8 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
-	createVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest)
+	// Use the pre-calculated queue to ensure consistency between creation and rollback
+	createVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest, vlmWorkerQueue)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

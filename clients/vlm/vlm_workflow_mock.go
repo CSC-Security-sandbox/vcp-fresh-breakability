@@ -45,9 +45,9 @@ func (vlmManager *VSAClientWorkflowManagerMock) GetClusterZiZsDetails(ctx workfl
 	return mockResponse, nil
 }
 
-func (vlmManager *VSAClientWorkflowManagerMock) CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
+func (vlmManager *VSAClientWorkflowManagerMock) CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest, taskQueue string) (*CreateVSAClusterDeploymentResponse, error) {
 	logger := util.GetLogger(ctx)
-	logger.Info("Mock CreateVSAClusterDeployment")
+	logger.Info("Mock CreateVSAClusterDeployment", "taskQueue", taskQueue)
 	createVSAClusterDeploymentResponse := &CreateVSAClusterDeploymentResponse{
 		VLMConfig: createVSAClusterDeploymentRequest.VLMConfig,
 	}
