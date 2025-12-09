@@ -62,9 +62,6 @@ func CreateScheduledBackupInitWorkflow(ctx workflow.Context, backupPolicy *datam
 	if err != nil {
 		return err
 	}
-	if err := createScheduledBackupInitWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
-		return err
-	}
 	createScheduledBackupInitWF.Status = workflows.WorkflowStatusRunning
 
 	_, workflowErr := createScheduledBackupInitWF.Run(ctx, backupPolicy)
@@ -199,9 +196,6 @@ func CreateScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volum
 	if err != nil {
 		return err
 	}
-	if err := createScheduledBackupWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
-		return err
-	}
 	createScheduledBackupWF.Status = workflows.WorkflowStatusRunning
 
 	_, workflowErr := createScheduledBackupWF.Run(ctx, volume, backupPolicy, createdJob)
@@ -231,9 +225,6 @@ func CreateScheduledBackupWorkflowWithContext(ctx workflow.Context, scheduledBac
 	createdJob := scheduledBackupContext.ScheduledBackupParams.Job
 	err := createScheduledBackupWF.Setup(ctx, createdJob)
 	if err != nil {
-		return err
-	}
-	if err := createScheduledBackupWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
 		return err
 	}
 	createScheduledBackupWF.Status = workflows.WorkflowStatusRunning
@@ -602,9 +593,6 @@ func DeleteScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volum
 
 	err = deleteScheduledBackupWF.Setup(ctx, createdJob)
 	if err != nil {
-		return err
-	}
-	if err := deleteScheduledBackupWF.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
 		return err
 	}
 	deleteScheduledBackupWF.Status = workflows.WorkflowStatusRunning

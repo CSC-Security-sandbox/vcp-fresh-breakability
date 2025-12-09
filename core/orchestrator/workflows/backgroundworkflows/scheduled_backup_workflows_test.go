@@ -130,7 +130,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 		},
 	}
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	// Mock first batch returning volumes (2 volumes < 20 batch size, so workflow stops after this)
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return(volumes, nil).Once()
@@ -173,7 +173,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 		},
 	}
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	// Mock first batch returning volumes (2 volumes < 20 batch size, so workflow stops after this)
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return(volumes, nil).Once()
@@ -238,7 +238,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_GetVol
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return(nil, errors.New("could not fetch volumes attached to the backup policy"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update job"))
@@ -275,7 +275,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NoVolu
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	// Mock returning empty volumes list (no volumes attached to this backup policy)
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return([]*datamodel.Volume{}, nil).Once()
@@ -331,8 +331,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Pagina
 	}
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
-
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	// Mock first batch (20 volumes)
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return(batch1, nil).Once()
@@ -384,7 +383,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -508,7 +507,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_Jo
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -680,7 +679,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetBackupV
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(nil, errors.New("could not fetch backup vault"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update job status"))
@@ -737,7 +736,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_DailySched
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -805,7 +804,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_WeeklySche
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -883,7 +882,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_MonthlySch
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -961,7 +960,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NoBackupsT
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1020,7 +1019,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetNodeFai
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1092,7 +1091,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetObjStor
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1171,7 +1170,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetOrCreat
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1256,7 +1255,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1346,7 +1345,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GenerateSn
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1445,7 +1444,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_CreateBack
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1546,7 +1545,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotCr
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1650,7 +1649,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateSnap
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1758,7 +1757,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1867,7 +1866,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -1982,7 +1981,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateCons
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -2108,7 +2107,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -2230,7 +2229,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_NonCritica
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -2355,7 +2354,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_UpdateBack
 	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -2470,7 +2469,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -2596,7 +2595,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess_Job
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -2789,7 +2788,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetBackupV
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(nil, errors.New("could not get backup vault"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update job"))
@@ -2846,7 +2845,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_FetchSched
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -2920,7 +2919,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_NoBackupsT
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -2993,7 +2992,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetNodeFai
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -3076,7 +3075,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetObjectS
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -3166,7 +3165,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_IsBackupSh
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -3283,7 +3282,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteSnap
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -3403,7 +3402,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetOntapJo
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -3527,7 +3526,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -3664,7 +3663,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -3803,7 +3802,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SharedBack
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -3905,12 +3904,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_WaitForONT
 	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
-	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-			State:     string(models.JobsStateNEW),
-		}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -4016,7 +4010,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 
 	// Mock all the required activities
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -4137,7 +4131,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SnapshotDe
 
 	// Mock all the required activities
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -4248,7 +4242,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotHy
 
 	// Mock all the required activities
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -4372,7 +4366,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SnapshotDe
 
 	// Mock all the required activities
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -4484,7 +4478,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_GetSnapsho
 
 	// Mock all the required activities
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -4594,7 +4588,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_DeleteBack
 
 	// Mock all the required activities
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
@@ -4890,7 +4884,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext
 	backup := &datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}
 	backupVault := &datamodel.BackupVault{Name: "vault"}
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -5016,7 +5010,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext
 	backup := &datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}
 	backupVault := &datamodel.BackupVault{Name: "vault"}
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
-		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -5089,160 +5083,4 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "transfer status error")
 	s.env.AssertExpectations(s.T())
-}
-
-// TestCreateScheduledBackupInitWorkflow_EnsureJobStateError tests the error path when EnsureJobState fails
-func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_EnsureJobStateError() {
-	mockStorage := database.NewMockStorage(s.T())
-	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
-	}, nil).Maybe()
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.GetJob)
-
-	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
-	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
-	}, nil)
-
-	backupPolicy := &datamodel.BackupPolicy{
-		BaseModel: datamodel.BaseModel{
-			ID:   int64(1),
-			UUID: "backup-policy-uuid-1",
-		},
-		Name: "backup-policy-1",
-		Account: &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
-			Name:      "account-1",
-		},
-		AccountID: int64(1),
-	}
-
-	// Execute workflow
-	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
-
-	// Assert that the workflow failed due to EnsureJobState error
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-}
-
-// TestCreateScheduledBackupWorkflow_EnsureJobStateError tests the error path when EnsureJobState fails
-func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_EnsureJobStateError() {
-	mockStorage := database.NewMockStorage(s.T())
-	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
-	}, nil).Maybe()
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.GetJob)
-
-	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
-	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
-	}, nil)
-
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
-		Name:      "test-volume",
-	}
-	backupPolicy := &datamodel.BackupPolicy{
-		BaseModel: datamodel.BaseModel{
-			ID:   int64(1),
-			UUID: "backup-policy-uuid-1",
-		},
-		Name: "backup-policy-1",
-	}
-
-	// Execute workflow
-	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflow, volume, backupPolicy)
-
-	// Assert that the workflow failed due to EnsureJobState error
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-}
-
-// TestCreateScheduledBackupWorkflowWithContext_EnsureJobStateError tests the error path when EnsureJobState fails
-func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflowWithContext_EnsureJobStateError() {
-	mockStorage := database.NewMockStorage(s.T())
-	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
-	}, nil).Maybe()
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.GetJob)
-
-	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
-	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
-	}, nil)
-
-	backupActivitiesContext := &activities.BackupActivitiesContext{
-		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup: &datamodel.Backup{
-				BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"},
-			},
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
-			},
-			Volume: &datamodel.Volume{
-				BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
-			},
-		},
-		Node: &models.Node{EndpointAddress: "127.0.0.1"},
-	}
-
-	// Execute workflow
-	s.env.ExecuteWorkflow(CreateScheduledBackupWorkflowWithContext, backupActivitiesContext)
-
-	// Assert that the workflow failed due to EnsureJobState error
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-}
-
-// TestDeleteScheduledBackupWorkflow_EnsureJobStateError tests the error path when EnsureJobState fails
-func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_EnsureJobStateError() {
-	mockStorage := database.NewMockStorage(s.T())
-	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		State:     string(models.JobsStateNEW),
-	}, nil).Maybe()
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.GetJob)
-
-	// Mock GetJob to return a job with state PROCESSING (not NEW) to trigger EnsureJobState error
-	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStatePROCESSING), // Wrong state to trigger error
-	}, nil)
-
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
-		Name:      "test-volume",
-	}
-	backupPolicy := &datamodel.BackupPolicy{
-		BaseModel: datamodel.BaseModel{
-			ID:   int64(1),
-			UUID: "backup-policy-uuid-1",
-		},
-		Name: "backup-policy-1",
-	}
-
-	// Execute workflow
-	s.env.ExecuteWorkflow(DeleteScheduledBackupWorkflow, volume, backupPolicy)
-
-	// Assert that the workflow failed due to EnsureJobState error
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
 }
