@@ -5056,3 +5056,636 @@ func TestConvertBackupVaultV1Beta_WithKmsConfigResourcePathAndBackupsPrimaryKeyV
 	assert.True(t, result.EncryptionState.IsSet())
 	assert.Equal(t, gcpgenserver.BackupVaultV1betaEncryptionState(encryptionState), result.EncryptionState.Value)
 }
+
+// V1betaRotateCmekBackups tests
+func TestV1betaRotateCmekBackupsNotEnabled(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = false
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	badRequest, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequest.Code)
+	assert.Equal(t, "Backup feature is currently not enabled.", badRequest.Message)
+}
+
+func TestV1betaRotateCmekBackupsInvalidLocation(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "invalid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "", "", &gcpgenserver.Error{Code: 400, Message: "LocationID represents neither a region nor a zone"}
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	badRequest, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequest.Code)
+}
+
+func TestV1betaRotateCmekBackupsSuccess(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:     "us-west1",
+		ProjectNumber:  "1234567890",
+		BackupVaultId:  "vault-id",
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockResp := &models.OperationV1beta{
+		Name: "operation-id",
+		Done: nillable.GetBoolPtr(false),
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(&backup_vault.V1betaRotateCmekBackupsAccepted{
+			Payload: mockResp,
+		}, nil)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	operation, ok := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, ok)
+	assert.NotNil(t, operation)
+}
+
+func TestV1betaRotateCmekBackupsBadRequest(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "invalid-key-version",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := &backup_vault.V1betaRotateCmekBackupsBadRequest{
+		Payload: &models.Error{
+			Code:    400,
+			Message: "Invalid primary key version",
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	badRequest, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequest.Code)
+	assert.Equal(t, "Invalid primary key version", badRequest.Message)
+}
+
+func TestV1betaRotateCmekBackupsUnauthorized(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := &backup_vault.V1betaRotateCmekBackupsUnauthorized{
+		Payload: &models.Error{
+			Code:    401,
+			Message: "Unauthorized",
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	unauthorized, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsUnauthorized)
+	assert.True(t, ok)
+	assert.Equal(t, float64(401), unauthorized.Code)
+}
+
+func TestV1betaRotateCmekBackupsForbidden(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := &backup_vault.V1betaRotateCmekBackupsForbidden{
+		Payload: &models.Error{
+			Code:    403,
+			Message: "Forbidden",
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	forbidden, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsForbidden)
+	assert.True(t, ok)
+	assert.Equal(t, float64(403), forbidden.Code)
+}
+
+func TestV1betaRotateCmekBackupsNotFound(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := &backup_vault.V1betaRotateCmekBackupsNotFound{
+		Payload: &models.Error{
+			Code:    404,
+			Message: "Backup vault not found",
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	notFound, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsNotFound)
+	assert.True(t, ok)
+	assert.Equal(t, float64(404), notFound.Code)
+}
+
+func TestV1betaRotateCmekBackupsConflict(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := &backup_vault.V1betaRotateCmekBackupsConflict{
+		Payload: &models.Error{
+			Code:    409,
+			Message: "Conflict",
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	conflict, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsConflict)
+	assert.True(t, ok)
+	assert.Equal(t, float64(409), conflict.Code)
+}
+
+func TestV1betaRotateCmekBackupsUnprocessableEntity(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := &backup_vault.V1betaRotateCmekBackupsUnprocessableEntity{
+		Payload: &models.Error{
+			Code:    422,
+			Message: "Unprocessable entity",
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	unprocessable, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsUnprocessableEntity)
+	assert.True(t, ok)
+	assert.Equal(t, float64(422), unprocessable.Code)
+}
+
+func TestV1betaRotateCmekBackupsTooManyRequests(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := &backup_vault.V1betaRotateCmekBackupsTooManyRequests{
+		Payload: &models.Error{
+			Code:    429,
+			Message: "Too many requests",
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	tooManyRequests, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsTooManyRequests)
+	assert.True(t, ok)
+	assert.Equal(t, float64(429), tooManyRequests.Code)
+}
+
+func TestV1betaRotateCmekBackupsDefaultError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := &backup_vault.V1betaRotateCmekBackupsDefault{
+		Payload: &models.Error{
+			Code:    500,
+			Message: "Internal server error",
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	internalError, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsInternalServerError)
+	assert.True(t, ok)
+	assert.Equal(t, float64(500), internalError.Code)
+}
+
+func TestV1betaRotateCmekBackupsUnknownError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := errors.New("unknown error")
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	internalError, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsInternalServerError)
+	assert.True(t, ok)
+	assert.Equal(t, float64(500), internalError.Code)
+	assert.Equal(t, "unknown error", internalError.Message)
+}

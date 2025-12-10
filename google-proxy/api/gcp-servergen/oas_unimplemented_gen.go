@@ -867,6 +867,15 @@ func (UnimplementedHandler) V1betaRevertVolume(ctx context.Context, req *VolumeR
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaRotateCmekBackups implements v1beta_rotateCmekBackups operation.
+//
+// Rotates CMEK for all backups in a backup vault.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/rotateCmekBackups
+func (UnimplementedHandler) V1betaRotateCmekBackups(ctx context.Context, req *BackupVaultRotateCMEKBackupsV1beta, params V1betaRotateCmekBackupsParams) (r V1betaRotateCmekBackupsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaSplitCloneVolume implements v1beta_splitCloneVolume operation.
 //
 // Warning! This operation will permanently split the thin clone from its source volume.

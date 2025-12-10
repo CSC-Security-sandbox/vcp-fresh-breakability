@@ -35,6 +35,8 @@ type ClientService interface {
 
 	V1betaListBackupVaults(params *V1betaListBackupVaultsParams) (*V1betaListBackupVaultsOK, error)
 
+	V1betaRotateCmekBackups(params *V1betaRotateCmekBackupsParams) (*V1betaRotateCmekBackupsAccepted, error)
+
 	V1betaUpdateBackupVault(params *V1betaUpdateBackupVaultParams) (*V1betaUpdateBackupVaultAccepted, error)
 
 	SetTransport(transport runtime.ClientTransport)
@@ -214,6 +216,41 @@ func (a *Client) V1betaListBackupVaults(params *V1betaListBackupVaultsParams) (*
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*V1betaListBackupVaultsDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+V1betaRotateCmekBackups rotates c m e k for all backups in a backup vault
+
+Rotates CMEK for all backups in a backup vault.
+*/
+func (a *Client) V1betaRotateCmekBackups(params *V1betaRotateCmekBackupsParams) (*V1betaRotateCmekBackupsAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewV1betaRotateCmekBackupsParams()
+	}
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "v1beta_rotateCmekBackups",
+		Method:             "POST",
+		PathPattern:        "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/rotateCmekBackups",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http", "https"},
+		Params:             params,
+		Reader:             &V1betaRotateCmekBackupsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*V1betaRotateCmekBackupsAccepted)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*V1betaRotateCmekBackupsDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

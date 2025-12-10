@@ -586,6 +586,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/Revert
 	V1betaRevertVolume(ctx context.Context, req *VolumeRevertV1beta, params V1betaRevertVolumeParams) (V1betaRevertVolumeRes, error)
+	// V1betaRotateCmekBackups implements v1beta_rotateCmekBackups operation.
+	//
+	// Rotates CMEK for all backups in a backup vault.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/rotateCmekBackups
+	V1betaRotateCmekBackups(ctx context.Context, req *BackupVaultRotateCMEKBackupsV1beta, params V1betaRotateCmekBackupsParams) (V1betaRotateCmekBackupsRes, error)
 	// V1betaSplitCloneVolume implements v1beta_splitCloneVolume operation.
 	//
 	// Warning! This operation will permanently split the thin clone from its source volume.

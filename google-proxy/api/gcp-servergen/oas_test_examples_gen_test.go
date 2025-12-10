@@ -603,6 +603,18 @@ func TestBackupVaultInternalV1betaLifeCycleState_Examples(t *testing.T) {
 		})
 	}
 }
+func TestBackupVaultRotateCMEKBackupsV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupVaultRotateCMEKBackupsV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupVaultRotateCMEKBackupsV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestBackupVaultUpdateV1beta_EncodeDecode(t *testing.T) {
 	var typ BackupVaultUpdateV1beta
 	typ.SetFake()
@@ -12917,6 +12929,114 @@ func TestV1betaRevertVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaRevertVolumeUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRotateCmekBackupsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaRotateCmekBackupsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRotateCmekBackupsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRotateCmekBackupsConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaRotateCmekBackupsConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRotateCmekBackupsConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRotateCmekBackupsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaRotateCmekBackupsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRotateCmekBackupsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRotateCmekBackupsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaRotateCmekBackupsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRotateCmekBackupsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRotateCmekBackupsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaRotateCmekBackupsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRotateCmekBackupsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRotateCmekBackupsNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaRotateCmekBackupsNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRotateCmekBackupsNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRotateCmekBackupsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaRotateCmekBackupsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRotateCmekBackupsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRotateCmekBackupsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaRotateCmekBackupsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRotateCmekBackupsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRotateCmekBackupsUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaRotateCmekBackupsUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRotateCmekBackupsUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaSplitCloneVolumeBadRequest_EncodeDecode(t *testing.T) {

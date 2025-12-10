@@ -352,6 +352,64 @@ func (_c *MockClientService_V1betaListBackupVaults_Call) RunAndReturn(run func(*
 	return _c
 }
 
+// V1betaRotateCmekBackups provides a mock function with given fields: params
+func (_m *MockClientService) V1betaRotateCmekBackups(params *V1betaRotateCmekBackupsParams) (*V1betaRotateCmekBackupsAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaRotateCmekBackups")
+	}
+
+	var r0 *V1betaRotateCmekBackupsAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*V1betaRotateCmekBackupsParams) (*V1betaRotateCmekBackupsAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*V1betaRotateCmekBackupsParams) *V1betaRotateCmekBackupsAccepted); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*V1betaRotateCmekBackupsAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*V1betaRotateCmekBackupsParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClientService_V1betaRotateCmekBackups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaRotateCmekBackups'
+type MockClientService_V1betaRotateCmekBackups_Call struct {
+	*mock.Call
+}
+
+// V1betaRotateCmekBackups is a helper method to define mock.On call
+//   - params *V1betaRotateCmekBackupsParams
+func (_e *MockClientService_Expecter) V1betaRotateCmekBackups(params interface{}) *MockClientService_V1betaRotateCmekBackups_Call {
+	return &MockClientService_V1betaRotateCmekBackups_Call{Call: _e.mock.On("V1betaRotateCmekBackups", params)}
+}
+
+func (_c *MockClientService_V1betaRotateCmekBackups_Call) Run(run func(params *V1betaRotateCmekBackupsParams)) *MockClientService_V1betaRotateCmekBackups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*V1betaRotateCmekBackupsParams))
+	})
+	return _c
+}
+
+func (_c *MockClientService_V1betaRotateCmekBackups_Call) Return(_a0 *V1betaRotateCmekBackupsAccepted, _a1 error) *MockClientService_V1betaRotateCmekBackups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClientService_V1betaRotateCmekBackups_Call) RunAndReturn(run func(*V1betaRotateCmekBackupsParams) (*V1betaRotateCmekBackupsAccepted, error)) *MockClientService_V1betaRotateCmekBackups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaUpdateBackupVault provides a mock function with given fields: params
 func (_m *MockClientService) V1betaUpdateBackupVault(params *V1betaUpdateBackupVaultParams) (*V1betaUpdateBackupVaultAccepted, error) {
 	ret := _m.Called(params)

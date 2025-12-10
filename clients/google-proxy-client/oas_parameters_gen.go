@@ -1088,6 +1088,18 @@ type V1betaRevertVolumeParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaRotateCmekBackupsParams is parameters of v1beta_rotateCmekBackups operation.
+type V1betaRotateCmekBackupsParams struct {
+	// Uuid v4 used to identify the backup vault.
+	BackupVaultId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaSplitCloneVolumeParams is parameters of v1beta_splitCloneVolume operation.
 type V1betaSplitCloneVolumeParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

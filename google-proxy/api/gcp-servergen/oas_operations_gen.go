@@ -98,6 +98,7 @@ const (
 	V1betaResumeReplicationOperation                         OperationName = "V1betaResumeReplication"
 	V1betaReverseAndResumeReplicationOperation               OperationName = "V1betaReverseAndResumeReplication"
 	V1betaRevertVolumeOperation                              OperationName = "V1betaRevertVolume"
+	V1betaRotateCmekBackupsOperation                         OperationName = "V1betaRotateCmekBackups"
 	V1betaSplitCloneVolumeOperation                          OperationName = "V1betaSplitCloneVolume"
 	V1betaStartProjectEventOperation                         OperationName = "V1betaStartProjectEvent"
 	V1betaStopReplicationOperation                           OperationName = "V1betaStopReplication"

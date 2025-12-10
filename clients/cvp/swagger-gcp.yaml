@@ -289,6 +289,51 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/rotateCmekBackups:
+    post:
+      operationId: v1beta_rotateCmekBackups
+      summary: Rotate CMEK for all backups in a backup vault
+      description: Rotates CMEK for all backups in a backup vault.
+      tags:
+        - backup-vault
+      parameters:
+        - $ref: '#/parameters/projectNumberPathParameter'
+        - $ref: '#/parameters/locationIdPathParameter'
+        - $ref: '#/parameters/backupVaultIdPathParameter'
+        - $ref: '#/parameters/xCorrelationIdHeader'
+        - name: body
+          in: body
+          required: true
+          description: The parameters for rotating CMEK backups
+          schema:
+            $ref: '#/definitions/BackupVaultRotateCMEKBackups_v1beta'
+      responses:
+        '202':
+          description: Rotating CMEK for all backups in a backup vault
+          schema:
+            $ref: '#/definitions/Operation_v1beta'
+        '400':
+          $ref: '#/responses/StandardError-400'
+        '401':
+          $ref: '#/responses/StandardError-401'
+        '403':
+          $ref: '#/responses/StandardError-403'
+        '404':
+          $ref: '#/responses/StandardError-404'
+        '409':
+          $ref: '#/responses/StandardError-409'
+        '422':
+          $ref: '#/responses/StandardError-422'
+        '429':
+          $ref: '#/responses/StandardError-429'
+        '500':
+          $ref: '#/responses/StandardError-500'
+        '501':
+          $ref: '#/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}:
     get:
       operationId: v1beta_describeOperation
@@ -7833,6 +7878,17 @@ definitions:
         description: key version used to encrypt backups in the vault
         example: projects/my-project-1/locations/eu-west-1/keyRings/my-keyring/cryptoKeys/my-key/cryptoKeyVersions/1
         x-nullable: true
+  BackupVaultRotateCMEKBackups_v1beta:
+    title: BackupVaultRotateCMEKBackupsRequest
+    type: object
+    required:
+      - primaryKeyVersion
+    properties:
+      primaryKeyVersion:
+        title: primaryKeyVersion
+        type: string
+        description: Complete resource path of the new KMS config
+        example: projects/my-project-1/locations/eu-west-1/keyring/kr1/keys/key1/cryptoKeyVersions/1
   VolumeRevert_v1beta:
     title: VolumeRevert
     type: object

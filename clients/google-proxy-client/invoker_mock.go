@@ -5490,6 +5490,66 @@ func (_c *MockInvoker_V1betaRevertVolume_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1betaRotateCmekBackups provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaRotateCmekBackups(ctx context.Context, request *BackupVaultRotateCMEKBackupsV1beta, params V1betaRotateCmekBackupsParams) (V1betaRotateCmekBackupsRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaRotateCmekBackups")
+	}
+
+	var r0 V1betaRotateCmekBackupsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultRotateCMEKBackupsV1beta, V1betaRotateCmekBackupsParams) (V1betaRotateCmekBackupsRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupVaultRotateCMEKBackupsV1beta, V1betaRotateCmekBackupsParams) V1betaRotateCmekBackupsRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaRotateCmekBackupsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupVaultRotateCMEKBackupsV1beta, V1betaRotateCmekBackupsParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaRotateCmekBackups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaRotateCmekBackups'
+type MockInvoker_V1betaRotateCmekBackups_Call struct {
+	*mock.Call
+}
+
+// V1betaRotateCmekBackups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *BackupVaultRotateCMEKBackupsV1beta
+//   - params V1betaRotateCmekBackupsParams
+func (_e *MockInvoker_Expecter) V1betaRotateCmekBackups(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaRotateCmekBackups_Call {
+	return &MockInvoker_V1betaRotateCmekBackups_Call{Call: _e.mock.On("V1betaRotateCmekBackups", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaRotateCmekBackups_Call) Run(run func(ctx context.Context, request *BackupVaultRotateCMEKBackupsV1beta, params V1betaRotateCmekBackupsParams)) *MockInvoker_V1betaRotateCmekBackups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BackupVaultRotateCMEKBackupsV1beta), args[2].(V1betaRotateCmekBackupsParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaRotateCmekBackups_Call) Return(_a0 V1betaRotateCmekBackupsRes, _a1 error) *MockInvoker_V1betaRotateCmekBackups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaRotateCmekBackups_Call) RunAndReturn(run func(context.Context, *BackupVaultRotateCMEKBackupsV1beta, V1betaRotateCmekBackupsParams) (V1betaRotateCmekBackupsRes, error)) *MockInvoker_V1betaRotateCmekBackups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaSplitCloneVolume provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error) {
 	ret := _m.Called(ctx, params)

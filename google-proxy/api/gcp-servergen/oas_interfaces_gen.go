@@ -369,6 +369,10 @@ type V1betaRevertVolumeRes interface {
 	v1betaRevertVolumeRes()
 }
 
+type V1betaRotateCmekBackupsRes interface {
+	v1betaRotateCmekBackupsRes()
+}
+
 type V1betaSplitCloneVolumeRes interface {
 	v1betaSplitCloneVolumeRes()
 }

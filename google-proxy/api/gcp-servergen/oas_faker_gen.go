@@ -1082,6 +1082,15 @@ func (s *BackupVaultInternalV1betaLifeCycleState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BackupVaultRotateCMEKBackupsV1beta) SetFake() {
+	{
+		{
+			s.PrimaryKeyVersion = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *BackupVaultUpdateV1beta) SetFake() {
 	{
 		{
@@ -12181,6 +12190,87 @@ func (s *V1betaRevertVolumeUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaRevertVolumeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRotateCmekBackupsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRotateCmekBackupsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRotateCmekBackupsConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRotateCmekBackupsConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRotateCmekBackupsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRotateCmekBackupsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRotateCmekBackupsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRotateCmekBackupsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRotateCmekBackupsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRotateCmekBackupsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRotateCmekBackupsNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRotateCmekBackupsNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRotateCmekBackupsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRotateCmekBackupsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRotateCmekBackupsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRotateCmekBackupsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRotateCmekBackupsUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRotateCmekBackupsUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

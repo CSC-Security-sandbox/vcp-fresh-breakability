@@ -1294,3 +1294,109 @@ func encodeBackupVaultConfigV1(BackupVault *gcpgenserver.BackupVaultV1beta) (jx.
 	}
 	return data, nil
 }
+
+func (h Handler) V1betaRotateCmekBackups(ctx context.Context, req *gcpgenserver.BackupVaultRotateCMEKBackupsV1beta, params gcpgenserver.V1betaRotateCmekBackupsParams) (r gcpgenserver.V1betaRotateCmekBackupsRes, _ error) {
+	if !backupEnabled {
+		return &gcpgenserver.V1betaRotateCmekBackupsBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
+	if !cmekBackupEnabled {
+		return &gcpgenserver.V1betaRotateCmekBackupsBadRequest{
+			Code:    400,
+			Message: "CMEK backup feature is currently not enabled.",
+		}, nil
+	}
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaRotateCmekBackupsBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	// Pass through to CVP
+	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	body := &models.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: &req.PrimaryKeyVersion,
+	}
+
+	vault, err := cvpClient.BackupVault.V1betaRotateCmekBackups(&backup_vault.V1betaRotateCmekBackupsParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &xCorrelationID,
+		BackupVaultID:  params.BackupVaultId,
+		Body:           body,
+	})
+
+	if err != nil {
+		switch e := err.(type) {
+		case *backup_vault.V1betaRotateCmekBackupsBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaRotateCmekBackupsBadRequest{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaRotateCmekBackupsUnauthorized:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaRotateCmekBackupsUnauthorized{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaRotateCmekBackupsForbidden:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaRotateCmekBackupsForbidden{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaRotateCmekBackupsNotFound:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaRotateCmekBackupsNotFound{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaRotateCmekBackupsConflict:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaRotateCmekBackupsConflict{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaRotateCmekBackupsUnprocessableEntity:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaRotateCmekBackupsUnprocessableEntity{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaRotateCmekBackupsTooManyRequests:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaRotateCmekBackupsTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaRotateCmekBackupsDefault:
+			return &gcpgenserver.V1betaRotateCmekBackupsInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, nil
+		default:
+			return &gcpgenserver.V1betaRotateCmekBackupsInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, nil
+		}
+	}
+	return convertOperationToOperationV1Beta(vault.Payload), nil
+}

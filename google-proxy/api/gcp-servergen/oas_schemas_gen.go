@@ -2708,6 +2708,22 @@ func (s *BackupVaultInternalV1betaLifeCycleState) UnmarshalText(data []byte) err
 	}
 }
 
+// Ref: #/components/schemas/BackupVaultRotateCMEKBackups_v1beta
+type BackupVaultRotateCMEKBackupsV1beta struct {
+	// Complete resource path of the new KMS config.
+	PrimaryKeyVersion string `json:"primaryKeyVersion"`
+}
+
+// GetPrimaryKeyVersion returns the value of PrimaryKeyVersion.
+func (s *BackupVaultRotateCMEKBackupsV1beta) GetPrimaryKeyVersion() string {
+	return s.PrimaryKeyVersion
+}
+
+// SetPrimaryKeyVersion sets the value of PrimaryKeyVersion.
+func (s *BackupVaultRotateCMEKBackupsV1beta) SetPrimaryKeyVersion(val string) {
+	s.PrimaryKeyVersion = val
+}
+
 // Ref: #/components/schemas/BackupVaultUpdate_v1beta
 type BackupVaultUpdateV1beta struct {
 	// Description of the resource.
@@ -3977,6 +3993,7 @@ func (*ErrorStatusCode) v1betaRestoreBackupFilesRes()                        {}
 func (*ErrorStatusCode) v1betaResumeReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaReverseAndResumeReplicationRes()               {}
 func (*ErrorStatusCode) v1betaRevertVolumeRes()                              {}
+func (*ErrorStatusCode) v1betaRotateCmekBackupsRes()                         {}
 func (*ErrorStatusCode) v1betaSplitCloneVolumeRes()                          {}
 func (*ErrorStatusCode) v1betaStartProjectEventRes()                         {}
 func (*ErrorStatusCode) v1betaStopReplicationRes()                           {}
@@ -7940,6 +7957,7 @@ func (*OperationV1beta) v1betaRestoreBackupFilesRes()                        {}
 func (*OperationV1beta) v1betaResumeReplicationRes()                         {}
 func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()               {}
 func (*OperationV1beta) v1betaRevertVolumeRes()                              {}
+func (*OperationV1beta) v1betaRotateCmekBackupsRes()                         {}
 func (*OperationV1beta) v1betaSplitCloneVolumeRes()                          {}
 func (*OperationV1beta) v1betaStopReplicationRes()                           {}
 func (*OperationV1beta) v1betaSyncReplicationRes()                           {}
@@ -22581,6 +22599,42 @@ func (*V1betaRevertVolumeUnauthorized) v1betaRevertVolumeRes() {}
 type V1betaRevertVolumeUnprocessableEntity Error
 
 func (*V1betaRevertVolumeUnprocessableEntity) v1betaRevertVolumeRes() {}
+
+type V1betaRotateCmekBackupsBadRequest Error
+
+func (*V1betaRotateCmekBackupsBadRequest) v1betaRotateCmekBackupsRes() {}
+
+type V1betaRotateCmekBackupsConflict Error
+
+func (*V1betaRotateCmekBackupsConflict) v1betaRotateCmekBackupsRes() {}
+
+type V1betaRotateCmekBackupsForbidden Error
+
+func (*V1betaRotateCmekBackupsForbidden) v1betaRotateCmekBackupsRes() {}
+
+type V1betaRotateCmekBackupsInternalServerError Error
+
+func (*V1betaRotateCmekBackupsInternalServerError) v1betaRotateCmekBackupsRes() {}
+
+type V1betaRotateCmekBackupsNotFound Error
+
+func (*V1betaRotateCmekBackupsNotFound) v1betaRotateCmekBackupsRes() {}
+
+type V1betaRotateCmekBackupsNotImplemented Error
+
+func (*V1betaRotateCmekBackupsNotImplemented) v1betaRotateCmekBackupsRes() {}
+
+type V1betaRotateCmekBackupsTooManyRequests Error
+
+func (*V1betaRotateCmekBackupsTooManyRequests) v1betaRotateCmekBackupsRes() {}
+
+type V1betaRotateCmekBackupsUnauthorized Error
+
+func (*V1betaRotateCmekBackupsUnauthorized) v1betaRotateCmekBackupsRes() {}
+
+type V1betaRotateCmekBackupsUnprocessableEntity Error
+
+func (*V1betaRotateCmekBackupsUnprocessableEntity) v1betaRotateCmekBackupsRes() {}
 
 type V1betaSplitCloneVolumeBadRequest Error
 

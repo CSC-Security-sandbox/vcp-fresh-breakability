@@ -4025,6 +4025,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/rotateCmekBackups:
+    post:
+      operationId: v1beta_rotateCmekBackups
+      summary: Rotate CMEK for all backups in a backup vault
+      description: Rotates CMEK for all backups in a backup vault.
+      tags:
+        - backupVault
+      parameters:
+        - $ref: '#/components/parameters/backupVaultIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters for rotating CMEK backups
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupVaultRotateCMEKBackups_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Rotating CMEK for all backups in a backup vault
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleBackupVaults:
     post:
       operationId: v1beta_getMultipleBackupVaults
@@ -12337,6 +12387,17 @@ components:
           description: Whether the manual backups would follow the immutable period
           example: true
           x-nullable: true
+    BackupVaultRotateCMEKBackups_v1beta:
+      title: BackupVaultRotateCMEKBackupsRequest
+      type: object
+      required:
+        - primaryKeyVersion
+      properties:
+        primaryKeyVersion:
+          title: primaryKeyVersion
+          type: string
+          description: Complete resource path of the new KMS config
+          example: projects/my-project-1/locations/eu-west-1/keyring/kr1/keys/key1/cryptoKeyVersions/1
     BackupVaultCreate_v1beta:
       title: BackupVaultCreateRequest
       type: object

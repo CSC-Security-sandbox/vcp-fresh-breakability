@@ -1258,6 +1258,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													return
 												}
 
+											case 'r': // Prefix: "rotateCmekBackups"
+
+												if l := len("rotateCmekBackups"); len(elem) >= l && elem[0:l] == "rotateCmekBackups" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaRotateCmekBackupsRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+
 											}
 
 										}
@@ -3893,6 +3917,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 														r.summary = "List specified backups under the backup vault"
 														r.operationID = "v1beta_getMultipleBackups"
 														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/getMultipleBackups"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
+											case 'r': // Prefix: "rotateCmekBackups"
+
+												if l := len("rotateCmekBackups"); len(elem) >= l && elem[0:l] == "rotateCmekBackups" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaRotateCmekBackupsOperation
+														r.summary = "Rotate CMEK for all backups in a backup vault"
+														r.operationID = "v1beta_rotateCmekBackups"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/rotateCmekBackups"
 														r.args = args
 														r.count = 3
 														return r, true
