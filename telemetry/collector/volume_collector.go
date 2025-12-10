@@ -151,22 +151,24 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 
 					// Skip BMF billing metrics for volume with cross-region backupVaults
 					// TODO: CRB billing is temporary disabled for preview. Will enable cross-region backup billing metrics as per VSCP-3455.
+					shouldSkipCRBBillingMetrics := false
 					if !config.EnableCrossRegionBackupBillingMetrics {
 						if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
 							bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]
 							if !exists {
 								logger.Error("Backup vault not found in map", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
-								continue
-							}
-							if bv.SourceRegionName != nil && bv.BackupRegionName != nil && *bv.SourceRegionName != *bv.BackupRegionName {
+								shouldSkipCRBBillingMetrics = true
+							} else if bv.SourceRegionName != nil && bv.BackupRegionName != nil && *bv.SourceRegionName != *bv.BackupRegionName {
 								logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for volume with cross-region backup vault", "volumeUUID", volume.UUID)
-								continue
+								shouldSkipCRBBillingMetrics = true
 							}
 						}
 					}
 
-					if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)); hydratedMetric != nil {
-						hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+					if !shouldSkipCRBBillingMetrics {
+						if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)); hydratedMetric != nil {
+							hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+						}
 					}
 				}
 			}

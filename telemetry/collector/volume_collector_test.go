@@ -1595,3 +1595,326 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 func intPtr(i int64) *int64 {
 	return &i
 }
+
+// Test_GetVolumeMetrics_CRB_With_SFR_Metrics tests that SFR performance metrics are collected
+// even when CRB billing metrics are skipped
+func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
+	tests := []struct {
+		name                                  string
+		enableCrossRegionBackupBillingMetrics bool
+		enableSFRMetrics                      bool
+		volumes                               []*datamodel.Volume
+		backupVault                           *datamodel.BackupVault
+		sfrMetricsMap                         map[string]datamodel.SfrMetricsAggregate
+		expectedHydratedMetricsCount          int
+		expectedDataModelMetricsCount         int
+		expectedSFRMetricsCount               int
+		description                           string
+	}{
+		{
+			name:                                  "CRB volume - billing metrics skipped but SFR metrics collected",
+			enableCrossRegionBackupBillingMetrics: false,
+			enableSFRMetrics:                      true,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-crb-sfr"},
+					Name:        "CRBVolumeWithSFR",
+					SizeInBytes: 2048,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
+						Name:      "Account1",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+						DeploymentName: "test-deployment-1",
+					},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"ISCSI"}, // SAN protocol volume
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(1024),
+						BackupVaultID:    "backup-vault-crb",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-crb"},
+				Name:             "BackupVaultCRB",
+				SourceRegionName: stringPtr("us-east-1"),
+				BackupRegionName: stringPtr("us-west-1"), // Different region
+			},
+			sfrMetricsMap: map[string]datamodel.SfrMetricsAggregate{
+				"volume-uuid-crb-sfr": {
+					TotalSize:  5120,
+					TotalCount: 10,
+				},
+			},
+			expectedHydratedMetricsCount:  0, // No billing HydratedMetrics (BackupEnabledVolumeAllocatedSize doesn't create them)
+			expectedDataModelMetricsCount: 0, // DataModel metrics should be skipped for CRB
+			expectedSFRMetricsCount:       2, // SFR metrics should STILL be collected (size + count)
+			description:                   "CRB volume should skip billing but collect SFR performance metrics",
+		},
+		{
+			name:                                  "CRB volume - SFR disabled, billing metrics skipped",
+			enableCrossRegionBackupBillingMetrics: false,
+			enableSFRMetrics:                      false,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-crb-no-sfr"},
+					Name:        "CRBVolumeNoSFR",
+					SizeInBytes: 2048,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
+						Name:      "Account2",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+						DeploymentName: "test-deployment-2",
+					},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"ISCSI"}, // SAN protocol volume
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(1024),
+						BackupVaultID:    "backup-vault-crb-2",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-crb-2"},
+				Name:             "BackupVaultCRB2",
+				SourceRegionName: stringPtr("us-east-1"),
+				BackupRegionName: stringPtr("eu-west-1"), // Different region
+			},
+			sfrMetricsMap:                 map[string]datamodel.SfrMetricsAggregate{}, // Empty, no SFR data
+			expectedHydratedMetricsCount:  0,                                          // No billing HydratedMetrics
+			expectedDataModelMetricsCount: 0,                                          // Skipped for CRB
+			expectedSFRMetricsCount:       0,                                          // No SFR metrics since disabled
+			description:                   "CRB volume with SFR disabled should skip both billing and SFR metrics",
+		},
+		{
+			name:                                  "Same region volume - billing and SFR metrics both collected",
+			enableCrossRegionBackupBillingMetrics: false,
+			enableSFRMetrics:                      true,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-same-region-sfr"},
+					Name:        "SameRegionVolumeWithSFR",
+					SizeInBytes: 3072,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-3"},
+						Name:      "Account3",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-3"},
+						DeploymentName: "test-deployment-3",
+					},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"ISCSI"}, // SAN protocol volume
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(2048),
+						BackupVaultID:    "backup-vault-same",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-same"},
+				Name:             "BackupVaultSame",
+				SourceRegionName: stringPtr("us-east-1"),
+				BackupRegionName: stringPtr("us-east-1"), // Same region
+			},
+			sfrMetricsMap: map[string]datamodel.SfrMetricsAggregate{
+				"volume-uuid-same-region-sfr": {
+					TotalSize:  8192,
+					TotalCount: 15,
+				},
+			},
+			expectedHydratedMetricsCount:  0, // No billing HydratedMetrics
+			expectedDataModelMetricsCount: 1, // Should be included for same-region
+			expectedSFRMetricsCount:       2, // SFR metrics should be collected
+			description:                   "Same region volume should collect both billing and SFR metrics",
+		},
+		{
+			name:                                  "CRB flag enabled - billing and SFR metrics both collected",
+			enableCrossRegionBackupBillingMetrics: true,
+			enableSFRMetrics:                      true,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-crb-enabled"},
+					Name:        "CRBEnabledVolume",
+					SizeInBytes: 4096,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-4"},
+						Name:      "Account4",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-4"},
+						DeploymentName: "test-deployment-4",
+					},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"ISCSI"}, // SAN protocol volume
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(3072),
+						BackupVaultID:    "backup-vault-crb-enabled",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-crb-enabled"},
+				Name:             "BackupVaultCRBEnabled",
+				SourceRegionName: stringPtr("us-east-1"),
+				BackupRegionName: stringPtr("ap-south-1"), // Different region
+			},
+			sfrMetricsMap: map[string]datamodel.SfrMetricsAggregate{
+				"volume-uuid-crb-enabled": {
+					TotalSize:  12288,
+					TotalCount: 20,
+				},
+			},
+			expectedHydratedMetricsCount:  0, // No billing HydratedMetrics
+			expectedDataModelMetricsCount: 1, // Should be included when flag is enabled
+			expectedSFRMetricsCount:       2, // SFR metrics should be collected
+			description:                   "CRB enabled flag should collect both billing and SFR metrics",
+		},
+		{
+			name:                                  "Mixed volumes - CRB skips billing but all collect SFR",
+			enableCrossRegionBackupBillingMetrics: false,
+			enableSFRMetrics:                      true,
+			volumes: []*datamodel.Volume{
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-mixed-1"},
+					Name:        "MixedVolume1CRB",
+					SizeInBytes: 2048,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-5"},
+						Name:      "Account5",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-5"},
+						DeploymentName: "test-deployment-5",
+					},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"ISCSI"}, // SAN protocol volume
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(1024),
+						BackupVaultID:    "backup-vault-mixed-crb",
+					},
+				},
+				{
+					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-mixed-2"},
+					Name:        "MixedVolume2Same",
+					SizeInBytes: 3072,
+					Account: &datamodel.Account{
+						BaseModel: datamodel.BaseModel{UUID: "account-uuid-6"},
+						Name:      "Account6",
+					},
+					Pool: &datamodel.Pool{
+						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-6"},
+						DeploymentName: "test-deployment-6",
+					},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"ISCSI"}, // SAN protocol volume
+					},
+					DataProtection: &datamodel.DataProtection{
+						BackupChainBytes: intPtr(2048),
+						BackupVaultID:    "backup-vault-mixed-same",
+					},
+				},
+			},
+			backupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "backup-vault-mixed-crb"},
+				Name:             "BackupVaultMixedCRB",
+				SourceRegionName: stringPtr("us-east-1"),
+				BackupRegionName: stringPtr("eu-west-1"), // Different region for first volume
+			},
+			sfrMetricsMap: map[string]datamodel.SfrMetricsAggregate{
+				"volume-uuid-mixed-1": {
+					TotalSize:  2048,
+					TotalCount: 5,
+				},
+				"volume-uuid-mixed-2": {
+					TotalSize:  4096,
+					TotalCount: 8,
+				},
+			},
+			expectedHydratedMetricsCount:  0, // No billing HydratedMetrics
+			expectedDataModelMetricsCount: 1, // Only same-region volume
+			expectedSFRMetricsCount:       4, // Both volumes should have SFR metrics (2 metrics each)
+			description:                   "Mixed volumes: CRB skips billing but both collect SFR metrics",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockVolumeStorage)
+			ctx := context.Background()
+			config := &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableBackupBillingMetrics:            true,
+				EnableCrossRegionBackupBillingMetrics: tt.enableCrossRegionBackupBillingMetrics,
+				SFRMetricsEnabled:                     tt.enableSFRMetrics,
+			}
+			poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+			m.On("ListVolumesWithAccounts", mock.Anything).Return(tt.volumes, nil)
+
+			// Mock GetMultipleBackupVaults
+			if tt.backupVault != nil {
+				if tt.name == "Mixed volumes - CRB skips billing but all collect SFR" {
+					// For mixed test, return both vaults
+					sameRegionVault := &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "backup-vault-mixed-same"},
+						Name:             "BackupVaultMixedSame",
+						SourceRegionName: stringPtr("us-east-1"),
+						BackupRegionName: stringPtr("us-east-1"), // Same region
+					}
+					backupVaults := []*datamodel.BackupVault{tt.backupVault, sameRegionVault}
+					m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+				} else {
+					backupVaults := []*datamodel.BackupVault{tt.backupVault}
+					m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+				}
+			} else {
+				m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+			}
+
+			// Mock SFR metrics if enabled
+			if tt.enableSFRMetrics {
+				m.On("GetSfrMetricsByTimeRange", mock.Anything, mock.Anything, mock.Anything).Return(tt.sfrMetricsMap, nil)
+			}
+
+			result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			// Verify counts
+			assert.Len(t, result.HydratedMetrics, tt.expectedHydratedMetricsCount,
+				"HydratedMetrics count mismatch: %s", tt.description)
+			assert.Len(t, result.HydratedMetricsDataModel, tt.expectedDataModelMetricsCount,
+				"HydratedMetricsDataModel count mismatch: %s", tt.description)
+			assert.Len(t, result.SFRHydratedMetrics, tt.expectedSFRMetricsCount,
+				"SFRHydratedMetrics count mismatch: %s", tt.description)
+
+			// Verify SFR metrics have correct types
+			if tt.expectedSFRMetricsCount > 0 {
+				sizeMetricFound := false
+				countMetricFound := false
+				for _, sfrMetric := range result.SFRHydratedMetrics {
+					if sfrMetric.MeasuredType == metadata.SFRTotalSizeRestoredBytes {
+						sizeMetricFound = true
+						assert.Greater(t, sfrMetric.Quantity, float64(0), "SFR size metric should have positive quantity")
+					}
+					if sfrMetric.MeasuredType == metadata.SFRTotalFilesRestoredCount {
+						countMetricFound = true
+						assert.Greater(t, sfrMetric.Quantity, float64(0), "SFR count metric should have positive quantity")
+					}
+				}
+				assert.True(t, sizeMetricFound, "SFR Total Size Restored Bytes metric should be present")
+				assert.True(t, countMetricFound, "SFR Total Files Restored Count metric should be present")
+			}
+		})
+	}
+}
