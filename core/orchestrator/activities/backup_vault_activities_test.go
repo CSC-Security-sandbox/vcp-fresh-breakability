@@ -124,6 +124,90 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expected, result)
 	})
+	tt.Run("ConvertsBackupVaultV1betaWithCmekAttributes", func(t *testing.T) {
+		reourceID := "test-vault"
+		backupRegion := "us-central1"
+		bvType := "STANDARD"
+		desc := "test-description"
+		locationId := "us-central1"
+		kmsConfigPath := "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key"
+		encryptionState := "ENCRYPTION_STATE_COMPLETED"
+		backupsPrimaryKeyVersion := "1"
+		bv := &models.BackupVaultV1beta{
+			ResourceID:      &reourceID,
+			SourceRegion:    &locationId,
+			BackupRegion:    &backupRegion,
+			BackupVaultType: &bvType,
+			Description:     &desc,
+			BackupVaultID:   "uuid-123",
+			CreatedAt:       strfmt.DateTime(time.Now()),
+			State:           "ACTIVE",
+			StateDetails:    "Operational",
+			KmsConfigResourcePath:    &kmsConfigPath,
+			EncryptionState:          &encryptionState,
+			BackupsPrimaryKeyVersion: &backupsPrimaryKeyVersion,
+		}
+
+		result, err := ConvertToBackupVaultDataModel(bv, locationId)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.CmekAttributes)
+		assert.Equal(t, kmsConfigPath, *result.CmekAttributes.KmsConfigResourcePath)
+		assert.Equal(t, encryptionState, *result.CmekAttributes.EncryptionState)
+		assert.Equal(t, backupsPrimaryKeyVersion, *result.CmekAttributes.BackupsPrimaryKeyVersion)
+	})
+	tt.Run("ConvertsBackupVaultV1betaWithPartialCmekAttributes", func(t *testing.T) {
+		reourceID := "test-vault"
+		backupRegion := "us-central1"
+		bvType := "STANDARD"
+		locationId := "us-central1"
+		kmsConfigPath := "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key"
+		bv := &models.BackupVaultV1beta{
+			ResourceID:      &reourceID,
+			SourceRegion:    &locationId,
+			BackupRegion:    &backupRegion,
+			BackupVaultType: &bvType,
+			BackupVaultID:   "uuid-123",
+			CreatedAt:       strfmt.DateTime(time.Now()),
+			State:           "ACTIVE",
+			StateDetails:    "Operational",
+			KmsConfigResourcePath: &kmsConfigPath,
+			// EncryptionState and BackupsPrimaryKeyVersion are nil
+		}
+
+		result, err := ConvertToBackupVaultDataModel(bv, locationId)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotNil(t, result.CmekAttributes)
+		assert.Equal(t, kmsConfigPath, *result.CmekAttributes.KmsConfigResourcePath)
+		assert.Nil(t, result.CmekAttributes.EncryptionState)
+		assert.Nil(t, result.CmekAttributes.BackupsPrimaryKeyVersion)
+	})
+	tt.Run("ConvertsBackupVaultV1betaWithNoCmekAttributes", func(t *testing.T) {
+		reourceID := "test-vault"
+		backupRegion := "us-central1"
+		bvType := "STANDARD"
+		locationId := "us-central1"
+		bv := &models.BackupVaultV1beta{
+			ResourceID:      &reourceID,
+			SourceRegion:    &locationId,
+			BackupRegion:    &backupRegion,
+			BackupVaultType: &bvType,
+			BackupVaultID:   "uuid-123",
+			CreatedAt:       strfmt.DateTime(time.Now()),
+			State:           "ACTIVE",
+			StateDetails:    "Operational",
+			// All CMEK fields are nil
+		}
+
+		result, err := ConvertToBackupVaultDataModel(bv, locationId)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Nil(t, result.CmekAttributes)
+	})
 }
 
 func TestUpdateBackupVault(tt *testing.T) {

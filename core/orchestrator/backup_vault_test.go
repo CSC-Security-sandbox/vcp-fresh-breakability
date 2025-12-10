@@ -81,6 +81,89 @@ func TestCheck(t *testing.T) {
 		}
 	})
 
+	t.Run("WhenBackupVaultHasCmekAttributes", func(tt *testing.T) {
+		kmsConfigPath := "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key"
+		encryptionState := "ENCRYPTION_STATE_COMPLETED"
+		backupsPrimaryKeyVersion := "1"
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   3,
+				UUID: "backup-vault-uuid",
+			},
+			Account: &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:    "backup-vault-name",
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath:    &kmsConfigPath,
+				EncryptionState:          &encryptionState,
+				BackupsPrimaryKeyVersion: &backupsPrimaryKeyVersion,
+			},
+		}
+
+		result := _convertDatastoreBackupVaultToModel(bv)
+
+		if result.KmsConfigResourcePath == nil || *result.KmsConfigResourcePath != kmsConfigPath {
+			tt.Errorf("Expected KmsConfigResourcePath %v, got %v", kmsConfigPath, result.KmsConfigResourcePath)
+		}
+		if result.EncryptionState == nil || *result.EncryptionState != encryptionState {
+			tt.Errorf("Expected EncryptionState %v, got %v", encryptionState, result.EncryptionState)
+		}
+		if result.BackupsPrimaryKeyVersion == nil || *result.BackupsPrimaryKeyVersion != backupsPrimaryKeyVersion {
+			tt.Errorf("Expected BackupsPrimaryKeyVersion %v, got %v", backupsPrimaryKeyVersion, result.BackupsPrimaryKeyVersion)
+		}
+	})
+
+	t.Run("WhenBackupVaultHasPartialCmekAttributes", func(tt *testing.T) {
+		kmsConfigPath := "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key"
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   4,
+				UUID: "backup-vault-uuid",
+			},
+			Account: &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:    "backup-vault-name",
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath: &kmsConfigPath,
+				// EncryptionState and BackupsPrimaryKeyVersion are nil
+			},
+		}
+
+		result := _convertDatastoreBackupVaultToModel(bv)
+
+		if result.KmsConfigResourcePath == nil || *result.KmsConfigResourcePath != kmsConfigPath {
+			tt.Errorf("Expected KmsConfigResourcePath %v, got %v", kmsConfigPath, result.KmsConfigResourcePath)
+		}
+		if result.EncryptionState != nil {
+			tt.Errorf("Expected EncryptionState to be nil, got %v", result.EncryptionState)
+		}
+		if result.BackupsPrimaryKeyVersion != nil {
+			tt.Errorf("Expected BackupsPrimaryKeyVersion to be nil, got %v", result.BackupsPrimaryKeyVersion)
+		}
+	})
+
+	t.Run("WhenBackupVaultHasNoCmekAttributes", func(tt *testing.T) {
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   5,
+				UUID: "backup-vault-uuid",
+			},
+			Account: &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+			Name:    "backup-vault-name",
+			// CmekAttributes is nil
+		}
+
+		result := _convertDatastoreBackupVaultToModel(bv)
+
+		if result.KmsConfigResourcePath != nil {
+			tt.Errorf("Expected KmsConfigResourcePath to be nil, got %v", result.KmsConfigResourcePath)
+		}
+		if result.EncryptionState != nil {
+			tt.Errorf("Expected EncryptionState to be nil, got %v", result.EncryptionState)
+		}
+		if result.BackupsPrimaryKeyVersion != nil {
+			tt.Errorf("Expected BackupsPrimaryKeyVersion to be nil, got %v", result.BackupsPrimaryKeyVersion)
+		}
+	})
+
 	t.Run("WhenBackupVaultHasMissingOptionalFields", func(tt *testing.T) {
 		minEnforcedRetentionDuration := int64(30)
 		bv := &datamodel.BackupVault{

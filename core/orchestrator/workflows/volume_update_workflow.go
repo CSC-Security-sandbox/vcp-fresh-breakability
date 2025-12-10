@@ -411,7 +411,12 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
-			err = workflow.ExecuteActivity(ctx, updateActivity.CreateBucketForBackupVault, &resourceName, &tenancyDetails, backupRegion).Get(ctx, &bucketDetails)
+			var kmsGrant *string
+			if params.DataProtection != nil && !nillable.IsNilOrEmpty(params.DataProtection.KmsGrant) {
+				kmsGrant = params.DataProtection.KmsGrant
+			}
+
+			err = workflow.ExecuteActivity(ctx, updateActivity.CreateBucketForBackupVault, &resourceName, &tenancyDetails, backupRegion, kmsGrant).Get(ctx, &bucketDetails)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

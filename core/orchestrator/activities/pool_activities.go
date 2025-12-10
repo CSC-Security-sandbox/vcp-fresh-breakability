@@ -1979,7 +1979,7 @@ func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketN
 
 func _createGCPBucket(ctx context.Context, projectId, bucketName, region string, gcpService hyperscaler2.GoogleServices) error {
 	logger := gcpService.GetLogger()
-	err := gcpService.CreateBucketIfNotExists(ctx, projectId, bucketName, region)
+	err := gcpService.CreateBucketIfNotExists(ctx, projectId, bucketName, region, nil)
 	if err != nil {
 		logger.Errorf("error creating bucket: %v", err)
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceAlreadyExistsError, err)

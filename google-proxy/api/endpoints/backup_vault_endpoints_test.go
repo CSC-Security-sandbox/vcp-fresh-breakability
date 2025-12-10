@@ -4926,14 +4926,15 @@ func TestV1betaUpdateBackupVault_WithKmsConfigResourcePathAndBackupsPrimaryKeyVe
 	ctx := context.Background()
 	resID := "vault-id"
 	bvResp := mod.BackupVaultV1beta{
-		Name:        resID,
-		AccountName: "1234567890",
+		Name:                  resID,
+		AccountName:           "1234567890",
+		KmsConfigResourcePath: &kmsConfigPath, // Set existing KmsConfigResourcePath to match request (validation will pass)
 	}
 	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
 		Return(&bvResp, nil)
 
 	mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
-		Return(&mod.BackupVaultV1beta{}, "operation-id", nil)
+		Return(&mod.BackupVaultV1beta{}, "operation-id", nil).Once()
 
 	handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -4941,6 +4942,95 @@ func TestV1betaUpdateBackupVault_WithKmsConfigResourcePathAndBackupsPrimaryKeyVe
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1betaUpdateBackupVault_CMEK_AddCMEKToNonCMEKVault(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	params := gcpgenserver.V1betaUpdateBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	kmsConfigPath := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	req := &gcpgenserver.BackupVaultUpdateV1beta{
+		KmsConfigResourcePath: gcpgenserver.NewOptString(kmsConfigPath),
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	resID := "vault-id"
+	bvResp := mod.BackupVaultV1beta{
+		Name:                  resID,
+		AccountName:           "1234567890",
+		KmsConfigResourcePath: nil, // No existing CMEK
+	}
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(&bvResp, nil)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	errorResponse, ok := result.(*gcpgenserver.V1betaUpdateBackupVaultBadRequest)
+	assert.True(t, ok, "Expected BadRequest response type")
+	assert.Equal(t, 400, int(errorResponse.Code))
+	assert.Equal(t, "CMEK Policy cannot be updated on Backup vault", errorResponse.Message)
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1betaUpdateBackupVault_CMEK_ChangeKmsConfigResourcePath(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	params := gcpgenserver.V1betaUpdateBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	currentKmsConfigPath := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	requestedKmsConfigPath := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/different-key"
+	req := &gcpgenserver.BackupVaultUpdateV1beta{
+		KmsConfigResourcePath: gcpgenserver.NewOptString(requestedKmsConfigPath),
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	resID := "vault-id"
+	bvResp := mod.BackupVaultV1beta{
+		Name:                  resID,
+		AccountName:           "1234567890",
+		KmsConfigResourcePath: &currentKmsConfigPath, // Existing CMEK with different path
+	}
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(&bvResp, nil)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	errorResponse, ok := result.(*gcpgenserver.V1betaUpdateBackupVaultBadRequest)
+	assert.True(t, ok, "Expected BadRequest response type")
+	assert.Equal(t, 400, int(errorResponse.Code))
+	assert.Equal(t, "CMEK Policy cannot be updated on Backup vault", errorResponse.Message)
 	mockOrchestrator.AssertExpectations(t)
 }
 

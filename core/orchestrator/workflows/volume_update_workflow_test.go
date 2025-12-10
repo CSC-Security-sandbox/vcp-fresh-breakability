@@ -1822,7 +1822,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CreateBucketForBackupV
 	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
 	s.env.OnActivity(updateActivity.GenerateResourceNamesForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{}, nil)
-	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create bucket for backup vault"))
+	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*string")).Return(nil, errors.New("failed to create bucket for backup vault"))
 
 	// s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1891,7 +1891,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateBucketDetailsOfB
 	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
 	s.env.OnActivity(updateActivity.GenerateResourceNamesForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{}, nil)
-	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*string")).Return(&common.BucketDetails{
 		BucketName:          "test-bucket",
 		ServiceAccountName:  "test-service-account",
 		VendorSubnetID:      "test-subnet-id",
@@ -1991,7 +1991,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SyncBucketDetailsError
 	}, nil)
 	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
 	s.env.OnActivity(updateActivity.GenerateResourceNamesForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{}, nil)
-	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*string")).Return(&common.BucketDetails{
 		BucketName:          "test-bucket",
 		ServiceAccountName:  "test-service-account",
 		VendorSubnetID:      "test-subnet-id",
@@ -5020,5 +5020,115 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_FlexCachePrepopulate_C
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_WithKmsGrant() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	backupActivity := activities.BackupActivity{SE: mockStorage}
+	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
+	s.env.RegisterActivity(updateActivity.CheckBackupVaultExistInVCP)
+	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
+	s.env.RegisterActivity(updateActivity.GenerateResourceNamesForBackupVault)
+	s.env.RegisterActivity(updateActivity.CreateBucketForBackupVault)
+	s.env.RegisterActivity(updateActivity.UpdateBucketDetailsOfBackupVault)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
+	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
+	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
+		Name:      "test-backup-vault",
+		BackupVaultType: "LOCAL",
+	}, nil)
+	s.env.OnActivity(updateActivity.FindTenancyDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		RegionalTenantProject: "test-project",
+	}, nil)
+	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
+	s.env.OnActivity(updateActivity.GenerateResourceNamesForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{
+		BucketName:       "test-bucket",
+		ServiceAccountId: "test-sa",
+		Email:            "test@example.com",
+	}, nil)
+
+	// Verify kmsGrant is passed to CreateBucketForBackupVault
+	kmsGrant := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+	var capturedKmsGrant *string
+	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(grant *string) bool {
+		capturedKmsGrant = grant
+		return true
+	})).Return(&common.BucketDetails{
+		BucketName:          "test-bucket",
+		ServiceAccountName:  "test-sa",
+		TenantProjectNumber: "123456789",
+	}, nil)
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateBucketDetailsOfBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "test-remote-bv-uuid"},
+		Name:      "test-remote-backup-vault",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateBackupMetadataIfExistsActivity, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "test-bv-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		Region: "us-west-1",
+		DataProtection: &models.UpdateDataProtection{
+			KmsGrant: &kmsGrant,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	// Verify kmsGrant was passed to CreateBucketForBackupVault
+	if assert.NotNil(s.T(), capturedKmsGrant, "kmsGrant should have been captured") {
+		assert.Equal(s.T(), kmsGrant, *capturedKmsGrant)
+	}
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }

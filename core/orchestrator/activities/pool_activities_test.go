@@ -2921,7 +2921,7 @@ func Test_CreateGCPBucket_Success(t *testing.T) {
 	bucketName := "us-central-poolID"
 
 	mockGcp.On("GetLogger").Return(logger)
-	mockGcp.On("CreateBucketIfNotExists", ctx, projectId, bucketName, region).Return(nil)
+	mockGcp.On("CreateBucketIfNotExists", ctx, projectId, bucketName, region, mock.AnythingOfType("*string")).Return(nil)
 
 	// Create a bucket in the project if it doesn't exist
 	// mockGcp.EXPECT().CreateBucketIfNotExists(ctx, projectId, bucketName, region).Return(nil)
@@ -2953,7 +2953,7 @@ func Test_CreateGCPBucket_Failure(t *testing.T) {
 
 	mockGcp.On("GetLogger").Return(util.GetLogger(ctx))
 
-	mockGcp.EXPECT().CreateBucketIfNotExists(ctx, projectId, bucketName, region).Return(errors.New("failed to create bucket"))
+	mockGcp.EXPECT().CreateBucketIfNotExists(ctx, projectId, bucketName, region, mock.AnythingOfType("*string")).Return(errors.New("failed to create bucket"))
 	err := activities.CreateGCPBucket(ctx, projectId, bucketName, region, mockGcp)
 	assert.Error(t, err)
 	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to create bucket")

@@ -2173,6 +2173,12 @@ type BackupVaultInternalV1beta struct {
 	ImmutableAttributes OptBackupVaultInternalV1betaImmutableAttributes `json:"immutableAttributes"`
 	// Bucket details for the backup vault stored as JSONB array.
 	BucketDetails []BackupVaultInternalV1betaBucketDetailsItem `json:"bucketDetails"`
+	// Complete resource path of the KMS config.
+	KmsConfigResourcePath OptString `json:"kmsConfigResourcePath"`
+	// Key version used to encrypt backups in the vault.
+	BackupsPrimaryKeyVersion OptString `json:"backupsPrimaryKeyVersion"`
+	// Current state of CMEK encryption for the backup vault.
+	EncryptionState OptBackupVaultInternalV1betaEncryptionState `json:"encryptionState"`
 }
 
 // GetBackupVaultId returns the value of BackupVaultId.
@@ -2265,6 +2271,21 @@ func (s *BackupVaultInternalV1beta) GetBucketDetails() []BackupVaultInternalV1be
 	return s.BucketDetails
 }
 
+// GetKmsConfigResourcePath returns the value of KmsConfigResourcePath.
+func (s *BackupVaultInternalV1beta) GetKmsConfigResourcePath() OptString {
+	return s.KmsConfigResourcePath
+}
+
+// GetBackupsPrimaryKeyVersion returns the value of BackupsPrimaryKeyVersion.
+func (s *BackupVaultInternalV1beta) GetBackupsPrimaryKeyVersion() OptString {
+	return s.BackupsPrimaryKeyVersion
+}
+
+// GetEncryptionState returns the value of EncryptionState.
+func (s *BackupVaultInternalV1beta) GetEncryptionState() OptBackupVaultInternalV1betaEncryptionState {
+	return s.EncryptionState
+}
+
 // SetBackupVaultId sets the value of BackupVaultId.
 func (s *BackupVaultInternalV1beta) SetBackupVaultId(val string) {
 	s.BackupVaultId = val
@@ -2353,6 +2374,21 @@ func (s *BackupVaultInternalV1beta) SetImmutableAttributes(val OptBackupVaultInt
 // SetBucketDetails sets the value of BucketDetails.
 func (s *BackupVaultInternalV1beta) SetBucketDetails(val []BackupVaultInternalV1betaBucketDetailsItem) {
 	s.BucketDetails = val
+}
+
+// SetKmsConfigResourcePath sets the value of KmsConfigResourcePath.
+func (s *BackupVaultInternalV1beta) SetKmsConfigResourcePath(val OptString) {
+	s.KmsConfigResourcePath = val
+}
+
+// SetBackupsPrimaryKeyVersion sets the value of BackupsPrimaryKeyVersion.
+func (s *BackupVaultInternalV1beta) SetBackupsPrimaryKeyVersion(val OptString) {
+	s.BackupsPrimaryKeyVersion = val
+}
+
+// SetEncryptionState sets the value of EncryptionState.
+func (s *BackupVaultInternalV1beta) SetEncryptionState(val OptBackupVaultInternalV1betaEncryptionState) {
+	s.EncryptionState = val
 }
 
 func (*BackupVaultInternalV1beta) v1betaInternalCreateBackupVaultRes()   {}
@@ -2473,6 +2509,62 @@ func (s *BackupVaultInternalV1betaBucketDetailsItem) SetSatisfiesPzi(val OptBool
 // SetSatisfiesPzs sets the value of SatisfiesPzs.
 func (s *BackupVaultInternalV1betaBucketDetailsItem) SetSatisfiesPzs(val OptBool) {
 	s.SatisfiesPzs = val
+}
+
+// Current state of CMEK encryption for the backup vault.
+type BackupVaultInternalV1betaEncryptionState string
+
+const (
+	BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEPENDING    BackupVaultInternalV1betaEncryptionState = "ENCRYPTION_STATE_PENDING"
+	BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED  BackupVaultInternalV1betaEncryptionState = "ENCRYPTION_STATE_COMPLETED"
+	BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS BackupVaultInternalV1betaEncryptionState = "ENCRYPTION_STATE_IN_PROGRESS"
+	BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEFAILED     BackupVaultInternalV1betaEncryptionState = "ENCRYPTION_STATE_FAILED"
+)
+
+// AllValues returns all BackupVaultInternalV1betaEncryptionState values.
+func (BackupVaultInternalV1betaEncryptionState) AllValues() []BackupVaultInternalV1betaEncryptionState {
+	return []BackupVaultInternalV1betaEncryptionState{
+		BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEPENDING,
+		BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED,
+		BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS,
+		BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEFAILED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BackupVaultInternalV1betaEncryptionState) MarshalText() ([]byte, error) {
+	switch s {
+	case BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEPENDING:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS:
+		return []byte(s), nil
+	case BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEFAILED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BackupVaultInternalV1betaEncryptionState) UnmarshalText(data []byte) error {
+	switch BackupVaultInternalV1betaEncryptionState(data) {
+	case BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEPENDING:
+		*s = BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEPENDING
+		return nil
+	case BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED:
+		*s = BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED
+		return nil
+	case BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS:
+		*s = BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS
+		return nil
+	case BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEFAILED:
+		*s = BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEFAILED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Immutable backup retention attributes stored as JSONB.
@@ -8316,6 +8408,52 @@ func (o OptBackupV1betaState) Get() (v BackupV1betaState, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBackupV1betaState) Or(d BackupV1betaState) BackupV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBackupVaultInternalV1betaEncryptionState returns new OptBackupVaultInternalV1betaEncryptionState with value set to v.
+func NewOptBackupVaultInternalV1betaEncryptionState(v BackupVaultInternalV1betaEncryptionState) OptBackupVaultInternalV1betaEncryptionState {
+	return OptBackupVaultInternalV1betaEncryptionState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBackupVaultInternalV1betaEncryptionState is optional BackupVaultInternalV1betaEncryptionState.
+type OptBackupVaultInternalV1betaEncryptionState struct {
+	Value BackupVaultInternalV1betaEncryptionState
+	Set   bool
+}
+
+// IsSet returns true if OptBackupVaultInternalV1betaEncryptionState was set.
+func (o OptBackupVaultInternalV1betaEncryptionState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBackupVaultInternalV1betaEncryptionState) Reset() {
+	var v BackupVaultInternalV1betaEncryptionState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBackupVaultInternalV1betaEncryptionState) SetTo(v BackupVaultInternalV1betaEncryptionState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBackupVaultInternalV1betaEncryptionState) Get() (v BackupVaultInternalV1betaEncryptionState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBackupVaultInternalV1betaEncryptionState) Or(d BackupVaultInternalV1betaEncryptionState) BackupVaultInternalV1betaEncryptionState {
 	if v, ok := o.Get(); ok {
 		return v
 	}

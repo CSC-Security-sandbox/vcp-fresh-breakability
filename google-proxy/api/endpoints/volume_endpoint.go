@@ -45,6 +45,7 @@ var (
 	MaxSourceFileList             = env.GetInt("MAX_SOURCE_FILE_LIST", 8)
 	thinCloneGASupport            = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
 	hybridReplicationEnabled      = env.GetBool("HYBRID_REPLICATION_ENABLED", false)
+	cmekBackupEnabled             = env.GetBool("CMEK_BACKUP_ENABLED", false)
 	bidiReplicationEnabled        = env.GetBool("BIDI_REPLICATION_ENABLED", false)
 )
 
@@ -521,10 +522,11 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if reqBackupConfig.ScheduledBackupEnabled.IsSet() {
 			param.DataProtection.ScheduledBackupEnabled = &reqBackupConfig.ScheduledBackupEnabled.Value
 		}
-
-		// Validate kmsGrant in backupConfig
-		if reqBackupConfig.KmsGrant.IsSet() && reqBackupConfig.KmsGrant.Value != "" {
-			return nil, errors.NewUserInputValidationErr("Volumes cannot be created with CMEK-enabled backup vaults. Please use a backup vault without CMEK encryption")
+		if reqBackupConfig.KmsGrant.IsSet() {
+			if !cmekBackupEnabled {
+				return nil, errors.NewUserInputValidationErr("CMEK backup is not enabled")
+			}
+			param.DataProtection.KmsGrant = &reqBackupConfig.KmsGrant.Value
 		}
 	}
 
@@ -886,10 +888,11 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		if reqBackupConfig.ScheduledBackupEnabled.IsSet() {
 			param.DataProtection.ScheduledBackupEnabled = &reqBackupConfig.ScheduledBackupEnabled.Value
 		}
-
-		// Validate kmsGrant in backupConfig
-		if reqBackupConfig.KmsGrant.IsSet() && reqBackupConfig.KmsGrant.Value != "" {
-			return nil, errors.NewUserInputValidationErr("Volumes cannot be configured with CMEK-enabled backup vaults. Please use a backup vault without CMEK encryption")
+		if reqBackupConfig.KmsGrant.IsSet() {
+			if !cmekBackupEnabled {
+				return nil, errors.NewUserInputValidationErr("CMEK backup is not enabled")
+			}
+			param.DataProtection.KmsGrant = &reqBackupConfig.KmsGrant.Value
 		}
 	}
 

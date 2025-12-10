@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -26,7 +27,7 @@ var (
 	thinCloneGASupport           = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
 	volumeStartToCloseTimeoutSec = env.GetUint64("VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC", 600)
 	volumeHeartbeatTimeoutSec    = env.GetUint64("VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC", 300)
-	enableKerberos     = env.GetBool("ENABLE_KERBEROS", false)
+	enableKerberos               = env.GetBool("ENABLE_KERBEROS", false)
 )
 
 type volumeCreateWorkflow struct {
@@ -830,7 +831,12 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
-			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBucket, &resourceName, &tenancyDetails, backupRegion).Get(ctx, &bucketDetails)
+			// Extract kmsGrant from volume's DataProtection
+			var kmsGrant *string
+			if dbVolume.DataProtection != nil && !nillable.IsNilOrEmpty(dbVolume.DataProtection.KmsGrant) {
+				kmsGrant = dbVolume.DataProtection.KmsGrant
+			}
+			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBucket, &resourceName, &tenancyDetails, backupRegion, kmsGrant).Get(ctx, &bucketDetails)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

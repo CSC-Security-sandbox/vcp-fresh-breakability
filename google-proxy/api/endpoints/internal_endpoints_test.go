@@ -2413,6 +2413,99 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 		assert.False(tt, immutableAttrs.IsWeeklyBackupImmutable.Value)
 	})
 
+	t.Run("WhenSuccessfulDescribeWithCMEKAttributes", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaInternalDescribeBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-uuid",
+		}
+
+		now := time.Now()
+		kmsConfigPath := "projects/test-project/locations/us-central1/kmsConfigs/myconfig"
+		encryptionState := "ENCRYPTION_STATE_COMPLETED"
+		backupsPrimaryKeyVersion := "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key/cryptoKeyVersions/1"
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-vault-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-backup-vault",
+			AccountVendorID: "test-account-vendor-id",
+			LifeCycleState:  "READY",
+			BackupVaultType: "CROSS_REGION",
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath:    &kmsConfigPath,
+				EncryptionState:          &encryptionState,
+				BackupsPrimaryKeyVersion: &backupsPrimaryKeyVersion,
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetBackupVaultByExternalUUIDAndOwnerID(mock.Anything, "test-backup-vault-uuid", "test-project").Return(backupVault, nil)
+
+		resp, err := handler.V1betaInternalDescribeBackupVault(context.Background(), params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "test-backup-vault-uuid", result.BackupVaultId)
+		assert.True(tt, result.KmsConfigResourcePath.IsSet())
+		assert.Equal(tt, kmsConfigPath, result.KmsConfigResourcePath.Value)
+		assert.True(tt, result.EncryptionState.IsSet())
+		assert.Equal(tt, gcpgenserver.BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED, result.EncryptionState.Value)
+		assert.True(tt, result.BackupsPrimaryKeyVersion.IsSet())
+		assert.Equal(tt, backupsPrimaryKeyVersion, result.BackupsPrimaryKeyVersion.Value)
+	})
+
+	t.Run("WhenSuccessfulDescribeWithPartialCMEKAttributes", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaInternalDescribeBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-uuid",
+		}
+
+		now := time.Now()
+		kmsConfigPath := "projects/test-project/locations/us-central1/kmsConfigs/myconfig"
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-vault-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-backup-vault",
+			AccountVendorID: "test-account-vendor-id",
+			LifeCycleState:  "READY",
+			BackupVaultType: "CROSS_REGION",
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath: &kmsConfigPath,
+				// EncryptionState and BackupsPrimaryKeyVersion are nil
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetBackupVaultByExternalUUIDAndOwnerID(mock.Anything, "test-backup-vault-uuid", "test-project").Return(backupVault, nil)
+
+		resp, err := handler.V1betaInternalDescribeBackupVault(context.Background(), params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "test-backup-vault-uuid", result.BackupVaultId)
+		assert.True(tt, result.KmsConfigResourcePath.IsSet())
+		assert.Equal(tt, kmsConfigPath, result.KmsConfigResourcePath.Value)
+		assert.False(tt, result.EncryptionState.IsSet())
+		assert.False(tt, result.BackupsPrimaryKeyVersion.IsSet())
+	})
+
 	t.Run("WhenSuccessfulDescribeWithBucketDetails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{
@@ -5699,6 +5792,113 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 		assert.Equal(tt, 1, len(result.BucketDetails))
 		assert.Equal(tt, "test-bucket", result.BucketDetails[0].BucketName.Value)
 		assert.Equal(tt, "test-sa", result.BucketDetails[0].ServiceAccountName.Value)
+	})
+
+	t.Run("WhenSuccessfulCreationWithCMEKAttributes", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		kmsConfigPath := "projects/test-project/locations/us-central1/kmsConfigs/myconfig"
+		encryptionState := "ENCRYPTION_STATE_COMPLETED"
+		backupsPrimaryKeyVersion := "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key/cryptoKeyVersions/1"
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId:            "test-backup-vault-id",
+			ResourceId:               "test-resource-id",
+			SourceBackupVault:        gcpgenserver.NewOptString("source-vault-id"),
+			KmsConfigResourcePath:    gcpgenserver.NewOptString(kmsConfigPath),
+			EncryptionState:          gcpgenserver.NewOptBackupVaultInternalV1betaEncryptionState(gcpgenserver.BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED),
+			BackupsPrimaryKeyVersion: gcpgenserver.NewOptString(backupsPrimaryKeyVersion),
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+		}
+
+		// Mock CVP client
+		backupVaultType := activities.CrossRegionBackupType
+		sourceBackupVault := "/projects/test-project/locations/us-west1/backupVaults/test-resource-id"
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     "test-backup-vault-id",
+						ResourceID:        nillable.GetStringPtr("test-resource-id"),
+						BackupVaultType:   &backupVaultType,
+						SourceBackupVault: &sourceBackupVault,
+						KmsConfigResourcePath: nillable.GetStringPtr(kmsConfigPath),
+						EncryptionState:       nillable.GetStringPtr(encryptionState),
+						BackupsPrimaryKeyVersion: nillable.GetStringPtr(backupsPrimaryKeyVersion),
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Mock ConvertToBackupVaultDataModel
+		now := time.Now()
+		backupVaultDataModel := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:            "test-resource-id",
+			BackupVaultType: activities.CrossRegionBackupType,
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath:    &kmsConfigPath,
+				EncryptionState:          &encryptionState,
+				BackupsPrimaryKeyVersion: &backupsPrimaryKeyVersion,
+			},
+		}
+		originalConvertFunc := _convertToBackupVaultDataModel
+		defer func() { _convertToBackupVaultDataModel = originalConvertFunc }()
+		_convertToBackupVaultDataModel = func(cvpBackupVault *cvpmodels.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+			return backupVaultDataModel, nil
+		}
+
+		// Mock orchestrator to return created backup vault with CMEK attributes
+		createdBackupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:                       "test-resource-id",
+			BackupVaultType:            activities.CrossRegionBackupType,
+			ExternalUUID:               nillable.GetStringPtr("test-backup-vault-id"),
+			CrossRegionBackupVaultName: nillable.GetStringPtr("source-vault-id"),
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath:    &kmsConfigPath,
+				EncryptionState:          &encryptionState,
+				BackupsPrimaryKeyVersion: &backupsPrimaryKeyVersion,
+			},
+		}
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(mock.Anything, mock.Anything, mock.Anything).Return(createdBackupVault, nil)
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "test-uuid", result.BackupVaultId)
+		assert.Equal(tt, "test-resource-id", result.ResourceId)
+		assert.True(tt, result.KmsConfigResourcePath.IsSet())
+		assert.Equal(tt, kmsConfigPath, result.KmsConfigResourcePath.Value)
+		assert.True(tt, result.EncryptionState.IsSet())
+		assert.Equal(tt, gcpgenserver.BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED, result.EncryptionState.Value)
+		assert.True(tt, result.BackupsPrimaryKeyVersion.IsSet())
+		assert.Equal(tt, backupsPrimaryKeyVersion, result.BackupsPrimaryKeyVersion.Value)
 	})
 
 	t.Run("WhenSourceBackupVaultMatchesResourceId", func(tt *testing.T) {

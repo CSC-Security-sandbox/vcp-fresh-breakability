@@ -1212,3 +1212,89 @@ func TestPoolCredentials_ParseCaURIWithFallback(t *testing.T) {
 		assert.Equal(t, "ca-789", caName)
 	})
 }
+
+func TestCmekAttributes_Scan(t *testing.T) {
+	t.Run("Valid JSON bytes", func(t *testing.T) {
+		var cmek CmekAttributes
+		err := cmek.Scan([]byte(`{"kmsConfigResourcePath": "projects/test/locations/us/keyRings/kr/cryptoKeys/key", "encryptionState": "ENABLED", "backupsPrimaryKeyVersion": "1"}`))
+		assert.NoError(t, err)
+		assert.NotNil(t, cmek.KmsConfigResourcePath)
+		assert.Equal(t, "projects/test/locations/us/keyRings/kr/cryptoKeys/key", *cmek.KmsConfigResourcePath)
+		assert.NotNil(t, cmek.EncryptionState)
+		assert.Equal(t, "ENABLED", *cmek.EncryptionState)
+		assert.NotNil(t, cmek.BackupsPrimaryKeyVersion)
+		assert.Equal(t, "1", *cmek.BackupsPrimaryKeyVersion)
+	})
+
+	t.Run("Nil value", func(t *testing.T) {
+		var cmek CmekAttributes
+		err := cmek.Scan(nil)
+		assert.NoError(t, err)
+		assert.Nil(t, cmek.KmsConfigResourcePath)
+		assert.Nil(t, cmek.EncryptionState)
+		assert.Nil(t, cmek.BackupsPrimaryKeyVersion)
+	})
+
+	t.Run("Invalid type", func(t *testing.T) {
+		var cmek CmekAttributes
+		err := cmek.Scan("not bytes")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "type assertion to []byte failed")
+	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		var cmek CmekAttributes
+		err := cmek.Scan([]byte(`{"invalid": json}`))
+		assert.Error(t, err)
+	})
+}
+
+func TestCmekAttributes_Value(t *testing.T) {
+	t.Run("With all fields", func(t *testing.T) {
+		kmsPath := "projects/test/locations/us/keyRings/kr/cryptoKeys/key"
+		encryptionState := "ENABLED"
+		keyVersion := "1"
+		cmek := CmekAttributes{
+			KmsConfigResourcePath:    &kmsPath,
+			EncryptionState:          &encryptionState,
+			BackupsPrimaryKeyVersion: &keyVersion,
+		}
+		val, err := cmek.Value()
+		assert.NoError(t, err)
+		assert.NotNil(t, val)
+
+		// Verify it can be scanned back
+		var result CmekAttributes
+		err = result.Scan(val)
+		assert.NoError(t, err)
+		assert.Equal(t, cmek, result)
+	})
+
+	t.Run("With partial fields", func(t *testing.T) {
+		kmsPath := "projects/test/locations/us/keyRings/kr/cryptoKeys/key"
+		cmek := CmekAttributes{
+			KmsConfigResourcePath: &kmsPath,
+		}
+		val, err := cmek.Value()
+		assert.NoError(t, err)
+		assert.NotNil(t, val)
+
+		// Verify it can be scanned back
+		var result CmekAttributes
+		err = result.Scan(val)
+		assert.NoError(t, err)
+		assert.Equal(t, cmek, result)
+	})
+
+	t.Run("Empty struct", func(t *testing.T) {
+		cmek := CmekAttributes{}
+		val, err := cmek.Value()
+		assert.NoError(t, err)
+		assert.NotNil(t, val)
+
+		// Should produce valid JSON
+		bytes, ok := val.([]byte)
+		assert.True(t, ok)
+		assert.Equal(t, `{"kmsConfigResourcePath":null,"encryptionState":null,"backupsPrimaryKeyVersion":null}`, string(bytes))
+	})
+}

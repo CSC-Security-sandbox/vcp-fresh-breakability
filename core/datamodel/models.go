@@ -853,6 +853,7 @@ type BackupVault struct {
 	AccountVendorID            string               `json:"accountVendorID"`
 	Description                *string              `json:"description" gorm:"type:text"`
 	ImmutableAttributes        *ImmutableAttributes `gorm:"column:immutable_attributes;type:jsonb"`
+	CmekAttributes             *CmekAttributes      `gorm:"column:cmek_attributes;type:jsonb"`
 	CrossRegionBackupVaultName *string              `json:"crossRegionBackupVaultName" gorm:"type:text"`
 	ExternalUUID               *string              `json:"externalUuid" gorm:"column:external_uuid;type:text;index"`
 	BucketDetails              BucketDetailsArray   `gorm:"column:bucket_details;type:jsonb"`
@@ -901,6 +902,29 @@ func (immutableAttributes *ImmutableAttributes) Scan(value interface{}) error {
 // Value implements the driver.Valuer interface for ImmutableAttributes
 func (immutableAttributes ImmutableAttributes) Value() (driver.Value, error) {
 	return json.Marshal(immutableAttributes)
+}
+
+type CmekAttributes struct {
+	KmsConfigResourcePath    *string `json:"kmsConfigResourcePath"`
+	EncryptionState          *string `json:"encryptionState"`
+	BackupsPrimaryKeyVersion *string `json:"backupsPrimaryKeyVersion"`
+}
+
+// Scan implements the sql.Scanner interface for CmekAttributes
+func (cmekAttributes *CmekAttributes) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, cmekAttributes)
+}
+
+// Value implements the driver.Valuer interface for CmekAttributes
+func (cmekAttributes CmekAttributes) Value() (driver.Value, error) {
+	return json.Marshal(cmekAttributes)
 }
 
 type DataProtection struct {

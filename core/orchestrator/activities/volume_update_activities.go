@@ -651,8 +651,8 @@ func (a *VolumeUpdateActivity) CheckBackupVaultExistInVCP(ctx context.Context, v
 }
 
 // CreateBucketForBackupVault creates a bucket in the specified region for the given resource name and tenancy details
-func (a *VolumeUpdateActivity) CreateBucketForBackupVault(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
-	return CreateBucket(ctx, resourceName, tenancyDetails, region)
+func (a *VolumeUpdateActivity) CreateBucketForBackupVault(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string, kmsGrant *string) (*common.BucketDetails, error) {
+	return CreateBucket(ctx, resourceName, tenancyDetails, region, kmsGrant)
 }
 
 // GenerateResourceNamesForBackupVault generates resource names for the volume based on the tenancy details and GCP region

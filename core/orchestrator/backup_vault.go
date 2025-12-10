@@ -364,6 +364,11 @@ func _convertDatastoreBackupVaultToModel(bv *datamodel.BackupVault) *models.Back
 			IsAdhocBackupImmutable:                 bv.ImmutableAttributes.IsAdhocBackupImmutable,
 		}
 	}
+	if bv.CmekAttributes != nil {
+		res.KmsConfigResourcePath = bv.CmekAttributes.KmsConfigResourcePath
+		res.EncryptionState = bv.CmekAttributes.EncryptionState
+		res.BackupsPrimaryKeyVersion = bv.CmekAttributes.BackupsPrimaryKeyVersion
+	}
 	return res
 }
 

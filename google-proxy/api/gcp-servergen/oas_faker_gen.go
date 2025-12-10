@@ -986,6 +986,21 @@ func (s *BackupVaultInternalV1beta) SetFake() {
 			}
 		}
 	}
+	{
+		{
+			s.KmsConfigResourcePath.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupsPrimaryKeyVersion.SetFake()
+		}
+	}
+	{
+		{
+			s.EncryptionState.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -1025,6 +1040,11 @@ func (s *BackupVaultInternalV1betaBucketDetailsItem) SetFake() {
 			s.SatisfiesPzs.SetFake()
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *BackupVaultInternalV1betaEncryptionState) SetFake() {
+	*s = BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATEPENDING
 }
 
 // SetFake set fake values.
@@ -2973,6 +2993,15 @@ func (s *OptBackupV1betaBackupType) SetFake() {
 // SetFake set fake values.
 func (s *OptBackupV1betaState) SetFake() {
 	var elem BackupV1betaState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBackupVaultInternalV1betaEncryptionState) SetFake() {
+	var elem BackupVaultInternalV1betaEncryptionState
 	{
 		elem.SetFake()
 	}

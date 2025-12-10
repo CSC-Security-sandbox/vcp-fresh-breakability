@@ -63,6 +63,7 @@ func (d *DataStoreRepository) UpdateBackupVaultInVCP(ctx context.Context, sdeBac
 
 	dbBackupVault.Description = sdeBackupVault.Description
 	dbBackupVault.ImmutableAttributes = sdeBackupVault.ImmutableAttributes
+	dbBackupVault.CmekAttributes = sdeBackupVault.CmekAttributes
 	dbBackupVault.LifeCycleState = sdeBackupVault.LifeCycleState
 	dbBackupVault.LifeCycleStateDetails = sdeBackupVault.LifeCycleStateDetails
 	dbBackupVault.UpdatedAt = time.Now()

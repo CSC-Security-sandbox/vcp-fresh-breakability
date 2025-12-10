@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -947,7 +948,7 @@ func TestCreateBucketIfNotExists(t *testing.T) {
 				Logger: util.GetLogger(ctx), // use nop logger
 			}
 
-			err = gcp.CreateBucketIfNotExists(ctx, "test-project", "test-bucket", "us-central1")
+			err = gcp.CreateBucketIfNotExists(ctx, "test-project", "test-bucket", "us-central1", nil)
 
 			if tc.expectError {
 				if err == nil {
@@ -961,6 +962,69 @@ func TestCreateBucketIfNotExists(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCreateBucketIfNotExists_WithCMEK(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodPost && strings.Contains(req.URL.Path, "/b") {
+			// Read request body to verify CMEK encryption is set
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("failed to read request body: %v", err)
+			}
+
+			// Verify that the request body contains encryption configuration
+			bodyStr := string(body)
+			if !strings.Contains(bodyStr, "encryption") || !strings.Contains(bodyStr, "defaultKmsKeyName") {
+				t.Errorf("expected encryption configuration in request body, got: %s", bodyStr)
+			}
+
+			// Verify kmsGrant key is in the request
+			kmsGrant := "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"
+			if !strings.Contains(bodyStr, kmsGrant) {
+				t.Errorf("expected kmsGrant %s in request body, got: %s", kmsGrant, bodyStr)
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(http.StatusOK)
+			_, _ = rw.Write([]byte(`{
+				"name": "test-bucket",
+				"location": "us-central1"
+			}`))
+			return
+		}
+		http.NotFound(rw, req)
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	httpClient := &http.Client{
+		Transport: &http.Transport{},
+	}
+
+	storageClient, err := storage.NewClient(ctx,
+		option.WithEndpoint(server.URL+"/storage/v1/"),
+		option.WithHTTPClient(httpClient),
+		option.WithoutAuthentication(),
+	)
+	if err != nil {
+		t.Fatalf("failed to create storage client: %v", err)
+	}
+
+	gcp := &GcpServices{
+		Ctx: ctx,
+		AdminGCPService: &AdminGCPService{
+			storageService: storageClient,
+		},
+		Logger: util.GetLogger(ctx),
+	}
+
+	kmsGrant := "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"
+	err = gcp.CreateBucketIfNotExists(ctx, "test-project", "test-bucket", "us-central1", &kmsGrant)
+
+	if err != nil {
+		t.Errorf("expected no error, got: %v", err)
 	}
 }
 

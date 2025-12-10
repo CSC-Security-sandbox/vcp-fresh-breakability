@@ -804,16 +804,16 @@ func _generateResourceNames(ctx context.Context, volume *datamodel.Volume, tenan
 	}, nil
 }
 
-func (a VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
-	return CreateBucket(ctx, resourceName, tenancyDetails, region)
+func (a VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string, kmsGrant *string) (*common.BucketDetails, error) {
+	return CreateBucket(ctx, resourceName, tenancyDetails, region, kmsGrant)
 }
 
-func _createBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
+func _createBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string, kmsGrant *string) (*common.BucketDetails, error) {
 	gcpService, err := hyperscaler.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	_, bucketDetails, err := GetOrCreateAndGCSResources(gcpService, resourceName.ServiceAccountId, tenancyDetails.RegionalTenantProject, resourceName.Email, resourceName.BucketName, region, "region")
+	_, bucketDetails, err := GetOrCreateAndGCSResources(gcpService, resourceName.ServiceAccountId, tenancyDetails.RegionalTenantProject, resourceName.Email, resourceName.BucketName, region, "region", kmsGrant)
 	if err != nil {
 		gcpService.Logger.Errorf("Error creating bucket: %v", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -1180,12 +1180,12 @@ func CreateRemoteBackupVaultInVCP(ctx context.Context, projectNumber string, bac
 	}
 }
 
-func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*hyperscalermodels.ServiceAccount, []*common.BucketDetails, error) {
+func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string, kmsGrant *string) (*hyperscalermodels.ServiceAccount, []*common.BucketDetails, error) {
 	var bucketDetailsArr []*common.BucketDetails
 	var err error
 
 	// Only create the bucket - no service account creation
-	err = gcpServices.CreateBucketIfNotExists(context.Background(), projectNumber, bucketName, tenantProjectRegion)
+	err = gcpServices.CreateBucketIfNotExists(context.Background(), projectNumber, bucketName, tenantProjectRegion, kmsGrant)
 	if err != nil {
 		return nil, nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1851,6 +1851,23 @@ func convertInternalAPIToDatamodel(apiBackupVault *googleproxyclient.BackupVault
 		}
 	}
 
+	// Extract CMEK attributes from internal API response
+	var cmekFields *datamodel.CmekAttributes
+		if apiBackupVault.KmsConfigResourcePath.IsSet() {
+		cmekFields = &datamodel.CmekAttributes{}
+			kmsConfigPath := apiBackupVault.KmsConfigResourcePath.Value
+			cmekFields.KmsConfigResourcePath = &kmsConfigPath
+		if apiBackupVault.EncryptionState.IsSet() {
+			encryptionState := string(apiBackupVault.EncryptionState.Value)
+			cmekFields.EncryptionState = &encryptionState
+		}
+		if apiBackupVault.BackupsPrimaryKeyVersion.IsSet() {
+			backupsPrimaryKeyVersion := apiBackupVault.BackupsPrimaryKeyVersion.Value
+			cmekFields.BackupsPrimaryKeyVersion = &backupsPrimaryKeyVersion
+		}
+	}
+	backupVault.CmekAttributes = cmekFields
+
 	return backupVault
 }
 
@@ -1907,6 +1924,18 @@ func convertDatamodelToInternalAPI(datamodelBackupVault *datamodel.BackupVault) 
 			bucketDetails = append(bucketDetails, bucketDetail)
 		}
 		apiBackupVault.BucketDetails = bucketDetails
+	}
+
+	// Include CMEK attributes in internal API response
+	if datamodelBackupVault.CmekAttributes != nil {
+		// KmsConfigResourcePath is always set if CmekAttributes exists (it's the primary indicator)
+			apiBackupVault.KmsConfigResourcePath = googleproxyclient.NewOptString(*datamodelBackupVault.CmekAttributes.KmsConfigResourcePath)
+		if datamodelBackupVault.CmekAttributes.EncryptionState != nil {
+			apiBackupVault.EncryptionState = googleproxyclient.NewOptBackupVaultInternalV1betaEncryptionState(googleproxyclient.BackupVaultInternalV1betaEncryptionState(*datamodelBackupVault.CmekAttributes.EncryptionState))
+		}
+		if datamodelBackupVault.CmekAttributes.BackupsPrimaryKeyVersion != nil {
+			apiBackupVault.BackupsPrimaryKeyVersion = googleproxyclient.NewOptString(*datamodelBackupVault.CmekAttributes.BackupsPrimaryKeyVersion)
+		}
 	}
 
 	return apiBackupVault

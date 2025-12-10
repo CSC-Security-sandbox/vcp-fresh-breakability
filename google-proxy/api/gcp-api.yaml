@@ -12238,6 +12238,31 @@ components:
               satisfiesPzs:
                 type: boolean
                 description: Whether the bucket satisfies PZS requirements
+        kmsConfigResourcePath:
+          title: kmsConfigResourcePath
+          type: string
+          description: Complete resource path of the KMS config
+          example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+          x-nullable: true
+        backupsPrimaryKeyVersion:
+          title: backupsPrimaryKeyVersion
+          type: string
+          readOnly: true
+          description: key version used to encrypt backups in the vault
+          example: projects/my-project-1/locations/eu-west-1/keyRings/my-keyring/cryptoKeys/my-key/cryptoKeyVersions/1
+          x-nullable: true
+        encryptionState:
+          title: encryptionState
+          type: string
+          readOnly: true
+          description: Current state of CMEK encryption for the backup vault
+          enum:
+            - ENCRYPTION_STATE_PENDING
+            - ENCRYPTION_STATE_COMPLETED
+            - ENCRYPTION_STATE_IN_PROGRESS
+            - ENCRYPTION_STATE_FAILED
+          example: ENCRYPTION_STATE_COMPLETED
+          x-nullable: true
     BackupRetentionPolicy_v1beta:
       title: BackupRetentionPolicy
       type: object

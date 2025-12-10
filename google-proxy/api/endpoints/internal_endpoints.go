@@ -863,6 +863,19 @@ func convertDataModelToBackupVaultInternal(bv *datamodel.BackupVault) gcpgenserv
 		result.BucketDetails = bucketDetails
 	}
 
+	// Convert CMEK attributes
+	if bv.CmekAttributes != nil {
+		if bv.CmekAttributes.KmsConfigResourcePath != nil {
+			result.KmsConfigResourcePath = gcpgenserver.NewOptString(*bv.CmekAttributes.KmsConfigResourcePath)
+		}
+		if bv.CmekAttributes.EncryptionState != nil {
+			result.EncryptionState = gcpgenserver.NewOptBackupVaultInternalV1betaEncryptionState(gcpgenserver.BackupVaultInternalV1betaEncryptionState(*bv.CmekAttributes.EncryptionState))
+		}
+		if bv.CmekAttributes.BackupsPrimaryKeyVersion != nil {
+			result.BackupsPrimaryKeyVersion = gcpgenserver.NewOptString(*bv.CmekAttributes.BackupsPrimaryKeyVersion)
+		}
+	}
+
 	return result
 }
 

@@ -621,6 +621,15 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 		IsAdhocBackupImmutable:                 isAdhoc,
 	}
 
+	var cmekFields *datamodel.CmekAttributes
+	if bv.KmsConfigResourcePath != nil {
+		cmekFields = &datamodel.CmekAttributes{
+			KmsConfigResourcePath:    bv.KmsConfigResourcePath,
+			EncryptionState:          bv.EncryptionState,
+			BackupsPrimaryKeyVersion: bv.BackupsPrimaryKeyVersion,
+		}
+	}
+
 	return &datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{
 			UUID:      bv.BackupVaultID,
@@ -636,6 +645,7 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 		BackupVaultType:            backupVaultType,
 		Description:                description,
 		ImmutableAttributes:        immutableFields,
+		CmekAttributes:             cmekFields,
 		CrossRegionBackupVaultName: bv.DestinationBackupVault,
 	}, nil
 }

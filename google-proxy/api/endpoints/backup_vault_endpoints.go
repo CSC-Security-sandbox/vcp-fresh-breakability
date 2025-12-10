@@ -1016,6 +1016,28 @@ func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
+	// CMEK Policy Update Restriction: Prevent adding or changing KmsConfigResourcePath
+	if req.KmsConfigResourcePath.IsSet() {
+		requestedKmsConfigPath := req.KmsConfigResourcePath.Value
+		currentKmsConfigPath := backupVault.KmsConfigResourcePath
+
+		// Case 1: Trying to add CMEK to a backup vault that doesn't have CMEK
+		if currentKmsConfigPath == nil {
+			return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
+				Code:    400,
+				Message: "CMEK Policy cannot be updated on Backup vault",
+			}, nil
+		}
+
+		// Case 2: Trying to change to a different KmsConfigResourcePath
+		if *currentKmsConfigPath != requestedKmsConfigPath {
+			return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
+				Code:    400,
+				Message: "CMEK Policy cannot be updated on Backup vault",
+			}, nil
+		}
+	}
+
 	// Extract retention policy parameters from request
 	retentionParams := extractRetentionPolicyParams(req)
 	if retentionParams == nil {

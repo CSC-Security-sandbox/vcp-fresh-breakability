@@ -4842,3 +4842,28 @@ func TestGetUpdatedFieldsFromParams_WithKmsGrant(t *testing.T) {
 	assert.Equal(t, kmsGrant, *dataProtection.KmsGrant)
 	assert.Equal(t, "vault-123", dataProtection.BackupVaultID)
 }
+
+func TestGenerateResourceNamesForBackupVault_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeUpdateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+	}
+	tenancyDetails := &common.TenancyInfo{RegionalTenantProject: "test-project"}
+	gcpRegion := "us-central1"
+	originalGetResourceNamesForBackup := GetResourceNamesForBackup
+	defer func() { GetResourceNamesForBackup = originalGetResourceNamesForBackup }()
+
+	GetResourceNamesForBackup = func(region, location, project, vaultID string) (string, string, string, error) {
+		return "test-email", "test-bucket", "test-service-account", nil
+	}
+
+	resourceNames, err := activity.GenerateResourceNamesForBackupVault(ctx, volume, tenancyDetails, gcpRegion)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resourceNames)
+	assert.Equal(t, "test-email", resourceNames.Email)
+	assert.Equal(t, "test-bucket", resourceNames.BucketName)
+	assert.Equal(t, "test-service-account", resourceNames.ServiceAccountId)
+}

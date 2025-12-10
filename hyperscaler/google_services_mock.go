@@ -185,17 +185,17 @@ func (_c *MockGoogleServices_CreateAddressOperation_Call) RunAndReturn(run func(
 	return _c
 }
 
-// CreateBucketIfNotExists provides a mock function with given fields: ctx, projectID, bucketName, region
-func (_m *MockGoogleServices) CreateBucketIfNotExists(ctx context.Context, projectID string, bucketName string, region string) error {
-	ret := _m.Called(ctx, projectID, bucketName, region)
+// CreateBucketIfNotExists provides a mock function with given fields: ctx, projectID, bucketName, region, kmsGrant
+func (_m *MockGoogleServices) CreateBucketIfNotExists(ctx context.Context, projectID string, bucketName string, region string, kmsGrant *string) error {
+	ret := _m.Called(ctx, projectID, bucketName, region, kmsGrant)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateBucketIfNotExists")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
-		r0 = rf(ctx, projectID, bucketName, region)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, *string) error); ok {
+		r0 = rf(ctx, projectID, bucketName, region, kmsGrant)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -213,13 +213,14 @@ type MockGoogleServices_CreateBucketIfNotExists_Call struct {
 //   - projectID string
 //   - bucketName string
 //   - region string
-func (_e *MockGoogleServices_Expecter) CreateBucketIfNotExists(ctx interface{}, projectID interface{}, bucketName interface{}, region interface{}) *MockGoogleServices_CreateBucketIfNotExists_Call {
-	return &MockGoogleServices_CreateBucketIfNotExists_Call{Call: _e.mock.On("CreateBucketIfNotExists", ctx, projectID, bucketName, region)}
+//   - kmsGrant *string
+func (_e *MockGoogleServices_Expecter) CreateBucketIfNotExists(ctx interface{}, projectID interface{}, bucketName interface{}, region interface{}, kmsGrant interface{}) *MockGoogleServices_CreateBucketIfNotExists_Call {
+	return &MockGoogleServices_CreateBucketIfNotExists_Call{Call: _e.mock.On("CreateBucketIfNotExists", ctx, projectID, bucketName, region, kmsGrant)}
 }
 
-func (_c *MockGoogleServices_CreateBucketIfNotExists_Call) Run(run func(ctx context.Context, projectID string, bucketName string, region string)) *MockGoogleServices_CreateBucketIfNotExists_Call {
+func (_c *MockGoogleServices_CreateBucketIfNotExists_Call) Run(run func(ctx context.Context, projectID string, bucketName string, region string, kmsGrant *string)) *MockGoogleServices_CreateBucketIfNotExists_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(*string))
 	})
 	return _c
 }
@@ -229,7 +230,7 @@ func (_c *MockGoogleServices_CreateBucketIfNotExists_Call) Return(_a0 error) *Mo
 	return _c
 }
 
-func (_c *MockGoogleServices_CreateBucketIfNotExists_Call) RunAndReturn(run func(context.Context, string, string, string) error) *MockGoogleServices_CreateBucketIfNotExists_Call {
+func (_c *MockGoogleServices_CreateBucketIfNotExists_Call) RunAndReturn(run func(context.Context, string, string, string, *string) error) *MockGoogleServices_CreateBucketIfNotExists_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -2127,9 +2127,9 @@ func TestServiceAccountAlreadyExists(t *testing.T) {
 	locationType := "region"
 
 	// Only expect CreateBucketIfNotExists since service accounts are no longer created
-	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion).Return(nil)
+	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion, mock.AnythingOfType("*string")).Return(nil)
 
-	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType)
+	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType, nil)
 
 	assert.NoError(t, err)
 	assert.Nil(t, account) // No service account is created anymore
@@ -2148,9 +2148,9 @@ func TestServiceAccountCreationFails(t *testing.T) {
 	locationType := "region"
 
 	// Only expect CreateBucketIfNotExists since service accounts are no longer created
-	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion).Return(nil)
+	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion, mock.AnythingOfType("*string")).Return(nil)
 
-	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType)
+	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType, nil)
 
 	assert.NoError(t, err)
 	assert.Nil(t, account) // No service account is created anymore
@@ -2169,9 +2169,9 @@ func TestBucketCreationFails(t *testing.T) {
 	locationType := "region"
 
 	// Only expect CreateBucketIfNotExists since service accounts are no longer created
-	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion).Return(errors.New("failed to create bucket"))
+	mockGcpService.On("CreateBucketIfNotExists", mock.Anything, projectNumber, bucketName, tenantProjectRegion, mock.AnythingOfType("*string")).Return(errors.New("failed to create bucket"))
 
-	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType)
+	account, bucketDetails, err := activities.GetOrCreateAndGCSResources(mockGcpService, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, account)
@@ -2205,11 +2205,11 @@ func TestCreateBucketSuccess(t *testing.T) {
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 		return &google.GcpServices{}, nil
 	}
-	activities.GetOrCreateAndGCSResources = func(gcpServices hyperscaler2.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*hyperscaler.ServiceAccount, []*common.BucketDetails, error) {
+	activities.GetOrCreateAndGCSResources = func(gcpServices hyperscaler2.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string, kmsGrant *string) (*hyperscaler.ServiceAccount, []*common.BucketDetails, error) {
 		return nil, res, nil
 	}
 	activity := activities.VolumeCreateActivity{}
-	bucketDetails, err := activity.CreateBucket(context.Background(), resourceName, tenancyDetails, region)
+	bucketDetails, err := activity.CreateBucket(context.Background(), resourceName, tenancyDetails, region, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, bucketDetails)
@@ -2234,7 +2234,7 @@ func TestCreateBucketGetGcpServiceFails(t *testing.T) {
 		return nil, errors.New("failed to get GCP service")
 	}
 	activity := activities.VolumeCreateActivity{}
-	bucketDetails, err := activity.CreateBucket(context.Background(), resourceName, tenancyDetails, region)
+	bucketDetails, err := activity.CreateBucket(context.Background(), resourceName, tenancyDetails, region, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, bucketDetails)
@@ -6514,6 +6514,71 @@ func TestConvertInternalAPIToDatamodel_DirectUnitTest(t *testing.T) {
 				// BucketDetails should be nil because BucketName is empty
 			},
 		},
+		{
+			name: "With_CMEK_Attributes",
+			input: &googleproxyclient.BackupVaultInternalV1beta{
+				BackupVaultId:   "cmek-vault-id",
+				ResourceId:      "cmek-resource-id",
+				AccountVendorId: "123456789",
+				BackupVaultType: googleproxyclient.BackupVaultInternalV1betaBackupVaultTypeINREGION,
+				LifeCycleState:  googleproxyclient.BackupVaultInternalV1betaLifeCycleStateREADY,
+				KmsConfigResourcePath:    googleproxyclient.NewOptString("projects/test-project/locations/us-central1/kmsConfigs/myconfig"),
+				EncryptionState:          googleproxyclient.NewOptBackupVaultInternalV1betaEncryptionState(googleproxyclient.BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED),
+				BackupsPrimaryKeyVersion: googleproxyclient.NewOptString("projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key/cryptoKeyVersions/1"),
+			},
+			expectedOutput: &datamodel.BackupVault{
+				Name:            "cmek-vault-id",
+				AccountVendorID: "123456789",
+				LifeCycleState:  "READY",
+				BackupVaultType: "IN_REGION",
+				CmekAttributes: &datamodel.CmekAttributes{
+					KmsConfigResourcePath:    nillable.GetStringPtr("projects/test-project/locations/us-central1/kmsConfigs/myconfig"),
+					EncryptionState:          nillable.GetStringPtr("ENCRYPTION_STATE_COMPLETED"),
+					BackupsPrimaryKeyVersion: nillable.GetStringPtr("projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key/cryptoKeyVersions/1"),
+				},
+			},
+		},
+		{
+			name: "With_Partial_CMEK_Attributes",
+			input: &googleproxyclient.BackupVaultInternalV1beta{
+				BackupVaultId:   "partial-cmek-vault-id",
+				ResourceId:      "partial-cmek-resource-id",
+				AccountVendorId: "123456789",
+				BackupVaultType: googleproxyclient.BackupVaultInternalV1betaBackupVaultTypeINREGION,
+				LifeCycleState:  googleproxyclient.BackupVaultInternalV1betaLifeCycleStateREADY,
+				KmsConfigResourcePath: googleproxyclient.NewOptString("projects/test-project/locations/us-central1/kmsConfigs/myconfig"),
+				// EncryptionState and BackupsPrimaryKeyVersion are not set
+			},
+			expectedOutput: &datamodel.BackupVault{
+				Name:            "partial-cmek-vault-id",
+				AccountVendorID: "123456789",
+				LifeCycleState:  "READY",
+				BackupVaultType: "IN_REGION",
+				CmekAttributes: &datamodel.CmekAttributes{
+					KmsConfigResourcePath: nillable.GetStringPtr("projects/test-project/locations/us-central1/kmsConfigs/myconfig"),
+					EncryptionState:       nil,
+					BackupsPrimaryKeyVersion: nil,
+				},
+			},
+		},
+		{
+			name: "Without_CMEK_Attributes",
+			input: &googleproxyclient.BackupVaultInternalV1beta{
+				BackupVaultId:   "no-cmek-vault-id",
+				ResourceId:      "no-cmek-resource-id",
+				AccountVendorId: "123456789",
+				BackupVaultType: googleproxyclient.BackupVaultInternalV1betaBackupVaultTypeINREGION,
+				LifeCycleState:  googleproxyclient.BackupVaultInternalV1betaLifeCycleStateREADY,
+				// No CMEK fields set
+			},
+			expectedOutput: &datamodel.BackupVault{
+				Name:            "no-cmek-vault-id",
+				AccountVendorID: "123456789",
+				LifeCycleState:  "READY",
+				BackupVaultType: "IN_REGION",
+				CmekAttributes: nil,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -6593,6 +6658,29 @@ func TestConvertInternalAPIToDatamodel_DirectUnitTest(t *testing.T) {
 				}
 			}
 
+			// Extract CMEK attributes from internal API response
+			var cmekFields *datamodel.CmekAttributes
+			if tt.input.KmsConfigResourcePath.IsSet() || tt.input.EncryptionState.IsSet() || tt.input.BackupsPrimaryKeyVersion.IsSet() {
+				cmekFields = &datamodel.CmekAttributes{}
+				if tt.input.KmsConfigResourcePath.IsSet() {
+					kmsConfigPath := tt.input.KmsConfigResourcePath.Value
+					cmekFields.KmsConfigResourcePath = &kmsConfigPath
+				}
+				if tt.input.EncryptionState.IsSet() {
+					encryptionState := string(tt.input.EncryptionState.Value)
+					cmekFields.EncryptionState = &encryptionState
+				}
+				if tt.input.BackupsPrimaryKeyVersion.IsSet() {
+					backupsPrimaryKeyVersion := tt.input.BackupsPrimaryKeyVersion.Value
+					cmekFields.BackupsPrimaryKeyVersion = &backupsPrimaryKeyVersion
+				}
+				// Only set CmekAttributes if at least one field is present
+				if cmekFields.KmsConfigResourcePath == nil && cmekFields.EncryptionState == nil && cmekFields.BackupsPrimaryKeyVersion == nil {
+					cmekFields = nil
+				}
+			}
+			result.CmekAttributes = cmekFields
+
 			// Assert
 			assert.Equal(t, tt.expectedOutput, result)
 		})
@@ -6665,6 +6753,75 @@ func TestFetchRemoteBackupVaultFromVCP(t *testing.T) {
 		assert.NotNil(t, result.BucketDetails)
 		assert.Len(t, result.BucketDetails, 1)
 		assert.Equal(t, "test-bucket", result.BucketDetails[0].BucketName)
+	})
+
+	t.Run("Success_ValidBackupVault_WithCMEK", func(t *testing.T) {
+		// Arrange
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		// Store original and restore after test
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock GetRemoteRegionConfig to return base path and JWT token
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock successful response with CMEK attributes
+		expectedResponse := &googleproxyclient.BackupVaultInternalV1beta{
+			BackupVaultId:              "test-vault-uuid-cmek",
+			ResourceId:                 "test-resource-id-cmek",
+			AccountVendorId:            "123456789",
+			BackupVaultType:            googleproxyclient.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
+			LifeCycleState:             googleproxyclient.BackupVaultInternalV1betaLifeCycleStateREADY,
+			Description:                googleproxyclient.NewOptString("Test backup vault with CMEK"),
+			SourceRegion:               googleproxyclient.NewOptString("us-central1"),
+			BackupRegion:               googleproxyclient.NewOptString("us-west1"),
+			ExternalUuid:               googleproxyclient.NewOptString("ext-uuid-123"),
+			KmsConfigResourcePath:      googleproxyclient.NewOptString("projects/test-project/locations/us-central1/kmsConfigs/myconfig"),
+			EncryptionState:            googleproxyclient.NewOptBackupVaultInternalV1betaEncryptionState(googleproxyclient.BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED),
+			BackupsPrimaryKeyVersion:   googleproxyclient.NewOptString("projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key/cryptoKeyVersions/1"),
+			BucketDetails: []googleproxyclient.BackupVaultInternalV1betaBucketDetailsItem{
+				{
+					BucketName:          googleproxyclient.NewOptString("test-bucket"),
+					ServiceAccountName:  googleproxyclient.NewOptString("test-sa@project.iam.gserviceaccount.com"),
+					TenantProjectNumber: googleproxyclient.NewOptString("987654321"),
+					VendorSubnetId:      googleproxyclient.NewOptString("subnet-123"),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaInternalDescribeBackupVault", mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		// Act
+		result, err := activities.FetchRemoteBackupVaultFromVCP(ctx, "test-vault-uuid-cmek", "123456789", "us-west1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-vault-uuid-cmek", result.Name)
+		assert.Equal(t, "123456789", result.AccountVendorID)
+		assert.Equal(t, "READY", result.LifeCycleState)
+		assert.Equal(t, "CROSS_REGION", result.BackupVaultType)
+		assert.NotNil(t, result.CmekAttributes)
+		assert.NotNil(t, result.CmekAttributes.KmsConfigResourcePath)
+		assert.Equal(t, "projects/test-project/locations/us-central1/kmsConfigs/myconfig", *result.CmekAttributes.KmsConfigResourcePath)
+		assert.NotNil(t, result.CmekAttributes.EncryptionState)
+		assert.Equal(t, "ENCRYPTION_STATE_COMPLETED", *result.CmekAttributes.EncryptionState)
+		assert.NotNil(t, result.CmekAttributes.BackupsPrimaryKeyVersion)
+		assert.Equal(t, "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key/cryptoKeyVersions/1", *result.CmekAttributes.BackupsPrimaryKeyVersion)
 	})
 
 	t.Run("Error_V1betaInternalDescribeBackupVault_NetworkError", func(t *testing.T) {
@@ -8906,6 +9063,104 @@ func TestCreateRemoteBackupVaultInVCP(t *testing.T) {
 		assert.True(t, errors.As(err, &appErr))
 		assert.True(t, appErr.NonRetryable())
 		assert.Equal(t, "InternalCreateBackupVaultFailed", appErr.Type())
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_WithExternalUUIDAndBucketDetails", func(t *testing.T) {
+		// Arrange
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		externalUUID := "external-uuid-12345"
+		testBackupVault := &datamodel.BackupVault{
+			BaseModel:     datamodel.BaseModel{UUID: "test-bv-uuid"},
+			Name:          "test-backup-vault",
+			AccountVendorID: "123456789",
+			BackupVaultType: "CROSS_REGION",
+			LifeCycleState:  "READY",
+			BackupRegionName: &backupRegion,
+			ExternalUUID:    &externalUUID,
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "test-sa@project.iam.gserviceaccount.com",
+					VendorSubnetID:      "subnet-123",
+					TenantProjectNumber: "987654321",
+					SatisfiesPzi:        true,
+					SatisfiesPzs:        false,
+				},
+			},
+		}
+
+		testBucketDetails := &common.BucketDetails{
+			BucketName:          "test-bucket",
+			ServiceAccountName:  "test-sa@project.iam.gserviceaccount.com",
+			VendorSubnetID:      "subnet-123",
+			TenantProjectNumber: "987654321",
+			SatisfiesPzi:        true,
+			SatisfiesPzs:        false,
+		}
+
+		// Mock successful response
+		createdVault := &googleproxyclient.BackupVaultInternalV1beta{
+			BackupVaultId:   "test-bv-uuid",
+			ResourceId:      "test-resource-id",
+			AccountVendorId: "123456789",
+			BackupVaultType: googleproxyclient.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
+			LifeCycleState:  googleproxyclient.BackupVaultInternalV1betaLifeCycleStateREADY,
+			SourceRegion:    googleproxyclient.NewOptString("us-central1"),
+			BackupRegion:    googleproxyclient.NewOptString("us-west1"),
+		}
+
+		// Use mock.MatchedBy to verify the conversion includes ExternalUUID and BucketDetails
+		mockInvoker.On("V1betaInternalCreateBackupVault", mock.Anything,
+			mock.MatchedBy(func(apiBackupVault *googleproxyclient.BackupVaultInternalV1beta) bool {
+				if apiBackupVault == nil {
+					return false
+				}
+				// Verify ExternalUUID is set
+				if !apiBackupVault.ExternalUuid.IsSet() || apiBackupVault.ExternalUuid.Value != externalUUID {
+					return false
+				}
+				// Verify BucketDetails are set
+				if len(apiBackupVault.BucketDetails) == 0 {
+					return false
+				}
+				bucket := apiBackupVault.BucketDetails[0]
+				if !bucket.BucketName.IsSet() || bucket.BucketName.Value != "test-bucket" {
+					return false
+				}
+				if !bucket.ServiceAccountName.IsSet() || bucket.ServiceAccountName.Value != "test-sa@project.iam.gserviceaccount.com" {
+					return false
+				}
+				return true
+			}),
+			mock.Anything).Return(createdVault, nil)
+
+		// Act
+		result, err := activities.CreateRemoteBackupVaultInVCP(ctx, projectNumber, testBackupVault, testBucketDetails)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-bv-uuid", result.Name)
 		mockInvoker.AssertExpectations(t)
 	})
 }

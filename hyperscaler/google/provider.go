@@ -16,6 +16,7 @@ import (
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	retryutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"golang.org/x/oauth2/google"
@@ -561,11 +562,20 @@ func _initializeCloudRunService(ctx context.Context) (*cloudrun.Service, error) 
 }
 
 // Enhanced CreateBucketIfNotExists with better error handling
-func (gcpService *GcpServices) CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error {
+func (gcpService *GcpServices) CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string, kmsGrant *string) error {
 	logger := util.GetLogger(ctx)
-	err := gcpService.AdminGCPService.storageService.Bucket(bucketName).Create(ctx, projectID, &storage.BucketAttrs{
+	bucketAttrs := &storage.BucketAttrs{
 		Location: region,
-	})
+	}
+	// If kmsGrant is provided, set CMEK encryption
+	kmsGrantValue := nillable.GetString(kmsGrant, "")
+	if kmsGrantValue != "" {
+		bucketAttrs.Encryption = &storage.BucketEncryption{
+			DefaultKMSKeyName: kmsGrantValue,
+		}
+		logger.Infof("Creating bucket %s with CMEK", bucketName)
+	}
+	err := gcpService.AdminGCPService.storageService.Bucket(bucketName).Create(ctx, projectID, bucketAttrs)
 	if err != nil {
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) {

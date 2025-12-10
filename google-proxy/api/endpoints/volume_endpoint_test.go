@@ -11179,10 +11179,15 @@ func TestConvertModelToVolumeV1beta_WithSecurityStyle(t *testing.T) {
 	})
 }
 
-func TestPrepareCreateVolumeParams_ISCSIWithKmsGrant_ReturnsError(t *testing.T) {
+func TestPrepareCreateVolumeParams_ISCSIWithKmsGrant_FeatureFlagDisabled_ReturnsError(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	defer func() { backupEnabled = origBackupEnabled }()
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		cmekBackupEnabled = origCmekBackupEnabled
+	}()
 	backupEnabled = true
+	cmekBackupEnabled = false
 
 	req := &gcpgenserver.VolumeCreateV1beta{
 		Volume: gcpgenserver.VolumeV1beta{
@@ -11210,13 +11215,60 @@ func TestPrepareCreateVolumeParams_ISCSIWithKmsGrant_ReturnsError(t *testing.T) 
 	result, err := _prepareCreateVolumeParams(req, params, region, zone)
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "Volumes cannot be created with CMEK-enabled backup vaults")
+	assert.Contains(t, err.Error(), "CMEK backup is not enabled")
 }
 
-func TestPrepareCreateVolumeParams_WithKmsGrant_NoProtocols_ReturnsError(t *testing.T) {
+func TestPrepareCreateVolumeParams_ISCSIWithKmsGrant_FeatureFlagEnabled_Succeeds(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	defer func() { backupEnabled = origBackupEnabled }()
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		cmekBackupEnabled = origCmekBackupEnabled
+	}()
 	backupEnabled = true
+	cmekBackupEnabled = true
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testvolume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaISCSI,
+			},
+			BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+				gcpgenserver.BackupConfigV1beta{
+					BackupVaultId: gcpgenserver.NewOptNilString("test-bv-id"),
+					KmsGrant:      gcpgenserver.NewOptNilString("projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"),
+				},
+			),
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotNil(t, result.DataProtection)
+	assert.NotNil(t, result.DataProtection.KmsGrant)
+	assert.Equal(t, "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key", *result.DataProtection.KmsGrant)
+}
+
+func TestPrepareCreateVolumeParams_WithKmsGrant_FeatureFlagDisabled_ReturnsError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		cmekBackupEnabled = origCmekBackupEnabled
+	}()
+	backupEnabled = true
+	cmekBackupEnabled = false
 
 	req := &gcpgenserver.VolumeCreateV1beta{
 		Volume: gcpgenserver.VolumeV1beta{
@@ -11238,17 +11290,21 @@ func TestPrepareCreateVolumeParams_WithKmsGrant_NoProtocols_ReturnsError(t *test
 	region := "test-region"
 	zone := "test-zone"
 
-	// kmsGrant should be rejected regardless of protocols
 	result, err := _prepareCreateVolumeParams(req, params, region, zone)
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "Volumes cannot be created with CMEK-enabled backup vaults")
+	assert.Contains(t, err.Error(), "CMEK backup is not enabled")
 }
 
-func TestPrepareUpdateVolumeParams_ISCSIWithKmsGrant_ReturnsError(t *testing.T) {
+func TestPrepareUpdateVolumeParams_ISCSIWithKmsGrant_FeatureFlagDisabled_ReturnsError(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	defer func() { backupEnabled = origBackupEnabled }()
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		cmekBackupEnabled = origCmekBackupEnabled
+	}()
 	backupEnabled = true
+	cmekBackupEnabled = false
 
 	req := &gcpgenserver.VolumeUpdateV1beta{
 		Protocols: []gcpgenserver.ProtocolsV1beta{
@@ -11274,16 +11330,60 @@ func TestPrepareUpdateVolumeParams_ISCSIWithKmsGrant_ReturnsError(t *testing.T) 
 	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "Volumes cannot be configured with CMEK-enabled backup vaults")
+	assert.Contains(t, err.Error(), "CMEK backup is not enabled")
 }
 
-func TestPrepareUpdateVolumeParams_ISCSIWithKmsGrant_FromDBVolume(t *testing.T) {
+func TestPrepareUpdateVolumeParams_ISCSIWithKmsGrant_FeatureFlagEnabled_Succeeds(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	defer func() { backupEnabled = origBackupEnabled }()
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		cmekBackupEnabled = origCmekBackupEnabled
+	}()
 	backupEnabled = true
+	cmekBackupEnabled = true
 
 	req := &gcpgenserver.VolumeUpdateV1beta{
-		// No protocols in request, kmsGrant should be rejected regardless
+		Protocols: []gcpgenserver.ProtocolsV1beta{
+			gcpgenserver.ProtocolsV1betaISCSI,
+		},
+		BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+			gcpgenserver.BackupConfigV1beta{
+				BackupVaultId: gcpgenserver.NewOptNilString("test-bv-id"),
+				KmsGrant:      gcpgenserver.NewOptNilString("projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"),
+			},
+		),
+	}
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume-id",
+	}
+	dbVolume := &models.Volume{
+		BaseModel:   models.BaseModel{UUID: "test-volume-id"},
+		DisplayName: "testvolume",
+	}
+
+	region := "test-region"
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotNil(t, result.DataProtection)
+	assert.NotNil(t, result.DataProtection.KmsGrant)
+	assert.Equal(t, "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key", *result.DataProtection.KmsGrant)
+}
+
+func TestPrepareUpdateVolumeParams_ISCSIWithKmsGrant_FromDBVolume_FeatureFlagDisabled_ReturnsError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		cmekBackupEnabled = origCmekBackupEnabled
+	}()
+	backupEnabled = true
+	cmekBackupEnabled = false
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
 		BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
 			gcpgenserver.BackupConfigV1beta{
 				KmsGrant: gcpgenserver.NewOptNilString("projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"),
@@ -11305,13 +11405,18 @@ func TestPrepareUpdateVolumeParams_ISCSIWithKmsGrant_FromDBVolume(t *testing.T) 
 	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "Volumes cannot be configured with CMEK-enabled backup vaults")
+	assert.Contains(t, err.Error(), "CMEK backup is not enabled")
 }
 
-func TestPrepareUpdateVolumeParams_WithKmsGrant_NoProtocols_ReturnsError(t *testing.T) {
+func TestPrepareUpdateVolumeParams_WithKmsGrant_FeatureFlagDisabled_ReturnsError(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	defer func() { backupEnabled = origBackupEnabled }()
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		cmekBackupEnabled = origCmekBackupEnabled
+	}()
 	backupEnabled = true
+	cmekBackupEnabled = false
 
 	req := &gcpgenserver.VolumeUpdateV1beta{
 		BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
@@ -11331,10 +11436,9 @@ func TestPrepareUpdateVolumeParams_WithKmsGrant_NoProtocols_ReturnsError(t *test
 	}
 
 	region := "test-region"
-	// kmsGrant should be rejected regardless of protocols
 	_, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Volumes cannot be configured with CMEK-enabled backup vaults")
+	assert.Contains(t, err.Error(), "CMEK backup is not enabled")
 }
 
 func TestConvertModelToVCPVolume_WithKmsGrant(t *testing.T) {
