@@ -32,7 +32,6 @@ type volumeUpdateWorkflow struct {
 var _ WorkflowInterface = &volumeUpdateWorkflow{}
 var (
 	convertCacheParameters               = _convertCacheParameters
-	flexCacheEnabled                     = env.GetBool("FLEXCACHE_ENABLED", false)
 	isUpdateFlexCacheRequired            = _isUpdateFlexCacheRequired
 	isUpdateFlexCachePrepopulateRequired = _isUpdateFlexCachePrepopulateRequired
 )
@@ -653,10 +652,6 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 
 func _isUpdateFlexCacheRequired(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
 	// TODO: Refactor this and _applyFlexCacheUpdateParams to a common location.
-	// feature is disabled
-	if !flexCacheEnabled {
-		return false
-	}
 	// No incoming FlexCache intent
 	if params == nil || params.CacheParameters == nil || params.CacheParameters.CacheConfig == nil {
 		return false
@@ -699,9 +694,6 @@ func _isUpdateFlexCacheRequired(existingVolume *datamodel.Volume, params *common
 }
 
 func _isUpdateFlexCachePrepopulateRequired(existingVolume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
-	if !flexCacheEnabled {
-		return false
-	}
 	if params == nil || params.CacheParameters == nil || params.CacheParameters.CacheConfig == nil {
 		return false
 	}

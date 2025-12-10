@@ -1173,7 +1173,6 @@ func TestGetUpdatedFieldsFromParams_FlexCacheUpdate(t *testing.T) {
 }
 
 func TestApplyFlexCacheParameters(t *testing.T) {
-	flexCacheEnabled = true
 	tests := []struct {
 		name           string
 		volume         *datamodel.Volume

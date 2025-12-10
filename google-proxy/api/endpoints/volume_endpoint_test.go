@@ -3793,6 +3793,75 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		assert.Equal(tt, float64(500), internalErr.Code)
 		assert.Equal(tt, "Internal server error", internalErr.Message)
 	})
+
+	t.Run("FlexCache update with feature disabled", func(tt *testing.T) {
+		currentFCState := flexCacheEnabled
+		flexCacheEnabled = false
+		defer func() { flexCacheEnabled = currentFCState }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{}
+		volume := &models.Volume{
+			BaseModel: models.BaseModel{UUID: "vol-1"},
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
+			return &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{},
+			}, nil
+		}
+		defer func() { prepareUpdateVolumeParams = _prepareUpdateVolumeParams }()
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(403), badReq.Code)
+		assert.Contains(tt, badReq.Message, "FlexCache feature is currently not enabled.")
+	})
+
+	t.Run("FlexCache update with feature enabled", func(tt *testing.T) {
+		currentFCState := flexCacheEnabled
+		flexCacheEnabled = true
+		defer func() { flexCacheEnabled = currentFCState }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "READY",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+		prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string, dbVolume *models.Volume) (*common.UpdateVolumeParams, error) {
+			return &common.UpdateVolumeParams{
+				CacheParameters: &models.CacheParameters{},
+			}, nil
+		}
+		defer func() { prepareUpdateVolumeParams = _prepareUpdateVolumeParams }()
+
+		mockOrchestrator.EXPECT().UpdateVolumeV2(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
 }
 
 func TestPrepareUpdateVolumeParamsWithNilBackupChainBytes(t *testing.T) {
@@ -9305,7 +9374,24 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 				Set: true,
 			},
 		}
-		result, err := _prepareUpdateVolumeParams(req, param, region, nil)
+
+		dbVolume := &models.Volume{
+			CacheParameters: &models.CacheParameters{
+				PeerVolumeName:  "peer-vol-1",
+				PeerClusterName: "peer-cluster-1",
+				PeerSvmName:     "peer-svm-1",
+				PeerIPAddresses: []string{
+					"1.1.1.1",
+					"2.2.2.2",
+				},
+				CacheConfig: &models.CacheConfig{
+					// Existing config state (being updated)
+					AtimeScrubEnabled: nillable.GetBoolPtr(true),
+				},
+			},
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, param, region, dbVolume)
 		assert.NoError(t, err)
 		assert.NotNil(t, result.CacheParameters.CacheConfig)
 		assert.Equal(t, int16(5), *result.CacheParameters.CacheConfig.AtimeScrubDays)
@@ -9348,7 +9434,25 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 				Set: true,
 			},
 		}
-		result, err := _prepareUpdateVolumeParams(req, param, region, nil)
+
+		dbVolume := &models.Volume{
+			CacheParameters: &models.CacheParameters{
+				PeerVolumeName:  "peer-vol-1",
+				PeerClusterName: "peer-cluster-1",
+				PeerSvmName:     "peer-svm-1",
+				PeerIPAddresses: []string{
+					"1.1.1.1",
+					"2.2.2.2",
+				},
+				CacheConfig: &models.CacheConfig{
+					// Existing config - only updating writebackEnabled and cifsChangeNotifyEnabled
+					WritebackEnabled:        nillable.GetBoolPtr(false), // Will be updated to true
+					CifsChangeNotifyEnabled: nillable.GetBoolPtr(false), // Will be updated to true
+				},
+			},
+		}
+
+		result, err := _prepareUpdateVolumeParams(req, param, region, dbVolume)
 		assert.NoError(t, err)
 		assert.NotNil(t, result.CacheParameters.CacheConfig)
 		assert.True(t, *result.CacheParameters.CacheConfig.CifsChangeNotifyEnabled)
@@ -11450,4 +11554,374 @@ func TestConvertModelToVCPVolume_WithKmsGrant(t *testing.T) {
 	assert.NotNil(t, result.BackupConfig)
 	assert.True(t, result.BackupConfig.Value.KmsGrant.IsSet())
 	assert.Equal(t, kmsGrant, result.BackupConfig.Value.KmsGrant.Value)
+}
+
+func TestValidateFlexCacheUpdateParams(t *testing.T) {
+	tests := []struct {
+		name        string
+		cacheParams *gcpgenserver.FlexCacheV1beta
+		dbVolume    *models.Volume
+		wantErr     bool
+		errMsg      string
+	}{
+		{
+			name: "Valid - cacheConfig not set",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerVolumeName: "origin",
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerVolumeName: "origin",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - only cacheConfig fields",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled:        gcpgenserver.NewOptNilBool(false),
+					CifsChangeNotifyEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid - updating non-FlexCache volume",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: nil, // Not a FlexCache volume
+			},
+			wantErr: true,
+			errMsg:  "Cannot update cacheConfig on a non-FlexCache volume",
+		},
+		{
+			name: "Invalid - immutable field PeerVolumeName set",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerVolumeName: "origin",
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{},
+			},
+			wantErr: true,
+			errMsg:  "PeerVolumeName is immutable and cannot be changed",
+		},
+		{
+			name: "Invalid - immutable field EnableGlobalFileLock set",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(true),
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{},
+			},
+			wantErr: true,
+			errMsg:  "EnableGlobalFileLock is immutable and cannot be changed",
+		},
+		{
+			name: "Invalid - immutable field PeerClusterName set (different from DB)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerClusterName: "cluster1",
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerClusterName: "", // Empty string in DB, "cluster1" in request = change
+				},
+			},
+			wantErr: true,
+			errMsg:  "PeerClusterName is immutable and cannot be changed", // ✅ Updated
+		},
+		{
+			name: "Invalid - immutable field PeerIpAddresses set (different from DB)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerIpAddresses: []string{"10.0.0.1"},
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerIPAddresses: nil, // nil in DB, []string{"10.0.0.1"} in request = change
+				},
+			},
+			wantErr: true,
+			errMsg:  "PeerIpAddresses is immutable and cannot be changed", // ✅ Updated
+		},
+		{
+			name: "Invalid - immutable field PeerSvmName set (different from DB)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerSvmName: "svm1",
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerSvmName: "", // Empty string in DB, "svm1" in request = change
+				},
+			},
+			wantErr: true,
+			errMsg:  "PeerSvmName is immutable and cannot be changed", // ✅ Updated
+		},
+		{
+			name: "Invalid - immutable field PeerVolumeName set (different from DB)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerVolumeName: "origin",
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerVolumeName: "", // Empty string in DB, "origin" in request = change
+				},
+			},
+			wantErr: true,
+			errMsg:  "PeerVolumeName is immutable and cannot be changed", // ✅ Updated
+		},
+		{
+			name: "Valid - atimeScrubDays with atimeScrubEnabled in request",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					AtimeScrubEnabled: gcpgenserver.NewOptNilBool(true),
+					AtimeScrubDays:    gcpgenserver.NewOptNilInt16(14),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - atimeScrubDays with atimeScrubEnabled already enabled in DB",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					AtimeScrubDays: gcpgenserver.NewOptNilInt16(7),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						AtimeScrubEnabled: nillable.GetBoolPtr(true),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid - atimeScrubDays without atimeScrubEnabled",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					AtimeScrubDays: gcpgenserver.NewOptNilInt16(14),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{},
+				},
+			},
+			wantErr: true,
+			errMsg:  "atimeScrubDays can only be set when atimeScrubEnabled is true",
+		},
+		{
+			name: "Invalid - atimeScrubDays when explicitly disabling atimeScrubEnabled",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					AtimeScrubEnabled: gcpgenserver.NewOptNilBool(false),
+					AtimeScrubDays:    gcpgenserver.NewOptNilInt16(14),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{},
+				},
+			},
+			wantErr: true,
+			errMsg:  "atimeScrubDays can only be set when atimeScrubEnabled is true",
+		},
+		{
+			name: "Valid - all mutable fields",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled:        gcpgenserver.NewOptNilBool(false),
+					AtimeScrubEnabled:       gcpgenserver.NewOptNilBool(true),
+					AtimeScrubDays:          gcpgenserver.NewOptNilInt16(14),
+					CifsChangeNotifyEnabled: gcpgenserver.NewOptNilBool(true),
+					CachePrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
+						PathList:        gcpgenserver.NewOptNilStringArray([]string{"/"}),
+						ExcludePathList: gcpgenserver.NewOptNilStringArray([]string{"/temp"}),
+						Recursion:       gcpgenserver.NewOptNilBool(true),
+					}),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - dbVolume is nil",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: nil,
+			wantErr:  false, // dbVolume nil check only happens if not nil
+		},
+		{
+			name: "Valid - empty cacheConfig",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - immutable fields match DB values",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerVolumeName:       "origin",
+				PeerClusterName:      "cluster1",
+				PeerSvmName:          "svm1",
+				PeerIpAddresses:      []string{"10.0.0.1"},
+				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(false),
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerVolumeName:       "origin",
+					PeerClusterName:      "cluster1",
+					PeerSvmName:          "svm1",
+					PeerIPAddresses:      []string{"10.0.0.1"},
+					EnableGlobalFileLock: nillable.GetBoolPtr(false),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid - PeerVolumeName changed",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerVolumeName: "different-origin",
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerVolumeName: "origin",
+				},
+			},
+			wantErr: true,
+			errMsg:  "PeerVolumeName is immutable and cannot be changed",
+		},
+		{
+			name: "Invalid - PeerClusterName changed",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerClusterName: "different-cluster",
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerClusterName: "cluster1",
+				},
+			},
+			wantErr: true,
+			errMsg:  "PeerClusterName is immutable and cannot be changed",
+		},
+		{
+			name: "Invalid - PeerIpAddresses changed",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerIpAddresses: []string{"10.0.0.2"},
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerIPAddresses: []string{"10.0.0.1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "PeerIpAddresses is immutable and cannot be changed",
+		},
+		{
+			name: "Invalid - EnableGlobalFileLock changed",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(true),
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					EnableGlobalFileLock: nillable.GetBoolPtr(false),
+				},
+			},
+			wantErr: true,
+			errMsg:  "EnableGlobalFileLock is immutable and cannot be changed",
+		},
+		{
+			name: "Valid - all immutable fields match DB",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				PeerVolumeName:       "origin",
+				PeerClusterName:      "cluster1",
+				PeerSvmName:          "svm1",
+				PeerIpAddresses:      []string{"10.0.0.1", "10.0.0.2"},
+				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(false),
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled:        gcpgenserver.NewOptNilBool(true),
+					CifsChangeNotifyEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerVolumeName:       "origin",
+					PeerClusterName:      "cluster1",
+					PeerSvmName:          "svm1",
+					PeerIPAddresses:      []string{"10.0.0.1", "10.0.0.2"},
+					EnableGlobalFileLock: nillable.GetBoolPtr(false),
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateFlexCacheUpdateParams(tt.cacheParams, tt.dbVolume)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

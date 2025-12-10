@@ -682,6 +682,13 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
+	if param.CacheParameters != nil && !flexCacheEnabled {
+		return &gcpgenserver.V1betaUpdateVolumeBadRequest{
+			Code:    403,
+			Message: "FlexCache feature is currently not enabled.",
+		}, nil
+	}
+
 	volume, jobUUID, err := h.Orchestrator.UpdateVolumeV2(ctx, param)
 	if err != nil {
 		if errors.IsConflictErr(err) {
@@ -978,6 +985,11 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 
 	if req.CacheParameters.IsSet() {
 		reqCacheProperties, _ := req.CacheParameters.Get()
+
+		if err := validateFlexCacheUpdateParams(&reqCacheProperties, dbVolume); err != nil {
+			return nil, err
+		}
+
 		// Handle CacheConfig if present
 		if reqCacheProperties.CacheConfig.IsSet() {
 			cacheConfig, _ := reqCacheProperties.CacheConfig.Get()
@@ -2871,5 +2883,88 @@ func validateSmbVolumeParams(req *gcpgenserver.VolumeUpdateV1beta) error {
 	if slices.Contains(req.SmbSettings, gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE) {
 		return errors.NewUserInputValidationErr("Cannot modify continuously_available smb share property")
 	}
+	return nil
+}
+
+func validateFlexCacheUpdateParams(cacheParams *gcpgenserver.FlexCacheV1beta, dbVolume *models.Volume) error {
+	if cacheParams == nil || !cacheParams.CacheConfig.IsSet() {
+		return nil
+	}
+
+	// Validate this is actually a FlexCache volume
+	if dbVolume != nil && dbVolume.CacheParameters == nil {
+		return errors.NewUserInputValidationErr(
+			"Cannot update cacheConfig on a non-FlexCache volume",
+		)
+	}
+
+	if dbVolume != nil && dbVolume.CacheParameters != nil {
+		if cacheParams.EnableGlobalFileLock.IsSet() {
+			requestedValue, _ := cacheParams.EnableGlobalFileLock.Get()
+			currentValue := false
+			if dbVolume.CacheParameters.EnableGlobalFileLock != nil {
+				currentValue = *dbVolume.CacheParameters.EnableGlobalFileLock
+			}
+			if requestedValue != currentValue {
+				return errors.NewUserInputValidationErr(
+					"EnableGlobalFileLock is immutable and cannot be changed",
+				)
+			}
+		}
+
+		if cacheParams.PeerClusterName != "" {
+			if cacheParams.PeerClusterName != dbVolume.CacheParameters.PeerClusterName {
+				return errors.NewUserInputValidationErr(
+					"PeerClusterName is immutable and cannot be changed",
+				)
+			}
+		}
+
+		if cacheParams.PeerIpAddresses != nil {
+			if !utils.IsSliceEqual(cacheParams.PeerIpAddresses, dbVolume.CacheParameters.PeerIPAddresses) {
+				return errors.NewUserInputValidationErr(
+					"PeerIpAddresses is immutable and cannot be changed",
+				)
+			}
+		}
+
+		if cacheParams.PeerSvmName != "" {
+			if cacheParams.PeerSvmName != dbVolume.CacheParameters.PeerSvmName {
+				return errors.NewUserInputValidationErr(
+					"PeerSvmName is immutable and cannot be changed",
+				)
+			}
+		}
+
+		if cacheParams.PeerVolumeName != "" {
+			if cacheParams.PeerVolumeName != dbVolume.CacheParameters.PeerVolumeName {
+				return errors.NewUserInputValidationErr(
+					"PeerVolumeName is immutable and cannot be changed",
+				)
+			}
+		}
+	}
+
+	cacheConfig, _ := cacheParams.CacheConfig.Get()
+
+	if cacheConfig.AtimeScrubDays.IsSet() {
+		atimeScrubEnabled := false
+
+		if cacheConfig.AtimeScrubEnabled.IsSet() {
+			atimeScrubEnabled, _ = cacheConfig.AtimeScrubEnabled.Get()
+		} else if dbVolume != nil &&
+			dbVolume.CacheParameters != nil &&
+			dbVolume.CacheParameters.CacheConfig != nil &&
+			dbVolume.CacheParameters.CacheConfig.AtimeScrubEnabled != nil {
+			atimeScrubEnabled = *dbVolume.CacheParameters.CacheConfig.AtimeScrubEnabled
+		}
+
+		if !atimeScrubEnabled {
+			return errors.NewUserInputValidationErr(
+				"atimeScrubDays can only be set when atimeScrubEnabled is true",
+			)
+		}
+	}
+
 	return nil
 }

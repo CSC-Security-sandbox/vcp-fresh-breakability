@@ -14,7 +14,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -30,7 +29,6 @@ var (
 	HostGroupsUpdateDiffForVolume = _hostGroupsUpdateDiffForVolume
 	getHostGroup                  = _getHostGroup
 	applyFlexCacheParameters      = _applyFlexCacheParameters
-	flexCacheEnabled              = env.GetBool("FLEXCACHE_ENABLED", false)
 )
 
 type VolumeUpdateActivity struct {
@@ -542,9 +540,6 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 }
 
 func _applyFlexCacheParameters(volume *datamodel.Volume, params *common.UpdateVolumeParams) bool {
-	if !flexCacheEnabled {
-		return false
-	}
 	if volume == nil || volume.CacheParameters == nil ||
 		params == nil || params.CacheParameters == nil || params.CacheParameters.CacheConfig == nil {
 		return false

@@ -3884,17 +3884,6 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 	boolPtr := func(b bool) *bool { return &b }
 	int16Ptr := func(i int16) *int16 { return &i }
 
-	origFlag := flexCacheEnabled
-	defer func() { flexCacheEnabled = origFlag }()
-
-	t.Run("FeatureDisabled", func(t *testing.T) {
-		flexCacheEnabled = false
-		assert.False(t, isUpdateFlexCacheRequired(&datamodel.Volume{}, &common.UpdateVolumeParams{}))
-	})
-
-	// Enable for remaining tests
-	flexCacheEnabled = true
-
 	t.Run("NoParams", func(t *testing.T) {
 		assert.False(t, isUpdateFlexCacheRequired(&datamodel.Volume{}, nil))
 	})
@@ -4408,19 +4397,8 @@ func Test_isUpdateFlexCachePrepopulateRequired(t *testing.T) {
 		},
 	}
 
-	// Save original flexCacheEnabled value and restore after tests
-	originalFlexCacheEnabled := flexCacheEnabled
-	defer func() { flexCacheEnabled = originalFlexCacheEnabled }()
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Enable flexCache for all tests except the first one
-			if tt.name == "flexCache disabled globally" {
-				flexCacheEnabled = false
-			} else {
-				flexCacheEnabled = true
-			}
-
 			got := _isUpdateFlexCachePrepopulateRequired(tt.existingVolume, tt.params)
 			if got != tt.want {
 				t.Errorf("_isUpdateFlexCachePrepopulateRequired() = %v, want %v", got, tt.want)
