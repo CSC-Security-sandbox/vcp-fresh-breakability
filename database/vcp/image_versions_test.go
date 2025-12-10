@@ -13,10 +13,10 @@ import (
 
 // Test constants for image version tests
 const (
-	testOntapVersion = "9.17.1P2"
-	testVSAImagePath = "gcr.io/vsa-image:9.17.1p2"
-	testVSAName      = "x-9-17-1p2-gcnv"
-	testMediatorName = "cvo-mediator-x-9-17-1p2d1"
+	testOntapVersion = "9.18.1RC1"
+	testVSAImagePath = "gcr.io/vsa-image:9.18.1RC1"
+	testVSAName      = "x-9-18-1rc1"
+	testMediatorName = "cvo-mediator-x-9-18-1rc1"
 )
 
 func TestDataStoreRepository_CreateImageVersion(t *testing.T) {

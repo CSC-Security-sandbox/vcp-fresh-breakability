@@ -72,7 +72,7 @@ type PostVolumeProvisioningParams struct {
 // Returns:
 //   - For post phase with both NFS and SMB protocols: returns a slice of workflows [PostFileVolumeWorkflow, PostFileVolumeWorkflowForSMB]
 //   - For all other cases: returns a single workflow function
-func selectVolumeChildWorkflow(protocols []string, phase, accountName string) (interface{}, error) {
+func selectVolumeChildWorkflow(protocols []string, phase string) (interface{}, error) {
 	if utils.IsSanProtocols(protocols) {
 		switch phase {
 		case PhasePre:
@@ -84,7 +84,7 @@ func selectVolumeChildWorkflow(protocols []string, phase, accountName string) (i
 		}
 	}
 	if utils.IsNasProtocols(protocols) {
-		if !utils.IsFileProtocolSupported(accountName) {
+		if !utils.IsFileProtocolSupported() {
 			return nil, ConvertToVSAError(fmt.Errorf("file protocols are not enabled"))
 		}
 		switch phase {
@@ -667,7 +667,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	// Pre-provisioning child workflow
-	preWorkflowFunc, preErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre, dbVolume.Account.Name)
+	preWorkflowFunc, preErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre)
 	if preErr != nil {
 		err = preErr
 		return nil, ConvertToVSAError(err)
@@ -758,7 +758,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	if !isRestoreFromBackup {
 		// Post-provisioning child workflow
-		postWorkflowFunc, postErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, dbVolume.Account.Name)
+		postWorkflowFunc, postErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost)
 		if postErr != nil {
 			err = postErr
 			return nil, ConvertToVSAError(err)

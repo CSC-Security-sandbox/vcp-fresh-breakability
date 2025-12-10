@@ -1508,10 +1508,8 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_Success() {
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Execute the workflow
@@ -1538,10 +1536,8 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_FileProtocolsDisabled() {
 
 	// Disable file protocols for testing
 	utils.SetFileProtocolSupportedForTesting(false)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Execute the workflow
@@ -1571,10 +1567,8 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Success() {
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Execute the workflow
@@ -1624,10 +1618,8 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_Success() {
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
@@ -1685,10 +1677,8 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_SVMUpdateFails(
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
@@ -1727,10 +1717,8 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
 
 	// Disable file protocols for testing
 	utils.SetFileProtocolSupportedForTesting(false)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Execute the workflow
@@ -1821,21 +1809,21 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_ISCSI() {
 	protocols := []string{utils.ProtocolISCSI}
 
 	// Test pre phase
-	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), preWorkflow)
 	// Verify it returns a function that can be called
 	assert.IsType(s.T(), PreBlockVolumeWorkflow, preWorkflow)
 
 	// Test post phase
-	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), postWorkflow)
 	// Verify it returns a function that can be called
 	assert.IsType(s.T(), PostBlockVolumeWorkflow, postWorkflow)
 
 	// Test invalid phase
-	invalidWorkflow, err := selectVolumeChildWorkflow(protocols, "invalid", "test_account")
+	invalidWorkflow, err := selectVolumeChildWorkflow(protocols, "invalid")
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), invalidWorkflow)
 	assert.Contains(s.T(), err.Error(), "An internal error occurred.")
@@ -1848,21 +1836,19 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_NFSv3() {
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Test pre phase
-	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), preWorkflow)
 	// Verify it returns a function that can be called
 	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
 
 	// Test post phase
-	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), postWorkflow)
 	// Verify it returns a function that can be called
@@ -1875,21 +1861,19 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_NFSv4() {
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Test pre phase
-	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), preWorkflow)
 	// Verify it returns a function that can be called
 	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
 
 	// Test post phase
-	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), postWorkflow)
 	// Verify it returns a function that can be called
@@ -1907,20 +1891,18 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_SMB_WithFlagEnabled() {
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Test pre phase
-	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), preWorkflow)
 	// Verify it returns a function that can be called
 	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
 	// Test post phase
-	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), postWorkflow)
 	// Verify it returns PostFileVolumeWorkflowForSMB when flag is enabled
@@ -1938,20 +1920,18 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_SMB_WithFlagDisabled() {
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Test pre phase
-	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), preWorkflow)
 	// Verify it returns a function that can be called
 	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
 	// Test post phase
-	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), postWorkflow)
 	// Verify it returns PostFileVolumeWorkflow when flag is disabled
@@ -1969,20 +1949,18 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_NFS_And_SMB_Combination()
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Test pre phase - should return single workflow
-	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), preWorkflow)
 	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
 
 	// Test post phase - should return slice of workflows
-	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), postWorkflow)
 
@@ -2000,20 +1978,18 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_FileProtocolsDisabled() {
 
 	// Disable file protocols for testing
 	utils.SetFileProtocolSupportedForTesting(false)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	// Test pre phase
-	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), preWorkflow)
 	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "file protocols are not enabled")
 
 	// Test post phase
-	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), postWorkflow)
 	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "file protocols are not enabled")
@@ -2024,13 +2000,13 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_UnsupportedProtocol() {
 	protocols := []string{"UNSUPPORTED_PROTOCOL"}
 
 	// Test pre phase
-	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), preWorkflow)
 	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "unsupported or unspecified protocol")
 
 	// Test post phase
-	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), postWorkflow)
 	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "unsupported or unspecified protocol")
@@ -2041,13 +2017,13 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_EmptyProtocols() {
 	protocols := []string{}
 
 	// Test pre phase
-	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), preWorkflow)
 	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "unsupported or unspecified protocol")
 
 	// Test post phase
-	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), postWorkflow)
 	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "unsupported or unspecified protocol")
@@ -2256,10 +2232,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_DualProtocol_FileVolume_Succes
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("account-1")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	expectedSMBProperties := []string{"browsable", "encrypt_data", "oplocks"}
@@ -2368,10 +2342,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_Success() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("account-1")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 	// NFS file volume with file properties and export policy
 	volume := &datamodel.Volume{
@@ -2442,10 +2414,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateExportPol
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 	// NFS file volume with file properties
 	volume := &datamodel.Volume{
@@ -2503,10 +2473,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("account-1")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 	// NFS file volume with backup vault configuration
 	volume := &datamodel.Volume{
@@ -2603,10 +2571,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_MultipleExportR
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("account-1")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 	// NFS file volume with multiple export rules
 	volume := &datamodel.Volume{
@@ -2689,10 +2655,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateSnapshotP
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("account-1")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 	// NFS file volume
 	volume := &datamodel.Volume{
@@ -2750,10 +2714,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateVolumeInO
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("account-1")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 	// NFS file volume
 	volume := &datamodel.Volume{
@@ -2812,10 +2774,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreat
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("account-1")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 	// NFS file volume with backup vault that requires new bucket creation
 	volume := &datamodel.Volume{
@@ -3387,7 +3347,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateJobStatusErrorDetailsErr
 
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_InvalidPhase() {
 	// Test selectVolumeChildWorkflow with invalid phase for block protocols
-	workflow, err := selectVolumeChildWorkflow([]string{utils.ProtocolISCSI}, "invalid", "test-account")
+	workflow, err := selectVolumeChildWorkflow([]string{utils.ProtocolISCSI}, "invalid")
 	assert.Nil(s.T(), workflow)
 	assert.Error(s.T(), err)
 	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid phase: invalid")
@@ -3398,13 +3358,11 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_InvalidPhaseFile() {
 	utils.SetFileProtocolSupportedForTesting(true)
 	defer utils.SetFileProtocolSupportedForTesting(false)
 
-	workflow, err := selectVolumeChildWorkflow([]string{utils.ProtocolNFSv3}, "invalid", "test-account")
-	assert.Nil(s.T(), workflow)
+	volumeChildWorkflow, err := selectVolumeChildWorkflow([]string{utils.ProtocolNFSv3}, "invalid")
+	assert.Nil(s.T(), volumeChildWorkflow)
 	assert.Error(s.T(), err)
-	// Check if the error is about file protocols not being enabled first, then invalid phase
-	if !assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "file protocols are not enabled") {
-		assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid phase: invalid")
-	}
+	// Since file protocols are enabled, the code should proceed to check the phase and return invalid phase error
+	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid phase: invalid")
 }
 
 func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockDevices_Success() {

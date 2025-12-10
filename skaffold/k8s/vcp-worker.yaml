@@ -51,7 +51,6 @@ data:
   VLM_CONFIG_FILE_PATH: "/common/vsa_config/vlm-config.json"
   ERROR_FILE_PATH: "/app/errors.json"
   FILES_PROTOCOL_SUPPORT: "false"
-  FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: ""
   VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: "vsa-lifecycle-manager"
   ONTAP_VERSION_DETAILS: "9.17.1P1"
   TOTAL_IP_PER_HA_PAIR: "6"

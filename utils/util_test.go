@@ -1865,65 +1865,17 @@ func TestIsFileProtocolSupported(t *testing.T) {
 	tests := []struct {
 		name                string
 		fileProtocolSupport string
-		whitelistedAccounts string
-		accountID           string
 		expectedResult      bool
 	}{
 		{
-			name:                "Flag disabled, should return false regardless of account",
+			name:                "Flag disabled, should return false",
 			fileProtocolSupport: "false",
-			whitelistedAccounts: "account1,account2",
-			accountID:           "account1",
 			expectedResult:      false,
 		},
 		{
-			name:                "Flag enabled, no whitelisted accounts, should return false",
+			name:                "Flag enabled, should return true",
 			fileProtocolSupport: "true",
-			whitelistedAccounts: "",
-			accountID:           "account1",
-			expectedResult:      false,
-		},
-		{
-			name:                "Flag enabled, account in whitelist, should return true",
-			fileProtocolSupport: "true",
-			whitelistedAccounts: "account1,account2,account3",
-			accountID:           "account2",
 			expectedResult:      true,
-		},
-		{
-			name:                "Flag enabled, account not in whitelist, should return false",
-			fileProtocolSupport: "true",
-			whitelistedAccounts: "account1,account2,account3",
-			accountID:           "account4",
-			expectedResult:      false,
-		},
-		{
-			name:                "Flag enabled, exact case match, should return true",
-			fileProtocolSupport: "true",
-			whitelistedAccounts: "Account1,ACCOUNT2,account3",
-			accountID:           "ACCOUNT2",
-			expectedResult:      true,
-		},
-		{
-			name:                "Flag enabled, whitespace in whitelist, should return true",
-			fileProtocolSupport: "true",
-			whitelistedAccounts: "account1, account2 , account3",
-			accountID:           "account2",
-			expectedResult:      true,
-		},
-		{
-			name:                "Flag enabled, single account in whitelist, should return true",
-			fileProtocolSupport: "true",
-			whitelistedAccounts: "account1",
-			accountID:           "account1",
-			expectedResult:      true,
-		},
-		{
-			name:                "Flag enabled, case sensitive mismatch, should return false",
-			fileProtocolSupport: "true",
-			whitelistedAccounts: "account1,Account2,ACCOUNT3",
-			accountID:           "account2",
-			expectedResult:      false,
 		},
 	}
 
@@ -1934,16 +1886,11 @@ func TestIsFileProtocolSupported(t *testing.T) {
 			if err != nil {
 				return
 			}
-			err = os.Setenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", tt.whitelistedAccounts)
-			if err != nil {
-				return
-			}
 
 			// Reset the global variables to pick up new environment values
 			FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
-			fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 
-			result := IsFileProtocolSupported(tt.accountID)
+			result := IsFileProtocolSupported()
 			if result != tt.expectedResult {
 				t.Errorf("IsFileProtocolSupported() = %v, want %v", result, tt.expectedResult)
 			}
@@ -1990,86 +1937,6 @@ func TestSetFileProtocolSupportedForTesting(t *testing.T) {
 	}
 }
 
-func TestSetFileProtocolAllowlistedAccountsForTesting(t *testing.T) {
-	tests := []struct {
-		name     string
-		accounts string
-		expected map[string]struct{}
-	}{
-		{
-			name:     "Empty accounts list",
-			accounts: "",
-			expected: map[string]struct{}{},
-		},
-		{
-			name:     "Single account",
-			accounts: "account1",
-			expected: map[string]struct{}{
-				"account1": {},
-			},
-		},
-		{
-			name:     "Multiple accounts with whitespace",
-			accounts: "account1, account2 , account3",
-			expected: map[string]struct{}{
-				"account1": {},
-				"account2": {},
-				"account3": {},
-			},
-		},
-		{
-			name:     "Multiple accounts without whitespace",
-			accounts: "account1,account2,account3",
-			expected: map[string]struct{}{
-				"account1": {},
-				"account2": {},
-				"account3": {},
-			},
-		},
-		{
-			name:     "Accounts with empty entries",
-			accounts: "account1,,account2, ,account3",
-			expected: map[string]struct{}{
-				"account1": {},
-				"account2": {},
-				"account3": {},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Call the test helper function
-			SetFileProtocolAllowlistedAccountsForTesting(tt.accounts)
-
-			// Verify the environment variable was set correctly
-			envValue := os.Getenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS")
-			if envValue != tt.accounts {
-				t.Errorf("Environment variable FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS = %q, want %q", envValue, tt.accounts)
-			}
-
-			// Verify the cached value was updated correctly
-			if len(fileProtocolAllowlistedAccounts) != len(tt.expected) {
-				t.Errorf("fileProtocolAllowlistedAccounts length = %d, want %d", len(fileProtocolAllowlistedAccounts), len(tt.expected))
-			}
-
-			// Check each expected account is present
-			for account := range tt.expected {
-				if _, exists := fileProtocolAllowlistedAccounts[account]; !exists {
-					t.Errorf("Expected account %q not found in fileProtocolAllowlistedAccounts", account)
-				}
-			}
-
-			// Check no unexpected accounts are present
-			for account := range fileProtocolAllowlistedAccounts {
-				if _, exists := tt.expected[account]; !exists {
-					t.Errorf("Unexpected account %q found in fileProtocolAllowlistedAccounts", account)
-				}
-			}
-		})
-	}
-}
-
 func TestSetFileProtocolSupportedForTesting_ErrorHandling(t *testing.T) {
 	// Test that the function handles errors gracefully
 	// This is difficult to test directly since os.Setenv rarely fails,
@@ -2081,21 +1948,6 @@ func TestSetFileProtocolSupportedForTesting_ErrorHandling(t *testing.T) {
 	// Verify the function completed without issues
 	envValue := os.Getenv("FILES_PROTOCOL_SUPPORT")
 	if envValue != "true" {
-		t.Errorf("Environment variable not set correctly: %q", envValue)
-	}
-}
-
-func TestSetFileProtocolAllowlistedAccountsForTesting_ErrorHandling(t *testing.T) {
-	// Test that the function handles errors gracefully
-	// This is difficult to test directly since os.Setenv rarely fails,
-	// but we can verify the function doesn't panic and handles the flow correctly
-
-	// Test with valid input
-	SetFileProtocolAllowlistedAccountsForTesting("account1,account2")
-
-	// Verify the function completed without issues
-	envValue := os.Getenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS")
-	if envValue != "account1,account2" {
 		t.Errorf("Environment variable not set correctly: %q", envValue)
 	}
 }

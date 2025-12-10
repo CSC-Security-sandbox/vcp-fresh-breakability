@@ -58,10 +58,8 @@ func TestPrepareCreateVolumeParams_SnapshotIdWithLargeVolumeConstituentCount_Ret
 func TestPrepareCreateVolumeParams_CacheParametersWithoutExpiryTime(t *testing.T) {
 	// Setup file protocol support for NFS
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	req := &gcpgenserver.VolumeCreateV1beta{
@@ -114,10 +112,8 @@ func TestPrepareCreateVolumeParams_CacheParametersWithoutExpiryTime(t *testing.T
 func TestPrepareCreateVolumeParams_CacheParametersWithExpiryTime(t *testing.T) {
 	// Setup file protocol support for NFS
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	expiryTime := time.Now().Add(24 * time.Hour)
@@ -177,10 +173,8 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 
 	// Setup file protocol support for NFS tests
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	t.Run("ValidInputWithBlockProperties", func(tt *testing.T) {
@@ -8514,10 +8508,8 @@ func TestPrepareCreateVolumeParams_SnapshotDirectory(t *testing.T) {
 
 	// Setup file protocol support for NFS tests
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	t.Run("SnapshotDirectory_WhenSetToTrue_ShouldSetParamToTrue", func(tt *testing.T) {

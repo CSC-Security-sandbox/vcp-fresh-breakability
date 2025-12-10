@@ -131,17 +131,14 @@ data:
   CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.cmekWorkflowGlobalTimeoutMinutes | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutForReplicationMinutes | quote }}
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
-  FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
   FLEXCACHE_FORCE_ENCRYPTION: {{$.Values.workerConfig.flexcacheForceEncryption | quote }}
   VSA_IMAGE_NAME: {{$.Values.workerConfig.vsaImageName | quote }}
-  VSA_FILES_IMAGE_NAME: {{$.Values.workerConfig.vsaFilesImageName | quote }}
   VSA_IMAGE_BUCKET: {{$.Values.workerConfig.vsaImageBucket | quote }}
   VSA_SIGNED_URL_DURATION_HOURS: {{$.Values.workerConfig.vsaSignedUrlDurationHours | quote }}
   VSA_MEDIATOR_INSTANCE_TYPE: {{$.Values.workerConfig.vsaMediatorInstanceType | quote }}
   SKIP_ONTAP_IMAGE_VERSION_MATCH: {{$.Values.workerConfig.skipOntapImageVersionMatch | quote }}
   VSA_MEDIATOR_DISK_TYPE: {{$.Values.workerConfig.vsaMediatorDiskType | quote }}
   VSA_MEDIATOR_IMAGE_NAME: {{$.Values.workerConfig.vsaMediatorImageName | quote }}
-  VSA_FILES_MEDIATOR_IMAGE_NAME: {{$.Values.workerConfig.vsaFilesMediatorImageName | quote }}
   METRICS_PORT: {{$.Values.workerConfig.metricsPort | quote }}
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: {{$.Values.workerConfig.enableUniqueSerialNumberGeneration | quote }}
   CLUSTER_SERIAL_NUMBER_PREFIX: {{$.Values.workerConfig.clusterSerialNumberPrefix | quote }}

@@ -127,7 +127,7 @@ workerConfig:
   dataSubnetCidrBlock: 28
   cloudDnsCacheTtl: 300
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
-  ontapVersionDetails: "9.17.1P2"
+  ontapVersionDetails: "9.18.1RC1"
   enforceMinSpConfig: "false"
   maxNodesPerGroup: 200
   maxNestedCloneLimit: 499
@@ -135,9 +135,8 @@ workerConfig:
   fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
   flexcacheForceEncryption: "false"
   ontapRestAsyncPollTimeoutMinutes: 30
-  vsaImageName: "x-9-17-1p2-gcnv"
+  vsaImageName: "x-9-18-1rc1"
   # this will be removed after AGA
-  vsaFilesImageName: "x-9-18-1rc1"
   vsaImageProject: ""
   vsaMediatorImageProject: ""
   # VSA Image Bucket for signed URL generation
@@ -164,8 +163,7 @@ workerConfig:
   # Mediator VM Configuration
   vsaMediatorInstanceType: "e2-micro"
   vsaMediatorDiskType: "pd-ssd"
-  vsaMediatorImageName: "cvo-mediator-x-9-17-1p2d1"
-  vsaFilesMediatorImageName: "cvo-mediator-x-9-18-1rc1"
+  vsaMediatorImageName: "cvo-mediator-x-9-18-1rc1"
 
   metricsPort: "9090"
 

@@ -93,15 +93,13 @@ var (
 	ParsePEMCertificate             = _parsePEMCertificate
 	CalculateRequiredVolumeSize     = _calculateRequiredVolumeSize
 	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
-	FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
-	// fileProtocolAllowlistedAccounts contains the parsed set of account IDs that are allowlisted for file protocol support
-	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
-	isProberProject                 = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
-	AutoTieringEnabled              = env.GetBool("AUTO_TIERING_ENABLED", false)
-	immutableBackupEnabled          = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
-	crossRegionBackupEnabled        = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
-	RestoreVolumeBufferEnabled      = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
-	enableKerberos                  = env.GetBool("ENABLE_KERBEROS", false)
+	FileProtocolSupported      = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	isProberProject            = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
+	AutoTieringEnabled         = env.GetBool("AUTO_TIERING_ENABLED", false)
+	immutableBackupEnabled     = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
+	crossRegionBackupEnabled   = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
+	RestoreVolumeBufferEnabled = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
+	enableKerberos             = env.GetBool("ENABLE_KERBEROS", false)
 
 	// Will match ONTAP version strings like "9.7.1", "9.8.2P3", "10.1.0", "10.3.1P2", etc.
 	ontapVersionRegex = regexp.MustCompile(`\d+\.\d+\.\d+(?:P\d+)?`)
@@ -1041,23 +1039,8 @@ func ParseCommaSeparatedStringToMap(input string) map[string]struct{} {
 }
 
 // IsFileProtocolSupported returns true only if the file protocol support flag is enabled
-// and the provided accountID is in the allowlisted accounts config map array.
-// If no allowlisted accounts are configured, it returns false even if the flag is enabled.
-func IsFileProtocolSupported(accountID string) bool {
-	// First check if the flag is enabled
-	if !FileProtocolSupported {
-		return false
-	}
-
-	// If no allowlisted accounts are configured, return false
-	if len(fileProtocolAllowlistedAccounts) == 0 {
-		return false
-	}
-
-	// Check if the accountID is in the allowlisted accounts
-	// Exact matching (account IDs are typically numbered strings)
-	_, exists := fileProtocolAllowlistedAccounts[accountID]
-	return exists
+func IsFileProtocolSupported() bool {
+	return FileProtocolSupported
 }
 
 // IsProberProject checks if the given project number is a prober project by search it in PROBER_PROJECT_LIST.
@@ -1077,18 +1060,6 @@ func SetFileProtocolSupportedForTesting(enabled bool) {
 	}
 	// Re-read the environment variable to update the cached value
 	FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
-}
-
-// SetFileProtocolAllowlistedAccountsForTesting is a test helper function that allows tests to set
-// the allowlisted accounts by setting the environment variable.
-// This should only be used in tests.
-func SetFileProtocolAllowlistedAccountsForTesting(accounts string) {
-	err := os.Setenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", accounts)
-	if err != nil {
-		return
-	}
-	// Re-parse the accounts to update the cached value
-	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 }
 
 func GetSnHostProject(pool *datamodel.Pool) string {
