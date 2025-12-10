@@ -41,6 +41,7 @@ const (
 	V1betaDescribeSnapshotOperation                          OperationName = "V1betaDescribeSnapshot"
 	V1betaDescribeVolumeOperation                            OperationName = "V1betaDescribeVolume"
 	V1betaEncryptVolumesOperation                            OperationName = "V1betaEncryptVolumes"
+	V1betaEstablishPeeringOperation                          OperationName = "V1betaEstablishPeering"
 	V1betaEstablishVolumePeeringOperation                    OperationName = "V1betaEstablishVolumePeering"
 	V1betaFinishProjectEventOperation                        OperationName = "V1betaFinishProjectEvent"
 	V1betaGetMultipleActiveDirectoriesOperation              OperationName = "V1betaGetMultipleActiveDirectories"

@@ -707,6 +707,20 @@ type EstablishVolumePeeringParams struct {
 	PeerVolumeName  string
 }
 
+type EstablishReplicationPeeringParams struct {
+	AccountName              string
+	Region                   string
+	Zone                     string
+	CorrelationId            string
+	VolumeResourceId         string
+	ReplicationResourceId    string
+	PeeringCommandExpiryTime *time.Time
+	PeerVolumeName           string
+	PeerClusterName          string
+	PeerSvmName              string
+	PeerIPAddresses          []string
+}
+
 type CreateActiveDirectoryParams struct {
 	AccountId                  string
 	LocationId                 string `json:"LocationId" validate:"LocationId"`

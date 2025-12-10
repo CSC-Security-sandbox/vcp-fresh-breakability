@@ -3060,6 +3060,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering:
+    post:
+      operationId: v1beta_establishPeering
+      summary: Peer local cluster to GCNV
+      description: Peer local cluster to GCNV
+      tags:
+        - replications
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeResourceIdPathParameter'
+        - $ref: '#/components/parameters/replicationResourceIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a cluster peering.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EstablishPeeringRequest_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Initializing peering
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                "done": false
+                "name": "/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe"
+                "response": {
+                  "created": "2024-01-24T11:13:03.512Z",
+                  "description": "My replication",
+                  "destination": {
+                    "volumeId": "00000000-0000-0000-0000-000000000000",
+                    "volumeName": "projects/123456789/locations/some-location2/volumes/my-destination-volume",
+                    "tieringPolicy": {
+                      "tierAction": "ENABLED",
+                      "coolingThresholdDays": 24
+                    }
+                  },
+                  "healthy": true,
+                  "mirrorState": "PREPARING",
+                  "replicationSchedule": "EVERY_10_MINUTES",
+                  "resourceId": "my-replication",
+                  "role": "SOURCE",
+                  "source": {
+                    "volumeId": "b78e8675-7e6f-64ec-3ec2-163753add2d5",
+                    "volumeName": "projects/123456789/locations/some-location1/volumes/my-source-volume"
+                  },
+                  "state": "CREATING",
+                  "stateDetails": "Create in progress",
+                  "stateDetailsCode": 0,
+                  "transferStats": { }
+                }
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/count:
     get:
       operationId: v1beta_getReplicationCount

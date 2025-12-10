@@ -340,6 +340,15 @@ func (UnimplementedHandler) V1betaEncryptVolumes(ctx context.Context, params V1b
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaEstablishPeering implements v1beta_establishPeering operation.
+//
+// Peer local cluster to GCNV.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering
+func (UnimplementedHandler) V1betaEstablishPeering(ctx context.Context, req *EstablishPeeringRequestV1beta, params V1betaEstablishPeeringParams) (r V1betaEstablishPeeringRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaEstablishVolumePeering implements v1beta_establishVolumePeering operation.
 //
 // Establishes peering for a flexcache (cache) volume in the specified project and location.

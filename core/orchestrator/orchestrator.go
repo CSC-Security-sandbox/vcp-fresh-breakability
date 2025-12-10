@@ -41,6 +41,7 @@ type OrchestratorFactory interface {
 	GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error)
 	ListVolumes(ctx context.Context, accountName string) ([]*models.Volume, error)
 	EstablishFlexCacheVolumePeering(ctx context.Context, params *commonparams.EstablishVolumePeeringParams) (*models.Volume, string, error)
+	EstablishReplicationPeering(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams) (*models.VolumeReplication, string, error)
 	RestoreFilesFromBackup(ctx context.Context, params *commonparams.RestoreFilesFromBackupParams) (string, error)
 	SplitCloneVolume(ctx context.Context, params *commonparams.SplitCloneVolumeParams) (*models.Volume, string, error)
 

@@ -141,6 +141,10 @@ type V1betaEncryptVolumesRes interface {
 	v1betaEncryptVolumesRes()
 }
 
+type V1betaEstablishPeeringRes interface {
+	v1betaEstablishPeeringRes()
+}
+
 type V1betaEstablishVolumePeeringRes interface {
 	v1betaEstablishVolumePeeringRes()
 }

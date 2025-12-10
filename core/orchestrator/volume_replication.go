@@ -38,6 +38,7 @@ var (
 	resumeReplicationInternal       = _resumeReplicationInternal
 	deleteReplicationInternal       = _deleteReplicationInternal
 	reverseReplicationInternal      = _reverseReplicationInternal
+	establishReplicationPeering     = _establishReplicationPeering
 
 	createVolumeReplication     = _createVolumeReplication
 	stopReplication             = _stopReplication
@@ -57,6 +58,8 @@ var (
 	verifyDstReplicationSync        = replication.VerifyDstReplicationSync
 	validateReplicationUpdate       = replication.ValidateReplicationUpdate
 	verifyDstReplicationReverse     = replication.VerifyDstReplicationReverse
+	verifyEstablishPeering          = replication.VerifyEstablishPeering
+	hybridReplicationJobsInProcess  = replication.HybridReplicationJobsInProcess
 
 	convertCreateReplicationParamsToEventParam = _convertCreateReplicationParamsToEventParam
 	getReplicationObjects                      = _getReplicationObjects
@@ -403,6 +406,102 @@ func _stopReplication(ctx context.Context, se database.Storage, temporal client.
 	dstReplication.StateDetails = models.LifeCycleStateUpdatingDetails
 	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
 	return dstReplication, createdJob.UUID, nil
+}
+
+func (o *Orchestrator) EstablishReplicationPeering(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams) (*models.VolumeReplication, string, error) {
+	return establishReplicationPeering(ctx, o.storage, o.temporal, params)
+}
+
+func _establishReplicationPeering(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.EstablishReplicationPeeringParams) (*models.VolumeReplication, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Error("Failed to get account", "error", err)
+		return nil, "", err
+	}
+	location := params.Region
+	if params.Zone != "" {
+		location = params.Zone
+	}
+	ccfeURI := replication.GetCCFEURI(params.AccountName, location, params.VolumeResourceId, params.ReplicationResourceId)
+
+	dstReplication, err := verifyEstablishPeering(ctx, params, se, account.ID, ccfeURI)
+	if err != nil {
+		return nil, "", err
+	}
+
+	jobUUID, err := hybridReplicationJobsInProcess(ctx, se, account.ID, dstReplication.ReplicationAttributes.DestinationPoolUUID, ccfeURI)
+	if err != nil {
+		return nil, "", err
+	}
+	// Return jobUUID if a job is already in progress for tracking instead of returning an error
+	if jobUUID != "" {
+		return convertDataStoreReplicationToModel(dstReplication), jobUUID, nil
+	}
+
+	replicationResult := replication.CreateHybridReplicationResult{
+		DestinationVolume:        dstReplication.Volume,
+		DestinationRegion:        params.Region,
+		DestinationZone:          params.Zone,
+		DestinationProjectNumber: params.AccountName,
+		HybridReplicationParameters: &models.HybridReplicationParameters{
+			Labels:          make(map[string]string),
+			ResourceID:      params.ReplicationResourceId,
+			PeerVolumeName:  params.PeerVolumeName,
+			PeerClusterName: params.PeerClusterName,
+			PeerSvmName:     params.PeerSvmName,
+			PeerIPAddresses: params.PeerIPAddresses,
+			ReplicationType: models.HybridReplicationParametersReplicationType(dstReplication.ReplicationAttributes.ReplicationType),
+		},
+		CorrelationID:    &params.CorrelationId,
+		DbVolReplication: dstReplication,
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeHybridReplicationEstablishPeering),
+		State:        string(models.JobsStateNEW),
+		ResourceName: ccfeURI,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: replicationResult.DestinationVolume.UUID,
+			PoolUUID: replicationResult.DbVolReplication.ReplicationAttributes.DestinationPoolUUID},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		replicationWorkflows.EstablishPeeringWorkflow,
+		replicationResult,
+		dstReplication.Volume,
+	)
+	if err != nil {
+		logger.Error("Failed to execute workflow", "error", err)
+		return nil, "", err
+	}
+
+	dstReplication.State = models.LifeCycleStateUpdating
+	dstReplication.StateDetails = models.LifeCycleStateUpdatingDetails
+
+	return convertDataStoreReplicationToModel(dstReplication), createdJob.UUID, nil
 }
 
 func convertDataStoreReplicationToModel(replication *datamodel.VolumeReplication) *models.VolumeReplication {

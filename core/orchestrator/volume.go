@@ -453,7 +453,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		job.Type = string(models.JobTypeCreateHybridReplication)
 		job.ResourceName = fmt.Sprintf("projects/%s/locations/%s/volumes/%s/replications/%s",
 			params.AccountName,
-			params.Region,
+			location,
 			params.Name,
 			params.HybridReplicationParameters.ResourceID)
 		wf = replicationWorkflows.CreateHybridReplicationWorkflow

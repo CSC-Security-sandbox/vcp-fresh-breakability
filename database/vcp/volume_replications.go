@@ -141,9 +141,21 @@ func (d *DataStoreRepository) UpdateVolumeReplication(ctx context.Context, volum
 	if volumeRep.DeletedAt != nil {
 		dbReplication.DeletedAt = volumeRep.DeletedAt
 	}
+
+	// Update all fields first
 	err = tx.Updates(dbReplication).Error
 	if err != nil {
 		return err
+	}
+
+	// Explicitly update ClusterPeerId to handle NULL values
+	// GORM's Updates skips zero values, so we need to explicitly update ClusterPeerId
+	// when it's set to NULL (Valid: false)
+	if !volumeRep.ClusterPeerId.Valid {
+		err = tx.Model(&datamodel.VolumeReplication{}).Where("uuid = ?", dbReplication.UUID).Update("cluster_peer_id", nil).Error
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -285,7 +297,7 @@ func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter
 	var err error
 	db := d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
 	var volumeReplications []*datamodel.VolumeReplication
-	db = db.Preload("Volume").Preload("Volume.Pool").Preload("ClusterPeer")
+	db = db.Preload("Volume").Preload("Volume.Pool")
 	if queryDepth == 1 {
 		db = db.Preload("Volume.Svm").Preload("ClusterPeer")
 	}

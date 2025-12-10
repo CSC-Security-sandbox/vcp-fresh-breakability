@@ -3937,6 +3937,7 @@ func (*ErrorStatusCode) v1betaDescribePoolRes()                              {}
 func (*ErrorStatusCode) v1betaDescribeSnapshotRes()                          {}
 func (*ErrorStatusCode) v1betaDescribeVolumeRes()                            {}
 func (*ErrorStatusCode) v1betaEncryptVolumesRes()                            {}
+func (*ErrorStatusCode) v1betaEstablishPeeringRes()                          {}
 func (*ErrorStatusCode) v1betaEstablishVolumePeeringRes()                    {}
 func (*ErrorStatusCode) v1betaFinishProjectEventRes()                        {}
 func (*ErrorStatusCode) v1betaGetMultipleActiveDirectoriesRes()              {}
@@ -7943,6 +7944,7 @@ func (*OperationV1beta) v1betaDeleteSnapshotRes()                            {}
 func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
 func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
 func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
+func (*OperationV1beta) v1betaEstablishPeeringRes()                          {}
 func (*OperationV1beta) v1betaEstablishVolumePeeringRes()                    {}
 func (*OperationV1beta) v1betaInternalCreateBackupRes()                      {}
 func (*OperationV1beta) v1betaInternalDeleteBackupUnderBackupVaultRes()      {}
@@ -20368,6 +20370,38 @@ func (*V1betaEncryptVolumesUnauthorized) v1betaEncryptVolumesRes() {}
 type V1betaEncryptVolumesUnprocessableEntity Error
 
 func (*V1betaEncryptVolumesUnprocessableEntity) v1betaEncryptVolumesRes() {}
+
+type V1betaEstablishPeeringBadRequest Error
+
+func (*V1betaEstablishPeeringBadRequest) v1betaEstablishPeeringRes() {}
+
+type V1betaEstablishPeeringConflict Error
+
+func (*V1betaEstablishPeeringConflict) v1betaEstablishPeeringRes() {}
+
+type V1betaEstablishPeeringForbidden Error
+
+func (*V1betaEstablishPeeringForbidden) v1betaEstablishPeeringRes() {}
+
+type V1betaEstablishPeeringInternalServerError Error
+
+func (*V1betaEstablishPeeringInternalServerError) v1betaEstablishPeeringRes() {}
+
+type V1betaEstablishPeeringNotFound Error
+
+func (*V1betaEstablishPeeringNotFound) v1betaEstablishPeeringRes() {}
+
+type V1betaEstablishPeeringTooManyRequests Error
+
+func (*V1betaEstablishPeeringTooManyRequests) v1betaEstablishPeeringRes() {}
+
+type V1betaEstablishPeeringUnauthorized Error
+
+func (*V1betaEstablishPeeringUnauthorized) v1betaEstablishPeeringRes() {}
+
+type V1betaEstablishPeeringUnprocessableEntity Error
+
+func (*V1betaEstablishPeeringUnprocessableEntity) v1betaEstablishPeeringRes() {}
 
 type V1betaEstablishVolumePeeringBadRequest Error
 

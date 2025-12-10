@@ -617,6 +617,51 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 		assert.Equal(tt, "database error", err.Error())
 		mockStorage.AssertExpectations(tt)
 	})
+
+	t.Run("CreateJobForHybridReplicationWithDestinationZone", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := HybridReplicationActivity{SE: mockStorage}
+
+		replicationResult := replication.CreateHybridReplicationResult{
+			DestinationVolume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 456},
+				Name:      "test-volume",
+				AccountID: 123,
+			},
+			DestinationProjectNumber: "test-project",
+			DestinationRegion:        "us-central1",
+			DestinationZone:          "us-central1-a",
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ResourceID: "test-replication-id",
+			},
+		}
+
+		expectedJob := &datamodel.Job{
+			AccountID:     sql.NullInt64{Int64: 123, Valid: true},
+			Type:          string(models.JobTypeHybridReplicationEstablishPeering),
+			State:         string(models.JobsStateNEW),
+			ResourceName:  "projects/test-project/locations/us-central1-a/volumes/test-volume/replications/test-replication-id",
+			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid"},
+		}
+
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.AccountID.Int64 == 123 &&
+				job.Type == string(models.JobTypeHybridReplicationEstablishPeering) &&
+				job.State == string(models.JobsStateNEW) &&
+				job.ResourceName == "projects/test-project/locations/us-central1-a/volumes/test-volume/replications/test-replication-id" &&
+				job.JobAttributes.ResourceUUID == "test-volume-uuid"
+		})).Return(expectedJob, nil)
+
+		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeHybridReplicationEstablishPeering))
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedJob, result)
+		// Verify that DestinationZone (us-central1-a) is used instead of DestinationRegion (us-central1)
+		// The ResourceName should contain the zone in the location path
+		assert.Contains(tt, result.ResourceName, "/locations/us-central1-a/")
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestHybridReplicationActivity_GetOrCreateClusterPeerForHybridReplication(t *testing.T) {

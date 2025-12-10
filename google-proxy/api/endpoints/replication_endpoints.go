@@ -250,6 +250,82 @@ func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgens
 	return &replicationResp, nil
 }
 
+func (h Handler) V1betaEstablishPeering(ctx context.Context, req *gcpgenserver.EstablishPeeringRequestV1beta, params gcpgenserver.V1betaEstablishPeeringParams) (gcpgenserver.V1betaEstablishPeeringRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if !hybridReplicationEnabled {
+		return &gcpgenserver.V1betaEstablishPeeringBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: "Hybrid migration is not enabled",
+		}, nil
+	}
+
+	var peerAddrs []string
+	if v, ok := req.PeerIpAddresses.Get(); ok {
+		peerAddrs = v
+	}
+
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaEstablishPeeringBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	establishPeeringParams := &common.EstablishReplicationPeeringParams{
+		AccountName:           params.ProjectNumber,
+		Region:                region,
+		Zone:                  zone,
+		CorrelationId:         params.XCorrelationID.Value,
+		VolumeResourceId:      params.VolumeResourceId,
+		ReplicationResourceId: params.ReplicationResourceId,
+		PeerVolumeName:        req.PeerVolumeName,
+		PeerClusterName:       req.PeerClusterName,
+		PeerSvmName:           req.PeerSvmName,
+		PeerIPAddresses:       peerAddrs,
+	}
+
+	volumeRep, jobUUID, err := h.Orchestrator.EstablishReplicationPeering(ctx, establishPeeringParams)
+	if err != nil {
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaEstablishPeeringConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaEstablishPeeringBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to create volume replication", "error", err.Error())
+		return &gcpgenserver.V1betaEstablishPeeringInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+
+	resp, err := encodeVolumeReplicationV1(convertModelToVCPVolumeReplication(volumeRep))
+	if err != nil {
+		return &gcpgenserver.V1betaEstablishPeeringInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volumeRep.State == models2.LifeCycleStateUpdating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
 func _validateReplicationURIList(param common.GetMultipleReplicationsParams) error {
 	for _, uri := range param.ReplicationURIs {
 		err := utils.ValidateCcfeReplicationUri(uri)

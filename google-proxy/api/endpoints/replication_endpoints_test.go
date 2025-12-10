@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
@@ -2189,5 +2190,375 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaReverseAndResumeReplicationBadRequest).Code)
 		assert.Equal(tt, "Another replication job is already in progress for this resource", result.(*gcpgenserver.V1betaReverseAndResumeReplicationBadRequest).Message)
+	})
+}
+
+func TestV1betaEstablishPeering(t *testing.T) {
+	t.Run("WhenHybridReplicationNotEnabled", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Mock hybridReplicationEnabled to be false
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = false
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		params := gcpgenserver.V1betaEstablishPeeringParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerVolumeName:  "peer-volume-name",
+			PeerClusterName: "peer-cluster-name",
+			PeerSvmName:     "peer-svm-name",
+		}
+
+		result, err := handler.V1betaEstablishPeering(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(http.StatusBadRequest), result.(*gcpgenserver.V1betaEstablishPeeringBadRequest).Code)
+		assert.Equal(tt, "Hybrid migration is not enabled", result.(*gcpgenserver.V1betaEstablishPeeringBadRequest).Message)
+	})
+
+	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Ensure hybrid replication is enabled for this test
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() {
+			hybridReplicationEnabled = originalHybridReplicationEnabled
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaEstablishPeeringParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "invalid-location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerVolumeName:  "peer-volume-name",
+			PeerClusterName: "peer-cluster-name",
+			PeerSvmName:     "peer-svm-name",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{
+				Code:    400,
+				Message: "Invalid location ID",
+			}
+		}
+
+		result, err := handler.V1betaEstablishPeering(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaEstablishPeeringBadRequest).Code)
+		assert.Equal(tt, "Invalid location ID", result.(*gcpgenserver.V1betaEstablishPeeringBadRequest).Message)
+	})
+
+	t.Run("WhenEstablishPeeringSucceedsWithNoJob", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Ensure hybrid replication is enabled for this test
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() {
+			hybridReplicationEnabled = originalHybridReplicationEnabled
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			convertModelToVCPVolumeReplication = _convertModelToVCPVolumeReplication
+		}()
+
+		params := gcpgenserver.V1betaEstablishPeeringParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerVolumeName:  "peer-volume-name",
+			PeerClusterName: "peer-cluster-name",
+			PeerSvmName:     "peer-svm-name",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+		convertModelToVCPVolumeReplication = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+			return &gcpgenserver.ReplicationV1beta{}
+		}
+
+		mockOrchestrator.On("EstablishReplicationPeering", mock.Anything, mock.Anything).Return(&models2.VolumeReplication{}, "job-uuid", nil)
+
+		result, err := handler.V1betaEstablishPeering(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
+		assert.True(tt, result.(*gcpgenserver.OperationV1beta).Done.Value)
+	})
+
+	t.Run("WhenEstablishPeeringSucceedsWithJob", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Ensure hybrid replication is enabled for this test
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() {
+			hybridReplicationEnabled = originalHybridReplicationEnabled
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			convertModelToVCPVolumeReplication = _convertModelToVCPVolumeReplication
+		}()
+
+		params := gcpgenserver.V1betaEstablishPeeringParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerVolumeName:  "peer-volume-name",
+			PeerClusterName: "peer-cluster-name",
+			PeerSvmName:     "peer-svm-name",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+		convertModelToVCPVolumeReplication = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+			return &gcpgenserver.ReplicationV1beta{}
+		}
+
+		repResponse := &models2.VolumeReplication{
+			State: models2.LifeCycleStateUpdating,
+		}
+
+		mockOrchestrator.On("EstablishReplicationPeering", mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
+
+		result, err := handler.V1betaEstablishPeering(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
+		assert.False(tt, result.(*gcpgenserver.OperationV1beta).Done.Value)
+	})
+
+	t.Run("WhenEstablishPeeringFailsWithConflict", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Ensure hybrid replication is enabled for this test
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() {
+			hybridReplicationEnabled = originalHybridReplicationEnabled
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaEstablishPeeringParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerVolumeName:  "peer-volume-name",
+			PeerClusterName: "peer-cluster-name",
+			PeerSvmName:     "peer-svm-name",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("EstablishReplicationPeering", mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Conflict error"))
+
+		result, err := handler.V1betaEstablishPeering(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(409), result.(*gcpgenserver.V1betaEstablishPeeringConflict).Code)
+		assert.Equal(tt, "Conflict error", result.(*gcpgenserver.V1betaEstablishPeeringConflict).Message)
+	})
+
+	t.Run("WhenEstablishPeeringFailsWithUserInputValidationError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Ensure hybrid replication is enabled for this test
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() {
+			hybridReplicationEnabled = originalHybridReplicationEnabled
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaEstablishPeeringParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerVolumeName:  "peer-volume-name",
+			PeerClusterName: "peer-cluster-name",
+			PeerSvmName:     "peer-svm-name",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("EstablishReplicationPeering", mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("Invalid input"))
+
+		result, err := handler.V1betaEstablishPeering(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaEstablishPeeringBadRequest).Code)
+		assert.Equal(tt, "Invalid input", result.(*gcpgenserver.V1betaEstablishPeeringBadRequest).Message)
+	})
+
+	t.Run("WhenEstablishPeeringFailsWithNotFoundError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Ensure hybrid replication is enabled for this test
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() {
+			hybridReplicationEnabled = originalHybridReplicationEnabled
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaEstablishPeeringParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerVolumeName:  "peer-volume-name",
+			PeerClusterName: "peer-cluster-name",
+			PeerSvmName:     "peer-svm-name",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("EstablishReplicationPeering", mock.Anything, mock.Anything).Return(nil, "", errors.NewNotFoundErr("replication", nil))
+
+		result, err := handler.V1betaEstablishPeering(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaEstablishPeeringBadRequest).Code)
+	})
+
+	t.Run("WhenEstablishPeeringFailsWithInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Ensure hybrid replication is enabled for this test
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() {
+			hybridReplicationEnabled = originalHybridReplicationEnabled
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaEstablishPeeringParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerVolumeName:  "peer-volume-name",
+			PeerClusterName: "peer-cluster-name",
+			PeerSvmName:     "peer-svm-name",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("EstablishReplicationPeering", mock.Anything, mock.Anything).Return(nil, "", errors.New("internal error"))
+
+		result, err := handler.V1betaEstablishPeering(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaEstablishPeeringInternalServerError).Code)
+		assert.Equal(tt, "internal error", result.(*gcpgenserver.V1betaEstablishPeeringInternalServerError).Message)
+	})
+
+	t.Run("WhenEstablishPeeringSucceedsWithPeerIPAddresses", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Ensure hybrid replication is enabled for this test
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() {
+			hybridReplicationEnabled = originalHybridReplicationEnabled
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			convertModelToVCPVolumeReplication = _convertModelToVCPVolumeReplication
+		}()
+
+		params := gcpgenserver.V1betaEstablishPeeringParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		peerIPs := []string{"10.0.0.1", "10.0.0.2"}
+		req := &gcpgenserver.EstablishPeeringRequestV1beta{
+			PeerVolumeName:  "peer-volume-name",
+			PeerClusterName: "peer-cluster-name",
+			PeerSvmName:     "peer-svm-name",
+			PeerIpAddresses: gcpgenserver.NewOptNilStringArray(peerIPs),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+		convertModelToVCPVolumeReplication = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+			return &gcpgenserver.ReplicationV1beta{}
+		}
+
+		mockOrchestrator.On("EstablishReplicationPeering", mock.Anything, mock.Anything).Return(&models2.VolumeReplication{}, "job-uuid", nil)
+
+		result, err := handler.V1betaEstablishPeering(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 }

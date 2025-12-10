@@ -54,6 +54,10 @@ func (a *HybridReplicationActivity) CreateJobForHybridReplication(ctx context.Co
 	logger.Debug("CreateJobForHybridReplication")
 	se := a.SE
 	var resourceName string
+	location := replicationResult.DestinationRegion
+	if replicationResult.DestinationZone != "" {
+		location = replicationResult.DestinationZone
+	}
 	// The job state is set to PROCESSING here because the workflow itself is creating the job
 	job := &datamodel.Job{
 		AccountID:     sql.NullInt64{Int64: replicationResult.DestinationVolume.AccountID, Valid: true},
@@ -69,7 +73,7 @@ func (a *HybridReplicationActivity) CreateJobForHybridReplication(ctx context.Co
 	} else if jobType == string(models.JobTypeHybridReplicationEstablishPeering) || jobType == string(models.JobTypeHybridReplicationInternalEstablish) {
 		resourceName = fmt.Sprintf("projects/%s/locations/%s/volumes/%s/replications/%s",
 			replicationResult.DestinationProjectNumber,
-			replicationResult.DestinationRegion,
+			location,
 			replicationResult.DestinationVolume.Name,
 			replicationResult.HybridReplicationParameters.ResourceID)
 	}
@@ -1285,13 +1289,6 @@ func (a *HybridReplicationActivity) UpdateReplicationRowDetailsOnErrorActivity(c
 		replication.HybridReplicationAttributes.Status = models.HybridReplicationStatusSVMPeered
 	} else if result.ClusterPeeringRow.State == models.CvpClusterPeeringStatusPEERED && oldState == models.HybridReplicationStatusPendingSVMPeer {
 		replication.HybridReplicationAttributes.Status = models.HybridReplicationStatusPendingSVMPeer
-	}
-	if replication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingClusterPeer || replication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer {
-		// Mark replication record as deleted
-		replication.State = models.LifeCycleStateDeleted
-		replication.StateDetails = models.LifeCycleStateDeletedDetails
-		replication.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-		logger.Infof("Marking replication record as deleted: %d", replication.ID)
 	}
 
 	// Set hybrid replication peering status to peered

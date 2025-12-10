@@ -2339,6 +2339,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 															break
 														}
 														switch elem[0] {
+														case 'e': // Prefix: "establishPeering"
+
+															if l := len("establishPeering"); len(elem) >= l && elem[0:l] == "establishPeering" {
+																elem = elem[l:]
+															} else {
+																break
+															}
+
+															if len(elem) == 0 {
+																// Leaf node.
+																switch r.Method {
+																case "POST":
+																	s.handleV1betaEstablishPeeringRequest([4]string{
+																		args[0],
+																		args[1],
+																		args[2],
+																		args[3],
+																	}, elemIsEscaped, w, r)
+																default:
+																	s.notAllowed(w, r, "POST")
+																}
+
+																return
+															}
+
 														case 'r': // Prefix: "re"
 
 															if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
@@ -5057,6 +5082,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 															break
 														}
 														switch elem[0] {
+														case 'e': // Prefix: "establishPeering"
+
+															if l := len("establishPeering"); len(elem) >= l && elem[0:l] == "establishPeering" {
+																elem = elem[l:]
+															} else {
+																break
+															}
+
+															if len(elem) == 0 {
+																// Leaf node.
+																switch method {
+																case "POST":
+																	r.name = V1betaEstablishPeeringOperation
+																	r.summary = "Peer local cluster to GCNV"
+																	r.operationID = "v1beta_establishPeering"
+																	r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/establishPeering"
+																	r.args = args
+																	r.count = 4
+																	return r, true
+																default:
+																	return
+																}
+															}
+
 														case 'r': // Prefix: "re"
 
 															if l := len("re"); len(elem) >= l && elem[0:l] == "re" {

@@ -7507,6 +7507,102 @@ func TestV1betaEncryptVolumesUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1betaEncryptVolumesUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaEstablishPeeringBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaEstablishPeeringBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaEstablishPeeringBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaEstablishPeeringConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaEstablishPeeringConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaEstablishPeeringConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaEstablishPeeringForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaEstablishPeeringForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaEstablishPeeringForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaEstablishPeeringInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaEstablishPeeringInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaEstablishPeeringInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaEstablishPeeringNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaEstablishPeeringNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaEstablishPeeringNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaEstablishPeeringTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaEstablishPeeringTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaEstablishPeeringTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaEstablishPeeringUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaEstablishPeeringUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaEstablishPeeringUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaEstablishPeeringUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaEstablishPeeringUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaEstablishPeeringUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaEstablishVolumePeeringBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaEstablishVolumePeeringBadRequest
 	typ.SetFake()

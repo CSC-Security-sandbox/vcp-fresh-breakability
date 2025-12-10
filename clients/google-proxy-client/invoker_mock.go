@@ -2099,6 +2099,66 @@ func (_c *MockInvoker_V1betaEncryptVolumes_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// V1betaEstablishPeering provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaEstablishPeering(ctx context.Context, request *EstablishPeeringRequestV1beta, params V1betaEstablishPeeringParams) (V1betaEstablishPeeringRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaEstablishPeering")
+	}
+
+	var r0 V1betaEstablishPeeringRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *EstablishPeeringRequestV1beta, V1betaEstablishPeeringParams) (V1betaEstablishPeeringRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *EstablishPeeringRequestV1beta, V1betaEstablishPeeringParams) V1betaEstablishPeeringRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaEstablishPeeringRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *EstablishPeeringRequestV1beta, V1betaEstablishPeeringParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaEstablishPeering_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaEstablishPeering'
+type MockInvoker_V1betaEstablishPeering_Call struct {
+	*mock.Call
+}
+
+// V1betaEstablishPeering is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *EstablishPeeringRequestV1beta
+//   - params V1betaEstablishPeeringParams
+func (_e *MockInvoker_Expecter) V1betaEstablishPeering(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaEstablishPeering_Call {
+	return &MockInvoker_V1betaEstablishPeering_Call{Call: _e.mock.On("V1betaEstablishPeering", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaEstablishPeering_Call) Run(run func(ctx context.Context, request *EstablishPeeringRequestV1beta, params V1betaEstablishPeeringParams)) *MockInvoker_V1betaEstablishPeering_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*EstablishPeeringRequestV1beta), args[2].(V1betaEstablishPeeringParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaEstablishPeering_Call) Return(_a0 V1betaEstablishPeeringRes, _a1 error) *MockInvoker_V1betaEstablishPeering_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaEstablishPeering_Call) RunAndReturn(run func(context.Context, *EstablishPeeringRequestV1beta, V1betaEstablishPeeringParams) (V1betaEstablishPeeringRes, error)) *MockInvoker_V1betaEstablishPeering_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaEstablishVolumePeering provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1betaEstablishVolumePeering(ctx context.Context, request *EstablishPeeringRequestV1beta, params V1betaEstablishVolumePeeringParams) (V1betaEstablishVolumePeeringRes, error) {
 	ret := _m.Called(ctx, request, params)

@@ -5767,3 +5767,444 @@ func TestGetPath(t *testing.T) {
 		assert.Equal(tt, "svm name:volume name", result)
 	})
 }
+
+func Test_verifyEstablishPeering(t *testing.T) {
+	ctx := context.Background()
+	accountID := int64(1)
+	ccfeURI := "projects/test-account/locations/us-central1/volumes/volume-123/replications/replication-123"
+	params := &common.EstablishReplicationPeeringParams{
+		AccountName:           "test-account",
+		Region:                "us-central1",
+		Zone:                  "",
+		VolumeResourceId:      "volume-123",
+		ReplicationResourceId: "replication-123",
+		CorrelationId:         "corr-123",
+		PeerVolumeName:        "peer-volume",
+		PeerClusterName:       "peer-cluster",
+		PeerSvmName:           "peer-svm",
+		PeerIPAddresses:       []string{"10.0.0.1"},
+	}
+
+	t.Run("WhenListVolumeReplicationsFails", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		dbError := errors.New("database error")
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return(nil, dbError)
+
+		originalVerifyHybridParameters := verifyHybridParameters
+		originalVerifyClusterPeering := isClusterPeeringStateValid
+		defer func() {
+			verifyHybridParameters = originalVerifyHybridParameters
+			isClusterPeeringStateValid = originalVerifyClusterPeering
+		}()
+
+		replication, err := _verifyEstablishPeering(ctx, params, mockStorage, accountID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.NotNil(tt, customErr)
+		assert.Equal(tt, vsaErrors.ErrDatabaseDataReadError, customErr.TrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNoReplicationFound", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{}, nil)
+
+		originalVerifyHybridParameters := verifyHybridParameters
+		originalVerifyClusterPeering := isClusterPeeringStateValid
+		defer func() {
+			verifyHybridParameters = originalVerifyHybridParameters
+			isClusterPeeringStateValid = originalVerifyClusterPeering
+		}()
+
+		replication, err := _verifyEstablishPeering(ctx, params, mockStorage, accountID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Contains(tt, err.Error(), "No replication found for the given URI")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVerifyHybridParametersFails", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				PeerSvmName:    "different-svm",
+				PeerVolumeName: "different-volume",
+				Status:         coreModels.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
+
+		originalVerifyHybridParameters := verifyHybridParameters
+		originalVerifyClusterPeering := isClusterPeeringStateValid
+		defer func() {
+			verifyHybridParameters = originalVerifyHybridParameters
+			isClusterPeeringStateValid = originalVerifyClusterPeering
+		}()
+
+		verifyHybridParameters = func(ctx context.Context, params *common.EstablishReplicationPeeringParams, hybridReplicationParameters datamodel.HybridReplicationAttribute) error {
+			return fmt.Errorf("provided hybrid Replication parameters do not match with existing hybrid Replication parameters")
+		}
+
+		replication, err := _verifyEstablishPeering(ctx, params, mockStorage, accountID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Contains(tt, err.Error(), "provided hybrid Replication parameters do not match")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenClusterPeeringAlreadyEstablished_ClusterPeerPEERED", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			ClusterPeer: &datamodel.ClusterPeerings{
+				State: coreModels.CvpClusterPeeringStatusPEERED,
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				PeerSvmName:    params.PeerSvmName,
+				PeerVolumeName: params.PeerVolumeName,
+				Status:         coreModels.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
+
+		originalVerifyHybridParameters := verifyHybridParameters
+		originalVerifyClusterPeering := isClusterPeeringStateValid
+		defer func() {
+			verifyHybridParameters = originalVerifyHybridParameters
+			isClusterPeeringStateValid = originalVerifyClusterPeering
+		}()
+
+		verifyHybridParameters = func(ctx context.Context, params *common.EstablishReplicationPeeringParams, hybridReplicationParameters datamodel.HybridReplicationAttribute) error {
+			return nil
+		}
+
+		replication, err := _verifyEstablishPeering(ctx, params, mockStorage, accountID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Contains(tt, err.Error(), "cluster peering is already established")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenClusterPeeringAlreadyEstablished_InvalidStatus", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				PeerSvmName:    params.PeerSvmName,
+				PeerVolumeName: params.PeerVolumeName,
+				Status:         coreModels.HybridReplicationStatusPeered, // Not PendingClusterPeer or PendingSVMPeer
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
+
+		originalVerifyHybridParameters := verifyHybridParameters
+		originalVerifyClusterPeering := isClusterPeeringStateValid
+		defer func() {
+			verifyHybridParameters = originalVerifyHybridParameters
+			isClusterPeeringStateValid = originalVerifyClusterPeering
+		}()
+
+		verifyHybridParameters = func(ctx context.Context, params *common.EstablishReplicationPeeringParams, hybridReplicationParameters datamodel.HybridReplicationAttribute) error {
+			return nil
+		}
+
+		replication, err := _verifyEstablishPeering(ctx, params, mockStorage, accountID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Contains(tt, err.Error(), "cluster peering is already established")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSucceeds_PendingClusterPeer", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				PeerSvmName:    params.PeerSvmName,
+				PeerVolumeName: params.PeerVolumeName,
+				Status:         coreModels.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
+
+		originalVerifyHybridParameters := verifyHybridParameters
+		originalVerifyClusterPeering := isClusterPeeringStateValid
+		defer func() {
+			verifyHybridParameters = originalVerifyHybridParameters
+			isClusterPeeringStateValid = originalVerifyClusterPeering
+		}()
+
+		verifyHybridParameters = func(ctx context.Context, params *common.EstablishReplicationPeeringParams, hybridReplicationParameters datamodel.HybridReplicationAttribute) error {
+			return nil
+		}
+
+		replication, err := _verifyEstablishPeering(ctx, params, mockStorage, accountID, ccfeURI)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, replication)
+		assert.Equal(tt, "replication-123", replication.UUID)
+		assert.Equal(tt, "test-replication", replication.Name)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSucceeds_PendingSVMPeer", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				PeerSvmName:    params.PeerSvmName,
+				PeerVolumeName: params.PeerVolumeName,
+				Status:         coreModels.HybridReplicationStatusPendingSVMPeer,
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
+
+		originalVerifyHybridParameters := verifyHybridParameters
+		originalVerifyClusterPeering := isClusterPeeringStateValid
+		defer func() {
+			verifyHybridParameters = originalVerifyHybridParameters
+			isClusterPeeringStateValid = originalVerifyClusterPeering
+		}()
+
+		verifyHybridParameters = func(ctx context.Context, params *common.EstablishReplicationPeeringParams, hybridReplicationParameters datamodel.HybridReplicationAttribute) error {
+			return nil
+		}
+
+		replication, err := _verifyEstablishPeering(ctx, params, mockStorage, accountID, ccfeURI)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, replication)
+		assert.Equal(tt, "replication-123", replication.UUID)
+		assert.Equal(tt, "test-replication", replication.Name)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsNil", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel:                   datamodel.BaseModel{UUID: "replication-123"},
+			Name:                        "test-replication",
+			HybridReplicationAttributes: nil, // nil HybridReplicationAttributes
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, database.QueryDepthOne).Return([]*datamodel.VolumeReplication{replicationDb}, nil)
+
+		originalVerifyHybridParameters := verifyHybridParameters
+		originalVerifyClusterPeering := isClusterPeeringStateValid
+		defer func() {
+			verifyHybridParameters = originalVerifyHybridParameters
+			isClusterPeeringStateValid = originalVerifyClusterPeering
+		}()
+
+		replication, err := _verifyEstablishPeering(ctx, params, mockStorage, accountID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Contains(tt, err.Error(), "Replication does not have hybrid replication attributes")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func Test_verifyHybridParameters(t *testing.T) {
+	ctx := context.Background()
+	params := &common.EstablishReplicationPeeringParams{
+		PeerSvmName:    "peer-svm",
+		PeerVolumeName: "peer-volume",
+	}
+
+	t.Run("WhenParametersMatch", func(tt *testing.T) {
+		hybridReplicationParameters := datamodel.HybridReplicationAttribute{
+			PeerSvmName:    "peer-svm",
+			PeerVolumeName: "peer-volume",
+		}
+
+		err := _verifyHybridParameters(ctx, params, hybridReplicationParameters)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenPeerSvmNameDoesNotMatch", func(tt *testing.T) {
+		hybridReplicationParameters := datamodel.HybridReplicationAttribute{
+			PeerSvmName:    "different-svm",
+			PeerVolumeName: "peer-volume",
+		}
+
+		err := _verifyHybridParameters(ctx, params, hybridReplicationParameters)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "provided hybrid Replication parameters do not match with existing hybrid Replication parameters")
+	})
+
+	t.Run("WhenPeerVolumeNameDoesNotMatch", func(tt *testing.T) {
+		hybridReplicationParameters := datamodel.HybridReplicationAttribute{
+			PeerSvmName:    "peer-svm",
+			PeerVolumeName: "different-volume",
+		}
+
+		err := _verifyHybridParameters(ctx, params, hybridReplicationParameters)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "provided hybrid Replication parameters do not match with existing hybrid Replication parameters")
+	})
+
+	t.Run("WhenBothParametersDoNotMatch", func(tt *testing.T) {
+		hybridReplicationParameters := datamodel.HybridReplicationAttribute{
+			PeerSvmName:    "different-svm",
+			PeerVolumeName: "different-volume",
+		}
+
+		err := _verifyHybridParameters(ctx, params, hybridReplicationParameters)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "provided hybrid Replication parameters do not match with existing hybrid Replication parameters")
+	})
+
+	t.Run("WhenParametersMatchWithEmptyStrings", func(tt *testing.T) {
+		paramsEmpty := &common.EstablishReplicationPeeringParams{
+			PeerSvmName:    "",
+			PeerVolumeName: "",
+		}
+		hybridReplicationParameters := datamodel.HybridReplicationAttribute{
+			PeerSvmName:    "",
+			PeerVolumeName: "",
+		}
+
+		err := _verifyHybridParameters(ctx, paramsEmpty, hybridReplicationParameters)
+		assert.NoError(tt, err)
+	})
+}
+
+func Test_verifyClusterPeering(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenClusterPeerIsPEERED", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			ClusterPeer: &datamodel.ClusterPeerings{
+				State: coreModels.CvpClusterPeeringStatusPEERED,
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		result := _isClusterPeeringStateValid(ctx, replication)
+		assert.True(tt, result, "Should return true when ClusterPeer is PEERED")
+	})
+
+	t.Run("WhenClusterPeerIsNotPEERED", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			ClusterPeer: &datamodel.ClusterPeerings{
+				State: coreModels.CvpClusterPeeringStatusCREATING,
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		result := _isClusterPeeringStateValid(ctx, replication)
+		assert.False(tt, result, "Should return false when ClusterPeer is not PEERED and status is valid")
+	})
+
+	t.Run("WhenStatusIsPendingClusterPeer", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			BaseModel:   datamodel.BaseModel{UUID: "replication-123"},
+			Name:        "test-replication",
+			ClusterPeer: nil,
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		result := _isClusterPeeringStateValid(ctx, replication)
+		assert.False(tt, result, "Should return false when status is PendingClusterPeer")
+	})
+
+	t.Run("WhenStatusIsPendingSVMPeer", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			BaseModel:   datamodel.BaseModel{UUID: "replication-123"},
+			Name:        "test-replication",
+			ClusterPeer: nil,
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: coreModels.HybridReplicationStatusPendingSVMPeer,
+			},
+		}
+
+		result := _isClusterPeeringStateValid(ctx, replication)
+		assert.False(tt, result, "Should return false when status is PendingSVMPeer")
+	})
+
+	t.Run("WhenStatusIsPeered", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			BaseModel:   datamodel.BaseModel{UUID: "replication-123"},
+			Name:        "test-replication",
+			ClusterPeer: nil,
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: coreModels.HybridReplicationStatusPeered,
+			},
+		}
+
+		result := _isClusterPeeringStateValid(ctx, replication)
+		assert.True(tt, result, "Should return true when status is Peered (invalid for establishing peering)")
+	})
+
+	t.Run("WhenStatusIsSVMPeered", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			BaseModel:   datamodel.BaseModel{UUID: "replication-123"},
+			Name:        "test-replication",
+			ClusterPeer: nil,
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: coreModels.HybridReplicationStatusSVMPeered,
+			},
+		}
+
+		result := _isClusterPeeringStateValid(ctx, replication)
+		assert.True(tt, result, "Should return true when status is SVMPeered (invalid for establishing peering)")
+	})
+
+	t.Run("WhenStatusIsExternalManaged", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			BaseModel:   datamodel.BaseModel{UUID: "replication-123"},
+			Name:        "test-replication",
+			ClusterPeer: nil,
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: coreModels.HybridReplicationStatusExternalManaged,
+			},
+		}
+
+		result := _isClusterPeeringStateValid(ctx, replication)
+		assert.True(tt, result, "Should return true when status is ExternalManaged (invalid for establishing peering)")
+	})
+
+	t.Run("WhenClusterPeerIsNilAndStatusIsValid", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			BaseModel:   datamodel.BaseModel{UUID: "replication-123"},
+			Name:        "test-replication",
+			ClusterPeer: nil,
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: coreModels.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		result := _isClusterPeeringStateValid(ctx, replication)
+		assert.False(tt, result, "Should return false when ClusterPeer is nil and status is valid")
+	})
+
+	t.Run("WhenClusterPeerIsNilAndStatusIsPendingSVMPeer", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			BaseModel:   datamodel.BaseModel{UUID: "replication-123"},
+			Name:        "test-replication",
+			ClusterPeer: nil,
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: coreModels.HybridReplicationStatusPendingSVMPeer,
+			},
+		}
+
+		result := _isClusterPeeringStateValid(ctx, replication)
+		assert.False(tt, result, "Should return false when ClusterPeer is nil and status is PendingSVMPeer")
+	})
+}

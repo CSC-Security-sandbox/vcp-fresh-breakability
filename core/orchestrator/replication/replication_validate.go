@@ -42,6 +42,8 @@ var (
 	getDestinationPool          = _getDestinationPool
 	getVolume                   = _getVolume
 	describeVolume              = _describeVolume
+	verifyHybridParameters      = _verifyHybridParameters
+	isClusterPeeringStateValid  = _isClusterPeeringStateValid
 	createReplicationObjects    = _createReplicationObjects
 	replicationJobInProcess     = _replicationJobInProcess
 	internalGetReplicationCount = _internalGetReplicationCount
@@ -55,6 +57,9 @@ var (
 	VerifyReplication           = _verifyReplication
 	VerifyDstReplicationSync    = _verifyDstReplicationSync
 	VerifyDstReplicationReverse = _verifyDstReplicationReverse
+	VerifyEstablishPeering          = _verifyEstablishPeering
+	HybridReplicationJobsInProcess  = _hybridReplicationJobsInProcess
+	listVolumeReplicationsByCCFEURI = _listVolumeReplicationsByCCFEURI
 
 	InternalUtilGetCallbackToken   = auth.GetSignedAccessToken
 	InternalUtilGetSignedToken     = auth.GetSignedJwtToken
@@ -71,6 +76,24 @@ var (
 	getQuotaLimit           = common.GetQuotaLimit
 	minCoolingThresholdDays = 2
 	maxCoolingThresholdDays = 183
+
+	// activeJobStates defines the job states that indicate a job is still in progress
+	activeJobStates = []string{
+		string(coreModels.JobsStateNEW),
+		string(coreModels.JobsStatePROCESSING),
+	}
+	replicationJobTypes = []string{
+		string(coreModels.JobTypeCreateVolumeReplication),
+		string(coreModels.JobTypeDeleteVolumeReplication),
+		string(coreModels.JobTypeUpdateVolumeReplication),
+		string(coreModels.JobTypeResumeVolumeReplication),
+		string(coreModels.JobTypeReverseResumeVolumeReplication),
+		string(coreModels.JobTypeStopVolumeReplication),
+		string(coreModels.JobTypeCreateHybridReplication),
+		string(coreModels.JobTypeHybridReplicationEstablishPeering),
+		string(coreModels.JobTypeHybridReplicationInternalEstablish),
+		string(coreModels.JobTypeReverseHybridReplicationInternal),
+	}
 )
 
 type QuotaType string
@@ -480,6 +503,99 @@ func _validateReplicationResourceId(ctx context.Context, projectNumber string, p
 	}
 
 	return nil
+}
+
+func _verifyHybridParameters(ctx context.Context, params *common.EstablishReplicationPeeringParams,
+	hybridReplicationParameters datamodel.HybridReplicationAttribute) error {
+	if hybridReplicationParameters.PeerSvmName == params.PeerSvmName &&
+		hybridReplicationParameters.PeerVolumeName == params.PeerVolumeName {
+		return nil
+	}
+	return fmt.Errorf("provided hybrid Replication parameters do not match with existing hybrid Replication parameters")
+}
+
+func _isClusterPeeringStateValid(ctx context.Context, replication *datamodel.VolumeReplication) bool {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("verifying cluster peering state for replication %s", replication.Name)
+	if replication.ClusterPeer != nil && replication.ClusterPeer.State == coreModels.CvpClusterPeeringStatusPEERED {
+		return true
+	}
+	if replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPendingClusterPeer &&
+		replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPendingSVMPeer {
+		logger.Error("Invalid hybrid replication status for establishing peering",
+			common.String("replicationUUID", replication.UUID),
+			common.String("status", string(replication.HybridReplicationAttributes.Status)))
+		return true
+	}
+	return false
+}
+
+func _listVolumeReplicationsByCCFEURI(ctx context.Context, se database.Storage, accountID int64, ccfeURI string, queryDepth int) ([]*datamodel.VolumeReplication, error) {
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", accountID),
+		utils2.NewFilterCondition("uri", "=", ccfeURI))
+	replicationDb, err := se.ListVolumeReplications(ctx, *filter, queryDepth)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+	}
+	return replicationDb, nil
+}
+
+func _verifyEstablishPeering(ctx context.Context, params *common.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+	replicationDb, err := listVolumeReplicationsByCCFEURI(ctx, se, accountID, ccfeURI, database.QueryDepthOne)
+	if err != nil {
+		return nil, err
+	}
+	if len(replicationDb) == 0 {
+		logger.Error("Replication not found in database", common.String("ccfeURI", ccfeURI))
+		return nil, utilErrors.NewUserInputValidationErr("No replication found for the given URI")
+	}
+	replication := replicationDb[0]
+	if replication.HybridReplicationAttributes == nil {
+		logger.Error("HybridReplicationAttributes is nil for replication", common.String("ccfeURI", ccfeURI))
+		return nil, utilErrors.NewUserInputValidationErr("Replication does not have hybrid replication attributes")
+	}
+	err = verifyHybridParameters(ctx, params, *replication.HybridReplicationAttributes)
+	if err != nil {
+		return nil, utilErrors.NewUserInputValidationErr(err.Error())
+	}
+	if isClusterPeeringStateValid(ctx, replication) {
+		return nil, utilErrors.NewUserInputValidationErr("cluster peering is already established")
+	}
+
+	return replication, nil
+}
+
+// hybridReplicationJobsInProcess checks for active replication jobs for the given account and pool
+// to prevent conflicts during hybrid replication volume creation
+func _hybridReplicationJobsInProcess(ctx context.Context, se database.Storage, accountID int64, poolUUID string, ccfeUri string) (string, error) {
+	// Define replication job types to check for
+	// Create filter conditions for replication jobs
+	logger := util.GetLogger(ctx)
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("resource_name", "=", ccfeUri),
+		utils2.NewFilterCondition("type", "in", replicationJobTypes),
+		utils2.NewFilterCondition("state", "in", activeJobStates),
+	)
+
+	// Get jobs matching the filter conditions
+	dbJobs, err := se.GetJobsWithCondition(ctx, *filter)
+	if err != nil {
+		logger.Errorf("Failed to get replication jobs with conditions: %v. Error: %v", filter, err)
+		return "", err
+	}
+
+	// Check for active replication jobs for this specific pool
+	for _, job := range dbJobs {
+		if job.JobAttributes != nil && job.JobAttributes.PoolUUID == poolUUID {
+			logger.Warnf("Active replication job found for pool %s: job_type=%s, job_state=%s, job_uuid=%s",
+				poolUUID, job.Type, job.State, job.UUID)
+			return job.UUID, nil
+		}
+	}
+	logger.Infof("No active replication jobs found for pool %s, proceeding with hybrid replication volume creation", poolUUID)
+	return "", nil
 }
 
 // _createReplicationObjects return a dummy replication objects for expectedResponseCreateReplication endpoint to return

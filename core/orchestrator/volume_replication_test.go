@@ -9437,3 +9437,594 @@ func TestConvertJSONBLabelsToMap(t *testing.T) {
 		})
 	}
 }
+
+func TestEstablishReplicationPeering(t *testing.T) {
+	t.Run("WhenGetAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		_, _, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "account not found", err.Error())
+	})
+
+	t.Run("WhenVerifyEstablishPeeringFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		originalVerifyEstablishPeering := verifyEstablishPeering
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			verifyEstablishPeering = originalVerifyEstablishPeering
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		verifyEstablishPeering = func(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
+			return nil, errors.New("replication not found")
+		}
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		_, _, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "replication not found", err.Error())
+	})
+
+	t.Run("WhenCheckActiveReplicationJobsReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		originalVerifyEstablishPeering := verifyEstablishPeering
+		originalCheckActiveReplicationJobs := hybridReplicationJobsInProcess
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			verifyEstablishPeering = originalVerifyEstablishPeering
+			hybridReplicationJobsInProcess = originalCheckActiveReplicationJobs
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		dstReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+				Name:      "test-volume",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationPoolUUID: "pool-uuid",
+				ReplicationType:     "hybrid",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: models.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		verifyEstablishPeering = func(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		hybridReplicationJobsInProcess = func(ctx context.Context, se database.Storage, accountID int64, poolUUID string, ccfeURI string) (string, error) {
+			return "", errors.New("failed to check active jobs")
+		}
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		_, _, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to check active jobs", err.Error())
+	})
+
+	t.Run("WhenActiveJobExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		originalVerifyEstablishPeering := verifyEstablishPeering
+		originalCheckActiveReplicationJobs := hybridReplicationJobsInProcess
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			verifyEstablishPeering = originalVerifyEstablishPeering
+			hybridReplicationJobsInProcess = originalCheckActiveReplicationJobs
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		dstReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+				Name:      "test-volume",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationPoolUUID: "pool-uuid",
+				ReplicationType:     "hybrid",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: models.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		verifyEstablishPeering = func(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		hybridReplicationJobsInProcess = func(ctx context.Context, se database.Storage, accountID int64, poolUUID string, ccfeURI string) (string, error) {
+			return "existing-job-uuid", nil
+		}
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		volumeReplication, jobUUID, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volumeReplication)
+		assert.Equal(tt, "replication-123", volumeReplication.UUID)
+		assert.Equal(tt, "existing-job-uuid", jobUUID)
+	})
+
+	t.Run("WhenCreateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		originalVerifyEstablishPeering := verifyEstablishPeering
+		originalCheckActiveReplicationJobs := hybridReplicationJobsInProcess
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			verifyEstablishPeering = originalVerifyEstablishPeering
+			hybridReplicationJobsInProcess = originalCheckActiveReplicationJobs
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		dstReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+				Name:      "test-volume",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationPoolUUID: "pool-uuid",
+				ReplicationType:     "hybrid",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: models.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		verifyEstablishPeering = func(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		hybridReplicationJobsInProcess = func(ctx context.Context, se database.Storage, accountID int64, poolUUID string, ccfeURI string) (string, error) {
+			return "", nil
+		}
+
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(nil, errors.New("failed to create job"))
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		_, _, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to create job", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		originalVerifyEstablishPeering := verifyEstablishPeering
+		originalCheckActiveReplicationJobs := hybridReplicationJobsInProcess
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			verifyEstablishPeering = originalVerifyEstablishPeering
+			hybridReplicationJobsInProcess = originalCheckActiveReplicationJobs
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		dstReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+				Name:      "test-volume",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationPoolUUID: "pool-uuid",
+				ReplicationType:     "hybrid",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: models.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		verifyEstablishPeering = func(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		hybridReplicationJobsInProcess = func(ctx context.Context, se database.Storage, accountID int64, poolUUID string, ccfeURI string) (string, error) {
+			return "", nil
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-123"},
+			WorkflowID: "workflow-123",
+		}
+
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
+		mockStorage.On("UpdateJob", ctx, "job-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(nil)
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		_, _, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to execute workflow", err.Error())
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenExecuteWorkflowFailsAndUpdateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		originalVerifyEstablishPeering := verifyEstablishPeering
+		originalCheckActiveReplicationJobs := hybridReplicationJobsInProcess
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			verifyEstablishPeering = originalVerifyEstablishPeering
+			hybridReplicationJobsInProcess = originalCheckActiveReplicationJobs
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		dstReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+				Name:      "test-volume",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationPoolUUID: "pool-uuid",
+				ReplicationType:     "hybrid",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: models.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		verifyEstablishPeering = func(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		hybridReplicationJobsInProcess = func(ctx context.Context, se database.Storage, accountID int64, poolUUID string, ccfeURI string) (string, error) {
+			return "", nil
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-123"},
+			WorkflowID: "workflow-123",
+		}
+
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
+		mockStorage.On("UpdateJob", ctx, "job-123", string(models.JobsStateERROR), 0, "failed to execute workflow").Return(errors.New("failed to update job"))
+
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		_, _, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to execute workflow", err.Error())
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSucceedsWithRegion", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		originalVerifyEstablishPeering := verifyEstablishPeering
+		originalCheckActiveReplicationJobs := hybridReplicationJobsInProcess
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			verifyEstablishPeering = originalVerifyEstablishPeering
+			hybridReplicationJobsInProcess = originalCheckActiveReplicationJobs
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		dstReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			State:     models.LifeCycleStateAvailable,
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+				Name:      "test-volume",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationPoolUUID: "pool-uuid",
+				ReplicationType:     "hybrid",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: models.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		verifyEstablishPeering = func(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		hybridReplicationJobsInProcess = func(ctx context.Context, se database.Storage, accountID int64, poolUUID string, ccfeURI string) (string, error) {
+			return "", nil
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-123"},
+			WorkflowID: "workflow-123",
+		}
+
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		volumeReplication, jobUUID, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volumeReplication)
+		assert.Equal(tt, "replication-123", volumeReplication.UUID)
+		assert.Equal(tt, "job-123", jobUUID)
+		assert.Equal(tt, models.LifeCycleStateUpdating, volumeReplication.State)
+		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSucceedsWithZone", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		originalVerifyEstablishPeering := verifyEstablishPeering
+		originalCheckActiveReplicationJobs := hybridReplicationJobsInProcess
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			verifyEstablishPeering = originalVerifyEstablishPeering
+			hybridReplicationJobsInProcess = originalCheckActiveReplicationJobs
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		dstReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Name:      "test-replication",
+			State:     models.LifeCycleStateAvailable,
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+				Name:      "test-volume",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationPoolUUID: "pool-uuid",
+				ReplicationType:     "hybrid",
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Status: models.HybridReplicationStatusPendingClusterPeer,
+			},
+		}
+
+		verifyEstablishPeering = func(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		hybridReplicationJobsInProcess = func(ctx context.Context, se database.Storage, accountID int64, poolUUID string, ccfeURI string) (string, error) {
+			return "", nil
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-123"},
+			WorkflowID: "workflow-123",
+		}
+
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "us-central1-a",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1", "10.0.0.2"},
+		}
+
+		volumeReplication, jobUUID, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volumeReplication)
+		assert.Equal(tt, "replication-123", volumeReplication.UUID)
+		assert.Equal(tt, "job-123", jobUUID)
+		assert.Equal(tt, models.LifeCycleStateUpdating, volumeReplication.State)
+		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+}

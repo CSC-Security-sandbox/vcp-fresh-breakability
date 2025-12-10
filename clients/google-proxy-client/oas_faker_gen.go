@@ -7964,6 +7964,78 @@ func (s *V1betaEncryptVolumesUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaEstablishPeeringBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishPeeringBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishPeeringConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishPeeringConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishPeeringForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishPeeringForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishPeeringInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishPeeringInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishPeeringNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishPeeringNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishPeeringTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishPeeringTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishPeeringUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishPeeringUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEstablishPeeringUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEstablishPeeringUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaEstablishVolumePeeringBadRequest) SetFake() {
 	var unwrapped Error
 	{
