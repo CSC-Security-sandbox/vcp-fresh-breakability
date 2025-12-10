@@ -52,7 +52,7 @@ var (
 	ValidateReplicationUpdate   = _validateReplicationUpdate
 	VerifyDstReplicationStop    = _verifyDstReplicationStop
 	VerifyDstVolume             = _verifyDstVolume
-	VerifyDstReplication        = _verifyDstReplication
+	VerifyReplication           = _verifyReplication
 	VerifyDstReplicationSync    = _verifyDstReplicationSync
 	VerifyDstReplicationReverse = _verifyDstReplicationReverse
 
@@ -1112,8 +1112,16 @@ func convertReplicationResponseToModels(response *googleproxyclient.V1betaGetMul
 	return &replication
 }
 
-func _verifyDstReplication(ctx context.Context, event *DeleteReplicationEvent) (*coreModels.VolumeReplication, error) {
+func _verifyReplication(ctx context.Context, event *DeleteReplicationEvent) (*coreModels.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
+	if event.DstBasePath == "" {
+		srcReplication, err := getReplication(ctx, event.SrcBasePath, event.SourceProjectNumber, event.ReplicationModel.ReplicationAttributes.SourceLocation, event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID, event.SrcToken)
+		if err != nil || srcReplication == nil {
+			logger.Error("getReplication error", "error", err)
+			return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+		}
+		return srcReplication, nil
+	}
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
 		logger.Error("getReplication error", "error", err)

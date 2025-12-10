@@ -1076,3 +1076,165 @@ func TestDeleteRole(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 	})
 }
+
+func TestDeleteRolePrivilege(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Security").Return(mockSecurity)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := DeleteRolePrivilegeParams{
+			OwnerID: "owner-uuid",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+		}
+
+		mockSecurity.On("RolePrivilegeDelete", mock.MatchedBy(func(p *ontaprest.RolePrivilegeDeleteParams) bool {
+			return p.OwnerID == "owner-uuid" &&
+				p.Name == "test-role" &&
+				p.Path == "/api/storage/volumes"
+		})).Return(nil)
+
+		err := rc.DeleteRolePrivilege(params)
+
+		assert.NoError(tt, err)
+
+		mockSecurity.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("ErrorWhenGetOntapClientFails", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client creation failed")
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := DeleteRolePrivilegeParams{
+			OwnerID: "owner-uuid",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+		}
+
+		err := rc.DeleteRolePrivilege(params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "client creation failed")
+	})
+
+	t.Run("ErrorWhenRolePrivilegeDeleteFails", func(tt *testing.T) {
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Security").Return(mockSecurity)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := DeleteRolePrivilegeParams{
+			OwnerID: "owner-uuid",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+		}
+
+		mockSecurity.On("RolePrivilegeDelete", mock.Anything).Return(errors.New("privilege delete failed"))
+
+		err := rc.DeleteRolePrivilege(params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "privilege delete failed")
+
+		mockSecurity.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("SuccessWithCommandPath", func(tt *testing.T) {
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Security").Return(mockSecurity)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := DeleteRolePrivilegeParams{
+			OwnerID: "owner-uuid-123",
+			Name:    "external-peer",
+			Path:    "snapmirror resync",
+		}
+
+		mockSecurity.On("RolePrivilegeDelete", mock.MatchedBy(func(p *ontaprest.RolePrivilegeDeleteParams) bool {
+			return p.OwnerID == "owner-uuid-123" &&
+				p.Name == "external-peer" &&
+				p.Path == "snapmirror resync"
+		})).Return(nil)
+
+		err := rc.DeleteRolePrivilege(params)
+
+		assert.NoError(tt, err)
+
+		mockSecurity.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("SuccessWithEmptyFields", func(tt *testing.T) {
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Security").Return(mockSecurity)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+
+		params := DeleteRolePrivilegeParams{
+			OwnerID: "",
+			Name:    "",
+			Path:    "",
+		}
+
+		mockSecurity.On("RolePrivilegeDelete", mock.MatchedBy(func(p *ontaprest.RolePrivilegeDeleteParams) bool {
+			return p.OwnerID == "" &&
+				p.Name == "" &&
+				p.Path == ""
+		})).Return(nil)
+
+		err := rc.DeleteRolePrivilege(params)
+
+		assert.NoError(tt, err)
+
+		mockSecurity.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}

@@ -740,3 +740,55 @@ func TestRoleDelete(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 }
+
+func TestRolePrivilegeDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.RolePrivilegeDelete(&RolePrivilegeDeleteParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RolePrivilegeDeleteOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.RolePrivilegeDelete(&RolePrivilegeDeleteParams{})
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenParamsSetWithAllFields_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RolePrivilegeDeleteOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		params := &RolePrivilegeDeleteParams{
+			OwnerID: "owner-uuid-123",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+		}
+		err := client.RolePrivilegeDelete(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenParamsSetWithCommandPath_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RolePrivilegeDeleteOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		params := &RolePrivilegeDeleteParams{
+			OwnerID: "owner-uuid-456",
+			Name:    "external-peer",
+			Path:    "snapmirror resync",
+		}
+		err := client.RolePrivilegeDelete(params)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenParamsIsNil_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.RolePrivilegeDeleteOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		err := client.RolePrivilegeDelete(nil)
+		assert.NoError(tt, err)
+	})
+}

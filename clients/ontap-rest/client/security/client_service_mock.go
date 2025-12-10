@@ -416,6 +416,19 @@ func (mock *MockClientService) AssertRolePrivilegeCreate(params *RolePrivilegeCr
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
+// RolePrivilegeDelete mocks a call to ClientService.RolePrivilegeDelete
+func (mock *MockClientService) RolePrivilegeDelete(params *RolePrivilegeDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeDeleteOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "RolePrivilegeDelete", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**RolePrivilegeDeleteOK), *ret[1].(*error)
+}
+
+// AssertRolePrivilegeDelete verifies that RolePrivilegeDelete has been invoked
+func (mock *MockClientService) AssertRolePrivilegeDelete(params *RolePrivilegeDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *RolePrivilegeDeleteOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "RolePrivilegeDelete", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
 // RolePrivilegeModify mocks a call to ClientService.RolePrivilegeModify
 func (mock *MockClientService) RolePrivilegeModify(params *RolePrivilegeModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeModifyOK, error) {
 	mock.calls <- &mockClientServiceCall{name: "RolePrivilegeModify", params: []interface{}{&params, &authInfo, &opts}}

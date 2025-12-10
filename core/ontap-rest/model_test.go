@@ -4251,3 +4251,101 @@ func TestRoleDeleteParamsToONTAP(t *testing.T) {
 		assert.Empty(tt, otParams.OwnerUUID)
 	})
 }
+
+func TestRolePrivilegeDeleteParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := rolePrivilegeDeleteParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithAllFields", func(tt *testing.T) {
+		params := &RolePrivilegeDeleteParams{
+			OwnerID: "owner-uuid-123",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes",
+		}
+		otParams := rolePrivilegeDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-123", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "/api/storage/volumes", otParams.Path)
+	})
+
+	t.Run("WhenParamsSetWithCommandPath", func(tt *testing.T) {
+		params := &RolePrivilegeDeleteParams{
+			OwnerID: "owner-uuid-456",
+			Name:    "external-peer",
+			Path:    "snapmirror resync",
+		}
+		otParams := rolePrivilegeDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-456", otParams.OwnerUUID)
+		assert.Equal(tt, "external-peer", otParams.Name)
+		assert.Equal(tt, "snapmirror resync", otParams.Path)
+	})
+
+	t.Run("WhenParamsSetWithEmptyStrings", func(tt *testing.T) {
+		params := &RolePrivilegeDeleteParams{
+			OwnerID: "",
+			Name:    "",
+			Path:    "",
+		}
+		otParams := rolePrivilegeDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", otParams.OwnerUUID)
+		assert.Equal(tt, "", otParams.Name)
+		assert.Equal(tt, "", otParams.Path)
+	})
+
+	t.Run("WhenParamsSetWithRESTEndpointPath", func(tt *testing.T) {
+		params := &RolePrivilegeDeleteParams{
+			OwnerID: "owner-uuid-789",
+			Name:    "test-role",
+			Path:    "/api/storage/volumes/{volume.uuid}/snapshots",
+		}
+		otParams := rolePrivilegeDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-789", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role", otParams.Name)
+		assert.Equal(tt, "/api/storage/volumes/{volume.uuid}/snapshots", otParams.Path)
+	})
+
+	t.Run("WhenParamsSetWithOnlyOwnerID", func(tt *testing.T) {
+		params := &RolePrivilegeDeleteParams{
+			OwnerID: "owner-uuid-101",
+			Name:    "",
+			Path:    "",
+		}
+		otParams := rolePrivilegeDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "owner-uuid-101", otParams.OwnerUUID)
+		assert.Equal(tt, "", otParams.Name)
+		assert.Equal(tt, "", otParams.Path)
+	})
+
+	t.Run("WhenParamsSetWithOnlyName", func(tt *testing.T) {
+		params := &RolePrivilegeDeleteParams{
+			OwnerID: "",
+			Name:    "test-role-only",
+			Path:    "",
+		}
+		otParams := rolePrivilegeDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", otParams.OwnerUUID)
+		assert.Equal(tt, "test-role-only", otParams.Name)
+		assert.Equal(tt, "", otParams.Path)
+	})
+
+	t.Run("WhenParamsSetWithOnlyPath", func(tt *testing.T) {
+		params := &RolePrivilegeDeleteParams{
+			OwnerID: "",
+			Name:    "",
+			Path:    "/api/storage/volumes",
+		}
+		otParams := rolePrivilegeDeleteParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", otParams.OwnerUUID)
+		assert.Equal(tt, "", otParams.Name)
+		assert.Equal(tt, "/api/storage/volumes", otParams.Path)
+	})
+}

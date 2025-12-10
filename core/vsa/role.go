@@ -40,6 +40,13 @@ type ModifyRolePrivilegeParams struct {
 	Query   string
 }
 
+// DeleteRolePrivilegeParams represents parameters for deleting a role privilege
+type DeleteRolePrivilegeParams struct {
+	OwnerID string
+	Name    string
+	Path    string
+}
+
 // CreateRolePrivilegeParams represents parameters for creating a role privilege
 type CreateRolePrivilegeParams struct {
 	OwnerID string
@@ -150,6 +157,29 @@ func (rc *OntapRestProvider) ModifyRolePrivilege(params ModifyRolePrivilegeParam
 
 	// Modify the role privilege
 	err = client.Security().RolePrivilegeModify(modifyParams)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteRolePrivilege deletes a role privilege from ONTAP
+func (rc *OntapRestProvider) DeleteRolePrivilege(params DeleteRolePrivilegeParams) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+
+	// Create delete privilege parameters
+	deleteParams := &ontapRest.RolePrivilegeDeleteParams{
+		OwnerID: params.OwnerID,
+		Name:    params.Name,
+		Path:    params.Path,
+	}
+
+	// Delete the role privilege
+	err = client.Security().RolePrivilegeDelete(deleteParams)
 	if err != nil {
 		return err
 	}

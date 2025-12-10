@@ -53,7 +53,7 @@ var (
 	validateReplicationParams       = replication.ValidateReplicationParams
 	verifyDstReplicationResume      = replication.VerifyDstReplicationResume
 	verifyDstReplicationStop        = replication.VerifyDstReplicationStop
-	VerifyDstReplicationDelete      = replication.VerifyDstReplication
+	VerifyReplicationDelete         = replication.VerifyReplication
 	verifyDstReplicationSync        = replication.VerifyDstReplicationSync
 	validateReplicationUpdate       = replication.ValidateReplicationUpdate
 	verifyDstReplicationReverse     = replication.VerifyDstReplicationReverse
@@ -1783,7 +1783,7 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 	}
 
 	if !isCleanUp {
-		dstReplication, err = VerifyDstReplicationDelete(ctx, &event)
+		dstReplication, err = VerifyReplicationDelete(ctx, &event)
 		if err != nil {
 			return nil, "", err
 		}

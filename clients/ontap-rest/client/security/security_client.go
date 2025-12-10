@@ -140,6 +140,8 @@ type ClientService interface {
 
 	RolePrivilegeCreate(params *RolePrivilegeCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeCreateCreated, error)
 
+	RolePrivilegeDelete(params *RolePrivilegeDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeDeleteOK, error)
+
 	RolePrivilegeModify(params *RolePrivilegeModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeModifyOK, error)
 
 	SecurityAuditGet(params *SecurityAuditGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityAuditGetOK, error)
@@ -1171,6 +1173,70 @@ func (a *Client) RolePrivilegeCreate(params *RolePrivilegeCreateParams, authInfo
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*RolePrivilegeCreateDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	RolePrivilegeDelete Deletes a privilege tuple (of REST URI or command/command directory path, its access level and an optional query) from the role. The REST URI can be a resource-qualified endpoint. Currently, the only supported resource-qualified endpoints are the following&#58;<p/>
+
+### Snapshots APIs
+&ndash; <i>/api/storage/volumes/{volume.uuid}/snapshots</i><br/>
+### File System Analytics APIs
+&ndash; <i>/api/storage/volumes/{volume.uuid}/files</i>
+&ndash; <i>/api/storage/volumes/{volume.uuid}/top-metrics/clients</i>
+&ndash; <i>/api/storage/volumes/{volume.uuid}/top-metrics/directories</i>
+&ndash; <i>/api/storage/volumes/{volume.uuid}/top-metrics/files</i>
+&ndash; <i>/api/storage/volumes/{volume.uuid}/top-metrics/users</i>
+&ndash; <i>/api/svm/svms/{svm.uuid}/top-metrics/clients</i>
+&ndash; <i>/api/svm/svms/{svm.uuid}/top-metrics/directories</i>
+&ndash; <i>/api/svm/svms/{svm.uuid}/top-metrics/files</i>
+&ndash; <i>/api/svm/svms/{svm.uuid}/top-metrics/users</i><br/>
+#### Ontap S3 APIs
+&ndash; <i>/api/protocols/s3/services/{svm.uuid}/users</i><p/>
+In the above APIs, wildcard character &#42; could be used in place of <i>{volume.uuid}</i> or <i>{svm.uuid}</i> to denote <i>all</i> volumes or <i>all</i> SVMs, depending upon whether the REST endpoint references volumes or SVMs. The <i>{volume.uuid}</i> refers to the <i>-instance-uuid</i> field value in the \"volume show\" command output at diagnostic privilege level. It can also be fetched through REST endpoint <i>/api/storage/volumes</i>.<br/>
+### Required parameters
+* `owner.uuid` - UUID of the SVM which houses this role.
+* `name` - Name of the role to be updated.
+* `path` - Constituent REST API path or command/command directory path to be deleted from this role. Can be a resource-qualified endpoint (example: <i>/api/svm/svms/43256a71-be02-474d-a2a9-9642e12a6a2c/top-metrics/users</i>). Currently, resource-qualified endpoints are limited to the <i>Snapshots</i> and <i>File System Analytics</i> endpoints listed above in the description.
+### Related ONTAP commands
+* `security login rest-role delete`
+* `security login role delete`
+### Learn more
+* [`DOC /security/roles/{owner.uuid}/{name}/privileges/{path}`](#docs-security-security_roles_{owner.uuid}_{name}_privileges_{path})
+* [`DOC /security/roles`](#docs-security-security_roles)
+*/
+func (a *Client) RolePrivilegeDelete(params *RolePrivilegeDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeDeleteOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewRolePrivilegeDeleteParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "role_privilege_delete",
+		Method:             "DELETE",
+		PathPattern:        "/security/roles/{owner.uuid}/{name}/privileges/{path}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &RolePrivilegeDeleteReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*RolePrivilegeDeleteOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*RolePrivilegeDeleteDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

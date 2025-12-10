@@ -145,6 +145,7 @@ type Provider interface {
 	DeleteRole(params DeleteRoleParams) error
 	GetRoleCollection(params GetRoleCollectionParams) ([]*Role, error)
 	ModifyRolePrivilege(params ModifyRolePrivilegeParams) error
+	DeleteRolePrivilege(params DeleteRolePrivilegeParams) error
 	CreateRolePrivilege(params CreateRolePrivilegeParams) (string, error)
 	GetCIFSService(svmName, externalSVMUUID string) (*ontapRest.CifsService, error)
 	EnsureCIFSShare(params ConfigActiveDirectoryParams) (string, error)

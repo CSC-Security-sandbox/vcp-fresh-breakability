@@ -522,6 +522,117 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		assert.NoError(tt, env.GetWorkflowError())
 	})
 
+	t.Run("TestReplicationDeleteWorkflow_SuccessWhenIsSrcForHybridReplication", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		deleteReplicationActivity := replicationActivities.DeleteVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(deleteReplicationActivity.SetHybridReplicationVariablesDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSrcBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetDstBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedSrcTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedDstTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.ReleaseReplicationOnSrc)
+		env.RegisterActivity(deleteReplicationActivity.DeleteSnapmirrorSnapshotsOnSource)
+		env.RegisterActivity(deleteReplicationActivity.DescribeSourceJobForDelete)
+		env.RegisterActivity(deleteReplicationActivity.DeleteReplicationRecordOnSource)
+		env.RegisterActivity(deleteReplicationActivity.UpdateRbacRole)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(deleteReplicationActivity.DeleteClusterPeeringInOntap)
+		env.RegisterActivity(deleteReplicationActivity.DeleteClusterPeeringDB)
+		env.RegisterActivity(deleteReplicationActivity.DeleteRoleInOntap)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			CorrelationId:         "test-correlation-id",
+			VolumeResourceId:      "test-volume-id",
+			ReplicationResourceId: "test-replication-id",
+			Zone:                  "us-central1-a",
+		}
+
+		event := &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation: "customer",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
+					Volume: &datamodel.Volume{
+						Pool: &datamodel.Pool{
+							BaseModel: datamodel.BaseModel{
+								ID: 1,
+							},
+							DeploymentName: "test-deployment",
+							PoolCredentials: &datamodel.PoolCredentials{
+								SecretID: "test-secret-id",
+							},
+						},
+					},
+				},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				VolumeResourceID:         "test-volume-id",
+				ReplicationResourceID:    "test-replication-id",
+				Location:                 "us-central1",
+				Zone:                     "us-central1-a",
+				AccountName:              "test-account",
+			},
+		}
+
+		replicationResult := &replication.DeleteReplicationResult{
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			Event:            event,
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				Name:             googleproxyclient.NewOptString("repl-123"),
+				LastTransferSize: googleproxyclient.NewOptInt64(100),
+				MirrorState:      googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED),
+			},
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			CleanupClusterPeering:     true,
+		}
+
+		dbNodes := []*datamodel.Node{
+			{
+				Name: "test-node",
+			},
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetHybridReplicationVariablesDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSrcBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDstBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedSrcTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedDstTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil)
+		env.OnActivity("ReleaseReplicationOnSrc", mock.Anything, mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DeleteSnapmirrorSnapshotsOnSource", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeSourceJobForDelete", mock.Anything, mock.Anything).Return(nil).Times(2)
+		env.OnActivity("DeleteReplicationRecordOnSource", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateRbacRole", mock.Anything, mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DeleteClusterPeeringInOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteClusterPeeringDB", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteRoleInOntap", mock.Anything, mock.Anything).Return(nil)
+		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		assert.Nil(tt, err)
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
 	t.Run("TestReplicationDeleteWorkflow_ErrorUpdateReplicationRecordOnSource", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()

@@ -565,6 +565,52 @@ func (_c *MockSecurityClient_RolePrivilegeCreate_Call) RunAndReturn(run func(*Ro
 	return _c
 }
 
+// RolePrivilegeDelete provides a mock function with given fields: params
+func (_m *MockSecurityClient) RolePrivilegeDelete(params *RolePrivilegeDeleteParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RolePrivilegeDelete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*RolePrivilegeDeleteParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockSecurityClient_RolePrivilegeDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RolePrivilegeDelete'
+type MockSecurityClient_RolePrivilegeDelete_Call struct {
+	*mock.Call
+}
+
+// RolePrivilegeDelete is a helper method to define mock.On call
+//   - params *RolePrivilegeDeleteParams
+func (_e *MockSecurityClient_Expecter) RolePrivilegeDelete(params interface{}) *MockSecurityClient_RolePrivilegeDelete_Call {
+	return &MockSecurityClient_RolePrivilegeDelete_Call{Call: _e.mock.On("RolePrivilegeDelete", params)}
+}
+
+func (_c *MockSecurityClient_RolePrivilegeDelete_Call) Run(run func(params *RolePrivilegeDeleteParams)) *MockSecurityClient_RolePrivilegeDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*RolePrivilegeDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_RolePrivilegeDelete_Call) Return(_a0 error) *MockSecurityClient_RolePrivilegeDelete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockSecurityClient_RolePrivilegeDelete_Call) RunAndReturn(run func(*RolePrivilegeDeleteParams) error) *MockSecurityClient_RolePrivilegeDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RolePrivilegeModify provides a mock function with given fields: params
 func (_m *MockSecurityClient) RolePrivilegeModify(params *RolePrivilegeModifyParams) error {
 	ret := _m.Called(params)

@@ -4402,7 +4402,7 @@ func TestVerifyDstReplicationDelete(t *testing.T) {
 		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
 			return nil, errors.New("some error")
 		}
-		_, err := _verifyDstReplication(ctx, event)
+		_, err := _verifyReplication(ctx, event)
 		assert.Error(tt, err)
 	})
 	t.Run("WhenMirrorStateMirrored", func(tt *testing.T) {
@@ -4419,7 +4419,7 @@ func TestVerifyDstReplicationDelete(t *testing.T) {
 		}
 		expectedError := errors.NewUserInputValidationErr(fmt.Sprintf("Destination replication is in mirror_state: %v expected_mirror_state: %v", models.ReplicationV1betaMirrorStateMIRRORED, models.ReplicationV1betaMirrorStateSTOPPED))
 
-		_, err := _verifyDstReplication(ctx, event)
+		_, err := _verifyReplication(ctx, event)
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -4439,7 +4439,7 @@ func TestVerifyDstReplicationDelete(t *testing.T) {
 		}
 		expectedError := errors.NewUserInputValidationErr(fmt.Sprintf("Expected mirror state: %v or %v", models.ReplicationV1betaMirrorStatePREPARING, models.ReplicationV1betaMirrorStateSTOPPED))
 
-		_, err := _verifyDstReplication(ctx, event)
+		_, err := _verifyReplication(ctx, event)
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -4458,7 +4458,7 @@ func TestVerifyDstReplicationDelete(t *testing.T) {
 			return dstReplication, nil
 		}
 		expectedError := errors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
-		_, err := _verifyDstReplication(ctx, event)
+		_, err := _verifyReplication(ctx, event)
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -4476,9 +4476,99 @@ func TestVerifyDstReplicationDelete(t *testing.T) {
 		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
 			return dstReplication, nil
 		}
-		resp, err := _verifyDstReplication(ctx, event)
+		resp, err := _verifyReplication(ctx, event)
 		assert.NoError(tt, err)
 		assert.Equal(tt, dstReplication, resp)
+	})
+	t.Run("WhenDstBasePathEmpty_GetReplicationError", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		eventWithEmptyDst := &DeleteReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:         "",
+				SrcBasePath:         "srcPath",
+				SourceProjectNumber: "sourceProjectNumber",
+				SrcToken:            "srcToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:        "srcLocation",
+						SourceReplicationUUID: "srcUUID",
+					},
+				},
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("getReplication error")
+		}
+		_, err := _verifyReplication(ctx, eventWithEmptyDst)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+	})
+	t.Run("WhenDstBasePathEmpty_GetReplicationReturnsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		eventWithEmptyDst := &DeleteReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:         "",
+				SrcBasePath:         "srcPath",
+				SourceProjectNumber: "sourceProjectNumber",
+				SrcToken:            "srcToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:        "srcLocation",
+						SourceReplicationUUID: "srcUUID",
+					},
+				},
+			},
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, nil
+		}
+		_, err := _verifyReplication(ctx, eventWithEmptyDst)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+	})
+	t.Run("WhenDstBasePathEmpty_Success", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		eventWithEmptyDst := &DeleteReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:         "",
+				SrcBasePath:         "srcPath",
+				SourceProjectNumber: "sourceProjectNumber",
+				SrcToken:            "srcToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:        "srcLocation",
+						SourceReplicationUUID: "srcUUID",
+					},
+				},
+			},
+		}
+		mirrorState := "STOPPED"
+		srcReplication := &coreModels.VolumeReplication{
+			MirrorState: &mirrorState,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			// Verify that source parameters are used
+			assert.Equal(tt, "srcPath", basePath)
+			assert.Equal(tt, "sourceProjectNumber", projectNumber)
+			assert.Equal(tt, "srcLocation", locationID)
+			assert.Equal(tt, "srcUUID", volumeReplicationID)
+			assert.Equal(tt, "srcToken", jwt)
+			return srcReplication, nil
+		}
+		resp, err := _verifyReplication(ctx, eventWithEmptyDst)
+		assert.NoError(tt, err)
+		assert.Equal(tt, srcReplication, resp)
 	})
 }
 

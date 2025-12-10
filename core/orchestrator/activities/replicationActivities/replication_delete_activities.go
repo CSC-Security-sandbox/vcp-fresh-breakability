@@ -2,6 +2,7 @@ package replicationActivities
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -27,6 +28,35 @@ type DeleteVolumeReplicationActivity struct {
 	SE database.Storage
 }
 
+// removePathFromSnapmirrorQuery removes a path from the snapmirror query string.
+// Returns the updated query string, or empty string if no paths remain.
+func removePathFromSnapmirrorQuery(existingPrivilege *vsa.RolePrivilege, pathToRemove string) string {
+	if existingPrivilege == nil || existingPrivilege.Query == "" {
+		return "" // No existing privilege, nothing to remove
+	}
+
+	existingQuery := existingPrivilege.Query
+	// Extract paths from existing query: -source-path path1|path2|path3
+	pathsStr := strings.TrimPrefix(existingQuery, "-source-path ")
+	existingPaths := strings.Split(pathsStr, "|")
+
+	// Remove the path to delete
+	var remainingPaths []string
+	for _, path := range existingPaths {
+		if strings.TrimSpace(path) != pathToRemove {
+			remainingPaths = append(remainingPaths, strings.TrimSpace(path))
+		}
+	}
+
+	// If no paths remain, return empty string
+	if len(remainingPaths) == 0 {
+		return ""
+	}
+
+	// Return updated query with remaining paths
+	return fmt.Sprintf("-source-path %s", strings.Join(remainingPaths, "|"))
+}
+
 func (a *DeleteVolumeReplicationActivity) SetHybridReplicationVariablesDelete(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	if result.Event != nil && result.Event.ReplicationModel != nil && result.Event.ReplicationModel.HybridReplicationAttributes != nil {
@@ -46,6 +76,9 @@ func (a *DeleteVolumeReplicationActivity) SetHybridReplicationVariablesDelete(ct
 				logger.Infof("This is the last replication for cluster peer ID %d, setting cleanup cluster peering flag", result.Event.ReplicationModel.ClusterPeerId.Int64)
 				result.CleanupClusterPeering = true
 			}
+		}
+		if replication.IsSrcForHybridReplication(result.Event.ReplicationModel) {
+			result.IsSrcForHybridReplication = true
 		}
 	}
 	return result, nil
@@ -100,6 +133,148 @@ func (a *DeleteVolumeReplicationActivity) DeleteRoleInOntap(ctx context.Context,
 	}
 	logger.Debugf("Role %s deleted successfully", roleName)
 	return nil
+}
+
+func (a *DeleteVolumeReplicationActivity) ReleaseReplicationOnSrc(ctx context.Context, result *replication.DeleteReplicationResult, node *models.Node) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("ReleaseReplicationOnSrc")
+
+	// Get provider from node
+	provider, err := hyperscalerGetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to get provider from node: %v", err)
+		return nil, errors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Construct VSA VolumeReplication from datamodel
+	replicationAttrs := result.Event.ReplicationModel.ReplicationAttributes
+	vsaVolumeReplication := &vsa.VolumeReplication{
+		EndpointType:          replicationAttrs.EndpointType,
+		SourceHostName:        replicationAttrs.SourceHostName,
+		SourceSVMName:         replicationAttrs.SourceSvmName,
+		SourceVolumeName:      replicationAttrs.SourceVolumeName,
+		DestinationHostName:   replicationAttrs.DestinationHostName,
+		DestinationSVMName:    replicationAttrs.DestinationSvmName,
+		DestinationVolumeName: replicationAttrs.DestinationVolumeName,
+		ReplicationSchedule:   replicationAttrs.ReplicationSchedule,
+		Volume: &vsa.Volume{
+			ExternalUUID: result.Event.ReplicationModel.Volume.VolumeAttributes.ExternalUUID,
+		},
+		ReplicationType: replicationAttrs.ReplicationType,
+	}
+
+	// Create release params
+	releaseParams := &vsa.ReleaseVolumeReplicationParams{
+		VolumeReplication: vsaVolumeReplication,
+		ReverseResync:     false,
+	}
+
+	// Call provider to release replication
+	_, err = provider.ReleaseVolumeReplication(releaseParams)
+	if err != nil {
+		logger.Errorf("Failed to release volume replication: %v", err)
+		if strings.Contains(err.Error(), "Timeout during cleanup of peering infrastructure") {
+			return nil, errors.WrapAsTemporalApplicationError(errors.NewVCPError(errors.ErrCleanupSvmPeering, err))
+		}
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalReleaseVolumeReplicationError, err)
+	}
+
+	logger.Debugf("Replication released successfully on source")
+	return result, nil
+}
+
+func (a *DeleteVolumeReplicationActivity) UpdateRbacRole(ctx context.Context, result *replication.DeleteReplicationResult, node *models.Node) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("DeleteRbacRole")
+
+	if !result.IsHybridReplicationVolume || !result.IsSrcForHybridReplication {
+		// Only delete RBAC role for hybrid replications where GCNV is source
+		return result, nil
+	}
+
+	if result.Event == nil || result.Event.ReplicationModel == nil || result.Event.ReplicationModel.ReplicationAttributes == nil {
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, fmt.Errorf("replication or replication attributes is nil"))
+	}
+
+	// Get provider from node
+	provider, err := hyperscalerGetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to get provider from node: %v", err)
+		return nil, errors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Role name for hybrid replication
+	roleName := onPremPeerRole
+
+	// Get the role - it must exist
+	roles, err := provider.GetRoleCollection(vsa.GetRoleCollectionParams{
+		Name: &roleName,
+	})
+	if err != nil {
+		logger.Errorf("Failed to get role collection: %v", err)
+		return nil, errors.WrapAsTemporalApplicationError(err)
+	}
+
+	if len(roles) == 0 {
+		logger.Infof("Role %s not found, skipping RBAC deletion", roleName)
+		return result, nil
+	}
+
+	// Use the first matching role
+	targetRole := roles[0]
+
+	// Format: svm:volume
+	sourcePath := getPath(result.Event.ReplicationModel.ReplicationAttributes.SourceSvmName, result.Event.ReplicationModel.ReplicationAttributes.SourceVolumeName)
+
+	// Check if snapmirror resync privilege exists
+	var existingSnapmirrorPrivilege *vsa.RolePrivilege
+	for _, privilege := range targetRole.Privileges {
+		if privilege.Path == SnapmirrorResyncPrivilegePath {
+			existingSnapmirrorPrivilege = privilege
+			break
+		}
+	}
+
+	if existingSnapmirrorPrivilege == nil {
+		logger.Infof("Snapmirror resync privilege not found for role %s, skipping deletion", roleName)
+		return result, nil
+	}
+
+	// Remove path from query
+	updatedQuery := removePathFromSnapmirrorQuery(existingSnapmirrorPrivilege, sourcePath)
+
+	ownerID := targetRole.OwnerID
+
+	if updatedQuery == "" {
+		// Delete the entire privilege if no paths remaining
+		err = provider.DeleteRolePrivilege(vsa.DeleteRolePrivilegeParams{
+			OwnerID: ownerID,
+			Name:    roleName,
+			Path:    SnapmirrorResyncPrivilegePath,
+		})
+		if err != nil {
+			logger.Errorf("Failed to delete snapmirror resync privilege: %v", err)
+			return nil, errors.WrapAsTemporalApplicationError(err)
+		}
+		logger.Infof("Successfully deleted RBAC role %s snapmirror resync privilege as no paths remain", roleName)
+		return result, nil
+	}
+
+	// Modify existing privilege with remaining paths
+	err = provider.ModifyRolePrivilege(vsa.ModifyRolePrivilegeParams{
+		OwnerID: ownerID,
+		Name:    roleName,
+		Path:    SnapmirrorResyncPrivilegePath,
+		Access:  SnapmirrorResyncPrivilegeAccess,
+		Query:   updatedQuery,
+	})
+	if err != nil {
+		logger.Errorf("Failed to modify snapmirror resync privilege: %v", err)
+		return nil, errors.WrapAsTemporalApplicationError(err)
+	}
+	logger.Infof("Successfully modified RBAC role %s snapmirror resync privilege (%s) for remaining source path(s): %s", roleName, SnapmirrorResyncPrivilegeAccess, updatedQuery)
+
+	return result, nil
 }
 
 func (a *DeleteVolumeReplicationActivity) DeleteClusterPeeringDB(ctx context.Context, result *replication.DeleteReplicationResult) error {
@@ -396,6 +571,29 @@ func (a *DeleteVolumeReplicationActivity) UpdateReplicationOnDestinationToErrorS
 	}
 }
 
+func (a *DeleteVolumeReplicationActivity) UpdateReplicationInDBToErrorState(ctx context.Context, result *replication.DeleteReplicationResult) error {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Update ReplicationInDBToErrorState")
+	se := a.SE
+
+	if result.Event == nil || result.Event.ReplicationModel == nil {
+		logger.Error("Replication model is nil")
+		return errors.NewVCPError(errors.ErrDatabaseDataReadError, fmt.Errorf("replication model is nil"))
+	}
+
+	volumeRep := result.Event.ReplicationModel
+	volumeRep.State = models.LifeCycleStateError
+	volumeRep.StateDetails = models.LifeCycleStateDeletionErrorDetails
+
+	if err := se.UpdateVolumeReplicationStates(ctx, volumeRep); err != nil {
+		logger.Errorf("Failed to update volume replication state in database: %v", err)
+		return errors.NewVCPError(errors.ErrDatabaseDataUpdateError, err)
+	}
+
+	logger.Debugf("Successfully updated volume replication state to error in database")
+	return nil
+}
+
 func (a *DeleteVolumeReplicationActivity) DeleteSnapmirrorSnapshotsOnDestination(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("DeleteSnapmirrorSnapshotsOnDestination")
@@ -511,5 +709,26 @@ func (a *DeleteVolumeReplicationActivity) DescribeSourceJobForDelete(ctx context
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (a *DeleteVolumeReplicationActivity) DeleteReplicationRecordOnSource(ctx context.Context, result *replication.DeleteReplicationResult) error {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("DeleteReplicationRecordOnSource")
+
+	if result.Event == nil || result.Event.ReplicationModel == nil {
+		logger.Error("Replication model is nil")
+		return errors.NewVCPError(errors.ErrDatabaseDataReadError, fmt.Errorf("replication model is nil"))
+	}
+
+	se := a.SE
+	replicationModel := result.Event.ReplicationModel
+
+	_, err := se.DeleteVolumeReplication(ctx, replicationModel)
+	if err != nil {
+		logger.Errorf("Failed to delete volume replication record in database: %v", err)
+		return errors.WrapAsTemporalApplicationError(errors.NewVCPError(errors.ErrDatabaseDataUpdateError, err))
+	}
+
 	return nil
 }

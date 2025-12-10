@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -4212,6 +4213,1370 @@ func TestDeleteClusterPeeringDB(t *testing.T) {
 		err := activity.DeleteClusterPeeringDB(ctx, result)
 
 		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestRemovePathFromSnapmirrorQuery(t *testing.T) {
+	t.Run("WhenExistingPrivilegeIsNil", func(tt *testing.T) {
+		result := removePathFromSnapmirrorQuery(nil, "svm1:vol1")
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenQueryIsEmpty", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm1:vol1")
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenSinglePathMatchesAndGetsRemoved", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path svm1:vol1",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm1:vol1")
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenSinglePathDoesNotMatch", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path svm1:vol1",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm2:vol2")
+		assert.Equal(tt, "-source-path svm1:vol1", result)
+	})
+
+	t.Run("WhenMultiplePathsRemoveFirst", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path svm1:vol1|svm2:vol2|svm3:vol3",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm1:vol1")
+		assert.Equal(tt, "-source-path svm2:vol2|svm3:vol3", result)
+	})
+
+	t.Run("WhenMultiplePathsRemoveMiddle", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path svm1:vol1|svm2:vol2|svm3:vol3",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm2:vol2")
+		assert.Equal(tt, "-source-path svm1:vol1|svm3:vol3", result)
+	})
+
+	t.Run("WhenMultiplePathsRemoveLast", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path svm1:vol1|svm2:vol2|svm3:vol3",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm3:vol3")
+		assert.Equal(tt, "-source-path svm1:vol1|svm2:vol2", result)
+	})
+
+	t.Run("WhenMultiplePathsRemoveNonExistent", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path svm1:vol1|svm2:vol2|svm3:vol3",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm4:vol4")
+		assert.Equal(tt, "-source-path svm1:vol1|svm2:vol2|svm3:vol3", result)
+	})
+
+	t.Run("WhenAllPathsGetRemoved", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path svm1:vol1|svm1:vol1|svm1:vol1",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm1:vol1")
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenPathsHaveWhitespace", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path  svm1:vol1  |  svm2:vol2  |  svm3:vol3  ",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm2:vol2")
+		assert.Equal(tt, "-source-path svm1:vol1|svm3:vol3", result)
+	})
+
+	t.Run("WhenQueryHasNoPrefix", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "svm1:vol1|svm2:vol2",
+		}
+		// TrimPrefix won't remove anything, so pathsStr will be the full query
+		result := removePathFromSnapmirrorQuery(privilege, "svm1:vol1")
+		// This will still work, just without the prefix in the result
+		assert.Equal(tt, "-source-path svm2:vol2", result)
+	})
+
+	t.Run("WhenTwoPathsRemoveOne", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path svm1:vol1|svm2:vol2",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm1:vol1")
+		assert.Equal(tt, "-source-path svm2:vol2", result)
+	})
+
+	t.Run("WhenTwoPathsRemoveBoth", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path svm1:vol1|svm1:vol1",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm1:vol1")
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenMultiplePathsWithComplexNames", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path gcnv-3f9278cc0d104d0-svm-01:pcdst22|gcnv-3f9278cc0d104d0-svm-01:pcdst23|gcnv-3f9278cc0d104d0-svm-01:pcdst24",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "gcnv-3f9278cc0d104d0-svm-01:pcdst23")
+		assert.Equal(tt, "-source-path gcnv-3f9278cc0d104d0-svm-01:pcdst22|gcnv-3f9278cc0d104d0-svm-01:pcdst24", result)
+	})
+
+	t.Run("WhenRealWorldExampleFromReference", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path gcnv-3f9278cc0d104d0-svm-01:pcdst22|gcnv-3f9278cc0d104d0-svm-01:pcdst23",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "gcnv-3f9278cc0d104d0-svm-01:pcdst22")
+		assert.Equal(tt, "-source-path gcnv-3f9278cc0d104d0-svm-01:pcdst23", result)
+	})
+
+	t.Run("WhenRealWorldExampleRemoveLast", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path gcnv-3f9278cc0d104d0-svm-01:pcdst22|gcnv-3f9278cc0d104d0-svm-01:pcdst23",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "gcnv-3f9278cc0d104d0-svm-01:pcdst23")
+		assert.Equal(tt, "-source-path gcnv-3f9278cc0d104d0-svm-01:pcdst22", result)
+	})
+
+	t.Run("WhenQueryHasExtraSpaces", func(tt *testing.T) {
+		privilege := &vsa.RolePrivilege{
+			Path:   "snapmirror resync",
+			Access: "readonly",
+			Query:  "-source-path   svm1:vol1   |   svm2:vol2   ",
+		}
+		result := removePathFromSnapmirrorQuery(privilege, "svm1:vol1")
+		assert.Equal(tt, "-source-path svm2:vol2", result)
+	})
+}
+
+func TestDeleteVolumeReplicationActivity_UpdateRbacRole(t *testing.T) {
+	t.Run("WhenNotHybridReplicationVolume", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: false,
+			IsSrcForHybridReplication: true,
+		}
+		node := &models.Node{Name: "test-node"}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+	})
+
+	t.Run("WhenNotSrcForHybridReplication", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: false,
+		}
+		node := &models.Node{Name: "test-node"}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+	})
+
+	t.Run("WhenEventIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event:                     nil,
+		}
+		node := &models.Node{Name: "test-node"}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+	})
+
+	t.Run("WhenReplicationModelIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: nil,
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+	})
+
+	t.Run("WhenReplicationAttributesIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: nil,
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+	})
+
+	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "source-svm",
+							SourceVolumeName: "source-volume",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, fmt.Errorf("provider error")
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+	})
+
+	t.Run("WhenGetRoleCollectionFails", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "source-svm",
+							SourceVolumeName: "source-volume",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		mockProvider := &vsa.MockProvider{}
+		mockProvider.On("GetRoleCollection", vsa.GetRoleCollectionParams{
+			Name: nillable.GetStringPtr(onPremPeerRole),
+		}).Return(nil, assert.AnError)
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRoleNotFound", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "source-svm",
+							SourceVolumeName: "source-volume",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		mockProvider := &vsa.MockProvider{}
+		mockProvider.On("GetRoleCollection", vsa.GetRoleCollectionParams{
+			Name: nillable.GetStringPtr(onPremPeerRole),
+		}).Return([]*vsa.Role{}, nil)
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSnapmirrorPrivilegeNotFound", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "source-svm",
+							SourceVolumeName: "source-volume",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		mockProvider := &vsa.MockProvider{}
+		targetRole := &vsa.Role{
+			OwnerID: "owner-id",
+			Privileges: []*vsa.RolePrivilege{
+				{
+					Path:  "other-privilege",
+					Query: "some-query",
+				},
+			},
+		}
+
+		mockProvider.On("GetRoleCollection", vsa.GetRoleCollectionParams{
+			Name: nillable.GetStringPtr(onPremPeerRole),
+		}).Return([]*vsa.Role{targetRole}, nil)
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess_ModifyPrivilegeWithRemainingPaths", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "source-svm",
+							SourceVolumeName: "source-volume",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		mockProvider := &vsa.MockProvider{}
+		existingPrivilege := &vsa.RolePrivilege{
+			Path:  SnapmirrorResyncPrivilegePath,
+			Query: "-source-path source-svm:source-volume|other-svm:other-volume",
+		}
+		targetRole := &vsa.Role{
+			OwnerID: "owner-id",
+			Privileges: []*vsa.RolePrivilege{
+				existingPrivilege,
+			},
+		}
+
+		mockProvider.On("GetRoleCollection", vsa.GetRoleCollectionParams{
+			Name: nillable.GetStringPtr(onPremPeerRole),
+		}).Return([]*vsa.Role{targetRole}, nil)
+
+		mockProvider.On("ModifyRolePrivilege", mock.MatchedBy(func(params vsa.ModifyRolePrivilegeParams) bool {
+			return params.Name == onPremPeerRole &&
+				params.Path == SnapmirrorResyncPrivilegePath &&
+				params.Access == SnapmirrorResyncPrivilegeAccess &&
+				params.Query == "-source-path other-svm:other-volume"
+		})).Return(nil)
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess_AllPathsRemoved", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "source-svm",
+							SourceVolumeName: "source-volume",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		mockProvider := &vsa.MockProvider{}
+		existingPrivilege := &vsa.RolePrivilege{
+			Path:  SnapmirrorResyncPrivilegePath,
+			Query: "-source-path source-svm:source-volume",
+		}
+		targetRole := &vsa.Role{
+			OwnerID: "owner-id",
+			Privileges: []*vsa.RolePrivilege{
+				existingPrivilege,
+			},
+		}
+
+		mockProvider.On("GetRoleCollection", vsa.GetRoleCollectionParams{
+			Name: nillable.GetStringPtr(onPremPeerRole),
+		}).Return([]*vsa.Role{targetRole}, nil)
+
+		mockProvider.On("DeleteRolePrivilege", mock.MatchedBy(func(params vsa.DeleteRolePrivilegeParams) bool {
+			return params.OwnerID == "owner-id" &&
+				params.Name == onPremPeerRole &&
+				params.Path == SnapmirrorResyncPrivilegePath
+		})).Return(nil)
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDeleteRolePrivilegeFails", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "source-svm",
+							SourceVolumeName: "source-volume",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		mockProvider := &vsa.MockProvider{}
+		existingPrivilege := &vsa.RolePrivilege{
+			Path:  SnapmirrorResyncPrivilegePath,
+			Query: "-source-path source-svm:source-volume",
+		}
+		targetRole := &vsa.Role{
+			OwnerID: "owner-id",
+			Privileges: []*vsa.RolePrivilege{
+				existingPrivilege,
+			},
+		}
+
+		mockProvider.On("GetRoleCollection", vsa.GetRoleCollectionParams{
+			Name: nillable.GetStringPtr(onPremPeerRole),
+		}).Return([]*vsa.Role{targetRole}, nil)
+
+		mockProvider.On("DeleteRolePrivilege", mock.MatchedBy(func(params vsa.DeleteRolePrivilegeParams) bool {
+			return params.OwnerID == "owner-id" &&
+				params.Name == onPremPeerRole &&
+				params.Path == SnapmirrorResyncPrivilegePath
+		})).Return(fmt.Errorf("failed to delete privilege"))
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenModifyRolePrivilegeFails", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "source-svm",
+							SourceVolumeName: "source-volume",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		mockProvider := &vsa.MockProvider{}
+		existingPrivilege := &vsa.RolePrivilege{
+			Path:  SnapmirrorResyncPrivilegePath,
+			Query: "-source-path source-svm:source-volume|other-svm:other-volume",
+		}
+		targetRole := &vsa.Role{
+			OwnerID: "owner-id",
+			Privileges: []*vsa.RolePrivilege{
+				existingPrivilege,
+			},
+		}
+
+		mockProvider.On("GetRoleCollection", vsa.GetRoleCollectionParams{
+			Name: nillable.GetStringPtr(onPremPeerRole),
+		}).Return([]*vsa.Role{targetRole}, nil)
+
+		mockProvider.On("ModifyRolePrivilege", mock.Anything).Return(assert.AnError)
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess_MultiplePathsRemoveMiddle", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "source-svm",
+							SourceVolumeName: "source-volume",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		mockProvider := &vsa.MockProvider{}
+		existingPrivilege := &vsa.RolePrivilege{
+			Path:  SnapmirrorResyncPrivilegePath,
+			Query: "-source-path first-svm:first-volume|source-svm:source-volume|last-svm:last-volume",
+		}
+		targetRole := &vsa.Role{
+			OwnerID: "owner-id",
+			Privileges: []*vsa.RolePrivilege{
+				existingPrivilege,
+			},
+		}
+
+		mockProvider.On("GetRoleCollection", vsa.GetRoleCollectionParams{
+			Name: nillable.GetStringPtr(onPremPeerRole),
+		}).Return([]*vsa.Role{targetRole}, nil)
+
+		mockProvider.On("ModifyRolePrivilege", mock.MatchedBy(func(params vsa.ModifyRolePrivilegeParams) bool {
+			return params.Name == onPremPeerRole &&
+				params.Path == SnapmirrorResyncPrivilegePath &&
+				params.Access == SnapmirrorResyncPrivilegeAccess &&
+				params.Query == "-source-path first-svm:first-volume|last-svm:last-volume"
+		})).Return(nil)
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess_RealWorldExample", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			IsHybridReplicationVolume: true,
+			IsSrcForHybridReplication: true,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceSvmName:    "gcnv-3f9278cc0d104d0-svm-01",
+							SourceVolumeName: "pcdst22",
+						},
+					},
+				},
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		mockProvider := &vsa.MockProvider{}
+		existingPrivilege := &vsa.RolePrivilege{
+			Path:  SnapmirrorResyncPrivilegePath,
+			Query: "-source-path gcnv-3f9278cc0d104d0-svm-01:pcdst22|gcnv-3f9278cc0d104d0-svm-01:pcdst23",
+		}
+		targetRole := &vsa.Role{
+			OwnerID: "owner-id",
+			Privileges: []*vsa.RolePrivilege{
+				existingPrivilege,
+			},
+		}
+
+		mockProvider.On("GetRoleCollection", vsa.GetRoleCollectionParams{
+			Name: nillable.GetStringPtr(onPremPeerRole),
+		}).Return([]*vsa.Role{targetRole}, nil)
+
+		mockProvider.On("ModifyRolePrivilege", mock.MatchedBy(func(params vsa.ModifyRolePrivilegeParams) bool {
+			return params.Name == onPremPeerRole &&
+				params.Path == SnapmirrorResyncPrivilegePath &&
+				params.Access == SnapmirrorResyncPrivilegeAccess &&
+				params.Query == "-source-path gcnv-3f9278cc0d104d0-svm-01:pcdst23"
+		})).Return(nil)
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updatedResult, err := activity.UpdateRbacRole(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteVolumeReplicationActivity_ReleaseReplicationOnSrc(t *testing.T) {
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						Volume: &datamodel.Volume{
+							VolumeAttributes: &datamodel.VolumeAttributes{
+								ExternalUUID: "volume-external-uuid",
+							},
+						},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:          "src",
+							SourceHostName:        "src-host",
+							SourceSvmName:         "src-svm",
+							SourceVolumeName:      "src-vol",
+							DestinationHostName:   "dst-host",
+							DestinationSvmName:    "dst-svm",
+							DestinationVolumeName: "dst-vol",
+							ReplicationSchedule:   "hourly",
+							ReplicationType:       "ExternalDisasterRecovery",
+						},
+					},
+				},
+			},
+		}
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ReleaseVolumeReplication", mock.MatchedBy(func(params *vsa.ReleaseVolumeReplicationParams) bool {
+			return params.VolumeReplication != nil &&
+				params.VolumeReplication.EndpointType == "src" &&
+				params.VolumeReplication.SourceHostName == "src-host" &&
+				params.VolumeReplication.SourceSVMName == "src-svm" &&
+				params.VolumeReplication.SourceVolumeName == "src-vol" &&
+				params.VolumeReplication.DestinationHostName == "dst-host" &&
+				params.VolumeReplication.DestinationSVMName == "dst-svm" &&
+				params.VolumeReplication.DestinationVolumeName == "dst-vol" &&
+				params.VolumeReplication.ReplicationSchedule == "hourly" &&
+				params.VolumeReplication.ReplicationType == "ExternalDisasterRecovery" &&
+				params.VolumeReplication.Volume != nil &&
+				params.VolumeReplication.Volume.ExternalUUID == "volume-external-uuid" &&
+				params.ReverseResync == false
+		})).Return(&vsa.VolumeReplication{}, nil)
+
+		updatedResult, err := activity.ReleaseReplicationOnSrc(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						Volume: &datamodel.Volume{
+							VolumeAttributes: &datamodel.VolumeAttributes{
+								ExternalUUID: "volume-external-uuid",
+							},
+						},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType: "src",
+						},
+					},
+				},
+			},
+		}
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, fmt.Errorf("failed to get provider")
+		}
+
+		updatedResult, err := activity.ReleaseReplicationOnSrc(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+	})
+
+	t.Run("WhenReleaseVolumeReplicationFails", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						Volume: &datamodel.Volume{
+							VolumeAttributes: &datamodel.VolumeAttributes{
+								ExternalUUID: "volume-external-uuid",
+							},
+						},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:          "src",
+							SourceHostName:        "src-host",
+							SourceSvmName:         "src-svm",
+							SourceVolumeName:      "src-vol",
+							DestinationHostName:   "dst-host",
+							DestinationSvmName:    "dst-svm",
+							DestinationVolumeName: "dst-vol",
+							ReplicationSchedule:   "hourly",
+							ReplicationType:       "ExternalDisasterRecovery",
+						},
+					},
+				},
+			},
+		}
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ReleaseVolumeReplication", mock.AnythingOfType("*vsa.ReleaseVolumeReplicationParams")).Return(nil, errors.New("failed to release replication"))
+
+		updatedResult, err := activity.ReleaseReplicationOnSrc(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Contains(tt, err.Error(), "Error releasing volume replication")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenReleaseVolumeReplicationFailsWithSVMPeeringCleanupTimeout", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						Volume: &datamodel.Volume{
+							VolumeAttributes: &datamodel.VolumeAttributes{
+								ExternalUUID: "volume-external-uuid",
+							},
+						},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:          "src",
+							SourceHostName:        "src-host",
+							SourceSvmName:         "src-svm",
+							SourceVolumeName:      "src-vol",
+							DestinationHostName:   "dst-host",
+							DestinationSvmName:    "dst-svm",
+							DestinationVolumeName: "dst-vol",
+							ReplicationSchedule:   "hourly",
+							ReplicationType:       "ExternalDisasterRecovery",
+						},
+					},
+				},
+			},
+		}
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ReleaseVolumeReplication", mock.AnythingOfType("*vsa.ReleaseVolumeReplicationParams")).Return(nil, errors.New("Timeout during cleanup of peering infrastructure."))
+
+		updatedResult, err := activity.ReleaseReplicationOnSrc(ctx, result, node)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Relationship is in use by SnapMirror in peer cluster, Delete the replication first on on-prem cluster and then try again")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessWithAllFields", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						Volume: &datamodel.Volume{
+							VolumeAttributes: &datamodel.VolumeAttributes{
+								ExternalUUID: "gcnv-volume-uuid-123",
+							},
+						},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:          "dst",
+							SourceHostName:        "gcnv-3f9278cc0d104d0-svm-01",
+							SourceSvmName:         "source-svm-name",
+							SourceVolumeName:      "source-volume-name",
+							DestinationHostName:   "destination-host",
+							DestinationSvmName:    "destination-svm",
+							DestinationVolumeName: "destination-volume",
+							ReplicationSchedule:   "10minutely",
+							ReplicationType:       "ExternalDisasterRecovery",
+						},
+					},
+				},
+			},
+		}
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ReleaseVolumeReplication", mock.MatchedBy(func(params *vsa.ReleaseVolumeReplicationParams) bool {
+			return params.VolumeReplication != nil &&
+				params.VolumeReplication.EndpointType == "dst" &&
+				params.VolumeReplication.SourceHostName == "gcnv-3f9278cc0d104d0-svm-01" &&
+				params.VolumeReplication.SourceSVMName == "source-svm-name" &&
+				params.VolumeReplication.SourceVolumeName == "source-volume-name" &&
+				params.VolumeReplication.DestinationHostName == "destination-host" &&
+				params.VolumeReplication.DestinationSVMName == "destination-svm" &&
+				params.VolumeReplication.DestinationVolumeName == "destination-volume" &&
+				params.VolumeReplication.ReplicationSchedule == "10minutely" &&
+				params.VolumeReplication.ReplicationType == "ExternalDisasterRecovery" &&
+				params.VolumeReplication.Volume != nil &&
+				params.VolumeReplication.Volume.ExternalUUID == "gcnv-volume-uuid-123" &&
+				params.ReverseResync == false
+		})).Return(&vsa.VolumeReplication{}, nil)
+
+		updatedResult, err := activity.ReleaseReplicationOnSrc(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessWithEmptyFields", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscalerGetProviderByNode
+		defer func() { hyperscalerGetProviderByNode = originalGetProviderByNode }()
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						Volume: &datamodel.Volume{
+							VolumeAttributes: &datamodel.VolumeAttributes{
+								ExternalUUID: "",
+							},
+						},
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:          "",
+							SourceHostName:        "",
+							SourceSvmName:         "",
+							SourceVolumeName:      "",
+							DestinationHostName:   "",
+							DestinationSvmName:    "",
+							DestinationVolumeName: "",
+							ReplicationSchedule:   "",
+							ReplicationType:       "",
+						},
+					},
+				},
+			},
+		}
+
+		hyperscalerGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ReleaseVolumeReplication", mock.MatchedBy(func(params *vsa.ReleaseVolumeReplicationParams) bool {
+			return params.VolumeReplication != nil &&
+				params.VolumeReplication.EndpointType == "" &&
+				params.VolumeReplication.SourceHostName == "" &&
+				params.VolumeReplication.SourceSVMName == "" &&
+				params.VolumeReplication.SourceVolumeName == "" &&
+				params.VolumeReplication.DestinationHostName == "" &&
+				params.VolumeReplication.DestinationSVMName == "" &&
+				params.VolumeReplication.DestinationVolumeName == "" &&
+				params.VolumeReplication.ReplicationSchedule == "" &&
+				params.VolumeReplication.ReplicationType == "" &&
+				params.VolumeReplication.Volume != nil &&
+				params.VolumeReplication.Volume.ExternalUUID == "" &&
+				params.ReverseResync == false
+		})).Return(&vsa.VolumeReplication{}, nil)
+
+		updatedResult, err := activity.ReleaseReplicationOnSrc(ctx, result, node)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Equal(tt, result, updatedResult)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteVolumeReplicationActivity_UpdateReplicationInDBToErrorState(t *testing.T) {
+	t.Run("WhenReplicationModelIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: nil,
+				},
+			},
+		}
+
+		err := activity.UpdateReplicationInDBToErrorState(ctx, result)
+
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenUpdateVolumeReplicationStatesFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						BaseModel: datamodel.BaseModel{
+							UUID: "test-uuid",
+						},
+						State:        "ACTIVE",
+						StateDetails: "Active state",
+					},
+				},
+			},
+		}
+
+		expectedError := errors.New("database update error")
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, result.Event.ReplicationModel).Return(expectedError)
+
+		err := activity.UpdateReplicationInDBToErrorState(ctx, result)
+
+		assert.Error(tt, err)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Equal(tt, expectedError.Error(), customErr.OriginalErr.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						BaseModel: datamodel.BaseModel{
+							UUID: "test-uuid",
+						},
+						State:        "ACTIVE",
+						StateDetails: "Active state",
+					},
+				},
+			},
+		}
+
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(volumeRep *datamodel.VolumeReplication) bool {
+			return volumeRep.State == models.LifeCycleStateError &&
+				volumeRep.StateDetails == models.LifeCycleStateDeletionErrorDetails &&
+				volumeRep.UUID == "test-uuid"
+		})).Return(nil)
+
+		err := activity.UpdateReplicationInDBToErrorState(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateError, result.Event.ReplicationModel.State)
+		assert.Equal(tt, models.LifeCycleStateDeletionErrorDetails, result.Event.ReplicationModel.StateDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessWithExistingState", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						BaseModel: datamodel.BaseModel{
+							UUID: "test-uuid-123",
+						},
+						State:        "CREATED",
+						StateDetails: "Created successfully",
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation: "us-central1",
+						},
+					},
+				},
+			},
+		}
+
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(volumeRep *datamodel.VolumeReplication) bool {
+			return volumeRep.State == models.LifeCycleStateError &&
+				volumeRep.StateDetails == models.LifeCycleStateDeletionErrorDetails &&
+				volumeRep.UUID == "test-uuid-123" &&
+				volumeRep.ReplicationAttributes != nil &&
+				volumeRep.ReplicationAttributes.SourceLocation == "us-central1"
+		})).Return(nil)
+
+		err := activity.UpdateReplicationInDBToErrorState(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateError, result.Event.ReplicationModel.State)
+		assert.Equal(tt, models.LifeCycleStateDeletionErrorDetails, result.Event.ReplicationModel.StateDetails)
+		// Verify that other fields are preserved
+		assert.Equal(tt, "us-central1", result.Event.ReplicationModel.ReplicationAttributes.SourceLocation)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteVolumeReplicationActivity_DeleteReplicationRecordOnSource(t *testing.T) {
+	t.Run("WhenEventIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			Event: nil,
+		}
+
+		err := activity.DeleteReplicationRecordOnSource(ctx, result)
+
+		assert.Error(tt, err)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Contains(tt, customErr.OriginalErr.Error(), "replication model is nil")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenReplicationModelIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: nil,
+				},
+			},
+		}
+
+		err := activity.DeleteReplicationRecordOnSource(ctx, result)
+
+		assert.Error(tt, err)
+		var customErr *vsaerrors.CustomError
+		assert.True(tt, vsaerrors.As(err, &customErr))
+		assert.Contains(tt, customErr.OriginalErr.Error(), "replication model is nil")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDeleteVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		replicationModel := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-replication-uuid",
+			},
+			StateDetails: "Active state",
+		}
+
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: replicationModel,
+				},
+			},
+		}
+
+		expectedError := errors.New("database delete error")
+		mockStorage.On("DeleteVolumeReplication", ctx, replicationModel).Return(nil, expectedError)
+
+		err := activity.DeleteReplicationRecordOnSource(ctx, result)
+
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+
+		replicationModel := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-replication-uuid",
+			},
+			StateDetails: "Active state",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				SourceLocation:        "us-central1",
+				SourceReplicationUUID: "src-repl-uuid",
+			},
+		}
+
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: replicationModel,
+				},
+			},
+		}
+
+		deletedReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-replication-uuid",
+			},
+			State:        models.LifeCycleStateDeleted,
+			StateDetails: models.LifeCycleStateDeletedDetails,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				SourceLocation:        "us-central1",
+				SourceReplicationUUID: "src-repl-uuid",
+			},
+		}
+
+		mockStorage.On("DeleteVolumeReplication", ctx, mock.MatchedBy(func(volRep *datamodel.VolumeReplication) bool {
+			return volRep.UUID == "test-replication-uuid" &&
+				volRep.ReplicationAttributes != nil &&
+				volRep.ReplicationAttributes.SourceLocation == "us-central1"
+		})).Return(deletedReplication, nil)
+
+		err := activity.DeleteReplicationRecordOnSource(ctx, result)
+
+		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
 }

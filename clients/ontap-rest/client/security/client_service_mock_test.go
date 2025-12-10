@@ -619,6 +619,22 @@ func TestMockClientServiceRolePrivilegeCreate(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceRolePrivilegeDelete(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *RolePrivilegeDeleteParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *RolePrivilegeDeleteOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.RolePrivilegeDelete(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertRolePrivilegeDelete(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceRolePrivilegeModify(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *RolePrivilegeModifyParams

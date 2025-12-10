@@ -902,7 +902,8 @@ func cleanupSvmPeering(provider *OntapRestProvider, params *DeleteVolumeReplicat
 		}
 		return nil
 	}
-	return errors.New("Timeout during cleanup of peering infrastructure. Release the replication relationship on the source side and retry")
+
+	return errors.New("Timeout during cleanup of peering infrastructure.")
 }
 
 func createSvmPeering(provider *OntapRestProvider, srcClusterName, srcSVMName, dstSVMName string) error {

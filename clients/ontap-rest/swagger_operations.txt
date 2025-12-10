@@ -155,6 +155,7 @@ role_create
 role_delete
 role_get
 role_privilege_create
+role_privilege_delete
 role_privilege_modify
 s3_bucket_create
 s3_bucket_delete

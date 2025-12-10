@@ -4362,7 +4362,7 @@ func TestResumeReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -4729,7 +4729,7 @@ func TestResumeReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5221,7 +5221,7 @@ func TestStopReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5594,7 +5594,7 @@ func TestStopReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6177,7 +6177,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6208,7 +6208,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6236,7 +6236,7 @@ func TestDeleteReplication(t *testing.T) {
 			return nil, nil, nil
 		}
 
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return nil, errors.New("failed to verify destination replication")
 		}
 
@@ -6257,7 +6257,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6285,7 +6285,7 @@ func TestDeleteReplication(t *testing.T) {
 			return nil, nil, nil
 		}
 
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType: "destination",
@@ -6312,7 +6312,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6339,7 +6339,7 @@ func TestDeleteReplication(t *testing.T) {
 			}
 			return nil, nil, nil
 		}
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType: "destination",
@@ -6382,7 +6382,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6409,7 +6409,7 @@ func TestDeleteReplication(t *testing.T) {
 			}
 			return nil, nil, nil
 		}
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType: "destination",
@@ -6452,7 +6452,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6481,7 +6481,7 @@ func TestDeleteReplication(t *testing.T) {
 			ReplicationAttributes: &models.ReplicationDetails{},
 		}
 
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return expectedResponse, nil
 		}
 		jobResponse := &datamodel.Job{
@@ -6511,7 +6511,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6544,7 +6544,7 @@ func TestDeleteReplication(t *testing.T) {
 			ReplicationAttributes: &models.ReplicationDetails{},
 		}
 
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			// Capture the event for verification
 			capturedEvent = event
 			return expectedResponse, nil
@@ -6582,7 +6582,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6615,7 +6615,7 @@ func TestDeleteReplication(t *testing.T) {
 			ReplicationAttributes: &models.ReplicationDetails{},
 		}
 
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			// Capture the event for verification
 			capturedEvent = event
 			return expectedResponse, nil
@@ -6653,7 +6653,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -6699,7 +6699,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 
 		account := &datamodel.Account{
@@ -6727,7 +6727,7 @@ func TestDeleteReplication(t *testing.T) {
 			}
 			return nil, nil, nil
 		}
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType: "destination",
@@ -6763,7 +6763,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 
 		account := &datamodel.Account{
@@ -6791,7 +6791,7 @@ func TestDeleteReplication(t *testing.T) {
 			}
 			return nil, nil, nil
 		}
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType: "destination",
@@ -6923,7 +6923,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 
 		account := &datamodel.Account{
@@ -6951,7 +6951,7 @@ func TestDeleteReplication(t *testing.T) {
 			}
 			return nil, nil, nil
 		}
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType: "destination",
@@ -6999,7 +6999,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 
 		account := &datamodel.Account{
@@ -7027,7 +7027,7 @@ func TestDeleteReplication(t *testing.T) {
 			}
 			return nil, nil, nil
 		}
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType: "destination",
@@ -7055,7 +7055,7 @@ func TestDeleteReplication(t *testing.T) {
 		defer func() {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
-			VerifyDstReplicationDelete = replication.VerifyDstReplication
+			VerifyReplicationDelete = replication.VerifyReplication
 		}()
 
 		account := &datamodel.Account{
@@ -7083,7 +7083,7 @@ func TestDeleteReplication(t *testing.T) {
 			}
 			return nil, nil, nil
 		}
-		VerifyDstReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
 			return &models.VolumeReplication{
 				ReplicationAttributes: &models.ReplicationDetails{
 					EndpointType: "destination",

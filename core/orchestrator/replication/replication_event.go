@@ -178,6 +178,7 @@ type DeleteReplicationResult struct {
 	CorrelationID             *string
 	IsHybridReplicationVolume bool
 	CleanupClusterPeering     bool
+	IsSrcForHybridReplication bool
 }
 
 type UpdateReplicationResult struct {

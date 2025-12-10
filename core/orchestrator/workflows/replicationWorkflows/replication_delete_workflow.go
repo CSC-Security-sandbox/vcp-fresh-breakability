@@ -104,9 +104,16 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx1, replicationActivity.UpdateReplicationOnDestinationToErrorState, &replicationResult).Get(ctx, &replicationResult)
-			if err2 != nil {
-				log.Errorf("Failed to update volume replication state in DB to error: %v", err2)
+			if replicationResult.IsSrcForHybridReplication || replicationResult.IsHybridReplicationVolume {
+				err2 := workflow.ExecuteActivity(ctx1, replicationActivity.UpdateReplicationInDBToErrorState, &replicationResult).Get(ctx, nil)
+				if err2 != nil {
+					log.Errorf("Failed to update volume replication state in DB to error: %v", err2)
+				}
+			} else {
+				err2 := workflow.ExecuteActivity(ctx1, replicationActivity.UpdateReplicationOnDestinationToErrorState, &replicationResult).Get(ctx, &replicationResult)
+				if err2 != nil {
+					log.Errorf("Failed to update volume replication state in DB to error: %v", err2)
+				}
 			}
 		}
 	}()
@@ -134,6 +141,65 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSignedDstTokenDelete, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	// Delete Replication when Gcnv is source for Bidirectional/Hybrid Replication
+	if replicationResult.IsSrcForHybridReplication {
+		var dbNodes []*datamodel.Node
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &replicationResult.Event.ReplicationModel.Volume.Pool.ID).Get(ctx, &dbNodes)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+			Nodes:            dbNodes,
+			DeploymentName:   replicationResult.Event.ReplicationModel.Volume.Pool.DeploymentName,
+			OntapCredentials: replicationResult.Event.ReplicationModel.Volume.Pool.PoolCredentials,
+		})
+
+		err = workflow.ExecuteActivity(ctx, replicationActivity.ReleaseReplicationOnSrc, &replicationResult, node).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteSnapmirrorSnapshotsOnSource, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeSourceJobForDelete, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteReplicationRecordOnSource, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateRbacRole, &replicationResult, node).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		if replicationResult.CleanupClusterPeering {
+			err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteClusterPeeringInOntap, &replicationResult, node).Get(ctx, nil)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+
+			err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteClusterPeeringDB, &replicationResult).Get(ctx, nil)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+
+			err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteRoleInOntap, node).Get(ctx, nil)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+		}
+
+		return nil, nil
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetReplicationOnDestinationForDelete, &replicationResult).Get(ctx, &replicationResult)

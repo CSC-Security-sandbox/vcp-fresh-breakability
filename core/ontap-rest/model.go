@@ -2222,6 +2222,13 @@ type RolePrivilegeCreateParams struct {
 	Query   string
 }
 
+// RolePrivilegeDeleteParams is the input param struct for securityClient.RolePrivilegeDelete
+type RolePrivilegeDeleteParams struct {
+	OwnerID string
+	Name    string
+	Path    string
+}
+
 // RoleDeleteParams is the input param struct for securityClient.RoleDelete
 type RoleDeleteParams struct {
 	Name      string
@@ -3978,6 +3985,18 @@ func rolePrivilegeCreateParamsToONTAP(params *RolePrivilegeCreateParams) *securi
 		Access: &access,
 		Query:  nillable.ToPointer(params.Query),
 	})
+	return otParams
+}
+
+func rolePrivilegeDeleteParamsToONTAP(params *RolePrivilegeDeleteParams) *security.RolePrivilegeDeleteParams {
+	otParams := security.NewRolePrivilegeDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.WithOwnerUUID(params.OwnerID)
+	otParams.WithName(params.Name)
+	otParams.WithPath(params.Path)
 	return otParams
 }
 
