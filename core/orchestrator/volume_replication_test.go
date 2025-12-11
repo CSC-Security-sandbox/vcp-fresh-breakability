@@ -1212,7 +1212,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		// Verify that us-east1 has no replications (only added for jobs)
 		assert.Len(tt, capturedRegionMap["us-east1"], 0)
 	})
-	t.Run("WhenDestinationLocationIsEmpty", func(tt *testing.T) {
+	t.Run("WhenDestinationLocationIsCustomer", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
@@ -1261,7 +1261,7 @@ func TestGetMultipleReplications(t *testing.T) {
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					SourceLocation:             "us-west1",
 					SourceReplicationUUID:      "source-uuid-1",
-					DestinationLocation:        "", // Empty destination location
+					DestinationLocation:        "customer",
 					DestinationReplicationUUID: "dest-uuid-1",
 				},
 			},
@@ -1347,7 +1347,7 @@ func TestGetMultipleReplications(t *testing.T) {
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					SourceLocation:             "us-central1", // This region already exists from replication-1
 					SourceReplicationUUID:      "source-uuid-2",
-					DestinationLocation:        "", // Empty destination location
+					DestinationLocation:        remoteRegionCustomer,
 					DestinationReplicationUUID: "dest-uuid-2",
 				},
 			},
@@ -1562,7 +1562,7 @@ func TestGetMultipleReplications(t *testing.T) {
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					SourceLocation:             "us-east1", // Source is current region
 					SourceReplicationUUID:      "source-uuid-1",
-					DestinationLocation:        "", // Empty destination
+					DestinationLocation:        remoteRegionCustomer,
 					DestinationReplicationUUID: "dest-uuid-1",
 				},
 			},
@@ -2654,7 +2654,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		// Create regionReplicationMap with a matching replication
@@ -2678,7 +2678,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 		assert.Equal(tt, "replication-uuid-1", result.ReplicationId.Value)
 		assert.Equal(tt, "replication-1", result.ResourceId.Value)
 		assert.Equal(tt, "Test replication", result.Description.Value)
-		assert.Equal(tt, "projects/45110233509/locations/australia-souteast/volumes/source-volume", result.Source.Value.VolumeName.Value)
+		assert.Equal(tt, "projects/45110233509/locations/australia-southeast/volumes/source-volume", result.Source.Value.VolumeName.Value)
 		assert.Equal(tt, "123", result.Source.Value.VolumeId.Value)
 		assert.Equal(tt, "projects/45110233509/locations/us-e4/volumes/destination-volume", result.Destination.Value.VolumeName.Value)
 		assert.Equal(tt, "destination-volume-uuid", result.Destination.Value.VolumeId.Value)
@@ -3152,7 +3152,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		jobsList := []googleproxyclient.InternalJobV1beta{
@@ -3409,7 +3409,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		command := "test-command"
@@ -3478,7 +3478,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
@@ -3536,7 +3536,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		svmPeerCommand := "svm-peer-command"
@@ -3593,7 +3593,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
@@ -3648,7 +3648,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
@@ -3703,7 +3703,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		hybridReplicationType := "MIGRATION"
@@ -3767,7 +3767,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		hybridReplicationType := "ONPREM_REPLICATION"
@@ -3832,7 +3832,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		// Empty map - replication not found, but code requires ReplicationAttributes to be initialized
@@ -3888,7 +3888,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		clusterLocation := "us-west1"
@@ -3944,7 +3944,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		clusterPeerStateDetails := "Cluster peer in progress"
@@ -4006,7 +4006,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		hybridStatusDetails := "Hybrid replication pending cluster peer"
@@ -4067,7 +4067,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		hybridStatusDetails := "SVM peer pending"
@@ -4124,7 +4124,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		hybridStatusDetails := "SVM peered"
@@ -4181,7 +4181,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
-			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
 		}
 
 		hybridStatusDetails := "Hybrid replication pending - no cluster peer"
@@ -4213,6 +4213,537 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStatePENDINGPEERING, result.MirrorState.Value)
 		// Should use HybridReplicationAttributes.StatusDetails when ClusterPeer is nil
 		assert.Equal(tt, hybridStatusDetails, result.StateDetails.Value)
+	})
+
+	t.Run("HybridReplicationPendingRemoteResyncWithJob", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available"),
+			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+			RemoteRegion:          "us-e4",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+		}
+
+		userCommands := []string{"snapmirror resync -source-path svm1:vol1 -destination-path svm2:vol2"}
+		statusDetails := "Pending remote resync"
+		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
+			"us-e4": {
+				{
+					BaseModel: datamodel.BaseModel{
+						UUID: "replication-uuid-1",
+					},
+					Name: "replication-1",
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						Status:                        models.HybridReplicationStatusPendingRemoteResync,
+						HybridReplicationUserCommands: userCommands,
+						StatusDetails:                 statusDetails,
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation: "us-e4",
+					},
+				},
+			},
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseHybridReplicationInternal)),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+
+		assert.NotNil(tt, result)
+		assert.True(tt, result.HybridReplicationUserCommands.IsSet())
+		assert.Equal(tt, userCommands, result.HybridReplicationUserCommands.Value.Commands)
+		assert.Equal(tt, statusDetails, result.StateDetails.Value)
+	})
+
+	t.Run("HybridReplicationPendingRemoteResyncWithoutJob", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available"),
+			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+			RemoteRegion:          "us-e4",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+		}
+
+		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
+			"us-e4": {
+				{
+					BaseModel: datamodel.BaseModel{
+						UUID: "replication-uuid-1",
+					},
+					Name: "replication-1",
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						Status: models.HybridReplicationStatusPendingRemoteResync,
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation: "us-e4",
+					},
+				},
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateREADY, result.State.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStateSTOPPED, result.MirrorState.Value)
+	})
+
+	t.Run("HybridReplicationExternalManagedWithReverseResumeJob", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available"),
+			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+			RemoteRegion:          "us-e4",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+		}
+
+		userCommands := []string{"snapmirror resync -source-path svm1:vol1 -destination-path svm2:vol2"}
+		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
+			"us-e4": {
+				{
+					BaseModel: datamodel.BaseModel{
+						UUID: "replication-uuid-1",
+					},
+					Name: "replication-1",
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						Status:                        models.HybridReplicationStatusExternalManaged,
+						HybridReplicationUserCommands: userCommands,
+						StatusDetails:                 "Externally managed",
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation: "us-e4",
+					},
+				},
+			},
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseResumeVolumeReplication)),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+
+		assert.NotNil(tt, result)
+		assert.False(tt, result.HybridReplicationUserCommands.IsSet())
+		assert.Equal(tt, "Reverse in progress", result.StateDetails.Value)
+	})
+
+	t.Run("HybridReplicationExternalManagedWithoutJob", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available"),
+			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+			RemoteRegion:          "us-e4",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+		}
+
+		statusDetails := "Externally managed replication"
+		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
+			"us-e4": {
+				{
+					BaseModel: datamodel.BaseModel{
+						UUID: "replication-uuid-1",
+					},
+					Name: "replication-1",
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						Status:        models.HybridReplicationStatusExternalManaged,
+						StatusDetails: statusDetails,
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation: "us-e4",
+					},
+				},
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStateEXTERNALLYMANAGED, result.MirrorState.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateEXTERNALLYMANAGEDREPLICATION, result.State.Value)
+		assert.Equal(tt, statusDetails, result.StateDetails.Value)
+		assert.False(tt, result.Destination.IsSet())
+	})
+	
+	t.Run("FindDbReplicationWithEmptyDestinationVolumeUuid", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available"),
+			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+			RemoteRegion:          "us-e4",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeUuid: googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+		}
+
+		expectedStateDetailsCode := int32(100)
+		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
+			"us-e4": {
+				{
+					BaseModel: datamodel.BaseModel{
+						UUID: "replication-uuid-1",
+					},
+					Name: "replication-1",
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						Status:           models.HybridReplicationStatusPeered,
+						StatusDetails:    "Peered",
+						StateDetailsCode: expectedStateDetailsCode,
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation: "us-e4",
+					},
+				},
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "replication-uuid-1", result.ReplicationId.Value)
+		// Verify that dbReplication was found by checking StateDetailsCode is set from HybridReplicationAttributes
+		assert.True(tt, result.StateDetailsCode.IsSet())
+		assert.Equal(tt, expectedStateDetailsCode, result.StateDetailsCode.Value)
+		// StateDetails should still be from input LifeCycleStateDetails since "Peered" status doesn't override it
+		assert.Equal(tt, "Available", result.StateDetails.Value)
+	})
+
+	t.Run("HybridReplicationSourceNotFoundInRegionMap", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available"),
+			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+			RemoteRegion:          "us-e4",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+		}
+
+		userCommands := []string{"snapmirror resync -source-path svm1:vol1 -destination-path svm2:vol2"}
+		sourceReplicationUUID := "non-existent-source-uuid"
+		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
+			"us-e4": {
+				{
+					BaseModel: datamodel.BaseModel{
+						UUID: "replication-uuid-1",
+					},
+					Name: "replication-1",
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationUserCommands: userCommands,
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:   "us-e4",
+						SourceReplicationUUID: sourceReplicationUUID,
+						SourceLocation:        "customer",
+					},
+				},
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+
+		assert.NotNil(tt, result)
+		// Source replication not found, so IsSrcForHybridReplication should not be called
+		// User commands should not be set with the special message
+		assert.False(tt, result.HybridReplicationUserCommands.IsSet())
+	})
+
+	t.Run("IsSrcForHybridReplicationOverridesSrcVolUri", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available"),
+			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+			RemoteRegion:          "us-e4",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeUuid: googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+		}
+
+		reverseType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		// This URI will be used to override srcVolUri when IsSrcForHybridReplication returns true
+		dbReplicationUri := "projects/45110233509/locations/us-central1/volumes/override-source-volume/replications/replication-uuid-1"
+		expectedVolumeUri := "projects/45110233509/locations/us-central1/volumes/override-source-volume"
+		// The URI that would normally be used from CcfeRemoteUri
+		normalVolumeUri := "projects/45110233509/locations/australia-souteast/volumes/source-volume"
+
+		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
+			"us-e4": {
+				{
+					BaseModel: datamodel.BaseModel{
+						UUID: "replication-uuid-1",
+					},
+					Name: "replication-1",
+					Uri:  dbReplicationUri,
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+						Status:                models.HybridReplicationStatusPeered,
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation: "customer",
+					},
+				},
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+
+		assert.NotNil(tt, result)
+		// Verify that Source.VolumeName uses the volume URI from dbReplication.Uri
+		// instead of the one parsed from in.CcfeRemoteUri.Value
+		assert.True(tt, result.Source.IsSet())
+		assert.Equal(tt, expectedVolumeUri, result.Source.Value.VolumeName.Value)
+		// Verify it's different from what would normally be used
+		assert.NotEqual(tt, normalVolumeUri, result.Source.Value.VolumeName.Value)
+		// Verify that Source.VolumeId is still from in.SourceVolumeUuid
+		assert.Equal(tt, "source-volume-uuid", result.Source.Value.VolumeId.Value)
+	})
+
+	t.Run("HybridReplicationPendingRemoteResyncWithJobButNoUserCommands", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available"),
+			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+			RemoteRegion:          "us-e4",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-souteast/volumes/source-volume/replications/replication-uuid-1"),
+		}
+
+		statusDetails := "Pending remote resync"
+		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
+			"us-e4": {
+				{
+					BaseModel: datamodel.BaseModel{
+						UUID: "replication-uuid-1",
+					},
+					Name: "replication-1",
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						Status:        models.HybridReplicationStatusPendingRemoteResync,
+						StatusDetails: statusDetails,
+						// No user commands
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation: "us-e4",
+					},
+				},
+			},
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseHybridReplicationInternal)),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+
+		assert.NotNil(tt, result)
+		// User commands should not be set if they are nil or empty
+		assert.False(tt, result.HybridReplicationUserCommands.IsSet())
+	})
+
+	t.Run("JobTypeReverseHybridReplicationInternalSetsStateAndMirrorState", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available"),
+			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+			RemoteRegion:          "us-e4",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+			CcfeRemoteUri:         googleproxyclient.NewOptString("projects/45110233509/locations/australia-southeast/volumes/source-volume/replications/replication-uuid-1"),
+		}
+
+		regionReplicationMap := map[string][]*datamodel.VolumeReplication{
+			"us-e4": {
+				{
+					BaseModel: datamodel.BaseModel{
+						UUID: "replication-uuid-1",
+					},
+					Name: "replication-1",
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation: "us-e4",
+					},
+				},
+			},
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-e4/volumes/destination-volume/replications/replication-uuid-1"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseHybridReplicationInternal)),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+
+		assert.NotNil(tt, result)
+		// Verify that MirrorState is set to STOPPED (line 1260)
+		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStateSTOPPED, result.MirrorState.Value)
+		// Verify that State is set to PENDINGREMOTERESYNC (line 1261)
+		assert.Equal(tt, gcpserver.ReplicationV1betaStatePENDINGREMOTERESYNC, result.State.Value)
+		// Verify that StateDetailsCode is set to 0 (line 1262)
+		assert.True(tt, result.StateDetailsCode.IsSet())
+		assert.Equal(tt, int32(0), result.StateDetailsCode.Value)
 	})
 }
 func TestMapInternalReplicationStateToCCFEState(t *testing.T) {

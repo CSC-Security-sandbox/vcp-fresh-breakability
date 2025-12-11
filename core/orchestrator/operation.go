@@ -18,6 +18,8 @@ var (
 		string(models.JobTypeReverseResumeVolumeReplication),
 		string(models.JobTypeStopVolumeReplication),
 		string(models.JobTypeCreateHybridReplication),
+		string(models.JobTypeReverseHybridReplicationInternal),
+		string(models.JobTypeReverseHybridReplicationFallbackInternal),
 	}
 	ScheduledJobTypes = []string{
 		string(models.JobsStateNEW),

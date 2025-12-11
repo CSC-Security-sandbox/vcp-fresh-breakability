@@ -86,6 +86,7 @@ const (
 	volumeReplicationCVP1betaLifeCycleStateReversing        = "Reverse in progress"
 	volumeReplicationCVP1betaLifeCycleStateUpdating         = "Update in progress"
 	volumeReplicationCVP1betaLifeCycleStateDeleting         = "Delete in progress"
+	remoteRegionCustomer                                    = "customer"
 )
 
 func (o *Orchestrator) CreateVolumeReplicationInternal(ctx context.Context, params *commonparams.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
@@ -843,8 +844,8 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 				regionReplicationMap[srcRegion] = []*datamodel.VolumeReplication{}
 			}
 
-			// If destination location is empty, add the replication to the source region
-			if nillable.IsNilOrEmpty(&replication.ReplicationAttributes.DestinationLocation) {
+			// If destination location is customer, add the replication to the source region
+			if replication.ReplicationAttributes.DestinationLocation == remoteRegionCustomer {
 				regionReplicationMap[srcRegion] = append(regionReplicationMap[srcRegion], replication)
 			}
 		}
@@ -1177,7 +1178,7 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 	// Find the corresponding replication from regionReplicationMap
 	dbReplication := &datamodel.VolumeReplication{}
 	// Extract region from CcfeUri to search only in the relevant region
-	if in.SourceVolumeUuid.Value == emptyUUID.String() {
+	if in.SourceVolumeUuid.Value == emptyUUID.String() || in.DestinationVolumeUuid.Value == emptyUUID.String() {
 		for _, replications := range regionReplicationMap {
 			for _, replication := range replications {
 				// Match by external UUID (VolumeReplicationUuid)
@@ -1232,7 +1233,9 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 				Passphrase:        gcpgenserver.NewOptString(passphrase),
 			}
 		}
-		if hybridReplicationType != nil && (nillable.GetString(hybridReplicationType, "") == string(gcpgenserver.ReplicationV1betaHybridReplicationTypeMIGRATION) || nillable.GetString(hybridReplicationType, "") == string(gcpgenserver.ReplicationV1betaHybridReplicationTypeONPREMREPLICATION)) {
+		if hybridReplicationType != nil && (nillable.GetString(hybridReplicationType, "") == string(gcpgenserver.ReplicationV1betaHybridReplicationTypeMIGRATION) ||
+			nillable.GetString(hybridReplicationType, "") == string(gcpgenserver.ReplicationV1betaHybridReplicationTypeONPREMREPLICATION) ||
+			nillable.GetString(hybridReplicationType, "") == string(gcpgenserver.ReplicationV1betaHybridReplicationTypeREVERSEONPREMREPLICATION)) {
 			if hybridPeeringDetails == nil {
 				hybridPeeringDetails = &gcpgenserver.HybridPeeringV1beta{}
 			}
@@ -1244,7 +1247,6 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		}
 	}
 
-	// Todo ADD handling when GCNV is Source for Hybrid Replication
 	if in.RemoteRegion == currentLocation {
 		role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleDESTINATION)
 		srcVolUri = utilGetVolumeUriFromCcfeUri(in.CcfeRemoteUri.Value)
@@ -1255,6 +1257,10 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		dstVolUri = utilGetVolumeUriFromCcfeUri(in.CcfeUri.Value)
 	}
 
+	if replication.IsSrcForHybridReplication(dbReplication) {
+		srcVolUri = utilGetVolumeUriFromCcfeUri(dbReplication.Uri)
+	}
+
 	var sourceReplication gcpgenserver.ReplicationVolumeInformationV1beta
 	if in.SourceVolumeUuid.Value != emptyUUID.String() {
 		sourceReplication = gcpgenserver.ReplicationVolumeInformationV1beta{
@@ -1263,9 +1269,12 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		}
 	}
 
-	destinationReplication := gcpgenserver.ReplicationVolumeInformationV1beta{
-		VolumeName: gcpgenserver.NewOptString(dstVolUri),
-		VolumeId:   gcpgenserver.NewOptString(in.DestinationVolumeUuid.Value),
+	var destinationReplication gcpgenserver.ReplicationVolumeInformationV1beta
+	if in.DestinationVolumeUuid.Value != emptyUUID.String() {
+		destinationReplication = gcpgenserver.ReplicationVolumeInformationV1beta{
+			VolumeName: gcpgenserver.NewOptString(dstVolUri),
+			VolumeId:   gcpgenserver.NewOptString(in.DestinationVolumeUuid.Value),
+		}
 	}
 
 	transferStats := gcpgenserver.TransferStatsV1beta{
@@ -1348,6 +1357,11 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateUpdating)
 			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
 
+		case string(models.JobTypeReverseHybridReplicationInternal):
+			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStateSTOPPED)
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStatePENDINGREMOTERESYNC)
+			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+
 		default:
 			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
 			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
@@ -1369,6 +1383,52 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 				out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStatePENDINGSVMPEERING)
 				out.StateDetails = gcpgenserver.NewOptString(dbReplication.HybridReplicationAttributes.StatusDetails)
 				out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePENDINGPEERING)
+			}
+		}
+
+		vrAttrs := dbReplication.HybridReplicationAttributes
+		jobType := replicationJobType
+
+		// Check for PENDING_REMOTE_RESYNC status
+		if userCommands := vrAttrs.HybridReplicationUserCommands; vrAttrs.Status == models.HybridReplicationStatusPendingRemoteResync {
+			// Snapmirror commands will not be displayed to the user once the JobTypeReverseHybridReplicationInternal has timed out
+			if hasJob {
+				if userCommands != nil && len(userCommands) > 0 {
+					hybridReplicationUserCommands := gcpgenserver.HybridReplicationUserCommandsV1beta{
+						Commands: userCommands,
+					}
+					out.HybridReplicationUserCommands = gcpgenserver.NewOptHybridReplicationUserCommandsV1beta(hybridReplicationUserCommands)
+					out.StateDetails = gcpgenserver.NewOptString(vrAttrs.StatusDetails)
+				}
+			} else {
+				// Once JobTypeReverseHybridReplicationInternal has timed out we will update the replication state
+				out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateREADY)
+				out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStateSTOPPED)
+			}
+		}
+
+		// Handle EXTERNALLY_MANAGED_REPLICATION status with reverse and resume job
+		if hasJob && jobType == string(models.JobTypeReverseResumeVolumeReplication) && vrAttrs.Status == models.HybridReplicationStatusExternalManaged {
+			out.HybridReplicationUserCommands = gcpgenserver.OptHybridReplicationUserCommandsV1beta{}
+			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateReversing)
+		}
+
+		// Handle EXTERNALLY_MANAGED_REPLICATION status without job
+		if !hasJob && vrAttrs.Status == models.HybridReplicationStatusExternalManaged {
+			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStateEXTERNALLYMANAGED)
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateEXTERNALLYMANAGEDREPLICATION)
+			out.StateDetails = gcpgenserver.NewOptString(vrAttrs.StatusDetails)
+			out.Destination = gcpgenserver.OptReplicationVolumeInformationV1beta{}
+		}
+
+		// Handle source for hybrid replication
+		if replication.IsSrcForHybridReplication(dbReplication) {
+			if vrAttrs.HybridReplicationUserCommands != nil && len(vrAttrs.HybridReplicationUserCommands) > 0 {
+				hybridReplicationUserCommands := gcpgenserver.HybridReplicationUserCommandsV1beta{
+					Commands: vrAttrs.HybridReplicationUserCommands,
+				}
+				out.HybridReplicationUserCommands = gcpgenserver.NewOptHybridReplicationUserCommandsV1beta(hybridReplicationUserCommands)
+				out.StateDetails = gcpgenserver.NewOptString("Please execute the snapmirror commands on Onprem ONTAP")
 			}
 		}
 	}
