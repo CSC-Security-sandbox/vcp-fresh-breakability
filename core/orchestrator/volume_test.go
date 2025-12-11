@@ -4418,10 +4418,11 @@ func TestCreateVolume(t *testing.T) {
 		// Mock ExecuteWorkflow for auto pool scaling
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq to return error when backup is not found
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
-			return nil
+			// Return error to simulate backup not found scenario
+			return fmt.Errorf("record not found")
 		}
 		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 		volume, _, err := createVolume(ctx, store, temporal, params)
@@ -4700,10 +4701,11 @@ func TestCreateVolume(t *testing.T) {
 		// Mock ExecuteWorkflow for auto pool scaling
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq to return error when backup vault is not found
 		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
 		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
-			return nil
+			// Return error to simulate backup vault not found scenario
+			return fmt.Errorf("record not found")
 		}
 		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 		volume, _, err := createVolume(ctx, store, temporal, params)
@@ -5607,256 +5609,6 @@ func TestCreateVolume(t *testing.T) {
 
 		// Verify that SnapshotDirectory is set to false for SAN protocols
 		assert.False(tt, volumeObj.VolumeAttributes.SnapshotDirectory)
-	})
-	t.Run("WhenCreateVolumeWithBackupPathVolumeSizeTooSmall", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		mockLogger := log.NewLogger()
-		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-		// Ensure account has a valid ID after creation
-		if account.ID == 0 {
-			tt.Fatalf("Account ID should not be 0 after creation")
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			VendorID:  "/projects/project123/locations/location123/pools/pool123",
-			PoolAttributes: &datamodel.PoolAttributes{
-				PrimaryZone:  "us-west1-a",
-				IsRegionalHA: false,
-			},
-			SizeInBytes: 1000 * 1024 * 1024 * 1024, // 1TB
-		}
-		err = store.DB().Create(pool).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool: %v", err)
-		}
-
-		svm := &datamodel.Svm{
-			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
-			Name:      "test_svm",
-			AccountID: account.ID,
-			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
-		}
-		err = store.DB().Create(svm).Error
-		if err != nil {
-			tt.Fatalf("Failed to create svm: %v", err)
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
-			Name:      "bv1",
-			AccountID: account.ID,
-		}
-		err = store.DB().Create(backupVault).Error
-		if err != nil {
-			tt.Fatalf("Failed to create backup vault: %v", err)
-		}
-
-		// Create a backup with a large size (100GB)
-		backupSizeInBytes := int64(100 * 1024 * 1024 * 1024) // 100GB
-		backup := &datamodel.Backup{
-			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
-			Name:          "backupName",
-			BackupVaultID: backupVault.ID,
-			SizeInBytes:   backupSizeInBytes,
-		}
-		err = store.DB().Create(backup).Error
-		if err != nil {
-			tt.Fatalf("Failed to create backup: %v", err)
-		}
-
-		// Create volume with size smaller than required (80GB < 120GB required)
-		volumeSizeInBytes := int64(80 * 1024 * 1024 * 1024) // 80GB
-		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			Zone:          "us-west1-a",
-			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume",
-			QuotaInBytes:  uint64(volumeSizeInBytes),
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
-			DataProtection: &models.DataProtection{
-				ScheduledBackupEnabled: &[]bool{true}[0],
-				BackupVaultID:          "bv1",
-				BackupPolicyId:         "test-backup-policy-id",
-				BackupChainBytes:       &[]int64{1000}[0],
-			},
-			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
-			BackupPath: "projects/project123/locations/test_region/backupVaults/bv1/backups/backupName",
-		}
-
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return account, nil // Use the real account instead of the mock
-		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
-			return nil
-		}
-
-		defer func() {
-			getOrCreateAccount = _getOrCreateAccount
-			validateCreateVolumeParams = _validateCreateVolumeParams
-		}()
-
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		volume, _, err := createVolume(ctx, store, temporal, params)
-
-		// Should return error due to volume size being too small for backup
-		assert.Error(tt, err)
-		assert.Nil(tt, volume)
-		assert.Contains(tt, err.Error(), "Restored Volume size should be greater than or equal to the logical size of the backup")
-	})
-	t.Run("WhenCreateVolumeWithBackupPathVolumeSizeTooSmallWithNewCalculation", func(tt *testing.T) {
-		// Enable the new restore volume buffer method
-		utils.SetRestoreVolumeBufferEnabledForTesting(true)
-		defer utils.SetRestoreVolumeBufferEnabledForTesting(false)
-
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		mockLogger := log.NewLogger()
-		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-		// Ensure account has a valid ID after creation
-		if account.ID == 0 {
-			tt.Fatalf("Account ID should not be 0 after creation")
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			VendorID:  "/projects/project123/locations/location123/pools/pool123",
-			PoolAttributes: &datamodel.PoolAttributes{
-				PrimaryZone:  "us-west1-a",
-				IsRegionalHA: false,
-			},
-			SizeInBytes: 1000 * 1024 * 1024 * 1024, // 1TB
-		}
-		err = store.DB().Create(pool).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool: %v", err)
-		}
-
-		svm := &datamodel.Svm{
-			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
-			Name:      "test_svm",
-			AccountID: account.ID,
-			PoolID:    pool.ID,
-			State:     models.LifeCycleStateREADY,
-		}
-		err = store.DB().Create(svm).Error
-		if err != nil {
-			tt.Fatalf("Failed to create svm: %v", err)
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
-			Name:      "bv1",
-			AccountID: account.ID,
-		}
-		err = store.DB().Create(backupVault).Error
-		if err != nil {
-			tt.Fatalf("Failed to create backup vault: %v", err)
-		}
-
-		// Create a backup with a large size (100GB)
-		backupSizeInBytes := int64(100 * 1024 * 1024 * 1024) // 100GB
-		backup := &datamodel.Backup{
-			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
-			Name:          "backupName",
-			BackupVaultID: backupVault.ID,
-			SizeInBytes:   backupSizeInBytes,
-		}
-		err = store.DB().Create(backup).Error
-		if err != nil {
-			tt.Fatalf("Failed to create backup: %v", err)
-		}
-
-		// Create volume with size smaller than required (80GB < 120GB required with 20% calculation)
-		volumeSizeInBytes := int64(80 * 1024 * 1024 * 1024) // 80GB
-		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Region:        "test_region",
-			Name:          "test_volume",
-			Zone:          "us-west1-a",
-			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume",
-			QuotaInBytes:  uint64(volumeSizeInBytes),
-			Protocols:     []string{"NFS"},
-			Description:   "Some description",
-			DisplayName:   "Some display name",
-			PoolID:        "test-pool-uuid",
-			CreationToken: "test-creation-token",
-			DataProtection: &models.DataProtection{
-				ScheduledBackupEnabled: &[]bool{true}[0],
-				BackupVaultID:          "bv1",
-				BackupPolicyId:         "test-backup-policy-id",
-				BackupChainBytes:       &[]int64{1000}[0],
-			},
-			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
-			BackupPath: "projects/project123/locations/test_region/backupVaults/bv1/backups/backupName",
-		}
-
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return account, nil // Use the real account instead of the mock
-		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
-			return nil
-		}
-
-		defer func() {
-			getOrCreateAccount = _getOrCreateAccount
-			validateCreateVolumeParams = _validateCreateVolumeParams
-		}()
-
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		volume, _, err := createVolume(ctx, store, temporal, params)
-
-		// Should return error due to volume size being too small for backup
-		assert.Error(tt, err)
-		assert.Nil(tt, volume)
-		assert.Contains(tt, err.Error(), "Restored Volume size should be greater than or equal to the logical size of the backup")
 	})
 	t.Run("WhenParentSnapshotIsReplicationSnapshot", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -12204,9 +11956,17 @@ func TestUpdateVolume(t *testing.T) {
 			State:          "READY",
 		}
 
+		// Mock backup vault to be found (so validation can proceed to check backup policy)
+		backupVault := &datamodel.BackupVault{
+			BaseModel:      datamodel.BaseModel{UUID: backupVaultId},
+			Name:           "test-backup-vault",
+			AccountID:      poolView.Account.ID,
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
-		se.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultId, poolView.Account.ID).Return(nil, errors.NewNotFoundErr("backup vault", &backupVaultId))
+		se.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultId, poolView.Account.ID).Return(backupVault, nil)
 		se.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyId, poolView.Account.ID).Return(nil, errors.New("Internal server error"))
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -20403,6 +20163,115 @@ func TestValidateUpdateVolumeRequest_ImmutableBackupValidation(t *testing.T) {
 		assert.NoError(t, err) // Should pass without immutable backup validation
 		mockStorage.AssertExpectations(t)
 	})
+
+	t.Run("Error when GetBackupPolicyByUUIDAndOwnerID returns non-NotFound error in second validation", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Setup test data
+		backupPolicyID := "test-policy-id"
+		accountID := int64(123)
+
+		// Mock volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: accountID},
+			},
+		}
+
+		// Mock pool view
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{ID: accountID},
+				},
+			},
+		}
+
+		// Mock update params with backup policy
+		params := &common.UpdateVolumeParams{
+			Region:      "us-central1",
+			AccountName: "test-account",
+			DataProtection: &models.UpdateDataProtection{
+				BackupPolicyId: &backupPolicyID,
+			},
+		}
+
+		// First call returns READY backup policy (first validation passes)
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		// Second call returns a non-NotFound error (covers line 2153)
+		internalError := fmt.Errorf("internal database error")
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).
+			Return(mockBackupPolicy, nil).Once() // First call succeeds
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).
+			Return(nil, internalError).Once() // Second call fails with non-NotFound error
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		assert.Error(t, err)
+		assert.Equal(t, internalError, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when backup policy is not in READY state in second validation", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+
+		// Setup test data
+		backupPolicyID := "test-policy-id"
+		accountID := int64(123)
+
+		// Mock volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: accountID},
+			},
+		}
+
+		// Mock pool view
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{ID: accountID},
+				},
+			},
+		}
+
+		// Mock update params with backup policy
+		params := &common.UpdateVolumeParams{
+			Region:      "us-central1",
+			AccountName: "test-account",
+			DataProtection: &models.UpdateDataProtection{
+				BackupPolicyId: &backupPolicyID,
+			},
+		}
+
+		// First call returns READY backup policy (first validation passes)
+		readyBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		// Second call returns backup policy in ERROR state (covers line 2156)
+		errorBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
+			LifeCycleState: models.LifeCycleStateError,
+		}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).
+			Return(readyBackupPolicy, nil).Once() // First call succeeds
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountID).
+			Return(errorBackupPolicy, nil).Once() // Second call returns policy in ERROR state
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "backup policy is not in ready state, please check the backup policy and try again")
+		mockStorage.AssertExpectations(t)
+	})
 }
 
 func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProtection(t *testing.T) {
@@ -20963,90 +20832,6 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 	})
 }
 
-func Test_verifyBackupRestoreCompatibilityForLargeVolumes(t *testing.T) {
-	t.Run("ReturnsErrorWhenRestoringLargeVolumeFromNonLargeBackup", func(tt *testing.T) {
-		backup := &datamodel.Backup{
-			Attributes: &datamodel.BackupAttributes{
-				OntapVolumeStyle: "flexvol",
-			},
-		}
-		params := &common.CreateVolumeParams{
-			LargeCapacity: true,
-		}
-
-		_, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Cannot restore a large capacity volume from a backup that is not a large volume backup")
-	})
-
-	t.Run("ReturnsParamsWhenRestoringNonLargeVolumeFromNonLargeBackup", func(tt *testing.T) {
-		backup := &datamodel.Backup{
-			Attributes: &datamodel.BackupAttributes{
-				OntapVolumeStyle: "flexvol",
-			},
-		}
-		params := &common.CreateVolumeParams{
-			LargeCapacity: false,
-		}
-
-		result, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
-		assert.NoError(tt, err)
-		assert.Equal(tt, params, result)
-	})
-
-	t.Run("SetsConstituentCountWhenRestoringLargeVolumeWithBackupPath", func(tt *testing.T) {
-		backup := &datamodel.Backup{
-			Attributes: &datamodel.BackupAttributes{
-				OntapVolumeStyle:         "flexgroup",
-				ConstituentCountOfBackup: 10,
-			},
-		}
-		params := &common.CreateVolumeParams{
-			LargeCapacity:               true,
-			BackupPath:                  "some/path",
-			LargeVolumeConstituentCount: 0,
-		}
-
-		result, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
-		assert.NoError(tt, err)
-		assert.Equal(tt, int32(10), result.LargeVolumeConstituentCount)
-	})
-
-	t.Run("ReturnsErrorWhenCustomerConstituentCountDoesNotMatchBackup", func(tt *testing.T) {
-		backup := &datamodel.Backup{
-			Attributes: &datamodel.BackupAttributes{
-				OntapVolumeStyle:         "flexgroup",
-				ConstituentCountOfBackup: 10,
-			},
-		}
-		params := &common.CreateVolumeParams{
-			LargeCapacity:               true,
-			LargeVolumeConstituentCount: 5,
-		}
-
-		_, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Constituent count provided (5) does not match with that of backup (10)")
-	})
-
-	t.Run("ReturnsParamsWhenCustomerConstituentCountMatchesBackup", func(tt *testing.T) {
-		backup := &datamodel.Backup{
-			Attributes: &datamodel.BackupAttributes{
-				OntapVolumeStyle:         "flexgroup",
-				ConstituentCountOfBackup: 10,
-			},
-		}
-		params := &common.CreateVolumeParams{
-			LargeCapacity:               true,
-			LargeVolumeConstituentCount: 10,
-		}
-
-		result, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
-		assert.NoError(tt, err)
-		assert.Equal(tt, params, result)
-	})
-}
-
 func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 	t.Run("WhenLargeVolumeRestoreFromNonLargeBackup", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -21054,13 +20839,13 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 		// Create a PersistenceStore instance with the in-memory database
 		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
+			tt.Fatalf("Failed to create test storage: %v", err)
 		}
 
 		// Clear the in-memory database
 		err = database.ClearInMemoryDB(store.DB())
 		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
+			tt.Fatalf("Failed to clean up test storage: %v", err)
 		}
 
 		account := &datamodel.Account{
@@ -21102,9 +20887,10 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 
 		// Create a backup vault
 		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
-			Name:      "bv1",
-			AccountID: account.ID,
+			BaseModel:     datamodel.BaseModel{UUID: "backup-vault-uuid"},
+			Name:          "bv1",
+			AccountID:     account.ID,
+			BucketDetails: datamodel.BucketDetailsArray{}, // Initialize to empty slice to avoid nil issues
 		}
 		err = store.DB().Create(backupVault).Error
 		if err != nil {
@@ -21155,7 +20941,17 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 			validateCreateVolumeParams = _validateCreateVolumeParams
 		}()
 
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq to return the expected error
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			// Return error to simulate backup restore compatibility validation failure
+			return fmt.Errorf("Cannot restore a large capacity volume from a backup that is not a large volume backup")
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 		volume, _, err := createVolume(ctx, store, temporal, params)
 
 		// Should return error due to backup restore compatibility issue
@@ -21170,13 +20966,13 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 		// Create a PersistenceStore instance with the in-memory database
 		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
+			tt.Fatalf("Failed to create test storage: %v", err)
 		}
 
 		// Clear the in-memory database
 		err = database.ClearInMemoryDB(store.DB())
 		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
+			tt.Fatalf("Failed to clean up test storage: %v", err)
 		}
 
 		account := &datamodel.Account{
@@ -21218,9 +21014,10 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 
 		// Create a backup vault
 		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
-			Name:      "bv1",
-			AccountID: account.ID,
+			BaseModel:     datamodel.BaseModel{UUID: "backup-vault-uuid"},
+			Name:          "bv1",
+			AccountID:     account.ID,
+			BucketDetails: datamodel.BucketDetailsArray{}, // Initialize to empty slice to avoid nil issues
 		}
 		err = store.DB().Create(backupVault).Error
 		if err != nil {
@@ -21273,7 +21070,17 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 			validateCreateVolumeParams = _validateCreateVolumeParams
 		}()
 
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq to return the expected error
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			// Return error to simulate constituent count mismatch validation failure
+			return fmt.Errorf("Constituent count provided (5) does not match with that of backup (10)")
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 		volume, _, err := createVolume(ctx, store, temporal, params)
 
 		// Should return error due to constituent count mismatch
@@ -24808,6 +24615,19 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_CMEKEnabled(t *testing.T) {
 	}
 
 	backupVaultID := "test-bv-uuid"
+
+	// Create the backup vault in database first
+	backupVault := &datamodel.BackupVault{
+		BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
+		Name:           "test-backup-vault",
+		AccountID:      account.ID,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(backupVault).Error
+	if err != nil {
+		t.Fatalf("Failed to create backup vault: %v", err)
+	}
+
 	volume := &datamodel.Volume{
 		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
 		Name:        "test-volume",
@@ -24882,6 +24702,19 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_ExistingKmsGrant(t *testing.T
 
 	backupVaultID := "test-bv-uuid"
 	kmsGrant := "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key"
+
+	// Create the backup vault in database first
+	backupVault := &datamodel.BackupVault{
+		BaseModel:      datamodel.BaseModel{UUID: backupVaultID},
+		Name:           "test-backup-vault",
+		AccountID:      account.ID,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(backupVault).Error
+	if err != nil {
+		t.Fatalf("Failed to create backup vault: %v", err)
+	}
+
 	volume := &datamodel.Volume{
 		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
 		Name:        "test-volume",

@@ -7509,13 +7509,13 @@ func TestUpdateBackupRestoreCount(t *testing.T) {
 
 		mockStorage.On("GetBackup", ctx, backupVaultUUID, backupUUID, accountName).Return(nil, expectedError)
 
-		// Act & Assert
-		// Note: The current implementation logs the error but doesn't return it, which is a bug.
-		// This causes a nil pointer dereference when trying to access backup.Attributes.
-		// This test documents the bug in the current implementation.
-		assert.Panics(t, func() {
-			_ = activity.UpdateBackupRestoreCount(ctx, backupVaultUUID, backupUUID, accountName, BackupRestoreCountIncrement)
-		}, "Expected panic when GetBackup fails and backup is nil")
+		// Act
+		err := activity.UpdateBackupRestoreCount(ctx, backupVaultUUID, backupUUID, accountName, BackupRestoreCountIncrement)
+
+		// Assert
+		// The implementation gracefully handles GetBackup failures (e.g., for SDE/CVP backups)
+		// by logging a warning and returning nil instead of panicking
+		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -7637,6 +7637,62 @@ func TestUpdateBackupRestoreCount(t *testing.T) {
 
 		// Assert
 		assert.NoError(t, err)
+		assert.Equal(t, -1, backup.Attributes.RestoreVolumeCount)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Increment_WithNilAttributes", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := BackupActivity{SE: mockStorage}
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: backupUUID},
+			Attributes: nil, // Nil attributes to test initialization
+		}
+
+		mockStorage.On("GetBackup", ctx, backupVaultUUID, backupUUID, accountName).Return(backup, nil)
+		mockStorage.On("UpdateBackupFields", ctx, backupUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			if attrs, ok := updates["attributes"].(*datamodel.BackupAttributes); ok {
+				// After initialization, increment should result in count = 1
+				return attrs.RestoreVolumeCount == 1
+			}
+			return false
+		})).Return(nil)
+
+		// Act
+		err := activity.UpdateBackupRestoreCount(ctx, backupVaultUUID, backupUUID, accountName, BackupRestoreCountIncrement)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, backup.Attributes)
+		assert.Equal(t, 1, backup.Attributes.RestoreVolumeCount)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Decrement_WithNilAttributes", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := BackupActivity{SE: mockStorage}
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: backupUUID},
+			Attributes: nil, // Nil attributes to test initialization
+		}
+
+		mockStorage.On("GetBackup", ctx, backupVaultUUID, backupUUID, accountName).Return(backup, nil)
+		mockStorage.On("UpdateBackupFields", ctx, backupUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			if attrs, ok := updates["attributes"].(*datamodel.BackupAttributes); ok {
+				// After initialization, decrement should result in count = -1
+				return attrs.RestoreVolumeCount == -1
+			}
+			return false
+		})).Return(nil)
+
+		// Act
+		err := activity.UpdateBackupRestoreCount(ctx, backupVaultUUID, backupUUID, accountName, BackupRestoreCountDecrement)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, backup.Attributes)
 		assert.Equal(t, -1, backup.Attributes.RestoreVolumeCount)
 		mockStorage.AssertExpectations(t)
 	})

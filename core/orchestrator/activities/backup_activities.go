@@ -1472,7 +1472,16 @@ func (a *BackupActivity) UpdateBackupRestoreCount(ctx context.Context, backupVau
 	// Fetching latest backup so we have the most recent restore count
 	backup, err := se.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 	if err != nil {
-		logger.Errorf("Failed to get backup %s: %v", backupUUID, err)
+		// For SDE/CVP backups that don't exist in VCP database, skip the restore count update
+		// These backups are not persisted to VCP database during restore operations
+		logger.Warnf("Backup %s not found in VCP database (likely SDE/CVP backup), skipping restore count update: %v", backupUUID, err)
+		return nil
+	}
+
+	// Ensure backup attributes are initialized
+	if backup.Attributes == nil {
+		logger.Warnf("Backup %s has nil attributes, initializing with default values", backupUUID)
+		backup.Attributes = &datamodel.BackupAttributes{}
 	}
 
 	if operation == BackupRestoreCountIncrement {

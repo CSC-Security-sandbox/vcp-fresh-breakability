@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"fmt"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -546,7 +547,7 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 }
 
 // CreateVolumeWorkflow Volume Workflow process volume related requests from a customer.
-func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (gcpgenserver.V1betaDescribeVolumeRes, error) {
+func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume) (gcpgenserver.V1betaDescribeVolumeRes, error) {
 	log := util.GetLogger(ctx)
 	volumeWf := new(volumeCreateWorkflow)
 	err := volumeWf.Setup(ctx, params)
@@ -564,7 +565,7 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 		log.Errorf("Failed to update job status to Processing for CreateVolumeWorkflow: %v", err)
 		return nil, err
 	}
-	_, customErr := volumeWf.Run(ctx, volume, params, backupVault, backup)
+	_, customErr := volumeWf.Run(ctx, volume, params)
 	if customErr != nil {
 		log.Errorf("CreateVolumeWorkflow completed with error: %v", customErr)
 		volumeWf.Status = WorkflowStatusFailed
@@ -611,10 +612,8 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if createVolumeParams.Snapshot != nil {
 		snapshot = createVolumeParams.Snapshot
 	}
-	backupVault := args[2].(*datamodel.BackupVault)
-	backup := args[3].(*datamodel.Backup)
 	isRestoreSnapshot := createVolumeParams.SnapshotID != "" && snapshot != nil
-	isRestoreFromBackup := createVolumeParams.BackupPath != "" && backup != nil
+	isRestoreFromBackup := createVolumeParams.BackupPath != ""
 	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -632,6 +631,61 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	var backupVault *datamodel.BackupVault
+	var backup *datamodel.Backup
+
+	if isRestoreFromBackup {
+		log.Infof("Fetching backup metadata from CVP/SDE for backup path: %s", createVolumeParams.BackupPath)
+
+		// Get authentication token for CVP API calls
+		if !env.IsLocalEnv() {
+			var token string
+			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, createVolumeParams.AccountName).Get(ctx, &token)
+			if err != nil {
+				log.Errorf("Failed to get token for account %s: %v", createVolumeParams.AccountName, err)
+				return nil, ConvertToVSAError(err)
+			}
+			ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
+		}
+
+		// Fetch backup vault, backup, and bucket details from CVP/SDE
+		var backupMetadata *activities.BackupRestoreMetadata
+		err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupMetadataForRestore, dbVolume, &dbVolume.Pool, createVolumeParams.BackupPath, region).Get(ctx, &backupMetadata)
+		if err != nil {
+			log.Errorf("Failed to fetch backup metadata from CVP/SDE: %v", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		if backupMetadata == nil {
+			log.Error("Backup metadata is nil after fetching from CVP/SDE")
+			return nil, ConvertToVSAError(fmt.Errorf("failed to fetch backup metadata: received nil response"))
+		}
+
+		// Use fetched metadata
+		backupVault = backupMetadata.BackupVault
+		backup = backupMetadata.Backup
+
+		log.Infof("Successfully fetched backup metadata from CVP/SDE: vault='%s', backup='%s'",
+			backupVault.Name, backup.Name)
+
+		// Validate volume size against backup size
+		dbVolume.VolumeAttributes.RestoredBackupID = backup.UUID
+		requiredVolumeSize := utils.CalculateRequiredVolumeSize(backup.SizeInBytes)
+		if dbVolume.SizeInBytes < requiredVolumeSize {
+			log.Errorf("Volume size %d is too small for backup (requires %d bytes)", dbVolume.SizeInBytes, requiredVolumeSize)
+			err = fmt.Errorf("restored volume size should be greater than or equal to the logical size of the backup: %d bytes", requiredVolumeSize)
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Verify backup restore compatibility for large volumes
+		if dbVolume.LargeVolumeAttributes != nil && dbVolume.LargeVolumeAttributes.LargeCapacity {
+			log.Infof("Verifying backup restore compatibility for large volume")
+			createVolumeParams, err = _verifyBackupRestoreCompatibilityForLargeVolumes(backup, createVolumeParams)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		}
+	}
 
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
@@ -968,4 +1022,35 @@ func syncBucketDetailsWithGCP(ctx workflow.Context, bucketDetails *common.Bucket
 		bucketDetails.SatisfiesPzs = updatedBucketDetails.SatisfiesPzs
 	}
 	return nil // Always return nil to not fail the workflow
+}
+
+// for Large Volume creation, we store CV count for auto-provision volumes and customer given CV count. from volume we fetch the CV and store
+// in backup at the time of backup Creation, so for large volume backups, we will have CV count in backup attributes.
+// case 1 : Customer created volume with CV and took backup -> proceed with restore wihout CV, we have to pass backup CV to Volume.
+// case 2: Customer  created volume with CV and took backup -> proceed with restore with CV, we have to validate backup CV and customer provided CV matches, then proceed with restore.
+// case 3: Customer created volume without CV and took backup -> proceed with restore without CV, we have to pass backup CV to Volume.
+// case 4: Customer created volume without CV and took backup -> proceed with restore with CV, we have to validate backup CV and customer provided CV matches, then proceed with restore.
+func _verifyBackupRestoreCompatibilityForLargeVolumes(backup *datamodel.Backup, params *common.CreateVolumeParams) (*common.CreateVolumeParams, error) {
+	if params.LargeCapacity && backup.Attributes.OntapVolumeStyle != "flexgroup" {
+		return nil, customerrors.NewUserInputValidationErr("Cannot restore a large capacity volume from a backup that is not a large volume backup")
+	}
+
+	if backup.Attributes.OntapVolumeStyle != "flexgroup" {
+		return params, nil
+	}
+
+	if params.BackupPath != "" && params.LargeCapacity && params.LargeVolumeConstituentCount == 0 {
+		params.LargeVolumeConstituentCount = backup.Attributes.ConstituentCountOfBackup
+		return params, nil
+	}
+
+	// Handle large volume backup cases
+	backupConstituentCount := backup.Attributes.ConstituentCountOfBackup
+	customerConstituentCount := params.LargeVolumeConstituentCount
+
+	// Customer provided count
+	if customerConstituentCount > 0 && customerConstituentCount != backupConstituentCount {
+		return nil, customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent count provided (%d) does not match with that of backup (%d)", customerConstituentCount, backupConstituentCount))
+	}
+	return params, nil
 }

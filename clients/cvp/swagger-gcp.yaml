@@ -5907,6 +5907,13 @@ paths:
           allowEmptyValue: true
           description: If true, response will include only orphaned backups under the
             mentioned project
+        - in: query
+          name: backupName
+          type: string
+          required: false
+          allowEmptyValue: true
+          description: 'Filter backups by backup name. If provided, only backups matching this name will be returned'
+          x-nullable: true
       responses:
         '200':
           description: OK
@@ -11720,6 +11727,34 @@ definitions:
         type: string
         description: Name of the backup region
         example: us-central1
+        x-nullable: true
+      bucketName:
+        title: bucketName
+        type: string
+        readOnly: true
+        description: The name of the bucket in which the backup is stored
+        example: my-backup-bucket
+      endPointUUID:
+        title: endPointUUID
+        type: string
+        readOnly: true
+        description: UUID v4 of the endpoint that was used to create the backup
+        pattern: >-
+          ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        example: 40a79608-dcf8-4b67-8df6-c4ab40a5b246
+        x-nullable: true
+      snapshotUUID:
+        title: snapshotUUID
+        type: string
+        readOnly: true
+        description: UUID v4 of the snapshot that was used to create the backup
+        pattern: >-
+          ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        example: 40a79608-dcf8-4b67-8df6-c4ab40a5b246
         x-nullable: true
       assetLocationMetadata:
         $ref: '#/definitions/AssetLocationMetadata_v2'

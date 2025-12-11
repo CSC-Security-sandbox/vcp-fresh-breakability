@@ -687,6 +687,15 @@ func (gcpService *GcpServices) GetBucket(ctx context.Context, bucketName string)
 	satisfiesPzi := bucketV1.SatisfiesPZI
 	satisfiesPzs := bucketV1.SatisfiesPZS
 
+	// Extract project number from bucket - this is the tenant project where the bucket resides
+	if bucketV1.ProjectNumber <= 0 {
+		logger.Errorf("Invalid or empty project number for bucket %s: %d", bucketName, bucketV1.ProjectNumber)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, fmt.Errorf("bucket %s has invalid project number: %d", bucketName, bucketV1.ProjectNumber))
+	}
+
+	projectNumber := fmt.Sprintf("%d", bucketV1.ProjectNumber)
+	logger.Debugf("Bucket %s belongs to project number: %s", bucketName, projectNumber)
+
 	// Create and return bucket details
 	bucketDetails := &hyperscalermodels.BucketDetails{
 		Name:          bucketAttrs.Name,
@@ -695,13 +704,13 @@ func (gcpService *GcpServices) GetBucket(ctx context.Context, bucketName string)
 		StorageClass:  bucketAttrs.StorageClass,
 		SatisfiesPzi:  satisfiesPzi,
 		SatisfiesPzs:  satisfiesPzs,
-		ProjectNumber: "", // Will be populated by the caller if needed
+		ProjectNumber: projectNumber,
 		Region:        "", // Will be populated by the caller if needed
 		Created:       bucketAttrs.Created.Format("2006-01-02T15:04:05Z"),
 		Updated:       bucketAttrs.Updated.Format("2006-01-02T15:04:05Z"),
 	}
 
-	logger.Infof("Bucket %s - PZI: %t, PZS: %t", bucketName, satisfiesPzi, satisfiesPzs)
+	logger.Infof("Bucket %s - PZI: %t, PZS: %t, ProjectNumber: %s", bucketName, satisfiesPzi, satisfiesPzs, projectNumber)
 	return bucketDetails, nil
 }
 

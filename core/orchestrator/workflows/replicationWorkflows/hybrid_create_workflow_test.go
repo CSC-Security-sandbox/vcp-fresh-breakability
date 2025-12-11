@@ -174,7 +174,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Succ
 	hybridReplicationActivity := &replicationActivities.HybridReplicationActivity{SE: mockStorage}
 
 	s.registerHybridReplicationActivities(commonActivity, hybridReplicationActivity)
-	params, volume, backupVault, backup := s.createTestData()
+	params, volume, _, _ := s.createTestData()
 
 	// Mock successful activity responses
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -209,7 +209,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Succ
 	s.env.OnActivity(hybridReplicationActivity.CreateJobForHybridReplication, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume, backupVault, backup)
+	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)
 
 	// Verify workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -226,7 +226,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_GetL
 	hybridReplicationActivity := &replicationActivities.HybridReplicationActivity{SE: mockStorage}
 
 	s.registerHybridReplicationActivities(commonActivity, hybridReplicationActivity)
-	params, volume, backupVault, backup := s.createTestData()
+	params, volume, _, _ := s.createTestData()
 
 	// Mock activity responses with error
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -235,7 +235,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_GetL
 	s.env.OnActivity(hybridReplicationActivity.UpdateReplicationRowDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume, backupVault, backup)
+	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)
 
 	// Verify workflow completed successfully (child workflow error is ignored)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -252,7 +252,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_GetS
 	hybridReplicationActivity := &replicationActivities.HybridReplicationActivity{SE: mockStorage}
 
 	s.registerHybridReplicationActivities(commonActivity, hybridReplicationActivity)
-	params, volume, backupVault, backup := s.createTestData()
+	params, volume, _, _ := s.createTestData()
 
 	// Mock activity responses with error
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -266,7 +266,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_GetS
 	s.env.OnActivity(hybridReplicationActivity.UpdateReplicationRowDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume, backupVault, backup)
+	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)
 
 	// Verify workflow completed successfully (child workflow error is ignored)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -283,7 +283,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 	hybridReplicationActivity := &replicationActivities.HybridReplicationActivity{SE: mockStorage}
 
 	s.registerHybridReplicationActivities(commonActivity, hybridReplicationActivity)
-	params, volume, backupVault, backup := s.createTestData()
+	params, volume, _, _ := s.createTestData()
 
 	// Create replication result with proper DestinationVolume
 	replicationResult := &replication.CreateHybridReplicationResult{
@@ -332,7 +332,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 	s.env.OnWorkflow(workflows.CreateVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume, backupVault, backup)
+	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)
 
 	// Verify workflow completed successfully (child workflow error is ignored)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -349,7 +349,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 	hybridReplicationActivity := &replicationActivities.HybridReplicationActivity{SE: mockStorage}
 
 	s.registerHybridReplicationActivities(commonActivity, hybridReplicationActivity)
-	params, volume, backupVault, backup := s.createTestData()
+	params, volume, _, _ := s.createTestData()
 
 	// Mock activity responses with error
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -379,7 +379,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 	s.env.OnActivity(hybridReplicationActivity.UpdateReplicationRowDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume, backupVault, backup)
+	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)
 
 	// Verify workflow completed successfully (child workflow error is ignored)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -396,7 +396,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Hydr
 	hybridReplicationActivity := &replicationActivities.HybridReplicationActivity{SE: mockStorage}
 
 	s.registerHybridReplicationActivities(commonActivity, hybridReplicationActivity)
-	params, volume, backupVault, backup := s.createTestData()
+	params, volume, _, _ := s.createTestData()
 
 	// Mock activity responses with error
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -431,7 +431,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Hydr
 	s.env.OnActivity(hybridReplicationActivity.UpdateReplicationRowDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume, backupVault, backup)
+	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)
 
 	// Verify workflow completed successfully (child workflow error is ignored)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -448,13 +448,13 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Upda
 	hybridReplicationActivity := &replicationActivities.HybridReplicationActivity{SE: mockStorage}
 
 	s.registerHybridReplicationActivities(commonActivity, hybridReplicationActivity)
-	params, volume, backupVault, backup := s.createTestData()
+	params, volume, _, _ := s.createTestData()
 
 	// Mock activity responses with error
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume, backupVault, backup)
+	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)
 
 	// Verify workflow failed due to UpdateJobStatus error
 	assert.True(s.T(), s.env.IsWorkflowCompleted())

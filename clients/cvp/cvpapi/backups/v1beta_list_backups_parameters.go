@@ -71,6 +71,10 @@ type V1betaListBackupsParams struct {
 
 	*/
 	After *string
+	/*BackupName
+	  Filter backups by backup name. If provided, only backups matching this name will be returned
+	*/
+	BackupName string
 	/*BackupVaultID
 	  UUID v4 used to identify the backup vault
 
@@ -178,6 +182,17 @@ func (o *V1betaListBackupsParams) WithAfter(after *string) *V1betaListBackupsPar
 // SetAfter adds the after to the v1beta list backups params
 func (o *V1betaListBackupsParams) SetAfter(after *string) {
 	o.After = after
+}
+
+// WithBackupName adds the backupName to the v1beta list backups params
+func (o *V1betaListBackupsParams) WithBackupName(backupName string) *V1betaListBackupsParams {
+	o.SetBackupName(backupName)
+	return o
+}
+
+// SetBackupName adds the backupName to the v1beta list backups params
+func (o *V1betaListBackupsParams) SetBackupName(backupName string) {
+	o.BackupName = backupName
 }
 
 // WithBackupVaultID adds the backupVaultID to the v1beta list backups params
@@ -312,6 +327,13 @@ func (o *V1betaListBackupsParams) WriteToRequest(r runtime.ClientRequest, reg st
 			}
 		}
 
+	}
+
+	// query param backupName
+	qrBackupName := o.BackupName
+	qBackupName := qrBackupName
+	if err := r.SetQueryParam("backupName", qBackupName); err != nil {
+		return err
 	}
 
 	// path param backupVaultId

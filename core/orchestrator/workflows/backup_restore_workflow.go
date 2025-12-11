@@ -283,6 +283,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
+		
 		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorGetOrCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
 		if err != nil {
 			return nil, ConvertToVSAError(err)

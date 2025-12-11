@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -196,6 +197,11 @@ func TestGenerateDeterministicDeploymentNameForIntegrationTests(t *testing.T) {
 func TestGenerateUniqueUsername(t *testing.T) {
 	input := "testuser"
 	username1 := GenerateUniqueUsername(input)
+
+	// Sleep to ensure different timestamp for the next call
+	// (consecutive calls can have the same nanosecond timestamp on fast machines)
+	time.Sleep(time.Millisecond)
+
 	username2 := GenerateUniqueUsername(input)
 
 	// Should be 8 characters

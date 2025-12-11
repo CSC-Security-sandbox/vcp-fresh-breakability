@@ -178,7 +178,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -232,7 +232,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolume_Success() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -287,7 +287,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeWithConstituentCoun
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -330,7 +330,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolume_Failure() {
 	s.env.OnActivity(volumeCreateActivity.GetAggregatesFromOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(customErr))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -383,7 +383,6 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_Failure() {
 			BackupMinimumEnforcedRetentionDuration: &minEnforcedRetentionDuration,
 		},
 	}
-	backup := &datamodel.Backup{VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating"}
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -413,7 +412,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_Failure() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{BackupPath: "projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName"}, volume, bv, backup)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{BackupPath: "projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName"}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -475,7 +474,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThinCloneTy
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
 
 	// Assert workflow completed successfully (InitiateSplitForVolume should not be called)
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -521,7 +520,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Failure_UpdateVolumeDetails() 
 		errors.New("failed to update volume details"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -575,7 +574,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_FindTenancyError() {
 	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to find tenancy"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -624,7 +623,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_TokenError() {
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get auth JWT token"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -679,7 +678,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckBackupVaultExistsInVCPErr
 	s.env.OnActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to check backup vault exists in VCP"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -734,7 +733,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GetBackupPolicyError() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -792,7 +791,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyFetchedFromS
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -856,7 +855,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyScheduleErro
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -924,7 +923,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PauseBackupPolicyScheduleError
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -995,7 +994,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyInVCPSucceed
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -1052,7 +1051,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckForBucketResourceNameErro
 	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(nil, errors.New("failed to check for bucket resource name"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -1110,7 +1109,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GenerateResourceNamesError() {
 	s.env.OnActivity(volumeCreateActivity.GenerateResourceNames, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to generate resource names"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -1171,7 +1170,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBucketError() {
 	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*string")).Return(nil, errors.New("failed to create bucket"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -1232,7 +1231,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateBackupVaultWithBucketDet
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update backup vault with bucket details"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -1303,7 +1302,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckOrCreateRemoteBackupVault
 	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to check or create remote backup vault in VCP"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -1352,7 +1351,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_InitiateSplitForVolumeError() 
 	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to initiate split for volume"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -1435,7 +1434,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow (success path)
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	// UpdateJob is called through UpdateJobStatus activity, not directly on mock
@@ -1487,7 +1486,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
@@ -2326,7 +2325,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_DualProtocol_FileVolume_Succes
 	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -2397,7 +2396,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_Success() {
 	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -2456,7 +2455,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateExportPol
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to create export policy"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -2555,7 +2554,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault
 	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -2641,7 +2640,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_MultipleExportR
 	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -2698,7 +2697,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateSnapshotP
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to create snapshot policy"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -2758,7 +2757,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateVolumeInO
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create volume in ONTAP"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -2876,7 +2875,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreat
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -2933,7 +2932,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Setup_QueryHandlerError() {
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Query workflow status to test query handler
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -2996,7 +2995,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SetupWorkflowSuccess() {
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Test query handler
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -3054,7 +3053,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NoDataProtectionSuccess() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Assert workflow completed successfully (backup vault flow should be skipped)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3098,7 +3097,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_ComplexErrorScenarios() {
 
 	// Execute workflow
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3142,7 +3141,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_ComplexErrorScenarios_Full() {
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(nil, errors.New("node failure after retries"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3181,7 +3180,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_MinimalCoverage() {
 				OSType: "LINUX",
 			},
 		},
-	}, nil, nil)
+	})
 
 	// This should cover the path where isBlock=false and isFiles=false
 	s.True(s.env.IsWorkflowCompleted())
@@ -3227,7 +3226,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateJobStatusProcessingError
 	})).Return(expectedError)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "test-account"}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "test-account"}, volume)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3288,7 +3287,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateJobStatusDoneError() {
 	})).Return(expectedError)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -3334,7 +3333,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateJobStatusErrorDetailsErr
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(nil, nodeErr)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -3676,7 +3675,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PreChildWorkflowError() {
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3710,7 +3709,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateVolumeInONTAPError() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3755,7 +3754,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NoSnapshotPolicy() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Assert workflow succeeded
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3784,7 +3783,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GetNodeError() {
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get node"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3822,7 +3821,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PostChildWorkflowError() {
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3932,7 +3931,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UsesUpdateLunN
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Act
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
 
 	// Assert
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -4070,7 +4069,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RollbackManagerAddActivityCove
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1"}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1"}, volume)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -4148,7 +4147,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CoverageForMissingLines() {
 	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{BucketName: "existing-bucket"}, nil)
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -4240,7 +4239,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_BackupVaultWithEmptyBucketDeta
 	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -4342,7 +4341,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WithSplitVolumeAndChildWorkflo
 	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "account-1", Region: "us-central1"}, volume)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -4417,7 +4416,7 @@ func (s *UnitTestSuite) TestCreateVolumeWorkflow_CVCountUpdate() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
@@ -4640,7 +4639,7 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Success() {
 	// Execute workflow with cross-region backup vault
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow,
 		&common.CreateVolumeParams{AccountName: "project-123", Region: "us-central1"},
-		volume, nil, nil)
+		volume)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -4726,7 +4725,7 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Error() {
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow,
 		&common.CreateVolumeParams{AccountName: "project-123", Region: "us-central1"},
-		volume, nil, nil)
+		volume)
 
 	// Assert workflow completed with error
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -4775,7 +4774,7 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_NotTriggered_No
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow,
 		&common.CreateVolumeParams{AccountName: "project-123", Region: "us-central1"},
-		volume, nil, nil)
+		volume)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -5161,4 +5160,787 @@ func (s *UnitTestSuite) Test_EnsureCIFSShareWorkflow_Error_CreateJunctionPathFai
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+// TestCreateVolumeWorkflow_SDEBackupRestore tests the workflow when restoring from SDE backup
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_FetchMetadataSuccess() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	// Test volume with backup path but nil backup vault/backup (triggers metadata fetch)
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:        "test-volume",
+		SizeInBytes: 10737418240, // 10GB - large enough for backup
+		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+		AccountID:   1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid-123"},
+			DeploymentName:  "test-deployment",
+			VendorID:        "gcp-us-central1-a",
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:          []string{"NFS"},
+			RestoredBackupPath: "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+			RestoredBackupID:   "",
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+		Name:      "my-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "test-bucket", TenantProjectNumber: "123456789"},
+		},
+	}
+
+	backup := &datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
+		Name:        "my-backup",
+		SizeInBytes: 1073741824, // 1GB
+		BackupVault: backupVault,
+		Attributes: &datamodel.BackupAttributes{
+			BucketName: "test-bucket",
+		},
+	}
+
+	backupMetadata := &activities.BackupRestoreMetadata{
+		BackupVault:   backupVault,
+		Backup:        backup,
+		BucketDetails: backupVault.BucketDetails[0],
+	}
+
+	params := &common.CreateVolumeParams{
+		AccountName: "test-account",
+		Name:        "test-volume",
+		Region:      "us-central1",
+		BackupPath:  "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+	}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+
+	// Mock remaining activities with errors to stop workflow (we just want to test metadata fetch)
+	s.env.OnActivity(volumeActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(err1.New("stop workflow"))
+
+	// Execute workflow with nil backup vault and backup
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed (with error from snapshot policy - expected)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	// Verify FetchBackupMetadataForRestore was called since backup vault/backup were nil
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_FetchMetadataFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	// Test volume with backup path but nil backup vault/backup
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:      "test-volume",
+		Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+		AccountID: 1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid-123"},
+			DeploymentName:  "test-deployment",
+			VendorID:        "gcp-us-central1-a",
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:          []string{"NFS"},
+			RestoredBackupPath: "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+		},
+	}
+
+	params := &common.CreateVolumeParams{
+		AccountName: "test-account",
+		Name:        "test-volume",
+		Region:      "us-central1",
+		BackupPath:  "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+	}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, err1.New("failed to fetch backup metadata"))
+	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow with nil backup vault and backup
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to fetch backup metadata")
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_VolumeTooSmall() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	// Test volume too small for backup
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:        "test-volume",
+		SizeInBytes: 1073741824, // 1GB - smaller than required
+		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+		AccountID:   1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid-123"},
+			DeploymentName:  "test-deployment",
+			VendorID:        "gcp-us-central1-a",
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:          []string{"NFS"},
+			RestoredBackupPath: "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+		Name:      "my-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "test-bucket", TenantProjectNumber: "123456789"},
+		},
+	}
+
+	// Backup is larger than volume
+	backup := &datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
+		Name:        "my-backup",
+		SizeInBytes: 10737418240, // 10GB - larger than volume
+		BackupVault: backupVault,
+		Attributes: &datamodel.BackupAttributes{
+			BucketName: "test-bucket",
+		},
+	}
+
+	backupMetadata := &activities.BackupRestoreMetadata{
+		BackupVault:   backupVault,
+		Backup:        backup,
+		BucketDetails: backupVault.BucketDetails[0],
+	}
+
+	params := &common.CreateVolumeParams{
+		AccountName: "test-account",
+		Name:        "test-volume",
+		Region:      "us-central1",
+		BackupPath:  "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+	}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow with nil backup vault and backup
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed with error about volume size
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "restored volume size should be greater than or equal to")
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_CrossRegion() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	// Test cross-region backup restore (backup in us-east1, volume in us-west1)
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:        "test-volume",
+		SizeInBytes: 107374182400, // 100GB
+		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+		AccountID:   1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid-123"},
+			DeploymentName:  "test-deployment",
+			VendorID:        "gcp-us-west1-a", // Volume in us-west1
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:          []string{"NFS"},
+			RestoredBackupPath: "projects/123456/locations/us-east1/backupVaults/my-vault/backups/my-backup", // Backup in us-east1
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+		Name:      "my-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "test-bucket", TenantProjectNumber: "123456789"},
+		},
+	}
+
+	backup := &datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
+		Name:        "my-backup",
+		SizeInBytes: 1073741824, // 1GB
+		BackupVault: backupVault,
+		Attributes: &datamodel.BackupAttributes{
+			BucketName: "test-bucket",
+		},
+	}
+
+	backupMetadata := &activities.BackupRestoreMetadata{
+		BackupVault:   backupVault,
+		Backup:        backup,
+		BucketDetails: backupVault.BucketDetails[0],
+	}
+
+	params := &common.CreateVolumeParams{
+		AccountName: "test-account",
+		Name:        "test-volume",
+		Region:      "us-west1", // Volume region
+		BackupPath:  "projects/123456/locations/us-east1/backupVaults/my-vault/backups/my-backup",
+	}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(err1.New("stop workflow"))
+	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow with nil backup vault and backup
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed (with error from snapshot policy - expected)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	// Verify FetchBackupMetadataForRestore was called for cross-region restore
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NoBackupPath_SkipsMetadataFetch() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	// Test volume without backup path - should NOT call FetchBackupMetadataForRestore
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:      "test-volume",
+		Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+		AccountID: 1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid-123"},
+			DeploymentName:  "test-deployment",
+			VendorID:        "gcp-us-central1-a",
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"NFS"},
+			// No RestoredBackupPath
+		},
+	}
+
+	params := &common.CreateVolumeParams{
+		AccountName: "test-account",
+		Name:        "test-volume",
+		Region:      "us-central1",
+		// No BackupPath
+	}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Mock activities - FetchBackupMetadataForRestore should NOT be called
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(err1.New("stop workflow"))
+	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow without backup
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed (with error from snapshot policy - expected)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	// FetchBackupMetadataForRestore should NOT have been called since there's no backup path
+}
+
+// Test_CreateVolumeWorkflow_SDEBackupRestore_NilBackupMetadata tests nil backup metadata handling
+// This test covers missing lines: 659-660
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_NilBackupMetadata() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:        "test-volume",
+		SizeInBytes: 10737418240, // 10GB
+		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+		AccountID:   1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid-123"},
+			DeploymentName:  "test-deployment",
+			VendorID:        "gcp-us-central1-a",
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:          []string{"NFS"},
+			RestoredBackupPath: "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+		},
+	}
+
+	params := &common.CreateVolumeParams{
+		AccountName: "test-account",
+		Name:        "test-volume",
+		Region:      "us-central1",
+		BackupPath:  "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+	}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Mock activities - return nil backupMetadata without error (covers lines 659-660)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil) // nil metadata, no error
+	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed with error about nil backup metadata
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to fetch backup metadata: received nil response")
+}
+
+// Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibility tests large volume restore compatibility verification
+// This test covers missing lines: 680-684
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibility() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:        "test-volume",
+		SizeInBytes: 107374182400, // 100GB
+		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+		AccountID:   1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid-123"},
+			DeploymentName:  "test-deployment",
+			VendorID:        "gcp-us-central1-a",
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+			LargeCapacity: true,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:          []string{"NFS"},
+			RestoredBackupPath: "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+		Name:      "my-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "test-bucket", TenantProjectNumber: "123456789"},
+		},
+	}
+
+	backup := &datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
+		Name:        "my-backup",
+		SizeInBytes: 1073741824, // 1GB
+		BackupVault: backupVault,
+		Attributes: &datamodel.BackupAttributes{
+			BucketName:               "test-bucket",
+			OntapVolumeStyle:         "flexgroup",
+			ConstituentCountOfBackup: 4,
+		},
+	}
+
+	backupMetadata := &activities.BackupRestoreMetadata{
+		BackupVault:   backupVault,
+		Backup:        backup,
+		BucketDetails: backupVault.BucketDetails[0],
+	}
+
+	params := &common.CreateVolumeParams{
+		AccountName:                 "test-account",
+		Name:                        "test-volume",
+		Region:                      "us-central1",
+		BackupPath:                  "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+		LargeCapacity:               true,
+		LargeVolumeConstituentCount: 4, // Matches backup
+	}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(err1.New("stop workflow"))
+	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed (with error from snapshot policy - expected)
+	// The large volume compatibility check should have passed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+}
+
+// Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilityError tests the error path at line 685
+// This test covers missing line: 685
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilityError() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:        "test-volume",
+		SizeInBytes: 107374182400, // 100GB
+		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+		AccountID:   1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid-123"},
+			DeploymentName:  "test-deployment",
+			VendorID:        "gcp-us-central1-a",
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+			LargeCapacity: true,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:          []string{"NFS"},
+			RestoredBackupPath: "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+		Name:      "my-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "test-bucket", TenantProjectNumber: "123456789"},
+		},
+	}
+
+	// Create backup with flexgroup style but mismatched constituent count
+	backup := &datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
+		Name:        "my-backup",
+		SizeInBytes: 1073741824, // 1GB
+		BackupVault: backupVault,
+		Attributes: &datamodel.BackupAttributes{
+			BucketName:               "test-bucket",
+			OntapVolumeStyle:         "flexgroup",
+			ConstituentCountOfBackup: 4, // Backup has 4 constituents
+		},
+	}
+
+	backupMetadata := &activities.BackupRestoreMetadata{
+		BackupVault:   backupVault,
+		Backup:        backup,
+		BucketDetails: backupVault.BucketDetails[0],
+	}
+
+	// Create params with mismatched constituent count (8 vs 4)
+	params := &common.CreateVolumeParams{
+		AccountName:                 "test-account",
+		Name:                        "test-volume",
+		Region:                      "us-central1",
+		BackupPath:                  "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+		LargeCapacity:               true,
+		LargeVolumeConstituentCount: 8, // Mismatched - backup has 4, customer wants 8
+	}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "Constituent count provided")
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "does not match")
+}
+
+// Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilityError_NonFlexgroupBackup tests the error path at line 685
+// when trying to restore large capacity volume from non-flexgroup backup
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilityError_NonFlexgroupBackup() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: "vol-uuid-123"},
+		Name:        "test-volume",
+		SizeInBytes: 107374182400, // 100GB
+		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+		AccountID:   1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid-123"},
+			DeploymentName:  "test-deployment",
+			VendorID:        "gcp-us-central1-a",
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "test-svm"},
+		LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+			LargeCapacity: true,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:          []string{"NFS"},
+			RestoredBackupPath: "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+		Name:      "my-vault",
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "test-bucket", TenantProjectNumber: "123456789"},
+		},
+	}
+
+	// Create backup with flexvol style (not flexgroup) - incompatible with large capacity
+	backup := &datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
+		Name:        "my-backup",
+		SizeInBytes: 1073741824, // 1GB
+		BackupVault: backupVault,
+		Attributes: &datamodel.BackupAttributes{
+			BucketName:       "test-bucket",
+			OntapVolumeStyle: "flexvol", // Not flexgroup - incompatible with large capacity
+		},
+	}
+
+	backupMetadata := &activities.BackupRestoreMetadata{
+		BackupVault:   backupVault,
+		Backup:        backup,
+		BucketDetails: backupVault.BucketDetails[0],
+	}
+
+	// Create params with large capacity
+	params := &common.CreateVolumeParams{
+		AccountName:   "test-account",
+		Name:          "test-volume",
+		Region:        "us-central1",
+		BackupPath:    "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+		LargeCapacity: true, // Trying to restore large capacity from non-flexgroup backup
+	}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "Cannot restore a large capacity volume from a backup that is not a large volume backup")
+}
+
+// TestVerifyBackupRestoreCompatibilityForLargeVolumes tests the _verifyBackupRestoreCompatibilityForLargeVolumes function
+// These tests cover missing lines: 1028-1029, 1032-1033, 1036-1038, 1042-1043, 1046-1047, 1049
+func TestVerifyBackupRestoreCompatibilityForLargeVolumes(t *testing.T) {
+	t.Run("Error_LargeCapacityFromNonFlexgroupBackup", func(t *testing.T) {
+		// This test covers lines 1028-1029
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				OntapVolumeStyle: "flexvol", // Not flexgroup
+			},
+		}
+		params := &common.CreateVolumeParams{
+			LargeCapacity: true,
+		}
+
+		result, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "Cannot restore a large capacity volume from a backup that is not a large volume backup")
+	})
+
+	t.Run("Success_NonFlexgroupBackup", func(t *testing.T) {
+		// This test covers lines 1032-1033
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				OntapVolumeStyle: "flexvol", // Not flexgroup
+			},
+		}
+		params := &common.CreateVolumeParams{
+			LargeCapacity: false,
+		}
+
+		result, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
+
+		assert.NoError(t, err)
+		assert.Equal(t, params, result)
+	})
+
+	t.Run("Success_SetConstituentCountFromBackup", func(t *testing.T) {
+		// This test covers lines 1036-1038
+		constituentCount := int32(4)
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				OntapVolumeStyle:         "flexgroup",
+				ConstituentCountOfBackup: constituentCount,
+			},
+		}
+		params := &common.CreateVolumeParams{
+			BackupPath:                  "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup",
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: 0, // Not provided
+		}
+
+		result, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, constituentCount, result.LargeVolumeConstituentCount)
+	})
+
+	t.Run("Success_MatchingConstituentCounts", func(t *testing.T) {
+		// This test covers lines 1042-1043, 1049
+		constituentCount := int32(4)
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				OntapVolumeStyle:         "flexgroup",
+				ConstituentCountOfBackup: constituentCount,
+			},
+		}
+		params := &common.CreateVolumeParams{
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: constituentCount, // Matches backup
+		}
+
+		result, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
+
+		assert.NoError(t, err)
+		assert.Equal(t, params, result)
+	})
+
+	t.Run("Error_MismatchedConstituentCounts", func(t *testing.T) {
+		// This test covers lines 1042-1043, 1046-1047
+		backupConstituentCount := int32(4)
+		customerConstituentCount := int32(8)
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				OntapVolumeStyle:         "flexgroup",
+				ConstituentCountOfBackup: backupConstituentCount,
+			},
+		}
+		params := &common.CreateVolumeParams{
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: customerConstituentCount, // Doesn't match backup
+		}
+
+		result, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "Constituent count provided")
+		assert.Contains(t, err.Error(), "does not match")
+	})
+
+	t.Run("Success_ZeroCustomerCount", func(t *testing.T) {
+		// This test covers line 1049 when customer count is 0 (not provided)
+		constituentCount := int32(4)
+		backup := &datamodel.Backup{
+			Attributes: &datamodel.BackupAttributes{
+				OntapVolumeStyle:         "flexgroup",
+				ConstituentCountOfBackup: constituentCount,
+			},
+		}
+		params := &common.CreateVolumeParams{
+			LargeCapacity:               true,
+			LargeVolumeConstituentCount: 0, // Not provided, but BackupPath is empty so doesn't use line 1036-1038
+		}
+
+		result, err := _verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
+
+		assert.NoError(t, err)
+		assert.Equal(t, params, result)
+	})
 }

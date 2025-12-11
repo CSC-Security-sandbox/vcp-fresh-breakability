@@ -60,14 +60,13 @@ var (
 	checkAndCancelCreateWorkflowIfNeeded = _checkAndCancelCreateWorkflowIfNeeded
 	minPrimeNumberConfigAllowed          = 7
 
-	envIsLocalEnv                                   = env.IsLocalEnv
-	cvpCreateClient                                 = cvp.CreateClient
-	GetBackupVaultFromCVP                           = getBackupVaultFromCVP
-	enableAutoPoolScaling                           = env.GetBool("ENABLE_AUTO_POOL_SCALING", true)
-	autoPoolScalingLimits                           = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":246,\"max_volume_count\":495},\"c3-standard-16-lssd\":{\"min_volume_count\":496,\"max_volume_count\":995}}")
-	maxConstituentVolumesPerVolumePerAggregate      = env.GetInt64("MAX_CONSTITUENT_VOLUMES_PER_VOLUME_PER_AGGREGATE", 200)
-	verifyBackupRestoreCompatibilityForLargeVolumes = _verifyBackupRestoreCompatibilityForLargeVolumes
-	checkIsValidImmutableBackupPolicyWithRetry      = _checkIsValidImmutableBackupPolicyWithRetry
+	envIsLocalEnv                              = env.IsLocalEnv
+	cvpCreateClient                            = cvp.CreateClient
+	GetBackupVaultFromCVP                      = getBackupVaultFromCVP
+	enableAutoPoolScaling                      = env.GetBool("ENABLE_AUTO_POOL_SCALING", true)
+	autoPoolScalingLimits                      = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":246,\"max_volume_count\":495},\"c3-standard-16-lssd\":{\"min_volume_count\":496,\"max_volume_count\":995}}")
+	maxConstituentVolumesPerVolumePerAggregate = env.GetInt64("MAX_CONSTITUENT_VOLUMES_PER_VOLUME_PER_AGGREGATE", 200)
+	checkIsValidImmutableBackupPolicyWithRetry = _checkIsValidImmutableBackupPolicyWithRetry
 )
 
 const (
@@ -348,8 +347,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}
 
-	var backupVault *datamodel.BackupVault
-	var backup *datamodel.Backup
+	// Handle backup restore path - validation only, actual backup fetching is done in workflow
 
 	if params.BackupPath != "" {
 		if volumeObj.VolumeAttributes == nil {
@@ -363,41 +361,9 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		if len(components) < MaxBackupPathComponents {
 			return nil, "", customerrors.NewUserInputValidationErr("Backup path is not in correct format")
 		}
-
-		backupRegion := components[LocationIdIndex]
-		if backupRegion != params.Region {
-			// Extract backup vault path: projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultName}
-			// This is the first 6 components (indices 0-5) of the full backup path
-			backupVaultName := strings.Join(components[:6], "/")
-			backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, backupVaultName, account.ID)
-			if err != nil {
-				return nil, "", err
-			}
-		} else {
-			backupVaultName := components[BackupVaultNameIndex]
-			backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
-			if err != nil {
-				return nil, "", err
-			}
-		}
-
-		backupName := components[BackupNameIndex]
-		// TODO: restore SDE Backup to VCP - need to fetch the details from sde db and store it will bucket details in case if the record is not found in VCP DB
-		backup, err = se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
-		if err != nil {
-			return nil, "", err
-		}
-		volumeObj.VolumeAttributes.RestoredBackupID = backup.UUID                   // Set the restored backup ID from the backup object
-		requiredVolumeSize := utils.CalculateRequiredVolumeSize(backup.SizeInBytes) // Calculate required volume size based on env flag
-		if volumeObj.SizeInBytes < requiredVolumeSize {
-			logger.Error("The volume size is too small for the selected backup")
-			return nil, "", customerrors.NewUserInputValidationErr(fmt.Sprintf("Restored Volume size should be greater than or equal to the logical size of the backup : %d bytes", requiredVolumeSize))
-		}
-
-		params, err = verifyBackupRestoreCompatibilityForLargeVolumes(backup, params)
-		if err != nil {
-			return nil, "", err
-		}
+		// Note: Backup vault/backup fetching, size validation, and large volume compatibility
+		// are all handled by FetchBackupMetadataForRestore activity in the workflow
+		logger.Infof("Backup path validated, backup metadata will be fetched in workflow")
 	}
 
 	if params.LargeCapacity {
@@ -486,8 +452,6 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		wf,
 		params,
 		dbVolume,
-		backupVault,
-		backup,
 	)
 	if err != nil {
 		logger.Error("Failed to start create volume workflow: ", "error", err)
@@ -2182,6 +2146,16 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 	}
 
+	if params.DataProtection != nil && !nillable.IsNilOrEmpty(params.DataProtection.BackupPolicyId) {
+		backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, *params.DataProtection.BackupPolicyId, pool.Account.ID)
+		if err != nil && !customerrors.IsNotFoundErr(err) {
+			return err
+		}
+		if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+			return customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
+		}
+	}
+
 	// Block CMEK for all VCP volumes (both SAN and NAS)
 	// Since we got the volume from VCP database (line 1812), it exists in VCP and is a VCP volume
 	var backupVaultID string
@@ -2548,37 +2522,6 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 
 	logger.Infof("Triggered instance upgrade for pool: %s", pool.Name)
 	return
-}
-
-// for Large Volume creation, we store CV count for auto-provision volumes and customer given CV count. from volume we fetch the CV and store
-// in backup at the time of backup Creation, so for large volume backups, we will have CV count in backup attributes.
-// case 1 : Customer created volume with CV and took backup -> proceed with restore wihout CV, we have to pass backup CV to Volume.
-// case 2: Customer  created volume with CV and took backup -> proceed with restore with CV, we have to validate backup CV and customer provided CV matches, then proceed with restore.
-// case 3: Customer created volume without CV and took backup -> proceed with restore without CV, we have to pass backup CV to Volume.
-// case 4: Customer created volume without CV and took backup -> proceed with restore with CV, we have to validate backup CV and customer provided CV matches, then proceed with restore.
-func _verifyBackupRestoreCompatibilityForLargeVolumes(backup *datamodel.Backup, params *common.CreateVolumeParams) (*common.CreateVolumeParams, error) {
-	if params.LargeCapacity && backup.Attributes.OntapVolumeStyle != "flexgroup" {
-		return nil, customerrors.NewUserInputValidationErr("Cannot restore a large capacity volume from a backup that is not a large volume backup")
-	}
-
-	if backup.Attributes.OntapVolumeStyle != "flexgroup" {
-		return params, nil
-	}
-
-	if params.BackupPath != "" && params.LargeCapacity && params.LargeVolumeConstituentCount == 0 {
-		params.LargeVolumeConstituentCount = backup.Attributes.ConstituentCountOfBackup
-		return params, nil
-	}
-
-	// Handle large volume backup cases
-	backupConstituentCount := backup.Attributes.ConstituentCountOfBackup
-	customerConstituentCount := params.LargeVolumeConstituentCount
-
-	// Customer provided count
-	if customerConstituentCount > 0 && customerConstituentCount != backupConstituentCount {
-		return nil, customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent count provided (%d) does not match with that of backup (%d)", customerConstituentCount, backupConstituentCount))
-	}
-	return params, nil
 }
 
 func (o *Orchestrator) RestoreFilesFromBackup(ctx context.Context, params *common.RestoreFilesFromBackupParams) (string, error) {

@@ -42,7 +42,7 @@ var (
 )
 
 // CreateHybridReplicationWorkflow Workflow process volume replication related request from a customer.
-func CreateHybridReplicationWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (gcpgenserver.V1betaDescribeVolumeRes, error) {
+func CreateHybridReplicationWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume) (gcpgenserver.V1betaDescribeVolumeRes, error) {
 	log := util.GetLogger(ctx)
 	volumeWf := new(createHybridReplicationWorkflow)
 
@@ -58,7 +58,7 @@ func CreateHybridReplicationWorkflow(ctx workflow.Context, params *common.Create
 		err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return nil, err
 	}
-	_, customErr := volumeWf.Run(ctx, volume, params, backupVault, backup)
+	_, customErr := volumeWf.Run(ctx, volume, params)
 	if customErr != nil {
 		volumeWf.Status = workflows.WorkflowStatusFailed
 		err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
@@ -91,8 +91,6 @@ func (wf *createHybridReplicationWorkflow) Setup(ctx workflow.Context, input int
 func (wf *createHybridReplicationWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	dbVolume := args[0].(*datamodel.Volume)
 	createVolumeParams := args[1].(*common.CreateVolumeParams)
-	backupVault := args[2].(*datamodel.BackupVault)
-	backup := args[3].(*datamodel.Backup)
 	replicationActivity := &replicationActivities.HybridReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
@@ -152,7 +150,7 @@ func (wf *createHybridReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		},
 	})
 
-	err = workflow.ExecuteChildWorkflow(childCtx, workflows.CreateVolumeWorkflow, createVolumeParams, dbVolume, backupVault, backup).Get(ctx, &childWorkflowResult)
+	err = workflow.ExecuteChildWorkflow(childCtx, workflows.CreateVolumeWorkflow, createVolumeParams, dbVolume).Get(ctx, &childWorkflowResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
 
@@ -222,8 +223,8 @@ func TestGetBackupVaultByNameAndOwnerID(t *testing.T) {
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		if !customerrors.IsNotFoundErr(err) {
+			tt.Errorf("Expected NotFoundErr, got %v", err)
 		}
 	})
 }
@@ -295,8 +296,8 @@ func TestGetBackupVaultByCrossRegionBackupVaultName(t *testing.T) {
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		if !customerrors.IsNotFoundErr(err) {
+			tt.Errorf("Expected NotFoundErr, got %v", err)
 		}
 	})
 	t.Run("WhenGetBackupVaultByCrossRegionBackupVaultNameReturnsErrorWhenAccountIDDoesNotMatch", func(tt *testing.T) {
@@ -339,8 +340,8 @@ func TestGetBackupVaultByCrossRegionBackupVaultName(t *testing.T) {
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		if !customerrors.IsNotFoundErr(err) {
+			tt.Errorf("Expected NotFoundErr, got %v", err)
 		}
 	})
 }

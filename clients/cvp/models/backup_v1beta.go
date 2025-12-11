@@ -55,6 +55,12 @@ type BackupV1beta struct {
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	BackupVaultID *string `json:"backupVaultId,omitempty"`
 
+	// bucketName
+	//
+	// The name of the bucket in which the backup is stored
+	// Read Only: true
+	BucketName string `json:"bucketName,omitempty"`
+
 	// created
 	//
 	// Creation date of the resource
@@ -67,6 +73,15 @@ type BackupV1beta struct {
 	// Description of the backup
 	// Max Length: 2048
 	Description *string `json:"description,omitempty"`
+
+	// endPointUUID
+	//
+	// UUID v4 of the endpoint that was used to create the backup
+	// Read Only: true
+	// Max Length: 36
+	// Min Length: 36
+	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+	EndPointUUID *string `json:"endPointUUID,omitempty"`
 
 	// enforcedRetentionEndTime
 	//
@@ -89,6 +104,15 @@ type BackupV1beta struct {
 	// Flag describing whether backup supports zone separation.
 	// Read Only: true
 	SatisfiesPzs *bool `json:"satisfiesPzs,omitempty"`
+
+	// snapshotUUID
+	//
+	// UUID v4 of the snapshot that was used to create the backup
+	// Read Only: true
+	// Max Length: 36
+	// Min Length: 36
+	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+	SnapshotUUID *string `json:"snapshotUUID,omitempty"`
 
 	// source snapshot
 	//
@@ -159,11 +183,19 @@ func (m *BackupV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateEndPointUUID(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateEnforcedRetentionEndTime(formats); err != nil {
 		res = append(res, err)
 	}
 
 	if err := m.validateResourceID(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSnapshotUUID(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -314,6 +346,27 @@ func (m *BackupV1beta) validateDescription(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *BackupV1beta) validateEndPointUUID(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.EndPointUUID) { // not required
+		return nil
+	}
+
+	if err := validate.MinLength("endPointUUID", "body", string(*m.EndPointUUID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.MaxLength("endPointUUID", "body", string(*m.EndPointUUID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.Pattern("endPointUUID", "body", string(*m.EndPointUUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *BackupV1beta) validateEnforcedRetentionEndTime(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.EnforcedRetentionEndTime) { // not required
@@ -338,6 +391,27 @@ func (m *BackupV1beta) validateResourceID(formats strfmt.Registry) error {
 	}
 
 	if err := validate.Pattern("resourceId", "body", string(m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BackupV1beta) validateSnapshotUUID(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.SnapshotUUID) { // not required
+		return nil
+	}
+
+	if err := validate.MinLength("snapshotUUID", "body", string(*m.SnapshotUUID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.MaxLength("snapshotUUID", "body", string(*m.SnapshotUUID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.Pattern("snapshotUUID", "body", string(*m.SnapshotUUID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 

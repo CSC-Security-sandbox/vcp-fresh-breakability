@@ -1456,9 +1456,10 @@ func TestGcpServices_GetBucket(t *testing.T) {
 			} else if strings.Contains(r.URL.Path, "/b/test-bucket") {
 				// Mock Storage v1 API response
 				bucketV1 := &storagev1.Bucket{
-					Name:         "test-bucket",
-					SatisfiesPZI: true,
-					SatisfiesPZS: false,
+					Name:          "test-bucket",
+					SatisfiesPZI:  true,
+					SatisfiesPZS:  false,
+					ProjectNumber: 123456789,
 				}
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(bucketV1)
@@ -1596,6 +1597,60 @@ func TestGcpServices_GetBucket(t *testing.T) {
 		result, err := gcpService.GetBucket(ctx, "test-bucket")
 		assert.Error(t, err)
 		assert.Nil(t, result)
+	})
+
+	t.Run("invalid project number", func(t *testing.T) {
+		// This test covers missing lines: 682-683
+		// Create a test server
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/b/") && strings.Contains(r.URL.Path, "/o") {
+				// Mock bucket attributes response
+				attrs := &storage.BucketAttrs{
+					Name: "test-bucket",
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(attrs)
+			} else if strings.Contains(r.URL.Path, "/b/test-bucket") {
+				// Mock Storage v1 API response with invalid project number (0 or negative)
+				bucketV1 := &storagev1.Bucket{
+					Name:          "test-bucket",
+					SatisfiesPZI:  true,
+					SatisfiesPZS:  false,
+					ProjectNumber: 0, // Invalid project number
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(bucketV1)
+			}
+		}))
+		defer server.Close()
+
+		// Create storage client with test server
+		storageClient, err := storage.NewClient(context.Background(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage client: %v", err)
+		}
+
+		// Create storage v1 service with test server
+		storageV1Client, err := storagev1.NewService(context.Background(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Fatalf("Failed to create storage v1 client: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				storageService:   storageClient,
+				storageV1Service: storageV1Client,
+			},
+		}
+
+		result, err := gcpService.GetBucket(context.Background(), "test-bucket")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// The error is wrapped in VCPError, check the underlying error message
+		var customErr *vsaerrors.CustomError
+		if assert.ErrorAs(t, err, &customErr) {
+			assert.Contains(t, customErr.OriginalErr.Error(), "invalid project number")
+		}
 	})
 }
 
