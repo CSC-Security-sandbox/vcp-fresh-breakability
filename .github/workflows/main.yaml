@@ -332,7 +332,7 @@ jobs:
     needs: [build, common, unit_tests, setup-vsacictl]
     uses: ./.github/workflows/integrationtest.yaml
     secrets: inherit
-    # Disable PR trigger for now since tests are not actually passing -> VSCP-3447
-    if: github.event_name == 'pull_request' && false
+    if: github.event_name == 'pull_request'
     with:
       cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+      vsa_control_plane_branch: ${{ github.head_ref }}

@@ -7,6 +7,11 @@ on:
         required: false
         type: string
         default: 'main'
+      vsa_control_plane_branch:
+        description: 'Branch to use for vsa-control-plane'
+        required: false
+        type: string
+        default: 'main'
       cache-key:
         description: 'Name of the vsacictl cache key'
         required: true
@@ -50,7 +55,7 @@ jobs:
         with:
           repository: VCP-VSA-control-Plane/vsa-integration-test-poc
           path: tests/vsa-integration-test-poc
-          ref: main
+          ref: ${{ inputs.integration_test_branch }}
           token: ${{ secrets.GHVSA_PAT }}
       
       - name: Checkout vsa-control-plane
@@ -58,7 +63,7 @@ jobs:
         with:
           repository: VCP-VSA-control-Plane/vsa-control-plane
           path: tests/vsa-control-plane
-          ref: main
+          ref: ${{ inputs.vsa_control_plane_branch }}
           token: ${{ secrets.GHVSA_PAT }}
           sparse-checkout: |
             google-proxy/
@@ -120,21 +125,26 @@ jobs:
           {
             set -e
             CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -trimpath google-proxy/app.go && \
-            chmod +x app && cp app $PROJECT_ROOT/docker_services/infra/google-proxy/ &
+            chmod +x app && cp app $PROJECT_ROOT/docker_services/infra/google-proxy/app &
             pid1=$!
             CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o temporal-worker -trimpath worker/main.go && \
-            chmod +x temporal-worker && cp temporal-worker $PROJECT_ROOT/docker_services/infra/temporal-worker/ &
+            chmod +x temporal-worker && cp temporal-worker $PROJECT_ROOT/docker_services/infra/temporal-worker/temporal-worker &
             pid2=$!
             CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o vsa-db-setup -trimpath tools/migrate/main.go && \
             chmod +x vsa-db-setup && cp vsa-db-setup $PROJECT_ROOT/docker_services/infra/vsa-db-setup/vsa-db-setup &
             pid3=$!
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o vsa-migrator -trimpath tools/migrate/main.go && \
+            chmod +x vsa-migrator && cp vsa-migrator $PROJECT_ROOT/docker_services/infra/vsa-migrator/vsa-migrator &
+            pid4=$!
             wait $pid1
             status1=$?
             wait $pid2
             status2=$?
             wait $pid3
             status3=$?
-            if [ $status1 -ne 0 ] || [ $status2 -ne 0 ] || [ $status3 -ne 0 ]; then
+            wait $pid4
+            status4=$?
+            if [ $status1 -ne 0 ] || [ $status2 -ne 0 ] || [ $status3 -ne 0 ] || [ $status4 -ne 0 ]; then
               echo "One or more builds failed"
               exit 1
             fi
@@ -148,7 +158,7 @@ jobs:
           
           # Build containers in parallel batches
           {
-            echo "Starting batch 1: google-proxy, temporal, temporal-worker..."
+            echo "Starting batch 1: google-proxy, temporal, temporal-worker ..."
             (cd $PROJECT_ROOT/docker_services/infra/google-proxy && ./build.sh google-proxy) &
             (cd $PROJECT_ROOT/docker_services/infra/temporal && ./build.sh temporal) &
             (cd $PROJECT_ROOT/docker_services/infra/temporal-worker && ./build.sh temporal-worker) &
@@ -156,7 +166,7 @@ jobs:
           }
           
           {
-            echo "Starting batch 2: vsa-db-setup, vsa-migrator, vsa-mock-server..."
+            echo "Starting batch 2: vsa-db-setup, vsa-migrator, vsa-mock-server ..."
             (cd $PROJECT_ROOT/docker_services/infra/vsa-db-setup && ./build.sh vsa-db-setup) &
             (cd $PROJECT_ROOT/docker_services/infra/vsa-migrator && ./build.sh vsa-migrator) &
             (cd $PROJECT_ROOT/docker_services/infra/vsa-mock-server && ./build.sh vsa-mock-server) &
@@ -178,13 +188,13 @@ jobs:
           go env
           cd $PROJECT_ROOT/src/main && go run .
 
-      - name: Notify on Infra Failure
-        if: failure() && steps.starting_tests.outcome != 'failure'
-        env:
-          JSON: ${{ toJson(github.event.pull_request.base) }}
-          URL: "https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
-          WEBHOOK: ${{ secrets.VSA_INFRA_FAILURE_WEBHOOK }}
-          MESSAGE: "Integration tests infrastructure failure"
-        run: |
-          vsacictl slack notify
-          exit 1
+      # - name: Notify on Infra Failure
+      #   if: failure() && steps.starting_tests.outcome != 'failure'
+      #   env:
+      #     JSON: ${{ toJson(github.event.pull_request.base) }}
+      #     URL: "https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+      #     WEBHOOK: ${{ secrets.VSA_INFRA_FAILURE_WEBHOOK }}
+      #     MESSAGE: "Integration tests infrastructure failure"
+      #   run: |
+      #     vsacictl slack notify
+      #     exit 1

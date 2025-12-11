@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"cloud.google.com/go/storage"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -46,6 +45,8 @@ func init() {
 		initializeManagementService = _initializeMockManagementService
 		initializeNetworkingService = _initializeMockNetworkingService
 		initializeComputeService = _initializeMockComputeService
+		initializeIamService = _initializeMockIamService
+		initializeCloudProjectsService = _initializeMockCloudProjectsService
 	}
 }
 
@@ -256,20 +257,6 @@ func _initializeManagementService(ctx context.Context) (*serviceconsumermanageme
 	return svc, nil
 }
 
-func _initializeMockManagementService(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
-	logger := util.GetLogger(ctx)
-	client := &http.Client{Timeout: time.Second * 3}
-	logger.Info("#1 Using mock path for serviceconsumermanagement API: ", VSAMockPath)
-	// default path -> https://serviceconsumermanagement.googleapis.com/
-	svc, err := serviceconsumermanagement.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		return nil, err
-	}
-	logger.Info("#2 Using mock path for serviceconsumermanagement API: ", VSAMockPath)
-	svc.BasePath = fmt.Sprintf("http://%s/", VSAMockPath)
-	return svc, nil
-}
-
 // _initializeNetworkingService initializes the service networking API service
 func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APIService, error) {
 	logger := util.GetLogger(ctx)
@@ -294,20 +281,6 @@ func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APISe
 	if endpoint != "" {
 		svc.BasePath = endpoint
 	}
-	return svc, nil
-}
-
-func _initializeMockNetworkingService(ctx context.Context) (*servicenetworking.APIService, error) {
-	logger := util.GetLogger(ctx)
-
-	client := &http.Client{Timeout: time.Second * 3}
-	logger.Info("#1 Using mock path for servicenetworking API: ", VSAMockPath)
-	svc, err := servicenetworking.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		return nil, err
-	}
-	logger.Info("#2 Using mock path for servicenetworking API: ", VSAMockPath)
-	svc.BasePath = fmt.Sprintf("http://%s/", VSAMockPath)
 	return svc, nil
 }
 
@@ -393,20 +366,6 @@ func _initializeComputeService(ctx context.Context) (*compute.Service, error) {
 		svc.BasePath = endpoint
 	}
 
-	return svc, nil
-}
-
-func _initializeMockComputeService(ctx context.Context) (*compute.Service, error) {
-	logger := util.GetLogger(ctx)
-	client := &http.Client{Timeout: time.Second * 3}
-	logger.Info("#1 Using mock path for compute API: ", VSAMockPath)
-	// default path -> https://serviceconsumermanagement.googleapis.com/
-	svc, err := compute.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		return nil, err
-	}
-	logger.Info("#2 Using mock path for compute API: ", VSAMockPath)
-	svc.BasePath = fmt.Sprintf("http://%s/", VSAMockPath)
 	return svc, nil
 }
 
