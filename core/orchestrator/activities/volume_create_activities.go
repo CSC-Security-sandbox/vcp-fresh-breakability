@@ -126,8 +126,9 @@ func (a VolumeCreateActivity) GetAggregatesFromOntap(ctx context.Context, volume
 
 func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot, backup *datamodel.Backup, aggrs *models.AggregateDistributionResult) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
-	activity.RecordHeartbeat(ctx, "Starting CreateVolumeInONTAP activity")
 	se := a.SE
+
+	activity.RecordHeartbeat(ctx, "Starting CreateVolumeInONTAP activity & Getting ONTAP provider")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -371,12 +372,14 @@ func (a VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamode
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	for _, host := range hostParams {
+		activity.RecordHeartbeat(ctx, "Checking if igroup exists in ONTAP")
 		igroupExists, _, err := provider.IgroupExists(host.HostName, &volume.Svm.Name)
 		if err != nil {
 			return err
 		}
 
 		if !igroupExists {
+			activity.RecordHeartbeat(ctx, "Creating igroup in ONTAP")
 			_, err := provider.IgroupCreate(vsa.IgroupCreateParams{
 				IgroupName: host.HostName,
 				SvmName:    volume.Svm.Name,
@@ -414,6 +417,7 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 		osType = volume.VolumeAttributes.BlockProperties.OSType
 	}
 
+	activity.RecordHeartbeat(ctx, "Creating LUN in ONTAP")
 	lun, err := provider.LunCreate(vsa.LunCreateParams{
 		LunName:    lunName,
 		VolumeName: volume.Name,
@@ -423,6 +427,7 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 	})
 	if err != nil {
 		if errors.IsConflictErr(err) {
+			activity.RecordHeartbeat(ctx, "LUN already exists, retrieving existing LUN")
 			return LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
 		}
 		return nil, err
@@ -475,12 +480,15 @@ func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamode
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
+	activity.RecordHeartbeat(ctx, "Creating LUN map in ONTAP")
 	err = provider.LunMapCreate(vsa.LunMapCreateParams{
 		LunName:    params.LunName,
 		SvmName:    params.SvmName,
 		IGroupName: params.HostNames,
 	})
 	if err != nil {
+		activity.RecordHeartbeat(ctx, "Error creating LUN map in ONTAP")
 		if errors.IsConflictErr(err) {
 			return nil
 		}
@@ -525,11 +533,13 @@ func (a VolumeCreateActivity) FinaliseRestoredVolume(ctx context.Context, volume
 
 func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Volume) ([]*datamodel.HostGroup, error) {
 	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting GetHosts activity")
 
 	if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
 		blockDevice := (*volume.VolumeAttributes.BlockDevices)[0]
 		uuids := utils.GetHgUUIDs(blockDevice.HostGroupDetails)
 
+		activity.RecordHeartbeat(ctx, "Fetching host groups from database")
 		dbHostGroups, err := se.GetMultipleHostGroups(ctx, uuids, volume.AccountID)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -547,6 +557,7 @@ func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Vo
 
 	uuids := utils.GetHgUUIDs(volume.VolumeAttributes.BlockProperties.HostGroupDetails)
 
+	activity.RecordHeartbeat(ctx, "Fetching host groups from database")
 	dbHostGroups, err := se.GetMultipleHostGroups(ctx, uuids, volume.AccountID)
 	if err != nil {
 		return nil, err
@@ -556,6 +567,7 @@ func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Vo
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrAllHostGroupsNotFoundError, errors.New("all host groups could not be found")))
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished GetHosts activity")
 	return dbHostGroups, nil
 }
 

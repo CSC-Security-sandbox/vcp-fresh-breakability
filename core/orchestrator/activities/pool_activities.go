@@ -126,11 +126,18 @@ func ValidateVSAZonesForMachineType(gcpService hyperscaler2.GoogleServices, proj
 
 // ValidateZonesForMachineTypes is an activity method that validates VSA zones support the machine type
 func (j *PoolActivity) ValidateZonesForMachineTypes(ctx context.Context, projectNumber, primaryZone, secondaryZone, instanceType string) error {
+	activity.RecordHeartbeat(ctx, "Starting ValidateZonesForMachineTypes activity and Getting GCP service")
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to initialize GCP service: %w", err))
 	}
-	return ValidateVSAZonesForMachineType(gcpService, projectNumber, primaryZone, secondaryZone, instanceType)
+	activity.RecordHeartbeat(ctx, "Validating zones %s and %s for machine type %s", primaryZone, secondaryZone, instanceType)
+	err = ValidateVSAZonesForMachineType(gcpService, projectNumber, primaryZone, secondaryZone, instanceType)
+	if err != nil {
+		return err
+	}
+	activity.RecordHeartbeat(ctx, "Finished ValidateZonesForMachineTypes activity")
+	return nil
 }
 
 type PoolActivity struct {
@@ -261,8 +268,9 @@ func (j *PoolActivity) FailedPoolActivity(ctx context.Context, pool *datamodel.P
 }
 
 func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig) (*datamodel.Pool, error) {
+	activity.RecordHeartbeat(ctx, "Starting CreatedPool activity")
 	se := j.SE
-
+	activity.RecordHeartbeat(ctx, "Marking Pool as ready in the database")
 	pool, err := se.CreatedPool(ctx, pool)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -281,6 +289,7 @@ func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool, vl
 		}
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished CreatedPool activity")
 	return pool, nil
 }
 
@@ -347,30 +356,36 @@ func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.
 }
 
 func (j *PoolActivity) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
+	activity.RecordHeartbeat(ctx, "Starting ErroredPool activity")
 	se := j.SE
-
+	activity.RecordHeartbeat(ctx, "Marking Pool as error in the database")
 	res, err := se.ErroredResource(ctx, pool, errMessage)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	dbPool := res.(*datamodel.Pool)
+	activity.RecordHeartbeat(ctx, "Finished ErroredPool activity")
 	return dbPool, nil
 }
 
 func (j *PoolActivity) DeletePoolResourcesOnRollback(ctx context.Context, pool *datamodel.Pool) error {
+	activity.RecordHeartbeat(ctx, "Starting DeletePoolResourcesOnRollback activity")
 	se := j.SE
 
 	// Delete LIFs
+	activity.RecordHeartbeat(ctx, "Deleting LIFs")
 	if err := DeleteLIFs(ctx, se, pool); err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Delete SVMs
+	activity.RecordHeartbeat(ctx, "Deleting SVMs")
 	if err := DeleteSVMs(ctx, se, pool); err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Delete nodes
+	activity.RecordHeartbeat(ctx, "Deleting Nodes")
 	if err := DeleteNodes(ctx, se, pool); err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -378,19 +393,24 @@ func (j *PoolActivity) DeletePoolResourcesOnRollback(ctx context.Context, pool *
 }
 
 func (j *PoolActivity) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	activity.RecordHeartbeat(ctx, "Starting UpdatedPool activity")
 	se := j.SE
+	activity.RecordHeartbeat(ctx, "Updating Pool in the database")
 	pool, err := se.UpdatedPool(ctx, pool)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Finished UpdatedPool activity")
 	return pool, nil
 }
 
 func (j *PoolActivity) ParseVlmConfig(ctx context.Context, pool *datamodel.Pool) (*vlm.VLMConfig, error) {
+	activity.RecordHeartbeat(ctx, "Starting ParseVlmConfig activity")
 	log := util.GetLogger(ctx)
 
 	currentVlmConfig := &vlm.VLMConfig{}
 
+	activity.RecordHeartbeat(ctx, "Unmarshalling VLM config from pool")
 	// First attempt: unmarshal as-is
 	if err := json.Unmarshal([]byte(pool.VLMConfig), currentVlmConfig); err != nil {
 		log.Errorf("VLM config unmarshal failed after patching for pool %s: %v", pool.Name, err)
@@ -398,11 +418,13 @@ func (j *PoolActivity) ParseVlmConfig(ctx context.Context, pool *datamodel.Pool)
 			vsaerrors.NewVCPError(vsaerrors.ErrVLMConfigParseError, err))
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished ParseVlmConfig activity")
 	return currentVlmConfig, nil
 }
 
 func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datamodel.Pool, vlmConfig vlm.VLMConfig, updatePoolParams *commonparams.UpdatePoolParams) (*datamodel.Pool, error) {
 	se := j.SE
+	activity.RecordHeartbeat(ctx, "Starting UpdatedPoolWithVLMConfig activity")
 	marshalledVlmConfig, err := json.Marshal(vlmConfig)
 	if err != nil {
 		return nil, err
@@ -429,7 +451,14 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 		pool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.SizeInBytes)
 	}
 
-	return se.UpdatedPool(ctx, pool)
+	activity.RecordHeartbeat(ctx, "Starting pool update with new VLM config")
+	updatedPool, err := se.UpdatedPool(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+
+	activity.RecordHeartbeat(ctx, "Finished UpdatedPoolWithVLMConfig activity")
+	return updatedPool, nil
 }
 
 func (j *PoolActivity) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -982,12 +1011,16 @@ func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentNa
 }
 
 func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
+	activity.RecordHeartbeat(ctx, "Starting SavePoolWithClusterDetails activity")
 	se := j.SE
+
+	activity.RecordHeartbeat(ctx, "Saving pool with VSA details to database")
 	err := se.SavePoolWithVsaDetails(ctx, dbPool, cluster)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished SavePoolWithClusterDetails activity")
 	return nil
 }
 
@@ -1039,21 +1072,25 @@ func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamod
 }
 
 func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (*string, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetOntapVersion activity")
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
+	activity.RecordHeartbeat(ctx, "Fetching ONTAP version from provider")
 	version, err := provider.GetONTAPVersion()
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished GetOntapVersion activity")
 	return version, nil
 }
 
 func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig, svmName string) (*datamodel.Svm, error) {
+	activity.RecordHeartbeat(ctx, "Starting SaveSVMAndLifData activity")
 	se := j.SE
-
 	svm := vlmConfig.Svm[svmName]
 	svmRec := &datamodel.Svm{
 		Name:      svm.Svmname,
@@ -1065,11 +1102,13 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 		},
 	}
 
+	activity.RecordHeartbeat(ctx, "Creating SVM record in database")
 	createdSvm, err := se.CreateSVM(ctx, svmRec)
 	if err != nil && !utilErrors.IsConflictErr(err) {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Getting nodes for pool to create LIF records")
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -1107,6 +1146,7 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 				SubnetMask: vsa.DefaultNetmask,
 			}
 
+			activity.RecordHeartbeat(ctx, "Creating LIF record in database")
 			if _, err := se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {
 				return vsaerrors.WrapAsTemporalApplicationError(err)
 			}
@@ -1126,6 +1166,7 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 		return nil, err
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished SaveSVMAndLifData activity")
 	return createdSvm, nil
 }
 
@@ -1167,6 +1208,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	logger := util.GetLogger(ctx)
 	logger.Info("Creating QoS policy and applying to SVM", "svmName", svm.Name, "poolName", pool.Name)
 
+	activity.RecordHeartbeat(ctx, "Starting CreateQoSPolicyAndApplyToSVM activity & Getting ONTAP provider")
 	// Get the provider for the node - CA fields are already in the node struct from CreateNodeForProvider()
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -1185,6 +1227,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 		SvmName: svm.Name,
 	}
 
+	activity.RecordHeartbeat(ctx, "Checking for existing QoS policy group")
 	existingQosPolicy, err := provider.FindQoSGroupPolicy(findQosPolicyParams)
 	if err == nil {
 		// QoS policy already exists, check if it matches our requirements
@@ -1194,6 +1237,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 				"throughput", existingQosPolicy.MaxThroughput,
 				"iops", existingQosPolicy.MaxIOPS)
 
+			activity.RecordHeartbeat(ctx, "Applying QoS policy to SVM")
 			// Apply the existing QoS policy to the SVM using the utility function
 			return applyQoSPolicyToSVM(ctx, svm, node, existingQosPolicy.Name)
 		} else {
@@ -1213,6 +1257,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 				MaxIOPS:       maxIOPS,
 			}
 
+			activity.RecordHeartbeat(ctx, "Updating existing QoS policy group")
 			err = provider.UpdateQoSGroupPolicy(updateQosPolicyParams)
 			if err != nil {
 				logger.Error("Failed to update existing QoS policy group", "error", err, "policyName", qosPolicyName)
@@ -1221,6 +1266,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 
 			logger.Info("QoS policy group updated successfully", "policyName", existingQosPolicy.Name, "policyUUID", existingQosPolicy.UUID)
 
+			activity.RecordHeartbeat(ctx, "Applying QoS policy to SVM")
 			// Apply the updated QoS policy to the SVM using the utility function
 			return applyQoSPolicyToSVM(ctx, svm, node, existingQosPolicy.Name)
 		}
@@ -1237,6 +1283,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 		MaxIOPS:       maxIOPS,
 	}
 
+	activity.RecordHeartbeat(ctx, "Creating QoS policy group")
 	qosPolicyResponse, err := provider.CreateQoSGroupPolicy(qosPolicyParams)
 	if err != nil {
 		logger.Error("Failed to create QoS policy group", "error", err, "policyName", qosPolicyName)
@@ -1245,6 +1292,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 
 	logger.Info("QoS policy group created successfully", "policyName", qosPolicyResponse.Name, "policyUUID", qosPolicyResponse.UUID)
 
+	activity.RecordHeartbeat(ctx, "Applying QoS policy to SVM")
 	// Apply the QoS policy to the SVM using the utility function
 	return applyQoSPolicyToSVM(ctx, svm, node, qosPolicyResponse.Name)
 }
@@ -1255,12 +1303,14 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	logger := util.GetLogger(ctx)
 	logger.Info("Modifying QoS policy and applying to SVM", "poolName", pool.Name)
 
+	activity.RecordHeartbeat(ctx, "Starting ModifyQoSPolicyAndApplyToSVM activity & Getting ONTAP provider")
 	// Get the provider for the node - CA fields are already in the node struct from CreateNodeForProvider()
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finding SVM for pool")
 	// Find the SVM related to the pool
 	svm, err := j.GetSvmForPoolID(ctx, pool.ID)
 	if err != nil {
@@ -1281,6 +1331,7 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 		SvmName: svm.Name,
 	}
 
+	activity.RecordHeartbeat(ctx, "Finding existing QoS policy group")
 	existingQosPolicy, err := provider.FindQoSGroupPolicy(findQosPolicyParams)
 	if err != nil {
 		logger.Error("Failed to find existing QoS policy", "error", err, "policyName", qosPolicyName)
@@ -1314,6 +1365,7 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 		MaxIOPS:       *newMaxIOPS,
 	}
 
+	activity.RecordHeartbeat(ctx, "Updating QoS policy group")
 	err = provider.UpdateQoSGroupPolicy(updateQosPolicyParams)
 	if err != nil {
 		logger.Error("Failed to update QoS policy group", "error", err, "policyName", qosPolicyName)
@@ -1323,14 +1375,18 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	logger.Info("QoS policy group updated successfully", "policyName", existingQosPolicy.Name, "policyUUID", existingQosPolicy.UUID)
 
 	// Apply the updated QoS policy to the SVM using the utility function
-	return applyQoSPolicyToSVM(ctx, svm, node, existingQosPolicy.Name)
+	res := applyQoSPolicyToSVM(ctx, svm, node, existingQosPolicy.Name)
+	activity.RecordHeartbeat(ctx, "Finished ModifyQoSPolicyAndApplyToSVM activity")
+	return res
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
 func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName string, locationInfo *commonparams.LocationInfo, tenancyInfo *commonparams.TenancyInfo, saEmail string, autoTierBucket string, isLargeCapacityPool bool) (*vlm.VLMConfig, error) {
+	activity.RecordHeartbeat(ctx, "Starting IdentifyVMs activity")
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying VMs to use for VSA cluster")
 
+	activity.RecordHeartbeat(ctx, "Loading VMRS Config")
 	// Parse VMRS config.
 	vmrsConfig, err := LoadVMRSConfig(vmrsConfigPath)
 	if err != nil {
@@ -1352,6 +1408,7 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Finding optimal VMs")
 	vlmConfig := &vlm.VLMConfig{}
 	decision, err := decisionMaker.FindOptimalVMs(vmrsConfig, customerRequest, vlmConfig)
 	if err != nil {
@@ -1364,6 +1421,7 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 		subnet = tenancyInfo.SubnetworkNames[len(tenancyInfo.SubnetworkNames)-1]
 	}
 
+	activity.RecordHeartbeat(ctx, "Preparing VLM config")
 	// Convert the decision to a VLMConfig.
 	err = PrepareVlmConfig(vlmConfig, deploymentName, locationInfo.Region, locationInfo.PrimaryZone, locationInfo.SecondaryZone, tenancyInfo.Network, subnet, tenancyInfo.RegionalTenantProject, tenancyInfo.SnHostProject, decision, saEmail, autoTierBucket)
 	if err != nil {
@@ -1374,6 +1432,7 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 		vlmConfig.Deployment.NumHAPair = decision.ClusterMetadata.NumHAPairs
 	}
 
+	activity.RecordHeartbeat(ctx, "Finished IdentifyVMs activity")
 	return vlmConfig, nil
 }
 
@@ -1636,15 +1695,19 @@ func loadVlmConfigFromFile() (*vlm.VLMConfig, error) {
 // The serial number is 20 digits: the first 3 digits are a fixed prefix (935), the next 2 digits are the region code (up to 99 regions, currently 42 in use),
 // and the remaining 15 digits are a per-region counter. All 20 digits are generated and assigned by the control plane; there is no reservation for VLM.
 func (j *PoolActivity) AllocateClusterSerialNumber(ctx context.Context, cfg *vlm.CreateVSAClusterDeploymentRequest) (*vlm.CreateVSAClusterDeploymentRequest, error) {
+	activity.RecordHeartbeat(ctx, "Starting AllocateClusterSerialNumber activity")
 	logger := util.GetLogger(ctx)
 	se := j.SE
 
+	activity.RecordHeartbeat(ctx, "Generating unique serial number for VSA cluster")
 	// generate unique serial number for the cluster
 	err := assignUniqueSerialNumber(ctx, se, cfg)
 	if err != nil {
 		logger.Error("Failed to assign unique serial number for VSA cluster", "error", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGeneratingUniqueSerialNumber, err)
 	}
+
+	activity.RecordHeartbeat(ctx, "Finished AllocateClusterSerialNumber activity")
 	return cfg, nil
 }
 
@@ -1721,20 +1784,24 @@ func (j *PoolActivity) GetCloudDNSRecords(ctx context.Context, poolId int64, aut
 }
 
 func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig, deploymentName string, hostMap map[string]string) (node1 *datamodel.Node, err error) {
+	activity.RecordHeartbeat(ctx, "Starting SaveVSANodeDetails activity")
 	if len(vlmConfig.Cloud.HAPairs) == 0 {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(
 			vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("no cluster details provided")))
 	}
 	for _, details := range vlmConfig.Cloud.HAPairs {
+		activity.RecordHeartbeat(ctx, "Saving node details for VM1")
 		node1, err = SaveNodeDetails(ctx, j.SE, details.VM1, vlmConfig.Deployment, pool, deploymentName, hostMap)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
+		activity.RecordHeartbeat(ctx, "Saving node details for VM2")
 		_, err = SaveNodeDetails(ctx, j.SE, details.VM2, vlmConfig.Deployment, pool, deploymentName, hostMap)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}
+	activity.RecordHeartbeat(ctx, "Finished SaveVSANodeDetails activity")
 	return node1, nil
 }
 
@@ -1790,12 +1857,14 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 }
 
 func (j *PoolActivity) GetPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetPool activity")
 	se := j.SE
 	poolView, err := se.GetPool(ctx, pool.UUID, pool.AccountID)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	dbPool := database.ConvertPoolViewToPool(poolView)
+	activity.RecordHeartbeat(ctx, "Finished GetPool activity")
 	return dbPool, nil
 }
 
@@ -1832,15 +1901,21 @@ func (j *PoolActivity) GetSvmForPoolID(ctx context.Context, poolID int64) (*data
 }
 
 func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	activity.RecordHeartbeat(ctx, "Starting DeletingPoolResources activity")
 	se := j.SE
+
+	activity.RecordHeartbeat(ctx, "Deleting SVMs")
 	// Update SVM, and Pool States to Deleting
 	if err := DeletingSVMs(ctx, se, pool); err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Deleting Nodes")
 	if err := DeletingNodes(ctx, se, pool); err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
+	activity.RecordHeartbeat(ctx, "Finished DeletingPoolResources activity")
 	return pool, nil
 }
 
@@ -1892,26 +1967,33 @@ func _releaseSubnetOp(service hyperscaler2.GoogleServices, projectId, subnetName
 // DeletePoolResources deletes all pool resources and the pool record from the database.
 func (j *PoolActivity) DeletePoolResources(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
+	activity.RecordHeartbeat(ctx, "Starting DeletePoolResources activity")
 
+	activity.RecordHeartbeat(ctx, "Deleting LIFs")
 	// Delete LIFs
 	if err := DeleteLIFs(ctx, se, pool); err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Deleting SVMs")
 	// Delete SVMs
 	if err := DeleteSVMs(ctx, se, pool); err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Deleting Nodes")
 	// Delete nodes
 	if err := DeleteNodes(ctx, se, pool); err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Deleting Pool")
 	// Delete the pool itself from a database
 	if err := se.DeletePool(ctx, pool); err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
+	activity.RecordHeartbeat(ctx, "Finished DeletePoolResources activity")
 	return pool, nil
 }
 
@@ -2476,15 +2558,18 @@ func _getGatewayFromIpCidrRange(ipCidrRange string) (string, error) {
 // IdentifySecondaryAndMediatorZone identifies the secondary and mediator zones for a cluster
 // and returns the resolved zones.
 func (j *PoolActivity) IdentifySecondaryAndMediatorZone(ctx context.Context, projectNumber string, locationInfo *commonparams.LocationInfo, instanceType string, isRegionalHA bool) (*commonparams.LocationInfo, error) {
+	activity.RecordHeartbeat(ctx, "Starting IdentifySecondaryAndMediatorZone activity")
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying secondary and mediator zones for cluster")
 
+	activity.RecordHeartbeat(ctx, "Getting GCP service")
 	// Get GCP service
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Getting secondary and mediator zones")
 	// Use ResolveZonesForCluster to get the secondary and mediator zones
 	resolvedSecondaryZone, resolvedMediatorZone, err := ResolveZonesForCluster(gcpService, projectNumber, locationInfo.Region, locationInfo.PrimaryZone, locationInfo.SecondaryZone, locationInfo.MediatorZone, instanceType, isRegionalHA)
 	if err != nil {
@@ -2504,6 +2589,7 @@ func (j *PoolActivity) IdentifySecondaryAndMediatorZone(ctx context.Context, pro
 		"secondaryZone", resolvedSecondaryZone,
 		"mediatorZone", resolvedMediatorZone)
 
+	activity.RecordHeartbeat(ctx, "Finished IdentifySecondaryAndMediatorZone activity")
 	return updatedLocationInfo, nil
 }
 
@@ -2511,8 +2597,10 @@ func (j *PoolActivity) AllocateSVMName(ctx context.Context, pool *datamodel.Pool
 	// TODO: This function currently just adds a sequence to the SVM name.
 	// It will be enhanced later when multiple SVM support is added to handle
 	// more sophisticated naming strategies and SVM allocation logic.
+	activity.RecordHeartbeat(ctx, "Starting AllocateSVMName activity")
 	se := j.SE
 
+	activity.RecordHeartbeat(ctx, "Getting next SVM index for pool")
 	// Get the next SVM index directly from the database
 	nextSequence, err := se.GetNextSVMIndexByPoolID(ctx, pool.ID)
 	if err != nil {
@@ -2522,8 +2610,11 @@ func (j *PoolActivity) AllocateSVMName(ctx context.Context, pool *datamodel.Pool
 	// Format the sequence with leading zeros (01, 02, 03, etc.)
 	sequenceStr := fmt.Sprintf("%02d", nextSequence)
 
-	// Return SVM name with sequence
-	return fmt.Sprintf("%s-svm-%s", pool.DeploymentName, sequenceStr), nil
+	// SVM name with sequence
+	svmName := fmt.Sprintf("%s-svm-%s", pool.DeploymentName, sequenceStr)
+
+	activity.RecordHeartbeat(ctx, "Finished AllocateSVMName activity")
+	return svmName, nil
 }
 
 // GetComputeOpStatus returns the status (and result) of a Google's compute networking operation for global and regional operations
@@ -2637,15 +2728,18 @@ func (j *PoolActivity) GetInterClusterLifsFromVLMConfig(ctx context.Context, vlm
 // by using the decision maker's comparison method.
 // Returns true if scaling up (new VM is more expensive), false if scaling down (new VM is cheaper).
 func (j *PoolActivity) DetermineVMScalingDirection(ctx context.Context, vmrsConfigPath string, currentInstanceType string, newInstanceType string) (bool, error) {
+	activity.RecordHeartbeat(ctx, "Starting DetermineVMScalingDirection activity")
 	logger := util.GetLogger(ctx)
 	logger.Debug("Determining VM scaling direction", "currentType", currentInstanceType, "newType", newInstanceType)
 
+	activity.RecordHeartbeat(ctx, "Load VMRS config")
 	// Parse VMRS config to get access to decision maker
 	vmrsConfig, err := LoadVMRSConfig(vmrsConfigPath)
 	if err != nil {
 		return false, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Create decision maker")
 	// Create decision maker to access the comparison method
 	decisionMaker, err := CreateDecisionMaker(vmrsConfig)
 	if err != nil {
@@ -2653,6 +2747,7 @@ func (j *PoolActivity) DetermineVMScalingDirection(ctx context.Context, vmrsConf
 		return false, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, "Comparing VM scaling direction")
 	// Use the decision maker's comparison method directly
 	// This eliminates the need for type casting and makes the code more maintainable
 	isScalingUp, err := decisionMaker.CompareVMScalingDirection(currentInstanceType, newInstanceType)
@@ -2666,17 +2761,22 @@ func (j *PoolActivity) DetermineVMScalingDirection(ctx context.Context, vmrsConf
 		"newType", newInstanceType,
 		"isScalingUp", isScalingUp)
 
+	activity.RecordHeartbeat(ctx, "Finished DetermineVMScalingDirection activity")
 	return isScalingUp, nil
 }
 
 // UpdatePoolFields updates specific fields of a pool without changing its state
 // This is a generic method that can be used to update any combination of pool fields
 func (j *PoolActivity) UpdatePoolFields(ctx context.Context, poolUUID string, updates map[string]interface{}) error {
+	activity.RecordHeartbeat(ctx, "Starting UpdatePoolFields activity")
 	se := j.SE
+
+	activity.RecordHeartbeat(ctx, "Updating pool fields")
 	err := se.UpdatePoolFields(ctx, poolUUID, updates)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Finished UpdatePoolFields activity")
 	return nil
 }
 

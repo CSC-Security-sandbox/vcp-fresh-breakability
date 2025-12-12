@@ -218,6 +218,10 @@ data:
   RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.retryBackoffCoefficient | quote }}
   BACKOFF_COEFFICIENT_FOR_REPLICATION_ACTIVITIES: {{$.Values.workerConfig.backoffCoefficientForReplicationActivities | quote }}
 
+  # Pool workflow timeout configuration
+  POOL_ACTIVITY_HEARTBEAT_TIMEOUT: {{$.Values.workerConfig.poolActivityHeartbeatTimeout | quote }}
+  DATABASE_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.databaseHeartbeatTimeoutSec | quote }}
+
   # Volume activities timeout configuration
   VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.volumeActivitiesStartToCloseTimeoutSec | quote }}
   VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.volumeActivitiesHeartbeatTimeoutSec | quote }}

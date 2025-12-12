@@ -156,6 +156,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
@@ -166,6 +167,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
 	dbPool := pool
 
 	rollbackManager := common.NewRollbackManager()
@@ -208,7 +210,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	dbPool.SnHostProject = tenancyDetails.SnHostProject
 	dbPool.ClusterDetails = *tenancyInfo
-	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, tenancyInfo).Get(ctx, nil)
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SavePoolWithClusterDetails, dbPool, tenancyInfo).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -360,13 +362,13 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	rollbackManager.AddActivity(poolActivity.DeleteCloudDNSRecords, hostMap, pool.PoolCredentials.AuthType)
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, &hostMap).Get(ctx, nil)
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SaveVSANodeDetails, dbPool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, &hostMap).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
 	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
+	err = workflow.ExecuteActivity(dbHbCtx, activities.CommonActivities.GetNode, pool.ID).Get(dbHbCtx, &dbNodes)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -421,7 +423,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		SubnetNames:           tenancyDetails.SubnetworkNames,
 	}
 	dbPool.SnHostProject = tenancyDetails.SnHostProject
-	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(ctx, nil)
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -437,9 +439,9 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 		if subnetToIPsReserved != nil {
 			clusterDetails.ReservedIPsInSubnet = subnetToIPsReserved
-			err1 = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
+			err1 = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
 				"cluster_details": clusterDetails,
-			}).Get(ctx, nil)
+			}).Get(dbHbCtx, nil)
 			if err1 != nil {
 				wf.Logger.Errorf("Failed to save IPs consumed by deployment in the alloted subnet in DB, error: %v", err1)
 			}
@@ -462,7 +464,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	svm := &datamodel.Svm{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.SaveSVMAndLifData, dbPool, createSVMResponse.VLMConfig, svmName).Get(ctx, svm)
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SaveSVMAndLifData, dbPool, createSVMResponse.VLMConfig, svmName).Get(dbHbCtx, svm)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -517,7 +519,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool, &createSVMResponse.VLMConfig).Get(ctx, nil)
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.CreatedPool, dbPool, &createSVMResponse.VLMConfig).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -679,6 +681,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
 	rollbackManager := common.NewRollbackManager()
 
 	defer func() {
@@ -727,7 +730,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		updateAutoTieringFields(dbPool, updatePoolParams)
 
 		rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
-		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, dbPool).Get(ctx, nil)
+		err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatedPool, dbPool).Get(dbHbCtx, nil)
 		return nil, ConvertToVSAError(err)
 	}
 
@@ -817,7 +820,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Get nodes for the pool to modify QoS policy
 	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
+	err = workflow.ExecuteActivity(dbHbCtx, activities.CommonActivities.GetNode, pool.ID).Get(dbHbCtx, &dbNodes)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -849,9 +852,9 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			LdapEnabled:     dbPool.PoolAttributes.LdapEnabled,
 		}
 		// Update pool in DB to reflect QoS changes
-		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
+		err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
 			"pool_attributes": updatedPoolAttributes,
-		}).Get(ctx, nil)
+		}).Get(dbHbCtx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -899,7 +902,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	// Update pool with VLM config
-	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPoolWithVLMConfig, dbPool, updateVSAClusterDeploymentResponse.VLMConfig, updatePoolParams).Get(ctx, nil)
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatedPoolWithVLMConfig, dbPool, updateVSAClusterDeploymentResponse.VLMConfig, updatePoolParams).Get(dbHbCtx, nil)
 	return nil, ConvertToVSAError(err)
 }
 
@@ -1017,6 +1020,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
 	rollbackManager := common.NewRollbackManager()
 
 	defer func() {
@@ -1029,7 +1033,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: params.PoolID},
 	}
-	err = workflow.ExecuteActivity(ctx, poolActivity.GetPool, dbPool).Get(ctx, &dbPool)
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.GetPool, dbPool).Get(dbHbCtx, &dbPool)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -1038,7 +1042,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// this rollback manager will be invoked whenever there is an error, and it will start calling clean up activities in LIFO manner ***/
 	rollbackManager.AddActivity(poolActivity.FailedPool, dbPool, "Failed to delete pool")
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeletingPoolResources, dbPool).Get(ctx, nil)
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.DeletingPoolResources, dbPool).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -1117,7 +1121,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeletePoolResources, dbPool).Get(ctx, nil)
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.DeletePoolResources, dbPool).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

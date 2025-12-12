@@ -53,6 +53,7 @@ var (
 	RetryMaxAttempts                            = env.GetInt("RETRY_MAX_ATTEMPTS", 3)
 	RetryMaxInterval                            = env.GetString("RETRY_MAX_INTERVAL", "5m")
 	RetryBackoff                                = env.GetString("RETRY_BACKOFF_COEFFICIENT", "2.0")
+	ActivityHeartBeatTimeout                    = env.GetString("POOL_ACTIVITY_HEARTBEAT_TIMEOUT", "5m")
 
 	// Service Account specific retry policy configurations
 	SARetryStartToCloseTimeout = env.GetString("SA_RETRY_START_TO_CLOSE_TIMEOUT", "25m")
@@ -80,6 +81,7 @@ type WorkflowRetryPolicy struct {
 	MaximumInterval     time.Duration
 	MaximumAttempts     int
 	StartToCloseTimeout time.Duration
+	HeartBeatTimeout    time.Duration
 }
 
 // WorkflowInterface defines the common methods for all workflows.
@@ -143,12 +145,17 @@ func PopulateRetryPolicyParams(largeCapacity ...bool) (*WorkflowRetryPolicy, err
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
 	}
+	activityHeartBeatTimeout, err := time.ParseDuration(ActivityHeartBeatTimeout)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
+	}
 	return &WorkflowRetryPolicy{
 		InitialInterval:     activityRetryInterval,
 		StartToCloseTimeout: activityStartToCloseTimeout,
 		BackoffCoefficient:  activityRetryBackoff,
 		MaximumInterval:     activityRetryMaxInterval,
 		MaximumAttempts:     activityRetryMaxAttempts,
+		HeartBeatTimeout:    activityHeartBeatTimeout,
 	}, nil
 }
 

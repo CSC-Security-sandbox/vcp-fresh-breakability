@@ -2,7 +2,6 @@ package workflows
 
 import (
 	"fmt"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -17,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -28,6 +28,7 @@ var (
 	thinCloneGASupport           = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
 	volumeStartToCloseTimeoutSec = env.GetUint64("VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC", 600)
 	volumeHeartbeatTimeoutSec    = env.GetUint64("VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC", 300)
+	dbHeartbeatTimeoutSec        = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 10)
 	enableKerberos               = env.GetBool("ENABLE_KERBEROS", false)
 )
 
@@ -631,6 +632,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
 	var backupVault *datamodel.BackupVault
 	var backup *datamodel.Backup
 
@@ -690,7 +692,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(dbHbCtx, nil)
 			if err2 != nil {
 				log.Errorf("Failed to update volume state in DB to error: %v", err2)
 			}
@@ -751,7 +753,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	// Persisting ExternalUUID in the database to ensure it is available for ONTAP volume deletion during cleanup triggered by CCFE/VCP
 	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
-	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeAttributesInDB, dbVolume.UUID, dbVolume.VolumeAttributes).Get(ctx, nil)
+	err = workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeAttributesInDB, dbVolume.UUID, dbVolume.VolumeAttributes).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -957,7 +959,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
-	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(ctx, nil)
+	err = workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

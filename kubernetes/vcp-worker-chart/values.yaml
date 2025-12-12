@@ -265,6 +265,10 @@ workerConfig:
   backgroundWorkflowStartToCloseTimeoutSec: "300"  # 5 minutes
   backgroundWorkflowHeartbeatTimeoutSec: "150"     # 2.5 minutes
 
+  # Pool workflow timeout configuration
+  poolActivityHeartbeatTimeout: "5m"  # Pool activity heartbeat timeout
+  databaseHeartbeatTimeoutSec: "10"   # Database operations heartbeat timeout in seconds
+
   # Auto-Tiering workflow timeout configuration
   syncVSAAutoTieringWorkflowStartToCloseTimeoutSec: "300"
   autoTieringPauseResumeWorkflowStartToCloseTimeoutSec: "300"

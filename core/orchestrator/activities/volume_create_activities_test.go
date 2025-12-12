@@ -1210,10 +1210,14 @@ func TestUpdateVolumeDetails_Failure(t *testing.T) {
 }
 
 func TestGetHosts_WithBlockDevices_Success(t *testing.T) {
+	// Setup Temporal test environment
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetHosts)
 
 	blockDevices := []datamodel.BlockDevice{
 		{
@@ -1253,22 +1257,29 @@ func TestGetHosts_WithBlockDevices_Success(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("GetMultipleHostGroups", ctx, []string{"hg-uuid-1", "hg-uuid-2"}, int64(1)).Return(expectedHostGroups, nil)
+	mockStorage.On("GetMultipleHostGroups", mock.Anything, []string{"hg-uuid-1", "hg-uuid-2"}, int64(1)).Return(expectedHostGroups, nil)
 
 	// Act
-	result, err := activity.GetHosts(ctx, volume)
+	encodedValue, err := env.ExecuteActivity(activity.GetHosts, volume)
 
 	// Assert
+	assert.NoError(t, err)
+	var result []*datamodel.HostGroup
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedHostGroups, result)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestGetHosts_WithBlockDevices_HostGroupsNotFound(t *testing.T) {
+	// Setup Temporal test environment
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetHosts)
 
 	blockDevices := []datamodel.BlockDevice{
 		{
@@ -1309,23 +1320,26 @@ func TestGetHosts_WithBlockDevices_HostGroupsNotFound(t *testing.T) {
 		t.Fatalf("Failed to create error handler: %v", err)
 	}
 
-	mockStorage.On("GetMultipleHostGroups", ctx, []string{"hg-uuid-1", "hg-uuid-2"}, int64(1)).Return(expectedHostGroups, nil)
+	mockStorage.On("GetMultipleHostGroups", mock.Anything, []string{"hg-uuid-1", "hg-uuid-2"}, int64(1)).Return(expectedHostGroups, nil)
 
 	// Act
-	result, err := activity.GetHosts(ctx, volume)
+	_, err = env.ExecuteActivity(activity.GetHosts, volume)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "All host groups could not be found")
 	mockStorage.AssertExpectations(t)
 }
 
 func TestGetHosts_WithBlockDevices_GetMultipleHostGroupsError(t *testing.T) {
+	// Setup Temporal test environment
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetHosts)
 
 	blockDevices := []datamodel.BlockDevice{
 		{
@@ -1350,23 +1364,27 @@ func TestGetHosts_WithBlockDevices_GetMultipleHostGroupsError(t *testing.T) {
 
 	expectedError := errors.New("database error")
 
-	mockStorage.On("GetMultipleHostGroups", ctx, []string{"hg-uuid-1"}, int64(1)).Return(nil, expectedError)
+	mockStorage.On("GetMultipleHostGroups", mock.Anything, []string{"hg-uuid-1"}, int64(1)).Return(nil, expectedError)
 
 	// Act
-	result, err := activity.GetHosts(ctx, volume)
+	_, err := env.ExecuteActivity(activity.GetHosts, volume)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Equal(t, expectedError, err)
+	assert.Contains(t, err.Error(), "database error")
 	mockStorage.AssertExpectations(t)
 }
 
 func TestGetHosts_Success(t *testing.T) {
+	// Setup Temporal test environment
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetHosts)
+
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: &datamodel.BlockProperties{
@@ -1387,22 +1405,30 @@ func TestGetHosts_Success(t *testing.T) {
 		{Name: "host-group-2"},
 	}
 
-	mockStorage.On("GetMultipleHostGroups", ctx, []string{"uuid1", "uuid2"}, int64(123)).Return(expectedHostGroups, nil)
+	mockStorage.On("GetMultipleHostGroups", mock.Anything, []string{"uuid1", "uuid2"}, int64(123)).Return(expectedHostGroups, nil)
 
 	// Act
-	hostGroups, err := activity.GetHosts(ctx, volume)
+	encodedValue, err := env.ExecuteActivity(activity.GetHosts, volume)
 
 	// Assert
+	assert.NoError(t, err)
+	var hostGroups []*datamodel.HostGroup
+	err = encodedValue.Get(&hostGroups)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedHostGroups, hostGroups)
 	mockStorage.AssertExpectations(t)
 }
 
 func TestGetHosts_Failure_BlockPropertiesNotFound(t *testing.T) {
+	// Setup Temporal test environment
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetHosts)
+
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: nil,
@@ -1410,19 +1436,23 @@ func TestGetHosts_Failure_BlockPropertiesNotFound(t *testing.T) {
 	}
 
 	// Act
-	hostGroups, err := activity.GetHosts(ctx, volume)
+	_, err := env.ExecuteActivity(activity.GetHosts, volume)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, hostGroups)
-	assert.Equal(t, "block properties not found", err.Error())
+	assert.Contains(t, err.Error(), "block properties not found")
 }
 
 func TestGetHosts_Failure_HostGroupsNotFound(t *testing.T) {
+	// Setup Temporal test environment
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetHosts)
+
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: &datamodel.BlockProperties{
@@ -1442,23 +1472,27 @@ func TestGetHosts_Failure_HostGroupsNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create error handler: %v", err)
 	}
-	mockStorage.On("GetMultipleHostGroups", ctx, []string{"uuid1", "uuid2"}, int64(123)).Return([]*datamodel.HostGroup{}, nil)
+	mockStorage.On("GetMultipleHostGroups", mock.Anything, []string{"uuid1", "uuid2"}, int64(123)).Return([]*datamodel.HostGroup{}, nil)
 
 	// Act
-	hostGroups, err := activity.GetHosts(ctx, volume)
+	_, err = env.ExecuteActivity(activity.GetHosts, volume)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, hostGroups)
 	assert.Contains(t, err.Error(), "All host groups could not be found")
 	mockStorage.AssertExpectations(t)
 }
 
 func TestGetHosts_Failure_GetMultipleHostGroupsError(t *testing.T) {
+	// Setup Temporal test environment
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	env.RegisterActivity(activity.GetHosts)
+
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: &datamodel.BlockProperties{
@@ -1476,15 +1510,14 @@ func TestGetHosts_Failure_GetMultipleHostGroupsError(t *testing.T) {
 	}
 	expectedError := errors.New("failed to fetch host groups")
 
-	mockStorage.On("GetMultipleHostGroups", ctx, []string{"uuid1", "uuid2"}, int64(123)).Return(nil, expectedError)
+	mockStorage.On("GetMultipleHostGroups", mock.Anything, []string{"uuid1", "uuid2"}, int64(123)).Return(nil, expectedError)
 
 	// Act
-	hostGroups, err := activity.GetHosts(ctx, volume)
+	_, err := env.ExecuteActivity(activity.GetHosts, volume)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, hostGroups)
-	assert.EqualError(t, err, expectedError.Error())
+	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
 }
 
